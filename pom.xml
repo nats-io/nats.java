@@ -5,11 +5,4 @@
   <version>0.0.1-SNAPSHOT</version>
   <name>jnats</name>
   <description>Java client for NATS Messaging System</description>
-  <dependencies>
-  	<dependency>
-  		<groupId>io.netty</groupId>
-  		<artifactId>netty-all</artifactId>
-  		<version>4.0.32.Final</version>
-  	</dependency>
-  </dependencies>
 </project>
