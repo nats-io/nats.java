@@ -8,7 +8,9 @@ package io.nats.client;
  *
  */
 public interface Connection {
-	public Subscription subscribe(String subject, MessageHandler cb);
-	public Subscription subscribe(String subject, String queue, MessageHandler cb);
-
+	Subscription subscribe(String subject, MessageHandler cb);
+	Subscription subscribe(String subject, String queue, MessageHandler cb);
+	Subscription subscribeSync(String subj);
+	Subscription QueueSubscribe(String subject, String queue, MessageHandler cb);
+	Subscription QueueSubscribeSync(String subject, String queue);
 }

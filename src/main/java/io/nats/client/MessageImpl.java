@@ -1,28 +1,27 @@
 /**
  * 
  */
-package io.nats.client.impl;
+package io.nats.client;
 
 import java.util.Arrays;
 
-import io.nats.client.Message;
-import io.nats.client.impl.Parser.MsgArg;
+import io.nats.client.Parser.MsgArg;
 
 /**
  * @author Larry McQueary
  *
  */
-public class NATSMessage implements Message {
-	protected NATSMessage() {
+public class MessageImpl implements Message {
+	protected MessageImpl() {
 		
 	}
-	public NATSMessage(MsgArg msgArgs, NATSSubscription s, byte[] msg, long length) {
+	public MessageImpl(MsgArg msgArgs, SubscriptionImpl s, byte[] msg, long length) {
 		// TODO Auto-generated constructor stub
 	}
 	private String subject;
 	private String replyTo;
 	private byte[] data;  
-	protected NATSSubscription sub;
+	protected SubscriptionImpl sub;
 
 	@Override
 	public byte[] getData() {
@@ -63,4 +62,31 @@ public class NATSMessage implements Message {
 			this.data = Arrays.copyOfRange(data, offset, len);
 		return this;
 	}
+	
+	/**
+	 * (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 * @return a string reprsenetation of the message
+	 */
+	@Override
+    public String toString()
+    {
+		int maxBytes = 32;
+		byte[] b = getData();
+		int len = b.length;
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append(String.format(
+				"{Subject=%s;Reply=%s;Payload=<%s", 
+				getSubject(), getReplyTo(),
+				(b.length <= maxBytes) ? b.toString() : new String(b, 0, maxBytes-1)));
+
+		if (b.length > maxBytes) {
+            sb.append(String.format("%d more bytes", len-maxBytes));
+		}
+		
+		sb.append(">}");
+
+        return sb.toString();
+    }
 }

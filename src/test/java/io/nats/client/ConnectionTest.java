@@ -8,10 +8,10 @@ import java.net.URISyntaxException;
 
 import org.junit.Test;
 
-import io.nats.client.impl.NATSConnection;
-import io.nats.client.impl.NATSConnection.ConnState;
+import io.nats.client.ConnectionImpl.ConnState;
 
 public class ConnectionTest {
+	boolean gotMessage = false;
 
 	@Test(expected = NoServersException.class)
 	public void whenNoServersExistExceptionIsThrown() throws IOException, URISyntaxException, NoServersException {
@@ -19,7 +19,7 @@ public class ConnectionTest {
 		String url = null;
 		o.setUrl(url);
 		
-		NATSConnection conn = new NATSConnection(o);
+		ConnectionImpl conn = new ConnectionImpl(o);
 //		conn.connect();
 		System.out.println("end of test");
 
@@ -29,17 +29,28 @@ public class ConnectionTest {
 	public void testConnect() throws Exception {
 		Options o = new Options();
 		o.setUrl(new URI("nats://localhost:4222"));
-		NATSConnection conn = new NATSConnection(o);
+		ConnectionImpl conn = new ConnectionImpl(o);
 		conn.connect();
 		if (conn.status != ConnState.CONNECTED)
 			fail("didn't connect");
+		
+		conn.subscribe("foo", new MessageHandler() {
+			public void onMessage(Message msg) {
+				System.out.print("Got a message: " + msg.toString());
+				gotMessage=true;
+			}
+		});
+		
+		while (!gotMessage) {
+			
+		}
 	}
 	
 //	@Test
 //	public void testSub() throws Exception {
 //		Options o = new Options();
 //		o.setUrl(new URI("nats://localhost:4222"));
-//		NATSConnection conn = new NATSConnection(o);
+//		ConnectionImpl conn = new ConnectionImpl(o);
 //		conn.connect();
 //	}
 }

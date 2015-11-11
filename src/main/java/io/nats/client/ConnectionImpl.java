@@ -1,4 +1,4 @@
-package io.nats.client.impl;
+package io.nats.client;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -24,33 +24,15 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import io.nats.client.ConnEventArgs;
-import io.nats.client.ConnEventHandler;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionClosedException;
-import io.nats.client.ConnectionException;
-import io.nats.client.ConnectionFactory;
-import io.nats.client.ErrEventArgs;
-import io.nats.client.ErrorEventHandler;
-import io.nats.client.ExceptionHandler;
-import io.nats.client.MessageHandler;
-import io.nats.client.NATSException;
-import io.nats.client.NATSThread;
-import io.nats.client.NATSThreadFactory;
-import io.nats.client.NoServersException;
-import io.nats.client.Options;
-import io.nats.client.ParseException;
-import io.nats.client.SecureConnRequiredException;
-import io.nats.client.StaleConnectionException;
-import io.nats.client.Subscription;
-import io.nats.client.impl.Parser.MsgArg;
+import io.nats.client.Parser.MsgArg;
 
-public class NATSConnection implements Connection {
+public class ConnectionImpl implements Connection {
 //    protected class Channel<T> extends LinkedBlockingQueue<T> {}
-	private NATSConnection nc = this;
+	private ConnectionImpl nc = this;
 	private static final int DEFAULT_READ_LENGTH = 512;
 	
 	public class Channel<T> extends LinkedBlockingQueue<T> {
@@ -77,6 +59,7 @@ public class NATSConnection implements Connection {
 	}
 
 	private final Lock mu 					= new ReentrantLock();
+	private AtomicInteger sidCounter		= new AtomicInteger();
 	private URI url 						= null;
 	private Options opts 					= null;
 
@@ -96,7 +79,7 @@ public class NATSConnection implements Connection {
     private boolean flusherKicked 			= false;
     private boolean flusherDone     		= false;
 
-	private Map<Integer, NATSSubscription> subs = null;
+	private Map<Integer, SubscriptionImpl> subs = null;
 	private List<Srv> srvPool 				= null;
 	private Exception lastEx 				= null;
 	private ServerInfo info 				= null;
@@ -118,12 +101,14 @@ public class NATSConnection implements Connection {
 	private final ExecutorService taskExec = Executors.newFixedThreadPool(NUM_TASK_THREADS, new NATSThreadFactory("natsthreadfactory"));
 	private Vector<Void> futures			= new Vector<Void>(); 
 	
-	public NATSConnection(Options o) throws NoServersException {
+	public ConnectionImpl(Options o) throws NoServersException {
 		this.opts = o;
-		this.subs = new ConcurrentHashMap<Integer, NATSSubscription>();
+		this.subs = new ConcurrentHashMap<Integer, SubscriptionImpl>();
 		this.stats = new Statistics();
 		this.ps = new Parser(this);
 
+		sidCounter.set(0);
+		
 		pingProtoBytes = PING_PROTO.getBytes();
 		pingProtoBytesLen = pingProtoBytes.length;
 		pongProtoBytes = PONG_PROTO.getBytes();
@@ -217,7 +202,7 @@ public class NATSConnection implements Connection {
 		this.url = srvPool.get(0).url;
 	}
 
-	public NATSConnection connect() throws Exception {
+	public ConnectionImpl connect() throws Exception {
 		// Create actual socket connection
 		// For first connect we walk all servers in the pool and try
 		// to connect immediately.
@@ -362,18 +347,19 @@ public class NATSConnection implements Connection {
             // Close sync subscriber channels and release any
             // pending NextMsg() calls.
             
-//            foreach (NATSSubscription s : subs)
+//            foreach (SubscriptionImpl s : subs)
 //            {
 //                s.closeChannel();
 //            }
-            Iterator<Map.Entry<Integer, NATSSubscription>> it = subs.entrySet().iterator();
+            Iterator<Map.Entry<Integer, SubscriptionImpl>> it = subs.entrySet().iterator();
             while (it.hasNext()) {
-                Map.Entry<Integer, NATSSubscription> pair = (Map.Entry<Integer, NATSSubscription>)it.next();
-            	NATSSubscription s = (NATSSubscription)pair.getValue();
+                Map.Entry<Integer, SubscriptionImpl> pair = (Map.Entry<Integer, SubscriptionImpl>)it.next();
+            	SubscriptionImpl s = (SubscriptionImpl)pair.getValue();
             	s.closeChannel();
                 it.remove(); // avoids a ConcurrentModificationException
             }
             subs.clear();
+            sidCounter.set(0);
 
             // perform appropriate callback is needed for a
             // disconnect;
@@ -1039,7 +1025,7 @@ public class NATSConnection implements Connection {
 		DISCONNECTED, CONNECTED, CLOSED, RECONNECTING, CONNECTING
 	}
 	
-	protected final String STALE_CONNECTION     = "State NATSConnection";
+	protected final String STALE_CONNECTION     = "State ConnectionImpl";
 
 	public ConnState status = ConnState.DISCONNECTED;
 	// Client version
@@ -1072,7 +1058,7 @@ public class NATSConnection implements Connection {
 	public static final String _PONG_OP_ = "PONG";
 	public static final String _INFO_OP_ = "INFO";
 
-	// NATSMessage Prototypes
+	// MessageImpl Prototypes
 	public static final String CONN_PROTO = "CONNECT %s" + _CRLF_;
 	public static final String PING_PROTO = "PING" + _CRLF_;
 	public static final String PONG_PROTO = "PONG" + _CRLF_;
@@ -1087,8 +1073,8 @@ public class NATSConnection implements Connection {
 		private String pass;
 		private Boolean ssl;
 		private String name;
-		private String lang = NATSConnection.LANG_STRING;
-		private String version = NATSConnection.VERSION;
+		private String lang = ConnectionImpl.LANG_STRING;
+		private String version = ConnectionImpl.VERSION;
 
 		public ConnectInfo(boolean verbose, boolean pedantic, String username, String password, boolean secure,
 				String connectionName) {
@@ -1239,10 +1225,10 @@ public class NATSConnection implements Connection {
         }
     }
 	protected class ReadLoopTask implements Runnable {
-		private NATSConnection nc = null;
+		private ConnectionImpl nc = null;
 		
-		public ReadLoopTask(NATSConnection nATSConnection) {
-			this.nc = nATSConnection;
+		public ReadLoopTask(ConnectionImpl connectionImpl) {
+			this.nc = connectionImpl;
 		}
 
 		@Override
@@ -1254,9 +1240,9 @@ public class NATSConnection implements Connection {
 
     // deliverMsgs waits on the delivery channel shared with readLoop and processMsg.
     // It is used to deliver messages to asynchronous subscribers.
-    protected void deliverMsgs(Channel<NATSMessage> ch)
+    protected void deliverMsgs(Channel<MessageImpl> ch)
     {
-        NATSMessage m;
+        MessageImpl m;
 
         while (true)
         {
@@ -1296,7 +1282,7 @@ public class NATSConnection implements Connection {
 	
 	protected class Flusher implements Runnable {
 
-		public Flusher(NATSConnection nATSConnection) {
+		public Flusher(ConnectionImpl connectionImpl) {
 			// TODO Auto-generated constructor stub
 		}
 
@@ -1333,7 +1319,7 @@ public class NATSConnection implements Connection {
 
         if (msgArgs.size < 0)
         {
-            throw new ParseException("Invalid NATSMessage - Bad or Missing Size: " + s);
+            throw new ParseException("Invalid MessageImpl - Bad or Missing Size: " + s);
         }
     }
    
@@ -1344,7 +1330,7 @@ public class NATSConnection implements Connection {
     protected void processMsg(byte[] msg, long length)
     {
         boolean maxReached = false;
-        NATSSubscription s;
+        SubscriptionImpl s;
 
         mu.lock();
         try
@@ -1372,7 +1358,7 @@ public class NATSConnection implements Connection {
                 maxReached = s.tallyMessage(length);
                 if (maxReached == false)
                 {
-                    if (!s.addMessage(new NATSMessage(msgArgs, s, msg, length), opts.getSubChanLen()))
+                    if (!s.addMessage(new MessageImpl(msgArgs, s, msg, length), opts.getSubChanLen()))
                     {
                         processSlowConsumer(s);
                     }
@@ -1392,14 +1378,14 @@ public class NATSConnection implements Connection {
         if (maxReached)
             removeSub(s);
     }
-    private void removeSub(NATSSubscription s) {
+    private void removeSub(SubscriptionImpl s) {
 		// TODO Auto-generated method stub
 		
 	}
 
     // processSlowConsumer will set SlowConsumer state and fire the
     // async error handler if registered.
-    void processSlowConsumer(NATSSubscription s)
+    void processSlowConsumer(SubscriptionImpl s)
     {
         if (opts.asyncErrorEventHandler != null && !s.sc)
         {
@@ -1492,15 +1478,15 @@ public class NATSConnection implements Connection {
     }
 
     // unsubscribe performs the low level unsubscribe to the server.
-    // Use NATSSubscription.Unsubscribe()
-    protected void unsubscribe(NATSSubscription sub, int max) throws ConnectionClosedException, IOException
+    // Use SubscriptionImpl.Unsubscribe()
+    protected void unsubscribe(SubscriptionImpl sub, int max) throws ConnectionClosedException, IOException
     {
         mu.lock();
         {
             if (isClosed())
                 throw new ConnectionClosedException();
 
-            NATSSubscription s = subs.get(sub.getSid());
+            SubscriptionImpl s = subs.get(sub.getSid());
             if (s == null)
             {
                 // already unsubscribed
@@ -1680,10 +1666,10 @@ public class NATSConnection implements Connection {
     // server. Used in reconnects
     private void resendSubscriptions() throws IOException
     {
-        Iterator<Map.Entry<Integer, NATSSubscription>> it = subs.entrySet().iterator();
+        Iterator<Map.Entry<Integer, SubscriptionImpl>> it = subs.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<Integer, NATSSubscription> pair = (Map.Entry<Integer, NATSSubscription>)it.next();
-        	NATSSubscription s = (NATSSubscription)pair.getValue();
+            Map.Entry<Integer, SubscriptionImpl> pair = (Map.Entry<Integer, SubscriptionImpl>)it.next();
+        	SubscriptionImpl s = (SubscriptionImpl)pair.getValue();
         	
         	// TODO Fix this
 //            if (s is IAsyncSubscription)
@@ -1735,24 +1721,39 @@ public class NATSConnection implements Connection {
     		return null;
     	}
     	
-    	sub = new NATSSubscription(subj, queue, cb, nc);
+    	sub = new SubscriptionImpl(subj, queue, cb, nc);
 		return sub;
     }
     
     @Override
     public Subscription subscribe(String subj, String queue, MessageHandler cb) {
-    	Subscription sub = null;
-    	if (nc.isClosed()) {
-    		return null;
-    	}
-    	
-    	sub = new NATSSubscription(subj, queue, cb, nc);
-		return sub;
+    	Subscription s = subscribe(subj, queue, cb, opts.getSubChanLen());
+    	addSubscription(s);
+		return s;
     }
+
+	private void addSubscription(Subscription s) {
+		subs.put(sidCounter.incrementAndGet(), (SubscriptionImpl) s);
+	}
 
 	@Override
 	public Subscription subscribe(String subject, MessageHandler cb) {
-		return subscribe(subject, null, cb);
+		return subscribe(subject, null, cb, opts.getSubChanLen());
+	}
+	
+	@Override 
+	public Subscription subscribeSync(String subject) {
+		return subscribe(subject, null, null, opts.getSubChanLen());
+	}
+	
+	@Override
+	public Subscription QueueSubscribe(String subject, String queue, MessageHandler cb) {
+		return subscribe(subject, queue, cb, opts.getSubChanLen());
+	}
+
+	@Override
+	public Subscription QueueSubscribeSync(String subject, String queue) {
+		return subscribe(subject, queue, null, opts.getSubChanLen());
 	}
 
 }

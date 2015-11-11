@@ -1,7 +1,7 @@
 /**
  * 
  */
-package io.nats.client.impl;
+package io.nats.client;
 
 import java.io.IOException;
 import java.util.Queue;
@@ -10,17 +10,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import io.nats.client.BadSubscriptionException;
-import io.nats.client.ConnectionClosedException;
-import io.nats.client.Connection;
-import io.nats.client.MessageHandler;
-import io.nats.client.Subscription;
-
 /**
  * @author Larry McQueary
  *
  */
-public class NATSSubscription implements Subscription {
+public class SubscriptionImpl implements Subscription {
 	
 	protected final Lock mu = new ReentrantLock();
 
@@ -45,16 +39,16 @@ public class NATSSubscription implements Subscription {
 	// slow consumer
 	boolean sc;
 	
-	private NATSConnection conn 			= null;
-	private Queue<NATSMessage> mch 			= new LinkedBlockingQueue<NATSMessage>();
+	protected ConnectionImpl conn 			= null;
+	protected Queue<MessageImpl> mch 			= new LinkedBlockingQueue<MessageImpl>();
 	
-	public NATSSubscription(NATSConnection conn, String subject, String queue) {
+	public SubscriptionImpl(ConnectionImpl conn, String subject, String queue) {
 		this.conn = conn;
 		this.subject = subject;
 		this.queue = queue;
 	}
 	
-	public NATSSubscription(String subj, String queue, MessageHandler cb, NATSConnection nc) {
+	public SubscriptionImpl(String subj, String queue, MessageHandler cb, ConnectionImpl nc) {
 		// TODO Auto-generated constructor stub
 		this.conn=nc;
 		this.subject = subj;
@@ -101,7 +95,7 @@ public class NATSSubscription implements Subscription {
     // returns false if the message could not be added because
     // the channel is full, true if the message was added
     // to the channel.
-    boolean addMessage(NATSMessage msg, int maxCount)
+    boolean addMessage(MessageImpl msg, int maxCount)
     {
         if (mch != null)
         {
@@ -129,8 +123,9 @@ public class NATSSubscription implements Subscription {
 		return rv;
 	}
 	
+	@Override
 	public void unsubscribe() throws ConnectionClosedException, BadSubscriptionException, IOException {
-        NATSConnection c;
+        ConnectionImpl c;
         mu.lock();
         try
         {
@@ -143,10 +138,6 @@ public class NATSSubscription implements Subscription {
             throw new BadSubscriptionException();
 
         c.unsubscribe(this, 0);		
-	}
-	
-	public void AutoUnsubscribe(int maxMsgs) {
-		
 	}
 	
 	public int queuedMsgs() {
@@ -181,7 +172,7 @@ public class NATSSubscription implements Subscription {
 		this.max = max;
 	}
 
-	public boolean processMsg(NATSMessage m) {
+	public boolean processMsg(MessageImpl m) {
 		if (mcb==null) {
 			return false;
 		}

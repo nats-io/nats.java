@@ -7,10 +7,8 @@ import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.nats.client.impl.NATSConnection;
-
 /* *
- * Factpry class for opening a {@link NATSConnection} to the NATS server (gnatsd). 
+ * Factpry class for opening a {@link ConnectionImpl} to the NATS server (gnatsd). 
  */
 
 public class ConnectionFactory implements Cloneable {
@@ -109,12 +107,12 @@ public class ConnectionFactory implements Cloneable {
 		}
 	}
 	
-	public NATSConnection createConnection() throws IOException, NATSException {
-		NATSConnection conn = null;
+	public ConnectionImpl createConnection() throws IOException, NATSException {
+		ConnectionImpl conn = null;
 		Options options = options();
 		
 		try {
-			conn = new NATSConnection(options);
+			conn = new ConnectionImpl(options);
 		} catch (NoServersException e) {
 			throw(new IOException(e));
 		}

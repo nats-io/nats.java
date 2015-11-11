@@ -1,13 +1,11 @@
-package io.nats.client.impl;
+package io.nats.client;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.nats.client.ParseException;
-
 public class Parser {
-	private NATSConnection conn;
+	private ConnectionImpl conn;
 	private int state = 0;
 	private final int DEFAULT_BUF_SIZE = 512;
 	
@@ -172,10 +170,10 @@ public class Parser {
         static { names.put(OP_PONG, "OP_PONG");}        
 	}
 	
-	public Parser(NATSConnection nATSConnection) {
+	public Parser(ConnectionImpl connectionImpl) {
 		argBufStream = ByteBuffer.wrap(argBufBase);
 		msgBufStream = ByteBuffer.wrap(msgBufBase);
-		this.conn = nATSConnection;
+		this.conn = connectionImpl;
 		this.conn.ps = null;
 	}
 	

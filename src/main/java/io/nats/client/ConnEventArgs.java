@@ -1,15 +1,13 @@
 package io.nats.client;
 
-import io.nats.client.impl.NATSConnection;
-
 public class ConnEventArgs {
-	NATSConnection nc;
+	ConnectionImpl nc;
 
-	public ConnEventArgs(NATSConnection c) {
+	public ConnEventArgs(ConnectionImpl c) {
 		this.nc = c;
 	}
 
-	public NATSConnection getConn() {
+	public ConnectionImpl getConn() {
 		return nc;
 	}
 

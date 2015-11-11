@@ -12,7 +12,7 @@ import java.io.IOException;
 public interface Subscription {
  
 	/*
-	 * Retrieves the subject of interest from the NATSSubscription object.
+	 * Retrieves the subject of interest from the SubscriptionImpl object.
 	 * @return the subject of interest
 	 */
     String getSubject();
@@ -27,7 +27,7 @@ public interface Subscription {
     String getQueue();
 
     /*
-     * @return the NATSConnection this subscriber was created on.
+     * @return the ConnectionImpl this subscriber was created on.
      */
     Connection getConnection();
 

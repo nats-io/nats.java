@@ -1,4 +1,4 @@
-package io.nats.client.impl;
+package io.nats.client;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
