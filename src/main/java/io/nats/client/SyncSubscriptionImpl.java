@@ -1,27 +1,31 @@
 package io.nats.client;
 
-public class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
+import java.util.concurrent.TimeUnit;
 
-	public SyncSubscriptionImpl(ConnectionImpl conn, String subject, String queue) {
-		super(conn, subject, queue);
-		// TODO Auto-generated constructor stub
+public class SyncSubscriptionImpl extends AbstractSubscriptionImpl implements SyncSubscription {
+
+	public SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
+		super(nc, subj, queue);
 	}
 
-	public MessageImpl nextMsg() {
-		//TODO implement
-		return null;
+	@Override
+	public Message nextMsg()
+			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException {
+		return nextMsg(-1);
 	}
-	
-	public MessageImpl nextMsg(int timeoutMsec) 
-			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException {
-		MessageImpl msg = null;
+
+	@Override
+	public Message nextMsg(long timeout)
+			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException {
+		Message msg = null;
+		ConnectionImpl localConn;
+		Channel<Message> localChannel;
+		long localMax;
+
 		mu.lock();
 		try {
 			if (mch == null) {
 				throw new ConnectionClosedException();
-			}
-			if (mcb != null) {
-				throw new UnsupportedOperationException("Illegal call on an async Subscription");
 			}
 			if (conn == null) {
 				throw new BadSubscriptionException();
@@ -29,18 +33,41 @@ public class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscr
 			if (sc == true) {
 				sc = false;
 				throw new SlowConsumerException();
-			}			
+			}
+			localConn = (ConnectionImpl) this.getConnection();
+			localChannel = this.mch;
+			localMax = this.getMax();
+
 		} finally {
 			mu.unlock();
 		}
-		
+
+		try {
+			if (timeout >= 0) {
+				msg = localChannel.poll(timeout, TimeUnit.MILLISECONDS);
+			} else {
+				msg = localChannel.take();
+			}
+		} catch (InterruptedException e) {
+		}
+
+		if (msg != null) {
+			long d = this.delivered.incrementAndGet();
+			if (d == max) {
+				// Remove subscription if we have reached max.
+				localConn.removeSub(this);
+			}
+			if (localMax > 0 && d > localMax) {
+				throw new MaxMessagesException("nats: Max messages delivered");
+			}
+		}
+
 		return msg;
+
 	}
 
 	@Override
-	public Message nextMsg(long timeout) {
-		// TODO Auto-generated method stub
-		return (Message)null;
+	protected boolean processMsg(Message msg) {
+		return true;
 	}
-	
 }

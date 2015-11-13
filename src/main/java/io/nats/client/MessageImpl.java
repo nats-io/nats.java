@@ -5,23 +5,26 @@ package io.nats.client;
 
 import java.util.Arrays;
 
-import io.nats.client.Parser.MsgArg;
-
 /**
  * @author Larry McQueary
  *
  */
 public class MessageImpl implements Message {
-	protected MessageImpl() {
-		
-	}
-	public MessageImpl(MsgArg msgArgs, SubscriptionImpl s, byte[] msg, long length) {
-		// TODO Auto-generated constructor stub
-	}
 	private String subject;
 	private String replyTo;
 	private byte[] data;  
-	protected SubscriptionImpl sub;
+	protected Subscription sub;
+
+	protected MessageImpl() {
+		
+	}
+	public MessageImpl(MsgArg msgArgs, Subscription sub, byte[] msg, long length) {
+		this.subject = msgArgs.subject;
+		this.replyTo = msgArgs.reply;
+		this.data = msg;
+		this.sub = sub;
+		
+	}
 
 	@Override
 	public byte[] getData() {
@@ -41,7 +44,7 @@ public class MessageImpl implements Message {
 	
 	@Override
 	public String getReplyTo() {
-		return this.getReplyTo();
+		return this.replyTo;
 	}
 	
 	@Override
@@ -58,6 +61,7 @@ public class MessageImpl implements Message {
 	
 	@Override
 	public Message setData(byte[] data, int offset, int len) {
+		this.data = new byte[len];
 		if (data != null)
 			this.data = Arrays.copyOfRange(data, offset, len);
 		return this;
@@ -74,15 +78,19 @@ public class MessageImpl implements Message {
 		int maxBytes = 32;
 		byte[] b = getData();
 		int len = b.length;
-		
+
 		StringBuilder sb = new StringBuilder();
 		sb.append(String.format(
-				"{Subject=%s;Reply=%s;Payload=<%s", 
-				getSubject(), getReplyTo(),
-				(b.length <= maxBytes) ? b.toString() : new String(b, 0, maxBytes-1)));
+				"{Subject=%s;Reply=%s;Payload=<", 
+				getSubject(), getReplyTo()));
+		
+		for (int i=0; i<maxBytes && i<len; i++) {
+			sb.append((char)b[i]);
+		}
 
-		if (b.length > maxBytes) {
-            sb.append(String.format("%d more bytes", len-maxBytes));
+		int remainder = maxBytes - len;
+		if (remainder > 0) {
+            sb.append(String.format("%d more bytes", remainder));
 		}
 		
 		sb.append(">}");

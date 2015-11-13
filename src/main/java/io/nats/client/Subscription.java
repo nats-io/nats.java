@@ -12,7 +12,7 @@ import java.io.IOException;
 public interface Subscription {
  
 	/*
-	 * Retrieves the subject of interest from the SubscriptionImpl object.
+	 * Retrieves the subject of interest from the AsyncSubscriptionImpl object.
 	 * @return the subject of interest
 	 */
     String getSubject();
@@ -27,7 +27,7 @@ public interface Subscription {
     String getQueue();
 
     /*
-     * @return the ConnectionImpl this subscriber was created on.
+     * @return the Connection this subscriber was created on.
      */
     Connection getConnection();
 
@@ -49,7 +49,8 @@ public interface Subscription {
      * @param max The number of messages to receive before 
      *            unsubscribing.
      */
-    void autoUnsubscribe(int max);
+    void autoUnsubscribe(int max) 
+    		throws BadSubscriptionException, ConnectionClosedException, IOException;
 
     /*
      * Gets the number of messages delivered to, but not processed, by
@@ -57,4 +58,8 @@ public interface Subscription {
      * @return the number of delivered messages.
      */
     int getQueuedMessageCount();
+
+	long getSid();
+
+	void setMax(long max);
 }

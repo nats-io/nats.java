@@ -2,13 +2,13 @@ package io.nats.client;
 
 public class ErrEventArgs {
     private ConnectionImpl c;
-    private SubscriptionImpl s;
+    private Subscription s;
     private String err;
 
-    public ErrEventArgs(ConnectionImpl c, SubscriptionImpl s, String err)
+    public ErrEventArgs(ConnectionImpl c, Subscription subscription, String err)
     {
         this.c = c;
-        this.s = s;
+        this.s = subscription;
         this.err = err;
     }
 
@@ -18,8 +18,8 @@ public class ErrEventArgs {
         return c;
     }
 
-    // Gets the SubscriptionImpl associated with the event.
-    public SubscriptionImpl getSubscription()
+    // Gets the Subscription associated with the event.
+    public Subscription getSubscription()
     {
         return s;
     }

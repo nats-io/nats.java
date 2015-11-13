@@ -1,6 +1,7 @@
 package io.nats.client;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,13 +15,6 @@ public class Parser {
 	
 	byte[] msgBufBase = new byte[DEFAULT_BUF_SIZE];
 	ByteBuffer msgBufStream = null;
-	
-	public class MsgArg {
-		String 	subject;
-		String 	reply;
-		long	sid;
-		int		size;
-	}
 	
 	final static int MAX_CONTROL_LINE_SIZE = 1024;
 	
@@ -511,7 +505,8 @@ public class Parser {
 	}
 	
     private void parseError(byte[] buffer, int position) throws ParseException {
-    	throw new ParseException(String.format("Parse Error [%s], %s", NatsOp.names.get(state), buffer));
+    	throw new ParseException(String.format("Parse Error [%s], %s", 
+    			NatsOp.names.get(state), Arrays.toString(buffer)));
     }
 
 

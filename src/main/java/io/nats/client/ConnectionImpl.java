@@ -10,53 +10,34 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Random;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import io.nats.client.Parser.MsgArg;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ConnectionImpl implements Connection {
+	
+	final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
+	
 //    protected class Channel<T> extends LinkedBlockingQueue<T> {}
 	private ConnectionImpl nc = this;
 	private static final int DEFAULT_READ_LENGTH = 512;
-	
-	public class Channel<T> extends LinkedBlockingQueue<T> {
-
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 8196885862801839881L;
-
-		public Channel() {
-			super();
-		}
-
-		public Channel(int capacity) {
-			super(capacity);
-			// TODO Auto-generated constructor stub
-		}
-
-		public Channel(Collection c) {
-			super(c);
-			// TODO Auto-generated constructor stub
-		}
-
-	}
+	private static final String inboxPrefix = "_INBOX.";
 
 	private final Lock mu 					= new ReentrantLock();
 	private AtomicInteger sidCounter		= new AtomicInteger();
@@ -65,6 +46,9 @@ public class ConnectionImpl implements Connection {
 
 	private TCPConnection conn				= new TCPConnection();
 	
+	// Prepare protocol messages for efficiency
+
+    byte[] pubProtoBuf = null;
     // we have a buffered reader for writing, and reading.
     // This is for both performance, and having to work around
     // interlinked read/writes (supported by the underlying network
@@ -79,7 +63,7 @@ public class ConnectionImpl implements Connection {
     private boolean flusherKicked 			= false;
     private boolean flusherDone     		= false;
 
-	private Map<Integer, SubscriptionImpl> subs = null;
+	private Map<Long, Subscription> subs 	= null;
 	private List<Srv> srvPool 				= null;
 	private Exception lastEx 				= null;
 	private ServerInfo info 				= null;
@@ -94,18 +78,25 @@ public class ConnectionImpl implements Connection {
 	protected int pingProtoBytesLen			= 0;
 	protected byte[] pongProtoBytes			= null;
 	protected int pongProtoBytesLen			= 0;
+	protected byte[] pubProtoBytes			= null;
+	protected int pubProtoBytesLen			= 0;
+	protected byte[] crlfProtoBytes			= null;
+	protected int crlfProtoBytesLen			= 0;
+
 	protected Statistics stats				= null;
 	private Queue<Channel<Boolean>> pongs	= new LinkedBlockingQueue<Channel<Boolean>>(8);
 	
 	private static final int NUM_TASK_THREADS = 5;
 	private final ExecutorService taskExec = Executors.newFixedThreadPool(NUM_TASK_THREADS, new NATSThreadFactory("natsthreadfactory"));
 	private Vector<Void> futures			= new Vector<Void>(); 
+	private Random r						= null;
 	
 	public ConnectionImpl(Options o) throws NoServersException {
 		this.opts = o;
-		this.subs = new ConcurrentHashMap<Integer, SubscriptionImpl>();
+		this.subs = new ConcurrentHashMap<Long, Subscription>();
 		this.stats = new Statistics();
 		this.ps = new Parser(this);
+		this.msgArgs = new MsgArg();
 
 		sidCounter.set(0);
 		
@@ -113,9 +104,22 @@ public class ConnectionImpl implements Connection {
 		pingProtoBytesLen = pingProtoBytes.length;
 		pongProtoBytes = PONG_PROTO.getBytes();
 		pongProtoBytesLen = pongProtoBytes.length;
+		pubProtoBytes = PUB_PROTO.getBytes(Charset.forName("UTF-8"));
+		pubProtoBytesLen = pubProtoBytes.length;
+		crlfProtoBytes = _CRLF_.getBytes(Charset.forName("UTF-8"));
 		
+        // predefine the start of the publish protocol message.
+        buildPublishProtocolBuffer(SCRATCH_SIZE);
+
 		setupServerPool();
 	}
+
+    private void buildPublishProtocolBuffer(int size)
+    {
+        pubProtoBuf = new byte[size];
+        System.arraycopy(pubProtoBytes, 0, pubProtoBuf, 0, pubProtoBytesLen);
+    }
+
 
 	// Create the server pool using the options given.
 	// We will place a Url option first, followed by any
@@ -347,14 +351,14 @@ public class ConnectionImpl implements Connection {
             // Close sync subscriber channels and release any
             // pending NextMsg() calls.
             
-//            foreach (SubscriptionImpl s : subs)
+//            foreach (AsyncSubscriptionImpl s : subs)
 //            {
 //                s.closeChannel();
 //            }
-            Iterator<Map.Entry<Integer, SubscriptionImpl>> it = subs.entrySet().iterator();
+            Iterator<Map.Entry<Long, Subscription>> it = subs.entrySet().iterator();
             while (it.hasNext()) {
-                Map.Entry<Integer, SubscriptionImpl> pair = (Map.Entry<Integer, SubscriptionImpl>)it.next();
-            	SubscriptionImpl s = (SubscriptionImpl)pair.getValue();
+                Map.Entry<Long, Subscription> pair = (Map.Entry<Long, Subscription>)it.next();
+            	AbstractSubscriptionImpl s = (AbstractSubscriptionImpl)pair.getValue();
             	s.closeChannel();
                 it.remove(); // avoids a ConcurrentModificationException
             }
@@ -458,7 +462,7 @@ public class ConnectionImpl implements Connection {
     protected void processPing() 
     {
         try {
-        	System.err.println("Sending PONG");
+        	logger.debug("Sending PONG");
 			sendProto(pongProtoBytes, pongProtoBytesLen);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -587,7 +591,8 @@ public class ConnectionImpl implements Connection {
     	
     }
 
-	private boolean isReconnecting() {
+    @Override
+	public boolean isReconnecting() {
     	mu.lock();
     	try {
     		return (status == ConnState.RECONNECTING);
@@ -602,7 +607,8 @@ public class ConnectionImpl implements Connection {
         return (status == ConnState.CONNECTING || status == ConnState.CONNECTED);
     }
 
-	private boolean isClosed() {
+    @Override
+	public boolean isClosed() {
     	mu.lock();
     	try {
     		return (status == ConnState.CLOSED);
@@ -661,7 +667,7 @@ public class ConnectionImpl implements Connection {
 
             mu.lock();
         }
-
+        
         Srv s;
         while ((s = selectNextServer()) != null)
         {
@@ -770,8 +776,7 @@ public class ConnectionImpl implements Connection {
             }
 
             return;
-
-        }
+        } // while
 
         // we have no more servers left to try.
         if (lastEx == null)
@@ -846,7 +851,7 @@ public class ConnectionImpl implements Connection {
 		}
 
 		if (c.op.equals(PONG_PROTO.substring(0, PONG_PROTO.indexOf(_CRLF_)))) {
-			System.err.println("Received PONG message");
+			logger.debug("Received PONG message");
 			status = ConnState.CONNECTED;
 			return;
 		} else {
@@ -962,11 +967,17 @@ public class ConnectionImpl implements Connection {
 		// We will wait on both going forward.
 		// nc.wg.Add(2)
 
-//		taskExec.execute(new ReadLoopTask(this));  
-//		taskExec.execute(new Flusher(this));
+		//taskExec.execute(new ReadLoopTask(this));  
+		//taskExec.execute(new Flusher(this));
+		Thread t = null;
+
+		t = new NATSThread(new ReadLoopTask(), "readloop");
+		t.start();
+		socketWatchers.add(t);
 		
-		socketWatchers.add(new NATSThread(new ReadLoopTask(this), "readloop"));
-		socketWatchers.add(new NATSThread(new Flusher(this), "flusher"));
+		t = new NATSThread(new Flusher(this), "flusher");
+		t.start();
+		socketWatchers.add(t);
 
 		mu.lock();
 		try {
@@ -1003,17 +1014,6 @@ public class ConnectionImpl implements Connection {
 			default:
 			}
 		}
-	}
-
-	// Tracks various stats received and sent on this connection,
-	// including counts for messages and bytes.
-	protected class Statistics {
-
-		long inMsgs;
-		long outMsgs;
-		long inBytes;
-		long outBytes;
-		long reconnects;
 	}
 
 	protected ConnEventHandler closedEventHandler;
@@ -1143,7 +1143,7 @@ public class ConnectionImpl implements Connection {
 			String key;
 			String val;
 
-			kvPair.trim();
+			kvPair = kvPair.trim();
 			String[] parts = kvPair.split(":");
 			key = parts[0].trim();
 			val = parts[1].trim();
@@ -1158,6 +1158,118 @@ public class ConnectionImpl implements Connection {
 				val = val.substring(1, lastQuotePos);
 			}
 			parameters.put(key, val);
+		}
+
+		/**
+		 * @return the id
+		 */
+		String getId() {
+			return id;
+		}
+
+		/**
+		 * @param id the id to set
+		 */
+		void setId(String id) {
+			this.id = id;
+		}
+
+		/**
+		 * @return the host
+		 */
+		String getHost() {
+			return host;
+		}
+
+		/**
+		 * @param host the host to set
+		 */
+		void setHost(String host) {
+			this.host = host;
+		}
+
+		/**
+		 * @return the port
+		 */
+		int getPort() {
+			return port;
+		}
+
+		/**
+		 * @param port the port to set
+		 */
+		void setPort(int port) {
+			this.port = port;
+		}
+
+		/**
+		 * @return the version
+		 */
+		String getVersion() {
+			return version;
+		}
+
+		/**
+		 * @param version the version to set
+		 */
+		void setVersion(String version) {
+			this.version = version;
+		}
+
+		/**
+		 * @return the authRequired
+		 */
+		boolean isAuthRequired() {
+			return authRequired;
+		}
+
+		/**
+		 * @param authRequired the authRequired to set
+		 */
+		void setAuthRequired(boolean authRequired) {
+			this.authRequired = authRequired;
+		}
+
+		/**
+		 * @return the sslRequired
+		 */
+		boolean isSslRequired() {
+			return sslRequired;
+		}
+
+		/**
+		 * @param sslRequired the sslRequired to set
+		 */
+		void setSslRequired(boolean sslRequired) {
+			this.sslRequired = sslRequired;
+		}
+
+		/**
+		 * @return the maxPayload
+		 */
+		long getMaxPayload() {
+			return maxPayload;
+		}
+
+		/**
+		 * @param maxPayload the maxPayload to set
+		 */
+		void setMaxPayload(long maxPayload) {
+			this.maxPayload = maxPayload;
+		}
+
+		/**
+		 * @return the parameters
+		 */
+		Map<String, String> getParameters() {
+			return parameters;
+		}
+
+		/**
+		 * @param parameters the parameters to set
+		 */
+		void setParameters(Map<String, String> parameters) {
+			this.parameters = parameters;
 		}
 	}
 
@@ -1195,19 +1307,33 @@ public class ConnectionImpl implements Connection {
         {
             sb = false;
             mu.lock();
+            try
             {
                 sb = (isClosed() || isReconnecting());
                 if (sb)
                     this.ps = parser;
+            } finally {
+            	mu.unlock();
             }
 
             try
             {
+                logger.debug("Reading from buffered reader");            	
                 len = br.read(buffer, 0, DEFAULT_READ_LENGTH);
+                String s = new String(buffer, 0, len, Charset.forName("UTF-8"));
+                logger.debug("Received bytes: " + s);
                 parser.parse(buffer, len);
-            }
+            } catch (ParseException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
             catch (Exception e)
             {
+            e.printStackTrace();
                 if (status != ConnState.CLOSED)
                 {
                     processOpError(e);
@@ -1225,11 +1351,11 @@ public class ConnectionImpl implements Connection {
         }
     }
 	protected class ReadLoopTask implements Runnable {
-		private ConnectionImpl nc = null;
+//		private ConnectionImpl nc = null;
 		
-		public ReadLoopTask(ConnectionImpl connectionImpl) {
-			this.nc = connectionImpl;
-		}
+//		public ReadLoopTask(ConnectionImpl connectionImpl) {
+//			this.nc = connectionImpl;
+//		}
 
 		@Override
 		public void run() {
@@ -1240,9 +1366,9 @@ public class ConnectionImpl implements Connection {
 
     // deliverMsgs waits on the delivery channel shared with readLoop and processMsg.
     // It is used to deliver messages to asynchronous subscribers.
-    protected void deliverMsgs(Channel<MessageImpl> ch)
+    protected void deliverMsgs(Channel<Message> mch)
     {
-        MessageImpl m;
+        Message m;
 
         while (true)
         {
@@ -1256,7 +1382,7 @@ public class ConnectionImpl implements Connection {
             }
 
 //            m = ch.get(-1);
-            m = ch.poll();
+            m = mch.poll();
             if (m == null)
             {
                 // the channel has been closed, exit silently.
@@ -1265,12 +1391,13 @@ public class ConnectionImpl implements Connection {
 
             // Note, this seems odd message having the sub process itself, 
             // but this is good for performance.
-            if (!m.sub.processMsg(m))
+            AbstractSubscriptionImpl s = (AbstractSubscriptionImpl) m.getSubscription();
+            if (!s.processMsg(m))
             {
                 mu.lock();
                 try
                 {
-                    removeSub(m.sub);
+                    removeSub(s);
                 } finally {
                 	mu.unlock();
                 }
@@ -1288,15 +1415,14 @@ public class ConnectionImpl implements Connection {
 
 		@Override
 		public void run() {
-			// TODO Auto-generated method stub
-			
+			flusher();
 		}
 		
 	}
 	
     protected void processMsgArgs(byte[] buffer, long length) throws ParseException
     {
-        String s = new String(buffer, 0, (int)length, Charset.forName("UTF-8"));
+        String s = new String(buffer, 0, (int)length);
         String[] args = s.split(" ");
 
         switch (args.length)
@@ -1330,7 +1456,10 @@ public class ConnectionImpl implements Connection {
     protected void processMsg(byte[] msg, long length)
     {
         boolean maxReached = false;
-        SubscriptionImpl s;
+        
+        Subscription sub;
+        AbstractSubscriptionImpl s;
+       
 
         mu.lock();
         try
@@ -1343,7 +1472,8 @@ public class ConnectionImpl implements Connection {
             // (as opposed to checking with Contains or TryGetValue)
             try
             {
-                s = subs.get(msgArgs.sid);
+            	sub = subs.get(msgArgs.sid);
+                s = (AbstractSubscriptionImpl)sub; 
             }
             catch (Exception e)
             {
@@ -1358,7 +1488,7 @@ public class ConnectionImpl implements Connection {
                 maxReached = s.tallyMessage(length);
                 if (maxReached == false)
                 {
-                    if (!s.addMessage(new MessageImpl(msgArgs, s, msg, length), opts.getSubChanLen()))
+                    if (!s.addMessage(new MessageImpl(msgArgs, sub, msg, length), opts.getSubChanLen()))
                     {
                         processSlowConsumer(s);
                     }
@@ -1378,14 +1508,14 @@ public class ConnectionImpl implements Connection {
         if (maxReached)
             removeSub(s);
     }
-    private void removeSub(SubscriptionImpl s) {
+    void removeSub(Subscription s) {
 		// TODO Auto-generated method stub
 		
 	}
 
     // processSlowConsumer will set SlowConsumer state and fire the
     // async error handler if registered.
-    void processSlowConsumer(SubscriptionImpl s)
+    void processSlowConsumer(AbstractSubscriptionImpl s)
     {
         if (opts.asyncErrorEventHandler != null && !s.sc)
         {
@@ -1421,7 +1551,7 @@ public class ConnectionImpl implements Connection {
     			}
 
     			try {
-    				System.err.println("Sending PING after "+ opts.getPingInterval() + " seconds.");
+    				logger.debug("Sending PING after "+ opts.getPingInterval() + " seconds.");
 					sendPing(null);
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -1478,15 +1608,15 @@ public class ConnectionImpl implements Connection {
     }
 
     // unsubscribe performs the low level unsubscribe to the server.
-    // Use SubscriptionImpl.Unsubscribe()
-    protected void unsubscribe(SubscriptionImpl sub, int max) throws ConnectionClosedException, IOException
+    // Use AsyncSubscriptionImpl.Unsubscribe()
+    protected void unsubscribe(Subscription sub, int max) throws ConnectionClosedException, IOException
     {
         mu.lock();
         {
             if (isClosed())
                 throw new ConnectionClosedException();
 
-            SubscriptionImpl s = subs.get(sub.getSid());
+            Subscription s = subs.get(sub.getSid());
             if (s == null)
             {
                 // already unsubscribed
@@ -1516,42 +1646,50 @@ public class ConnectionImpl implements Connection {
 
     private void kickFlusher()
     {
-        flusherLock.lock();
-        try
-        {
-            if (!flusherKicked) {
-            	synchronized (flusherLock) {
-            		flusherLock.notify();
-            	}
-            }
-            flusherKicked = true;
-        } finally {
-        	flusherLock.unlock();
-        }
+    	//        flusherLock.lock();
+    	synchronized (flusherLock) {
+    		try
+    		{
+    			if (!flusherKicked) {
+    				flusherLock.notify();
+    			}
+    			flusherKicked = true;
+    			logger.debug("FLUSHER KICKED");
+    		} finally {
+    			//        	flusherLock.unlock();
+    		}
+    	}
     }
    
     private boolean waitForFlusherKick()
     {
-        flusherLock.lock();
-        try 
-        {
-            if (flusherDone == true)
-                return false;
+    	logger.debug("IN waitForFlusherKick()");
+    	synchronized(flusherLock) {
+    		try 
+    		{
+    			if (flusherDone)
+    				return false;
+    			else 
+    				logger.debug("IN waitForFlusherKick(), flusherDone =" + flusherDone);
 
-            // if kicked before we get here meantime, skip
-            // waiting.
-            if (!flusherKicked)
-            {
-                flusherLock.wait();
-            }
+    			// if kicked before we get here meantime, skip
+    			// waiting.
+    			if (!flusherKicked)
+    			{
+    				logger.debug("IN waitForFlusherKick(), waiting for lock");
+    				flusherLock.wait();
+    			}
 
-            flusherKicked = false;
-        } catch (InterruptedException e) {
-		} finally {
-        	flusherLock.unlock();
-        }
+    			flusherKicked = false;
+    		} catch (InterruptedException e) {
+    			e.printStackTrace();
+    		} finally {
+    			//        	flusherLock.unlock();
+    		}
+    	}
+    	logger.debug("LEAVING waitForFlusherKick(), returning true");
 
-        return true;
+    	return true;
     }
 
     private void setFlusherDone(boolean value)
@@ -1583,6 +1721,7 @@ public class ConnectionImpl implements Connection {
     // buffer. This allows coalescing of writes to the underlying socket.
     private void flusher()
     {
+        logger.debug("###IN flusher() top");
         setFlusherDone(false);
 
         // If TCP connection isn't connected, we are done
@@ -1590,21 +1729,26 @@ public class ConnectionImpl implements Connection {
         {
             return;
         }
+        logger.debug("###IN flusher(), conn is CONNECTED");
 
         while (!isFlusherDone())
         {
+            logger.debug("###IN flusher() about to waitForFlusherKick");
             boolean val = waitForFlusherKick();
+            logger.debug("###IN flusher(), waitForFlusherKick = " + val);
             if (val == false)
                 return;
 
             mu.lock();
+            logger.debug("###IN flusher(), acquired lock");
             try
             {
                 if (!isConnected())
                     return;
-
+                logger.debug("###IN flusher(), about to flush");
                 // TODO: Check writability of underlying stream?              
                 bw.flush();
+                logger.debug("###ACTUALLY FLUSHED BUFFER");
             } catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -1666,10 +1810,10 @@ public class ConnectionImpl implements Connection {
     // server. Used in reconnects
     private void resendSubscriptions() throws IOException
     {
-        Iterator<Map.Entry<Integer, SubscriptionImpl>> it = subs.entrySet().iterator();
+        Iterator<Map.Entry<Long, Subscription>> it = subs.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<Integer, SubscriptionImpl> pair = (Map.Entry<Integer, SubscriptionImpl>)it.next();
-        	SubscriptionImpl s = (SubscriptionImpl)pair.getValue();
+            Map.Entry<Long, Subscription> pair = (Map.Entry<Long, Subscription>)it.next();
+        	Subscription s = (Subscription)pair.getValue();
         	
         	// TODO Fix this
 //            if (s is IAsyncSubscription)
@@ -1717,12 +1861,32 @@ public class ConnectionImpl implements Connection {
     
     private Subscription subscribe(String subj, String queue, MessageHandler cb, int chanLen) {
     	Subscription sub = null;
-    	if (nc.isClosed()) {
-    		return null;
+    	mu.lock();
+    	try {
+    		if (nc.isClosed()) {
+    			return null;
+    		}
+    		if (cb != null)
+    			sub = new AsyncSubscriptionImpl(nc, subj, queue, cb);
+    		else
+    			sub = new SyncSubscriptionImpl(nc, subj, queue);
+
+    		addSubscription(sub);
+
+    		if (!isReconnecting()) {
+    			String s = String.format(SUB_PROTO, subj, queue, sub.getSid());
+    			try {
+					bw.writeBytes(s);
+					logger.debug("Sent [" + s + "]" );
+				} catch (IOException e) {
+				}
+    		}
+
+    	} finally {
+    		mu.unlock();
+    		kickFlusher();
     	}
-    	
-    	sub = new SubscriptionImpl(subj, queue, cb, nc);
-		return sub;
+    	return sub;
     }
     
     @Override
@@ -1733,19 +1897,25 @@ public class ConnectionImpl implements Connection {
     }
 
 	private void addSubscription(Subscription s) {
-		subs.put(sidCounter.incrementAndGet(), (SubscriptionImpl) s);
+		subs.put(new Long(sidCounter.getAndIncrement()), s);
+		logger.debug("Successfully added subscription to " + s.getSubject() + "[" + s.getSid() + "]");
 	}
 
 	@Override
 	public Subscription subscribe(String subject, MessageHandler cb) {
-		return subscribe(subject, null, cb, opts.getSubChanLen());
+		return subscribe(subject, "", cb, opts.getSubChanLen());
 	}
-	
+
 	@Override 
-	public Subscription subscribeSync(String subject) {
-		return subscribe(subject, null, null, opts.getSubChanLen());
+	public SyncSubscription subscribeSync(String subject, String queue) {
+		return (SyncSubscription)subscribe(subject, queue, (MessageHandler)null, opts.getSubChanLen());
 	}
-	
+
+	@Override 
+	public SyncSubscription subscribeSync(String subject) {
+		return (SyncSubscription)subscribe(subject, "", (MessageHandler)null, opts.getSubChanLen());
+	}
+
 	@Override
 	public Subscription QueueSubscribe(String subject, String queue, MessageHandler cb) {
 		return subscribe(subject, queue, cb, opts.getSubChanLen());
@@ -1753,7 +1923,204 @@ public class ConnectionImpl implements Connection {
 
 	@Override
 	public Subscription QueueSubscribeSync(String subject, String queue) {
-		return subscribe(subject, queue, null, opts.getSubChanLen());
+		return subscribe(subject, queue, (MessageHandler)null, opts.getSubChanLen());
+	}
+	
+    // Use low level primitives to build the protocol for the publish
+    // message.
+    private int writePublishProto(byte[] dst, String subject, String reply, int msgSize)
+    {
+        // skip past the predefined "PUB "
+        int index = pubProtoBytesLen;
+
+        // Subject
+        index = Utilities.stringToBytesASCII(dst, index, subject);
+
+        if (reply != null)
+        {
+            // " REPLY"
+            dst[index] = (byte)' ';
+            index++;
+
+            index = Utilities.stringToBytesASCII(dst, index, reply);
+        }
+
+        // " "
+        dst[index] = (byte)' ';
+        index++;
+
+        // " SIZE"
+        index = Utilities.stringToBytesASCII(dst, index, Integer.toString(msgSize));
+
+        // "\r\n"
+        System.arraycopy(crlfProtoBytes, 0, dst, index, crlfProtoBytesLen);
+        index += crlfProtoBytesLen;
+
+        return index;
+    }
+
+
+    // Roll our own fast conversion - we know it's the right
+    // encoding. 
+    char[] convertToStrBuf = new char[SCRATCH_SIZE];
+
+    // Caller must ensure thread safety.
+    private String convertToString(byte[] buffer, int length)
+    {
+        // expand if necessary
+        if (length > convertToStrBuf.length)
+        {
+            convertToStrBuf = new char[length];
+        }
+
+        for (int i = 0; i < length; i++)
+        {
+            convertToStrBuf[i] = (char)buffer[i];
+        }
+
+        // This is the copy operation for msg arg strings.
+        return new String(convertToStrBuf, 0, (int)length);
+    }
+
+
+    // publish is the internal function to publish messages to a gnatsd.
+    // Sends a protocol data message by queueing into the bufio writer
+    // and kicking the flush go routine. These writes should be protected.
+	@Override
+    public void publish(String subject, String reply, byte[] data) throws ConnectionClosedException
+    {
+		String s = subject.trim();
+        if ((s==null) || subject.isEmpty())
+        {
+            throw new IllegalArgumentException(
+                "Subject cannot be null, empty, or whitespace.");
+        }
+
+        int msgSize = data != null ? data.length : 0;
+
+        mu.lock();
+        try
+        {
+            // Proactively reject payloads over the threshold set by server.
+            if (msgSize > info.getMaxPayload())
+                throw new IllegalArgumentException("Message payload size (" 
+                		+ msgSize + ") larger than maxPayloadSize: " 
+                		+ info.getMaxPayload());
+
+            if (isClosed())
+                throw new ConnectionClosedException();
+
+            //TODO Throw the right exception here
+            //            if (lastEx != null)
+            //                throw lastEx;
+
+            int pubProtoLen;
+            // write our pubProtoBuf buffer to the buffered writer.
+            try
+            {
+                pubProtoLen = writePublishProto(pubProtoBuf, subject,
+                    reply, msgSize);
+            }
+            catch (IndexOutOfBoundsException e)
+            {
+                // We can get here if we have very large subjects.
+                // Expand with some room to spare.
+                int resizeAmount = SCRATCH_SIZE + subject.length()
+                    + (reply != null ? reply.length() : 0);
+
+                buildPublishProtocolBuffer(resizeAmount);
+
+                pubProtoLen = writePublishProto(pubProtoBuf, subject,
+                    reply, msgSize);
+            }
+
+            try {
+            bw.write(pubProtoBuf, 0, pubProtoLen);
+
+            if (msgSize > 0)
+            {
+                bw.write(data, 0, msgSize);
+            }
+
+            bw.write(crlfProtoBytes, 0, crlfProtoBytesLen);
+            } catch (IOException e) {
+            	
+            }
+            
+            stats.outMsgs++;
+            stats.outBytes += msgSize;
+
+            kickFlusher();
+        } finally {
+        	mu.unlock();
+        }
+
+    } // publish
+	
+	@Override
+	public void publish(String subject, byte[] data) throws ConnectionClosedException {
+		publish(subject, null, data);
+	}
+
+	@Override
+	public void publish(Message msg) throws ConnectionClosedException {
+		publish(msg.getSubject(), msg.getReplyTo(), msg.getData());
+	}
+
+	@Override
+	public Message request(String subject, byte[] data, long timeout) 
+			throws ConnectionClosedException, BadSubscriptionException, 
+			SlowConsumerException, MaxMessagesException, IOException {
+		Message m		= null;
+		String inbox 	= newInbox();
+
+		SyncSubscription s = subscribeSync(inbox, null);
+		s.autoUnsubscribe(1);
+
+		publish(subject, inbox, data);
+		m = s.nextMsg(timeout);
+		try
+		{
+			// the auto unsubscribe should handle this.
+			s.unsubscribe();
+		}
+		catch (Exception e) {  /* NOOP */ }
+
+		return m;	
+	}
+
+	@Override
+	public Message request(String subject, byte[] data) throws ConnectionClosedException, BadSubscriptionException, SlowConsumerException, MaxMessagesException, IOException {
+		
+		return request(subject, data, 0);
+	}
+
+	@Override
+	public String newInbox() {
+        if (r == null)
+            r = new Random();
+
+        byte[] buf = new byte[13];
+
+        r.nextBytes(buf);
+        String s1 = inboxPrefix;
+        String s2 = Utilities.bytesToHex(buf);
+        return s1.concat(s2);
+	}
+
+	@Override
+	public synchronized Statistics getStats() {
+		return new Statistics(stats);
+	}
+
+	@Override
+	public synchronized void resetStats() {
+		stats.clear();
+	}
+
+	@Override
+	public synchronized long getMaxPayload() {
+		return info.maxPayload;
 	}
 
 }

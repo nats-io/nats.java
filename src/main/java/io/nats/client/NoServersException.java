@@ -7,7 +7,7 @@ package io.nats.client;
  * @author Larry McQueary
  *
  */
-public class NoServersException extends NATSException {
+public class NoServersException extends Exception {
 
 	/**
 	 * 

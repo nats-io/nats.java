@@ -3,14 +3,38 @@
  */
 package io.nats.client;
 
+import java.io.IOException;
+
 /**
  * @author larry
  *
  */
 public interface Connection {
-	Subscription subscribe(String subject, MessageHandler cb);
-	Subscription subscribe(String subject, String queue, MessageHandler cb);
-	Subscription subscribeSync(String subj);
-	Subscription QueueSubscribe(String subject, String queue, MessageHandler cb);
-	Subscription QueueSubscribeSync(String subject, String queue);
+	public Subscription subscribe(String subject, MessageHandler cb);
+	public Subscription subscribe(String subject, String queue, MessageHandler cb);
+	public Subscription subscribeSync(String subj);
+	public SyncSubscription subscribeSync(String subject, String queue);
+	public Subscription QueueSubscribe(String subject, String queue, MessageHandler cb);
+	public Subscription QueueSubscribeSync(String subject, String queue);
+	
+	public void publish(String subject, byte[] data) throws ConnectionClosedException;
+	public void publish(Message msg) throws ConnectionClosedException;
+	public void publish(String subject, String reply, byte[] data) throws ConnectionClosedException;
+	
+    public Message request(String subject, byte[] data, long timeout) 
+    		throws ConnectionClosedException, BadSubscriptionException, SlowConsumerException, MaxMessagesException, IOException;
+    public Message request(String subject, byte[] data) throws ConnectionClosedException, BadSubscriptionException, SlowConsumerException, MaxMessagesException, IOException;
+    
+    public String newInbox();
+    
+    boolean isClosed();
+    boolean isReconnecting();
+    
+    public Statistics getStats();
+    public void resetStats();
+    
+    public long getMaxPayload();
+    
+    
+
 }
