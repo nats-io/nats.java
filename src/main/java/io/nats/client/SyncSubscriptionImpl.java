@@ -9,13 +9,13 @@ public class SyncSubscriptionImpl extends AbstractSubscriptionImpl implements Sy
 	}
 
 	@Override
-	public Message nextMsg()
+	public Message nextMessage()
 			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException {
-		return nextMsg(-1);
+		return nextMessage(-1);
 	}
 
 	@Override
-	public Message nextMsg(long timeout)
+	public Message nextMessage(long timeout)
 			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException {
 		Message msg = null;
 		ConnectionImpl localConn;

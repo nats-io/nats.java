@@ -10,12 +10,13 @@ import java.io.IOException;
  *
  */
 public interface Connection {
-	public Subscription subscribe(String subject, MessageHandler cb);
+	public AsyncSubscription subscribe(String subject, MessageHandler cb);
+	public AsyncSubscription subscribeAsync(String subject, MessageHandler cb);
 	public Subscription subscribe(String subject, String queue, MessageHandler cb);
-	public Subscription subscribeSync(String subj);
+	public SyncSubscription subscribeSync(String subj);
 	public SyncSubscription subscribeSync(String subject, String queue);
 	public Subscription QueueSubscribe(String subject, String queue, MessageHandler cb);
-	public Subscription QueueSubscribeSync(String subject, String queue);
+	public SyncSubscription QueueSubscribeSync(String subject, String queue);
 	
 	public void publish(String subject, byte[] data) throws ConnectionClosedException;
 	public void publish(Message msg) throws ConnectionClosedException;
@@ -34,6 +35,8 @@ public interface Connection {
     public void resetStats();
     
     public long getMaxPayload();
+	void flush(int timeout) throws Exception;
+	void flush() throws Exception;
     
     
 

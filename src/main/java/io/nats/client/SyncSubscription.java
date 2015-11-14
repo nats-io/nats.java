@@ -8,8 +8,8 @@ package io.nats.client;
  *
  */
 public interface SyncSubscription extends Subscription {
-	public Message nextMsg() throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException;
-	public Message nextMsg(long timeout) 
+	public Message nextMessage() throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException;
+	public Message nextMessage(long timeout) 
 			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException;
 
 }

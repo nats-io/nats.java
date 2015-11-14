@@ -54,7 +54,7 @@ public class SyncSubscriptionImplTest {
 	}
 
 	/**
-	 * Test method for {@link io.nats.client.SyncSubscriptionImpl#nextMsg()}.
+	 * Test method for {@link io.nats.client.SyncSubscriptionImpl#nextMessage()}.
 	 * @throws NoServersException 
 	 * @throws MaxMessagesException 
 	 * @throws SlowConsumerException 
@@ -79,14 +79,14 @@ public class SyncSubscriptionImplTest {
 				e.printStackTrace();
 			}
 			sub = c.subscribeSync("foo");
-			Message m = sub.nextMsg();
+			Message m = sub.nextMessage();
 			System.err.println("Here's the Message: " + m.toString());
 		}
 		
 	}
 
 	/**
-	 * Test method for {@link io.nats.client.SyncSubscriptionImpl#nextMsg(long)}.
+	 * Test method for {@link io.nats.client.SyncSubscriptionImpl#nextMessage(long)}.
 	 * @throws MaxMessagesException 
 	 * @throws SlowConsumerException 
 	 * @throws ConnectionClosedException 
@@ -112,7 +112,7 @@ public class SyncSubscriptionImplTest {
 			}
 			sub = c.subscribeSync("foo");
 			long t0 = System.nanoTime();
-			Message m = sub.nextMsg(5000);
+			Message m = sub.nextMessage(5000);
 			long elapsedSec = (System.nanoTime() - t0)/1000000000;
 			if (!(elapsedSec == 5)) {
 				System.err.println("Timeout didn't work, elapsed time was " + elapsedSec);

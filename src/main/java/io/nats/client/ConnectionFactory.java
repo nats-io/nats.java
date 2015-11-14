@@ -13,25 +13,6 @@ import java.util.List;
 
 public class ConnectionFactory implements Cloneable {
 
-	// Default server host
-	protected static final String	DEFAULT_HOST			= "localhost";
-	// Default server port
-	protected static final int 		DEFAULT_PORT			= 4222;
-	// Default server URL
-	protected static final String 	DEFAULT_URL				= 
-			"nats://" + DEFAULT_HOST+ ":" + DEFAULT_PORT;
-	// Default maximum number of reconnect attempts.
-	protected static final int		DEFAULT_MAX_RECONNECT	= 60;
-	// Default wait time before attempting reconnection to the same server
-	protected static final int		DEFAULT_RECONNECT_WAIT	= 2 * 1000;
-	// Default connection timeout
-	protected static final int		DEFAULT_TIMEOUT			= 2 * 1000;
-	// Default ping interval; <=0 means disabled
-	protected static final int 		DEFAULT_PING_INTERVAL	= 2 * 60000;
-	// Default maximum number of pings that have not received a response
-	protected static final int		DEFAULT_MAX_PINGS_OUT	= 2;
-	// Default maximum channel length
-	protected static final int		DEFAULT_MAX_CHAN_LEN	= 65536;
 	// Default request channel length
 	// protected static final int		REQUEST_CHAN_LEN		= 4;
 	// Default server pool size
@@ -39,9 +20,9 @@ public class ConnectionFactory implements Cloneable {
 	
 	private String username							= null;
 	private String password							= null;
-	private String host								= ConnectionFactory.DEFAULT_HOST;
-	private int port								= ConnectionFactory.DEFAULT_PORT;
-	private String urlString 						= ConnectionFactory.DEFAULT_URL;
+	private String host								= Constants.DEFAULT_HOST;
+	private int port								= Constants.DEFAULT_PORT;
+	private String urlString 						= Constants.DEFAULT_URL;
 	private URI url									= null;
 	private List<URI> servers						= null;	
 	private boolean noRandomize						= false;
@@ -50,24 +31,24 @@ public class ConnectionFactory implements Cloneable {
 	private boolean pedantic						= false;
 	private boolean secure							= false;
 	private boolean reconnectAllowed				= false;
-	private int maxReconnect						= ConnectionFactory.DEFAULT_MAX_RECONNECT;
-	private long reconnectWait						= ConnectionFactory.DEFAULT_RECONNECT_WAIT;
-	private int connectionTimeout					= ConnectionFactory.DEFAULT_TIMEOUT;
-	private long pingInterval						= ConnectionFactory.DEFAULT_PING_INTERVAL;
-	private int maxPingsOut							= ConnectionFactory.DEFAULT_MAX_PINGS_OUT;
+	private int maxReconnect						= Constants.DEFAULT_MAX_RECONNECT;
+	private long reconnectWait						= Constants.DEFAULT_RECONNECT_WAIT;
+	private int connectionTimeout					= Constants.DEFAULT_TIMEOUT;
+	private long pingInterval						= Constants.DEFAULT_PING_INTERVAL;
+	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
 	private ExceptionHandler exceptionHandler 		= new DefaultExceptionHandler();
 	private ConnEventHandler connEventHandler 	= null;
 	
 	// The size of the buffered channel used between the socket
 	// Go routine and the message delivery or sync subscription.
-	private int subChanLen							= DEFAULT_MAX_CHAN_LEN;
+	private int subChanLen							= Constants.DEFAULT_MAX_CHAN_LEN;
 	
 //	public ConnectionFactory(Properties props) {
 //		
 //	}
 	
 	public ConnectionFactory() {
-		new ConnectionFactory(DEFAULT_URL, null);
+		new ConnectionFactory(Constants.DEFAULT_URL, null);
 	}
 
 	public ConnectionFactory(String url)
@@ -84,6 +65,7 @@ public class ConnectionFactory implements Cloneable {
 		if ((url!=null) && !url.isEmpty())
 		{
 			this.setUrl(url);
+			this.setUri(this.url);
 		}
 		
 		if ((servers != null) && (servers.length != 0))
@@ -100,21 +82,21 @@ public class ConnectionFactory implements Cloneable {
 		}
 		if (this.url==null && this.servers==null) {
 			try {
-				this.url = new URI(DEFAULT_URL);
+				this.url = new URI(Constants.DEFAULT_URL);
 			} catch (URISyntaxException e) {
 				// This signifies programmer error
 			}
 		}
 	}
 	
-	public ConnectionImpl createConnection() throws IOException, NATSException {
+	public ConnectionImpl createConnection() throws NATSException {
 		ConnectionImpl conn = null;
 		Options options = options();
 		
 		try {
 			conn = new ConnectionImpl(options);
 		} catch (NoServersException e) {
-			throw(new IOException(e));
+			throw(new NATSException(e));
 		}
 		
 		try {
@@ -165,6 +147,8 @@ public class ConnectionFactory implements Cloneable {
 	 * @param uri the URI to set
 	 */
 	public void setUri(URI uri) {
+		this.url = uri;
+		
 		String scheme = uri.getScheme().toLowerCase();
 		if ("nats".equals(scheme) || "tcp".equals(scheme)) {
             // happy path
@@ -220,6 +204,11 @@ public class ConnectionFactory implements Cloneable {
 	 */
 	public void setUrl(String urlString) {
 		this.urlString=urlString;
+		try {
+			this.setUri(new URI(urlString));
+		} catch (URISyntaxException e) {
+			throw new IllegalArgumentException(e);
+		}
 	}
 
 	/**

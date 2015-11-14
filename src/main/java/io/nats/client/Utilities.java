@@ -33,8 +33,9 @@ class Utilities {
      *
      */
 	public static int stringToBytesASCII(byte[] buffer, int offset, String str) {
-		int end = offset + buffer.length;
-		for (int i = 0; i < buffer.length; i++) {
+		int length = str.length();
+		int end = offset + length;
+		for (int i = 0; i < length; i++) {
 			buffer[i+offset] = (byte)str.charAt(i);
 		}
 		return end;
