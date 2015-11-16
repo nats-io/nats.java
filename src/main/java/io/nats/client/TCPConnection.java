@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 /// Convenience class representing the TCP connection to prevent 
 /// managing two variables throughout the NATs client code.
-public class TCPConnection {
+final class TCPConnection {
 	final Logger logger = LoggerFactory.getLogger(TCPConnection.class);
 
 	private final static int DEFAULT_BUF_SIZE = 32768;

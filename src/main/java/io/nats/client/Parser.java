@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Parser {
+final class Parser {
 	private final static int DEFAULT_BUF_SIZE = 512;
 	
 	private ConnectionImpl conn;
