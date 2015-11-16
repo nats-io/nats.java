@@ -1,4 +1,12 @@
+# Eclipse stuff
+.classpath
+.project
+.settings/
+
+# Build artifacts
 *.class
+target/
+bin/
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
