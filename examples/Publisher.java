@@ -3,18 +3,14 @@
  */
 
 
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import io.nats.client.Connection;
-import io.nats.client.ConnectionClosedException;
 import io.nats.client.ConnectionFactory;
 import io.nats.client.Constants;
-import io.nats.client.NATSException;
-import io.nats.client.Options;
 import io.nats.client.Statistics;
 
 /**

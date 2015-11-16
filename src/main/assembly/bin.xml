@@ -7,13 +7,21 @@
 	</formats>
 	<includeBaseDirectory>true</includeBaseDirectory>
 	<fileSets>
-			<fileSet>
+		<fileSet>
 			<directory></directory>
 			<outputDirectory>/</outputDirectory>
 			<includes>
 				<include>README.*</include>
 			</includes>
 		</fileSet>
+		<fileSet>
+			<directory>examples</directory>
+			<outputDirectory>examples</outputDirectory>
+			<includes>
+				<include>*.java</include>
+			</includes>
+		</fileSet>
+
 		<fileSet>
 			<directory>src/main/resources</directory>
 			<outputDirectory>conf</outputDirectory>
