@@ -6,8 +6,8 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Javadoc](http://javadoc-badge.appspot.com/com.github.nats-io/jnats.svg?label=javaadoc)](http://javadoc-badge.appspot.com/com.github.nats-io/jnats)
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master)](https://coveralls.io/r/nats-io/jnats?branch=master)
 
-This is a WORK IN PROGRESS. 
-Please refer to the TODO.md for more information on what things are not complete or not working.
+This is a WORK IN PROGRESS. It's not quite a stable release. 
+Please refer to the TODO.md for constantly updating information on what things are not complete or not working.
 Watch this space for more info as it becomes available.
 
 ## Installation
@@ -20,118 +20,11 @@ git clone git@github.com:nats-io/jnats.git .
 To build the library, use [maven](https://maven.apache.org/). From the root directory of the project:
 
 ```
-mvn clean install
+mvn clean install -DskipTests
 ```
 
-or use the GUI to setup the way you want. When you are satified with the settings, simply invoke:
+This will build the jnats-0.0.1-SNAPSHOT.jar in /target.
 
-```
-make
-```
-
-on Windows, you may do this for example:
-
-```
-cmake --build . --config "Release"
-```
-
-This is building the static and shared libraries and also the examples and the test program. Each are located in their respective directories under `build`: `src`, `examples` and `test`.
-
-```
-make install
-```
-
-Will copy both the static and shared libraries in the folder `install/lib` and the public headers in `install/include`.
-
-You can list all the possible `make` options with the command:
-
-```
-make help
-```
-
-The most common you will use are:
-
-* clean
-* install
-* test
-
-On platforms where `valgrind` is available, you can run the tests with memory checks.
-Here is an example:
-
-```
-make test ARGS="-T memcheck"
-```
-
-Or, you can invoke directly the `ctest` program:
-
-```
-ctest -T memcheck -V -I 1,4
-```
-The above command would run the tests with `valgrind` (`-T memcheck`), with verbose output (`-V`), and run the tests from 1 to 4 (`-I 1,4`).
-
-If you add a test to `test/test.c`, you need to add it into the `allTests` array. Each entry contains a name, and the test function. You can add it anywhere into this array.
-Build you changes:
-
-```
-$ make
-[ 44%] Built target nats
-[ 88%] Built target nats_static
-[ 90%] Built target nats-publisher
-[ 92%] Built target nats-queuegroup
-[ 94%] Built target nats-replier
-[ 96%] Built target nats-requestor
-[ 98%] Built target nats-subscriber
-Scanning dependencies of target testsuite
-[100%] Building C object test/CMakeFiles/testsuite.dir/test.c.o
-Linking C executable testsuite
-[100%] Built target testsuite
-```
-
-Now regenerate the list by invoking the test suite without any argument:
-
-```
-$ ./test/testsuite
-Number of tests: 77
-```
-
-This list the number of tests added to the file `list.txt`. Move this file to the source's test directory.
-
-```
-$ mv list.txt ../test/
-```
-
-Then, refresh the build:
-
-```
-$ cmake ..
--- Configuring done
--- Generating done
--- Build files have been written to: /home/ivan/cnats/build
-```
-
-You can use the following environment variables to influence the testsuite behavior.
-
-When running with memory check, timing changes and overall performance is slower. The following variable allows the testsuite to adjust some of values used during the test:
-
-```
-NATS_TEST_VALGRIND=yes
-```
-
-When running the tests in verbose mode, the following environment variable allows you to see the server output from within the test itself. Without this option, the server output is silenced:
-
-```
-NATS_TEST_KEEP_SERVER_OUTPUT=yes
-```
-
-If you want to change the default server executable name (`gnastd`) or specify a specific location, use this environment variable:
-
-```
-NATS_TEST_SERVER_EXE=<full server executable path>
-
-for instance:
-
-NATS_TEST_SERVER_EXE=c:\test\gnatsd.exe
-```
 ## Basic Usage
 
 ```java
