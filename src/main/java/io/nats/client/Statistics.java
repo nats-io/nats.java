@@ -40,67 +40,71 @@ public class Statistics implements Cloneable {
 	}
 
 	/**
-	 * @return the inMsgs
+	 * @return the number of messages that have been 
+	 * received on this Connection.
 	 */
 	public synchronized long getInMsgs() {
 		return inMsgs.get();
 	}
 
 	/**
-	 * 
+	 * Increments the number of messages received on 
+	 * this connection. 
 	 */
-	public synchronized long incrementInMsgs() {
+	synchronized long incrementInMsgs() {
 		return inMsgs.incrementAndGet();
 	}
 
 	/**
-	 * @return the outMsgs
+	 * @return the number of messages published on 
+	 * this Connection.
 	 */
 	public synchronized long getOutMsgs() {
 		return outMsgs.get();
 	}
-	/**
-	 * 
-	 */
-	public synchronized long incrementOutMsgs() {
+
+	synchronized long incrementOutMsgs() {
 		return outMsgs.incrementAndGet();
 	}
 
 	/**
-	 * @return the inBytes
+	 * @return the number of bytes received on this
+	 * Connection.
 	 */
 	public synchronized long getInBytes() {
 		return inBytes.get();
 	}
 	
-	/**
-	 * 
+	/*
+	 * Increments the number of bytes received. 
 	 */
-	public synchronized long incrementInBytes(long amount) {
+	synchronized long incrementInBytes(long amount) {
 		return inBytes.addAndGet(amount);
 	}
 
 	/**
-	 * @return the outBytes
+	 * @return the number of bytes that have been output
+	 * on this Connection.
 	 */
 	public synchronized long getOutBytes() {
 		return outBytes.get();
 	}
-	/**
-	 * 
+	/*
+	 * Increments the number of bytes output 
 	 */
-	public synchronized long incrementOutBytes(long delta) {
+	synchronized long incrementOutBytes(long delta) {
 		return outBytes.addAndGet(delta);
 	}
 
 	/**
-	 * @return the reconnects
+	 * @return the number of times this Connection has 
+	 * reconnected.
 	 */
 	public synchronized long getReconnects() {
 		return reconnects.get();
 	}
 	
-	public synchronized long incrementReconnects() {
+	synchronized long incrementReconnects() {
 		return reconnects.incrementAndGet();
 	}
 

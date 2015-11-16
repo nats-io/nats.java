@@ -23,7 +23,7 @@ public class ConnectionFactory implements Cloneable {
 	private String host								= Constants.DEFAULT_HOST;
 	private int port								= Constants.DEFAULT_PORT;
 	private String urlString 						= Constants.DEFAULT_URL;
-	private URI url;
+	private URI url									= null;
 	private List<URI> servers						= null;	
 	private boolean noRandomize						= false;
 	private String connectionName					= null;
@@ -198,10 +198,10 @@ public class ConnectionFactory implements Cloneable {
 	/**
 	 * @param url the url to set
 	 */
-	public void setUrl(String urlString) {
-		this.urlString=urlString;
+	public void setUrl(String url) {
+		this.urlString=url;
 		try {
-			this.setUri(new URI(urlString));
+			this.setUri(new URI(url));
 		} catch (URISyntaxException e) {
 			throw new IllegalArgumentException(e);
 		}

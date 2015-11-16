@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractSubscriptionImpl implements Subscription {
+abstract class AbstractSubscriptionImpl implements Subscription {
 
 	protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 	

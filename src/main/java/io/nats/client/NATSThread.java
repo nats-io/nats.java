@@ -10,7 +10,7 @@ import java.util.logging.*;
  *
  * @author Brian Goetz and Tim Peierls
  */
-public class NATSThread extends Thread {
+class NATSThread extends Thread {
 	public static final String DEFAULT_NAME = "NATSThread";
 	private static volatile boolean debugLifecycle = false;
 	private static final AtomicInteger created = new AtomicInteger();

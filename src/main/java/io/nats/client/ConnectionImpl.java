@@ -33,7 +33,7 @@ import static io.nats.client.Constants.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConnectionImpl implements Connection {
+final class ConnectionImpl implements Connection {
 	final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
 
 	final static int DEFAULT_SCRATCH_SIZE = 512;

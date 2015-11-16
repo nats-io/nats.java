@@ -8,7 +8,6 @@ import org.slf4j.LoggerFactory;
 import io.nats.client.AsyncSubscription;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
-import io.nats.client.ConnectionImpl;
 import io.nats.client.Constants;
 import io.nats.client.ConnExceptionArgs;
 import io.nats.client.ErrorEventHandler;
@@ -148,7 +147,7 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 					System.out.println("Received: " + m);
 			}
 
-		} catch (NATSException ne) {
+		} catch (Exception ne) {
 			System.err.println("Error receiving synchronously:");
 			ne.printStackTrace();
 		} finally {

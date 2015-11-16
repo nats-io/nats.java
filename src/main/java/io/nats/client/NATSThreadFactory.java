@@ -9,7 +9,7 @@ import java.util.concurrent.ThreadFactory;
  *
  * @author Brian Goetz and Tim Peierls
  */
-public class NATSThreadFactory implements ThreadFactory {
+class NATSThreadFactory implements ThreadFactory {
     private final String poolName;
 
     public NATSThreadFactory(String poolName) {

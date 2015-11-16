@@ -5,11 +5,11 @@ package io.nats.client;
 
 import java.io.IOException;
 
-/**
- * @author Larry McQueary
+/*
+ * This is the implementation of the AsyncSubscription interface.
  *
  */
-public class AsyncSubscriptionImpl extends AbstractSubscriptionImpl implements AsyncSubscription {
+class AsyncSubscriptionImpl extends AbstractSubscriptionImpl implements AsyncSubscription {
 
 	private MessageHandler msgHandler;
 //	private MsgHandlerEventArgs msgHandlerArgs = new MsgHandlerEventArgs();

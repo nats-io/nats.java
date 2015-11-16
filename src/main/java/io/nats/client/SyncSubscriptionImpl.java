@@ -2,7 +2,7 @@ package io.nats.client;
 
 import java.util.concurrent.TimeUnit;
 
-public class SyncSubscriptionImpl extends AbstractSubscriptionImpl implements SyncSubscription {
+final class SyncSubscriptionImpl extends AbstractSubscriptionImpl implements SyncSubscription {
 
 	public SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
 		super(nc, subj, queue);
