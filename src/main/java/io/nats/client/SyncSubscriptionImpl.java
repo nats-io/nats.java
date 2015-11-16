@@ -24,10 +24,10 @@ public class SyncSubscriptionImpl extends AbstractSubscriptionImpl implements Sy
 
 		mu.lock();
 		try {
-			if (mch == null) {
+			if (conn == null) {
 				throw new ConnectionClosedException();
 			}
-			if (conn == null) {
+			if (mch == null) {
 				throw new BadSubscriptionException();
 			}
 			if (sc == true) {
@@ -35,20 +35,19 @@ public class SyncSubscriptionImpl extends AbstractSubscriptionImpl implements Sy
 				throw new SlowConsumerException();
 			}
 			localConn = (ConnectionImpl) this.getConnection();
-			localChannel = this.mch;
-			localMax = this.getMax();
-
+			localChannel = mch;
+			localMax = getMax();
 		} finally {
 			mu.unlock();
 		}
 
 		try {
 			if (timeout >= 0) {
-				msg = localChannel.poll(timeout, TimeUnit.MILLISECONDS);
+				msg = localChannel.get(timeout);
 			} else {
-				msg = localChannel.take();
+				msg = localChannel.get(-1);
 			}
-		} catch (InterruptedException e) {
+		} catch (TimeoutException e) {
 		}
 
 		if (msg != null) {

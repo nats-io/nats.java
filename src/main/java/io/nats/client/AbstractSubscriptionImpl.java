@@ -5,8 +5,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public abstract class AbstractSubscriptionImpl implements Subscription {
 
+	protected final Logger logger = LoggerFactory.getLogger(this.getClass());
+	
 	//	public AbstractSubscriptionImpl() {}
 
 	final Lock mu = new ReentrantLock();
@@ -47,8 +52,8 @@ public abstract class AbstractSubscriptionImpl implements Subscription {
 	void closeChannel() {
 		mu.lock();
 		try {
-			//TODO Is this necessary?
-			mch.clear();
+			mch.close();
+			mch = null;
 		} finally {
 			mu.unlock();
 		}
@@ -59,6 +64,8 @@ public abstract class AbstractSubscriptionImpl implements Subscription {
 	}
 
 	public String getQueue() {
+		if (queue==null)
+			return "";
 		return queue;
 	}
 
@@ -83,18 +90,22 @@ public abstract class AbstractSubscriptionImpl implements Subscription {
 	// returns false if the message could not be added because
 	// the channel is full, true if the message was added
 	// to the channel.
-	boolean addMessage(MessageImpl msg, int maxCount)
+	boolean addMessage(Message m, int maxCount)
 	{
+		if (logger.isDebugEnabled())
+			logger.debug("Entered addMessage(" + m + ", " + maxCount + ")");
 		if (mch != null)
 		{
-			if (mch.size() >= maxCount)
+			if (mch.getCount() >= maxCount)
 			{
 				return false;
 			}
 			else
 			{
 				sc = false;
-				mch.add(msg);
+				mch.add(m);
+				if (logger.isDebugEnabled())
+					logger.debug("Added message to channel: " + m);
 			}
 		}
 		return true;
@@ -185,8 +196,7 @@ public abstract class AbstractSubscriptionImpl implements Subscription {
 	}
 
 	public int getQueuedMessageCount() {
-		// TODO Auto-generated method stub
-		return 0;
+		return this.mch.getCount();
 	}
 
 	protected abstract boolean processMsg(Message msg);

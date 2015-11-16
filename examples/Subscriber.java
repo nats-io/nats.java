@@ -2,22 +2,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.nats.client.AsyncSubscription;
-import io.nats.client.BadSubscriptionException;
 import io.nats.client.Connection;
-import io.nats.client.ConnectionClosedException;
 import io.nats.client.ConnectionFactory;
+import io.nats.client.ConnectionImpl;
 import io.nats.client.Constants;
-import io.nats.client.MaxMessagesException;
+import io.nats.client.ConnExceptionArgs;
+import io.nats.client.ErrorEventHandler;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NATSException;
-import io.nats.client.Options;
-import io.nats.client.SlowConsumerException;
 import io.nats.client.Statistics;
 import io.nats.client.SyncSubscription;
 
-public class Subscriber implements MessageHandler {
+public class Subscriber implements MessageHandler, ErrorEventHandler {
 	Map<String, String> parsedArgs = new HashMap<String, String>();
 
 	int count 		= 1000000;
@@ -31,18 +32,18 @@ public class Subscriber implements MessageHandler {
 
 	final Object testLock = new Object();
 
-	public void Run(String[] args)
+	public void run(String[] args)
 	{
 		parseArgs(args);
 		banner();
 
-		ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL);
+		ConnectionFactory cf = new ConnectionFactory(url);
 		Connection c = null;
 		try {
 			c = cf.createConnection();
 		} catch (NATSException e) {
-			System.err.println("Connect error:");
-			e.printStackTrace();
+			System.err.println("Couldn't connect to " + url + " " + e.getMessage());
+			return;
 		}
 
 		long elapsed=0L;
@@ -55,13 +56,18 @@ public class Subscriber implements MessageHandler {
 		{
 			elapsed = receiveAsyncSubscriber(c);
 		}
-		long elapsedSeconds = TimeUnit.NANOSECONDS.convert(elapsed, TimeUnit.SECONDS);
+		long elapsedSeconds = TimeUnit.SECONDS.convert(elapsed, TimeUnit.NANOSECONDS);
 		System.out.printf("Received %d msgs in %d seconds ", count, 
 				elapsedSeconds);
+		if (elapsedSeconds > 0) {
 		System.out.printf("(%d msgs/second).\n",
-				(int)(count / elapsedSeconds));
+				(count / elapsedSeconds));
+		} else {
+			System.out.println();
+			System.out.println("Test not long enough to produce meaningful stats. "
+					+ "Please increase the message count (-count n)");
+		}
 		printStats(c);
-
 	}
 
 	private void printStats(Connection c)
@@ -92,13 +98,22 @@ public class Subscriber implements MessageHandler {
 		}
 	}
 	
+	@Override
+	public void onError(ConnExceptionArgs error) {
+		System.err.println("Connection error encountered: " + error.getError());
+	}
+	
 	private long receiveAsyncSubscriber(Connection c)
 	{
 		AsyncSubscription s = c.subscribeAsync(subject, this);
 
 		synchronized(testLock)
 		{
-			// s.start();
+			try {
+				s.start();
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
 			try {
 				testLock.wait();
 			} catch (InterruptedException e) {
@@ -199,12 +214,19 @@ public class Subscriber implements MessageHandler {
 	{
 		try
 		{
-			new Subscriber().Run(args);
+			new Subscriber().run(args);
 		}
 		catch (Exception ex)
 		{
-			System.out.println("Exception: " + ex.getMessage());
+			String s = ex.getMessage();
+			if (s != null)
+				System.err.println("Exception: " + s);
+			else
+				System.err.println("Exception:");
 			System.out.println(ex);
+			ex.printStackTrace();
+		} finally {
+			System.exit(0);
 		}
 	}
 }

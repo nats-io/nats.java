@@ -17,13 +17,13 @@ public class ConnectionFactory implements Cloneable {
 	// protected static final int		REQUEST_CHAN_LEN		= 4;
 	// Default server pool size
 	// protected static final int DEFAULT_SERVER_POOL_SIZE = 4;
-	
+
 	private String username							= null;
 	private String password							= null;
 	private String host								= Constants.DEFAULT_HOST;
 	private int port								= Constants.DEFAULT_PORT;
 	private String urlString 						= Constants.DEFAULT_URL;
-	private URI url									= null;
+	private URI url;
 	private List<URI> servers						= null;	
 	private boolean noRandomize						= false;
 	private String connectionName					= null;
@@ -36,28 +36,28 @@ public class ConnectionFactory implements Cloneable {
 	private int connectionTimeout					= Constants.DEFAULT_TIMEOUT;
 	private long pingInterval						= Constants.DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
-	private ExceptionHandler exceptionHandler 		= new DefaultExceptionHandler();
+	private ConnExceptionHandler connExceptionHandler 		= new DefaultExceptionHandler();
 	private ConnEventHandler connEventHandler 	= null;
-	
+
 	// The size of the buffered channel used between the socket
 	// Go routine and the message delivery or sync subscription.
 	private int subChanLen							= Constants.DEFAULT_MAX_CHAN_LEN;
-	
-//	public ConnectionFactory(Properties props) {
-//		
-//	}
-	
+
+	//	public ConnectionFactory(Properties props) {
+	//		
+	//	}
+
 	public ConnectionFactory() {
-		new ConnectionFactory(Constants.DEFAULT_URL, null);
+		this(Constants.DEFAULT_URL, null);
 	}
 
 	public ConnectionFactory(String url)
 	{
-		new ConnectionFactory(url, null);
+		this(url, null);
 	}
-	
+
 	public ConnectionFactory(String[] servers) {
-		new ConnectionFactory(null, servers);
+		this(null, servers);
 	}
 
 	public ConnectionFactory(String url, String[] servers)
@@ -65,13 +65,12 @@ public class ConnectionFactory implements Cloneable {
 		if ((url!=null) && !url.isEmpty())
 		{
 			this.setUrl(url);
-			this.setUri(this.url);
 		}
-		
+
 		if ((servers != null) && (servers.length != 0))
 		{
 			this.servers = new ArrayList<URI>();
-			for (String s : servers)
+			for (String s : servers) {
 				try {
 					this.getServers().add(new URI(s));
 				} catch (URISyntaxException e) {
@@ -79,66 +78,63 @@ public class ConnectionFactory implements Cloneable {
 					throw new IllegalArgumentException(
 							"Badly formed server URL: " + s);
 				}
-		}
-		if (this.url==null && this.servers==null) {
-			try {
-				this.url = new URI(Constants.DEFAULT_URL);
-			} catch (URISyntaxException e) {
-				// This signifies programmer error
 			}
 		}
+		if (this.url==null && this.servers==null) {
+			this.setUrl(Constants.DEFAULT_URL);
+		}
 	}
-	
+
 	public ConnectionImpl createConnection() throws NATSException {
 		ConnectionImpl conn = null;
 		Options options = options();
-		
+
 		try {
 			conn = new ConnectionImpl(options);
 		} catch (NoServersException e) {
 			throw(new NATSException(e));
 		}
-		
+
 		try {
 			conn.connect();
 		} catch (Exception e) {
 			throw new NATSException(e);
 		}
-		
+
 		return conn;
 	}
-	
+
 	private Options options() {
-    	Options result = new Options();
-    	result.setUrl(url);
-    	result.setHost(host);
-    	result.setPort(port);
-    	result.setPassword(password);
-    	result.setServers(servers);	
-    	result.setNoRandomize(noRandomize);
-    	result.setConnectionName(connectionName);
-    	result.setVerbose(verbose);
-    	result.setPedantic(pedantic);
-    	result.setSecure(secure);
-    	result.setReconnectAllowed(reconnectAllowed);
-    	result.setMaxReconnect(maxReconnect);
-    	result.setReconnectWait(reconnectWait);
-    	result.setConnectionTimeout(connectionTimeout);
-    	result.setPingInterval(pingInterval);
-    	result.setMaxPingsOut(maxPingsOut);
-    	result.setExceptionHandler(exceptionHandler);
-    	result.setSubChanLen(subChanLen);
-//    	private ConnEventHandler connEventHandler 	= null;		return null;
-    	return result;
+		Options result = new Options();
+		result.setUrl(url);
+		result.setHost(host);
+		result.setPort(port);
+		result.setPassword(password);
+		result.setServers(servers);	
+		result.setNoRandomize(noRandomize);
+		result.setConnectionName(connectionName);
+		result.setVerbose(verbose);
+		result.setPedantic(pedantic);
+		result.setSecure(secure);
+		result.setReconnectAllowed(reconnectAllowed);
+		result.setMaxReconnect(maxReconnect);
+		result.setReconnectWait(reconnectWait);
+		result.setConnectionTimeout(connectionTimeout);
+		result.setPingInterval(pingInterval);
+		result.setMaxPingsOut(maxPingsOut);
+		result.setExceptionHandler(connExceptionHandler);
+		result.setSubChanLen(subChanLen);
+		//    	private ConnEventHandler connEventHandler 	= null;		return null;
+		return result;
 	}
 
 	@Override public ConnectionFactory clone(){
-        try {
-            return (ConnectionFactory)super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new Error(e);
-        }
-    }
+		try {
+			return (ConnectionFactory)super.clone();
+		} catch (CloneNotSupportedException e) {
+			throw new Error(e);
+		}
+	}
 
 	/**
 	 * Convenience function to set host, port, username, password from 
@@ -148,39 +144,39 @@ public class ConnectionFactory implements Cloneable {
 	 */
 	public void setUri(URI uri) {
 		this.url = uri;
-		
+
 		String scheme = uri.getScheme().toLowerCase();
 		if ("nats".equals(scheme) || "tcp".equals(scheme)) {
-            // happy path
-        } else {
-            throw new IllegalArgumentException("Wrong scheme in NATS URI: " +
-                                               uri.getScheme());
-        }
-        String host = uri.getHost();
-        if (host != null) {
-            setHost(host);
-        }
+			// happy path
+		} else {
+			throw new IllegalArgumentException("Wrong scheme in NATS URI: " +
+					uri.getScheme());
+		}
+		String host = uri.getHost();
+		if (host != null) {
+			setHost(host);
+		}
 
-        int port = uri.getPort();
-        if (port != -1) {
-            setPort(port);
-        }
+		int port = uri.getPort();
+		if (port != -1) {
+			setPort(port);
+		}
 
-        String userInfo = uri.getRawUserInfo();
-        if (userInfo != null) {
-            String userPass[] = userInfo.split(":");
-            if (userPass.length > 2) {
-                throw new IllegalArgumentException("Bad user info in NATS " +
-                                                   "URI: " + userInfo);
-            }
+		String userInfo = uri.getRawUserInfo();
+		if (userInfo != null) {
+			String userPass[] = userInfo.split(":");
+			if (userPass.length > 2) {
+				throw new IllegalArgumentException("Bad user info in NATS " +
+						"URI: " + userInfo);
+			}
 
-            setUsername(uriDecode(userPass[0]));
-            if (userPass.length == 2) {
-                setPassword(uriDecode(userPass[1]));
-            }
-        }
+			setUsername(uriDecode(userPass[0]));
+			if (userPass.length == 2) {
+				setPassword(uriDecode(userPass[1]));
+			}
+		}
 	}
-	
+
 	private String uriDecode(String s) {
 		try {
 			// URLDecode decodes '+' to a space, as for
@@ -404,9 +400,9 @@ public class ConnectionFactory implements Cloneable {
 	 * @param connectionTimeout the connectionTimeout to set
 	 */
 	public void setConnectionTimeout(int connectionTimeout) {
-	    if(connectionTimeout < 0) {
-            throw new IllegalArgumentException("TCP connection timeout cannot be negative");
-	    }
+		if(connectionTimeout < 0) {
+			throw new IllegalArgumentException("TCP connection timeout cannot be negative");
+		}
 		this.connectionTimeout = connectionTimeout;
 	}
 
@@ -439,19 +435,19 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the exceptionHandler
+	 * @return the connExceptionHandler
 	 */
-	public ExceptionHandler getExceptionHandler() {
-		return exceptionHandler;
+	public ConnExceptionHandler getExceptionHandler() {
+		return connExceptionHandler;
 	}
 
 	/**
-	 * @param exceptionHandler the exceptionHandler to set
+	 * @param connExceptionHandler the connExceptionHandler to set
 	 */
-	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
-		if (exceptionHandler == null) {
-			throw new IllegalArgumentException("ExceptionHandler cannot be null!");
+	public void setExceptionHandler(ConnExceptionHandler connExceptionHandler) {
+		if (connExceptionHandler == null) {
+			throw new IllegalArgumentException("ConnExceptionHandler cannot be null!");
 		}
-		this.exceptionHandler = exceptionHandler;
+		this.connExceptionHandler = connExceptionHandler;
 	}
 }

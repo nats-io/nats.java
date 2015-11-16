@@ -8,14 +8,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /// Convenience class representing the TCP connection to prevent 
 /// managing two variables throughout the NATs client code.
 public class TCPConnection {
+	final Logger logger = LoggerFactory.getLogger(TCPConnection.class);
 
 	private final static int DEFAULT_BUF_SIZE = 32768;
 
@@ -55,33 +60,23 @@ public class TCPConnection {
 
 			this.addr = new InetSocketAddress(host, port);
 			client = new Socket();
-			client.connect(addr, timeoutMillis);
-			// #if async_connect
-			// client = new TcpClient();
-			// IAsyncResult r = client.BeginConnect(s.url.Host, s.url.Port,
-			// null, null);
-			//
-			// if (r.AsyncWaitHandle.WaitOne(
-			// TimeSpan.FromMilliseconds(timeoutMillis)) == false)
-			// {
-			// client = null;
-			// throw new NATSConnectionException("Timeout");
-			// }
-			// client.EndConnect(r);
-			// #endif
-
+			client.connect(addr, timeout);
+			
 			client.setTcpNoDelay(false);
 			client.setReceiveBufferSize(DEFAULT_BUF_SIZE);
 			client.setSendBufferSize(DEFAULT_BUF_SIZE);
 
 			writeStream = client.getOutputStream();
 			readStream = client.getInputStream();
-		} catch (SocketException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		} 
+		catch (ConnectException e) {
+			if (logger.isDebugEnabled())
+				logger.debug(e.getMessage());
+		} 
+		catch (IOException e) {
+			logger.error("I/O error: " + e.getMessage());
+			if (logger.isDebugEnabled())
+				e.printStackTrace();
 		} finally {
 			mu.unlock();
 		}

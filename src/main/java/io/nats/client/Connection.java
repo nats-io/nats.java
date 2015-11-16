@@ -5,10 +5,6 @@ package io.nats.client;
 
 import java.io.IOException;
 
-/**
- * @author larry
- *
- */
 public interface Connection {
 	public AsyncSubscription subscribe(String subject, MessageHandler cb);
 	public AsyncSubscription subscribeAsync(String subject, MessageHandler cb);
@@ -37,6 +33,14 @@ public interface Connection {
     public long getMaxPayload();
 	void flush(int timeout) throws Exception;
 	void flush() throws Exception;
+	void setDisconnectedEventHandler(ConnEventHandler disconnectedEventHandler);
+	ConnEventHandler getReconnectedEventHandler();
+	void setReconnectedEventHandler(ConnEventHandler reconnectedEventHandler);
+	ConnExceptionHandler getExceptionHandler();
+	void setExceptionHandler(ConnExceptionHandler exceptionHandler);
+	ConnEventHandler getClosedEventHandler();
+	void setClosedEventHandler(ConnEventHandler closedEventHandler);
+	ConnEventHandler getDisconnectedEventHandler();
     
     
 

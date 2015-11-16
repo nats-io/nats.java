@@ -22,7 +22,8 @@ import io.nats.client.Statistics;
  *
  */
 public class Publisher {
-	Map<String, String> parsedArgs = new HashMap<String, String>();
+	Map<String, String> parsedArgs = 
+			new HashMap<String, String>();
 
 	int count = 2000000;
 	String url = Constants.DEFAULT_URL;
@@ -64,17 +65,16 @@ public class Publisher {
 		elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
 		System.out.println("Elapsed time is " + elapsed + " seconds");
 
-		if (elapsed <= 0) {
-			System.err.println("Test not long enough to produce meaningful stats. "
-					+ "Please increase the message count (-count N)s");
-			System.exit(-1);
-		}
-		
 		System.out.printf("Published %d msgs in %d seconds ", count, elapsed);
-		System.out.printf("(%d msgs/second).\n",
-				(int)(count / elapsed));
+		if (elapsed > 0) {
+			System.out.printf("(%d msgs/second).\n",
+					(int)(count / elapsed));
+		} else {
+			System.err.println("\nTest not long enough to produce meaningful stats. "
+					+ "Please increase the message count (-count n)");
+		} 
+		
 		printStats(c);
-
 	}
 
 	private void printStats(Connection c)

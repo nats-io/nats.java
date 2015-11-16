@@ -1,5 +1,5 @@
 package io.nats.client;
 
 public interface ErrorEventHandler {
-	public void onError(ErrEventArgs error);
+	public void onError(ConnExceptionArgs error);
 }

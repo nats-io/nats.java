@@ -6,17 +6,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Parser {
+	private final static int DEFAULT_BUF_SIZE = 512;
+	
 	private ConnectionImpl conn;
 	private int state = 0;
-	private final int DEFAULT_BUF_SIZE = 512;
 	
 	byte[] argBufBase = new byte[DEFAULT_BUF_SIZE];
 	ByteBuffer argBufStream = null;
 	
 	byte[] msgBufBase = new byte[DEFAULT_BUF_SIZE];
 	ByteBuffer msgBufStream = null;
-	
-	final static int MAX_CONTROL_LINE_SIZE = 1024;
 	
 	protected class ParseState {
 		int	state;

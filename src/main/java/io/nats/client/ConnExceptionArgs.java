@@ -1,11 +1,11 @@
 package io.nats.client;
 
-public class ErrEventArgs {
+public class ConnExceptionArgs {
     private ConnectionImpl c;
     private Subscription s;
     private String err;
 
-    public ErrEventArgs(ConnectionImpl c, Subscription subscription, String err)
+    public ConnExceptionArgs(ConnectionImpl c, Subscription subscription, String err)
     {
         this.c = c;
         this.s = subscription;

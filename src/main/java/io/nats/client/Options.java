@@ -24,7 +24,7 @@ public class Options {
 	private int connectionTimeout;
 	private long pingInterval;
 	private int maxPingsOut;
-	private ExceptionHandler exceptionHandler;
+	private ConnExceptionHandler connExceptionHandler;
 	private ConnEventHandler connEventHandler;
 	/**
 	 * @return the subChanLen
@@ -198,11 +198,11 @@ public class Options {
 	public void setMaxPingsOut(int maxPingsOut) {
 		this.maxPingsOut = maxPingsOut;
 	}
-	public ExceptionHandler getExceptionHandler() {
-		return exceptionHandler;
+	public ConnExceptionHandler getExceptionHandler() {
+		return connExceptionHandler;
 	}
-	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
-		this.exceptionHandler = exceptionHandler;
+	public void setExceptionHandler(ConnExceptionHandler connExceptionHandler) {
+		this.connExceptionHandler = connExceptionHandler;
 	}
 	public ConnEventHandler getConnectionListener() {
 		return connEventHandler;
