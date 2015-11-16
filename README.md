@@ -23,7 +23,9 @@ To build the library, use [maven](https://maven.apache.org/). From the root dire
 mvn clean install -DskipTests
 ```
 
-This will build the jnats-0.0.1-SNAPSHOT.jar in /target.
+This will build the jnats-0.0.1-SNAPSHOT.tar.gz in /target.
+
+This compressed archive contains the jnats client jar, slf4j dependencies, and this README.
 
 ## Basic Usage
 
