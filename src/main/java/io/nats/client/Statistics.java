@@ -1,14 +1,16 @@
 package io.nats.client;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 // Tracks various stats received and sent on this connection,
 // including counts for messages and bytes.
 public class Statistics implements Cloneable {
 
-	long inMsgs = 0;
-	long outMsgs = 0;
-	long inBytes = 0;
-	long outBytes = 0;
-	long reconnects = 0;
+	private AtomicLong inMsgs = new AtomicLong();
+	private AtomicLong outMsgs = new AtomicLong();
+	private AtomicLong inBytes = new AtomicLong();
+	private AtomicLong outBytes = new AtomicLong();
+	private AtomicLong reconnects = new AtomicLong();
 	
 	Statistics () {
 		
@@ -30,42 +32,76 @@ public class Statistics implements Cloneable {
 	}
 
 	public void clear() {
-		this.inBytes  = 0;
-		this.inMsgs   = 0;
-		this.outBytes = 0;
-		this.outMsgs  = 0;
+		this.inBytes.set(0L);
+		this.inMsgs.set(0L);;
+		this.outBytes.set(0L);;
+		this.outMsgs.set(0L);
 
 	}
 
 	/**
 	 * @return the inMsgs
 	 */
-	public long getInMsgs() {
-		return inMsgs;
+	public synchronized long getInMsgs() {
+		return inMsgs.get();
 	}
+
+	/**
+	 * 
+	 */
+	public synchronized long incrementInMsgs() {
+		return inMsgs.incrementAndGet();
+	}
+
 	/**
 	 * @return the outMsgs
 	 */
-	public long getOutMsgs() {
-		return outMsgs;
+	public synchronized long getOutMsgs() {
+		return outMsgs.get();
 	}
+	/**
+	 * 
+	 */
+	public synchronized long incrementOutMsgs() {
+		return outMsgs.incrementAndGet();
+	}
+
 	/**
 	 * @return the inBytes
 	 */
-	public long getInBytes() {
-		return inBytes;
+	public synchronized long getInBytes() {
+		return inBytes.get();
 	}
+	
+	/**
+	 * 
+	 */
+	public synchronized long incrementInBytes(long amount) {
+		return inBytes.addAndGet(amount);
+	}
+
 	/**
 	 * @return the outBytes
 	 */
-	public long getOutBytes() {
-		return outBytes;
+	public synchronized long getOutBytes() {
+		return outBytes.get();
 	}
+	/**
+	 * 
+	 */
+	public synchronized long incrementOutBytes(long delta) {
+		return outBytes.addAndGet(delta);
+	}
+
 	/**
 	 * @return the reconnects
 	 */
-	public long getReconnects() {
-		return reconnects;
+	public synchronized long getReconnects() {
+		return reconnects.get();
+	}
+	
+	public synchronized long incrementReconnects() {
+		return reconnects.incrementAndGet();
 	}
 
 }

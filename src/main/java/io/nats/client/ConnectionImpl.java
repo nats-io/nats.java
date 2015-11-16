@@ -6,6 +6,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.SocketException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -153,6 +154,7 @@ public class ConnectionImpl implements Connection {
 
 	public ConnectionImpl(Options o) throws NoServersException {
 		this.opts = o;
+		this.pongs = createPongs();
 		this.subs = new ConcurrentHashMap<Long, Subscription>();
 		this.stats = new Statistics();
 		this.ps = new Parser(this);
@@ -371,7 +373,8 @@ public class ConnectionImpl implements Connection {
 			mu.unlock();
 		}
 	}
-
+	
+	@Override
 	public void close() {
 		close(ConnState.CLOSED, true);
 	}
@@ -382,6 +385,7 @@ public class ConnectionImpl implements Connection {
 	// function. This function will handle the locking manually.
 	private void close(ConnState closeState, boolean invokeDelegates)
 	{
+		logger.debug("Closing connection, closeState = " + closeState);
 		ConnEventHandler disconnectedEventHandler = null;
 		ConnEventHandler closedEventHandler = null;
 
@@ -797,7 +801,7 @@ public class ConnectionImpl implements Connection {
 			}
 
 			// We are reconnected.
-			stats.reconnects++;
+			stats.incrementReconnects();
 
 			// TODO Clean this up? It's never used in any of the clients
 			// Clear out server stats for the server we connected to..
@@ -1365,15 +1369,7 @@ public class ConnectionImpl implements Connection {
 					logger.debug("Received bytes: " + s.substring(0, s.lastIndexOf("\r\n")));
 				}
 				parser.parse(buffer, len);
-			} catch (ParseException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IOException e) {
-
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			catch (Exception e)
+			} catch (Exception e)
 			{
 				e.printStackTrace();
 				if (status != ConnState.CLOSED)
@@ -1515,8 +1511,8 @@ public class ConnectionImpl implements Connection {
 		mu.lock();
 		try
 		{
-			stats.inMsgs++;
-			stats.inBytes += length;
+			stats.incrementInMsgs();
+			stats.incrementInBytes(length);
 
 			// In regular message processing, the key should be present,
 			// so optimize by using an an exception to handle a missing key.
@@ -2113,8 +2109,8 @@ public class ConnectionImpl implements Connection {
 
 			}
 
-			stats.outMsgs++;
-			stats.outBytes += msgSize;
+			stats.incrementOutMsgs();
+			stats.incrementOutBytes(msgSize);
 
 			kickFlusher();
 		} finally {
@@ -2158,7 +2154,7 @@ public class ConnectionImpl implements Connection {
 	@Override
 	public Message request(String subject, byte[] data) throws ConnectionClosedException, BadSubscriptionException, SlowConsumerException, MaxMessagesException, IOException {
 
-		return request(subject, data, 0);
+		return request(subject, data, -1);
 	}
 
 	@Override

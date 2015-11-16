@@ -26,7 +26,7 @@ public class Publisher {
 	String subject = "foo";
 	byte[] payload = null;
 
-	public void Run(String[] args)
+	public void run(String[] args)
 	{
 		long elapsed = 0L;
 		Connection c = null;
@@ -69,7 +69,6 @@ public class Publisher {
 			System.err.println("\nTest not long enough to produce meaningful stats. "
 					+ "Please increase the message count (-count n)");
 		} 
-		
 		printStats(c);
 	}
 
@@ -132,12 +131,15 @@ public class Publisher {
 	public static void main(String[] args) {
 		try
 		{
-			new Publisher().Run(args);
+			new Publisher().run(args);
 		}
 		catch (Exception ex)
 		{
 			System.err.println("Exception: " + ex.getMessage());
 			System.err.println(ex);
+		}
+		finally {
+			System.exit(0);
 		}
 
 

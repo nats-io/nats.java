@@ -24,6 +24,8 @@ public interface Connection {
     
     public String newInbox();
     
+	public void close();
+
     boolean isClosed();
     boolean isReconnecting();
     

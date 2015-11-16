@@ -17,7 +17,6 @@ public class Replier implements MessageHandler {
 	boolean sync = false;
 	int received = 0;
 	boolean verbose = false;
-	Message replyMsg = null;
 	
 	long start = 0L;
 	long end = 0L;
@@ -57,10 +56,16 @@ public class Replier implements MessageHandler {
 		}
 		seconds = TimeUnit.NANOSECONDS.toSeconds(elapsed);
 		System.out.printf("Replied to %d msgs in %d seconds ", count, seconds);
-		System.out.printf("(%d replies/second).",
+		
+		if (seconds > 0) {
+		System.out.printf("(%d msgs/second).\n",
 				(count / seconds));
+		} else {
+			System.out.println();
+			System.out.println("Test not long enough to produce meaningful stats. "
+					+ "Please increase the message count (-count n)");
+		}
 		printStats(c);
-
 	}
 
 	private void printStats(Connection c)
@@ -83,7 +88,6 @@ public class Replier implements MessageHandler {
 		if (verbose)
 			System.err.println("Received: " + msg);
 
-		replyMsg.setSubject(msg.getReplyTo());
 		Connection c = msg.getSubscription().getConnection();
 		try {
 			c.publish(msg.getReplyTo(), replyBytes);
@@ -129,6 +133,7 @@ public class Replier implements MessageHandler {
 
 	private long receiveSyncSubscriber(Connection c)
 	{
+		System.out.println("In receiveSyncSubscriber");
 		SyncSubscription s = c.subscribeSync(subject);
 		try {
 			s.nextMessage();
@@ -144,16 +149,17 @@ public class Replier implements MessageHandler {
 			received++;
 			Message m = null;
 			try {
+				System.out.println("nextMessage()");
 				m = s.nextMessage();
+				System.out.println("Got message " + m);
 			} catch (Exception e) {
 				e.printStackTrace();                	
 			}
 			if (verbose)
 				System.out.println("Received: " + m);
 
-			replyMsg.setSubject(m.getReplyTo());
 			try {
-				c.publish(replyMsg);
+				c.publish(m.getReplyTo(),replyBytes);
 			} catch (ConnectionClosedException e) {
 				e.printStackTrace();
 			}
@@ -229,6 +235,8 @@ public class Replier implements MessageHandler {
 		{
 			System.err.println("Exception: " + ex.getMessage());
 			ex.printStackTrace();
+		} finally {
+			System.exit(0);
 		}
 	}
 

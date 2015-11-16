@@ -67,6 +67,10 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 			System.out.println("Test not long enough to produce meaningful stats. "
 					+ "Please increase the message count (-count n)");
 		}
+		try {
+			Thread.sleep(500);
+		} catch (InterruptedException e) {
+		}
 		printStats(c);
 	}
 
