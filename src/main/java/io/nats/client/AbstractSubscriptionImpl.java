@@ -147,6 +147,7 @@ public abstract class AbstractSubscriptionImpl implements Subscription {
 	 * @return the sid
 	 */
 	public long getSid() {
+		
 		return sid;
 	}
 

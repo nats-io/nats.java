@@ -33,7 +33,7 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 	final Object testLock = new Object();
 
 	public void run(String[] args)
-	{
+	{ 
 		parseArgs(args);
 		banner();
 
