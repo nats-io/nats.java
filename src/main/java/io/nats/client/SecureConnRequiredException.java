@@ -1,6 +1,6 @@
 package io.nats.client;
 
-public class SecureConnRequiredException extends NATSException {
+public class SecureConnRequiredException extends Exception {
 
 	public SecureConnRequiredException() {
 		// TODO Auto-generated constructor stub

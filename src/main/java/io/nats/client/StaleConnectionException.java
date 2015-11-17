@@ -1,6 +1,6 @@
 package io.nats.client;
 
-public class StaleConnectionException extends NATSException {
+public class StaleConnectionException extends Exception {
 
 	/**
 	 * 

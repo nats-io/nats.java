@@ -1,12 +1,11 @@
 package io.nats.client;
 
-import java.io.IOException;
-
-public class ConnectionClosedException extends NATSException {
+public class ConnectionClosedException extends Exception {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 8588464408154143356L;
+
 
 }

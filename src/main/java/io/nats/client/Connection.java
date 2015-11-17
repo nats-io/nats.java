@@ -35,14 +35,14 @@ public interface Connection {
     public long getMaxPayload();
 	void flush(int timeout) throws Exception;
 	void flush() throws Exception;
-	void setDisconnectedEventHandler(ConnEventHandler disconnectedEventHandler);
-	ConnEventHandler getReconnectedEventHandler();
-	void setReconnectedEventHandler(ConnEventHandler reconnectedEventHandler);
+	void setDisconnectedEventHandler(ConnectionEventHandler disconnectedEventHandler);
+	ConnectionEventHandler getReconnectedEventHandler();
+	void setReconnectedEventHandler(ConnectionEventHandler reconnectedEventHandler);
 	ConnExceptionHandler getExceptionHandler();
 	void setExceptionHandler(ConnExceptionHandler exceptionHandler);
-	ConnEventHandler getClosedEventHandler();
-	void setClosedEventHandler(ConnEventHandler closedEventHandler);
-	ConnEventHandler getDisconnectedEventHandler();
+	ConnectionEventHandler getClosedEventHandler();
+	void setClosedEventHandler(ConnectionEventHandler closedEventHandler);
+	ConnectionEventHandler getDisconnectedEventHandler();
     
     
 

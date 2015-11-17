@@ -91,9 +91,9 @@ final class ConnectionImpl implements Connection {
 	private ConnectionImpl nc 				= this;
 	private final Lock mu 					= new ReentrantLock();
 	
-	protected ConnEventHandler closedEventHandler;
-	protected ConnEventHandler disconnectedEventHandler;
-	protected ConnEventHandler reconnectedEventHandler;
+	protected ConnectionEventHandler closedEventHandler;
+	protected ConnectionEventHandler disconnectedEventHandler;
+	protected ConnectionEventHandler reconnectedEventHandler;
 	protected ConnExceptionHandler exceptionHandler = new DefaultExceptionHandler();
 
 
@@ -386,8 +386,8 @@ final class ConnectionImpl implements Connection {
 	private void close(ConnState closeState, boolean invokeDelegates)
 	{
 		logger.debug("Closing connection, closeState = " + closeState);
-		ConnEventHandler disconnectedEventHandler = null;
-		ConnEventHandler closedEventHandler = null;
+		ConnectionEventHandler disconnectedEventHandler = null;
+		ConnectionEventHandler closedEventHandler = null;
 
 		mu.lock();
 		try
@@ -447,8 +447,8 @@ final class ConnectionImpl implements Connection {
 				// TODO:  Mirror go, but this can result in a callback
 				// being invoked out of order
 				disconnectedEventHandler = opts.disconnectedEventHandler;
-				taskExec.execute(new ConnEventHandlerTask(disconnectedEventHandler, new ConnEventArgs(this)));
-				//                new Task(() => { disconnectedEventHandler(new ConnEventArgs(this)); }).Start();
+				taskExec.execute(new ConnEventHandlerTask(disconnectedEventHandler, new ConnectionEvent(this)));
+				//                new Task(() => { disconnectedEventHandler(new ConnectionEvent(this)); }).Start();
 			}
 
 			// Go ahead and make sure we have flushed the outbound buffer.
@@ -471,7 +471,7 @@ final class ConnectionImpl implements Connection {
 
 		if (invokeDelegates && closedEventHandler != null)
 		{
-			taskExec.execute(new ConnEventHandlerTask(closedEventHandler, new ConnEventArgs(this)));
+			taskExec.execute(new ConnEventHandlerTask(closedEventHandler, new ConnectionEvent(this)));
 		}
 
 		mu.lock();
@@ -489,7 +489,7 @@ final class ConnectionImpl implements Connection {
 	}
 
 
-	protected void processConnectInit() throws ConnectionException {
+	protected void processConnectInit() throws Exception {
 		status = ConnState.CONNECTING;
 
 		// Process the INFO protocol that we should be receiving
@@ -740,7 +740,7 @@ final class ConnectionImpl implements Connection {
 		{
 			mu.unlock();
 
-			taskExec.execute(new ConnEventHandlerTask(disconnectedEventHandler,new ConnEventArgs(this)));
+			taskExec.execute(new ConnEventHandlerTask(disconnectedEventHandler,new ConnectionEvent(this)));
 
 			mu.lock();
 		}
@@ -840,7 +840,7 @@ final class ConnectionImpl implements Connection {
 			}
 
 			// get the event handler under the lock
-			ConnEventHandler reconnectedEh = opts.reconnectedEventHandler;
+			ConnectionEventHandler reconnectedEh = opts.reconnectedEventHandler;
 
 			// Release the lock here, we will return below
 			mu.unlock();
@@ -855,7 +855,7 @@ final class ConnectionImpl implements Connection {
 
 			if (reconnectedEh != null)
 			{
-				taskExec.execute(new ConnEventHandlerTask(reconnectedEh, new ConnEventArgs(this)));
+				taskExec.execute(new ConnEventHandlerTask(reconnectedEh, new ConnectionEvent(this)));
 			}
 
 			return;
@@ -911,7 +911,7 @@ final class ConnectionImpl implements Connection {
 		}
 	}
 	// caller must lock
-	protected void sendConnect() throws NATSException {
+	protected void sendConnect() throws Exception {
 		try {
 			String cp = connectProto();
 
@@ -1886,10 +1886,10 @@ final class ConnectionImpl implements Connection {
 
 	class ConnEventHandlerTask implements Runnable {
 
-		private final ConnEventHandler cb;
-		private final ConnEventArgs eventArgs;
+		private final ConnectionEventHandler cb;
+		private final ConnectionEvent eventArgs;
 
-		ConnEventHandlerTask(ConnEventHandler cb, ConnEventArgs eventArgs) {
+		ConnEventHandlerTask(ConnectionEventHandler cb, ConnectionEvent eventArgs) {
 			this.cb = cb;
 			this.eventArgs = eventArgs;
 		}
@@ -2211,7 +2211,7 @@ final class ConnectionImpl implements Connection {
 	 * @return the closedEventHandler
 	 */
 	@Override
-	public ConnEventHandler getClosedEventHandler() {
+	public ConnectionEventHandler getClosedEventHandler() {
 		return closedEventHandler;
 	}
 
@@ -2219,7 +2219,7 @@ final class ConnectionImpl implements Connection {
 	 * @param closedEventHandler the closedEventHandler to set
 	 */
 	@Override
-	public void setClosedEventHandler(ConnEventHandler closedEventHandler) {
+	public void setClosedEventHandler(ConnectionEventHandler closedEventHandler) {
 		this.closedEventHandler = closedEventHandler;
 	}
 
@@ -2227,7 +2227,7 @@ final class ConnectionImpl implements Connection {
 	 * @return the disconnectedEventHandler
 	 */
 	@Override
-	public ConnEventHandler getDisconnectedEventHandler() {
+	public ConnectionEventHandler getDisconnectedEventHandler() {
 		return disconnectedEventHandler;
 	}
 
@@ -2235,7 +2235,7 @@ final class ConnectionImpl implements Connection {
 	 * @param disconnectedEventHandler the disconnectedEventHandler to set
 	 */
 	@Override
-	public void setDisconnectedEventHandler(ConnEventHandler disconnectedEventHandler) {
+	public void setDisconnectedEventHandler(ConnectionEventHandler disconnectedEventHandler) {
 		this.disconnectedEventHandler = disconnectedEventHandler;
 	}
 
@@ -2243,7 +2243,7 @@ final class ConnectionImpl implements Connection {
 	 * @return the reconnectedEventHandler
 	 */
 	@Override
-	public ConnEventHandler getReconnectedEventHandler() {
+	public ConnectionEventHandler getReconnectedEventHandler() {
 		return reconnectedEventHandler;
 	}
 
@@ -2251,7 +2251,7 @@ final class ConnectionImpl implements Connection {
 	 * @param reconnectedEventHandler the reconnectedEventHandler to set
 	 */
 	@Override
-	public void setReconnectedEventHandler(ConnEventHandler reconnectedEventHandler) {
+	public void setReconnectedEventHandler(ConnectionEventHandler reconnectedEventHandler) {
 		this.reconnectedEventHandler = reconnectedEventHandler;
 	}
 

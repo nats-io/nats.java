@@ -1,6 +1,11 @@
 package io.nats.client;
 
-public class TimeoutException extends NATSException {
+public class TimeoutException extends Exception {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -1254515007904069462L;
 
 	public TimeoutException() {
 		// TODO Auto-generated constructor stub

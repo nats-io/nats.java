@@ -25,7 +25,7 @@ public class Options {
 	private long pingInterval;
 	private int maxPingsOut;
 	private ConnExceptionHandler connExceptionHandler;
-	private ConnEventHandler connEventHandler;
+	private ConnectionEventHandler connectionEventHandler;
 	/**
 	 * @return the subChanLen
 	 */
@@ -39,9 +39,9 @@ public class Options {
 		this.subChanLen = subChanLen;
 	}
 	private int subChanLen;
-	public ConnEventHandler disconnectedEventHandler;
-	public ConnEventHandler closedEventHandler;
-	public ConnEventHandler reconnectedEventHandler;
+	public ConnectionEventHandler disconnectedEventHandler;
+	public ConnectionEventHandler closedEventHandler;
+	public ConnectionEventHandler reconnectedEventHandler;
 	public ErrorEventHandler asyncErrorEventHandler;
 	
 	public URI getUrl() {
@@ -204,10 +204,10 @@ public class Options {
 	public void setExceptionHandler(ConnExceptionHandler connExceptionHandler) {
 		this.connExceptionHandler = connExceptionHandler;
 	}
-	public ConnEventHandler getConnectionListener() {
-		return connEventHandler;
+	public ConnectionEventHandler getConnectionListener() {
+		return connectionEventHandler;
 	}
-	public void setConnectionListener(ConnEventHandler connEventHandler) {
-		this.connEventHandler = connEventHandler;
+	public void setConnectionListener(ConnectionEventHandler connectionEventHandler) {
+		this.connectionEventHandler = connectionEventHandler;
 	}
 }

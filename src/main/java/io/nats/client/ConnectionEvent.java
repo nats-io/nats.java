@@ -1,9 +1,9 @@
 package io.nats.client;
 
-public class ConnEventArgs {
+public class ConnectionEvent {
 	ConnectionImpl nc;
 
-	public ConnEventArgs(ConnectionImpl c) {
+	public ConnectionEvent(ConnectionImpl c) {
 		this.nc = c;
 	}
 

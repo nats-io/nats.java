@@ -37,7 +37,7 @@ public class ConnectionFactory implements Cloneable {
 	private long pingInterval						= Constants.DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
 	private ConnExceptionHandler connExceptionHandler 		= new DefaultExceptionHandler();
-	private ConnEventHandler connEventHandler 	= null;
+	private ConnectionEventHandler connectionEventHandler 	= null;
 
 	// The size of the buffered channel used between the socket
 	// Go routine and the message delivery or sync subscription.
@@ -124,7 +124,7 @@ public class ConnectionFactory implements Cloneable {
 		result.setMaxPingsOut(maxPingsOut);
 		result.setExceptionHandler(connExceptionHandler);
 		result.setSubChanLen(subChanLen);
-		//    	private ConnEventHandler connEventHandler 	= null;		return null;
+		//    	private ConnectionEventHandler connectionEventHandler 	= null;		return null;
 		return result;
 	}
 

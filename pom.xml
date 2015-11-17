@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.nats</groupId>
 	<artifactId>jnats</artifactId>
-	<version>0.1.0-alpha2</version>
+	<version>1.0-alpha-SNAPSHOT</version>
 	<name>jnats</name>
 	<description>Java client for NATS Messaging System</description>
 	<dependencies>
@@ -59,6 +59,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.10.3</version>
 				<executions>
 					<execution>
 						<id>attach-javadocs</id>
@@ -76,4 +77,61 @@
 			</resource>
 		</resources>
 	</build>
+	<url>https://github.com/nats-io/jnats</url>
+	<issueManagement>
+		<url>https://github.com/nats-io/jnats/issues/</url>
+		<system>GitHub Issues</system>
+	</issueManagement>
+	<licenses>
+		<license>
+			<name>MIT License</name>
+			<url>http://www.opensource.org/licenses/mit-license.php</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+	<scm>
+		<url>https://github.com/nats-io/jnats</url>
+		<connection>scm:git:git://github.com/nats-io/jnats.git</connection>
+		<developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
+	</scm>
+	<organization>
+		<url>http://nats.io</url>
+		<name>NATS.io (supported by Apcera)</name>
+	</organization>
+	<developers>
+    <developer>
+      <id>larry</id>
+      <name>Larry McQueary</name>
+      <email>larry@apcera.com</email>
+      <url>https://github.com/mcqueary/</url>
+      <organization>Apcera Inc.</organization>
+      <organizationUrl>http://www.apcera.com</organizationUrl>
+      <roles>
+        <role>Product Manager</role>
+        <role>Developer</role>
+      </roles>
+      <timezone>America/Denver</timezone>
+      <properties>
+        <picUrl>http://www.example.com/jdoe/pic</picUrl>
+      </properties>
+    </developer>
+  </developers>
+	<ciManagement>
+		<system>Travis</system>
+		<url>https://travis-ci.org/nats-io/jnats/</url>
+	</ciManagement>
+	<mailingLists>
+    <mailingList>
+      <name>nats</name>
+      <archive>https://groups.google.com/group/natsio/</archive>
+      <subscribe>natsio+subscribe@googlegroups.com</subscribe>
+      <unsubscribe>natsio+unsubscribe@googlegroups.com</unsubscribe>
+      <post>natsio@googlegroups.com</post>
+    </mailingList>
+    </mailingLists>
+	<inceptionYear>2015</inceptionYear>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+	</properties>
 </project>

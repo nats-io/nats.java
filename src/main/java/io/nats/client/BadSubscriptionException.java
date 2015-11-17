@@ -1,6 +1,6 @@
 package io.nats.client;
 
-public class BadSubscriptionException extends NATSException {
+public class BadSubscriptionException extends Exception {
 
 	/**
 	 * 
