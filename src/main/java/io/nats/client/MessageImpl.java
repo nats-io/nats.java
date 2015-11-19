@@ -13,12 +13,12 @@ final class MessageImpl implements Message {
 	private String subject;
 	private String replyTo;
 	private byte[] data;  
-	protected Subscription sub;
+	protected SubscriptionImpl sub;
 
 	protected MessageImpl() {
 		
 	}
-	public MessageImpl(MsgArg msgArgs, Subscription sub, byte[] msg, long length) {
+	public MessageImpl(MsgArg msgArgs, SubscriptionImpl sub, byte[] msg, long length) {
 		this.subject = msgArgs.subject;
 		this.replyTo = msgArgs.reply;
 		this.data = msg;

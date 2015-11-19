@@ -6,7 +6,10 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Javadoc](http://javadoc-badge.appspot.com/com.github.nats-io/jnats.svg?label=javadoc)](http://javadoc-badge.appspot.com/com.github.nats-io/jnats)
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master)](https://coveralls.io/r/nats-io/jnats?branch=master)
 
-This is a WORK IN PROGRESS. It's not quite a stable release. 
+This is a WORK IN PROGRESS. It's not quite a stable release.
+Test coverage is inadequate (currently around zero).
+Documentation (javadoc) is in progress. 
+
 Please refer to the TODO.md for constantly updating information on what things are not complete or not working.
 Watch this space for more info as it becomes available.
 
@@ -31,7 +34,7 @@ This compressed archive contains the jnats client jar, slf4j dependencies, and t
 
 ```java
 
-ConnectionFactory cf = new ConnectionFactory(Cosntants.DEFAULT_URL)
+ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL)
 Connection nc = cf.createConnection();
 
 // Simple Publisher

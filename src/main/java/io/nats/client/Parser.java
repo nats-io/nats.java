@@ -170,7 +170,7 @@ final class Parser {
 		this.conn.ps = null;
 	}
 	
-	protected void parse(byte[] buffer, int len) throws ParseException {
+	protected void parse(byte[] buffer, int len) throws ParserException {
 		int i;
 		char b;
 		
@@ -496,15 +496,15 @@ final class Parser {
                     }
                     break;
                 default:
-                    throw new ParseException("Unable to parse.");
+                    throw new ParserException("Unable to parse.");
             } // switch(state)
 
         }  // for
 		
 	}
 	
-    private void parseError(byte[] buffer, int position) throws ParseException {
-    	throw new ParseException(String.format("Parse Error [%s], %s", 
+    private void parseError(byte[] buffer, int position) throws ParserException {
+    	throw new ParserException(String.format("Parse Error [%s], %s", 
     			NatsOp.names.get(state), Arrays.toString(buffer)));
     }
 

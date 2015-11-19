@@ -38,8 +38,8 @@ public interface Connection {
 	void setDisconnectedEventHandler(ConnectionEventHandler disconnectedEventHandler);
 	ConnectionEventHandler getReconnectedEventHandler();
 	void setReconnectedEventHandler(ConnectionEventHandler reconnectedEventHandler);
-	ConnExceptionHandler getExceptionHandler();
-	void setExceptionHandler(ConnExceptionHandler exceptionHandler);
+	ExceptionHandler getExceptionHandler();
+	void setExceptionHandler(ExceptionHandler exceptionHandler);
 	ConnectionEventHandler getClosedEventHandler();
 	void setClosedEventHandler(ConnectionEventHandler closedEventHandler);
 	ConnectionEventHandler getDisconnectedEventHandler();

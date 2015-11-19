@@ -8,11 +8,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract class AbstractSubscriptionImpl implements Subscription {
+abstract class SubscriptionImpl implements Subscription {
 
 	protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 	
-	//	public AbstractSubscriptionImpl() {}
+	//	public SubscriptionImpl() {}
 
 	final Lock mu = new ReentrantLock();
 
@@ -39,11 +39,11 @@ abstract class AbstractSubscriptionImpl implements Subscription {
 	ConnectionImpl conn 			= null;
 	Channel<Message> mch = new Channel<Message>();
 
-	AbstractSubscriptionImpl() {
+	SubscriptionImpl() {
 
 	}
 
-	public AbstractSubscriptionImpl(ConnectionImpl conn, String subject, String queue) {
+	public SubscriptionImpl(ConnectionImpl conn, String subject, String queue) {
 		this.conn = conn;
 		this.subject = subject;
 		this.queue = queue;
@@ -98,6 +98,9 @@ abstract class AbstractSubscriptionImpl implements Subscription {
 		{
 			if (mch.getCount() >= maxCount)
 			{
+				if (logger.isDebugEnabled())
+					logger.debug("MAXIMUM COUNT " + maxCount 
+							+ " REACHED for sid:" + getSid());
 				return false;
 			}
 			else
@@ -107,7 +110,7 @@ abstract class AbstractSubscriptionImpl implements Subscription {
 				if (logger.isDebugEnabled())
 					logger.debug("Added message to channel: " + m);
 			}
-		}
+		} // mch != null
 		return true;
 	}
 
@@ -152,10 +155,10 @@ abstract class AbstractSubscriptionImpl implements Subscription {
 	}
 
 	/**
-	 * @param sid the sid to set
+	 * @param l the sid to set
 	 */
-	public void setSid(long sid) {
-		this.sid = sid;
+	public void setSid(long l) {
+		this.sid = l;
 	}
 
 	/**
@@ -197,7 +200,16 @@ abstract class AbstractSubscriptionImpl implements Subscription {
 	}
 
 	public int getQueuedMessageCount() {
-		return this.mch.getCount();
+		if (this.mch != null)
+			return this.mch.getCount();
+		else
+			return 0;
+	}
+	
+	public String toString() {
+		String s = String.format("{subject=%s, sid=%d, queued=%d, max=%d}",
+				getSubject(), getSid(), getQueuedMessageCount(), getMax());
+		return s;
 	}
 
 	protected abstract boolean processMsg(Message msg);

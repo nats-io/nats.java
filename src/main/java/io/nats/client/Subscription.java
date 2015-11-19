@@ -59,6 +59,10 @@ public interface Subscription {
      */
     int getQueuedMessageCount();
 
+    /**
+     * Get the Subscription ID for this subscription.
+     * @return the Subscription ID.
+     */
 	long getSid();
 
 	void setMax(long max);

@@ -2,7 +2,7 @@ package io.nats.client;
 
 import java.util.concurrent.TimeUnit;
 
-final class SyncSubscriptionImpl extends AbstractSubscriptionImpl implements SyncSubscription {
+final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
 
 	public SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
 		super(nc, subj, queue);
@@ -48,6 +48,9 @@ final class SyncSubscriptionImpl extends AbstractSubscriptionImpl implements Syn
 				msg = localChannel.get(-1);
 			}
 		} catch (TimeoutException e) {
+			if (localConn.exceptionHandler != null) {
+				localConn.exceptionHandler.handleException(localConn, this, e);
+			}
 		}
 
 		if (msg != null) {

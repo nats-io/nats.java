@@ -2,32 +2,30 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.nats.client.AsyncSubscription;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
 import io.nats.client.Constants;
-import io.nats.client.ConnExceptionArgs;
-import io.nats.client.ErrorEventHandler;
+import io.nats.client.ExceptionHandler;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NATSException;
+import io.nats.client.SlowConsumerException;
 import io.nats.client.Statistics;
+import io.nats.client.Subscription;
 import io.nats.client.SyncSubscription;
 
-public class Subscriber implements MessageHandler, ErrorEventHandler {
+public class Subscriber implements MessageHandler, ExceptionHandler {
 	Map<String, String> parsedArgs = new HashMap<String, String>();
 
 	int count 		= 1000000;
 	String url 		= Constants.DEFAULT_URL;
 	String subject 	= "foo";
 	boolean sync 	= false;
-	int received 	= 0;
+	long received 	= 0L;
 	boolean verbose = false;
-	long startTime 	= 0L;
-	long elapsedTime = 0L;
+	long start 	= 0L;
+	long elapsed = 0L;
 
 	final Object testLock = new Object();
 
@@ -45,30 +43,26 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 			return;
 		}
 
-		long elapsed=0L;
-
 		if (sync)
 		{
 			elapsed = receiveSyncSubscriber(c);
 		}
 		else
 		{
+			c.setExceptionHandler(this);
+			
 			elapsed = receiveAsyncSubscriber(c);
 		}
 		long elapsedSeconds = TimeUnit.SECONDS.convert(elapsed, TimeUnit.NANOSECONDS);
-		System.out.printf("Received %d msgs in %d seconds ", count, 
+		System.out.printf("Received %d msgs in %d seconds ", received, 
 				elapsedSeconds);
 		if (elapsedSeconds > 0) {
 		System.out.printf("(%d msgs/second).\n",
-				(count / elapsedSeconds));
+				(received / elapsedSeconds));
 		} else {
 			System.out.println();
 			System.out.println("Test not long enough to produce meaningful stats. "
 					+ "Please increase the message count (-count n)");
-		}
-		try {
-			Thread.sleep(500);
-		} catch (InterruptedException e) {
 		}
 		printStats(c);
 	}
@@ -84,8 +78,10 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 	@Override
 	public void onMessage(Message msg) {
 		if (received == 0)
-			startTime = System.nanoTime();
+			start = System.nanoTime();
 
+		if (msg == null)
+			System.out.println("Message==null");
 		received++;
 
 		if (verbose)
@@ -93,17 +89,12 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 
 		if (received >= count)
 		{
-			elapsedTime = System.nanoTime() - startTime;
+			elapsed = System.nanoTime() - start;
 			synchronized(testLock)
 			{
 				testLock.notify();
 			}
 		}
-	}
-	
-	@Override
-	public void onError(ConnExceptionArgs error) {
-		System.err.println("Connection error encountered: " + error.getError());
 	}
 	
 	private long receiveAsyncSubscriber(Connection c)
@@ -124,25 +115,21 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 			}
 		}
 
-		return elapsedTime;
+		return elapsed;
 	}
 
 	private long receiveSyncSubscriber(Connection c)
 	{
-		long t0 = 0L;
-		
 		SyncSubscription s = (SyncSubscription) c.subscribeSync(subject);
+		
 		try
 		{
-			s.nextMessage();
-			received++;
-
-			t0 = System.nanoTime();
-
 			while (received < count)
 			{
-				received++;
 				Message m = s.nextMessage();
+				if (received++ == 0) {
+					start = System.nanoTime();
+				}
 				if (verbose)
 					System.out.println("Received: " + m);
 			}
@@ -150,10 +137,9 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 		} catch (Exception ne) {
 			System.err.println("Error receiving synchronously:");
 			ne.printStackTrace();
-		} finally {
-			elapsedTime = System.nanoTime()-t0;			
-		}
-		return elapsedTime;
+		} 
+		elapsed = System.nanoTime()-start;			
+		return elapsed;
 	}
 
 	private void usage()
@@ -231,6 +217,18 @@ public class Subscriber implements MessageHandler, ErrorEventHandler {
 		} finally {
 			System.exit(0);
 		}
+	}
+
+	@Override
+	public void handleException(Connection conn, Subscription subscription, Throwable e) {
+		System.err.println("Exception encountered: " + e.getMessage());
+		e.printStackTrace();
+	}
+
+	@Override
+	public void handleSlowConsumerException(Connection conn, Subscription sub, 
+			SlowConsumerException e) {
+		System.err.println("Warning: SLOW CONSUMER");
 	}
 }
 

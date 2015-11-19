@@ -1,5 +1,6 @@
-### jnats TODO list
+# General
 
 - [] JavaDoc
-- [] Simplify Exceptions
-- [] Protobuf Encoding
+- [] TLS support
+- [] Simplify Exception handling
+- [] EncodedConnection (e.g. protobuf)

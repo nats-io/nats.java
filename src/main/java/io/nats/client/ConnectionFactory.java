@@ -36,7 +36,7 @@ public class ConnectionFactory implements Cloneable {
 	private int connectionTimeout					= Constants.DEFAULT_TIMEOUT;
 	private long pingInterval						= Constants.DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
-	private ConnExceptionHandler connExceptionHandler 		= new DefaultExceptionHandler();
+	private ExceptionHandler exceptionHandler 		= new DefaultExceptionHandler();
 	private ConnectionEventHandler connectionEventHandler 	= null;
 
 	// The size of the buffered channel used between the socket
@@ -85,6 +85,11 @@ public class ConnectionFactory implements Cloneable {
 		}
 	}
 
+	/**
+	 * 
+	 * @return the Connection.
+	 * @throws NATSException if a Connection cannot be established for some reason.
+	 */
 	public ConnectionImpl createConnection() throws NATSException {
 		ConnectionImpl conn = null;
 		Options options = options();
@@ -122,7 +127,7 @@ public class ConnectionFactory implements Cloneable {
 		result.setConnectionTimeout(connectionTimeout);
 		result.setPingInterval(pingInterval);
 		result.setMaxPingsOut(maxPingsOut);
-		result.setExceptionHandler(connExceptionHandler);
+		result.setExceptionHandler(exceptionHandler);
 		result.setSubChanLen(subChanLen);
 		//    	private ConnectionEventHandler connectionEventHandler 	= null;		return null;
 		return result;
@@ -292,42 +297,45 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the connectionName
+	 * @return the connection name associated with this Connection.
 	 */
 	public String getConnectionName() {
 		return this.connectionName;
 	}
 
 	/**
-	 * @param connectionName the connectionName to set
+	 * @param connectionName the name to set for this Connection.
 	 */
 	public void setConnectionName(String connectionName) {
 		this.connectionName=connectionName;
 	}
 
 	/**
-	 * @return the verbose
+	 * @return whether or not the connection will require +OK/+ERR
 	 */
 	public boolean isVerbose() {
 		return this.verbose;
 	}
 
 	/**
-	 * @param verbose the verbose to set
+	 * @param verbose whether or not this Connection should 
+	 * require protocol acks from the server (+OK/-ERR)
 	 */
 	public void setVerbose(boolean verbose) {
 		this.verbose = verbose;
 	}
 
 	/**
-	 * @return the pedantic
+	 * @return whether strict server-side protocol checking 
+	 * 		   is enabled
 	 */
 	public boolean isPedantic() {
 		return this.pedantic;
 	}
 
 	/**
-	 * @param pedantic the pedantic to set
+	 * @param pedantic when <code>true</code>, strict 
+	 * 				   server-side protocol checking occurs.
 	 */
 	public void setPedantic(boolean pedantic) {
 		this.pedantic = pedantic;
@@ -421,7 +429,8 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the maxPingsOut
+	 * @return the maximum number of oustanding outbound pings before 
+	 * 		   marking the Connection stale and triggering reconnection.
 	 */
 	public int getMaxPingsOut() {
 		return this.maxPingsOut;
@@ -435,19 +444,20 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the connExceptionHandler
+	 * @return the exceptionHandler
 	 */
-	public ConnExceptionHandler getExceptionHandler() {
-		return connExceptionHandler;
+	public ExceptionHandler getExceptionHandler() {
+		return exceptionHandler;
 	}
 
 	/**
-	 * @param connExceptionHandler the connExceptionHandler to set
+	 * @param exceptionHandler the {@link ExceptionHandler} to set for 
+	 *        connections.
 	 */
-	public void setExceptionHandler(ConnExceptionHandler connExceptionHandler) {
-		if (connExceptionHandler == null) {
-			throw new IllegalArgumentException("ConnExceptionHandler cannot be null!");
+	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
+		if (exceptionHandler == null) {
+			throw new IllegalArgumentException("ExceptionHandler cannot be null!");
 		}
-		this.connExceptionHandler = connExceptionHandler;
+		this.exceptionHandler = exceptionHandler;
 	}
 }

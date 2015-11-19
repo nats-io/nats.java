@@ -37,12 +37,23 @@ public class Requestor {
 
 		start = System.nanoTime();
 
-		Message replyMsg = null;
+		int received = 0;
+
+		Message m = null;
+		byte[] reply = null;
 		try {
 			for (int i = 0; i < count; i++)
 			{
-				replyMsg = c.request(subject, payload);
-				System.out.print("Got reply: " + new String(replyMsg.getData()));
+				m = c.request(subject, payload, 10000);
+				if (m == null)
+					break;
+				
+				received++;
+				reply = m.getData();
+				if (reply != null)
+					System.out.println("Got reply: " + new String(reply));
+					else
+						System.out.println("Got reply with null payload");
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -51,10 +62,10 @@ public class Requestor {
 		end = System.nanoTime();
 		elapsed = TimeUnit.NANOSECONDS.toSeconds(end-start);
 
-		System.out.printf("Completed %d requests in %d seconds ", count, elapsed);
+		System.out.printf("Completed %d requests in %d seconds ", received, elapsed);
 		if (elapsed > 0) {
 		System.out.printf("(%d msgs/second).\n",
-				(count / elapsed));
+				(received / elapsed));
 		} else {
 			System.out.println();
 			System.out.println("Test not long enough to produce meaningful stats. "
@@ -78,7 +89,7 @@ public class Requestor {
 	{
 		System.err.println(
 				"Usage:  Requestor [-url url] [-subject subject] " +
-				"-count [count] [-payload payload]");
+				"[-count count] [-payload payload]");
 
 		System.exit(-1);
 	}

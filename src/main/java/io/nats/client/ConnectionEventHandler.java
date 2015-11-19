@@ -1,5 +1,5 @@
 package io.nats.client;
 
 public interface ConnectionEventHandler {
-	public void onEvent(ConnectionEvent eventInfo);
+	public void onEvent(ConnectionEvent event);
 }

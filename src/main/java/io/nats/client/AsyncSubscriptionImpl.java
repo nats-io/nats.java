@@ -9,7 +9,7 @@ import java.io.IOException;
  * This is the implementation of the AsyncSubscription interface.
  *
  */
-class AsyncSubscriptionImpl extends AbstractSubscriptionImpl implements AsyncSubscription {
+class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscription {
 
 	private MessageHandler msgHandler;
 //	private MsgHandlerEventArgs msgHandlerArgs = new MsgHandlerEventArgs();
@@ -76,7 +76,6 @@ class AsyncSubscriptionImpl extends AbstractSubscriptionImpl implements AsyncSub
 				}
 			}
 		}
-		msgHandler.onMessage(m);
 		return true;
 	}
 

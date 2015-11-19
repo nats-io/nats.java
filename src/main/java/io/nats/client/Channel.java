@@ -11,9 +11,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-//class Channel<T> extends LinkedBlockingQueue<T> {
 class Channel<T> {
-	
+
 	final static Logger logger = LoggerFactory.getLogger(Channel.class);
 	/**
 	 * This channel class really a blocking queue, is named the way it is so the
@@ -41,29 +40,49 @@ class Channel<T> {
 	T get(long timeout) throws TimeoutException {
 		qLock.lock();
 		try {
-			if (finished)
+			if (logger.isDebugEnabled()) {
+				logger.debug("Channel.get(" + timeout +"): q.size()=" + q.size());				
+			}
+			if (finished) {
+				if (logger.isDebugEnabled()) {
+					logger.debug("Channel.get(" + timeout +"): returning defaultVal");				
+				}
 				return this.defaultVal;
-
+			}
 
 			if (q.size() > 0) {
 				return q.poll();
 			} else {
 				if (timeout < 0) {
+					if (logger.isDebugEnabled()) {
+						logger.debug("Channel.get(" + timeout +"): waiting for >0 items");				
+					}
 					while (q.size() == 0) {
 						hasItems.await();
 					}
-					logger.debug("Done waiting in Channel.get(-1)");
+					if (logger.isDebugEnabled()) {
+						logger.debug("Channel.get(" + timeout +"): queue now has "
+								+ q.size() + " items");
+					}
+
 				} else {
 					if(hasItems.await(timeout, TimeUnit.MILLISECONDS)==false) {
-						throw new TimeoutException();
+						if (logger.isDebugEnabled()) {
+							logger.debug("Channel.get(" + timeout +"): timed out waiting for >0 items");				
+						}
+
+						throw new TimeoutException("Channel timed out waiting for items");
 					}
 				}
 
-				if (finished)
+				if (finished) {
+					if (logger.isDebugEnabled()) {
+						logger.debug("Channel.get(" + timeout +"): returning defaultVal");				
+					}
 					return this.defaultVal;
-
+				}					
 				T item = q.poll();
-			
+
 				return item;
 			}
 
@@ -78,6 +97,8 @@ class Channel<T> {
 
 	void add(T item)
 	{
+		if (logger.isDebugEnabled())
+			logger.debug("In Channel.add for {}", item);
 		qLock.lock();
 		try
 		{

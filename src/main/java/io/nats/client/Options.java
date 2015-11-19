@@ -24,7 +24,7 @@ public class Options {
 	private int connectionTimeout;
 	private long pingInterval;
 	private int maxPingsOut;
-	private ConnExceptionHandler connExceptionHandler;
+	private ExceptionHandler exceptionHandler;
 	private ConnectionEventHandler connectionEventHandler;
 	/**
 	 * @return the subChanLen
@@ -42,7 +42,7 @@ public class Options {
 	public ConnectionEventHandler disconnectedEventHandler;
 	public ConnectionEventHandler closedEventHandler;
 	public ConnectionEventHandler reconnectedEventHandler;
-	public ErrorEventHandler asyncErrorEventHandler;
+	public ExceptionHandler asyncErrorEventHandler;
 	
 	public URI getUrl() {
 		return url;
@@ -198,11 +198,11 @@ public class Options {
 	public void setMaxPingsOut(int maxPingsOut) {
 		this.maxPingsOut = maxPingsOut;
 	}
-	public ConnExceptionHandler getExceptionHandler() {
-		return connExceptionHandler;
+	public ExceptionHandler getExceptionHandler() {
+		return exceptionHandler;
 	}
-	public void setExceptionHandler(ConnExceptionHandler connExceptionHandler) {
-		this.connExceptionHandler = connExceptionHandler;
+	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
+		this.exceptionHandler = exceptionHandler;
 	}
 	public ConnectionEventHandler getConnectionListener() {
 		return connectionEventHandler;

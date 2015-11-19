@@ -17,17 +17,16 @@ public class Replier implements MessageHandler {
 	boolean sync = false;
 	int received = 0;
 	boolean verbose = false;
-	
+
 	long start = 0L;
 	long end = 0L;
 
 	Lock testLock = new ReentrantLock();
 	Condition allDone = testLock.newCondition();
 	boolean done = false;
-	
-	String replyText = "reply";
-	byte[] replyBytes = replyText.getBytes(Charset.forName("UTF-8"));
-	
+
+	byte[] replyBytes = "reply".getBytes(Charset.forName("UTF-8"));
+
 	public void run(String[] args)
 	{
 		parseArgs(args);
@@ -35,7 +34,7 @@ public class Replier implements MessageHandler {
 
 		ConnectionFactory cf = null;
 		Connection c = null;
-		
+
 		try {
 			cf = new ConnectionFactory(url);
 			c = cf.createConnection();
@@ -43,7 +42,7 @@ public class Replier implements MessageHandler {
 			System.err.println("Couldn't connect: " + e.getCause());
 			System.exit(-1);
 		}
-		
+
 		long elapsed, seconds;
 
 		if (sync)
@@ -55,11 +54,11 @@ public class Replier implements MessageHandler {
 			elapsed = receiveAsyncSubscriber(c);
 		}
 		seconds = TimeUnit.NANOSECONDS.toSeconds(elapsed);
-		System.out.printf("Replied to %d msgs in %d seconds ", count, seconds);
-		
+		System.out.printf("Replied to %d msgs in %d seconds ", received, seconds);
+
 		if (seconds > 0) {
-		System.out.printf("(%d msgs/second).\n",
-				(count / seconds));
+			System.out.printf("(%d msgs/second).\n",
+					(received / seconds));
 		} else {
 			System.out.println();
 			System.out.println("Test not long enough to produce meaningful stats. "
@@ -73,20 +72,18 @@ public class Replier implements MessageHandler {
 		Statistics s = c.getStats();
 		System.out.printf("Statistics:  \n");
 		System.out.printf("   Incoming Payload Bytes: %d\n", s.getInBytes());
-		System.out.printf("   Incoming Messages: %d", s.getInMsgs());
-		System.out.printf("   Outgoing Payload Bytes: %d", s.getOutBytes());
-		System.out.printf("   Outgoing Messages: %d", s.getOutMsgs());
+		System.out.printf("   Incoming Messages: %d\n", s.getInMsgs());
+		System.out.printf("   Outgoing Payload Bytes: %d\n", s.getOutBytes());
+		System.out.printf("   Outgoing Messages: %d\n", s.getOutMsgs());
 	}
 
 	@Override
 	public void onMessage(Message msg) {
-		if (received == 0)
+		if (received++ == 0)
 			start = System.nanoTime();
 
-		received++;
-
 		if (verbose)
-			System.err.println("Received: " + msg);
+			System.out.println("Received: " + msg);
 
 		Connection c = msg.getSubscription().getConnection();
 		try {
@@ -102,6 +99,7 @@ public class Replier implements MessageHandler {
 			testLock.lock();
 			try
 			{
+				System.out.println("I'M DONE");
 				done=true;
 				allDone.signal();
 			}
@@ -112,57 +110,47 @@ public class Replier implements MessageHandler {
 	}
 	private long receiveAsyncSubscriber(Connection c)
 	{
-		long t0 = System.nanoTime();
-
-		c.subscribeAsync(subject, this);
+		AsyncSubscription s = c.subscribeAsync(subject, this);
 		// just wait to complete
 		testLock.lock();
 		try
 		{
+			s.start();
 			while (!done)
 				allDone.await();
 		} catch (InterruptedException e) {
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		finally {
 			testLock.unlock();
 		}
 
-		return System.nanoTime() - t0;
+		return end - start;
 	}
 
 
 	private long receiveSyncSubscriber(Connection c)
 	{
-		System.out.println("In receiveSyncSubscriber");
 		SyncSubscription s = c.subscribeSync(subject);
+
+		Message m = null;
 		try {
-			s.nextMessage();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		received++;
-
-		start = System.nanoTime();
-
-		while (received < count)
-		{
-			received++;
-			Message m = null;
-			try {
-				System.out.println("nextMessage()");
+			while (received < count)
+			{
 				m = s.nextMessage();
-				System.out.println("Got message " + m);
-			} catch (Exception e) {
-				e.printStackTrace();                	
-			}
-			if (verbose)
-				System.out.println("Received: " + m);
+				if (received++ == 0)
+					start = System.nanoTime();
 
-			try {
+				if (verbose)
+					System.out.println("Received: " + m);
+
 				c.publish(m.getReplyTo(),replyBytes);
-			} catch (ConnectionClosedException e) {
-				e.printStackTrace();
 			}
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		end = System.nanoTime();
 		return end-start;
@@ -172,7 +160,7 @@ public class Replier implements MessageHandler {
 	{
 		System.err.println(
 				"Usage:  Publish [-url url] [-subject subject] " +
-				"-count [count] [-sync] [-verbose]");
+				"[-count count] [-sync] [-verbose]");
 
 		System.exit(-1);
 	}

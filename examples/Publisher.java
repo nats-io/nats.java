@@ -66,7 +66,7 @@ public class Publisher {
 			System.out.printf("(%d msgs/second).\n",
 					(int)(count / elapsed));
 		} else {
-			System.err.println("\nTest not long enough to produce meaningful stats. "
+			System.out.println("\nTest not long enough to produce meaningful stats. "
 					+ "Please increase the message count (-count n)");
 		} 
 		printStats(c);
