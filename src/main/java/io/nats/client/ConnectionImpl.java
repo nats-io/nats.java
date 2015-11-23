@@ -7,6 +7,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -39,7 +40,7 @@ final class ConnectionImpl implements Connection {
 
 	String version = null;
 	
-	final static int DEFAULT_SCRATCH_SIZE = 512;
+//	final static int DEFAULT_SCRATCH_SIZE = 512;
 	
 
 	private static final String inboxPrefix = "_INBOX.";
@@ -61,7 +62,9 @@ final class ConnectionImpl implements Connection {
 //	protected static final int SCRATCH_SIZE = 512;
 
 	// The size of the bufio reader/writer on top of the socket.
-	protected static final int DEFAULT_BUF_SIZE = 32768;
+//	protected static final int DEFAULT_BUF_SIZE = 32768;
+	protected static final int DEFAULT_BUF_SIZE = 65536;
+	protected static final int DEFAULT_STREAM_BUF_SIZE = 8192;
 
 	// The size of the bufio while we are reconnecting
 	protected static final int DEFAULT_PENDING_SIZE = 1024 * 1024;
@@ -114,8 +117,8 @@ final class ConnectionImpl implements Connection {
 	// interlinked read/writes (supported by the underlying network
 	// stream, but not the BufferedStream).
 
-	private DataOutputStream bw 			= null;
-	private DataInputStream br 				= null;
+	private OutputStream bw 			= null;
+	private InputStream br 				= null;
 	private ByteArrayOutputStream pending 	= null;
 	//  private MemoryStream    pending = null;
 
@@ -281,7 +284,7 @@ final class ConnectionImpl implements Connection {
 		this.url = srvPool.get(0).url;
 	}
 
-	public ConnectionImpl connect() throws Exception {
+	protected ConnectionImpl connect() throws ConnectionException {
 		// Create actual socket connection
 		// For first connect we walk all servers in the pool and try
 		// to connect immediately.
@@ -299,11 +302,10 @@ final class ConnectionImpl implements Connection {
 						connected = true;
 					}
 				} finally {
-					this.url = null;
 					mu.unlock();
 				}
 			} catch (ConnectionException e) {
-				lastEx = e;
+				lastEx = new NATSException(e);
 				close(ConnState.DISCONNECTED, false);
 				mu.lock();
 				try {
@@ -323,7 +325,7 @@ final class ConnectionImpl implements Connection {
 				if (lastEx == null)
 					lastEx = new NoServersException("Unable to connect to a server.");
 
-				throw lastEx;
+				throw new ConnectionException(lastEx);
 			}
 		} finally {
 			mu.unlock();
@@ -352,8 +354,8 @@ final class ConnectionImpl implements Connection {
 				// flush to the pending buffer
 				bw.flush();
 			}
-			bw = conn.getWriteBufferedStream(DEFAULT_BUF_SIZE * 6);
-			br = conn.getReadBufferedStream((DEFAULT_BUF_SIZE) * 6);
+			bw = conn.getWriteBufferedStream(DEFAULT_STREAM_BUF_SIZE);
+			br = conn.getReadBufferedStream(DEFAULT_STREAM_BUF_SIZE);
 		} catch (IOException e) {
 			return false;
 		}
@@ -394,7 +396,8 @@ final class ConnectionImpl implements Connection {
 	// function. This function will handle the locking manually.
 	private void close(ConnState closeState, boolean invokeDelegates)
 	{
-		logger.debug("Closing connection, closeState = " + closeState);
+		if (logger.isDebugEnabled())
+			logger.debug("Closing connection, closeState = {}", closeState);
 		ConnectionEventHandler disconnectedEventHandler = null;
 		ConnectionEventHandler closedEventHandler = null;
 
@@ -496,7 +499,7 @@ final class ConnectionImpl implements Connection {
 	}
 
 
-	protected void processConnectInit() throws Exception {
+	protected void processConnectInit() throws ConnectionException {
 		status = ConnState.CONNECTING;
 
 		// Process the INFO protocol that we should be receiving
@@ -505,7 +508,7 @@ final class ConnectionImpl implements Connection {
 		// Send the CONNECT and PING protocol, and wait for the PONG.
 		try {
 			sendConnect();
-		} catch (NATSException e) {
+		} catch (Exception e) {
 			throw new ConnectionException("Couldn't send CONNECT proto", e);
 		}
 
@@ -918,19 +921,17 @@ final class ConnectionImpl implements Connection {
 		}
 	}
 	// caller must lock
-	protected void sendConnect() throws Exception {
+	protected void sendConnect() throws IOException, ConnectionException, SecureConnRequiredException {
 		try {
-			String cp = connectProto();
-
-			bw.writeBytes(cp);
-			bw.flush();
-
+			bw.write(Utilities.stringToBytesASCII(connectProto()));
 			bw.write(pingProtoBytes, 0, pingProtoBytesLen);
 			bw.flush();
-		} catch (Exception e) {
+		} 
+		catch (IOException e) {
 			if (lastEx == null)
-				throw new NATSException("Error sending connect protocol message", e);			
-		}
+				throw new IOException("Error sending connect protocol message", e);			
+		} 
+		finally {}
 
 		ControlMsg c;
 		try {
@@ -959,7 +960,7 @@ final class ConnectionImpl implements Connection {
 			}
 			else
 			{
-				throw new NATSException(c.args);
+				throw new ConnectionException(c.args);
 			}
 		}
 	}
@@ -1513,6 +1514,7 @@ final class ConnectionImpl implements Connection {
 	// considered a slow subscriber.
 	protected void processMsg(byte[] msg, long length)
 	{
+//		logger.info("In ConnectionImpl.processMsg(), msg length = {}. msg bytes = {}", length, msg);
 		if (logger.isDebugEnabled())
 			logger.debug("Entered processMsg()");
 
@@ -1552,7 +1554,7 @@ final class ConnectionImpl implements Connection {
 				if (maxReached == false)
 				{
 					if (logger.isDebugEnabled())
-						logger.debug("\tcreating message");
+						logger.debug("\tcreating message of length {}", length);
 					Message m = new MessageImpl(msgArgs, s, msg, length);
 					if (logger.isDebugEnabled())
 						logger.debug("\tcreated message: " + m);
@@ -1626,40 +1628,25 @@ final class ConnectionImpl implements Connection {
 		@Override
 		public void run() {
 			mu.lock();
-			if (logger.isDebugEnabled())
-				logger.debug("acquired connection lock");
 			try
 			{
 				if (status != ConnState.CONNECTED)
-				{
 					return;
-				}
 
 				pout++;
-
-				if (pout > opts.getMaxPingsOut())
+				if (pout <= opts.getMaxPingsOut())
 				{
-					processOpError(new StaleConnectionException());
-					return;
-				}
-
-				try {
 					if (logger.isDebugEnabled()) { logger.debug("Sending PING after "+ 
 							TimeUnit.MILLISECONDS.toSeconds(opts.getPingInterval()) + " seconds.");}
 					sendPing(null);
-				} catch (IOException e) {
-					if (opts.getExceptionHandler() != null)
-						getExceptionHandler().handleException(
-								ConnectionImpl.this, null, e);
-					e.printStackTrace();
+					return;
 				}
 			} finally {
 				mu.unlock();
-				if (logger.isDebugEnabled())
-					logger.debug("released connection lock");
 			}
-		}
-
+			// We didn't successfully ping, so signal a stale connection
+			processOpError(new StaleConnectionException());
+		} // run()
 	}
 
 	// FIXME: This is a hack
@@ -1698,13 +1685,17 @@ final class ConnectionImpl implements Connection {
 	}
 
 	// The caller must lock this method.
-	private void sendPing(Channel<Boolean> ch) throws IOException
+	private void sendPing(Channel<Boolean> ch)
 	{
 		if (ch != null)
 			pongs.add(ch);
 
-		bw.write(pingProtoBytes, 0, pingProtoBytesLen);
-		bw.flush();
+		try {
+			bw.write(pingProtoBytes, 0, pingProtoBytesLen);
+			bw.flush();
+		} catch (IOException e) {
+			logger.error("Could not send PING", e);
+		}
 	}
 
 	// unsubscribe performs the low level unsubscribe to the server.
@@ -1825,39 +1816,30 @@ final class ConnectionImpl implements Connection {
 
 		while (!isFlusherDone())
 		{
-			logger.debug("flusher(): waiting for kick...");
 			boolean val = waitForFlusherKick();
-
 
 			if (val == false)
 				return;
-			logger.debug("flusher(): I've been kicked!");
 
-			logger.debug("flusher(): acquiring conn mutex");
 			if (mu.tryLock()) {
-				logger.debug("flusher(): acquired conn mutex");
 				try
 				{
 					if (!isConnected())
 						return;
-					logger.debug("flusher(): flushing buffer");
 
-					// TODO: Check writability of underlying stream?              
 					bw.flush();
-					logger.trace("flusher(): buffer flushed");
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} finally {
 					mu.unlock();
-					logger.debug("flusher(): released conn mutex");
 				}
 			}
 		}
 	}
 
 	@Override
-	public void flush(int timeout) throws Exception
+	public void flush(int timeout) throws TimeoutException, IllegalStateException
 	{
 		if (timeout <= 0)
 		{
@@ -1870,37 +1852,32 @@ final class ConnectionImpl implements Connection {
 		try
 		{
 			if (isClosed())
-				throw new ConnectionClosedException();
+				throw new IllegalStateException("Connection is closed.");
 
 			sendPing(ch);
 		} finally {
 			mu.unlock();
 		}
 
-		try
-		{
+		try {
 			boolean rv = ch.get(timeout);
 			if (!rv)
 			{
-				lastEx = new ConnectionClosedException();
+				lastEx = new IllegalStateException("Connection is closed");			
 			}
+		} catch (TimeoutException te) {
+				lastEx = new TimeoutException("Flush channel timeout.",te);
 		}
-		catch (Exception e)
-		{
-			lastEx = new NATSException("Flush channel error.", e);
-		}
-
 		if (lastEx != null)
 		{
 			removeFlushEntry(ch);
-			throw lastEx;
 		}
 	}
 
 	/// Flush will perform a round trip to the server and return when it
 	/// receives the internal reply.
 	@Override
-	public void flush() throws Exception
+	public void flush() throws TimeoutException, IllegalStateException
 	{
 		// 60 second default.
 		flush(60000);
@@ -1973,7 +1950,9 @@ final class ConnectionImpl implements Connection {
 			addSubscription(sub);
 
 			if (!isReconnecting()) {
-				if (!async)
+				if (async)
+					((AsyncSubscriptionImpl)sub).start();
+				else
 					sendSubscriptionMessage(sub);
 			}
 
@@ -1988,15 +1967,53 @@ final class ConnectionImpl implements Connection {
 	public Subscription subscribe(String subj, String queue, MessageHandler cb) {
 		SubscriptionImpl s = 
 				(SubscriptionImpl) subscribe(subj, queue, cb, opts.getSubChanLen());
-		addSubscription(s);
-		if (logger.isDebugEnabled())
-			printSubs(this);
+//		addSubscription(s);
+//		if (logger.isDebugEnabled())
+//			printSubs(this);
 		return s;
 	}
+	
+	@Override
+    public AsyncSubscription subscribeAsync(String subject, String queue,
+            MessageHandler handler)
+        {
+            AsyncSubscription s = null;
+
+            mu.lock();
+            try
+            {
+                if (isClosed())
+                    return null;
+
+                s = new AsyncSubscriptionImpl(this, subject, queue, null);
+
+                addSubscription((SubscriptionImpl)s);
+
+                if (handler != null)
+                {
+                    s.setMessageHandler(handler);
+                    try {
+						s.start();
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                }
+            } finally {
+            	mu.unlock();
+            }
+
+            return s;
+        }
 
 	@Override
 	public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) {
 		return (AsyncSubscription) subscribe(subj, null, cb, opts.getSubChanLen());
+	}
+
+	@Override
+	public AsyncSubscription subscribeAsync(String subj) {
+		return (AsyncSubscription) subscribeAsync(subj, null, null);
 	}
 
 	private void addSubscription(SubscriptionImpl s) {
@@ -2038,6 +2055,8 @@ final class ConnectionImpl implements Connection {
 	// message.
 	private int writePublishProto(byte[] dst, String subject, String reply, int msgSize)
 	{
+//		logger.info("subject={}, Reply={}, msgSize={}, arraySize={}, msgBytes={}", 
+//				subject, reply, msgSize, dst.length, dst);
 		// skip past the predefined "PUB "
 		int index = pubPrimBytesLen;
 
@@ -2097,17 +2116,16 @@ final class ConnectionImpl implements Connection {
 	@Override
 	public void publish(String subject, String reply, byte[] data) throws ConnectionClosedException
 	{
-		String s = subject.trim();
-		if ((s==null) || subject.isEmpty())
+		if ((subject==null) || subject.isEmpty())
 		{
 			throw new IllegalArgumentException(
 					"Subject cannot be null, empty, or whitespace.");
 		}
 
-		int msgSize = data != null ? data.length : 0;
-		logger.debug("publish(): acquiring mutex");
+		int msgSize = (data != null) ? data.length : 0;
+//		logger.debug("publish(): acquiring mutex");
 		mu.lock();
-		logger.debug("publish(): acquired mutex");
+//		logger.debug("publish(): acquired mutex");
 		try
 		{
 			// Proactively reject payloads over the threshold set by server.
@@ -2145,7 +2163,7 @@ final class ConnectionImpl implements Connection {
 
 			try {
 				if (logger.isDebugEnabled())
-					logger.debug("publish(): writing " + new String(pubProtoBuf));
+					logger.debug("publish(): writing {}", new String(pubProtoBuf));
 				bw.write(pubProtoBuf, 0, pubProtoLen);
 
 				if (msgSize > 0)
@@ -2154,17 +2172,18 @@ final class ConnectionImpl implements Connection {
 				}
 
 				bw.write(crlfProtoBytes, 0, crlfProtoBytesLen);
+
+				stats.incrementOutMsgs();
+				stats.incrementOutBytes(msgSize);
+
 			} catch (IOException e) {
 				//TODO remove this
 				e.printStackTrace();
 			}
 
-			stats.incrementOutMsgs();
-			stats.incrementOutBytes(msgSize);
-
 		} finally {
 			mu.unlock();
-			logger.debug("publish(): released mutex");
+//			logger.debug("publish(): released mutex");
 		}
 		kickFlusher();
 
@@ -2182,14 +2201,13 @@ final class ConnectionImpl implements Connection {
 
 	@Override
 	public Message request(String subject, byte[] data, long timeout) 
-			throws ConnectionClosedException, BadSubscriptionException, 
-			SlowConsumerException, MaxMessagesException, IOException {
+			throws TimeoutException, NATSException {
 		Message m		= null;
 		if (logger.isDebugEnabled()) {
 			String ds = null;
 			if (data != null)
 				ds = new String(data);
-			logger.debug("#########In request(" +subject+ "," + ds + "," + timeout + ")") ;
+			logger.debug("#########In request({},{},{})", subject, ds, timeout);
 		}
 		if (timeout <= 0)
 		{
@@ -2197,13 +2215,33 @@ final class ConnectionImpl implements Connection {
                     "Timeout must be greater that 0.");
 		}
 		
-		String inbox 	= newInbox();
+		String inbox = newInbox();
 
 		SyncSubscription s = subscribeSync(inbox, null);
-		s.autoUnsubscribe(1);
+		try {
+			s.autoUnsubscribe(1);
+		} catch (BadSubscriptionException e) {
+			throw new NATSException(e);
+		}
 
-		publish(subject, inbox, data);
-		m = s.nextMessage(timeout);
+		try {
+			publish(subject, inbox, data);
+		} catch (ConnectionClosedException e) {
+			throw new NATSException(e);
+		}
+		
+		try {
+			m = s.nextMessage(timeout);
+		} catch (BadSubscriptionException e) {
+			throw new NATSException(e);
+		} catch (ConnectionClosedException e) {
+			throw new NATSException(e);
+		} catch (SlowConsumerException e) {
+			throw new NATSException(e);
+		} catch (MaxMessagesException e) {
+			throw new NATSException(e);
+		}
+
 		try
 		{
 			// the auto unsubscribe should handle this.
@@ -2215,7 +2253,7 @@ final class ConnectionImpl implements Connection {
 	}
 
 	@Override
-	public Message request(String subject, byte[] data) throws ConnectionClosedException, BadSubscriptionException, SlowConsumerException, MaxMessagesException, IOException {
+	public Message request(String subject, byte[] data) throws NATSException, TimeoutException {
 
 		return request(subject, data, -1);
 	}
@@ -2259,16 +2297,15 @@ final class ConnectionImpl implements Connection {
 				String s = String.format(SUB_PROTO, sub.getSubject(), 
 						sub.getQueue(), sub.getSid());
 				try {
-					bw.writeBytes(s);
-					bw.flush();
-					if (logger.isDebugEnabled()) {logger.debug("Sent [" + s + "]" );}
+					bw.write(Utilities.stringToBytesASCII(s));
+					kickFlusher();
+					if (logger.isDebugEnabled()) {logger.debug("Sent [{}]", s );}
 				} catch (IOException e) {
 				}
 			}
 		} finally {
 			mu.unlock();
 		}
-		kickFlusher();
 	}
 
 	/**
@@ -2342,5 +2379,23 @@ final class ConnectionImpl implements Connection {
 			c.logger.debug("\tkey: " + key + " value: " + c.subs.get(key));
 		}
 	}
+	
+	@Override
+    public String getConnectedUrl()
+    {
+            mu.lock();
+            try
+            {
+                if (status != ConnState.CONNECTED)
+                    return null;
+                
+                return url.toString();
+            }
+            finally
+            {
+            	mu.unlock();
+            }
+    }
+
 
 }

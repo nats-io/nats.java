@@ -3,11 +3,11 @@
  */
 package io.nats.client;
 
-import java.io.IOException;
-
 public interface Connection {
 	public AsyncSubscription subscribe(String subject, MessageHandler cb);
 	public AsyncSubscription subscribeAsync(String subject, MessageHandler cb);
+	public AsyncSubscription subscribeAsync(String subject, String reply, MessageHandler h);
+	public AsyncSubscription subscribeAsync(String subject);
 	public Subscription subscribe(String subject, String queue, MessageHandler cb);
 	public SyncSubscription subscribeSync(String subj);
 	public SyncSubscription subscribeSync(String subject, String queue);
@@ -19,9 +19,9 @@ public interface Connection {
 	public void publish(String subject, String reply, byte[] data) throws ConnectionClosedException;
 	
     public Message request(String subject, byte[] data, long timeout) 
-    		throws ConnectionClosedException, BadSubscriptionException, SlowConsumerException, MaxMessagesException, IOException;
-    public Message request(String subject, byte[] data) throws ConnectionClosedException, BadSubscriptionException, SlowConsumerException, MaxMessagesException, IOException;
-    
+    		throws TimeoutException, NATSException;
+    public Message request(String subject, byte[] data) 
+    		throws TimeoutException, NATSException;
     public String newInbox();
     
 	public void close();
@@ -43,6 +43,7 @@ public interface Connection {
 	ConnectionEventHandler getClosedEventHandler();
 	void setClosedEventHandler(ConnectionEventHandler closedEventHandler);
 	ConnectionEventHandler getDisconnectedEventHandler();
+	public String getConnectedUrl();
     
     
 

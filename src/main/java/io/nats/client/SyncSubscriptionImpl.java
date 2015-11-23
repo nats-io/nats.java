@@ -10,13 +10,14 @@ final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscri
 
 	@Override
 	public Message nextMessage()
-			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException {
+			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException, TimeoutException {
 		return nextMessage(-1);
 	}
 
 	@Override
 	public Message nextMessage(long timeout)
-			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException {
+			throws BadSubscriptionException, ConnectionClosedException, 
+			SlowConsumerException, MaxMessagesException, TimeoutException {
 		Message msg = null;
 		ConnectionImpl localConn;
 		Channel<Message> localChannel;
@@ -41,16 +42,10 @@ final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscri
 			mu.unlock();
 		}
 
-		try {
-			if (timeout >= 0) {
-				msg = localChannel.get(timeout);
-			} else {
-				msg = localChannel.get(-1);
-			}
-		} catch (TimeoutException e) {
-			if (localConn.exceptionHandler != null) {
-				localConn.exceptionHandler.handleException(localConn, this, e);
-			}
+		if (timeout >= 0) {
+			msg = localChannel.get(timeout);
+		} else {
+			msg = localChannel.get(-1);
 		}
 
 		if (msg != null) {

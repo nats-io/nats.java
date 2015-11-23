@@ -126,7 +126,7 @@ abstract class SubscriptionImpl implements Subscription {
 	}
 
 	@Override
-	public void unsubscribe() throws ConnectionClosedException, BadSubscriptionException, IOException {
+	public void unsubscribe() throws BadSubscriptionException, NATSException {
 		ConnectionImpl c;
 		mu.lock();
 		try
@@ -139,7 +139,13 @@ abstract class SubscriptionImpl implements Subscription {
 		if (c == null)
 			throw new BadSubscriptionException();
 
-		c.unsubscribe(this, 0);		
+		try {
+			c.unsubscribe(this, 0);
+		} catch (ConnectionClosedException e) {
+			throw new NATSException(e);
+		} catch (IOException e) {
+			throw new NATSException(e);
+		}		
 	}
 
 	public int queuedMsgs() {
@@ -181,7 +187,7 @@ abstract class SubscriptionImpl implements Subscription {
 	}
 
 	@Override
-	public void autoUnsubscribe(int max) throws BadSubscriptionException, ConnectionClosedException, IOException {
+	public void autoUnsubscribe(int max) throws BadSubscriptionException, NATSException {
         ConnectionImpl c = null;
 
         mu.lock();
@@ -195,7 +201,13 @@ abstract class SubscriptionImpl implements Subscription {
         	mu.unlock();
         }
 
-        c.unsubscribe((Subscription)this, max);
+        try {
+			c.unsubscribe((Subscription)this, max);
+		} catch (ConnectionClosedException e) {
+			throw new NATSException(e);
+		} catch (IOException e) {
+			throw new NATSException(e);
+		}
 
 	}
 

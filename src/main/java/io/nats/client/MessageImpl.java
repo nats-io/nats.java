@@ -16,14 +16,33 @@ final class MessageImpl implements Message {
 	protected SubscriptionImpl sub;
 
 	protected MessageImpl() {
-		
+        this.subject = null;
+        this.replyTo = null;
+        this.data    = null;
+        this.sub     = null;
+
 	}
+	
+	protected MessageImpl(String subject, String reply, byte[] data)
+    {
+        if (subject==null || subject.trim().length()==0)
+        {
+            throw new IllegalArgumentException(
+                "Subject cannot be null, empty, or whitespace.");
+        }
+
+        this.subject = subject;
+        this.replyTo = reply;
+        this.data = data;
+    }
+	
 	public MessageImpl(MsgArg msgArgs, SubscriptionImpl sub, byte[] msg, long length) {
 		this.subject = msgArgs.subject;
 		this.replyTo = msgArgs.reply;
-		this.data = msg;
 		this.sub = sub;
-		
+        // make a deep copy of the bytes for this message.
+        this.data = new byte[(int) length];
+        System.arraycopy(msg, 0, this.data, 0, (int)length);
 	}
 
 	@Override

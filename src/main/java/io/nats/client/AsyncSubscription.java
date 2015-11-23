@@ -4,4 +4,6 @@ public interface AsyncSubscription extends Subscription {
 
 	void start() throws Exception;
 
+	void setMessageHandler(MessageHandler cb);
+
 }

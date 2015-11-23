@@ -3,7 +3,8 @@
  */
 package io.nats.client;
 
-import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /*
  * This is the implementation of the AsyncSubscription interface.
@@ -11,21 +12,33 @@ import java.io.IOException;
  */
 class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscription {
 
+//	private ExecutorService executor = Executors.newSingleThreadExecutor(new NATSThreadFactory("msgfeederfactory"));
 	private MessageHandler msgHandler;
-//	private MsgHandlerEventArgs msgHandlerArgs = new MsgHandlerEventArgs();
-	private NATSThread msgFeeder = null;
+	private NATSThread msgFeederThread = null;
+	private MessageFeeder msgFeeder;
 
-	Runnable runnable = new Runnable(){
+	class MessageFeeder implements Runnable {
+		private volatile boolean running = true;
+
+		public boolean isRunning() {
+			return running;
+			
+		}
+		public void terminate() {
+	        running = false;
+	    }
+
 		@Override
 		public void run(){
 			logger.debug("msgFeeder has started");
 			conn.deliverMsgs(mch);
 		}
-	};
+	}
 
 	protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, MessageHandler cb) {
 		super(nc, subj, queue);
 		this.msgHandler = cb;
+		msgFeeder = new MessageFeeder();
 	}
 
 	@Override
@@ -62,14 +75,10 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 			if (d == localMax) {
 				try {
 					unsubscribe();
-				} catch (ConnectionClosedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
 				} catch (BadSubscriptionException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
+					logger.debug("Bad subscription while unsubscribing:", e);
+				} catch (NATSException e) {
+					logger.debug("Exception while unsubscribing:", e);
 					e.printStackTrace();
 				} finally {
 					this.conn = null;
@@ -81,14 +90,15 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 
     private boolean isStarted()
     {
-        return (msgFeeder != null);
+        return (msgFeederThread != null);
+//    	return (!executor.isTerminated());
     }
 
 
 	void enable() {
-		if (msgFeeder == null) {
-			msgFeeder = new NATSThread(runnable, "msgFeeder");
-			msgFeeder.start();
+		if (msgFeederThread == null) {
+			msgFeederThread = new NATSThread(msgFeeder, "msgFeeder");
+			msgFeederThread.start();
 			logger.debug("Started msgFeeder for subject: " + this.getSubject() + " sid: " + this.getSid());
 		}
 	}
@@ -96,7 +106,8 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	void disable() {
 		if (msgFeeder != null) {
 			try {
-				msgFeeder.join();
+				msgFeeder.terminate();
+				msgFeederThread.join();
 			} catch (InterruptedException e) {
 			}
 			msgFeeder = null;
@@ -104,17 +115,21 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	}
 
 	@Override
-	public void start() throws Exception 
+	public void setMessageHandler(MessageHandler cb) {
+		this.msgHandler = cb;
+	}
+
+	@Override
+	public void start() throws IllegalStateException 
     {
 		//TODO fix exception handling
 		if (isStarted())
             return;
 
-        if (conn == null)
-            throw new BadSubscriptionException();
+        if (!isValid())
+            throw new IllegalStateException("Subscription is not valid.");
 
         conn.sendSubscriptionMessage(this);
-        conn.flush();
         
         enable();
     }

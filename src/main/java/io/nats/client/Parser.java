@@ -4,10 +4,10 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
 
 final class Parser {
-	private final static int DEFAULT_BUF_SIZE = 512;
-	
+
 	private ConnectionImpl conn;
 	private int state = 0;
 	

@@ -2,6 +2,7 @@ package io.nats.client;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -21,8 +22,6 @@ import org.slf4j.LoggerFactory;
 /// managing two variables throughout the NATs client code.
 final class TCPConnection {
 	final Logger logger = LoggerFactory.getLogger(TCPConnection.class);
-
-	private final static int DEFAULT_BUF_SIZE = 32768;
 
 	/// A note on the use of streams. .NET provides a BufferedStream
 	/// that can sit on top of an IO stream, in this case the network
@@ -62,9 +61,9 @@ final class TCPConnection {
 			client = new Socket();
 			client.connect(addr, timeout);
 			
-			client.setTcpNoDelay(false);
-			client.setReceiveBufferSize(DEFAULT_BUF_SIZE);
-			client.setSendBufferSize(DEFAULT_BUF_SIZE);
+			client.setTcpNoDelay(true);
+			client.setReceiveBufferSize(ConnectionImpl.DEFAULT_BUF_SIZE);
+			client.setSendBufferSize(ConnectionImpl.DEFAULT_BUF_SIZE);
 
 			writeStream = client.getOutputStream();
 			readStream = client.getInputStream();
@@ -124,20 +123,20 @@ final class TCPConnection {
 		return rv;
 	}
 
-	public DataInputStream getReadBufferedStream(int size) {
-		DataInputStream rv = null;
+	public InputStream getReadBufferedStream(int size) {
+		InputStream rv = null;
 		try {
-			rv = new DataInputStream(new BufferedInputStream(client.getInputStream(), DEFAULT_BUF_SIZE * 6));
+			rv = new BufferedInputStream(client.getInputStream(), size);
 		} catch (IOException e) {
 			// ignore
 		}
 		return rv;
 	}
 
-	public DataOutputStream getWriteBufferedStream(int size) {
-		DataOutputStream rv = null;
+	public OutputStream getWriteBufferedStream(int size) {
+		OutputStream rv = null;
 		try {
-			rv = new DataOutputStream(new BufferedOutputStream(client.getOutputStream(), DEFAULT_BUF_SIZE * 6));
+			rv = new BufferedOutputStream(client.getOutputStream(), size);
 		} catch (IOException e) {
 			// ignore
 		}

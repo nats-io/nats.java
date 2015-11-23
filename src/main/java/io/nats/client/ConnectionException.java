@@ -15,7 +15,11 @@ public class ConnectionException extends Exception {
 		super(message);
 	}
 
-	public ConnectionException(String string, NATSException e) {
+	public ConnectionException(String string, Throwable e) {
 		super(string, e);
+	}
+
+	public ConnectionException(Exception e) {
+		super(e);
 	}
 }

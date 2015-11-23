@@ -39,7 +39,7 @@ public interface Subscription {
     /* 
      * Removes interest in the given subject.
      */
-    void unsubscribe() throws ConnectionClosedException, BadSubscriptionException, IOException;
+    void unsubscribe() throws BadSubscriptionException, NATSException;
 
     /*
      * autoUnsubscribe will issue an automatic unsubscribe that is
@@ -49,8 +49,7 @@ public interface Subscription {
      * @param max The number of messages to receive before 
      *            unsubscribing.
      */
-    void autoUnsubscribe(int max) 
-    		throws BadSubscriptionException, ConnectionClosedException, IOException;
+    void autoUnsubscribe(int max) throws BadSubscriptionException, NATSException;
 
     /*
      * Gets the number of messages delivered to, but not processed, by

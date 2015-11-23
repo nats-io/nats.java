@@ -1,6 +1,7 @@
 package io.nats.client;
 
 import java.util.Collection;
+import java.util.Date;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -40,13 +41,7 @@ class Channel<T> {
 	T get(long timeout) throws TimeoutException {
 		qLock.lock();
 		try {
-			if (logger.isDebugEnabled()) {
-				logger.debug("Channel.get(" + timeout +"): q.size()=" + q.size());				
-			}
 			if (finished) {
-				if (logger.isDebugEnabled()) {
-					logger.debug("Channel.get(" + timeout +"): returning defaultVal");				
-				}
 				return this.defaultVal;
 			}
 
@@ -54,31 +49,26 @@ class Channel<T> {
 				return q.poll();
 			} else {
 				if (timeout < 0) {
-					if (logger.isDebugEnabled()) {
-						logger.debug("Channel.get(" + timeout +"): waiting for >0 items");				
-					}
 					while (q.size() == 0) {
-						hasItems.await();
+						try {hasItems.await(); } catch (InterruptedException e) {}
 					}
-					if (logger.isDebugEnabled()) {
-						logger.debug("Channel.get(" + timeout +"): queue now has "
-								+ q.size() + " items");
-					}
-
 				} else {
-					if(hasItems.await(timeout, TimeUnit.MILLISECONDS)==false) {
-						if (logger.isDebugEnabled()) {
-							logger.debug("Channel.get(" + timeout +"): timed out waiting for >0 items");				
-						}
-
+					boolean stillWaiting = true;
+					Date deadline = new Date(System.currentTimeMillis() + timeout);
+					while (q.size()==0)
+					{
+						if (!stillWaiting)
+							break;
+						try {
+							stillWaiting = hasItems.awaitUntil(deadline);
+						} catch (InterruptedException e) {}
+					}
+					if(!stillWaiting) {
 						throw new TimeoutException("Channel timed out waiting for items");
 					}
 				}
 
 				if (finished) {
-					if (logger.isDebugEnabled()) {
-						logger.debug("Channel.get(" + timeout +"): returning defaultVal");				
-					}
 					return this.defaultVal;
 				}					
 				T item = q.poll();
@@ -86,13 +76,9 @@ class Channel<T> {
 				return item;
 			}
 
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} finally {
 			qLock.unlock();
 		}
-		return defaultVal;
 	} // get
 
 	void add(T item)

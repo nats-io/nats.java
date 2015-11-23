@@ -30,7 +30,7 @@ public class Publisher {
 	{
 		long elapsed = 0L;
 		Connection c = null;
-		
+
 		parseArgs(args);
 		banner();
 
@@ -55,9 +55,9 @@ public class Publisher {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		long t1 = System.nanoTime();
-		
+
 		elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
 		System.out.println("Elapsed time is " + elapsed + " seconds");
 

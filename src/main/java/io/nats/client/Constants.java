@@ -14,6 +14,8 @@ public final class Constants {
 	// Default server URL
 	public static final String 	DEFAULT_URL				= 
 			"nats://" + DEFAULT_HOST+ ":" + DEFAULT_PORT;	
+	// Default SSL/TLS protocol version
+	static final String		DEFAULT_SSL_PROTOCOL 	= "TLSv1.2";
 	// Default maximum number of reconnect attempts.
 	static final int		DEFAULT_MAX_RECONNECT	= 60;
 	// Default wait time before attempting reconnection to the same server
