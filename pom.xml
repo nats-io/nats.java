@@ -1,137 +1,72 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
 	<modelVersion>4.0.0</modelVersion>
+
 	<groupId>io.nats</groupId>
 	<artifactId>jnats</artifactId>
-	<version>0.3.0-alpha-SNAPSHOT</version>
-	<name>jnats</name>
-	<description>Java client for NATS Messaging System</description>
-	<dependencies>
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<version>2.0.31-beta</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>1.7.5</version>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>1.7.5</version>
-		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>4.11</version>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
-	<build>
-		<finalName>maven-assembly-plugin</finalName>
-		<plugins>
-			<!-- The configuration of maven-assembly-plugin -->
-			<!-- Pack executable jar, dependencies and other resource into tar.gz -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4</version>
-				<configuration>
-					<descriptors>
-						<descriptor>src/main/assembly/bin.xml</descriptor>
-					</descriptors>
-					<finalName>jnats-${project.version}</finalName>
-					<appendAssemblyId>false</appendAssemblyId>
-					<attach>true</attach>
-				</configuration>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.10.3</version>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-		<resources>
-			<resource>
-				<directory>src/main/resources</directory>
-				<filtering>true</filtering>
-			</resource>
-		</resources>
-	</build>
+	<version>1</version>
+	<packaging>pom</packaging>
+
+	<name>NATS Java Support</name>
+	<description>NATS Support for Java</description>
 	<url>https://github.com/nats-io/jnats</url>
-	<issueManagement>
-		<url>https://github.com/nats-io/jnats/issues/</url>
-		<system>GitHub Issues</system>
-	</issueManagement>
-	<licenses>
-		<license>
-			<name>MIT License</name>
-			<url>http://www.opensource.org/licenses/mit-license.php</url>
-			<distribution>repo</distribution>
-		</license>
-	</licenses>
-	<scm>
-		<url>https://github.com/nats-io/jnats</url>
-		<connection>scm:git:git://github.com/nats-io/jnats.git</connection>
-		<developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
-	</scm>
-	<organization>
-		<url>http://nats.io</url>
-		<name>NATS.io (supported by Apcera)</name>
-	</organization>
-	<developers>
-    <developer>
-      <id>larry</id>
-      <name>Larry McQueary</name>
-      <email>larry@apcera.com</email>
-      <url>https://github.com/mcqueary/</url>
-      <organization>Apcera Inc.</organization>
-      <organizationUrl>http://www.apcera.com</organizationUrl>
-      <roles>
-        <role>Product Manager</role>
-        <role>Developer</role>
-      </roles>
-      <timezone>America/Denver</timezone>
-      <properties>
-        <picUrl>http://www.example.com/jdoe/pic</picUrl>
-      </properties>
-    </developer>
-  </developers>
-	<ciManagement>
-		<system>Travis</system>
-		<url>https://travis-ci.org/nats-io/jnats/</url>
-	</ciManagement>
-	<mailingLists>
-    <mailingList>
-      <name>nats</name>
-      <archive>https://groups.google.com/group/natsio/</archive>
-      <subscribe>natsio+subscribe@googlegroups.com</subscribe>
-      <unsubscribe>natsio+unsubscribe@googlegroups.com</unsubscribe>
-      <post>natsio@googlegroups.com</post>
-    </mailingList>
-    </mailingLists>
-	<inceptionYear>2015</inceptionYear>
+
 	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<java.version>1.8</java.version>
+		<testng.version>6.3.1</testng.version>
+		<netty.version>4.0.32.Final</netty.version>
+		<geronimo.version>1.0-alpha-2</geronimo.version>
 	</properties>
+
+	<modules>
+		<module>nats-client</module>
+		<module>nats-examples</module>
+	</modules>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-all</artifactId>
+				<version>${netty.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.testng</groupId>
+				<artifactId>testng</artifactId>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-context</artifactId>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.geronimo.specs</groupId>
+				<artifactId>geronimo-jms_2.0_spec</artifactId>
+				<version>${geronimo.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.nats</groupId>
+				<artifactId>nats-client</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.nats</groupId>
+				<artifactId>nats-examples</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 </project>

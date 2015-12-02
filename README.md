@@ -1,200 +1,103 @@
-# NATS - Java client
-A [Java](http://www.java.com) client for the [NATS messaging system](https://nats.io).
+A Java client for [NATS](http://nats.io/).
+=========================================
 
-[![License MIT](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
-[![Build Status](https://travis-ci.org/nats-io/jnats.svg?branch=master)](http://travis-ci.org/nats-io/jnats)
-[![Javadoc](http://javadoc-badge.appspot.com/com.github.nats-io/jnats.svg?label=javadoc)](http://javadoc-badge.appspot.com/com.github.nats-io/jnats)
-[![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master)](https://coveralls.io/r/nats-io/jnats?branch=master)
+# Overview
 
-This is a WORK IN PROGRESS. It's not quite a stable release.
-Test coverage is inadequate (currently around zero).
-Documentation (javadoc) is in progress. 
+This packages requires maven to build (along with various dependencies that maven will take care of). At runtime, netty is also required. The package is allowed to allow both client and server based NATS applications to be built easily, with an expected performance profile all in a productive manner...
 
-Please refer to the TODO.md for constantly updating information on what things are not complete or not working.
-Watch this space for more info as it becomes available.
+## Usage
 
-## Installation
+To use the client libraries, the following needs to be in your pom.xml:
 
-First, download the source code:
-```
-git clone git@github.com:nats-io/jnats.git .
+```xml
+<dependency>
+  <groupId>io.nats</groupId>
+  <artifactId>nats-java</artifactId>
+  <version>0.1.1</version>
+</dependency>
 ```
 
-To build the library, use [maven](https://maven.apache.org/). From the root directory of the project:
+## Building and Examples
 
-```
-mvn clean install -DskipTests
-```
+We distribute a maven-supported build (obviously). Typical commands work...
 
-This will build the jnats-0.0.1-SNAPSHOT.tar.gz in /target.
-
-This compressed archive contains the jnats client jar, slf4j dependencies, and this README.
-
-## Basic Usage
-
-```java
-
-ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL)
-Connection nc = cf.createConnection();
-
-// Simple Publisher
-nc.publish("foo", "Hello World");
-
-// Simple Async Subscriber
-nc.subscribe("foo", new MessageHandler(Msg m) {
-    fmt.Printf("Received a message: %s\n", string(m.Data))
-});
-
-// Simple Sync Subscriber
-Subscription sub = nc.subscribeSync("foo");
-Message m = sub.nextMsg(timeout);
-
-// Unsubscribing
-sub = nc.subscribe("foo");
-sub.unsubscribe();
-
-// Requests
-msg = nc.request("help", "help me", TimeUnit.SECONDS.toMillis(10));
-
-// Replies
-nc.subscribe("help", new MessageHandler (Message m) {
-    nc.publish(m.getReplyTo(), "I can help!")
-});
-
-// Close connection
-nc = nats.Connect("nats://localhost:4222")
-nc.Close();
+```sh
+$ mvn compile
+# or
+$ mvn package
+# etc
+# Some of the examples of interest can be run as follows (pass -h for help).
+# To run tools/examples/etc...
+$ mvn exec:java -Dexec.mainClass=io.nats.tools.Sniffer
+$ mvn exec:java -Dexec.mainClass=io.nats.tools.Publisher
+$ mvn exec:java -Dexec.mainClass=io.nats.tools.RequestResponse
 ```
 
-## Wildcard Subscriptions
+# APIs
+The NATS APIs are in flux. We intend to offer a standardized, open API that is small, easy to embed in micro-editions and has the API architecture and flexibility to scale for more complex usage patterns.
 
-```java
+With that in mind we offer a number of APIs in this package, feed back is welcome:
 
-// "*" matches any token, at any level of the subject.
-nc.subscribe("foo.*.baz", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(getData()));
-})
+- _Public API_. This is contained within _io.nats__. All classes and interfaces here are public and intended to be the _standardized_ NATS API. We hope that other NATS client framework providers will implement this API with the factory pattern here so that clients and users of NATS do not need to change their applications to use  a different framework provider.
 
-nc.subscribe("foo.bar.*", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(getData()));
-})
+- [JMS API](https://en.wikipedia.org/wiki/Java_Message_Service). We indent to offer a 1.1 and simplified 1.2 JMS API that offers full JMS capabilities for the types of messaging which NATS provides.
 
-// ">" matches any length of the tail of a subject, and can only be the last token
-// E.g. 'foo.>' will match 'foo.bar', 'foo.bar.baz', 'foo.foo.bar.bax.22'
-nc.Subscribe("foo.>", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(getData()));
-})
+- _Server API_. We believe that many messaging-based applications will have critical security, latency, memory, throughput and other constraints that do not allow _out of the box_ solutions to be met. This API builds upon the patterns within _netty_ to allow super-scale NATS solutions to be built.
 
-// Matches all of the above
-nc.publish("foo.bar.baz", "Hello World")
+- _Encoding API_. Many of the previous NATS Java clients supported simple byte arrays as message payloads. This package builds upon the capabilities in netty to allow just about any messaging payload to be encoded and decoded easily, with low memory and CPU overhead.
 
-```
+- _Groovy and spring_. Forthcoming once the _API_ has matured.
 
-## Queue Groups
+- Protocol API and parser generator. Its easy to specify a protocol using a regular-expression like language and then generate a parser in various languages to decode that protocol into a higher level format. Forthcoming after _API_ maturity points are met.
+ 
+## Design Goals
 
-```java
-// All subscriptions with the same queue name will form a queue group.
-// Each message will be delivered to only one subscriber per queue group,
-// using queuing semantics. You can have as many queue groups as you wish.
-// Normal subscribers will continue to work as expected.
+The design goals this framework are as follows:
 
-nc.queueSubscribe("foo", "job_workers", new MessageHandler() {
-  long received += 1;
-});
+1. Lightweight, simple, minimalistic framework and API footprint
 
-```
+2. The throughput, latency profile required to build super-scale NATs applications.
 
-## Advanced Usage
+3. Usage and design flexibility for users and implementors of the package for everything from threading, parsing, networking, timing, etc...
 
-```java
+## Design and Implementation Overview
 
-// Flush connection to server, returns when all messages have been processed.
-nc.flush()
-System.out.println("All clear!");
+I've hacked enough networking code to not want to do so again at the metal level and decided to use [netty](http://netty.io/). I can here the _jeers_... You _decided_ to use _what_? Don't you _want_ to _read from sockets_ and _listen_ on _ports_? Don't you want to _write a thread pool_? I started my career hacking network code, have written several products and now am back at the same place. With all I've learned and done, I can confidently state:
 
-// FlushTimeout specifies a timeout value as well.
-boolean flushed = nc.flush(1, TimeUnit.SECONDS);
-if (flushed) {
-    System.out.println("All clear!");
-} else {
-    System.out.println("Flushed timed out!");
-}
+> No, I do not.
+> - jam
 
-// Auto-unsubscribe after MAX_WANTED messages received
-final static int MAX_WANTED = 10;
-sub = nc.subscribe("foo");
-sub.autoUnsubscribe(MAX_WANTED);
+With that said. Why netty? Because its fast, has a proven, easy to understand I/O, concurrency and API model. It is  
+tested around the world by more folks than I can dream of. It is lightweight if you pick out what you want. It is super
+extensible. Want spdy tunnel support? *Done*. Want to proxy over UDP? *Done*. Want a simple concurrency model? *Done*. 
+_Etc_. And if its not _done_, the framework is _extremely extensible_ for you to _make it so_.
 
-// Multiple connections
-nc1 = nats.Connect("nats://host1:4222")
-nc2 = nats.Connect("nats://host2:4222")
+> Netty allows most of our design goals to be met out of the box
 
-nc1.subscribe("foo", func(m *Msg) {
-    System.out.printf("Received a message: %s\n", new String(m.getData()));
-})
+So if you don't know netty, go do some research, write some code and use it. People like nm and t and others have contributed greatly to the community in code, support, documentation, white papers and other artifacts that you can learn from.
 
-nc2.publish("foo", "Hello World!");
+At a high level: all our nats.io.imp classes are running within a pipeline on a netty channel. This channel is attached typically to a gnatsd process and is acting as a client (assumption for the rest of this section).
 
-```
+All I/O, timers, etc. are run in a thread safe manner via netty APIs without us having to do anything. We only need to worry about two things:
 
-## Clustered Usage
+1. Calls into our clases from outside of the event loop
 
-```java
+2. Calling into user code that may block
 
-String[] servers = new String[] {
-	"nats://localhost:1222",
-	"nats://localhost:1223",
-	"nats://localhost:1224",
-};
+For #1 we hande that with the minimal locks as required and they are outside of ALL API routines.
 
-// Setup options to include all servers in the cluster
-opts = nats.DefaultOptions;
-opts.setServers(servers);
+For #2 we gate over that with a hack somewhat. The thought  was that people want to truly hack each byte of memory and performance away if at all possible for for _super scale_ or _super micro_ services. You may find such service in  in a low latency medical application or an IoT appliance such as a refrigerator. Wouldn't you want the fastest, etc offering for your value chain experience. So with that goal (aka "design feature"/hack) in mind:
 
-// Optionally set ReconnectWait and MaxReconnect attempts.
-// This example means 10 seconds total per backend.
-opts.setMaxReconnect(5);
-opts.setReconnectWait(2, TimeUnit.SECONDS);
+We allow applications to extend the NATS library essentially using standard _netty_ semantics around pipelines, channels, etc.
+In a nutshell, that means you _may_ create a _standard netty handler_ to service NATS protocol verbs, messages and lifecycle events easily.
+We respect channel length maximums,  but if you are unable to keep up with calls as the underlying pipeline is decoding them you may either drop messages, be marked as a slow subscriber for the given topic or _kill_ the _event loop_ and cause all subscribers to be marked slow.
+We support both async and sync styles for the Server API. See the ServerAPI example for more information.
 
-// Optionally disable randomization of the server pool
-opts.setNoRandomize(true);
-
-nc = opts.Connect()
-
-// Setup callbacks to be notified on disconnects and reconnects
-nc.setDisconnectedCB(new ConnEventHandler(Connection cc) {
-    System.out.printf("Got disconnected!\n")
-});
-
-// See who we are connected to on reconnect.
-nc.setReconnectedCB(new ConnEventHandler(Connection c) {
-    System.out.printf("Got reconnected to %v!\n", c.getConnectedUrl())
-});
-
-```
+> Be aware that server side API usage DOES NOT start any threads. You are responsible for doing so and running the tasks passed to your handler in the thread group's executor to get message flow going (or in your channel handler's method).
+ 
 
 
-## License
-
-(The MIT License)
-
-Copyright (c) 2012-2015 Apcera Inc.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to
-deal in the Software without restriction, including without limitation the
-rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-sell copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-IN THE SOFTWARE.
+# License
+Copyright 2015, [Apcera, Inc](http://www.apcera.com/)
+All rights reserved
 
