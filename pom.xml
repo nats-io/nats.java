@@ -7,7 +7,6 @@
 	<artifactId>jnats</artifactId>
 	<version>1</version>
 	<packaging>pom</packaging>
-
 	<name>NATS Java Support</name>
 	<description>NATS Support for Java</description>
 	<url>https://github.com/nats-io/jnats</url>
@@ -55,16 +54,6 @@
 				<groupId>org.apache.geronimo.specs</groupId>
 				<artifactId>geronimo-jms_2.0_spec</artifactId>
 				<version>${geronimo.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>io.nats</groupId>
-				<artifactId>nats-client</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>io.nats</groupId>
-				<artifactId>nats-examples</artifactId>
-				<version>${project.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

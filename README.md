@@ -22,15 +22,19 @@ To use the client libraries, the following needs to be in your pom.xml:
 We distribute a maven-supported build (obviously). Typical commands work...
 
 ```sh
-$ mvn compile
-# or
-$ mvn package
+$ mvn clean install
 # etc
 # Some of the examples of interest can be run as follows (pass -h for help).
-# To run tools/examples/etc...
-$ mvn exec:java -Dexec.mainClass=io.nats.tools.Sniffer
-$ mvn exec:java -Dexec.mainClass=io.nats.tools.Publisher
-$ mvn exec:java -Dexec.mainClass=io.nats.tools.RequestResponse
+# To run examples
+$ cd nats-examples
+# Sniff all nats traffic 
+$ mvn exec:java -Dexec.mainClass=io.nats.examples.Sniffer
+# Message publisher example
+$ mvn exec:java -Dexec.mainClass=io.nats.examples.Publisher
+# Message subscriber example
+$ mvn exec:java -Dexec.mainClass=io.nats.examples.Subscriber
+# Request response example
+$ mvn exec:java -Dexec.mainClass=io.nats.examples.RequestResponse
 ```
 
 # APIs

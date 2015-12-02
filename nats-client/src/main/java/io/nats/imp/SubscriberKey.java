@@ -6,7 +6,6 @@ package io.nats.imp;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.CharsetUtil;
-import javafx.util.converter.CharacterStringConverter;
 
 /**
  * Optimize the creation and comparison/hashing/etc of subscription IDs/keys...
@@ -54,7 +53,10 @@ public abstract class SubscriberKey<T extends SubscriberKey>
     {
       super (Long.valueOf (value).toString ().getBytes (CharsetUtil.US_ASCII));
       this.value = value;
-      this.hashCode = Long.hashCode (value);
+      // JDK 1.8 code...
+      // this.hashCode = Long.hashCode (value);
+      // JDK 1.7 code...
+      this.hashCode = (int) ((value >>> 32) ^ value);
     }
 
     public LongKey (Long value)
