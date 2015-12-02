@@ -1,7 +1,9 @@
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -38,7 +40,10 @@ public class Replier implements MessageHandler {
 		try {
 			cf = new ConnectionFactory(url);
 			c = cf.createConnection();
-		} catch (NATSException e) {
+		} catch (IOException e) {
+			System.err.println("Couldn't connect: " + e.getCause());
+			System.exit(-1);
+		} catch (TimeoutException e) {
 			System.err.println("Couldn't connect: " + e.getCause());
 			System.exit(-1);
 		}

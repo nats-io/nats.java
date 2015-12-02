@@ -1,6 +1,8 @@
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.nats.client.AsyncSubscription;
 import io.nats.client.Connection;
@@ -38,9 +40,12 @@ public class Subscriber implements MessageHandler, ExceptionHandler {
 		Connection c = null;
 		try {
 			c = cf.createConnection();
-		} catch (NATSException e) {
-			System.err.println("Couldn't connect to " + url + " " + e.getMessage());
-			return;
+		} catch (IOException e) {
+			System.err.println("Couldn't connect: " + e.getCause());
+			System.exit(-1);
+		} catch (TimeoutException e) {
+			System.err.println("Couldn't connect: " + e.getCause());
+			System.exit(-1);
 		}
 
 		if (sync)

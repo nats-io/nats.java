@@ -25,7 +25,7 @@ public class Options {
 	private long pingInterval;
 	private int maxPingsOut;
 	private ExceptionHandler exceptionHandler;
-	private ConnectionEventHandler connectionEventHandler;
+//	private ConnectionEventHandler connectionEventHandler;
 	/**
 	 * @return the subChanLen
 	 */
@@ -39,9 +39,9 @@ public class Options {
 		this.subChanLen = subChanLen;
 	}
 	private int subChanLen;
-	public ConnectionEventHandler disconnectedEventHandler;
-	public ConnectionEventHandler closedEventHandler;
-	public ConnectionEventHandler reconnectedEventHandler;
+	public DisconnectedEventHandler disconnectedEventHandler;
+	public ClosedEventHandler closedEventHandler;
+	public ReconnectedEventHandler reconnectedEventHandler;
 	public ExceptionHandler asyncErrorEventHandler;
 	
 	public URI getUrl() {
@@ -204,10 +204,29 @@ public class Options {
 	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
 		this.exceptionHandler = exceptionHandler;
 	}
-	public ConnectionEventHandler getConnectionListener() {
-		return connectionEventHandler;
+//	public ConnectionEventHandler getConnectionListener() {
+//		return connectionEventHandler;
+//	}
+//	public void setConnectionListener(ConnectionEventHandler cb) {
+//		this.connectionEventHandler = cb;
+//	}
+	public ClosedEventHandler getClosedEventHandler() {
+		return closedEventHandler;
 	}
-	public void setConnectionListener(ConnectionEventHandler connectionEventHandler) {
-		this.connectionEventHandler = connectionEventHandler;
+	public void setClosedEventHandler(ClosedEventHandler cb) {
+		this.closedEventHandler = cb;
 	}
+	public ReconnectedEventHandler getReconnectedEventHandler() {
+		return reconnectedEventHandler;
+	}
+	public void setReconnectedEventHandler(ReconnectedEventHandler cb) {
+		this.reconnectedEventHandler = cb;
+	}
+	public DisconnectedEventHandler getDisconnectedEventHandler() {
+		return disconnectedEventHandler;
+	}
+	public void setDisconnectedEventHandler(DisconnectedEventHandler cb) {
+		this.disconnectedEventHandler = cb;
+	}
+
 }

@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -39,30 +41,26 @@ final class ConnectionImpl implements Connection {
 	final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
 
 	String version = null;
-	
-//	final static int DEFAULT_SCRATCH_SIZE = 512;
-	
+
+	//	final static int DEFAULT_SCRATCH_SIZE = 512;	
 
 	private static final String inboxPrefix = "_INBOX.";
 
-	public static enum ConnState {
-		DISCONNECTED, CONNECTED, CLOSED, RECONNECTING, CONNECTING
-	}
 	public ConnState status = ConnState.DISCONNECTED;
 
 	protected final static String STALE_CONNECTION     = "Stale Connection";
 
 	// Client version
 	protected static final String 	VERSION					= "1.0.0";
-	
+
 	// Default language string for CONNECT message
 	protected static final String	LANG_STRING				= "java";
 
 	// Scratch storage for assembling protocol headers
-//	protected static final int SCRATCH_SIZE = 512;
+	//	protected static final int SCRATCH_SIZE = 512;
 
 	// The size of the bufio reader/writer on top of the socket.
-//	protected static final int DEFAULT_BUF_SIZE = 32768;
+	//	protected static final int DEFAULT_BUF_SIZE = 32768;
 	protected static final int DEFAULT_BUF_SIZE = 65536;
 	protected static final int DEFAULT_STREAM_BUF_SIZE = 8192;
 
@@ -94,12 +92,12 @@ final class ConnectionImpl implements Connection {
 	public static final String UNSUB_PROTO = "UNSUB %d %d" + _CRLF_;
 
 
-	private ConnectionImpl nc 				= this;
+	//	private ConnectionImpl nc 				= this;
 	private final Lock mu 					= new ReentrantLock();
-	
-	protected ConnectionEventHandler closedEventHandler;
-	protected ConnectionEventHandler disconnectedEventHandler;
-	protected ConnectionEventHandler reconnectedEventHandler;
+
+	protected ClosedEventHandler closedEventHandler;
+	protected DisconnectedEventHandler disconnectedEventHandler;
+	protected ReconnectedEventHandler reconnectedEventHandler;
 	protected ExceptionHandler exceptionHandler = new DefaultExceptionHandler();
 
 
@@ -107,7 +105,7 @@ final class ConnectionImpl implements Connection {
 	private URI url 						= null;
 	private Options opts 					= null;
 
-	private TCPConnection conn				= new TCPConnection();
+	private TCPConnection conn				= null;
 
 	// Prepare protocol messages for efficiency
 	byte[] pubProtoBuf = null;
@@ -120,7 +118,6 @@ final class ConnectionImpl implements Connection {
 	private OutputStream bw 			= null;
 	private InputStream br 				= null;
 	private ByteArrayOutputStream pending 	= null;
-	//  private MemoryStream    pending = null;
 
 	private ReentrantLock flusherLock		= new ReentrantLock();
 	private boolean flusherKicked 			= false;
@@ -152,15 +149,21 @@ final class ConnectionImpl implements Connection {
 	private Queue<Channel<Boolean>> pongs	= new LinkedBlockingQueue<Channel<Boolean>>(8);
 
 	private static final int NUM_TASK_THREADS = 5;
-	private final ExecutorService taskExec = Executors.newFixedThreadPool(NUM_TASK_THREADS, new NATSThreadFactory("natsthreadfactory"));
+//	private final ExecutorService taskExec = Executors.newFixedThreadPool(NUM_TASK_THREADS, new NATSThreadFactory("natsthreadfactory"));
+	private final ExecutorService taskExec = Executors.newCachedThreadPool(new NATSThreadFactory("natsthreadfactory"));
 	private Random r						= null;
 
-	public ConnectionImpl(Options o) throws NoServersException {
-		 Properties props = new Properties();
-		 InputStream inputStream = 
-				    getClass().getClassLoader().getResourceAsStream("jnats.properties");
-							
-		 try {
+	ConnectionImpl(Options o)
+	{
+		this(o, null);
+	}
+
+	ConnectionImpl(Options o, TCPConnection tcpconn) {
+		Properties props = new Properties();
+		InputStream inputStream = 
+				getClass().getClassLoader().getResourceAsStream("jnats.properties");
+
+		try {
 			props.load(inputStream);
 			version = props.getProperty("client.version");
 		} catch (IOException e) {
@@ -173,7 +176,11 @@ final class ConnectionImpl implements Connection {
 		this.stats = new Statistics();
 		this.ps = new Parser(this);
 		this.msgArgs = new MsgArg();
-
+		if (tcpconn != null)
+			this.conn = tcpconn;
+		else 
+			this.conn = new TCPConnection();
+		
 		sidCounter.set(0);
 
 		pingProtoBytes = PING_PROTO.getBytes();
@@ -191,7 +198,7 @@ final class ConnectionImpl implements Connection {
 
 		setupServerPool();
 	}
-
+	
 	private void buildPublishProtocolBuffer(int size)
 	{
 		pubProtoBuf = new byte[size];
@@ -203,7 +210,7 @@ final class ConnectionImpl implements Connection {
 	// We will place a Url option first, followed by any
 	// Srv Options. We will randomize the server pool unless
 	// the NoRandomize flag is set.
-	protected void setupServerPool() throws NoServersException {
+	protected void setupServerPool() {
 
 		URI url = opts.getUrl();
 		List<URI> servers = opts.getServers();
@@ -223,17 +230,20 @@ final class ConnectionImpl implements Connection {
 			}
 		}
 
-		pickServer();
+		if (srvPool.isEmpty()) {
+			try {
+				srvPool.add(new Srv(new URI(DEFAULT_URL)));
+			} catch (URISyntaxException e) {
+			}
+		}
+		
+		/* 
+		 * At this point, srvPool being empty would be 
+		 * programmer error. 
+		 */
 
-		// TODO the following code only protects from implementer error
-
-		// Place default URL if pool is empty.
-		// if (serverPool.isEmpty())
-		// {
-		// Srv srv = null;
-		// srv = new Srv(new URI(ConnectionFactory.DEFAULT_URL));
-		// serverPool.add(srv);
-		// }
+		// Return the first server in the list
+		this.url = srvPool.get(0).url;
 	}
 
 	protected Srv currentServer() {
@@ -275,16 +285,7 @@ final class ConnectionImpl implements Connection {
 		return srvPool.get(0);
 	}
 
-	// Will assign the correct server to the nc.Url
-	protected void pickServer() throws NoServersException {
-		if (srvPool.isEmpty())
-			throw new NoServersException();
-
-		// Return the first server in the list
-		this.url = srvPool.get(0).url;
-	}
-
-	protected ConnectionImpl connect() throws ConnectionException {
+	protected ConnectionImpl start() throws IOException, TimeoutException {
 		// Create actual socket connection
 		// For first connect we walk all servers in the pool and try
 		// to connect immediately.
@@ -296,16 +297,22 @@ final class ConnectionImpl implements Connection {
 				lastEx = null;
 				mu.lock();
 				try {
+					logger.debug("Connecting to {}", this.url);
+					// Create the underlying TCP connection
 					if (createConn()) {
+						logger.debug("Connected to {}", this.url);
+						//s.didConnect = true;
 						s.reconnects = 0;
+						// Initial connection protocol
 						processConnectInit();
 						connected = true;
 					}
 				} finally {
 					mu.unlock();
 				}
-			} catch (ConnectionException e) {
-				lastEx = new NATSException(e);
+			} catch (Exception e) {
+				if (logger.isDebugEnabled()){ logger.debug("{} Exception: {}", this.url, e.getMessage());}
+				lastEx = e;
 				close(ConnState.DISCONNECTED, false);
 				mu.lock();
 				try {
@@ -323,16 +330,13 @@ final class ConnectionImpl implements Connection {
 		try {
 			if (status != ConnState.CONNECTED) {
 				if (lastEx == null)
-					lastEx = new NoServersException("Unable to connect to a server.");
+					lastEx = new IOException("Unable to connect to a server.");
 
-				throw new ConnectionException(lastEx);
+				throw (IOException)this.lastEx;
 			}
 		} finally {
 			mu.unlock();
 		}
-
-		// while (!channel.isConnected()) {
-		// }
 
 		return this;
 	}
@@ -343,20 +347,24 @@ final class ConnectionImpl implements Connection {
 	private boolean createConn() {
 		currentServer().updateLastAttempt();
 
+		Srv s=null;
 		try {
-			Srv s = currentServer();
+			s = currentServer();
 			conn.open(s.url.getHost(), s.url.getPort(), opts.getConnectionTimeout());
 			if (!conn.isConnected()) {
 				logger.debug("Couldn't connect to " + s.url.getHost() + " port " + s.url.getPort());
+				System.out.println("Couldn't connect to " + s.url.getHost() + " port " + s.url.getPort());
 				return false;
 			}
 			if ((pending != null) && (bw != null)) {
 				// flush to the pending buffer
+				logger.trace("Flushing old outputstream to pending");
 				bw.flush();
 			}
 			bw = conn.getWriteBufferedStream(DEFAULT_STREAM_BUF_SIZE);
 			br = conn.getReadBufferedStream(DEFAULT_STREAM_BUF_SIZE);
 		} catch (IOException e) {
+			logger.error("Couldn't establish connection to {}: {}", s.url, e.getMessage());
 			return false;
 		}
 
@@ -384,7 +392,7 @@ final class ConnectionImpl implements Connection {
 			mu.unlock();
 		}
 	}
-	
+
 	@Override
 	public void close() {
 		close(ConnState.CLOSED, true);
@@ -397,9 +405,9 @@ final class ConnectionImpl implements Connection {
 	private void close(ConnState closeState, boolean invokeDelegates)
 	{
 		if (logger.isDebugEnabled())
-			logger.debug("Closing connection, closeState = {}", closeState);
-		ConnectionEventHandler disconnectedEventHandler = null;
-		ConnectionEventHandler closedEventHandler = null;
+			logger.debug("close({}, {})", closeState, String.valueOf(invokeDelegates));
+		DisconnectedEventHandler disconnectedEventHandler = null;
+		ClosedEventHandler closedEventHandler = null;
 
 		mu.lock();
 		try
@@ -436,18 +444,13 @@ final class ConnectionImpl implements Connection {
 
 			// Close sync subscriber channels and release any
 			// pending NextMsg() calls.
-
-			//            foreach (AsyncSubscriptionImpl s : subs)
-			//            {
-			//                s.closeChannel();
-			//            }
 			for (Long key : subs.keySet())
 			{
 				SubscriptionImpl s = subs.get(key);
 				s.closeChannel();
 			}
 			subs.clear();
-			sidCounter.set(0);
+			//			sidCounter.set(0);
 
 			// perform appropriate callback is needed for a
 			// disconnect;
@@ -456,9 +459,9 @@ final class ConnectionImpl implements Connection {
 			{
 				// TODO:  Mirror go, but this can result in a callback
 				// being invoked out of order
-				disconnectedEventHandler = opts.disconnectedEventHandler;
-				taskExec.execute(new ConnEventHandlerTask(disconnectedEventHandler, new ConnectionEvent(this)));
-				//                new Task(() => { disconnectedEventHandler(new ConnectionEvent(this)); }).Start();
+				logger.debug("Calling disconnectedEventHandler from Connection.close()");
+				disconnectedEventHandler = opts.getDisconnectedEventHandler();
+				taskExec.execute(new DisconnectedEventHandlerTask(disconnectedEventHandler, new ConnectionEvent(this)));
 			}
 
 			// Go ahead and make sure we have flushed the outbound buffer.
@@ -474,16 +477,26 @@ final class ConnectionImpl implements Connection {
 				conn.teardown();
 			}
 
-			closedEventHandler = opts.disconnectedEventHandler;
+			closedEventHandler = opts.getClosedEventHandler();
 		} finally {
 			mu.unlock();
 		}
 
 		if (invokeDelegates && closedEventHandler != null)
 		{
-			taskExec.execute(new ConnEventHandlerTask(closedEventHandler, new ConnectionEvent(this)));
+			//			taskExec.execute(new ConnEventHandlerTask(closedEventHandler, new ConnectionEvent(this)));
+			closedEventHandler.onClose(new ConnectionEvent(this));
 		}
 
+		taskExec.shutdown();
+		try {
+		  taskExec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+		} catch (InterruptedException e) {
+		  logger.error("Thread executor shutdown error", e);
+		} finally {
+			logger.trace("Thread executor has been shut down");
+		}
+		
 		mu.lock();
 		try {
 			status = closeState;
@@ -499,18 +512,14 @@ final class ConnectionImpl implements Connection {
 	}
 
 
-	protected void processConnectInit() throws ConnectionException {
+	protected void processConnectInit() throws IOException, SecureConnRequiredException {
 		status = ConnState.CONNECTING;
-
+		logger.debug("processConnectInit(): {}", this.url);
 		// Process the INFO protocol that we should be receiving
 		processExpectedInfo();
 
 		// Send the CONNECT and PING protocol, and wait for the PONG.
-		try {
-			sendConnect();
-		} catch (Exception e) {
-			throw new ConnectionException("Couldn't send CONNECT proto", e);
-		}
+		sendConnect();
 
 		// Clear our deadline, regardless of error
 		// natsDeadline_Clear(&(nc->deadline));
@@ -599,6 +608,8 @@ final class ConnectionImpl implements Connection {
 	}
 
 	private void processOpError(Exception e) {
+		logger.trace("processOpError(e={}) state={} reconnectAllowed={} ", e.getClass().getName(), status, opts.isReconnectAllowed());
+//		e.printStackTrace();
 		boolean disconnected = false;
 
 		mu.lock();
@@ -610,10 +621,12 @@ final class ConnectionImpl implements Connection {
 
 			if (opts.isReconnectAllowed() && status == ConnState.CONNECTED)
 			{
+				logger.debug("\t\tcalling processReconnect() in state {}", status);
 				processReconnect();
 			}
 			else
 			{
+				logger.debug("\t\tcalling processReconnect() in state {}", status);
 				processDisconnect();
 				disconnected = true;
 				lastEx = e;
@@ -629,20 +642,24 @@ final class ConnectionImpl implements Connection {
 
 	}
 
-	//	private void processOpError(StaleConnectionException e) {
-	//		// TODO Auto-generated method stub
-	//
-	//	}
-
 	private void processDisconnect() {
-		// TODO Auto-generated method stub
+		logger.debug("processDisconnect(), lastEx={}",
+				lastEx==null ? "null" : lastEx.getClass().getName());
+		status = ConnState.DISCONNECTED;
+		if (lastEx == null)
+			return;
 
+		if (info.isSslRequired())
+			lastEx = new SecureConnRequiredException();
+		else
+			lastEx = new ConnectionClosedException();
 	}
 
 	// This will process a disconnect when reconnect is allowed.
 	// The lock should not be held on entering this function.
 	private void processReconnect()
 	{
+		logger.debug("processReconnect()");
 		mu.lock();
 		try {
 			// If we are already in the proper state, just return.
@@ -659,6 +676,7 @@ final class ConnectionImpl implements Connection {
 
 			if (conn.isSetup())
 			{
+				logger.debug("Calling conn.teardown()");
 				conn.teardown();
 			}
 
@@ -708,12 +726,14 @@ final class ConnectionImpl implements Connection {
 	// gathered while we were in a RECONNECTING state to the socket.
 	private void flushReconnectPendingItems()
 	{
+		logger.trace("flushReconnectPendingItems()");
 		if (pending == null)
 			return;
 
 		if (pending.size() > 0)
 		{
 			try {
+				logger.trace("flushReconnectPendingItems() writing {} bytes.", pending.size() ); 
 				bw.write(pending.toByteArray(), 0, (int)pending.size());
 				bw.flush();
 			} catch (IOException e) {
@@ -727,6 +747,7 @@ final class ConnectionImpl implements Connection {
 	// This function assumes we are allowed to reconnect.
 	private void doReconnect()
 	{
+		logger.debug("doReconnect()");
 		// We want to make sure we have the other watchers shutdown properly
 		// here before we proceed past this point
 		waitForExits();
@@ -746,11 +767,12 @@ final class ConnectionImpl implements Connection {
 		// Clear any errors.
 		lastEx = null;
 
-		if (opts.disconnectedEventHandler != null)
+		if (opts.getDisconnectedEventHandler() != null)
 		{
 			mu.unlock();
+			disconnectedEventHandler = opts.getDisconnectedEventHandler();
 
-			taskExec.execute(new ConnEventHandlerTask(disconnectedEventHandler,new ConnectionEvent(this)));
+			taskExec.execute(new DisconnectedEventHandlerTask(disconnectedEventHandler,new ConnectionEvent(this)));
 
 			mu.lock();
 		}
@@ -800,11 +822,14 @@ final class ConnectionImpl implements Connection {
 
 			try
 			{
+				logger.debug("doReconnect: trying createConn(), s.reconnects={}", s.reconnects);
 				// try to create a new connection
-				createConn();
+				if (!createConn())
+					continue;
 			}
 			catch (Exception ne)
 			{
+				logger.debug("doReconnect: createConn() failed({}), looping again", ne.getMessage());
 				// not yet connected, retry and hold
 				// the lock.
 				continue;
@@ -824,6 +849,7 @@ final class ConnectionImpl implements Connection {
 			}
 			catch (Exception e)
 			{
+				e.printStackTrace();
 				lastEx = e;
 				status = ConnState.RECONNECTING;
 				continue;
@@ -850,7 +876,7 @@ final class ConnectionImpl implements Connection {
 			}
 
 			// get the event handler under the lock
-			ConnectionEventHandler reconnectedEh = opts.reconnectedEventHandler;
+			ReconnectedEventHandler reconnectedEh = opts.getReconnectedEventHandler();
 
 			// Release the lock here, we will return below
 			mu.unlock();
@@ -865,7 +891,7 @@ final class ConnectionImpl implements Connection {
 
 			if (reconnectedEh != null)
 			{
-				taskExec.execute(new ConnEventHandlerTask(reconnectedEh, new ConnectionEvent(this)));
+				reconnectedEh.onReconnect(new ConnectionEvent(this));
 			}
 
 			return;
@@ -873,7 +899,7 @@ final class ConnectionImpl implements Connection {
 
 		// we have no more servers left to try.
 		if (lastEx == null)
-			lastEx = new NoServersException("Unable to reconnect");
+			lastEx = new IOException("Unable to reconnect");
 
 		mu.unlock();
 
@@ -896,6 +922,7 @@ final class ConnectionImpl implements Connection {
 		boolean invokeDelegates = false;
 		Exception ex = null;
 		String s = new String(errorStream.array(), 0, errorStream.position(), Charset.forName("UTF-8"));
+		logger.debug("processErr(errorStream={})", s);
 
 		if (STALE_CONNECTION.equals(s))
 		{
@@ -921,10 +948,13 @@ final class ConnectionImpl implements Connection {
 		}
 	}
 	// caller must lock
-	protected void sendConnect() throws IOException, ConnectionException, SecureConnRequiredException {
+	protected void sendConnect() throws IOException, SecureConnRequiredException
+	{
 		try {
 			bw.write(Utilities.stringToBytesASCII(connectProto()));
+			if (logger.isTraceEnabled()){ logger.trace("=> {}", connectProto().trim());}
 			bw.write(pingProtoBytes, 0, pingProtoBytesLen);
+			if (logger.isTraceEnabled()){ logger.trace("=> {}", new String(pingProtoBytes).trim());}
 			bw.flush();
 		} 
 		catch (IOException e) {
@@ -942,16 +972,19 @@ final class ConnectionImpl implements Connection {
 		}
 
 		if (c.op.equals(PONG_PROTO.substring(0, PONG_PROTO.indexOf(_CRLF_)))) {
-			logger.debug("Received PONG");
 			status = ConnState.CONNECTED;
 			return;
 		} else {
 			if (c.op == null)
 			{
-				throw new ConnectionException("Connect read protocol error");
+				throw new IOException("Connect read protocol error");
 			}
 			else if (c.op.startsWith(_ERR_OP_))
 			{
+				if (c.args.contains("Authorization")) {
+					throw new AuthorizationException(c.args);
+				}
+
 				throw new ConnectionException(c.args);
 			}
 			else if (c.op.startsWith("tls:"))
@@ -960,7 +993,7 @@ final class ConnectionImpl implements Connection {
 			}
 			else
 			{
-				throw new ConnectionException(c.args);
+				throw new IOException("Unexpected protocol line: " + c.args);
 			}
 		}
 	}
@@ -974,6 +1007,7 @@ final class ConnectionImpl implements Connection {
 		mu.lock();
 		try {
 			bw.write(value, 0, length);
+			if (logger.isTraceEnabled()) {logger.trace("=> {}", new String(value).trim() );}
 			kickFlusher();
 		} finally {
 			mu.unlock();
@@ -1016,15 +1050,14 @@ final class ConnectionImpl implements Connection {
 		//
 		// Do not close or dispose the stream reader - we need the underlying
 		// BufferedStream.
-		if (logger.isDebugEnabled())
-			logger.debug("Entered readOp()");
 		InputStreamReader is = conn.getInputStreamReader();
 		BufferedReader br = new BufferedReader(is);
 
 		String s = br.readLine();
+		if (logger.isTraceEnabled()){ logger.trace("<= {}", s.trim());}
 		ControlMsg c = new ControlMsg(s);
-		if (logger.isDebugEnabled())
-			logger.debug("readOp returning: " + c);
+		//		if (logger.isTraceEnabled())
+		//			logger.debug("readOp returning: " + c);
 		return c;
 	}
 
@@ -1084,11 +1117,10 @@ final class ConnectionImpl implements Connection {
 		mu.lock();
 		try {
 			if (opts.getPingInterval() > 0) {
-				if (ptmr == null) {
-					ptmr = Executors.newSingleThreadScheduledExecutor(new NATSThreadFactory("pinger"));
-				} else {
+				if (ptmr != null)
 					ptmr.shutdownNow();
-				}
+
+				ptmr = Executors.newSingleThreadScheduledExecutor(new NATSThreadFactory("pinger"));
 				ptmr.scheduleAtFixedRate(
 						new PingTimerEventHandler(), opts.getPingInterval(), opts.getPingInterval(), 
 						TimeUnit.MILLISECONDS);
@@ -1116,7 +1148,7 @@ final class ConnectionImpl implements Connection {
 			default:
 			}
 		}
-		
+
 		public String toString() {
 			return "{op=" + op + ", args=" + args + "}";
 		}
@@ -1375,16 +1407,14 @@ final class ConnectionImpl implements Connection {
 
 			try
 			{
-				logger.debug("Reading from buffered reader");            	
 				len = br.read(buffer, 0, DEFAULT_BUF_SIZE);
-				if (logger.isDebugEnabled()) { 
-					String s = new String(buffer, 0, len, Charset.forName("UTF-8"));
-					logger.debug("Received bytes: " + s.substring(0, s.lastIndexOf("\r\n")));
+				if (len==-1) {
+					throw new StaleConnectionException("Connection read error (EOF)");
 				}
 				parser.parse(buffer, len);
 			} catch (Exception e)
 			{
-				e.printStackTrace();
+//				logger.trace("Exception in readLoop(): Conn.State was {}", status, e);
 				if (status != ConnState.CLOSED)
 				{
 					processOpError(e);
@@ -1402,26 +1432,19 @@ final class ConnectionImpl implements Connection {
 		}
 	}
 	protected class ReadLoopTask implements Runnable {
-		//		private ConnectionImpl nc = null;
-
-		//		public ReadLoopTask(ConnectionImpl connectionImpl) {
-		//			this.nc = connectionImpl;
-		//		}
-
 		@Override
 		public void run() {
 			readLoop();
 		}
-
 	}
 
 	// deliverMsgs waits on the delivery channel shared with readLoop and processMsg.
 	// It is used to deliver messages to asynchronous subscribers.
 	protected void deliverMsgs(Channel<Message> ch)
 	{
-		logger.debug("In deliverMsgs");
+		//		logger.debug("In deliverMsgs");
 		MessageImpl m = null;
-		
+
 		while (true)
 		{
 			mu.lock();
@@ -1441,7 +1464,7 @@ final class ConnectionImpl implements Connection {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} 
-			
+
 			if (m == null)
 			{
 				// the channel has been closed, exit silently.
@@ -1450,7 +1473,7 @@ final class ConnectionImpl implements Connection {
 
 			// Note, this seems odd message having the sub process itself, 
 			// but this is good for performance.
-//			SubscriptionImpl s = (SubscriptionImpl) m.getSubscription();
+			//			SubscriptionImpl s = (SubscriptionImpl) m.getSubscription();
 			if (!m.sub.processMsg(m))
 			{
 				mu.lock();
@@ -1467,11 +1490,6 @@ final class ConnectionImpl implements Connection {
 
 
 	protected class Flusher implements Runnable {
-//		ConnectionImpl 
-//		public Flusher(ConnectionImpl connectionImpl) {
-//			// TODO Auto-generated constructor stub
-//		}
-
 		@Override
 		public void run() {
 			flusher();
@@ -1514,7 +1532,7 @@ final class ConnectionImpl implements Connection {
 	// considered a slow subscriber.
 	protected void processMsg(byte[] msg, long length)
 	{
-//		logger.info("In ConnectionImpl.processMsg(), msg length = {}. msg bytes = {}", length, msg);
+		//		logger.info("In ConnectionImpl.processMsg(), msg length = {}. msg bytes = {}", length, msg);
 		if (logger.isDebugEnabled())
 			logger.debug("Entered processMsg()");
 
@@ -1557,7 +1575,7 @@ final class ConnectionImpl implements Connection {
 						logger.debug("\tcreating message of length {}", length);
 					Message m = new MessageImpl(msgArgs, s, msg, length);
 					if (logger.isDebugEnabled())
-						logger.debug("\tcreated message: " + m);
+						logger.debug("\tcreated message:{} (length:{})", m, m.getData().length);
 					if (!s.addMessage(m, opts.getSubChanLen()))
 					{
 						processSlowConsumer(s);
@@ -1584,29 +1602,29 @@ final class ConnectionImpl implements Connection {
 	}
 	void removeSub(Subscription s) {
 		long key = s.getSid();
-        if (subs.containsKey(key))
-        {
-        	subs.remove(key);
-        	if (logger.isDebugEnabled())
-        	{
-        		logger.debug("Removed sid=" + s.getSid() + " subj="
-        				+ s.getSubject());
-        	}
-        }
+		if (subs.containsKey(key))
+		{
+			subs.remove(key);
+			if (logger.isDebugEnabled())
+			{
+				logger.debug("Removed sid=" + s.getSid() + " subj="
+						+ s.getSubject());
+			}
+		}
 		SubscriptionImpl sub = (SubscriptionImpl) s;
-        
-        if (sub.mch != null)
-        {
-        	if (logger.isDebugEnabled())
-        	{
-        		logger.debug("Closed sid=" + s.getSid() + " subj="
-        				+ s.getSubject());
-        	}
-            sub.mch.close();
-            sub.mch = null;
-        }
 
-        sub.conn = null;
+		if (sub.mch != null)
+		{
+			if (logger.isDebugEnabled())
+			{
+				logger.debug("Closed sid=" + s.getSid() + " subj="
+						+ s.getSubject());
+			}
+			sub.mch.close();
+			sub.mch = null;
+		}
+
+		sub.conn = null;
 	}
 
 	// processSlowConsumer will set SlowConsumer state and fire the
@@ -1692,6 +1710,7 @@ final class ConnectionImpl implements Connection {
 
 		try {
 			bw.write(pingProtoBytes, 0, pingProtoBytesLen);
+			if (logger.isTraceEnabled()) {logger.trace("=> {}", new String(pingProtoBytes).trim() );}
 			bw.flush();
 		} catch (IOException e) {
 			logger.error("Could not send PING", e);
@@ -1700,13 +1719,14 @@ final class ConnectionImpl implements Connection {
 
 	// unsubscribe performs the low level unsubscribe to the server.
 	// Use AsyncSubscriptionImpl.Unsubscribe()
-	protected void unsubscribe(Subscription sub, int max) throws ConnectionClosedException, IOException
+	protected void unsubscribe(Subscription sub, int max) 
+			throws IllegalStateException, IOException 
 	{
 		mu.lock();
 		try
 		{
 			if (isClosed())
-				throw new ConnectionClosedException();
+				throw new IllegalStateException("Connection has been closed.");
 
 			Subscription s = subs.get(sub.getSid());
 			if (s == null)
@@ -1727,8 +1747,10 @@ final class ConnectionImpl implements Connection {
 			// We will send all subscriptions when reconnecting
 			// so that we can supress here.
 			if (!isReconnecting()) {
-				byte[] unsub = String.format(UNSUB_PROTO, s.getSid(), max).getBytes(Charset.forName("UTF-8"));
+				String str = String.format(UNSUB_PROTO, s.getSid(), max);
+				byte[] unsub = str.getBytes(Charset.forName("UTF-8"));
 				bw.write(unsub);
+				if (logger.isTraceEnabled()) {logger.trace("=> {}", str.trim() );}
 			}
 
 		} finally {
@@ -1740,9 +1762,7 @@ final class ConnectionImpl implements Connection {
 
 	private void kickFlusher()
 	{
-		logger.debug("kickFlusher(): acquiring flusherLock");
 		flusherLock.lock();
-		logger.debug("kickFlusher(): acquired flusherLock");
 		try
 		{
 			if (!flusherKicked) {
@@ -1751,7 +1771,6 @@ final class ConnectionImpl implements Connection {
 			flusherKicked = true;
 		} finally {
 			flusherLock.unlock();
-			logger.debug("kickFlusher(): released flusherLock");
 		}
 	}
 
@@ -1866,7 +1885,7 @@ final class ConnectionImpl implements Connection {
 				lastEx = new IllegalStateException("Connection is closed");			
 			}
 		} catch (TimeoutException te) {
-				lastEx = new TimeoutException("Flush channel timeout.",te);
+			lastEx = new TimeoutException("Flush channel timeout.");
 		}
 		if (lastEx != null)
 		{
@@ -1899,18 +1918,19 @@ final class ConnectionImpl implements Connection {
 		bw.flush();
 	}
 
-	class ConnEventHandlerTask implements Runnable {
+	class DisconnectedEventHandlerTask implements Runnable {
 
-		private final ConnectionEventHandler cb;
+		private final DisconnectedEventHandler cb;
 		private final ConnectionEvent connEvent;
 
-		ConnEventHandlerTask(ConnectionEventHandler cb, ConnectionEvent eventArgs) {
+		DisconnectedEventHandlerTask(DisconnectedEventHandler cb, ConnectionEvent eventArgs) {
 			this.cb = cb;
 			this.connEvent = eventArgs;
 		}
 
 		public void run() {
-			cb.onEvent(connEvent);
+			if (cb==null) logger.trace("disconnectCB is null");
+			cb.onDisconnect(connEvent);
 		}
 
 	}
@@ -1934,18 +1954,19 @@ final class ConnectionImpl implements Connection {
 		}
 	}
 
-	private Subscription subscribe(String subj, String queue, MessageHandler cb, int chanLen) {
+	public Subscription subscribe(String subj, String queue, MessageHandler cb) 
+			throws ConnectionClosedException {
 		SubscriptionImpl sub = null;
 		boolean async = (cb != null);
 		mu.lock();
 		try {
-			if (nc.isClosed()) {
-				return null;
+			if (isClosed()) {
+				throw new ConnectionClosedException();
 			}
 			if (async)
-				sub = new AsyncSubscriptionImpl(nc, subj, queue, cb);
+				sub = new AsyncSubscriptionImpl(this, subj, queue, cb);
 			else
-				sub = new SyncSubscriptionImpl(nc, subj, queue);
+				sub = new SyncSubscriptionImpl(this, subj, queue);
 
 			addSubscription(sub);
 
@@ -1964,56 +1985,52 @@ final class ConnectionImpl implements Connection {
 	}
 
 	@Override
-	public Subscription subscribe(String subj, String queue, MessageHandler cb) {
-		SubscriptionImpl s = 
-				(SubscriptionImpl) subscribe(subj, queue, cb, opts.getSubChanLen());
-//		addSubscription(s);
-//		if (logger.isDebugEnabled())
-//			printSubs(this);
+	public AsyncSubscription subscribeAsync(String subject, String queue,
+			MessageHandler handler) throws ConnectionClosedException
+	{
+		AsyncSubscription s = null;
+
+		mu.lock();
+		try
+		{
+			if (isClosed())
+				throw new ConnectionClosedException();
+
+			s = new AsyncSubscriptionImpl(this, subject, queue, null);
+
+			addSubscription((SubscriptionImpl)s);
+
+			if (handler != null)
+			{
+				s.setMessageHandler(handler);
+				try {
+					s.start();
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		} finally {
+			mu.unlock();
+		}
+
 		return s;
 	}
-	
-	@Override
-    public AsyncSubscription subscribeAsync(String subject, String queue,
-            MessageHandler handler)
-        {
-            AsyncSubscription s = null;
-
-            mu.lock();
-            try
-            {
-                if (isClosed())
-                    return null;
-
-                s = new AsyncSubscriptionImpl(this, subject, queue, null);
-
-                addSubscription((SubscriptionImpl)s);
-
-                if (handler != null)
-                {
-                    s.setMessageHandler(handler);
-                    try {
-						s.start();
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-                }
-            } finally {
-            	mu.unlock();
-            }
-
-            return s;
-        }
 
 	@Override
-	public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) {
-		return (AsyncSubscription) subscribe(subj, null, cb, opts.getSubChanLen());
+	public AsyncSubscription subscribeAsync(String subj, String queue) throws ConnectionClosedException {
+		return subscribeAsync(subj, queue, null);
 	}
 
 	@Override
-	public AsyncSubscription subscribeAsync(String subj) {
-		return (AsyncSubscription) subscribeAsync(subj, null, null);
+	public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) throws ConnectionClosedException {
+		return subscribeAsync(subj, null, cb);
+	}
+
+	@Override
+	public AsyncSubscription subscribeAsync(String subj) 
+			throws ConnectionClosedException {
+		return subscribeAsync(subj, null, null);
 	}
 
 	private void addSubscription(SubscriptionImpl s) {
@@ -2027,36 +2044,36 @@ final class ConnectionImpl implements Connection {
 	}
 
 	@Override
-	public AsyncSubscription subscribe(String subject, MessageHandler cb) {
-		return (AsyncSubscription) subscribe(subject, "", cb, opts.getSubChanLen());
+	public AsyncSubscription subscribe(String subject, MessageHandler cb) throws ConnectionClosedException {
+		return (AsyncSubscription) subscribe(subject, "", cb);
 	}
 
 	@Override 
-	public SyncSubscription subscribeSync(String subject, String queue) {
-		return (SyncSubscription)subscribe(subject, queue, (MessageHandler)null, opts.getSubChanLen());
+	public SyncSubscription subscribeSync(String subject, String queue) throws ConnectionClosedException {
+		return (SyncSubscription)subscribe(subject, queue, (MessageHandler)null);
 	}
 
 	@Override 
-	public SyncSubscription subscribeSync(String subject) {
-		return (SyncSubscription)subscribe(subject, "", (MessageHandler)null, opts.getSubChanLen());
+	public SyncSubscription subscribeSync(String subject) throws ConnectionClosedException {
+		return (SyncSubscription)subscribe(subject, "", (MessageHandler)null);
 	}
 
 	@Override
-	public Subscription QueueSubscribe(String subject, String queue, MessageHandler cb) {
-		return subscribe(subject, queue, cb, opts.getSubChanLen());
+	public Subscription QueueSubscribe(String subject, String queue, MessageHandler cb) throws ConnectionClosedException {
+		return subscribe(subject, queue, cb);
 	}
 
 	@Override
-	public SyncSubscription QueueSubscribeSync(String subject, String queue) {
-		return (SyncSubscription) subscribe(subject, queue, (MessageHandler)null, opts.getSubChanLen());
+	public SyncSubscription QueueSubscribeSync(String subject, String queue) throws ConnectionClosedException {
+		return (SyncSubscription) subscribe(subject, queue, (MessageHandler)null);
 	}
 
 	// Use low level primitives to build the protocol for the publish
 	// message.
 	private int writePublishProto(byte[] dst, String subject, String reply, int msgSize)
 	{
-//		logger.info("subject={}, Reply={}, msgSize={}, arraySize={}, msgBytes={}", 
-//				subject, reply, msgSize, dst.length, dst);
+		//		logger.info("subject={}, Reply={}, msgSize={}, arraySize={}, msgBytes={}", 
+		//				subject, reply, msgSize, dst.length, dst);
 		// skip past the predefined "PUB "
 		int index = pubPrimBytesLen;
 
@@ -2123,9 +2140,9 @@ final class ConnectionImpl implements Connection {
 		}
 
 		int msgSize = (data != null) ? data.length : 0;
-//		logger.debug("publish(): acquiring mutex");
+		//		logger.debug("publish(): acquiring mutex");
 		mu.lock();
-//		logger.debug("publish(): acquired mutex");
+		//		logger.debug("publish(): acquired mutex");
 		try
 		{
 			// Proactively reject payloads over the threshold set by server.
@@ -2162,13 +2179,13 @@ final class ConnectionImpl implements Connection {
 			}
 
 			try {
-				if (logger.isDebugEnabled())
-					logger.debug("publish(): writing {}", new String(pubProtoBuf));
 				bw.write(pubProtoBuf, 0, pubProtoLen);
+				if (logger.isTraceEnabled()) {logger.trace("=> {}", new String(pubProtoBuf).trim() );}
 
 				if (msgSize > 0)
 				{
 					bw.write(data, 0, msgSize);
+					if (logger.isTraceEnabled()) {logger.trace("=> {}", new String(data, 0, msgSize).trim() );}
 				}
 
 				bw.write(crlfProtoBytes, 0, crlfProtoBytesLen);
@@ -2183,7 +2200,7 @@ final class ConnectionImpl implements Connection {
 
 		} finally {
 			mu.unlock();
-//			logger.debug("publish(): released mutex");
+			//			logger.debug("publish(): released mutex");
 		}
 		kickFlusher();
 
@@ -2199,10 +2216,33 @@ final class ConnectionImpl implements Connection {
 		publish(msg.getSubject(), msg.getReplyTo(), msg.getData());
 	}
 
+	private Message _request(String subject, byte[] data, long timeout)
+			throws TimeoutException, IllegalStateException, IOException 
+	{
+		Message m		= null;
+
+		String inbox = newInbox();
+
+		SyncSubscription s = subscribeSync(inbox, null);
+		s.autoUnsubscribe(1);
+
+		publish(subject, inbox, data);
+
+		m = s.nextMessage(timeout);
+
+		try
+		{
+			// the auto unsubscribe should handle this.
+			s.unsubscribe();
+		}
+		catch (Exception e) {  /* NOOP */ }
+
+		return m;		
+	}
+
 	@Override
 	public Message request(String subject, byte[] data, long timeout) 
-			throws TimeoutException, NATSException {
-		Message m		= null;
+			throws TimeoutException, IOException {
 		if (logger.isDebugEnabled()) {
 			String ds = null;
 			if (data != null)
@@ -2212,50 +2252,17 @@ final class ConnectionImpl implements Connection {
 		if (timeout <= 0)
 		{
 			throw new IllegalArgumentException(
-                    "Timeout must be greater that 0.");
-		}
-		
-		String inbox = newInbox();
-
-		SyncSubscription s = subscribeSync(inbox, null);
-		try {
-			s.autoUnsubscribe(1);
-		} catch (BadSubscriptionException e) {
-			throw new NATSException(e);
+					"Timeout must be greater that 0.");
 		}
 
-		try {
-			publish(subject, inbox, data);
-		} catch (ConnectionClosedException e) {
-			throw new NATSException(e);
-		}
-		
-		try {
-			m = s.nextMessage(timeout);
-		} catch (BadSubscriptionException e) {
-			throw new NATSException(e);
-		} catch (ConnectionClosedException e) {
-			throw new NATSException(e);
-		} catch (SlowConsumerException e) {
-			throw new NATSException(e);
-		} catch (MaxMessagesException e) {
-			throw new NATSException(e);
-		}
-
-		try
-		{
-			// the auto unsubscribe should handle this.
-			s.unsubscribe();
-		}
-		catch (Exception e) {  /* NOOP */ }
-
-		return m;	
+		return _request(subject, data, timeout);
 	}
 
 	@Override
-	public Message request(String subject, byte[] data) throws NATSException, TimeoutException {
+	public Message request(String subject, byte[] data) 
+			throws TimeoutException, IOException {
 
-		return request(subject, data, -1);
+		return _request(subject, data, -1);
 	}
 
 	@Override
@@ -2298,8 +2305,8 @@ final class ConnectionImpl implements Connection {
 						sub.getQueue(), sub.getSid());
 				try {
 					bw.write(Utilities.stringToBytesASCII(s));
+					if (logger.isTraceEnabled()) {logger.trace("=> {}", s.trim() );}
 					kickFlusher();
-					if (logger.isDebugEnabled()) {logger.debug("Sent [{}]", s );}
 				} catch (IOException e) {
 				}
 			}
@@ -2312,48 +2319,48 @@ final class ConnectionImpl implements Connection {
 	 * @return the closedEventHandler
 	 */
 	@Override
-	public ConnectionEventHandler getClosedEventHandler() {
-		return closedEventHandler;
+	public ClosedEventHandler getClosedEventHandler() {
+		return opts.getClosedEventHandler();
 	}
 
 	/**
 	 * @param closedEventHandler the closedEventHandler to set
 	 */
 	@Override
-	public void setClosedEventHandler(ConnectionEventHandler closedEventHandler) {
-		this.closedEventHandler = closedEventHandler;
+	public void setClosedEventHandler(ClosedEventHandler closedEventHandler) {
+		opts.setClosedEventHandler(closedEventHandler);
 	}
 
 	/**
 	 * @return the disconnectedEventHandler
 	 */
 	@Override
-	public ConnectionEventHandler getDisconnectedEventHandler() {
-		return disconnectedEventHandler;
+	public DisconnectedEventHandler getDisconnectedEventHandler() {
+		return opts.getDisconnectedEventHandler();
 	}
 
 	/**
 	 * @param disconnectedEventHandler the disconnectedEventHandler to set
 	 */
 	@Override
-	public void setDisconnectedEventHandler(ConnectionEventHandler disconnectedEventHandler) {
-		this.disconnectedEventHandler = disconnectedEventHandler;
+	public void setDisconnectedEventHandler(DisconnectedEventHandler disconnectedEventHandler) {
+		opts.setDisconnectedEventHandler(disconnectedEventHandler);
 	}
 
 	/**
 	 * @return the reconnectedEventHandler
 	 */
 	@Override
-	public ConnectionEventHandler getReconnectedEventHandler() {
-		return reconnectedEventHandler;
+	public ReconnectedEventHandler getReconnectedEventHandler() {
+		return opts.getReconnectedEventHandler();
 	}
 
 	/**
 	 * @param reconnectedEventHandler the reconnectedEventHandler to set
 	 */
 	@Override
-	public void setReconnectedEventHandler(ConnectionEventHandler reconnectedEventHandler) {
-		this.reconnectedEventHandler = reconnectedEventHandler;
+	public void setReconnectedEventHandler(ReconnectedEventHandler reconnectedEventHandler) {
+		opts.setReconnectedEventHandler(reconnectedEventHandler);
 	}
 
 	/**
@@ -2371,7 +2378,7 @@ final class ConnectionImpl implements Connection {
 	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
 		this.exceptionHandler = exceptionHandler;
 	}
-	
+
 	static void printSubs(ConnectionImpl c) {
 		c.logger.debug("SUBS:");
 		for (long key : c.subs.keySet())
@@ -2379,23 +2386,41 @@ final class ConnectionImpl implements Connection {
 			c.logger.debug("\tkey: " + key + " value: " + c.subs.get(key));
 		}
 	}
-	
-	@Override
-    public String getConnectedUrl()
-    {
-            mu.lock();
-            try
-            {
-                if (status != ConnState.CONNECTED)
-                    return null;
-                
-                return url.toString();
-            }
-            finally
-            {
-            	mu.unlock();
-            }
-    }
 
+	@Override
+	public String getConnectedUrl()
+	{
+		mu.lock();
+		try
+		{
+			if (status != ConnState.CONNECTED)
+				return null;
+
+			return url.toString();
+		}
+		finally
+		{
+			mu.unlock();
+		}
+	}
+
+	@Override 
+	public ConnState getState()
+	{
+		mu.lock();
+		try {
+			return this.status;
+		} finally {
+			mu.unlock();
+		}
+	}
+	@Override
+	public void finalize(){
+		try {
+			this.close();
+		} catch (Exception e) {
+			
+		}
+	}
 
 }

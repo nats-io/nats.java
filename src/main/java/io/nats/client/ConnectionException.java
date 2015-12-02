@@ -1,6 +1,8 @@
 package io.nats.client;
 
-public class ConnectionException extends Exception {
+import java.io.IOException;
+
+public class ConnectionException extends IOException {
 
 	/**
 	 * 

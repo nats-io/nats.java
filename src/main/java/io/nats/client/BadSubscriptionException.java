@@ -1,11 +1,11 @@
 package io.nats.client;
 
-public class BadSubscriptionException extends Exception {
+public class BadSubscriptionException extends IllegalStateException {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 6094734927895423319L;
+	private static final long serialVersionUID = 1L;
 
 	public BadSubscriptionException() {
 		// TODO Auto-generated constructor stub

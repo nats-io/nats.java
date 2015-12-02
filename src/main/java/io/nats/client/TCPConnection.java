@@ -2,17 +2,12 @@ package io.nats.client;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
@@ -20,62 +15,49 @@ import org.slf4j.LoggerFactory;
 
 /// Convenience class representing the TCP connection to prevent 
 /// managing two variables throughout the NATs client code.
-final class TCPConnection {
+class TCPConnection {
 	final Logger logger = LoggerFactory.getLogger(TCPConnection.class);
 
-	/// A note on the use of streams. .NET provides a BufferedStream
-	/// that can sit on top of an IO stream, in this case the network
-	/// stream. It increases performance by providing an additional
-	/// buffer.
-	///
-	/// So, here's what we have:
-	/// Client code
-	/// ->BufferedStream (bw)
-	/// ->NetworkStream (srvStream)
-	/// ->TCPClient (srvClient);
-	///
 	/// TODO: Test various scenarios for efficiency. Is a
 	/// BufferedReader directly over a network stream really
 	/// more efficient for NATS?
 	///
 	ReentrantLock mu = new ReentrantLock();
 	Socket client = null;
-	private OutputStream writeStream = null;
-	private InputStream readStream = null;
-	private InetSocketAddress addr = null;
-	private int timeout = 0;
-
-	public TCPConnection(String host, int port, int timeoutMillis) {
-		this.addr = new InetSocketAddress(host, port);
-		this.timeout = timeoutMillis;
-	}
+	protected OutputStream writeStream = null;
+	protected InputStream readStream = null;
+	protected InetSocketAddress addr = null;
+	protected int timeout = 0;
 
 	public TCPConnection() {
 	}
 
-	public void open(String host, int port, int timeoutMillis) {
+	public TCPConnection(String host, int port, int timeoutMillis) 
+			throws IOException {
+		//		this.addr = new InetSocketAddress(host, port);
+		//		this.timeout = timeoutMillis;
+		this.open(host, port, timeoutMillis);
+	}
+
+	public void open(String host, int port, int timeoutMillis)
+			throws IOException
+	{
+		logger.debug("TCPConnection.open({},{},{})", host, port, timeoutMillis);
 		mu.lock();
 		try {
 
 			this.addr = new InetSocketAddress(host, port);
 			client = new Socket();
 			client.connect(addr, timeout);
-			
-			client.setTcpNoDelay(true);
+
+			client.setTcpNoDelay(false);
 			client.setReceiveBufferSize(ConnectionImpl.DEFAULT_BUF_SIZE);
 			client.setSendBufferSize(ConnectionImpl.DEFAULT_BUF_SIZE);
 
 			writeStream = client.getOutputStream();
 			readStream = client.getInputStream();
-		} 
-		catch (ConnectException e) {
-			if (logger.isDebugEnabled())
-				logger.debug(e.getMessage());
-		} 
-		catch (IOException e) {
-			logger.error("I/O error: " + e.getMessage());
-			if (logger.isDebugEnabled())
-				e.printStackTrace();
+		} catch (IOException e) {
+			throw e;
 		} finally {
 			mu.unlock();
 		}
@@ -95,26 +77,23 @@ final class TCPConnection {
 		mu.lock();
 		try {
 			Socket c = client;
-			OutputStream ws = writeStream;
-			InputStream rs = readStream;
 
 			client = null;
 			writeStream = null;
 			readStream = null;
 
-			rs.close();
-			ws.close();
 			c.close();
-		} catch (IOException e) {
+		} catch (Exception e) {
+			e.printStackTrace();
 			// ignore
 		} finally {
 			mu.unlock();
 		}
 	}
-	
+
 	public InputStreamReader getInputStreamReader() {
 		InputStreamReader rv = null;
-		
+
 		try {
 			rv = new InputStreamReader(client.getInputStream());
 		} catch (IOException e) {
@@ -124,23 +103,11 @@ final class TCPConnection {
 	}
 
 	public InputStream getReadBufferedStream(int size) {
-		InputStream rv = null;
-		try {
-			rv = new BufferedInputStream(client.getInputStream(), size);
-		} catch (IOException e) {
-			// ignore
-		}
-		return rv;
+		return new BufferedInputStream(readStream, size);
 	}
 
 	public OutputStream getWriteBufferedStream(int size) {
-		OutputStream rv = null;
-		try {
-			rv = new BufferedOutputStream(client.getOutputStream(), size);
-		} catch (IOException e) {
-			// ignore
-		}
-		return rv;
+		return new BufferedOutputStream(writeStream, size);
 	}
 
 	public boolean isConnected() {
@@ -161,5 +128,24 @@ final class TCPConnection {
 		}
 
 		return rv;
+	}
+	
+	class TraceEnabledBufferedOutputStream  extends BufferedOutputStream {
+
+		public TraceEnabledBufferedOutputStream(OutputStream out) {
+			super(out);
+		}
+		public TraceEnabledBufferedOutputStream(OutputStream out, int size) {
+			super(out, size);
+		}		
+	}
+
+	class TraceEnabledBufferedInputStream  extends BufferedInputStream {
+		public TraceEnabledBufferedInputStream(InputStream in) {
+			super(in);
+		}
+		public TraceEnabledBufferedInputStream(InputStream in, int size) {
+			super(in, size);
+		}		
 	}
 }

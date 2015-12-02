@@ -9,24 +9,31 @@ class NATSServer implements Runnable
 {
 	final static String GNATSD = "/Users/larry/Dropbox/workspace/go/bin/gnatsd";
     // Enable this for additional server debugging info.
-    boolean debug = false;
+    boolean debug = true;
+    ProcessBuilder pb;
     Process p;
-    
+    ProcessStartInfo psInfo;
+
     class ProcessStartInfo {
     	List<String> arguments = new ArrayList<String>();
-    	String stringVal = new String();
 
     	public ProcessStartInfo(String command) {
     		this.arguments.add(command);
 		}
+
+        public void addArgument(String arg)
+        {
+        	this.arguments.addAll(Arrays.asList(arg.split("\\s+")));
+        }
 
 		String[] getArgsAsArray() {
     		return arguments.toArray(new String[arguments.size()]);
     	}
 		
     	String getArgsAsString() {
+    		String stringVal = new String();
     		for (String s : arguments)
-    			stringVal = stringVal.concat(s);
+    			stringVal = stringVal.concat(s+" ");
     		return stringVal.trim();
     	}
     	
@@ -37,51 +44,38 @@ class NATSServer implements Runnable
 
     public NATSServer()
     {
-        ProcessStartInfo psInfo = createProcessStartInfo();
-        try {
-			this.p = Runtime.getRuntime().exec(
-					psInfo.arguments.toArray(new String[psInfo.arguments.size()])
-					);
-	        Thread.sleep(500);
-		} catch (IOException e) {
-			
-		} 
-          catch (InterruptedException e) {}
+    	this(-1);
     }
 
-    private void addArgument(ProcessStartInfo psInfo, String arg)
-    {
-    	psInfo.arguments.addAll(Arrays.asList(arg.split("\\s+")));
-    }
 
-    public NATSServer(int port)
+	public NATSServer(int port)
     {
-        ProcessStartInfo psInfo = createProcessStartInfo();
+        psInfo = this.createProcessStartInfo();
 
-        addArgument(psInfo, "-p " + port);
+        if (port > 1023) {
+	        psInfo.addArgument("-p " + String.valueOf(port));
+        }
 
         try {
-			this.p = Runtime.getRuntime().exec(
-					psInfo.arguments.toArray(new String[psInfo.arguments.size()])
-					);
-		} catch (IOException e) {}
+        	pb = new ProcessBuilder(psInfo.arguments);
+        	p = pb.start();
+	        System.out.println("Started " + psInfo);
+		} catch (IOException e) {System.err.println(e.getMessage());}
     }
 
     private String buildConfigFileName(String configFile)
     {
-    	return configFile;
-        // TODO:  There is a better way with TestContext.
-//        Assembly assembly = Assembly.GetAssembly(this.GetType());
-//        String codebase   = assembly.CodeBase.Replace("file:///", "");
-//        return Path.GetDirectoryName(codebase) + "\\..\\..\\config\\" + configFile;
+    	return new String("src/test/resources/"+configFile);
     }
 
     public NATSServer(String configFile)
     {
-        ProcessStartInfo psInfo = this.createProcessStartInfo();
-        addArgument(psInfo, " -config " + buildConfigFileName(configFile));
+        psInfo = this.createProcessStartInfo();
+        psInfo.addArgument("-config " + buildConfigFileName(configFile));
         try {
-			p = Runtime.getRuntime().exec(psInfo.toString());
+        	pb = new ProcessBuilder(psInfo.arguments);
+        	p = pb.start();
+	        System.out.println("Started " + psInfo);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -90,11 +84,12 @@ class NATSServer implements Runnable
 
     private ProcessStartInfo createProcessStartInfo()
     {
-        ProcessStartInfo psInfo = new ProcessStartInfo(GNATSD);
+        psInfo = new ProcessStartInfo(GNATSD);
 
         if (debug)
         {
-            psInfo.arguments.add ("-DV");
+            psInfo.addArgument("-DV");
+            psInfo.addArgument("-l gnatsd.log");
         }
         return psInfo;
     }
@@ -105,6 +100,7 @@ class NATSServer implements Runnable
             return;
 
         p.destroy();
+        System.out.println("Stopped [" + psInfo + "]");
 
         p = null;
     }

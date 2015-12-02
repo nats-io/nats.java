@@ -1,11 +1,13 @@
 package io.nats.client;
 
-public class StaleConnectionException extends Exception {
+import java.io.IOException;
+
+public class StaleConnectionException extends IOException {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 898561752318745558L;
+	private static final long serialVersionUID = 1L;
 
 	public StaleConnectionException() {
 		// TODO Auto-generated constructor stub

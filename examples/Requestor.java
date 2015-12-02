@@ -1,7 +1,9 @@
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
@@ -30,7 +32,10 @@ public class Requestor {
 		try {
 			cf = new ConnectionFactory(url);
 			c = cf.createConnection();
-		} catch (NATSException e) {
+		} catch (IOException e) {
+			System.err.println("Couldn't connect: " + e.getCause());
+			System.exit(-1);
+		} catch (TimeoutException e) {
 			System.err.println("Couldn't connect: " + e.getCause());
 			System.exit(-1);
 		}

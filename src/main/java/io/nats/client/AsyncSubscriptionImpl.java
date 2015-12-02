@@ -3,6 +3,7 @@
  */
 package io.nats.client;
 
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -18,16 +19,6 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	private MessageFeeder msgFeeder;
 
 	class MessageFeeder implements Runnable {
-		private volatile boolean running = true;
-
-		public boolean isRunning() {
-			return running;
-			
-		}
-		public void terminate() {
-	        running = false;
-	    }
-
 		@Override
 		public void run(){
 			logger.debug("msgFeeder has started");
@@ -75,9 +66,9 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 			if (d == localMax) {
 				try {
 					unsubscribe();
-				} catch (BadSubscriptionException e) {
+				} catch (IllegalStateException e) {
 					logger.debug("Bad subscription while unsubscribing:", e);
-				} catch (NATSException e) {
+				} catch (IOException e) {
 					logger.debug("Exception while unsubscribing:", e);
 					e.printStackTrace();
 				} finally {
@@ -106,7 +97,6 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	void disable() {
 		if (msgFeeder != null) {
 			try {
-				msgFeeder.terminate();
 				msgFeederThread.join();
 			} catch (InterruptedException e) {
 			}

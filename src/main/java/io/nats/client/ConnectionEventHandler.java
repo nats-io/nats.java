@@ -1,5 +1,7 @@
 package io.nats.client;
 
 public interface ConnectionEventHandler {
-	public void onEvent(ConnectionEvent event);
+//	public void onClose(ConnectionEvent event);
+//	public void onDisconnect(ConnectionEvent event);
+//	public void onReconnect(ConnectionEvent event);
 }

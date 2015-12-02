@@ -107,7 +107,8 @@ final class MessageImpl implements Message {
 			sb.append((char)b[i]);
 		}
 
-		int remainder = maxBytes - len;
+//		int remainder = maxBytes - len;
+		int remainder = len - maxBytes;
 		if (remainder > 0) {
             sb.append(String.format("%d more bytes", remainder));
 		}

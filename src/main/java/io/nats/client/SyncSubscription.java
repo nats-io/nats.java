@@ -3,6 +3,8 @@
  */
 package io.nats.client;
 
+import java.util.concurrent.TimeoutException;
+
 /**
  * @author larry
  *

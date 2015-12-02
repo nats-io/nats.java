@@ -1,12 +1,17 @@
 package io.nats.client;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.Constants.*;
 /* *
  * Factpry class for opening a {@link ConnectionImpl} to the NATS server (gnatsd). 
  */
@@ -18,26 +23,29 @@ public class ConnectionFactory implements Cloneable {
 	// Default server pool size
 	// protected static final int DEFAULT_SERVER_POOL_SIZE = 4;
 
-	private String username							= null;
-	private String password							= null;
+	private URI url									= null;
 	private String host								= Constants.DEFAULT_HOST;
 	private int port								= Constants.DEFAULT_PORT;
-	private String urlString 						= Constants.DEFAULT_URL;
-	private URI url									= null;
-	private List<URI> servers						= null;	
+	private String username							= null;
+	private String password							= null;
+	private List<URI> servers						= new ArrayList<URI>();	
 	private boolean noRandomize						= false;
 	private String connectionName					= null;
 	private boolean verbose							= false;
 	private boolean pedantic						= false;
 	private boolean secure							= false;
-	private boolean reconnectAllowed				= false;
+	private boolean reconnectAllowed				= true;
 	private int maxReconnect						= Constants.DEFAULT_MAX_RECONNECT;
 	private long reconnectWait						= Constants.DEFAULT_RECONNECT_WAIT;
 	private int connectionTimeout					= Constants.DEFAULT_TIMEOUT;
 	private long pingInterval						= Constants.DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
 	private ExceptionHandler exceptionHandler 		= new DefaultExceptionHandler();
-	private ConnectionEventHandler connectionEventHandler 	= null;
+	private ClosedEventHandler closedEventHandler;
+	private DisconnectedEventHandler disconnectedEventHandler;
+	private ReconnectedEventHandler reconnectedEventHandler;
+
+	private String urlString 						= Constants.DEFAULT_URL;
 
 	// The size of the buffered channel used between the socket
 	// Go routine and the message delivery or sync subscription.
@@ -47,8 +55,117 @@ public class ConnectionFactory implements Cloneable {
 	//		
 	//	}
 
+	public ConnectionFactory(Properties props) {
+		if (props==null)
+			throw new IllegalArgumentException("Properties cannot be null");
+
+		//PROP_URL
+		if (props.containsKey(PROP_URL))
+			this.setUrl(props.getProperty(PROP_URL));
+		//PROP_HOST
+		if (props.containsKey(PROP_HOST))
+			this.setHost(props.getProperty(PROP_HOST, DEFAULT_HOST));
+		//PROP_PORT
+		if (props.containsKey(PROP_PORT))
+			this.setPort(Integer.parseInt(props.getProperty(PROP_PORT, Integer.toString(DEFAULT_PORT))));
+		//PROP_USERNAME
+		if (props.containsKey(PROP_USERNAME))
+			this.setUsername(props.getProperty(PROP_USERNAME, null));
+		//PROP_PASSWORD
+		if (props.containsKey(PROP_PASSWORD))
+			this.setPassword(props.getProperty(PROP_PASSWORD, null));
+		//PROP_SERVERS
+		if (props.containsKey(PROP_SERVERS)) {
+			String s = props.getProperty(PROP_SERVERS);
+			if (!(s==null) && !s.isEmpty()) {
+				String[] servers = s.trim().split("\\s+|,");
+				this.setServers(servers);
+			}
+		}
+		//PROP_NORANDOMIZE
+		if (props.containsKey(PROP_NORANDOMIZE))
+			this.setNoRandomize(Boolean.parseBoolean(props.getProperty(PROP_NORANDOMIZE)));
+		//PROP_CONNECTION_NAME
+		if (props.containsKey(PROP_CONNECTION_NAME))
+			this.setConnectionName(props.getProperty(PROP_CONNECTION_NAME, null));
+		//PROP_VERBOSE
+		if (props.containsKey(PROP_VERBOSE))
+			this.setVerbose(Boolean.parseBoolean(props.getProperty(PROP_VERBOSE)));
+		//PROP_PEDANTIC
+		if (props.containsKey(PROP_PEDANTIC))
+			this.setVerbose(Boolean.parseBoolean(props.getProperty(PROP_PEDANTIC)));
+		//PROP_SECURE
+		if (props.containsKey(PROP_SECURE))
+			this.setSecure(Boolean.parseBoolean(props.getProperty(PROP_SECURE)));
+		//PROP_RECONNECT_ALLOWED
+		if (props.containsKey(PROP_RECONNECT_ALLOWED))
+			this.setSecure(Boolean.parseBoolean(
+					props.getProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(true))));
+		//PROP_MAX_RECONNECT
+		if (props.containsKey(PROP_MAX_RECONNECT))
+			this.setPort(Integer.parseInt(
+					props.getProperty(PROP_MAX_RECONNECT, Integer.toString(DEFAULT_MAX_RECONNECT))));
+		//PROP_RECONNECT_WAIT
+		if (props.containsKey(PROP_RECONNECT_WAIT))
+			this.setPort(Integer.parseInt(
+					props.getProperty(PROP_RECONNECT_WAIT, Integer.toString(DEFAULT_RECONNECT_WAIT))));
+		//PROP_CONNECTION_TIMEOUT
+		if (props.containsKey(PROP_CONNECTION_TIMEOUT))
+			this.setPort(Integer.parseInt(
+					props.getProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(DEFAULT_TIMEOUT))));
+		//PROP_PING_INTERVAL
+		if (props.containsKey(PROP_PING_INTERVAL))
+			this.setPort(Integer.parseInt(
+					props.getProperty(PROP_PING_INTERVAL, Integer.toString(DEFAULT_PING_INTERVAL))));
+		//PROP_MAX_PINGS
+		if (props.containsKey(PROP_MAX_PINGS))
+			this.setPort(Integer.parseInt(
+					props.getProperty(PROP_MAX_PINGS, Integer.toString(DEFAULT_MAX_PINGS_OUT))));
+		//PROP_EXCEPTION_HANDLER
+		if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
+			Object instance = null;
+			try {
+				String s = props.getProperty(PROP_EXCEPTION_HANDLER, DefaultExceptionHandler.class.getName());
+				Class<?> clazz = Class.forName(s);
+				Constructor<?> constructor = clazz.getConstructor();
+				instance = constructor.newInstance();
+			} catch (Exception e) {
+				throw new IllegalArgumentException(e);
+			} finally {}
+			this.setExceptionHandler((ExceptionHandler) instance);
+		}
+		//PROP_CLOSED_HANDLER
+		if (props.containsKey(PROP_CLOSED_HANDLER)) {
+			Object instance = null;
+			try {
+				String s = props.getProperty(PROP_CLOSED_HANDLER);
+				Class<?> clazz = Class.forName(s);
+				Constructor<?> constructor = clazz.getConstructor();
+				instance = constructor.newInstance();
+			} catch (Exception e) {
+				throw new IllegalArgumentException(e);
+			} finally {}
+			this.setClosedEventHandler((ClosedEventHandler) instance);
+		}
+		//PROP_DISCONNECTED_HANDLER
+		if (props.containsKey(PROP_DISCONNECTED_HANDLER)) {
+			Object instance = null;
+			try {
+				String s = props.getProperty(PROP_DISCONNECTED_HANDLER);
+				Class<?> clazz = Class.forName(s);
+				Constructor<?> constructor = clazz.getConstructor();
+				instance = constructor.newInstance();
+			} catch (Exception e) {
+				throw new IllegalArgumentException(e);
+			} finally {}
+			this.setDisconnectedEventHandler((DisconnectedEventHandler) instance);
+		}
+
+		//PROP_RECONNECTED_HANDLER
+	}
+
 	public ConnectionFactory() {
-		this(Constants.DEFAULT_URL, null);
+		this(null, null);
 	}
 
 	public ConnectionFactory(String url)
@@ -90,21 +207,13 @@ public class ConnectionFactory implements Cloneable {
 	 * @return the Connection.
 	 * @throws NATSException if a Connection cannot be established for some reason.
 	 */
-	public ConnectionImpl createConnection() throws NATSException {
+	public ConnectionImpl createConnection() throws IOException, TimeoutException {
 		ConnectionImpl conn = null;
 		Options options = options();
 
-		try {
-			conn = new ConnectionImpl(options);
-		} catch (NoServersException e) {
-			throw(new NATSException(e));
-		}
+		conn = new ConnectionImpl(options);
 
-		try {
-			conn.connect();
-		} catch (Exception e) {
-			throw new NATSException(e);
-		}
+		conn.start();
 
 		return conn;
 	}
@@ -128,6 +237,9 @@ public class ConnectionFactory implements Cloneable {
 		result.setPingInterval(pingInterval);
 		result.setMaxPingsOut(maxPingsOut);
 		result.setExceptionHandler(exceptionHandler);
+		result.setClosedEventHandler(closedEventHandler);
+		result.setDisconnectedEventHandler(disconnectedEventHandler);
+		result.setReconnectedEventHandler(reconnectedEventHandler);
 		result.setSubChanLen(subChanLen);
 		//    	private ConnectionEventHandler connectionEventHandler 	= null;		return null;
 		return result;
@@ -283,6 +395,25 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
+	 * @param servers the servers to set
+	 */
+	public void setServers(String[] servers) {
+		if (servers==null) 
+			this.servers=null;
+		else
+		{
+			this.servers.clear();
+			for (String s : servers) {
+				try {
+					this.servers.add(new URI(s));
+				} catch (URISyntaxException e) {
+					throw new IllegalArgumentException(e);
+				}
+			}
+		} 
+	}
+
+	/**
 	 * @return the noRandomize
 	 */
 	public boolean isNoRandomize() {
@@ -434,6 +565,48 @@ public class ConnectionFactory implements Cloneable {
 	 */
 	public int getMaxPingsOut() {
 		return this.maxPingsOut;
+	}
+
+	/**
+	 * @return the closedEventHandler
+	 */
+	public ClosedEventHandler getClosedEventHandler() {
+		return closedEventHandler;
+	}
+
+	/**
+	 * @param closedEventHandler the closedEventHandler to set
+	 */
+	public void setClosedEventHandler(ClosedEventHandler closedEventHandler) {
+		this.closedEventHandler = closedEventHandler;
+	}
+
+	/**
+	 * @return the disconnectedEventHandler
+	 */
+	public DisconnectedEventHandler getDisconnectedEventHandler() {
+		return disconnectedEventHandler;
+	}
+
+	/**
+	 * @param disconnectedEventHandler the disconnectedEventHandler to set
+	 */
+	public void setDisconnectedEventHandler(DisconnectedEventHandler disconnectedEventHandler) {
+		this.disconnectedEventHandler = disconnectedEventHandler;
+	}
+
+	/**
+	 * @return the reconnectedEventHandler
+	 */
+	public ReconnectedEventHandler getReconnectedEventHandler() {
+		return reconnectedEventHandler;
+	}
+
+	/**
+	 * @param reconnectedEventHandler the reconnectedEventHandler to set
+	 */
+	public void setReconnectedEventHandler(ReconnectedEventHandler reconnectedEventHandler) {
+		this.reconnectedEventHandler = reconnectedEventHandler;
 	}
 
 	/**

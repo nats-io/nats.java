@@ -1,6 +1,13 @@
 package io.nats.client;
 
-public class SecureConnRequiredException extends Exception {
+import java.io.IOException;
+
+public class SecureConnRequiredException extends IOException {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	public SecureConnRequiredException() {
 		// TODO Auto-generated constructor stub

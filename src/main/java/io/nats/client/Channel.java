@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -83,8 +84,6 @@ class Channel<T> {
 
 	void add(T item)
 	{
-		if (logger.isDebugEnabled())
-			logger.debug("In Channel.add for {}", item);
 		qLock.lock();
 		try
 		{

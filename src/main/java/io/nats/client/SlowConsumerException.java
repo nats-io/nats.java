@@ -3,9 +3,14 @@
  */
 package io.nats.client;
 
-public class SlowConsumerException extends Exception {
+import java.io.IOException;
 
-	private static final long serialVersionUID = -3097038253885136890L;
+public class SlowConsumerException extends IOException {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	public SlowConsumerException() {
 		// TODO Auto-generated constructor stub

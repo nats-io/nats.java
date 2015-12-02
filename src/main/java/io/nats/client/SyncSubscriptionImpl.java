@@ -1,6 +1,6 @@
 package io.nats.client;
 
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
 
@@ -25,7 +25,7 @@ final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscri
 
 		mu.lock();
 		try {
-			if (conn == null) {
+			if ((conn == null)||conn.isClosed()) {
 				throw new ConnectionClosedException();
 			}
 			if (mch == null) {

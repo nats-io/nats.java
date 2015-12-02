@@ -3,6 +3,10 @@
  */
 package io.nats.client;
 
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+
 public final class Constants {
 
 	private Constants() {}
@@ -30,4 +34,28 @@ public final class Constants {
 	static final int		DEFAULT_MAX_CHAN_LEN	= 65536;
 	//  Maximum size of a control line (message header)
 	final static int 		MAX_CONTROL_LINE_SIZE = 1024;
+	
+	// Property names
+	final static String PFX = "io.nats.client.";
+	final static String PROP_URL 					= PFX + "url";
+	final static String PROP_HOST 					= PFX + "host";
+	final static String PROP_PORT 					= PFX + "port";
+	final static String PROP_USERNAME 				= PFX + "username";
+	final static String PROP_PASSWORD 				= PFX + "password";
+	final static String PROP_SERVERS 				= PFX + "servers";
+	final static String PROP_NORANDOMIZE			= PFX + "norandomize";
+	final static String PROP_CONNECTION_NAME 		= PFX + "name";
+	final static String PROP_VERBOSE 				= PFX + "verbose";
+	final static String PROP_PEDANTIC 				= PFX + "pedantic";
+	final static String PROP_SECURE 				= PFX + "secure";
+	final static String PROP_RECONNECT_ALLOWED		= PFX + "reconnect.allowed";
+	final static String PROP_MAX_RECONNECT			= PFX + "reconnect.max";
+	final static String PROP_RECONNECT_WAIT 		= PFX + "reconnect.wait";
+	final static String PROP_CONNECTION_TIMEOUT		= PFX + "timeout";
+	final static String PROP_PING_INTERVAL 			= PFX + "pinginterval";
+	final static String PROP_MAX_PINGS 				= PFX + "maxpings";
+	final static String PROP_EXCEPTION_HANDLER		= PFX + "handler.exception";
+	final static String PROP_CLOSED_HANDLER			= PFX + "handler.closed";
+	final static String PROP_DISCONNECTED_HANDLER	= PFX + "handler.disconnected";
+	final static String PROP_RECONNECTED_HANDLER	= PFX + "handler.reconnected";
 }

@@ -3,10 +3,12 @@
  */
 package io.nats.client;
 
+import java.io.IOException;
+
 /**
  *
  */
-public class MaxMessagesException extends Exception {
+public class MaxMessagesException extends IOException {
 
 	private static final long serialVersionUID = -3230721002784773022L;
 

@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 abstract class SubscriptionImpl implements Subscription {
 
 	protected final Logger logger = LoggerFactory.getLogger(this.getClass());
-	
+
 	//	public SubscriptionImpl() {}
 
 	final Lock mu = new ReentrantLock();
@@ -93,7 +93,7 @@ abstract class SubscriptionImpl implements Subscription {
 	boolean addMessage(Message m, int maxCount)
 	{
 		if (logger.isDebugEnabled())
-			logger.debug("Entered addMessage(" + m + ", " + maxCount + ")");
+			logger.debug("Entered addMessage({}, maxCount={}",m,maxCount);
 		if (mch != null)
 		{
 			if (mch.getCount() >= maxCount)
@@ -126,7 +126,8 @@ abstract class SubscriptionImpl implements Subscription {
 	}
 
 	@Override
-	public void unsubscribe() throws BadSubscriptionException, NATSException {
+	public void unsubscribe() throws IllegalStateException, IOException
+	{
 		ConnectionImpl c;
 		mu.lock();
 		try
@@ -136,16 +137,10 @@ abstract class SubscriptionImpl implements Subscription {
 			mu.unlock();
 		}
 
-		if (c == null)
-			throw new BadSubscriptionException();
+		if ((c == null)||c.isClosed())
+			throw new ConnectionClosedException("Not connected.");
 
-		try {
-			c.unsubscribe(this, 0);
-		} catch (ConnectionClosedException e) {
-			throw new NATSException(e);
-		} catch (IOException e) {
-			throw new NATSException(e);
-		}		
+		c.unsubscribe(this, 0);
 	}
 
 	public int queuedMsgs() {
@@ -156,7 +151,7 @@ abstract class SubscriptionImpl implements Subscription {
 	 * @return the sid
 	 */
 	public long getSid() {
-		
+
 		return sid;
 	}
 
@@ -187,27 +182,22 @@ abstract class SubscriptionImpl implements Subscription {
 	}
 
 	@Override
-	public void autoUnsubscribe(int max) throws BadSubscriptionException, NATSException {
-        ConnectionImpl c = null;
+	public void autoUnsubscribe(int max) throws IOException {
+		ConnectionImpl c = null;
 
-        mu.lock();
-        try
-        {
-            if (conn == null)
-                throw new BadSubscriptionException();
+		mu.lock();
+		try
+		{
+			if ((conn == null)|| conn.isClosed())
+				throw new ConnectionClosedException();
+//				throw new BadSubscriptionException();
 
-            c = conn;
-        } finally {
-        	mu.unlock();
-        }
-
-        try {
-			c.unsubscribe((Subscription)this, max);
-		} catch (ConnectionClosedException e) {
-			throw new NATSException(e);
-		} catch (IOException e) {
-			throw new NATSException(e);
+			c = conn;
+		} finally {
+			mu.unlock();
 		}
+
+		c.unsubscribe((Subscription)this, max);
 
 	}
 
@@ -217,7 +207,7 @@ abstract class SubscriptionImpl implements Subscription {
 		else
 			return 0;
 	}
-	
+
 	public String toString() {
 		String s = String.format("{subject=%s, sid=%d, queued=%d, max=%d}",
 				getSubject(), getSid(), getQueuedMessageCount(), getMax());
