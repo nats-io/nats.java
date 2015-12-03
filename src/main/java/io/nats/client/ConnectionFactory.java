@@ -40,7 +40,7 @@ public class ConnectionFactory implements Cloneable {
 	private int connectionTimeout					= Constants.DEFAULT_TIMEOUT;
 	private long pingInterval						= Constants.DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
-	private ExceptionHandler exceptionHandler 		= new DefaultExceptionHandler();
+	private ExceptionHandler exceptionHandler;
 	private ClosedEventHandler closedEventHandler;
 	private DisconnectedEventHandler disconnectedEventHandler;
 	private ReconnectedEventHandler reconnectedEventHandler;
@@ -125,7 +125,7 @@ public class ConnectionFactory implements Cloneable {
 		if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
 			Object instance = null;
 			try {
-				String s = props.getProperty(PROP_EXCEPTION_HANDLER, DefaultExceptionHandler.class.getName());
+				String s = props.getProperty(PROP_EXCEPTION_HANDLER);
 				Class<?> clazz = Class.forName(s);
 				Constructor<?> constructor = clazz.getConstructor();
 				instance = constructor.newInstance();
@@ -205,7 +205,8 @@ public class ConnectionFactory implements Cloneable {
 	/**
 	 * 
 	 * @return the Connection.
-	 * @throws NATSException if a Connection cannot be established for some reason.
+	 * @throws IOException if a Connection cannot be established for some reason.
+	 * @throws TimeoutException if the connection timeout has been exceeded.
 	 */
 	public ConnectionImpl createConnection() throws IOException, TimeoutException {
 		ConnectionImpl conn = null;
@@ -243,6 +244,20 @@ public class ConnectionFactory implements Cloneable {
 		result.setSubChanLen(subChanLen);
 		//    	private ConnectionEventHandler connectionEventHandler 	= null;		return null;
 		return result;
+	}
+
+	/**
+	 * @return the subChanLen
+	 */
+	public int getSubChanLen() {
+		return subChanLen;
+	}
+
+	/**
+	 * @param subChanLen the subChanLen to set
+	 */
+	public void setSubChanLen(int subChanLen) {
+		this.subChanLen = subChanLen;
 	}
 
 	@Override public ConnectionFactory clone(){

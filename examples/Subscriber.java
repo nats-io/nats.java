@@ -38,6 +38,7 @@ public class Subscriber implements MessageHandler, ExceptionHandler {
 
 		ConnectionFactory cf = new ConnectionFactory(url);
 		Connection c = null;
+
 		try {
 			c = cf.createConnection();
 		} catch (IOException e) {
@@ -225,15 +226,12 @@ public class Subscriber implements MessageHandler, ExceptionHandler {
 	}
 
 	@Override
-	public void handleException(Connection conn, Subscription subscription, Throwable e) {
-		System.err.println("Exception encountered: " + e.getMessage());
-		e.printStackTrace();
-	}
-
-	@Override
-	public void handleSlowConsumerException(Connection conn, Subscription sub, 
-			SlowConsumerException e) {
-		System.err.println("Warning: SLOW CONSUMER");
+	public void onException(Connection conn, Subscription sub, 
+			Throwable e) {
+		if (e instanceof SlowConsumerException)
+			System.err.println("Warning: SLOW CONSUMER");
+		else
+			e.printStackTrace();
 	}
 }
 

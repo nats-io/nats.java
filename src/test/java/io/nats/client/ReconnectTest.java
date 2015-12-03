@@ -258,7 +258,7 @@ public class ReconnectTest {
 	AtomicInteger received = new AtomicInteger(0);
 
 	@Test
-	public void testExtendedReconnectFunctionality() throws IOException, TimeoutException
+	public void testExtendedReconnectFunctionality() throws IllegalStateException, Exception
 	{
 		Properties opts = getReconnectOptions();
 		ConnectionFactory cf = new ConnectionFactory(opts);
@@ -395,7 +395,7 @@ public class ReconnectTest {
 	final Map<Integer,Integer> results = new ConcurrentHashMap<Integer, Integer>();
 
 	@Test
-	public void testQueueSubsOnReconnect() throws IOException, TimeoutException
+	public void testQueueSubsOnReconnect() throws IllegalStateException, Exception
 	{
 		NATSServer ts = utils.createServerOnPort(22222);
 		ConnectionFactory cf = new ConnectionFactory(getReconnectOptions());
@@ -506,6 +506,12 @@ public class ReconnectTest {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (TimeoutException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IllegalStateException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

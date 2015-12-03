@@ -22,8 +22,7 @@ class Channel<T> {
 	 */
 	Queue<T> q;
 	T defaultVal = null;
-	final Lock qLock = new ReentrantLock();
-	final Condition hasItems = qLock.newCondition();
+	final Object mu = new Object(); 
 
 	boolean finished = false;
 
@@ -39,88 +38,61 @@ class Channel<T> {
 		q = new LinkedBlockingQueue<T>(c);
 	}
 
-	T get(long timeout) throws TimeoutException {
-		qLock.lock();
-		try {
+	synchronized T get(long timeout) throws TimeoutException {
+		if (finished) {
+			return this.defaultVal;
+		}
+
+		if (q.size() > 0) {
+			return q.poll();
+		} else {
+			if (timeout < 0) {
+				try {this.wait(); } catch (InterruptedException e) {}
+			} else {
+				long t0 = 0L;
+				try {
+					t0 = System.nanoTime();
+					this.wait(timeout);
+					//	stillWaiting = hasItems.awaitUntil(deadline);
+				} catch (InterruptedException e) {}
+				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
+				if(elapsed > timeout) {
+					throw new TimeoutException("Channel timed out waiting for items");
+				}
+			}
+
 			if (finished) {
 				return this.defaultVal;
-			}
+			}					
+			T item = q.poll();
 
-			if (q.size() > 0) {
-				return q.poll();
-			} else {
-				if (timeout < 0) {
-					while (q.size() == 0) {
-						try {hasItems.await(); } catch (InterruptedException e) {}
-					}
-				} else {
-					boolean stillWaiting = true;
-					Date deadline = new Date(System.currentTimeMillis() + timeout);
-					while (q.size()==0)
-					{
-						if (!stillWaiting)
-							break;
-						try {
-							stillWaiting = hasItems.awaitUntil(deadline);
-						} catch (InterruptedException e) {}
-					}
-					if(!stillWaiting) {
-						throw new TimeoutException("Channel timed out waiting for items");
-					}
-				}
-
-				if (finished) {
-					return this.defaultVal;
-				}					
-				T item = q.poll();
-
-				return item;
-			}
-
-		} finally {
-			qLock.unlock();
+			return item;
 		}
+
 	} // get
 
-	void add(T item)
+	synchronized void add(T item)
 	{
-		qLock.lock();
-		try
-		{
-			q.add(item);
+		q.add(item);
 
-			// if the queue count was previously zero, we were
-			// waiting, so signal.
-			if (q.size() <= 1)
-			{
-				hasItems.signal();
-			}
-		} finally {
-			qLock.unlock();
+		// if the queue count was previously zero, we were
+		// waiting, so signal.
+		if (q.size() <= 1)
+		{
+			this.notify();
 		}
 	}
 
-	void close()
+	synchronized void close()
 	{
-		qLock.lock();
-		try
-		{
-			finished = true;
-			hasItems.signal();
-		} finally {
-			qLock.unlock();
-		}
+		finished = true;
+		logger.trace("Channel.close: notifying");
+		this.notify();
 	}
 
-	int getCount()
+	synchronized int getCount()
 	{
-		qLock.lock();
-		try
-		{
-			return q.size();
-		} finally {
-			qLock.unlock();
-		}
+		return q.size();
 	}
 
 }

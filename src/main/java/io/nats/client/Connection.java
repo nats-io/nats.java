@@ -40,8 +40,8 @@ public interface Connection {
     public void resetStats();
     
     public long getMaxPayload();
-	void flush(int timeout) throws IOException, TimeoutException;
-	void flush() throws IOException, TimeoutException;
+	void flush(int timeout) throws IOException, TimeoutException, IllegalStateException, Exception;
+	void flush() throws IOException, TimeoutException, IllegalStateException, Exception;
 	void setDisconnectedEventHandler(DisconnectedEventHandler disconnectedEventHandler);
 	ReconnectedEventHandler getReconnectedEventHandler();
 	void setReconnectedEventHandler(ReconnectedEventHandler reconnectedEventHandler);

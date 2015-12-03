@@ -412,7 +412,7 @@ public class BasicTest {
 		Connection c = new ConnectionFactory().createConnection();
 		assertFalse(c.isClosed());
 		Message m = c.request("foo", null, 3000);
-		assertTrue(m!=null);
+		assertTrue("Message should have been null, but got "+m, m!=null);
 		c.close();
 		System.err.println("Done");
 	}
@@ -434,8 +434,6 @@ public class BasicTest {
 				} catch (Exception e){}
 			}
 		});
-
-		s.start();
 
 		final byte[] request = "help".getBytes();
 		Message m = c.request("foo", request, 5000);

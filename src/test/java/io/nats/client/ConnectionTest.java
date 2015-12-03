@@ -20,7 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConnectionTest {
-	final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
+	final Logger logger = LoggerFactory.getLogger(ConnectionTest.class);
 
 	@Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);

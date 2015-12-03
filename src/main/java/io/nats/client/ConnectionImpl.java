@@ -98,7 +98,7 @@ final class ConnectionImpl implements Connection {
 	protected ClosedEventHandler closedEventHandler;
 	protected DisconnectedEventHandler disconnectedEventHandler;
 	protected ReconnectedEventHandler reconnectedEventHandler;
-	protected ExceptionHandler exceptionHandler = new DefaultExceptionHandler();
+	protected ExceptionHandler exceptionHandler;
 
 
 	private AtomicLong sidCounter		= new AtomicLong();
@@ -180,7 +180,7 @@ final class ConnectionImpl implements Connection {
 			this.conn = tcpconn;
 		else 
 			this.conn = new TCPConnection();
-		
+
 		sidCounter.set(0);
 
 		pingProtoBytes = PING_PROTO.getBytes();
@@ -1631,6 +1631,8 @@ final class ConnectionImpl implements Connection {
 	// async error handler if registered.
 	void processSlowConsumer(SubscriptionImpl s)
 	{
+		
+		lastEx = new SlowConsumerException();
 
 		if (this.exceptionHandler != null && !s.sc)
 		{
@@ -1858,7 +1860,8 @@ final class ConnectionImpl implements Connection {
 	}
 
 	@Override
-	public void flush(int timeout) throws TimeoutException, IllegalStateException
+	public void flush(int timeout) throws TimeoutException, IllegalStateException,
+	Exception
 	{
 		if (timeout <= 0)
 		{
@@ -1871,7 +1874,7 @@ final class ConnectionImpl implements Connection {
 		try
 		{
 			if (isClosed())
-				throw new IllegalStateException("Connection is closed.");
+				throw new ConnectionClosedException();
 
 			sendPing(ch);
 		} finally {
@@ -1882,21 +1885,27 @@ final class ConnectionImpl implements Connection {
 			boolean rv = ch.get(timeout);
 			if (!rv)
 			{
-				lastEx = new IllegalStateException("Connection is closed");			
+				lastEx = new ConnectionClosedException();			
 			}
 		} catch (TimeoutException te) {
 			lastEx = new TimeoutException("Flush channel timeout.");
 		}
+		catch (Exception e) {
+			e.printStackTrace();
+			lastEx = new Exception("Flush channel error", e);
+		}
 		if (lastEx != null)
 		{
+//			lastEx.printStackTrace();
 			removeFlushEntry(ch);
+			throw lastEx;
 		}
 	}
 
 	/// Flush will perform a round trip to the server and return when it
 	/// receives the internal reply.
 	@Override
-	public void flush() throws TimeoutException, IllegalStateException
+	public void flush() throws TimeoutException, IllegalStateException, Exception
 	{
 		// 60 second default.
 		flush(60000);
@@ -1950,7 +1959,7 @@ final class ConnectionImpl implements Connection {
 		}
 
 		public void run() {
-			cb.handleException(this.conn, this.sub, this.ex);
+			cb.onException(this.conn, this.sub, this.ex);
 		}
 	}
 

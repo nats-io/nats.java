@@ -25,11 +25,11 @@ final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscri
 
 		mu.lock();
 		try {
-			if ((conn == null)||conn.isClosed()) {
-				throw new ConnectionClosedException();
+			if (conn == null) {
+				throw new BadSubscriptionException();
 			}
 			if (mch == null) {
-				throw new BadSubscriptionException();
+				throw new ConnectionClosedException();
 			}
 			if (sc == true) {
 				sc = false;
