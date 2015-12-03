@@ -20,3 +20,6 @@ bin/
 hs_err_pid*
 /target/
 /bin/
+
+# NATS stuff
+gnatsd.log

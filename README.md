@@ -6,8 +6,8 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Javadoc](http://javadoc-badge.appspot.com/com.github.nats-io/jnats.svg?label=javadoc)](http://javadoc-badge.appspot.com/com.github.nats-io/jnats)
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master)](https://coveralls.io/r/nats-io/jnats?branch=master)
 
-This is a WORK IN PROGRESS. It's not quite a stable release.
-Test coverage is inadequate (currently around zero).
+This is a WORK IN PROGRESS. 
+Test coverage is equivalent to the Go client.
 Documentation (javadoc) is in progress. 
 
 Please refer to the TODO.md for constantly updating information on what things are not complete or not working.
@@ -23,10 +23,10 @@ git clone git@github.com:nats-io/jnats.git .
 To build the library, use [maven](https://maven.apache.org/). From the root directory of the project:
 
 ```
-mvn clean install -DskipTests
+mvn clean install
 ```
 
-This will build the jnats-0.0.1-SNAPSHOT.tar.gz in /target.
+This will build the jnats-0.3.0-alpha.tar.gz in /target.
 
 This compressed archive contains the jnats client jar, slf4j dependencies, and this README.
 
@@ -54,7 +54,7 @@ sub = nc.subscribe("foo");
 sub.unsubscribe();
 
 // Requests
-msg = nc.request("help", "help me", TimeUnit.SECONDS.toMillis(10));
+msg = nc.request("help", "help me", 10000);
 
 // Replies
 nc.subscribe("help", new MessageHandler (Message m) {
@@ -113,7 +113,7 @@ nc.flush()
 System.out.println("All clear!");
 
 // FlushTimeout specifies a timeout value as well.
-boolean flushed = nc.flush(1, TimeUnit.SECONDS);
+boolean flushed = nc.flush(1000);
 if (flushed) {
     System.out.println("All clear!");
 } else {
