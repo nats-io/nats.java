@@ -16,7 +16,6 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelPipelineException;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
@@ -64,26 +63,30 @@ public final class ClientConnection
   /** Information about a specific end point, follows the go client */
   private final static class Srv
   {
+    final boolean isSecureURI;
     final URI uri;
     // Did we ever connect and handshake?
     boolean didConnect;
-    // How many times?
+    // How many times have we reconnected to this server?
     int reconnects;
-    // the last time we tried
+    // the last time we tried to connect
     long lastAttempt;
 
     Srv (URI uri) {
       this.uri = uri;
       assert (uri != null);
-      assert (uri.getScheme ().equals (Options.NATS_URI_SCHEME));
+      this.isSecureURI = uri.getScheme ().equals (Options.NATS_SECURE_URI_SCHEME);
+      if (!this.isSecureURI)
+        {
+          // FIXME: jam: this all needs looked at and made into a set of protocol handlers
+          // FIXME: jam: for each protocol we want to handle (or tunnel over), so for example:
+          // FIXME: jam: we should support nats-http://some-webhost/p1/p2/pn etc...
+          assert (uri.getScheme ().equals (Options.NATS_URI_SCHEME));
+        }
     }
     public String toString () {
-      return ("Srv{"
-              + ", uri: " + uri
-              + ", didConnect: " + didConnect
-              + ", reconnects: " + reconnects
-              + ", lastAttempt: " + lastAttempt
-              + "}");
+      return String.format ("Server { uri=\"%s\", didConnect=%s, reconnects=%s lastAttempt=%s }",
+                            uri, didConnect, reconnects, lastAttempt);
     }
   }
 
@@ -176,21 +179,18 @@ public final class ClientConnection
   {
     if (success)
       {
+        // set these up before adding to the pipeline...
         this.serverInfo = serverInfo;
         this.conn = channel;
 
         ChannelPipeline pipe = channel.pipeline ();
-        /*
-        if (opts.tracePackets || DEBUG)
-          pipe.addLast ("frame tracer", new LoggingHandler(LogLevel.INFO));
-        pipe.addLast ("peer-watcher", new IdleStateHandler (0, 0, opts.pingInterval));
-        pipe.addLast ("decoder", new NatsMessageDecoder (opts.maxFrameSize, true));
-        pipe.addLast ("encoder", new MessageEncoder ());
-        if (opts.traceProtocol || DEBUG)
-          pipe.addLast ("protocol-tracer", new LoggingHandler(LogLevel.INFO));*/
+        // push on the protocol handler
         pipe.addLast ("protocol-handler", new NatsProtocolHandler ());
+        // push on the message handler
         pipe.addLast (execGroup, "message-handler", new NatsClientHandler ());
+        // mark that we did connect to this server
         currentServer.didConnect = true;
+        // reset the reconnect count
         currentServer.reconnects = 0;
       }
     else
@@ -454,14 +454,31 @@ public final class ClientConnection
   public void _setupAndRun ()
     throws NatsException
   {
+    boolean anySecure = false;
+
     // Copy of the URLs...
     ArrayList pool = new ArrayList ();
     for (URI uri : opts.servers)
-      pool.add (new Srv (uri));
+      {
+        Srv ns = new Srv (uri);
+        anySecure = anySecure || ns.isSecureURI;
+        pool.add (ns);
+      }
+
+    if (pool.size () == 0 && Options.DEFAULT_URI != null)
+      {
+        Srv s = new Srv (Options.DEFAULT_URI);
+        anySecure = s.isSecureURI;
+        pool.add (s);
+      }
+
     if (opts.noRandomize == false)
       Collections.shuffle (pool);
-    if (pool.size () == 0 && Options.DEFAULT_URI != null)
-      pool.add (new Srv (Options.DEFAULT_URI));
+
+    // we require secure connections
+    // if any URI was specified that is a secure URI
+    opts.secure = opts.secure || anySecure;
+
     _pickNextServer (pool);
     _connect ();
     synchronized (stateLock)

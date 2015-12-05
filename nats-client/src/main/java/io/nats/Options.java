@@ -37,8 +37,10 @@ public final class Options
   public static final URI DEFAULT_URI;
   /** The URI Scheme we service */
   public static final String NATS_URI_SCHEME = "nats";
-  /** Not yet, talk to team about handshake sematics */
-  //public static final String NATS_SECURE_URI_SCHEME = "natss";
+  /** The Secure URI Scheme we service, if a secure URI is specified for any
+   * logical connection (on any of th URIs), then we automatically set secure=true
+   */
+  public static final String NATS_SECURE_URI_SCHEME = "natss";
   /** The default port when none is specified in a NATS scheme'd URI */
   public static final int DEFAULT_PORT = 4222;
   /** The default timeout for I/O operations (connect/read/write/close/etc) */
@@ -103,9 +105,7 @@ public final class Options
   /** Whether we want a tls / ssl connection or not. Note, this changes in branch #novups to a tls conf. This
    * does not work at this time apart from looking for matches with the server/param checking in the
    * handshake.
-   *
-   * FIXME: jam: secure options and ssl merge of #novups
-   * */
+   */
   public boolean secure = false;
   /** Whether we allow reconnects at all if we lose or are unable t oget a connection from one server */
   public boolean allowReconnect = false;

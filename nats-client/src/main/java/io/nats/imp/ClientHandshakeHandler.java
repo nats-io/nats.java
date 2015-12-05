@@ -260,7 +260,7 @@ public class ClientHandshakeHandler
               }
             if (sslHandshakeFuture != null)
               {
-                //sslHandshakeFuture.cancel ();
+                sslHandshakeFuture.cancel (true);
                 sslHandshakeFuture = null;
               }
           }
@@ -317,6 +317,9 @@ public class ClientHandshakeHandler
     Bootstrap b = new Bootstrap ();
     b.group (workerGroup)
      .channel (NioSocketChannel.class)
+        // FIXME: jam: set channel options here for client settings
+        // FIXME: jam: specifically: high/low watermarks, tcp settings
+        // FIXME: jam: and allocators (pooled, referenced counted) for buffers and messages
 //	.option (ChannelOption.TCP_NODELAY, true)
      .handler (new ChannelInitializer<SocketChannel> () {
        @Override
@@ -353,12 +356,6 @@ public class ClientHandshakeHandler
     (connectFuture = b.connect (host, port)).addListener (this);
   }
 
-  public long fuseLeft ()
-  {
-    long now = System.currentTimeMillis ();
-    return deadline - now;
-  }
-
   public String toString ()
   {
     return String.format ("handshake(%s) to %s start=%s deadline=%s left=%s state=%s",
@@ -366,7 +363,7 @@ public class ClientHandshakeHandler
                           uri,
                           startTime,
                           deadline,
-                          fuseLeft (),
+                          deadline - System.currentTimeMillis (),
                           state);
   }
   public void operationComplete (Future future)
