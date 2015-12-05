@@ -19,6 +19,10 @@ public abstract class SubscriberKey<T extends SubscriberKey>
     this.rawBytes = rawBytes;
   }
   abstract public Object value ();
+  @Override
+  abstract public boolean equals (Object other);
+  @Override
+  abstract public int hashCode ();
 
   byte[] rawBytes () { return rawBytes; }
 
@@ -33,6 +37,7 @@ public abstract class SubscriberKey<T extends SubscriberKey>
       this.value = value;
       this.hashCode = value.hashCode ();
     }
+
     public int hashCode ()
     {
       return hashCode;
@@ -41,6 +46,14 @@ public abstract class SubscriberKey<T extends SubscriberKey>
     {
       return value;
     }
+
+    public boolean equals (Object other)
+    {
+      return (this == other
+              || (other instanceof ObjectKey
+                  && value.equals (((ObjectKey) other).value)));
+    }
+
   }
 
   public static class LongKey extends SubscriberKey<LongKey>
@@ -74,12 +87,14 @@ public abstract class SubscriberKey<T extends SubscriberKey>
     {
       return (this == other
               || (other instanceof LongKey
-                  && ((LongKey) other).value == value));
+                  && value == ((LongKey) other).value));
     }
 
     public Object value ()
     {
       return (objectValue == null
+              // FIXME: jam: rethink all this, we should hash the bytes and be done with it rather than
+              // FIXME: jam: having seperate subclasses, we shouldn't create objects till required ideally... hmmm
               ? (objectValue = Long.valueOf (value))
               : objectValue);
     }
@@ -93,5 +108,10 @@ public abstract class SubscriberKey<T extends SubscriberKey>
   public static SubscriberKey newInstance (long sid)
   {
     return new LongKey (sid);
+  }
+
+  public String toString ()
+  {
+    return value ().toString ();
   }
 }
