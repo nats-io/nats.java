@@ -52,12 +52,12 @@ public class Publisher
               {
                   final int n = ++msgNum;
                   assert (body.readableBytes () == MSG_SIZE);
-                try { Thread.sleep (100);}catch(Exception ignore){}
+                //try { Thread.sleep (100);}catch(Exception ignore){}
               }});
             }
 
           int i;
-          for (i = 0; i < 100000; i++)
+          for (i = 0; i < 10000; i++)
             {
               conn.publish (subject, null, msg_body.duplicate ());
             }
