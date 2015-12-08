@@ -62,27 +62,19 @@ public class TLSTest {
 	CertificateException, FileNotFoundException, IOException, 
 	KeyStoreException, KeyManagementException, TimeoutException, UnrecoverableKeyException {
 		NATSServer srv = util.createServerWithConfig("tls_1222_verify.conf");
-
+		try {Thread.sleep(2000);} catch (InterruptedException e) {}
 		ClassLoader classLoader = getClass().getClassLoader();
-		InputStream clientCert = classLoader.getResourceAsStream("client-cert.pem");
-		assertNotNull(clientCert);
-
-		InputStream truststore = classLoader.getResourceAsStream("cacerts");
-		assertNotNull(truststore);
-
-		InputStream keystore = classLoader.getResourceAsStream("keystore.jks");
-		assertNotNull(keystore);
 
 		final char[] keyPassPhrase = "password".toCharArray();
 		final KeyStore ks = KeyStore.getInstance("JKS");
-		ks.load(keystore, keyPassPhrase);
+		ks.load(classLoader.getResourceAsStream("keystore.jks"), keyPassPhrase);
 		final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
 		assertNotNull(kmf);
 		kmf.init(ks, keyPassPhrase);
 
 		final char[] trustPassPhrase = "password".toCharArray();
 		final KeyStore tks = KeyStore.getInstance("JKS");
-		tks.load(truststore, trustPassPhrase);
+		tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
 		final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
 		assertNotNull(tmf);
 		tmf.init(tks);
@@ -96,6 +88,8 @@ public class TLSTest {
 		cf.setSslContext(c);
 
 		Connection connection = cf.createConnection();
+		assertFalse(connection.isClosed());
+		
 		try {Thread.sleep(1000);} catch (InterruptedException e) {}
 		connection.publish("foo", "Hello".getBytes());
 		connection.close();

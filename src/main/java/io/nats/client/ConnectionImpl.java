@@ -536,7 +536,8 @@ final class ConnectionImpl implements Connection {
     // secure. This can be dictated from either end and should
     // only be called after the INIT protocol has been received.
     private void checkForSecure() throws 
-    SecureConnectionWantedException, IOException
+    SecureConnectionWantedException, SecureConnRequiredException,
+    IOException
     {
         // Check to see if we need to engage TLS
         // Check for mismatch in setups
@@ -584,6 +585,7 @@ final class ConnectionImpl implements Connection {
 		try {
 			checkForSecure();
 		} catch (SecureConnectionWantedException e) {
+			logger.trace("opts.isSecure is: {}", opts.isSecure());
 			throw new ConnectionException(e);
 		} catch (IOException e) {
 			throw new ConnectionException(e);

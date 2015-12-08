@@ -7,11 +7,17 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/jnats?branch=master)
 
 This is a WORK IN PROGRESS. 
-Test coverage is equivalent to the Go client.
+Test coverage is roughly equivalent to the Go client.
 Documentation (javadoc) is in progress. 
 
-Please refer to the TODO.md for constantly updating information on what things are not complete or not working.
-Watch this space for more info as it becomes available.
+## TODO
+
+- [x] TLSv1.2 support (requires gnatsd v0.7.0)
+- [ ] EncodedConnection support w/protobuf
+- [ ] Maven Central
+- [ ] Complete Javadoc
+- [ ] More test coverage
+- [ ] More TLS test cases
 
 ## Installation
 
@@ -41,8 +47,11 @@ Connection nc = cf.createConnection();
 nc.publish("foo", "Hello World");
 
 // Simple Async Subscriber
-nc.subscribe("foo", new MessageHandler(Msg m) {
-    fmt.Printf("Received a message: %s\n", string(m.Data))
+nc.subscribe("foo", new MessageHandler() {
+	@Override
+	public void onMessage(Message m) {
+    	System.out.println("Received a message: %s\n", string(m.Data));
+    }
 });
 
 // Simple Sync Subscriber
@@ -57,13 +66,16 @@ sub.unsubscribe();
 msg = nc.request("help", "help me", 10000);
 
 // Replies
-nc.subscribe("help", new MessageHandler (Message m) {
-    nc.publish(m.getReplyTo(), "I can help!")
+nc.subscribe("help", new MessageHandler() {
+	@Override
+	public void onMessage(Message m) {
+    	nc.publish(m.getReplyTo(), "I can help!");
+    }
 });
 
 // Close connection
 nc = nats.Connect("nats://localhost:4222")
-nc.Close();
+nc.close();
 ```
 
 ## Wildcard Subscriptions
@@ -71,22 +83,31 @@ nc.Close();
 ```java
 
 // "*" matches any token, at any level of the subject.
-nc.subscribe("foo.*.baz", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-})
+nc.subscribe("foo.*.baz", new MessageHandler() {
+	@Override
+	public void onMessage(Message m) {
+    	System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
+    }
+});
 
-nc.subscribe("foo.bar.*", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
+nc.subscribe("foo.bar.*", new MessageHandler() {
+	@Override
+	public void onMessage(Message m) {
+    	System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
+    }
 })
 
 // ">" matches any length of the tail of a subject, and can only be the last token
 // E.g. 'foo.>' will match 'foo.bar', 'foo.bar.baz', 'foo.foo.bar.bax.22'
-nc.Subscribe("foo.>", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
+nc.Subscribe("foo.>", new MessageHandler() {
+	@Override
+	public void onMessage(Message m) {
+    	System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
+    }
 })
 
 // Matches all of the above
-nc.publish("foo.bar.baz", "Hello World")
+nc.publish("foo.bar.baz", "Hello World");
 
 ```
 
@@ -99,7 +120,10 @@ nc.publish("foo.bar.baz", "Hello World")
 // Normal subscribers will continue to work as expected.
 
 nc.queueSubscribe("foo", "job_workers", new MessageHandler() {
-  long received += 1;
+	@Override
+	public void onMessage(Message m) {
+  		long received += 1;
+  	}
 });
 
 ```
@@ -126,12 +150,15 @@ sub = nc.subscribe("foo");
 sub.autoUnsubscribe(MAX_WANTED);
 
 // Multiple connections
-nc1 = nats.Connect("nats://host1:4222")
-nc2 = nats.Connect("nats://host2:4222")
+nc1 = cf.createConnection("nats://host1:4222");
+nc2 = cf.createConnection("nats://host2:4222");
 
-nc1.subscribe("foo", func(m *Msg) {
-    System.out.printf("Received a message: %s\n", new String(m.getData()));
-})
+nc1.subscribe("foo", new MessageHandler() {
+	@Override
+	public void onMessage(Message m) {
+    	System.out.printf("Received a message: %s\n", new String(m.getData()));
+    }
+});
 
 nc2.publish("foo", "Hello World!");
 
@@ -148,27 +175,33 @@ String[] servers = new String[] {
 };
 
 // Setup options to include all servers in the cluster
-opts = nats.DefaultOptions;
-opts.setServers(servers);
+ConnectionFactory cf = new ConnectionFactory();
+cf.setServers(servers);
 
 // Optionally set ReconnectWait and MaxReconnect attempts.
 // This example means 10 seconds total per backend.
-opts.setMaxReconnect(5);
-opts.setReconnectWait(2, TimeUnit.SECONDS);
+cf.setMaxReconnect(5);
+cf.setReconnectWait(2000);
 
 // Optionally disable randomization of the server pool
-opts.setNoRandomize(true);
+cf.setNoRandomize(true);
 
-nc = opts.Connect()
+Connection nc = cf.createConnection();
 
 // Setup callbacks to be notified on disconnects and reconnects
-nc.setDisconnectedCB(new ConnEventHandler(Connection cc) {
-    System.out.printf("Got disconnected!\n")
+nc.setDisconnectedCB(new DisconnectedEventHandler() {
+	@Override
+	public void onDisconnect(ConnectionEvent event) {
+    	System.out.printf("Got disconnected!\n")
+    }
 });
 
 // See who we are connected to on reconnect.
-nc.setReconnectedCB(new ConnEventHandler(Connection c) {
-    System.out.printf("Got reconnected to %v!\n", c.getConnectedUrl())
+nc.setReconnectedCB(new ReconnectedEventHandler() {
+	@Override
+	public void onReconnect(ConnectionEvent event) {
+	    System.out.printf("Got reconnected to %s!\n", event.getConnectedUrl())
+    }
 });
 
 ```

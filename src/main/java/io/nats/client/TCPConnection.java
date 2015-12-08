@@ -158,28 +158,6 @@ class TCPConnection {
 			super(in, size);
 		}		
 	}
-	/**
-	 * Convenience method for setting up an SSL socket factory.
-	 * Pass in the SSL protocol to use, e.g. "TLSv1" or "TLSv1.2".
-	 *
-	 * @param protocol SSL protocol to use.
-	 */
-	public void useSslProtocol(String protocol, TrustManager trustManager)
-			throws NoSuchAlgorithmException, KeyManagementException
-	{
-		SSLContext c = SSLContext.getInstance(protocol);
-		c.init(null, new TrustManager[] { trustManager }, null);
-		useSslProtocol(c);
-	}
-	/**
-	 * Convenience method for setting up an SSL socket factory.
-	 * Pass in an initialized SSLContext.
-	 *
-	 * @param context An initialized SSLContext
-	 */
-	public void useSslProtocol(SSLContext context) {
-		setSocketFactory(context.getSocketFactory());
-	}
 
 	/**
 	 * Set the socket factory used to make connections with. Can be
@@ -188,7 +166,7 @@ class TCPConnection {
 	 *
 	 * @see #useSslProtocol
 	 */
-	public void setSocketFactory(SocketFactory factory) {
+	protected void setSocketFactory(SocketFactory factory) {
 		this.factory = factory;
 	}
 
@@ -205,9 +183,12 @@ class TCPConnection {
 
 		if (logger.isTraceEnabled())
 			sslSocket.addHandshakeCompletedListener(new HandshakeListener());
+		
+		sslSocket.startHandshake();
 
 	}
-	public class HandshakeListener implements HandshakeCompletedListener
+	
+	class HandshakeListener implements HandshakeCompletedListener
 	{
 		public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent
 				event)

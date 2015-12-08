@@ -102,7 +102,7 @@ public class ConnectionFactory implements Cloneable {
 			this.setSecure(Boolean.parseBoolean(props.getProperty(PROP_SECURE)));
 		//PROP_RECONNECT_ALLOWED
 		if (props.containsKey(PROP_RECONNECT_ALLOWED))
-			this.setSecure(Boolean.parseBoolean(
+			this.setReconnectAllowed(Boolean.parseBoolean(
 					props.getProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(true))));
 		//PROP_MAX_RECONNECT
 		if (props.containsKey(PROP_MAX_RECONNECT))
