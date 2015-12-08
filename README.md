@@ -72,17 +72,17 @@ nc.Close();
 
 // "*" matches any token, at any level of the subject.
 nc.subscribe("foo.*.baz", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(getData()));
+    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
 })
 
 nc.subscribe("foo.bar.*", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(getData()));
+    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
 })
 
 // ">" matches any length of the tail of a subject, and can only be the last token
 // E.g. 'foo.>' will match 'foo.bar', 'foo.bar.baz', 'foo.foo.bar.bax.22'
 nc.Subscribe("foo.>", new MessageHandler(Message m) {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(getData()));
+    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
 })
 
 // Matches all of the above
