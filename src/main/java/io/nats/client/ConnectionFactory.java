@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
+import javax.net.ssl.SSLContext;
+
 import static io.nats.client.Constants.*;
 /* *
  * Factpry class for opening a {@link ConnectionImpl} to the NATS server (gnatsd). 
@@ -40,6 +42,7 @@ public class ConnectionFactory implements Cloneable {
 	private int connectionTimeout					= Constants.DEFAULT_TIMEOUT;
 	private long pingInterval						= Constants.DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
+	private SSLContext sslContext;
 	private ExceptionHandler exceptionHandler;
 	private ClosedEventHandler closedEventHandler;
 	private DisconnectedEventHandler disconnectedEventHandler;
@@ -243,6 +246,7 @@ public class ConnectionFactory implements Cloneable {
 		result.setReconnectedEventHandler(reconnectedEventHandler);
 		result.setSubChanLen(subChanLen);
 		//    	private ConnectionEventHandler connectionEventHandler 	= null;		return null;
+		result.setSslContext(sslContext);
 		return result;
 	}
 
@@ -647,5 +651,19 @@ public class ConnectionFactory implements Cloneable {
 			throw new IllegalArgumentException("ExceptionHandler cannot be null!");
 		}
 		this.exceptionHandler = exceptionHandler;
+	}
+
+	/**
+	 * @return the sslContext
+	 */
+	public SSLContext getSslContext() {
+		return sslContext;
+	}
+
+	/**
+	 * @param sslContext the sslContext to set
+	 */
+	public void setSslContext(SSLContext sslContext) {
+		this.sslContext = sslContext;
 	}
 }

@@ -33,6 +33,62 @@
 	<build>
 		<finalName>maven-assembly-plugin</finalName>
 		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>2.0.2</version>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.7.5.201505241946</version>
+				<executions>
+					<execution>
+						<id>default-prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>default-report</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>default-check</id>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<rule implementation="org.jacoco.maven.RuleConfiguration">
+									<element>BUNDLE</element>
+									<limits>
+										<limit implementation="org.jacoco.report.check.Limit">
+											<counter>COMPLEXITY</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.60</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.eluder.coveralls</groupId>
+				<artifactId>coveralls-maven-plugin</artifactId>
+				<version>2.2.0</version>
+				<configuration>
+					<sourceEncoding>UTF8</sourceEncoding>
+				</configuration>
+			</plugin>
 			<!-- The configuration of maven-assembly-plugin -->
 			<!-- Pack executable jar, dependencies and other resource into tar.gz -->
 			<plugin>
@@ -70,6 +126,20 @@
 				</executions>
 			</plugin>
 		</plugins>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-release-plugin</artifactId>
+					<version>2.5.3</version>
+					<configuration>
+						<useReleaseProfile>true</useReleaseProfile>
+						<releaseProfiles>release</releaseProfiles>
+						<goals>deploy</goals>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 		<resources>
 			<resource>
 				<directory>src/main/resources</directory>
@@ -99,36 +169,36 @@
 		<name>NATS.io (supported by Apcera)</name>
 	</organization>
 	<developers>
-    <developer>
-      <id>larry</id>
-      <name>Larry McQueary</name>
-      <email>larry@apcera.com</email>
-      <url>https://github.com/mcqueary/</url>
-      <organization>Apcera Inc.</organization>
-      <organizationUrl>http://www.apcera.com</organizationUrl>
-      <roles>
-        <role>Product Manager</role>
-        <role>Developer</role>
-      </roles>
-      <timezone>America/Denver</timezone>
-      <properties>
-        <picUrl>http://www.example.com/jdoe/pic</picUrl>
-      </properties>
-    </developer>
-  </developers>
+		<developer>
+			<id>larry</id>
+			<name>Larry McQueary</name>
+			<email>larry@apcera.com</email>
+			<url>https://github.com/mcqueary/</url>
+			<organization>Apcera Inc.</organization>
+			<organizationUrl>http://www.apcera.com</organizationUrl>
+			<roles>
+				<role>Product Manager</role>
+				<role>Developer</role>
+			</roles>
+			<timezone>America/Denver</timezone>
+			<properties>
+				<picUrl>http://www.example.com/jdoe/pic</picUrl>
+			</properties>
+		</developer>
+	</developers>
 	<ciManagement>
 		<system>Travis</system>
 		<url>https://travis-ci.org/nats-io/jnats/</url>
 	</ciManagement>
 	<mailingLists>
-    <mailingList>
-      <name>nats</name>
-      <archive>https://groups.google.com/group/natsio/</archive>
-      <subscribe>natsio+subscribe@googlegroups.com</subscribe>
-      <unsubscribe>natsio+unsubscribe@googlegroups.com</unsubscribe>
-      <post>natsio@googlegroups.com</post>
-    </mailingList>
-    </mailingLists>
+		<mailingList>
+			<name>nats</name>
+			<archive>https://groups.google.com/group/natsio/</archive>
+			<subscribe>natsio+subscribe@googlegroups.com</subscribe>
+			<unsubscribe>natsio+unsubscribe@googlegroups.com</unsubscribe>
+			<post>natsio@googlegroups.com</post>
+		</mailingList>
+	</mailingLists>
 	<inceptionYear>2015</inceptionYear>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

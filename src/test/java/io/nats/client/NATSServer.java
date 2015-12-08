@@ -1,5 +1,6 @@
 package io.nats.client;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,7 +8,7 @@ import java.util.List;
 
 class NATSServer implements Runnable
 {
-	final static String GNATSD = "/Users/larry/Dropbox/workspace/go/bin/gnatsd";
+	final static String GNATSD = "gnatsd";
     // Enable this for additional server debugging info.
     boolean debug = true;
     ProcessBuilder pb;
@@ -56,30 +57,20 @@ class NATSServer implements Runnable
 	        psInfo.addArgument("-p " + String.valueOf(port));
         }
 
-        try {
-        	pb = new ProcessBuilder(psInfo.arguments);
-        	p = pb.start();
-	        System.out.println("Started " + psInfo);
-		} catch (IOException e) {System.err.println(e.getMessage());}
+        start();
     }
 
     private String buildConfigFileName(String configFile)
     {
-    	return new String("src/test/resources/"+configFile);
+//    	return new String("src/test/resources/"+configFile);
+    	return configFile;
     }
 
     public NATSServer(String configFile)
     {
         psInfo = this.createProcessStartInfo();
         psInfo.addArgument("-config " + buildConfigFileName(configFile));
-        try {
-        	pb = new ProcessBuilder(psInfo.arguments);
-        	p = pb.start();
-	        System.out.println("Started " + psInfo);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+        start();
     }
 
     private ProcessStartInfo createProcessStartInfo()
@@ -94,6 +85,20 @@ class NATSServer implements Runnable
         return psInfo;
     }
 
+    public void start()
+    {
+        try {
+        	pb = new ProcessBuilder(psInfo.arguments);
+        	pb.directory(new File("src/test/resources"));
+        	pb.inheritIO();
+        	p = pb.start();
+	        System.out.println("Started " + psInfo);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+    }
+    
     public void shutdown()
     {
         if (p == null)

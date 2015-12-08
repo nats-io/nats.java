@@ -1,5 +1,18 @@
 package io.nats.client;
 
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.HandshakeCompletedListener;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManager;
+
+import java.security.cert.Certificate;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.X509Certificate;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -8,6 +21,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
@@ -23,6 +38,8 @@ class TCPConnection {
 	/// more efficient for NATS?
 	///
 	ReentrantLock mu = new ReentrantLock();
+	private SocketFactory factory = SocketFactory.getDefault();
+	private SSLContext sslContext;
 	Socket client = null;
 	protected OutputStream writeStream = null;
 	protected InputStream readStream = null;
@@ -92,14 +109,7 @@ class TCPConnection {
 	}
 
 	public InputStreamReader getInputStreamReader() {
-		InputStreamReader rv = null;
-
-		try {
-			rv = new InputStreamReader(client.getInputStream());
-		} catch (IOException e) {
-			// ignore
-		}
-		return rv;
+		return new InputStreamReader(readStream);
 	}
 
 	public InputStream getReadBufferedStream(int size) {
@@ -129,7 +139,7 @@ class TCPConnection {
 
 		return rv;
 	}
-	
+
 	class TraceEnabledBufferedOutputStream  extends BufferedOutputStream {
 
 		public TraceEnabledBufferedOutputStream(OutputStream out) {
@@ -147,5 +157,84 @@ class TCPConnection {
 		public TraceEnabledBufferedInputStream(InputStream in, int size) {
 			super(in, size);
 		}		
+	}
+	/**
+	 * Convenience method for setting up an SSL socket factory.
+	 * Pass in the SSL protocol to use, e.g. "TLSv1" or "TLSv1.2".
+	 *
+	 * @param protocol SSL protocol to use.
+	 */
+	public void useSslProtocol(String protocol, TrustManager trustManager)
+			throws NoSuchAlgorithmException, KeyManagementException
+	{
+		SSLContext c = SSLContext.getInstance(protocol);
+		c.init(null, new TrustManager[] { trustManager }, null);
+		useSslProtocol(c);
+	}
+	/**
+	 * Convenience method for setting up an SSL socket factory.
+	 * Pass in an initialized SSLContext.
+	 *
+	 * @param context An initialized SSLContext
+	 */
+	public void useSslProtocol(SSLContext context) {
+		setSocketFactory(context.getSocketFactory());
+	}
+
+	/**
+	 * Set the socket factory used to make connections with. Can be
+	 * used to enable SSL connections by passing in a
+	 * javax.net.ssl.SSLSocketFactory instance.
+	 *
+	 * @see #useSslProtocol
+	 */
+	public void setSocketFactory(SocketFactory factory) {
+		this.factory = factory;
+	}
+
+	protected void makeTLS(SSLContext context) throws IOException {
+		this.sslContext = context;
+		setSocketFactory(sslContext.getSocketFactory());
+		SSLSocketFactory sslSf = (SSLSocketFactory)factory;
+		SSLSocket sslSocket = (SSLSocket) sslSf.createSocket(client,        
+				client.getInetAddress().getHostAddress(),
+				client.getPort(),
+				true);
+		this.readStream = sslSocket.getInputStream();
+		this.writeStream = sslSocket.getOutputStream();
+
+		if (logger.isTraceEnabled())
+			sslSocket.addHandshakeCompletedListener(new HandshakeListener());
+
+	}
+	public class HandshakeListener implements HandshakeCompletedListener
+	{
+		public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent
+				event)
+		{
+			SSLSession session = event.getSession();
+			logger.trace("Handshake Completed with peer {}",
+					session.getPeerHost());
+			logger.trace("   cipher: {}", session.getCipherSuite());
+			Certificate[] certs = null;
+			try
+			{
+				certs = session.getPeerCertificates();
+			}
+			catch (SSLPeerUnverifiedException puv)
+			{
+				certs = null;
+			}
+			if  (certs != null)
+			{
+				logger.trace("   peer certificates:");
+				for (int z=0; z<certs.length; z++) 
+					logger.trace("      certs[{}]: {}", z, certs[z]);
+			}
+			else
+			{
+				logger.trace("No peer certificates presented");
+			}
+		}
 	}
 }

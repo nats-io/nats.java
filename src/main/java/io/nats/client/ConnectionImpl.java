@@ -311,7 +311,8 @@ final class ConnectionImpl implements Connection {
 					mu.unlock();
 				}
 			} catch (Exception e) {
-				if (logger.isDebugEnabled()){ logger.debug("{} Exception: {}", this.url, e.getMessage());}
+//				if (logger.isDebugEnabled()){ logger.debug("{} Exception: {}", this.url, e.getMessage());}
+				e.printStackTrace();
 				lastEx = e;
 				close(ConnState.DISCONNECTED, false);
 				mu.lock();
@@ -530,6 +531,38 @@ final class ConnectionImpl implements Connection {
 		// Start the readLoop and flusher threads
 		spinUpSocketWatchers();
 	}
+	
+    // This will check to see if the connection should be
+    // secure. This can be dictated from either end and should
+    // only be called after the INIT protocol has been received.
+    private void checkForSecure() throws 
+    SecureConnectionWantedException, IOException
+    {
+        // Check to see if we need to engage TLS
+        // Check for mismatch in setups
+        if (opts.isSecure() && !info.tlsRequired)
+        {
+            throw new SecureConnectionWantedException();
+        }
+        else if (info.tlsRequired && !opts.isSecure())
+        {
+            throw new SecureConnRequiredException();
+        }
+
+        // Need to rewrap with bufio
+        if (opts.isSecure())
+        {
+            makeTLSConn();
+        }
+    }
+
+    // makeSecureConn will wrap an existing Conn using TLS
+    private void makeTLSConn() throws IOException
+    {
+        conn.makeTLS(opts.getSslContext());
+        bw = conn.getWriteBufferedStream(DEFAULT_BUF_SIZE);
+        br = conn.getReadBufferedStream(DEFAULT_BUF_SIZE);
+    }
 
 	protected void processExpectedInfo() throws ConnectionException {
 		ControlMsg c;
@@ -548,6 +581,13 @@ final class ConnectionImpl implements Connection {
 		}
 
 		processInfo(c.args);
+		try {
+			checkForSecure();
+		} catch (SecureConnectionWantedException e) {
+			throw new ConnectionException(e);
+		} catch (IOException e) {
+			throw new ConnectionException(e);
+		}
 	}
 
 	// processPing will send an immediate pong protocol response to the
@@ -1200,7 +1240,7 @@ final class ConnectionImpl implements Connection {
 		private int port;
 		private String version;
 		private boolean authRequired;
-		private boolean sslRequired;
+		private boolean tlsRequired;
 		private long maxPayload; // int64 in Go
 
 		private Map<String, String> parameters = new HashMap<String, String>();
@@ -1223,7 +1263,7 @@ final class ConnectionImpl implements Connection {
 			this.port = Integer.parseInt(parameters.get("port"));
 			this.version = parameters.get("version");
 			this.authRequired = Boolean.parseBoolean(parameters.get("auth_required"));
-			this.sslRequired = Boolean.parseBoolean(parameters.get("ssl_required"));
+			this.tlsRequired = Boolean.parseBoolean(parameters.get("tls_required"));
 			this.maxPayload = Long.parseLong(parameters.get("max_payload"));
 
 		}
@@ -1320,17 +1360,17 @@ final class ConnectionImpl implements Connection {
 		}
 
 		/**
-		 * @return the sslRequired
+		 * @return the tlsRequired
 		 */
 		boolean isSslRequired() {
-			return sslRequired;
+			return tlsRequired;
 		}
 
 		/**
-		 * @param sslRequired the sslRequired to set
+		 * @param tlsRequired the tlsRequired to set
 		 */
 		void setSslRequired(boolean sslRequired) {
-			this.sslRequired = sslRequired;
+			this.tlsRequired = sslRequired;
 		}
 
 		/**
