@@ -290,6 +290,7 @@ final class ConnectionImpl implements Connection {
 		// For first connect we walk all servers in the pool and try
 		// to connect immediately.
 		boolean connected = false;
+
 		for (Srv s : srvPool) {
 			this.url = s.url;
 
@@ -311,8 +312,8 @@ final class ConnectionImpl implements Connection {
 					mu.unlock();
 				}
 			} catch (Exception e) {
-//				if (logger.isDebugEnabled()){ logger.debug("{} Exception: {}", this.url, e.getMessage());}
-				e.printStackTrace();
+				if (logger.isDebugEnabled()){ logger.debug("{} Exception: {}", this.url, e.getMessage());}
+//				e.printStackTrace();
 				lastEx = e;
 				close(ConnState.DISCONNECTED, false);
 				mu.lock();

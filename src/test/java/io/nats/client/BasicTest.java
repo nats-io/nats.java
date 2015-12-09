@@ -362,7 +362,9 @@ public class BasicTest {
 	public void testUnsubscribe() throws Exception
 	{
 		int max = 20;
-		final Connection c = new ConnectionFactory().createConnection();
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setReconnectAllowed(false);
+		final Connection c = cf.createConnection();
 		AsyncSubscription s = null;
 		s = c.subscribeAsync("foo");
 		TestUnsubscribeHandler handler = new TestUnsubscribeHandler(s, max);
@@ -392,6 +394,7 @@ public class BasicTest {
 		assertTrue(String.format(
 				"Received wrong # of messages after unsubscribe: %d vs %d",
 				total, max), total == max);
+		//		s.unsubscribe();
 		c.close();
 	}
 
@@ -402,8 +405,13 @@ public class BasicTest {
 		Connection c = new ConnectionFactory().createConnection();
 		SyncSubscription s = c.subscribeSync("foo");
 		s.unsubscribe();
-		s.unsubscribe();
-		c.close();
+		try {
+			s.unsubscribe();
+		} catch (IllegalStateException e) {
+			throw e;
+		} finally {
+			c.close();
+		}
 	}
 
 	@Test(expected=TimeoutException.class)
@@ -411,8 +419,14 @@ public class BasicTest {
 	{
 		Connection c = new ConnectionFactory().createConnection();
 		assertFalse(c.isClosed());
-		c.request("foo", null, 3000);
-		c.close();
+		try {
+			c.request("foo", "help".getBytes(), 3000);
+		} catch (TimeoutException e) {
+			throw e;
+		}
+		finally {
+			c.close();
+		}
 		System.err.println("Done");
 	}
 
@@ -718,8 +732,6 @@ public class BasicTest {
 				received.incrementAndGet();
 			}
 		});
-
-		s.start();
 
 		for (int i = 0; i < count; i++)
 		{

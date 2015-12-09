@@ -92,7 +92,7 @@ class NATSServer implements Runnable
         	pb.directory(new File("src/test/resources"));
         	pb.inheritIO();
         	p = pb.start();
-	        System.out.println("Started " + psInfo);
+	        System.out.println("Started [" + psInfo + "]");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

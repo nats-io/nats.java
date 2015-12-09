@@ -20,9 +20,9 @@ class Channel<T> {
 	 * This channel class really a blocking queue, is named the way it is so the
 	 * code more closely reads with GO.
 	 */
-	Queue<T> q;
+	LinkedBlockingQueue<T> q;
 	T defaultVal = null;
-	final Object mu = new Object(); 
+//	final Object mu = new Object(); 
 
 	boolean finished = false;
 
@@ -39,32 +39,30 @@ class Channel<T> {
 	}
 
 	synchronized T get(long timeout) throws TimeoutException {
+		T item = null;
 		if (finished) {
 			return this.defaultVal;
 		}
 
 		if (q.size() > 0) {
-			return q.poll();
+			try { item = q.take(); } catch (InterruptedException e) {}
+			return item;
 		} else {
 			if (timeout < 0) {
-				try {this.wait(); } catch (InterruptedException e) {}
+				try { this.wait(); } catch (InterruptedException e) {}
 			} else {
-				long t0 = 0L;
 				try {
-					t0 = System.nanoTime();
 					this.wait(timeout);
-					//	stillWaiting = hasItems.awaitUntil(deadline);
 				} catch (InterruptedException e) {}
-				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
-				if(elapsed > timeout) {
-					throw new TimeoutException("Channel timed out waiting for items");
-				}
 			}
 
 			if (finished) {
 				return this.defaultVal;
-			}					
-			T item = q.poll();
+			}	
+			
+			item = q.poll();
+			if (item==null)
+				throw new TimeoutException("Channel timed out waiting for items");
 
 			return item;
 		}
