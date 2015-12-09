@@ -1,8 +1,13 @@
+install:
+  - go get github.com/nats-io/gnatsd
+  
 language: java
 jdk:
  - oraclejdk7
+after_success:
+   - mvn clean test jacoco:report coveralls:jacoco
 #script: mvn test clean verify
-script: mvn clean verify -DskipTests
+#script: mvn clean verify -DskipTests
 
 notifications:
   # Email notifications are disabled to not annoy anybody.
