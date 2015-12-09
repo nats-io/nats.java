@@ -3,6 +3,10 @@
 .project
 .settings/
 
+# IntelliJ stuff
+.idea
+*.iml
+
 # Build artifacts
 *.class
 target/
