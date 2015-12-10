@@ -52,8 +52,22 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.sonatype.plugins</groupId>
+				<artifactId>nexus-staging-maven-plugin</artifactId>
+				<version>1.6.3</version>
+				<extensions>true</extensions>
+				<configuration>
+					<serverId>ossrh</serverId>
+					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
+					<autoReleaseAfterClose>true</autoReleaseAfterClose>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-gpg-plugin</artifactId>
+				<configuration>
+					<useAgent>false</useAgent>
+				</configuration>
 				<executions>
 					<execution>
 						<id>sign-artifacts</id>
@@ -111,7 +125,7 @@
 										<limit implementation="org.jacoco.report.check.Limit">
 											<counter>COMPLEXITY</counter>
 											<value>COVEREDRATIO</value>
-											<minimum>0.60</minimum>
+											<minimum>0.50</minimum>
 										</limit>
 									</limits>
 								</rule>
@@ -232,12 +246,12 @@
 
 	<distributionManagement>
 		<repository>
-			<id>sonatype-nexus-staging</id>
+			<id>ossrh</id>
 			<name>Sonatype OSS Staging</name>
 			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
 		</repository>
 		<snapshotRepository>
-			<id>sonatype-nexus-snapshot</id>
+			<id>ossrh</id>
 			<name>Sonatype OSS Snapshots</name>
 			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
 		</snapshotRepository>

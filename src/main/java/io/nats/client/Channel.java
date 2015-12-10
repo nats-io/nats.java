@@ -51,9 +51,11 @@ class Channel<T> {
 			if (timeout < 0) {
 				try { this.wait(); } catch (InterruptedException e) {}
 			} else {
-				try {
-					this.wait(timeout);
-				} catch (InterruptedException e) {}
+				long t0 = System.nanoTime();
+				try {this.wait(timeout);} catch (InterruptedException e) {}
+				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
+				if (elapsed > timeout)
+					throw new TimeoutException("Channel timed out waiting for items");					
 			}
 
 			if (finished) {
@@ -61,8 +63,8 @@ class Channel<T> {
 			}	
 			
 			item = q.poll();
-			if (item==null)
-				throw new TimeoutException("Channel timed out waiting for items");
+//			if (item==null)
+//				throw new TimeoutException("Channel timed out waiting for items");
 
 			return item;
 		}
