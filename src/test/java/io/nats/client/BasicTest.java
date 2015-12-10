@@ -185,14 +185,21 @@ public class BasicTest {
 	}
 
 	@Test
-	public void testSyncSubscribe() throws Exception
+	public void testSyncSubscribe() throws IOException, TimeoutException
 	{
 		Connection c = new ConnectionFactory().createConnection();
 		SyncSubscription s = c.subscribeSync("foo");
 		c.publish("foo", omsg);
+		try {
 		Message m = s.nextMessage(3000);
 		assertTrue("Messages are not equal.", compare(omsg, m));
-		c.close();
+		} catch (IOException e) {
+			throw e;
+		} catch (TimeoutException e) {
+			throw e;
+		} finally {
+			c.close();
+		}
 	}
 
 	@Test
