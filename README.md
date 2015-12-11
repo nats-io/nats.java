@@ -21,6 +21,36 @@ Documentation (javadoc) is in progress.
 
 ## Installation
 
+### Maven Central
+
+Snapshots are regularly uploaded to the Sonatype OSSRH (OSS Repository Hosting) using maven.
+Add the following dependency to your project's `pom.xml`.
+
+```xml
+  <dependencies>
+    ...
+    <dependency>
+      <groupId>io.nats</groupId>
+      <artifactId>jnats</artifactId>
+      <version>0.3.0-SNAPSHOT</version>
+    </dependency>
+  </dependencies>
+```
+If you don't already have your pom.xml configured for using Maven snapshots, you'll also need to add the following repository to your pom.xml.
+
+```xml
+<repositories>
+    ...
+    <repository>
+        <id>sonatype-snapshots</id>
+        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository>
+</repositories>
+```
+### Source code (this repository)
 First, download the source code:
 ```
 git clone git@github.com:nats-io/jnats.git .
@@ -31,10 +61,6 @@ To build the library, use [maven](https://maven.apache.org/). From the root dire
 ```
 mvn clean install
 ```
-
-This will build the jnats-0.3.0-alpha.tar.gz in /target.
-
-This compressed archive contains the jnats client jar, slf4j dependencies, and this README.
 
 ## Basic Usage
 
