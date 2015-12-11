@@ -3,6 +3,7 @@
  */
 package io.nats.client;
 
+import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -10,8 +11,9 @@ import java.util.concurrent.TimeoutException;
  *
  */
 public interface SyncSubscription extends Subscription {
-	public Message nextMessage() throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException, TimeoutException;
+	public Message nextMessage() 
+			throws IOException, IllegalStateException, TimeoutException;
 	public Message nextMessage(long timeout) 
-			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException, TimeoutException;
+			throws TimeoutException, IOException, IllegalStateException;
 
 }

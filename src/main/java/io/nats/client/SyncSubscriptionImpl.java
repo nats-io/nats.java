@@ -1,5 +1,6 @@
 package io.nats.client;
 
+import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
 final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
@@ -10,14 +11,13 @@ final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscri
 
 	@Override
 	public Message nextMessage()
-			throws BadSubscriptionException, ConnectionClosedException, SlowConsumerException, MaxMessagesException, TimeoutException {
+			throws IOException, IllegalStateException, TimeoutException {
 		return nextMessage(-1);
 	}
 
 	@Override
 	public Message nextMessage(long timeout)
-			throws BadSubscriptionException, ConnectionClosedException, 
-			SlowConsumerException, MaxMessagesException, TimeoutException {
+			throws IOException, IllegalStateException, TimeoutException {
 		Message msg = null;
 		ConnectionImpl localConn;
 		Channel<Message> localChannel;

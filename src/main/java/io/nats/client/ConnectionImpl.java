@@ -2259,12 +2259,12 @@ final class ConnectionImpl implements Connection {
 	} // publish
 
 	@Override
-	public void publish(String subject, byte[] data) throws ConnectionClosedException {
+	public void publish(String subject, byte[] data) throws IllegalStateException {
 		publish(subject, null, data);
 	}
 
 	@Override
-	public void publish(Message msg) throws ConnectionClosedException {
+	public void publish(Message msg) throws IllegalStateException {
 		publish(msg.getSubject(), msg.getReplyTo(), msg.getData());
 	}
 

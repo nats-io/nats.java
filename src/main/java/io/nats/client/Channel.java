@@ -54,7 +54,7 @@ class Channel<T> {
 				long t0 = System.nanoTime();
 				try {this.wait(timeout);} catch (InterruptedException e) {}
 				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
-				if (elapsed > timeout)
+				if (!(elapsed < timeout))
 					throw new TimeoutException("Channel timed out waiting for items");					
 			}
 
