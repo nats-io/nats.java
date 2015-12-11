@@ -9,31 +9,25 @@ import org.junit.Assert.*;
 import org.junit.Test;
 
 public class UnitTestUtilities {
-	final Object mu = new Object();
+	//	final Object mu = new Object();
 	static NATSServer defaultServer = null;
 	Process authServerProcess = null;
 
-	public void startDefaultServer()
+	public static synchronized void startDefaultServer()
 	{
-		synchronized(mu)
+		if (defaultServer == null)
 		{
-			if (defaultServer == null)
-			{
-				defaultServer = new NATSServer();
-				try { Thread.sleep(500); } catch (InterruptedException e) {}
-			}
+			defaultServer = new NATSServer();
+			try { Thread.sleep(500); } catch (InterruptedException e) {}
 		}
 	}
 
-	public void stopDefaultServer()
+	public static synchronized void stopDefaultServer()
 	{
-		synchronized (mu)
+		if (defaultServer != null)
 		{
-			if (defaultServer != null)
-			{
-				defaultServer.shutdown();
-				defaultServer = null;
-			}
+			defaultServer.shutdown();
+			defaultServer = null;
 		}
 	}
 
@@ -53,21 +47,21 @@ public class UnitTestUtilities {
 		authServerProcess = Runtime.getRuntime().exec("gnatsd -config auth.conf");
 	}
 
-//	private static void testExpectedException(Action call, Type exType)
-//	{
-//		try {
-//			call.Invoke();
-//		}
-//		catch (Exception e)
-//		{
-//			System.out.println(e);
-//			
-//			assertThat(e, instanceOf(exType));
-//			return;
-//		}
-//
-//		fail("No exception thrown!");
-//	}
+	//	private static void testExpectedException(Action call, Type exType)
+	//	{
+	//		try {
+	//			call.Invoke();
+	//		}
+	//		catch (Exception e)
+	//		{
+	//			System.out.println(e);
+	//			
+	//			assertThat(e, instanceOf(exType));
+	//			return;
+	//		}
+	//
+	//		fail("No exception thrown!");
+	//	}
 
 	NATSServer createServerOnPort(int p)
 	{
@@ -79,70 +73,70 @@ public class UnitTestUtilities {
 	NATSServer createServerWithConfig(String configFile)
 	{
 		NATSServer n = new NATSServer(configFile);
-//		try { Thread.sleep(500); } catch (InterruptedException e) {}
+		//		try { Thread.sleep(500); } catch (InterruptedException e) {}
 		return n;
 	}
-	
+
 	public static String getCommandOutput(String command)  {
-	    String output = null;       //the string to return
+		String output = null;       //the string to return
 
-	    Process process = null;
-	    BufferedReader reader = null;
-	    InputStreamReader streamReader = null;
-	    InputStream stream = null;
+		Process process = null;
+		BufferedReader reader = null;
+		InputStreamReader streamReader = null;
+		InputStream stream = null;
 
-	    try {
-	        process = Runtime.getRuntime().exec(command);
+		try {
+			process = Runtime.getRuntime().exec(command);
 
-	        //Get stream of the console running the command
-	        stream = process.getInputStream();
-	        streamReader = new InputStreamReader(stream);
-	        reader = new BufferedReader(streamReader);
+			//Get stream of the console running the command
+			stream = process.getInputStream();
+			streamReader = new InputStreamReader(stream);
+			reader = new BufferedReader(streamReader);
 
-	        String currentLine = null;  //store current line of output from the cmd
-	        StringBuilder commandOutput = new StringBuilder();  //build up the output from cmd
-	        while ((currentLine = reader.readLine()) != null) {
-	            commandOutput.append(currentLine + "\n");
-	        }
+			String currentLine = null;  //store current line of output from the cmd
+			StringBuilder commandOutput = new StringBuilder();  //build up the output from cmd
+			while ((currentLine = reader.readLine()) != null) {
+				commandOutput.append(currentLine + "\n");
+			}
 
-	        int returnCode = process.waitFor();
-	        if (returnCode == 0) {
-	            output = commandOutput.toString();
-	        }
+			int returnCode = process.waitFor();
+			if (returnCode == 0) {
+				output = commandOutput.toString();
+			}
 
-	    } catch (IOException e) {
-	        System.err.println("Cannot retrieve output of command");
-	        System.err.println(e);
-	        output = null;
-	    } catch (InterruptedException e) {
-	        System.err.println("Cannot retrieve output of command");
-	        System.err.println(e);
-	    } finally {
-	        //Close all inputs / readers
+		} catch (IOException e) {
+			System.err.println("Cannot retrieve output of command");
+			System.err.println(e);
+			output = null;
+		} catch (InterruptedException e) {
+			System.err.println("Cannot retrieve output of command");
+			System.err.println(e);
+		} finally {
+			//Close all inputs / readers
 
-	        if (stream != null) {
-	            try {
-	                stream.close();
-	            } catch (IOException e) {
-	                System.err.println("Cannot close stream input! " + e);
-	            }
-	        } 
-	        if (streamReader != null) {
-	            try {
-	                streamReader.close();
-	            } catch (IOException e) {
-	                System.err.println("Cannot close stream input reader! " + e);
-	            }
-	        }
-	        if (reader != null) {
-	            try {
-	                streamReader.close();
-	            } catch (IOException e) {
-	                System.err.println("Cannot close stream input reader! " + e);
-	            }
-	        }
-	    }
-	    //Return the output from the command - may be null if an error occured
-	    return output;
+			if (stream != null) {
+				try {
+					stream.close();
+				} catch (IOException e) {
+					System.err.println("Cannot close stream input! " + e);
+				}
+			} 
+			if (streamReader != null) {
+				try {
+					streamReader.close();
+				} catch (IOException e) {
+					System.err.println("Cannot close stream input reader! " + e);
+				}
+			}
+			if (reader != null) {
+				try {
+					streamReader.close();
+				} catch (IOException e) {
+					System.err.println("Cannot close stream input reader! " + e);
+				}
+			}
+		}
+		//Return the output from the command - may be null if an error occured
+		return output;
 	}
 }

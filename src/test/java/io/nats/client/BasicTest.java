@@ -30,20 +30,22 @@ public class BasicTest {
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
+		UnitTestUtilities.startDefaultServer();
 	}
 
 	@AfterClass
 	public static void tearDownAfterClass() throws Exception {
+		UnitTestUtilities.stopDefaultServer();
 	}
 
 	@Before
 	public void setUp() throws Exception {
-		utils.startDefaultServer();
+//		utils.startDefaultServer();
 	}
 
 	@After
 	public void tearDown() throws Exception {
-		utils.stopDefaultServer();
+//		utils.stopDefaultServer();
 	}
 
 	@Test
@@ -454,7 +456,8 @@ public class BasicTest {
 				} catch (Exception e){}
 			}
 		});
-
+		s.start();
+		
 		final byte[] request = "help".getBytes();
 		Message m = c.request("foo", request, 5000);
 
