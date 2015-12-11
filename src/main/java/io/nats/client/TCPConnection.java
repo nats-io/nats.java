@@ -184,7 +184,7 @@ class TCPConnection {
 		if (logger.isTraceEnabled())
 			sslSocket.addHandshakeCompletedListener(new HandshakeListener());
 		
-//		sslSocket.startHandshake();
+		sslSocket.startHandshake();
 
 	}
 	
