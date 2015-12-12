@@ -8,7 +8,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.Connection.*;
 import static org.junit.Assert.*;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -18,6 +17,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static io.nats.client.Constants.*;
 
 public class ConnectionTest {
 	final Logger logger = LoggerFactory.getLogger(ConnectionTest.class);

@@ -20,8 +20,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-import io.nats.client.Connection.ConnState;
-
 import static io.nats.client.Constants.*;
 
 public class ReconnectTest {

@@ -35,6 +35,10 @@ public final class Constants {
 	//  Maximum size of a control line (message header)
 	final static int 		MAX_CONTROL_LINE_SIZE = 1024;
 	
+	public static enum ConnState {
+		DISCONNECTED, CONNECTED, CLOSED, RECONNECTING, CONNECTING
+	}
+
 	// Property names
 	final static String PFX = "io.nats.client.";
 	final static String PROP_URL 					= PFX + "url";

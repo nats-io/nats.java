@@ -93,7 +93,6 @@ public class TLSTest {
 		Connection connection = cf.createConnection();
 		assertFalse(connection.isClosed());
 		
-		try {Thread.sleep(1000);} catch (InterruptedException e) {}
 		connection.publish("foo", "Hello".getBytes());
 		connection.close();
 		srv.shutdown();

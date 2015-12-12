@@ -6,10 +6,7 @@ package io.nats.client;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-public interface Connection {
-	public static enum ConnState {
-		DISCONNECTED, CONNECTED, CLOSED, RECONNECTING, CONNECTING
-	}
+public interface Connection extends AbstractConnection {
 	public Subscription subscribe(String subject, String queue, MessageHandler cb) throws ConnectionClosedException;
 	public AsyncSubscription subscribe(String subject, MessageHandler cb) throws ConnectionClosedException;
 	public AsyncSubscription subscribeAsync(String subject, String string) throws ConnectionClosedException;
@@ -29,29 +26,6 @@ public interface Connection {
     		throws TimeoutException, IOException;
     public Message request(String subject, byte[] data) 
     		throws TimeoutException, IOException;
-    public String newInbox();
-    
-	public void close();
-
-    boolean isClosed();
-    boolean isReconnecting();
-    
-    public Statistics getStats();
-    public void resetStats();
-    
-    public long getMaxPayload();
-	void flush(int timeout) throws IOException, TimeoutException, IllegalStateException, Exception;
-	void flush() throws IOException, TimeoutException, IllegalStateException, Exception;
-	void setDisconnectedEventHandler(DisconnectedEventHandler disconnectedEventHandler);
-	ReconnectedEventHandler getReconnectedEventHandler();
-	void setReconnectedEventHandler(ReconnectedEventHandler reconnectedEventHandler);
-	ExceptionHandler getExceptionHandler();
-	void setExceptionHandler(ExceptionHandler exceptionHandler);
-	ClosedEventHandler getClosedEventHandler();
-	void setClosedEventHandler(ClosedEventHandler closedEventHandler);
-	DisconnectedEventHandler getDisconnectedEventHandler();
-	public String getConnectedUrl();
-	ConnState getState();
-    
+ 
 
 }

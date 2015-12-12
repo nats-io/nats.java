@@ -2,7 +2,6 @@ package io.nats.client;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -2449,6 +2448,23 @@ final class ConnectionImpl implements Connection {
 				return null;
 
 			return url.toString();
+		}
+		finally
+		{
+			mu.unlock();
+		}
+	}
+	
+	@Override
+	public String getConnectedId()
+	{
+		mu.lock();
+		try
+		{
+			if (status != ConnState.CONNECTED)
+				return null;
+
+			return info.getId();
 		}
 		finally
 		{
