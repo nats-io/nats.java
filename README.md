@@ -7,7 +7,6 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/jnats?branch=master)
 
 This is a WORK IN PROGRESS. 
-Test coverage is roughly equivalent to the Go client.
 Documentation (javadoc) is in progress. 
 
 ## TODO
