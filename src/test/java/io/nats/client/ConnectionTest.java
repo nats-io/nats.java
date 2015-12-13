@@ -27,26 +27,26 @@ public class ConnectionTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
 	ExecutorService executor = Executors.newFixedThreadPool(5);
-	UnitTestUtilities utils = new UnitTestUtilities();
+//	UnitTestUtilities utils = new UnitTestUtilities();
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
+		UnitTestUtilities.startDefaultServer();
+		Thread.sleep(500);
 	}
 
 	@AfterClass
 	public static void tearDownAfterClass() throws Exception {
+		UnitTestUtilities.stopDefaultServer();
+		Thread.sleep(500);
 	}
 
 	@Before
 	public void setUp() throws Exception {
-		utils.startDefaultServer();
-		Thread.sleep(500);
 	}
 
 	@After
 	public void tearDown() throws Exception {
-		utils.stopDefaultServer();
-		Thread.sleep(500);
 	}
 
 
@@ -143,7 +143,7 @@ public class ConnectionTest {
 			Connection c = cf.createConnection();
 			synchronized(mu)
 			{
-				utils.bounceDefaultServer(1000);
+				UnitTestUtilities.bounceDefaultServer(1000);
 				try {
 					System.out.println("waiting for 10 sec for mu");
 					long t0=System.nanoTime();

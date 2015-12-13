@@ -31,7 +31,7 @@ public class UnitTestUtilities {
 		}
 	}
 
-	public void bounceDefaultServer(int delayMillis)
+	public static synchronized void bounceDefaultServer(int delayMillis)
 	{
 		stopDefaultServer();
 		try {
