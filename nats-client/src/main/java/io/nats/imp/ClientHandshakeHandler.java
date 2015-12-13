@@ -19,6 +19,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
@@ -36,11 +37,11 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class ClientHandshakeHandler
-    extends ChannelInboundHandlerAdapter
-    implements FutureListener
+  extends ChannelInboundHandlerAdapter
+  implements FutureListener
 {
-  private final static String VERSION = "0.1.2";
-  private final static String LANGUAGE = "nats-java-camros";
+  private final static String VERSION = "0.1.3";
+  private final static String LANGUAGE = "nats-jnats-camros";
   private static boolean DEBUG = false;
   private EventLoopGroup workerGroup;
   private EventExecutorGroup eventExecutorGroup;
@@ -223,12 +224,28 @@ public class ClientHandshakeHandler
                           && watchDogFuture.isCancelled ()));
       System.err.flush ();
     }
+    final boolean wasDone = done ();
     state = newState;
-    if (done ())
+    if (done () && wasDone == false)
       {
+        final boolean success = state == States.HANDSHAKE_COMPLETE;
+        if (success == false && channel != null)
+          {
+            // Do this before cancelling futures, our listeners
+            Channel t = channel;
+            channel = null;
+            t.close ();
+            if (DEBUG){
+              System.err.printf ("%s: transition closing channel %s\n",
+                                 this,
+                                 t);
+              System.err.flush();
+            }
+          }
+
         if (watchDogFuture != null && watchDogFuture.isCancelled () == false)
           {
-            boolean res = watchDogFuture.cancel (true);
+            final boolean res = watchDogFuture.cancel (true);
             watchDogFuture = null;
             if (DEBUG){
             System.err.printf ("%s: transition cancelled watchDog: res=%s\n",
@@ -237,39 +254,43 @@ public class ClientHandshakeHandler
             System.err.flush();
            }
           }
-        if (state != States.HANDSHAKE_COMPLETE)
+        if (connectFuture != null)
           {
-            Channel t = channel;
-            if (t != null)
-              {
-                // Do this before cancelling futures, our listeners
-                // look at this
-                channel = null;
-                t.close ();
-              }
+            final boolean res = connectFuture.cancel (true);
+            connectFuture = null;
+            if (DEBUG){
+              System.err.printf ("%s: transition cancelled connect: res=%s\n",
+                                 this,
+                                 res);
+              System.err.flush();
+            }
 
-            if (connectFuture != null)
-              {
-                connectFuture.cancel (true);
-                connectFuture = null;
-              }
-            if (writeFuture != null)
-              {
-                writeFuture.cancel (true);
-                writeFuture = null;
-              }
-            if (sslHandshakeFuture != null)
-              {
-                sslHandshakeFuture.cancel (true);
-                sslHandshakeFuture = null;
-              }
           }
-        else
+        if (writeFuture != null)
           {
-            channel.pipeline ().remove (this);
+            final boolean res = writeFuture.cancel (true);
+            writeFuture = null;
+            if (DEBUG){
+              System.err.printf ("%s: transition cancelled write: res=%s\n",
+                                 this,
+                                 res);
+              System.err.flush();
+            }
           }
-        handler.handshakeCompleted (state == States.HANDSHAKE_COMPLETE,
-                                    channel, serverInfo, error);
+        if (sslHandshakeFuture != null)
+          {
+            final boolean res = sslHandshakeFuture.cancel (true);
+            sslHandshakeFuture = null;
+            if (DEBUG){
+              System.err.printf ("%s: transition cancelled ssl handshake: res=%s\n",
+                                 this,
+                                 res);
+              System.err.flush();
+            }
+          }
+        channel.pipeline ().remove (this);
+        if (handler != null)
+          handler.handshakeCompleted (success, channel, serverInfo, error);
       }
   }
 
@@ -334,10 +355,15 @@ public class ClientHandshakeHandler
          pipe.addLast ("nats-client-handshaker", ClientHandshakeHandler.this);
          if (options.secure)
             {
+//              String[] TLS_CIPHERS[] = {
+//
+//              };
               // FIXME: jam: move this to options and specify ciphers, etc. check with team
               // FIXME: jam: on supported combos??
               sslContext = (SslContextBuilder.forClient()
                                              .trustManager (InsecureTrustManagerFactory.INSTANCE)
+                                             .clientAuth (ClientAuth.NONE)
+//                                             .ciphers (ArrayList<String> (Arrays.asList (TLS_CIPHERS)))
                                              .build ());
               sslHandler = sslContext.newHandler (chan.alloc (), host, port);
               if (DEBUG) {
@@ -370,17 +396,19 @@ public class ClientHandshakeHandler
     throws Exception
   {
     if (DEBUG){
-    System.err.printf ("%s: future operationComplete (%s)\n", this, future);
+    System.err.printf ("@@@ %s: future operationComplete (%s)\n", this, future);
     System.err.flush ();
     }
+    /*
     if (state != States.CONNECTING && state != States.AWAITING_ACK)
       return;
+      */
     if (future.isCancelled ())
       {
-        // someone cancelled our connect or write
-        assert (future == connectFuture ||  future == writeFuture);
+        // someone cancelled our connect, write or ssl handshake
+        assert (future == connectFuture ||  future == writeFuture || future == sslHandshakeFuture);
         if (DEBUG){
-        System.err.printf ("%s: future cancelled %s (%s)\n", this, future);
+        System.err.printf ("%s: future cancelled %s\n", this, future);
         System.err.flush ();
         }
         transition (States.CONNECT_CANCELLED);
@@ -389,8 +417,8 @@ public class ClientHandshakeHandler
       {
         Throwable cause = future.cause ();
 
-        // our connect or write failed :-(
-        assert (future == connectFuture || future == writeFuture);
+        // our connect, write or ssl handshake failed :-(
+        assert (future == connectFuture || future == writeFuture || future == sslHandshakeFuture);
         transition (States.CONNECT_FAILURE);
         failureCause = cause;
         if (cause instanceof java.net.ConnectException
@@ -403,6 +431,8 @@ public class ClientHandshakeHandler
         System.err.flush ();
         }
       }
+    // for the remaining arms we are done with the future, its completed
+    // before our watchdog timeout...
     else if (state == States.CONNECTING)
       {
         assert (future == connectFuture);
@@ -427,17 +457,17 @@ public class ClientHandshakeHandler
         }
       }
     else if (state == States.AWAITING_ACK)
-    {
-      assert (channel != null);
-      assert (future == writeFuture);
-      // our INFO/CONNECT succeeded...
-      // replace all the pipeline with whatever the user wants...
-      transition (States.HANDSHAKE_COMPLETE);
-      if (DEBUG) {
-        System.err.println ("HANDSHAKE DONE @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
-        System.err.flush ();
+      {
+        assert (channel != null);
+        assert (future == writeFuture);
+        // our INFO/CONNECT succeeded...
+        // replace all the pipeline with whatever the user wants...
+        transition (States.HANDSHAKE_COMPLETE);
+        if (DEBUG) {
+          System.err.println ("HANDSHAKE DONE @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+          System.err.flush ();
+        }
       }
-    }
     else
       {
         throw new IllegalStateException (String.format ("%s: unexpected future for state %s: %s",
@@ -468,6 +498,7 @@ public class ClientHandshakeHandler
       {
         clientInfo.user = userInfo.substring (0, split);
         clientInfo.pass = userInfo.substring (split + 1);
+
       }
     }
     clientInfo.verbose = options.verbose;
@@ -481,16 +512,14 @@ public class ClientHandshakeHandler
 
     if (options.secure)
       {
-        // FIXME: JAM: secure mode is still being tested...
-        // FIXME: JAM: still some issues in the handshake code...
         assert (sslHandler != null);
         transition (States.AWAITING_SSL_HANDSHAKE);
-        channel.pipeline ().addLast (sslHandler);
         (sslHandshakeFuture = sslHandler.handshakeFuture ()).addListener (this);
+        //channel.pipeline ().addLast (sslHandler);
+        channel.pipeline ().addFirst (sslHandler);
         if (DEBUG){
-          System.err.printf ("%s: starting ssl handshake... (%s)", this, sslHandshakeFuture);
+          System.err.printf ("%s: starting ssl handshake... (%s)\n", this, sslHandshakeFuture);
         }
-        transition (States.AWAITING_SSL_HANDSHAKE);
       }
     else
       {

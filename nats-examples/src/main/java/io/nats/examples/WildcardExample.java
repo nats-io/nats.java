@@ -4,8 +4,8 @@
 
 package io.nats.examples;
 
-import io.nats.Context;
 import io.nats.Connection;
+import io.nats.Context;
 import io.nats.Destination;
 import io.nats.MessageHandler;
 import io.nats.NatsException;
@@ -13,32 +13,30 @@ import io.nats.Subscription;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.CharsetUtil;
+import sun.nio.cs.US_ASCII;
 
 import java.util.concurrent.TimeUnit;
 
 /* Simple publishing example */
-public class Publisher
+public class WildcardExample
 {
-  static volatile int msgNum = 0;
+  private static volatile int msgNum = 0;
+  private static final String SUBSCRIBE_SUBJECT = "/device/>";
+  private static final String SUBSCRIBE_SUBJECT_FORMAT = "/device/%08X/connection";
 
   public static void main (String args[])
     throws Exception
     {
       try
 	{
-          boolean subscribe = false;
+          boolean subscribe = true;
           Context ctx = new io.nats.imp.Context ();
           Connection conn = ctx.connect ();
-          final int PAYLOAD_SIZE = 64;
-          final int NUMBER_TO_SEND = 1024;
-          final Destination subject = conn.destination (args.length >= 1 ? args[0] : "PublisherSubject");
-          final String body_string = args.length >= 2 ? args[1] : "Hello world";
+          final Destination subject = conn.destination (SUBSCRIBE_SUBJECT);
           final ByteBuf msg_body = ByteBufAllocator.DEFAULT.heapBuffer ();
 
-          msg_body.writeBytes (body_string.getBytes (CharsetUtil.US_ASCII));
-          { for (int i = msg_body.writerIndex (); i < PAYLOAD_SIZE; i++)
-            msg_body.writeByte ('#');
-          msg_body.readerIndex (0); }
+          msg_body.writeBytes ("something".getBytes (CharsetUtil.US_ASCII));
+          msg_body.readerIndex (0);
           final int MSG_SIZE = msg_body.readableBytes ();
 
 	  System.out.println ("connected to nats: " + conn);
@@ -52,16 +50,19 @@ public class Publisher
                                      Destination reply,
                                      ByteBuf body)
               {
-                  final int n = ++msgNum;
-                  assert (body.readableBytes () == MSG_SIZE);
-                //try { Thread.sleep (100);}catch(Exception ignore){}
+                final int n = ++msgNum;
+
+                System.out.printf ("%5s: received message on %s: %s\n",
+                                   n, subject, body.toString (CharsetUtil.US_ASCII));
+                System.out.flush ();
               }});
             }
 
           int i;
-          for (i = 0; i < NUMBER_TO_SEND; i++)
+          for (i = 0; i < 10; i++)
             {
-              conn.publish (subject, null, msg_body.duplicate ());
+              Destination dest = conn.destination (String.format (SUBSCRIBE_SUBJECT_FORMAT, i));
+              conn.publish (dest, null, msg_body.duplicate ());
             }
           if (!subscribe)
             {

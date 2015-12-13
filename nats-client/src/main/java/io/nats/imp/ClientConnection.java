@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class ClientConnection
   implements io.nats.Connection
 {
-  private final static boolean DEBUG = false;
+  private final static boolean DEBUG = true;
   private final static int SRV_POOL_SIZE = 16;
   private final static String INBOX_PREFIX = "_INBOX.";
   private static final int NUM_THREADS = Runtime.getRuntime ().availableProcessors () * 4;
