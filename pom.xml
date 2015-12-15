@@ -167,9 +167,28 @@
 						</goals>
 						<configuration>
 							<failOnError>true</failOnError>
+							<show>public</show>
+							<nohelp>true</nohelp>
+							<header>jnats ${project.version}</header>
+							<footer>jnats ${project.version}</footer>
+							<doctitle>jnats ${project.version}</doctitle>
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-scm-publish-plugin</artifactId>
+				<version>1.1</version>
+				<configuration>
+					<checkoutDirectory>${project.build.directory}/scmpublish</checkoutDirectory>
+					<checkinComment>Publishing javadoc for
+						${project.artifactId}:${project.version}</checkinComment>
+					<content>${project.reporting.outputDirectory}/apidocs</content>
+					<skipDeletedFiles>true</skipDeletedFiles>
+					<pubScmUrl>scm:git:git@github.com:nats-io/jnats.git</pubScmUrl>
+					<scmBranch>gh-pages</scmBranch> <!-- branch with static site -->
+				</configuration>
 			</plugin>
 		</plugins>
 		<pluginManagement>

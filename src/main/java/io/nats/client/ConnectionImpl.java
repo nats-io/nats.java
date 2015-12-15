@@ -566,7 +566,7 @@ final class ConnectionImpl implements Connection {
     }
 
 	protected void processExpectedInfo() throws ConnectionException {
-		ControlMsg c;
+		Control c;
 
 		try {
 			c = readOp();
@@ -1005,7 +1005,7 @@ final class ConnectionImpl implements Connection {
 		} 
 		finally {}
 
-		ControlMsg c;
+		Control c;
 		try {
 			c = readOp();
 		} catch (IOException e) {
@@ -1084,7 +1084,7 @@ final class ConnectionImpl implements Connection {
 		return result;
 	}
 
-	protected ControlMsg readOp() throws IOException {
+	protected Control readOp() throws IOException {
 		// This is only used when creating a connection, so simplify
 		// life and just create a stream reader to read the incoming
 		// info string. If this becomes part of the fastpath, read
@@ -1097,7 +1097,7 @@ final class ConnectionImpl implements Connection {
 
 		String s = br.readLine();
 		if (logger.isTraceEnabled()){ logger.trace("<= {}", s.trim());}
-		ControlMsg c = new ControlMsg(s);
+		Control c = new Control(s);
 		//		if (logger.isTraceEnabled())
 		//			logger.debug("readOp returning: " + c);
 		return c;
@@ -1172,11 +1172,14 @@ final class ConnectionImpl implements Connection {
 		}
 	}
 
-	protected class ControlMsg {
+	protected class Control {
 		String op = null;
 		String args = null;
 
-		protected ControlMsg(String s) {
+		protected Control(String s) {
+			if (s==null)
+				return;
+			
 			String[] parts = s.split(" ", 2);
 
 			switch (parts.length) {
@@ -1186,6 +1189,8 @@ final class ConnectionImpl implements Connection {
 			case 2:
 				op = parts[0].trim();
 				args = parts[1].trim();
+				if (args.isEmpty())
+					args=null;
 				break;
 			default:
 			}
@@ -1299,24 +1304,10 @@ final class ConnectionImpl implements Connection {
 		}
 
 		/**
-		 * @param id the id to set
-		 */
-		void setId(String id) {
-			this.id = id;
-		}
-
-		/**
 		 * @return the host
 		 */
 		String getHost() {
 			return host;
-		}
-
-		/**
-		 * @param host the host to set
-		 */
-		void setHost(String host) {
-			this.host = host;
 		}
 
 		/**
@@ -1327,24 +1318,10 @@ final class ConnectionImpl implements Connection {
 		}
 
 		/**
-		 * @param port the port to set
-		 */
-		void setPort(int port) {
-			this.port = port;
-		}
-
-		/**
-		 * @return the version
+		 * @return the gnatsd server version
 		 */
 		String getVersion() {
 			return version;
-		}
-
-		/**
-		 * @param version the version to set
-		 */
-		void setVersion(String version) {
-			this.version = version;
 		}
 
 		/**
@@ -1355,13 +1332,6 @@ final class ConnectionImpl implements Connection {
 		}
 
 		/**
-		 * @param authRequired the authRequired to set
-		 */
-		void setAuthRequired(boolean authRequired) {
-			this.authRequired = authRequired;
-		}
-
-		/**
 		 * @return the tlsRequired
 		 */
 		boolean isSslRequired() {
@@ -1369,24 +1339,10 @@ final class ConnectionImpl implements Connection {
 		}
 
 		/**
-		 * @param tlsRequired the tlsRequired to set
-		 */
-		void setSslRequired(boolean sslRequired) {
-			this.tlsRequired = sslRequired;
-		}
-
-		/**
 		 * @return the maxPayload
 		 */
 		long getMaxPayload() {
 			return maxPayload;
-		}
-
-		/**
-		 * @param maxPayload the maxPayload to set
-		 */
-		void setMaxPayload(long maxPayload) {
-			this.maxPayload = maxPayload;
 		}
 
 		/**
@@ -2155,27 +2111,27 @@ final class ConnectionImpl implements Connection {
 	}
 
 
-	// Roll our own fast conversion - we know it's the right
-	// encoding. 
-	char[] convertToStrBuf = new char[MAX_CONTROL_LINE_SIZE];
-
-	// Caller must ensure thread safety.
-	private String convertToString(byte[] buffer, int length)
-	{
-		// expand if necessary
-		if (length > convertToStrBuf.length)
-		{
-			convertToStrBuf = new char[length];
-		}
-
-		for (int i = 0; i < length; i++)
-		{
-			convertToStrBuf[i] = (char)buffer[i];
-		}
-
-		// This is the copy operation for msg arg strings.
-		return new String(convertToStrBuf, 0, (int)length);
-	}
+//	// Roll our own fast conversion - we know it's the right
+//	// encoding. 
+//	char[] convertToStrBuf = new char[MAX_CONTROL_LINE_SIZE];
+//
+//	// Caller must ensure thread safety.
+//	private String convertToString(byte[] buffer, int length)
+//	{
+//		// expand if necessary
+//		if (length > convertToStrBuf.length)
+//		{
+//			convertToStrBuf = new char[length];
+//		}
+//
+//		for (int i = 0; i < length; i++)
+//		{
+//			convertToStrBuf[i] = (char)buffer[i];
+//		}
+//
+//		// This is the copy operation for msg arg strings.
+//		return new String(convertToStrBuf, 0, (int)length);
+//	}
 
 
 	// publish is the internal function to publish messages to a gnatsd.

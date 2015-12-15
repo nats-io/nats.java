@@ -3,6 +3,10 @@ package io.nats.client;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -262,7 +266,7 @@ public class ClusterTest {
 		//}
 	}
 
-	private class SimClient
+	private class SimClient implements Runnable
 	{
 		Connection c;
 		final Object mu = new Object();
@@ -312,64 +316,76 @@ public class ClusterTest {
 		{
 			c.close();
 		}
-	}
+
+		@Override
+		public void run() {
+			connect(testServers);
+			waitForReconnect();
+		}
+	} //SimClient
 
 
-	//	//[TestMethod]
-	//	public void TestHotSpotReconnect()
-	//	{
-	//		int numClients = 10;
-	//		SimClient[] clients = new SimClient[100];
-	//
-	//		Options opts = ConnectionFactory.GetDefaultOptions();
-	//		opts.Servers = testServers;
-	//
-	//		NATSServer s1 = utils.CreateServerOnPort(1222);
-	//		Task[] waitgroup = new Task[numClients];
-	//
-	//
-	//		for (int i = 0; i < numClients; i++)
-	//		{
-	//			clients[i] = new SimClient();
-	//			Task t = new Task(() => {
-	//				clients[i].Connect(testServers); 
-	//				clients[i].waitForReconnect();
-	//			});
-	//			t.Start();
-	//			waitgroup[i] = t;
-	//		}
-	//
-	//
-	//		NATSServer s2 = utils.CreateServerOnPort(1224);
-	//		NATSServer s3 = utils.CreateServerOnPort(1226);
-	//
-	//		s1.Shutdown();
-	//		Task.WaitAll(waitgroup);
-	//
-	//		int s2Count = 0;
-	//		int s3Count = 0;
-	//		int unknown = 0;
-	//
-	//		for (int i = 0; i < numClients; i++)
-	//		{
-	//			if (testServers[3].Equals(clients[i].ConnectedUrl))
-	//				s2Count++;
-	//			else if (testServers[5].Equals(clients[i].ConnectedUrl))
-	//				s3Count++;
-	//			else
-	//				unknown++;
-	//		}
-	//
-	//		Assert.IsTrue(unknown == 0);
-	//		int delta = Math.Abs(s2Count - s3Count);
-	//		int range = numClients / 30;
-	//		if (delta > range)
-	//		{
-	//			Assert.Fail("Connected clients to servers out of range: {0}/{1}", delta, range);
-	//		}
-	//
-	//	}
-	//
+//	@Test
+//	public void TestHotSpotReconnect()
+//	{
+//		ExecutorService executor = 
+//				Executors.newCachedThreadPool(
+//						new NATSThreadFactory("testhotspotreconnect"));
+//		int numClients = 10;
+//		List<SimClient> clients = new ArrayList<SimClient>();
+//
+//		ConnectionFactory cf = new ConnectionFactory();
+//		cf.setServers(testServers);
+//
+//		NATSServer s1 = utils.createServerOnPort(1222);
+//		WaitGroup wg = new WaitGroup();
+//
+//
+//		for (int i = 0; i < numClients; i++)
+//		{
+//			SimClient client = new SimClient();
+//			executor.execute(client);
+//			clients.add(client);
+//			wg.add(1);
+//		}
+//
+//
+//		NATSServer s2 = utils.createServerOnPort(1224);
+//		NATSServer s3 = utils.createServerOnPort(1226);
+//
+//		s1.shutdown();
+//		try { wg.await(); } catch (InterruptedException e) {}
+//
+//		int s2Count = 0;
+//		int s3Count = 0;
+//		int unknown = 0;
+//
+//		for (int i = 0; i < numClients; i++)
+//		{
+//			if (testServers[2].equals(clients.get(i).getConnectedUrl()))
+//				s2Count++;
+//			else if (testServers[4].equals(clients.get(i).getConnectedUrl()))
+//				s3Count++;
+//			else
+//				unknown++;
+//		}
+//
+//		s2.shutdown();
+//		s3.shutdown();
+//
+//		assertTrue(unknown == 0);
+//		int delta = Math.abs(s2Count - s3Count);
+//		int range = numClients / 30;
+//		if (delta > range)
+//		{
+//			String s = String.format("Connected clients to servers out of range: %d/%d", 
+//					delta, range);
+//			fail(s);
+//		}
+//
+//
+//	}
+
 	//	[TestMethod]
 	//			public void TestProperReconnectDelay()
 	//	{
@@ -598,4 +614,27 @@ public class ClusterTest {
 	//			}
 	//		}
 	//	}
+
+	public class WaitGroup {
+
+		private int jobs = 0;
+
+		public synchronized void add(int i) {
+			jobs += i;
+		}
+
+		public synchronized void done() {
+			if (--jobs == 0) {
+				notifyAll();
+			}
+		}
+
+		public synchronized void await() throws InterruptedException {
+			while (jobs > 0) {
+				wait();
+			}
+		}
+
+	}
+
 }
