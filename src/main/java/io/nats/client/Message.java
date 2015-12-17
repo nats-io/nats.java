@@ -23,7 +23,7 @@ public final class Message {
 
 	}
 	
-	protected Message(String subject, String reply, byte[] data)
+	public Message(String subject, String reply, byte[] data)
     {
         if (subject==null || subject.trim().length()==0)
         {
