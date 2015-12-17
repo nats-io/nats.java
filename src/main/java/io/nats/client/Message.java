@@ -15,7 +15,7 @@ public final class Message {
 	private byte[] data;  
 	protected SubscriptionImpl sub;
 
-	protected Message() {
+	public Message() {
         this.subject = null;
         this.replyTo = null;
         this.data    = null;
@@ -36,7 +36,7 @@ public final class Message {
         this.data = data;
     }
 	
-	public Message(MsgArg msgArgs, SubscriptionImpl sub, byte[] msg, long length) {
+	protected Message(MsgArg msgArgs, SubscriptionImpl sub, byte[] msg, long length) {
 		this.subject = msgArgs.subject;
 		this.replyTo = msgArgs.reply;
 		this.sub = sub;
