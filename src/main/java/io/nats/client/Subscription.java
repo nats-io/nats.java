@@ -9,7 +9,7 @@ import java.io.IOException;
  * @author larry
  *
  */
-public interface Subscription {
+public interface Subscription extends AutoCloseable {
  
 	/*
 	 * Retrieves the subject of interest from the AsyncSubscriptionImpl object.

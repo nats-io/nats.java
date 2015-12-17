@@ -177,7 +177,7 @@ public class ConnectionTest {
 			}
 
 			failed=true;
-			try { c.publish(new MessageImpl("foo", null, null)); 
+			try { c.publish(new Message("foo", null, null)); 
 			} catch (Exception e) {
 				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
 				failed=false;

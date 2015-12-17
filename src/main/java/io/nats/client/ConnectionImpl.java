@@ -36,7 +36,7 @@ import static io.nats.client.Constants.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class ConnectionImpl implements Connection {
+final class ConnectionImpl implements Connection, AutoCloseable {
 	final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
 
 	String version = null;
@@ -82,7 +82,7 @@ final class ConnectionImpl implements Connection {
 	public static final String _PONG_OP_ = "PONG";
 	public static final String _INFO_OP_ = "INFO";
 
-	// MessageImpl Prototypes
+	// Message Prototypes
 	public static final String CONN_PROTO = "CONNECT %s" + _CRLF_;
 	public static final String PING_PROTO = "PING" + _CRLF_;
 	public static final String PONG_PROTO = "PONG" + _CRLF_;
@@ -311,7 +311,7 @@ final class ConnectionImpl implements Connection {
 					mu.unlock();
 				}
 			} catch (Exception e) {
-				if (logger.isDebugEnabled()){ logger.debug("{} Exception: {}", this.url, e.getMessage());}
+				logger.debug("{} Exception: {}", this.url, e.getMessage());
 //				e.printStackTrace();
 				lastEx = e;
 				close(ConnState.DISCONNECTED, false);
@@ -383,8 +383,7 @@ final class ConnectionImpl implements Connection {
 			{
 				if (ch != null) {
 					ch.add(true);
-					if (logger.isDebugEnabled()) 
-						logger.debug("Cleared PONG");
+					logger.debug("Cleared PONG");
 				}
 			}
 
@@ -405,8 +404,7 @@ final class ConnectionImpl implements Connection {
 	// function. This function will handle the locking manually.
 	private void close(ConnState closeState, boolean invokeDelegates)
 	{
-		if (logger.isDebugEnabled())
-			logger.debug("close({}, {})", closeState, String.valueOf(invokeDelegates));
+		logger.debug("close({}, {})", closeState, String.valueOf(invokeDelegates));
 		DisconnectedEventHandler disconnectedEventHandler = null;
 		ClosedEventHandler closedEventHandler = null;
 
@@ -609,8 +607,7 @@ final class ConnectionImpl implements Connection {
 	// messages. We use pings for the flush mechanism as well.
 	protected void processPong()
 	{
-		if (logger.isDebugEnabled())
-			logger.debug("Processing PONG");
+		logger.debug("Processing PONG");
 		Channel<Boolean> ch = new Channel<Boolean>(1);
 		mu.lock();
 		try {
@@ -622,8 +619,7 @@ final class ConnectionImpl implements Connection {
 			if (ch != null)
 			{
 				ch.add(true);
-				if (logger.isDebugEnabled())
-					logger.debug("Processed PONG");
+				logger.debug("Processed PONG");
 			}
 		} finally {
 			mu.unlock();
@@ -994,9 +990,9 @@ final class ConnectionImpl implements Connection {
 	{
 		try {
 			bw.write(Utilities.stringToBytesASCII(connectProto()));
-			if (logger.isTraceEnabled()){ logger.trace("=> {}", connectProto().trim());}
+			logger.trace("=> {}", connectProto().trim());
 			bw.write(pingProtoBytes, 0, pingProtoBytesLen);
-			if (logger.isTraceEnabled()){ logger.trace("=> {}", new String(pingProtoBytes).trim());}
+			logger.trace("=> {}", new String(pingProtoBytes).trim());
 			bw.flush();
 		} 
 		catch (IOException e) {
@@ -1049,7 +1045,7 @@ final class ConnectionImpl implements Connection {
 		mu.lock();
 		try {
 			bw.write(value, 0, length);
-			if (logger.isTraceEnabled()) {logger.trace("=> {}", new String(value).trim() );}
+			logger.trace("=> {}", new String(value).trim() );
 			kickFlusher();
 		} finally {
 			mu.unlock();
@@ -1096,7 +1092,7 @@ final class ConnectionImpl implements Connection {
 		BufferedReader br = new BufferedReader(is);
 
 		String s = br.readLine();
-		if (logger.isTraceEnabled()){ logger.trace("<= {}", s.trim());}
+		logger.trace("<= {}", s.trim());
 		Control c = new Control(s);
 		//		if (logger.isTraceEnabled())
 		//			logger.debug("readOp returning: " + c);
@@ -1441,7 +1437,7 @@ final class ConnectionImpl implements Connection {
 	protected void deliverMsgs(Channel<Message> ch)
 	{
 		//		logger.debug("In deliverMsgs");
-		MessageImpl m = null;
+		Message m = null;
 
 		while (true)
 		{
@@ -1456,7 +1452,7 @@ final class ConnectionImpl implements Connection {
 
 			try {
 				logger.debug("Calling ch.get(-1)...");
-				m = (MessageImpl)ch.get(-1);
+				m = (Message)ch.get(-1);
 				logger.debug("ch.get(-1) returned " + m);
 			} catch (TimeoutException e) {
 				// TODO Auto-generated catch block
@@ -1520,7 +1516,7 @@ final class ConnectionImpl implements Connection {
 
 		if (msgArgs.size < 0)
 		{
-			throw new ParserException("Invalid MessageImpl - Bad or Missing Size: " + s);
+			throw new ParserException("Invalid Message - Bad or Missing Size: " + s);
 		}
 	}
 
@@ -1531,8 +1527,7 @@ final class ConnectionImpl implements Connection {
 	protected void processMsg(byte[] msg, long length)
 	{
 		//		logger.info("In ConnectionImpl.processMsg(), msg length = {}. msg bytes = {}", length, msg);
-		if (logger.isDebugEnabled())
-			logger.debug("Entered processMsg()");
+		logger.debug("Entered processMsg()");
 
 		boolean maxReached = false;
 
@@ -1551,9 +1546,8 @@ final class ConnectionImpl implements Connection {
 			try
 			{
 				s =  subs.get(msgArgs.sid);
-				if (logger.isDebugEnabled())
-					logger.debug("\tfound subscription sid:" + s.getSid() 
-					+ " subj: " + s.getSubject() );
+				logger.debug("\tfound subscription sid: {} subj: {}",
+						s.getSid(), s.getSubject() );
 
 			}
 			catch (Exception e)
@@ -1569,18 +1563,14 @@ final class ConnectionImpl implements Connection {
 				maxReached = s.tallyMessage(length);
 				if (maxReached == false)
 				{
-					if (logger.isDebugEnabled())
-						logger.debug("\tcreating message of length {}", length);
-					Message m = new MessageImpl(msgArgs, s, msg, length);
-					if (logger.isDebugEnabled())
-						logger.debug("\tcreated message:{} (length:{})", m, m.getData().length);
+					Message m = new Message(msgArgs, s, msg, length);
+					logger.debug("\tcreated message:{} (length:{})", m, m.getData().length);
 					if (!s.addMessage(m, opts.getSubChanLen()))
 					{
 						processSlowConsumer(s);
 					}
 					else {
-						if (logger.isDebugEnabled())
-							logger.debug("\tadded message to channel: " + m);
+						logger.debug("\tadded message to channel: " + m);
 					}
 				} // maxreached == false
 
@@ -1603,21 +1593,15 @@ final class ConnectionImpl implements Connection {
 		if (subs.containsKey(key))
 		{
 			subs.remove(key);
-			if (logger.isDebugEnabled())
-			{
-				logger.debug("Removed sid=" + s.getSid() + " subj="
-						+ s.getSubject());
-			}
+			logger.debug("Removed sid={} subj={}", 
+					s.getSid(), s.getSubject());
 		}
 		SubscriptionImpl sub = (SubscriptionImpl) s;
 
 		if (sub.mch != null)
 		{
-			if (logger.isDebugEnabled())
-			{
-				logger.debug("Closed sid=" + s.getSid() + " subj="
-						+ s.getSubject());
-			}
+			logger.debug("Closed sid={} subj={}", s.getSid(), 
+					s.getSubject());
 			sub.mch.close();
 			sub.mch = null;
 		}
@@ -1654,8 +1638,8 @@ final class ConnectionImpl implements Connection {
 				pout++;
 				if (pout <= opts.getMaxPingsOut())
 				{
-					if (logger.isDebugEnabled()) { logger.debug("Sending PING after "+ 
-							TimeUnit.MILLISECONDS.toSeconds(opts.getPingInterval()) + " seconds.");}
+					logger.debug("Sending PING after {} seconds.",  
+							TimeUnit.MILLISECONDS.toSeconds(opts.getPingInterval()));
 					sendPing(null);
 					return;
 				}
@@ -1710,7 +1694,7 @@ final class ConnectionImpl implements Connection {
 
 		try {
 			bw.write(pingProtoBytes, 0, pingProtoBytesLen);
-			if (logger.isTraceEnabled()) {logger.trace("=> {}", new String(pingProtoBytes).trim() );}
+			logger.trace("=> {}", new String(pingProtoBytes).trim() );
 			bw.flush();
 		} catch (IOException e) {
 			logger.error("Could not send PING", e);
@@ -1750,7 +1734,7 @@ final class ConnectionImpl implements Connection {
 				String str = String.format(UNSUB_PROTO, s.getSid(), max);
 				byte[] unsub = str.getBytes(Charset.forName("UTF-8"));
 				bw.write(unsub);
-				if (logger.isTraceEnabled()) {logger.trace("=> {}", str.trim() );}
+				logger.trace("=> {}", str.trim() );
 			}
 
 		} finally {
@@ -2043,11 +2027,10 @@ final class ConnectionImpl implements Connection {
 	private void addSubscription(SubscriptionImpl s) {
 		s.setSid(sidCounter.incrementAndGet());
 		subs.put(s.getSid(), s);
-		if (logger.isDebugEnabled())
-			logger.debug("Successfully added subscription to " 
-					+ s.getSubject() + "[" + s.getSid() + "]");
-		if (logger.isDebugEnabled())
-			printSubs(this);
+		logger.debug("Successfully added subscription to {} [{}]", 
+				s.getSubject(), s.getSid());
+//		if (logger.isDebugEnabled())
+//			printSubs(this);
 	}
 
 	@Override
@@ -2187,12 +2170,12 @@ final class ConnectionImpl implements Connection {
 
 			try {
 				bw.write(pubProtoBuf, 0, pubProtoLen);
-				if (logger.isTraceEnabled()) {logger.trace("=> {}", new String(pubProtoBuf).trim() );}
+				logger.trace("=> {}", new String(pubProtoBuf).trim() );
 
 				if (msgSize > 0)
 				{
 					bw.write(data, 0, msgSize);
-					if (logger.isTraceEnabled()) {logger.trace("=> {}", new String(data, 0, msgSize).trim() );}
+					logger.trace("=> {}", new String(data, 0, msgSize).trim() );
 				}
 
 				bw.write(crlfProtoBytes, 0, crlfProtoBytesLen);
@@ -2250,12 +2233,8 @@ final class ConnectionImpl implements Connection {
 	@Override
 	public Message request(String subject, byte[] data, long timeout) 
 			throws TimeoutException, IOException {
-		if (logger.isDebugEnabled()) {
-			String ds = null;
-			if (data != null)
-				ds = new String(data);
-			logger.debug("#########In request({},{},{})", subject, ds, timeout);
-		}
+		logger.debug("#########In request({},{},{})", subject, 
+				data==null?"null":new String(data), timeout);
 		if (timeout <= 0)
 		{
 			throw new IllegalArgumentException(
@@ -2312,7 +2291,7 @@ final class ConnectionImpl implements Connection {
 						sub.getQueue(), sub.getSid());
 				try {
 					bw.write(Utilities.stringToBytesASCII(s));
-					if (logger.isTraceEnabled()) {logger.trace("=> {}", s.trim() );}
+					logger.trace("=> {}", s.trim() );
 					kickFlusher();
 				} catch (IOException e) {
 				}
@@ -2386,13 +2365,13 @@ final class ConnectionImpl implements Connection {
 		this.exceptionHandler = exceptionHandler;
 	}
 
-	static void printSubs(ConnectionImpl c) {
-		c.logger.debug("SUBS:");
-		for (long key : c.subs.keySet())
-		{
-			c.logger.debug("\tkey: " + key + " value: " + c.subs.get(key));
-		}
-	}
+//	static void printSubs(ConnectionImpl c) {
+//		c.logger.debug("SUBS:");
+//		for (long key : c.subs.keySet())
+//		{
+//			c.logger.debug("\tkey: " + key + " value: " + c.subs.get(key));
+//		}
+//	}
 
 	@Override
 	public String getConnectedUrl()

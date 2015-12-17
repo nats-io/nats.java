@@ -140,24 +140,24 @@ class TCPConnection {
 		return rv;
 	}
 
-	class TraceEnabledBufferedOutputStream  extends BufferedOutputStream {
-
-		public TraceEnabledBufferedOutputStream(OutputStream out) {
-			super(out);
-		}
-		public TraceEnabledBufferedOutputStream(OutputStream out, int size) {
-			super(out, size);
-		}		
-	}
-
-	class TraceEnabledBufferedInputStream  extends BufferedInputStream {
-		public TraceEnabledBufferedInputStream(InputStream in) {
-			super(in);
-		}
-		public TraceEnabledBufferedInputStream(InputStream in, int size) {
-			super(in, size);
-		}		
-	}
+//	class TraceEnabledBufferedOutputStream  extends BufferedOutputStream {
+//
+//		public TraceEnabledBufferedOutputStream(OutputStream out) {
+//			super(out);
+//		}
+//		public TraceEnabledBufferedOutputStream(OutputStream out, int size) {
+//			super(out, size);
+//		}		
+//	}
+//
+//	class TraceEnabledBufferedInputStream  extends BufferedInputStream {
+//		public TraceEnabledBufferedInputStream(InputStream in) {
+//			super(in);
+//		}
+//		public TraceEnabledBufferedInputStream(InputStream in, int size) {
+//			super(in, size);
+//		}		
+//	}
 
 	/**
 	 * Set the socket factory used to make connections with. Can be

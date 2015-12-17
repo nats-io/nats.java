@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract class SubscriptionImpl implements Subscription {
+abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 
 	protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -92,23 +92,20 @@ abstract class SubscriptionImpl implements Subscription {
 	// to the channel.
 	boolean addMessage(Message m, int maxCount)
 	{
-		if (logger.isDebugEnabled())
-			logger.debug("Entered addMessage({}, maxCount={}",m,maxCount);
+		logger.debug("Entered addMessage({}, maxCount={}", m, maxCount);
 		if (mch != null)
 		{
 			if (mch.getCount() >= maxCount)
 			{
-				if (logger.isDebugEnabled())
-					logger.debug("MAXIMUM COUNT " + maxCount 
-							+ " REACHED for sid:" + getSid());
+				logger.debug("MAXIMUM COUNT ({}) REACHED FOR SID: {}",
+						maxCount, getSid());
 				return false;
 			}
 			else
 			{
 				sc = false;
 				mch.add(m);
-				if (logger.isDebugEnabled())
-					logger.debug("Added message to channel: " + m);
+				logger.debug("Added message to channel: " + m);
 			}
 		} // mch != null
 		return true;
@@ -141,6 +138,16 @@ abstract class SubscriptionImpl implements Subscription {
 			throw new ConnectionClosedException("Not connected.");
 
 		c.unsubscribe(this, 0);
+	}
+	
+	
+	@Override 
+	public void close() {
+		try {
+			unsubscribe();
+		} catch (IllegalStateException | IOException e) {
+			// Just ignore. This is for AutoCloseable.
+		}
 	}
 
 	public int queuedMsgs() {

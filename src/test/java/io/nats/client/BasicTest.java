@@ -40,12 +40,12 @@ public class BasicTest {
 
 	@Before
 	public void setUp() throws Exception {
-//		utils.startDefaultServer();
+		//		utils.startDefaultServer();
 	}
 
 	@After
 	public void tearDown() throws Exception {
-//		utils.stopDefaultServer();
+		//		utils.stopDefaultServer();
 	}
 
 	@Test
@@ -143,61 +143,61 @@ public class BasicTest {
 
 	final byte[] omsg = "Hello World".getBytes();
 	final Object mu = new Object();
-	AsyncSubscription asyncSub = null;
 	boolean received = false;
 
 	@Test
 	public void testAsyncSubscribe() throws Exception
 	{
-		Connection c = new ConnectionFactory().createConnection();
-		AsyncSubscription s = c.subscribeAsync("foo", new CheckReceivedAndValidHandler());
-		asyncSub = s;
-		s.start();
-
-		synchronized(mu) 
+		try (Connection c = new ConnectionFactory().createConnection())
 		{
-			received = false;
-			c.publish("foo", omsg);
-			c.flush();
-			mu.wait(30000);
-			//				Monitor.Wait(mu, 30000);
-		}
+			AsyncSubscription s = c.subscribe("foo", 
+					new MessageHandler() {
+				@Override
+				public void onMessage(Message msg) {
+					if (compare(msg.getData(), omsg) == false)
+						fail("Messages are not equal.");
 
-		assertTrue("Did not receive message.", received);
-		c.close();
-	}
+					if (msg.getSubscription() == null)
+						fail("Subscriptions do not match.");
 
-	private class CheckReceivedAndValidHandler implements MessageHandler
-	{
+					synchronized(mu)
+					{
+						received = true;
+						mu.notify();
+					}
+				}
 
-		@Override
-		public void onMessage(Message msg) {
-			if (compare(msg.getData(), omsg) == false)
-				fail("Messages are not equal.");
+			});
 
-			if (msg.getSubscription() != asyncSub)
-				fail("Subscriptions do not match.");
-
-			synchronized(mu)
+			synchronized(mu) 
 			{
-				received = true;
-				mu.notify();
+				received = false;
+				c.publish("foo", omsg);
+				c.flush();
+				mu.wait(30000);
+				//				Monitor.Wait(mu, 30000);
 			}
+
+			assertTrue("Did not receive message.", received);
 		}
+		//		c.close();
 	}
 
 	@Test
 	public void testSyncSubscribe() throws IOException, TimeoutException
 	{
+		int timeoutMsec = 3000;
 		Connection c = new ConnectionFactory().createConnection();
 		SyncSubscription s = c.subscribeSync("foo");
 		c.publish("foo", omsg);
 		try {
-		Message m = s.nextMessage(3000);
-		assertTrue("Messages are not equal.", compare(omsg, m));
+			Message m = s.nextMessage(timeoutMsec);
+			assertTrue("Messages are not equal.", compare(omsg, m));
 		} catch (IOException e) {
 			throw e;
 		} catch (TimeoutException e) {
+			fail("Timed out. Should have received a message within " +
+					timeoutMsec + "msec");
 			throw e;
 		} finally {
 			c.close();
@@ -457,7 +457,7 @@ public class BasicTest {
 			}
 		});
 		s.start();
-		
+
 		final byte[] request = "help".getBytes();
 		Message m = c.request("foo", request, 5000);
 

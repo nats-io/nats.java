@@ -2,32 +2,20 @@ package io.nats.client;
 
 import static org.junit.Assert.*;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringReader;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.Certificate;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.xml.bind.DatatypeConverter;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -60,42 +48,91 @@ public class TLSTest {
 	}
 
 
-//	@Test
-	public void testTlsSuccessWithCert() throws NoSuchAlgorithmException, 
-	CertificateException, FileNotFoundException, IOException, 
-	KeyStoreException, KeyManagementException, TimeoutException, UnrecoverableKeyException {
-		NATSServer srv = util.createServerWithConfig("tls_1222_verify.conf");
-		try {Thread.sleep(2000);} catch (InterruptedException e) {}
+	@Test
+	public void testTlsSuccessWithCert() throws Exception {
+		try (NATSServer srv = util.createServerWithConfig("tls_1222_verify.conf")) {
+			try {Thread.sleep(2000);} catch (InterruptedException e) {}
+			ClassLoader classLoader = getClass().getClassLoader();
+
+			final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+
+			final char[] keyPassPhrase = "password".toCharArray();
+			final KeyStore ks = KeyStore.getInstance("JKS");
+			ks.load(classLoader.getResourceAsStream("keystore.jks"), keyPassPhrase);
+			assertNotNull(kmf);
+			kmf.init(ks, keyPassPhrase);
+
+			final char[] trustPassPhrase = "password".toCharArray();
+			final KeyStore tks = KeyStore.getInstance("JKS");
+			tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
+			final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+			assertNotNull(tmf);
+			tmf.init(tks);
+
+			SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+			assertNotNull(c);
+			c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+			ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
+			cf.setSecure(true);
+			cf.setSslContext(c);
+
+			try (Connection connection = cf.createConnection()) {
+				assertFalse(connection.isClosed());
+
+				connection.publish("foo", "Hello".getBytes());
+				connection.close();
+			} finally {
+				srv.shutdown();
+			}
+		} catch (Exception e1) {
+			e1.printStackTrace();
+			throw(e1);
+		}
+	}
+
+	@Test
+	public void testTlsSuccessSecureConnect() throws Exception
+	{
 		ClassLoader classLoader = getClass().getClassLoader();
 
-		final char[] keyPassPhrase = "password".toCharArray();
-		final KeyStore ks = KeyStore.getInstance("JKS");
-		ks.load(classLoader.getResourceAsStream("keystore.jks"), keyPassPhrase);
-		final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-		assertNotNull(kmf);
-		kmf.init(ks, keyPassPhrase);
+		try (NATSServer srv = util.createServerWithConfig("tls_1222.conf"))
+		{
+			try {Thread.sleep(2000);} catch (InterruptedException e) {}
 
-		final char[] trustPassPhrase = "password".toCharArray();
-		final KeyStore tks = KeyStore.getInstance("JKS");
-		tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
-		final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-		assertNotNull(tmf);
-		tmf.init(tks);
+			final char[] trustPassPhrase = "password".toCharArray();
+			final KeyStore tks = KeyStore.getInstance("JKS");
+			tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
+			final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+			assertNotNull(tmf);
+			tmf.init(tks);
 
-		SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
-		assertNotNull(c);
-		c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+			SSLContext context = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+			assertNotNull(context);
+			context.init(null, tmf.getTrustManagers(), new SecureRandom());
 
-		ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
-		cf.setSecure(true);
-		cf.setSslContext(c);
+			// we can't call create secure connection w/ the certs setup as they are
+			// so we'll override the 
+			ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
+			cf.setSecure(true);
+			cf.setSslContext(context);
 
-		Connection connection = cf.createConnection();
-		assertFalse(connection.isClosed());
-		
-		connection.publish("foo", "Hello".getBytes());
-		connection.close();
-		srv.shutdown();
-
+			try (Connection c = cf.createConnection())
+			{
+				try (SyncSubscription s = c.subscribeSync("foo"))
+				{
+					c.publish("foo", null);
+					c.flush();
+					Message m = s.nextMessage();
+					System.out.println("Received msg over TLS conn.");
+				} catch (Exception e) {
+					fail(e.getMessage());
+				}
+			} catch (IOException | TimeoutException e) {
+				fail(e.getMessage());
+			} finally {
+				srv.shutdown();
+			}
+		} 
 	}
 }

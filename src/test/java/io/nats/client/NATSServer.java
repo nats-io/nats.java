@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-class NATSServer implements Runnable
+class NATSServer implements Runnable, AutoCloseable
 {
 	final static String GNATSD = "gnatsd";
     // Enable this for additional server debugging info.
@@ -113,6 +113,12 @@ class NATSServer implements Runnable
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
+		
+	}
+
+
+	@Override
+	public void close() throws Exception {
 		
 	}
 }

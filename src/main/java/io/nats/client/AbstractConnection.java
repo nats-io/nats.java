@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 import static io.nats.client.Constants.*;
 
-interface AbstractConnection {
+interface AbstractConnection extends AutoCloseable {
     public String newInbox();
     
 	public void close();
