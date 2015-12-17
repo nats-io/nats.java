@@ -9,7 +9,7 @@ import java.util.Arrays;
  * @author Larry McQueary
  *
  */
-final class Message {
+public final class Message {
 	private String subject;
 	private String replyTo;
 	private byte[] data;  
