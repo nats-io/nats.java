@@ -12,6 +12,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -494,7 +497,12 @@ public class ReconnectTest {
 		int numSent = 0;
 		for (int i=0; i < numToSend; i++)
 		{
-			c.publish(subj, Integer.toString(i).getBytes());
+			try {
+				c.publish(subj, Integer.toString(i).getBytes());
+			} catch (IllegalStateException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			numSent++;
 		}
 		// Wait for processing
@@ -647,5 +655,55 @@ public class ReconnectTest {
 
 		ts.shutdown();
 	}
+	@Test
+	public void testDefaultReconnect() {
+		final Lock reconnectLock = new ReentrantLock();
+		final Condition reconnected = reconnectLock.newCondition();
+		
+		UnitTestUtilities.startDefaultServer();
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setMaxReconnect(4);
+//		try (Connection c = new ConnectionFactory().createConnection())
+		try (Connection c = cf.createConnection())
+		{
+			assertFalse(c.isClosed());
+			c.setReconnectedEventHandler(new ReconnectedEventHandler() {
 
+				@Override
+				public void onReconnect(ConnectionEvent event) {
+					reconnectLock.lock();
+					try {
+						System.out.println("Reconnected.");
+						reconnected.signal();
+					} finally {
+						reconnectLock.unlock();
+					}
+				}
+			});
+			
+			try {Thread.sleep(500);} catch (InterruptedException e) {}
+			reconnectLock.lock();
+			try {
+//				UnitTestUtilities.bounceDefaultServer(500);
+				UnitTestUtilities.stopDefaultServer();
+				System.out.println("Awaiting reconnect.");				
+				assertFalse(reconnected.await(3,TimeUnit.SECONDS));
+				assertTrue(c.getState()==ConnState.RECONNECTING);
+				while(c.getState()==ConnState.RECONNECTING) {
+//				while(true) {
+					try { Thread.sleep(5000);} catch (InterruptedException e) {}
+				}
+//				assertTrue(reconnected.await(3,TimeUnit.SECONDS));
+//				assertFalse(c.isClosed());
+			} catch (InterruptedException e) {
+			} finally {
+				reconnectLock.unlock();
+				UnitTestUtilities.stopDefaultServer();
+			}
+			
+		} catch (IOException | TimeoutException e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
 }

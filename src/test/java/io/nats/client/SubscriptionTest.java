@@ -365,98 +365,99 @@ public class SubscriptionTest {
 	}
 
 	@Test
-	public void testAsyncSubscriberStarvation() throws IllegalStateException, IOException, TimeoutException, Exception
+	public void testAsyncSubscriberStarvation() throws Exception
 	{
 		final Object waitCond = new Object();
 
-		final Connection c = new ConnectionFactory().createConnection();
-		AsyncSubscription helper = c.subscribeAsync("helper",
+		try (final Connection c = new ConnectionFactory().createConnection())
+		{
+			AsyncSubscription helper = c.subscribeAsync("helper",
+					new MessageHandler()
+			{
+				@Override
+				public void onMessage(Message msg) {
+					System.out.println("Helper");
+					c.publish(msg.getReplyTo(),
+							"Hello".getBytes(Charset.forName("UTF-8")));				
+				}
+			});
+
+			AsyncSubscription start = c.subscribeAsync("start", new MessageHandler()
+			{
+				@Override
+				public void onMessage(Message msg) {
+					System.out.println("Responder");
+					String responseIB = c.newInbox();
+					AsyncSubscription ia = c.subscribe(responseIB,
+							new MessageHandler()
+					{
+						@Override
+						public void onMessage(Message msg) {
+							System.out.println("Internal subscriber.");
+							synchronized(waitCond) { waitCond.notify(); }
+						}
+					});
+					c.publish("helper", responseIB,
+							"Help me!".getBytes(Charset.forName("UTF-8")));
+				}
+			});
+
+			c.publish("start", "Begin".getBytes(Charset.forName("UTF-8")));
+			c.flush();
+
+			synchronized(waitCond) 
+			{ 
+				long t0 = System.nanoTime();
+				waitCond.wait(2000);
+				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
+				assertTrue("Was stalled inside of callback waiting on another callback",
+						elapsed < 2000);
+			}
+		}
+	}
+
+	@Test
+	public void TestAsyncSubscribersOnClose() throws IllegalStateException, IOException, TimeoutException, Exception
+	{
+		/// basically tests if the subscriber sub channel gets
+		/// cleared on a close.
+		final Object waitCond = new Object();
+		final AtomicInteger callbacks = new AtomicInteger(0);
+
+		Connection c = new ConnectionFactory().createConnection();
+		AsyncSubscription s = c.subscribe("foo",
 				new MessageHandler()
 		{
 			@Override
 			public void onMessage(Message msg) {
-				System.out.println("Helper");
-				c.publish(msg.getReplyTo(),
-						"Hello".getBytes(Charset.forName("UTF-8")));				
-			}
-		});
-
-		AsyncSubscription start = c.subscribeAsync("start", new MessageHandler()
-		{
-			@Override
-			public void onMessage(Message msg) {
-				System.out.println("Responder");
-				String responseIB = c.newInbox();
-				AsyncSubscription ia = c.subscribe(responseIB,
-						new MessageHandler()
+				callbacks.getAndIncrement();
+				synchronized(waitCond)
 				{
-					@Override
-					public void onMessage(Message msg) {
-						System.out.println("Internal subscriber.");
-						synchronized(waitCond) { waitCond.notify(); }
-					}
-				});
-				c.publish("helper", responseIB,
-						"Help me!".getBytes(Charset.forName("UTF-8")));
+					try { waitCond.wait();} 
+					catch (InterruptedException e) {}
+				}							
 			}
 		});
 
-		c.publish("start", "Begin".getBytes(Charset.forName("UTF-8")));
+		for (int i = 0; i < 10; i++)
+		{
+			c.publish("foo", null);
+		}
 		c.flush();
 
-		synchronized(waitCond) 
-		{ 
-			long t0 = System.nanoTime();
-			waitCond.wait(2000);
-			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
-			assertTrue("Was stalled inside of callback waiting on another callback",
-					elapsed < 2000);
-		}
+		try {Thread.sleep(500);
+		} catch (InterruptedException e) {}
 		c.close();
-	}
 
-	    @Test
-	    public void TestAsyncSubscribersOnClose() throws IllegalStateException, IOException, TimeoutException, Exception
-	    {
-	        /// basically tests if the subscriber sub channel gets
-	        /// cleared on a close.
-	        final Object waitCond = new Object();
-	        final AtomicInteger callbacks = new AtomicInteger(0);
-	
-	        Connection c = new ConnectionFactory().createConnection();
-	            AsyncSubscription s = c.subscribe("foo",
-	                new MessageHandler()
-	                {
-						@Override
-						public void onMessage(Message msg) {
-		                    callbacks.getAndIncrement();
-		                    synchronized(waitCond)
-		                    {
-		                    	try { waitCond.wait();} 
-		                    	catch (InterruptedException e) {}
-		                    }							
-						}
-	                });
-	
-	                for (int i = 0; i < 10; i++)
-	                {
-	                    c.publish("foo", null);
-	                }
-	                c.flush();
-	
-	                try {Thread.sleep(500);
-					} catch (InterruptedException e) {}
-	                c.close();
-	
-	                synchronized(waitCond)
-	                {
-	                    waitCond.notify();;
-	                }
-	
-	                try {Thread.sleep(500);
-					} catch (InterruptedException e) {}
-	
-	                assertTrue(callbacks.get() == 1);
-	    }
+		synchronized(waitCond)
+		{
+			waitCond.notify();;
+		}
+
+		try {Thread.sleep(500);
+		} catch (InterruptedException e) {}
+
+		assertTrue(callbacks.get() == 1);
+	}
 
 }

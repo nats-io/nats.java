@@ -4,6 +4,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 import org.junit.Assert.*;
 import org.junit.Test;
@@ -138,5 +141,26 @@ public class UnitTestUtilities {
 		}
 		//Return the output from the command - may be null if an error occured
 		return output;
+	}
+
+	void getConnz()  {
+		URL url = null;
+		try {
+			url = new URL("http://localhost:8222/connz");
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream(), "UTF-8")))
+		{
+			for (String line; (line = reader.readLine()) != null;) {
+				System.out.println(line);
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+
 	}
 }

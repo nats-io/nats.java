@@ -2,7 +2,10 @@ package io.nats.client;
 
 import static org.junit.Assert.*;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,45 +55,49 @@ public class BasicTest {
 	public void testConnectedServer() throws IOException, TimeoutException
 	{
 
-		Connection c = new ConnectionFactory().createConnection();
+		try (Connection c = new ConnectionFactory().createConnection())
+		{
 
-		String u = c.getConnectedUrl();
+			String u = c.getConnectedUrl();
 
-		assertFalse(String.format("Invalid connected url %s.", u),
-				u == null || "".equals(u.trim()));
+			assertFalse(String.format("Invalid connected url %s.", u),
+					u == null || "".equals(u.trim()));
 
-		assertTrue(String.format("Invalid connected url %s.", u),
-				Constants.DEFAULT_URL.equals(u));
+			assertTrue(String.format("Invalid connected url %s.", u),
+					Constants.DEFAULT_URL.equals(u));
 
-		c.close();
-		u = c.getConnectedUrl();
+			c.close();
+			u = c.getConnectedUrl();
 
-		assertTrue("Url is not null after connection is closed.", u == null);
+			assertTrue("Url is not null after connection is closed.", u == null);
+		}
 
 	}
 
 	@Test
 	public void testMultipleClose() throws IOException, TimeoutException
 	{
-		final Connection c = new ConnectionFactory().createConnection();
-
-		List<Callable<Object>> todo = new ArrayList<Callable<Object>>(10);
-
-		for (int i = 0; i < 10; i++)
+		try (final Connection c = new ConnectionFactory().createConnection())
 		{
-			todo.add(Executors.callable(new Runnable() {
-				@Override 
-				public void run() {
-					c.close();
-				}
-			}));			
+
+			List<Callable<Object>> todo = new ArrayList<Callable<Object>>(10);
+
+			for (int i = 0; i < 10; i++)
+			{
+				todo.add(Executors.callable(new Runnable() {
+					@Override 
+					public void run() {
+						c.close();
+					}
+				}));			
+			}
+			try {
+				List<Future<Object>> answers = executor.invokeAll(todo);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			c.close();
 		}
-		try {
-			List<Future<Object>> answers = executor.invokeAll(todo);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		c.close();
 	}
 
 	@Test(expected=IllegalArgumentException.class)
@@ -104,18 +111,30 @@ public class BasicTest {
 	public void testSimplePublish() 
 			throws ConnectionClosedException, IOException, TimeoutException
 	{
-		Connection c = new ConnectionFactory().createConnection();
-		c.publish("foo", "Hello World!".getBytes());
-		c.close();
+		try (Connection c = new ConnectionFactory().createConnection())
+		{
+			c.publish("foo", "Hello World!".getBytes());
+		}
 	}
 
 	@Test
 	public void testSimplePublishNoData()
 			throws ConnectionClosedException, IOException, TimeoutException
 	{
-		Connection c = new ConnectionFactory().createConnection();
-		c.publish("foo", null);
-		c.close();
+		try (Connection c = new ConnectionFactory().createConnection())
+		{
+			c.publish("foo", null);
+		}
+	}
+
+	@Test(expected=IllegalArgumentException.class)
+	public void testSimplePublishError() 
+			throws ConnectionClosedException, IOException, TimeoutException
+	{
+		try (Connection c = new ConnectionFactory().createConnection())
+		{
+			c.publish(null, "Hello World!".getBytes());
+		}
 	}
 
 	private boolean compare(byte[] p1, byte[] p2)
@@ -179,96 +198,105 @@ public class BasicTest {
 			}
 
 			assertTrue("Did not receive message.", received);
+			c.close();
 		}
-		//		c.close();
 	}
 
 	@Test
 	public void testSyncSubscribe() throws IOException, TimeoutException
 	{
 		int timeoutMsec = 3000;
-		Connection c = new ConnectionFactory().createConnection();
-		SyncSubscription s = c.subscribeSync("foo");
-		c.publish("foo", omsg);
-		try {
-			Message m = s.nextMessage(timeoutMsec);
-			assertTrue("Messages are not equal.", compare(omsg, m));
-		} catch (IOException e) {
-			throw e;
-		} catch (TimeoutException e) {
-			fail("Timed out. Should have received a message within " +
-					timeoutMsec + "msec");
-			throw e;
-		} finally {
-			c.close();
+		try (Connection c = new ConnectionFactory().createConnection())
+		{
+			SyncSubscription s = c.subscribeSync("foo");
+			try { Thread.sleep(100); } catch (InterruptedException e) {}
+			c.publish("foo", omsg);
+			try {
+				Message m = s.nextMessage(timeoutMsec);
+				assertTrue("Messages are not equal.", compare(omsg, m));
+			} catch (IOException e) {
+				throw e;
+			} catch (TimeoutException e) {
+				fail("Timed out. Should have received a message within " +
+						timeoutMsec + "msec");
+				throw e;
+			}
 		}
 	}
 
 	@Test
 	public void testPubWithReply() throws Exception
 	{
-		Connection c = new ConnectionFactory().createConnection();
-		SyncSubscription s = c.subscribeSync("foo");
-		Thread.sleep(500);
-		c.publish("foo", "reply", omsg);
-		Message m = s.nextMessage(3000);
-		assertTrue("Messages are not equal.", compare(omsg, m));
-		c.close();
+		try (Connection c = new ConnectionFactory().createConnection())
+		{
+			SyncSubscription s = c.subscribeSync("foo");
+			Thread.sleep(500);
+			c.publish("foo", "reply", omsg);
+			Message m = s.nextMessage(3000);
+			assertTrue("Messages are not equal.", compare(omsg, m));
+		}
 	}
 
 	@Test
 	public void testFlush() throws Exception
 	{
-		Connection c = new ConnectionFactory().createConnection();
-		SyncSubscription s = c.subscribeSync("foo");
-		c.publish("foo", "reply", omsg);
-		c.flush();
-		c.close();
+		try (Connection c = new ConnectionFactory().createConnection())
+		{
+			SyncSubscription s = c.subscribeSync("foo");
+			c.publish("foo", "reply", omsg);
+			c.flush();
+		}
 	}
 
 	@Test
 	public void testQueueSubscriber() throws Exception	
 	{
-		Connection c = new ConnectionFactory().createConnection();
-		SyncSubscription s1 = c.subscribeSync("foo", "bar"),
-				s2 = c.subscribeSync("foo", "bar");
-		c.publish("foo", omsg);
-		c.flush(1000);
-
-		assertTrue("Invalid message count in queue.", 
-				s1.getQueuedMessageCount() + s2.getQueuedMessageCount() == 1);
-
-		// Drain the messages.
-		try { s1.nextMessage(100); }
-		catch (TimeoutException te) { }
-
-		try { s2.nextMessage(100); }
-		catch (TimeoutException te) { }
-
-		int expected = 1000;
-
-		for (int i = 0; i < 1000; i++)
+		try (Connection c = new ConnectionFactory().createConnection())
 		{
+			SyncSubscription s1 = c.subscribeSync("foo", "bar"),
+					s2 = c.subscribeSync("foo", "bar");
 			c.publish("foo", omsg);
+			c.flush();
+
+			int received = s1.getQueuedMessageCount() + s2.getQueuedMessageCount();
+			assertTrue("Received too many messages(" + received +
+					") for multiple queue subscribers.", 
+					received == 1);
+
+			// Drain the messages.
+			while (s1.getQueuedMessageCount() > 0) {
+				try { s1.nextMessage(100); }
+				catch (TimeoutException te) { System.err.println("s1.nextMessage() interrupted"); }
+			}
+			while (s2.getQueuedMessageCount() > 0) {
+				try { s2.nextMessage(100); }
+				catch (TimeoutException te) { System.err.println("s2.nextMessage() interrupted");}
+			}
+
+			int expected = 1000;
+
+			for (int i = 0; i < 1000; i++)
+			{
+				c.publish("foo", omsg);
+			}
+			c.flush();
+
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+			}
+
+			int r1 = s1.getQueuedMessageCount();
+			int r2 = s2.getQueuedMessageCount();
+			int actual = r1 + r2;
+			assertTrue(String.format("Incorrect number of messages: %d vs %d",
+					actual, expected), 
+					actual == expected);
+
+			assertTrue(String.format("Too much variance between %d and %d", r1, r2), 
+					Math.abs(r1 - r2) <= (expected * .15));
+			c.close();
 		}
-		c.flush(2000);
-
-		try {
-			Thread.sleep(1000);
-		} catch (InterruptedException e) {
-		}
-
-		int r1 = s1.getQueuedMessageCount();
-		int r2 = s2.getQueuedMessageCount();
-
-		int actual = r1 + r2;
-		assertTrue(String.format("Incorrect number of messages: %d vs %d",
-				actual, expected), 
-				(r1 + r2) == expected);
-
-		assertTrue(String.format("Too much variance between %d and %d", r1, r2), 
-				Math.abs(r1 - r2) <= (expected * .15));
-		c.close();
 	}
 
 	@Test
@@ -444,25 +472,26 @@ public class BasicTest {
 	{
 		final byte[] response = 
 				"I will help you.".getBytes();
-		final Connection c = new ConnectionFactory().createConnection();
-		AsyncSubscription s = c.subscribeAsync("foo",  
-				new MessageHandler() {
-			@Override 
-			public void onMessage(Message m)
-			{
-				try {
-					c.publish(m.getReplyTo(), response);
-					c.flush();
-				} catch (Exception e){}
-			}
-		});
-		s.start();
+		try (final Connection c = new ConnectionFactory().createConnection())
+		{
+			AsyncSubscription s = c.subscribeAsync("foo",  
+					new MessageHandler() {
+				@Override 
+				public void onMessage(Message m)
+				{
+					try {
+						c.publish(m.getReplyTo(), response);
+						c.flush();
+					} catch (Exception e){}
+				}
+			});
+			s.start();
 
-		final byte[] request = "help".getBytes();
-		Message m = c.request("foo", request, 5000);
+			final byte[] request = "help".getBytes();
+			Message m = c.request("foo", request, 5000);
 
-		assertTrue("Response isn't valid.", compare(m.getData(), response));
-		c.close();
+			assertTrue("Response isn't valid.", compare(m.getData(), response));
+		}
 	}
 
 	@Test
@@ -638,7 +667,7 @@ public class BasicTest {
 			public void run() {
 				try {
 					c.publish("foo", null);
-				} catch (ConnectionClosedException e) {
+				} catch (IllegalStateException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} 
@@ -654,25 +683,25 @@ public class BasicTest {
 	@Test
 	public void testBadSubject() throws IOException, TimeoutException
 	{
-		final Connection c = new ConnectionFactory().createConnection();
-		//			new Task(() => { c.publish("foo", null); }).Start();
-		executor.execute(new Runnable() {
-
-			@Override
-			public void run() {
-				try {
-					c.publish("foo", null);
-				} catch (ConnectionClosedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} 
+		try (Connection c = new ConnectionFactory().createConnection())
+		{
+			boolean exThrown = false;
+			try {
+				c.publish("", null);
+			} catch (BadSubjectException e) {
+				exThrown = true;
+			} finally {
+				assertTrue(exThrown);
 			}
-
-		});
-		try { Thread.sleep(200);} catch (InterruptedException e) {}
-
-		assertEquals(1, c.getStats().getOutMsgs());
-		c.close();
+			exThrown = false;
+			try {
+				c.publish(null, "Hello".getBytes());
+			} catch (BadSubjectException e) {
+				exThrown = true;
+			} finally {
+				assertTrue(exThrown);
+			}
+		}
 	}
 
 	public class CaptureHandler implements MessageHandler {
@@ -762,36 +791,37 @@ public class BasicTest {
 	@Test
 	public void testLargeSubjectAndReply() throws Exception
 	{
-		Connection c = new ConnectionFactory().createConnection();
-		String subject = "";
-		for (int i = 0; i < 1024; i++)
+		try (Connection c = new ConnectionFactory().createConnection())
 		{
-			subject += "A";
+			String subject = "";
+			for (int i = 0; i < 1024; i++)
+			{
+				subject += "A";
+			}
+
+			String reply = "";
+			for (int i = 0; i < 1024; i++)
+			{
+				reply += "A";
+			}
+
+			Object testLock = new Object();
+			CaptureHandler cb = new CaptureHandler(testLock);
+			AsyncSubscription s = c.subscribeAsync(subject, cb);
+
+			s.start();
+
+			c.publish(subject, reply, null);
+			c.flush();
+
+			synchronized(testLock)
+			{
+				testLock.wait(1000);
+			}
+			Message m = cb.getMsg();
+			assertTrue("Invalid subject received.", subject.equals(m.getSubject()));
+			assertTrue("Invalid subject received.", reply.equals(m.getReplyTo()));
 		}
-
-		String reply = "";
-		for (int i = 0; i < 1024; i++)
-		{
-			reply += "A";
-		}
-
-		Object testLock = new Object();
-		CaptureHandler cb = new CaptureHandler(testLock);
-		AsyncSubscription s = c.subscribeAsync(subject, cb);
-
-		s.start();
-
-		c.publish(subject, reply, null);
-		c.flush();
-
-		synchronized(testLock)
-		{
-			testLock.wait(1000);
-		}
-		Message m = cb.getMsg();
-		assertTrue("Invalid subject received.", subject.equals(m.getSubject()));
-		assertTrue("Invalid subject received.", reply.equals(m.getReplyTo()));
-		c.close();
 	}
 
 	public class CountHandler implements MessageHandler {

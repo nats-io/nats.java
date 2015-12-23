@@ -8,9 +8,10 @@ import java.util.List;
 
 class NATSServer implements Runnable, AutoCloseable
 {
-	final static String GNATSD = "gnatsd";
+	final static String GNATSD = "/Users/larry/Dropbox/workspace/go/bin/gnatsd";
+//	final static String GNATSD = "gnatsd";
     // Enable this for additional server debugging info.
-    boolean debug = true;
+    boolean debug = false;
     ProcessBuilder pb;
     Process p;
     ProcessStartInfo psInfo;
@@ -56,6 +57,7 @@ class NATSServer implements Runnable, AutoCloseable
         if (port > 1023) {
 	        psInfo.addArgument("-p " + String.valueOf(port));
         }
+//        psInfo.addArgument("-m 8222");
 
         start();
     }

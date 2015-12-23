@@ -15,7 +15,7 @@ import javax.net.ssl.SSLContext;
 
 import static io.nats.client.Constants.*;
 /* *
- * Factpry class for opening a {@link ConnectionImpl} to the NATS server (gnatsd). 
+ * Factory class for opening a {@link ConnectionImpl} to the NATS server (gnatsd). 
  */
 
 public class ConnectionFactory implements Cloneable {
@@ -69,8 +69,10 @@ public class ConnectionFactory implements Cloneable {
 		if (props.containsKey(PROP_HOST))
 			this.setHost(props.getProperty(PROP_HOST, DEFAULT_HOST));
 		//PROP_PORT
-		if (props.containsKey(PROP_PORT))
-			this.setPort(Integer.parseInt(props.getProperty(PROP_PORT, Integer.toString(DEFAULT_PORT))));
+		if (props.containsKey(PROP_PORT)) {
+			this.setPort(Integer.parseInt(props.getProperty(PROP_PORT, 
+					Integer.toString(DEFAULT_PORT))));
+		}
 		//PROP_USERNAME
 		if (props.containsKey(PROP_USERNAME))
 			this.setUsername(props.getProperty(PROP_USERNAME, null));
@@ -81,7 +83,8 @@ public class ConnectionFactory implements Cloneable {
 		if (props.containsKey(PROP_SERVERS)) {
 			String s = props.getProperty(PROP_SERVERS);
 			if (!(s==null) && !s.isEmpty()) {
-				String[] servers = s.trim().split("\\s+|,");
+				String[] servers = s.trim().split(",\\s*");
+//				String[] servers = s.trim().split("\\s+|,");
 				this.setServers(servers);
 			}
 		}
@@ -96,7 +99,7 @@ public class ConnectionFactory implements Cloneable {
 			this.setVerbose(Boolean.parseBoolean(props.getProperty(PROP_VERBOSE)));
 		//PROP_PEDANTIC
 		if (props.containsKey(PROP_PEDANTIC))
-			this.setVerbose(Boolean.parseBoolean(props.getProperty(PROP_PEDANTIC)));
+			this.setPedantic(Boolean.parseBoolean(props.getProperty(PROP_PEDANTIC)));
 		//PROP_SECURE
 		if (props.containsKey(PROP_SECURE))
 			this.setSecure(Boolean.parseBoolean(props.getProperty(PROP_SECURE)));
@@ -106,23 +109,23 @@ public class ConnectionFactory implements Cloneable {
 					props.getProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(true))));
 		//PROP_MAX_RECONNECT
 		if (props.containsKey(PROP_MAX_RECONNECT))
-			this.setPort(Integer.parseInt(
+			this.setMaxReconnect(Integer.parseInt(
 					props.getProperty(PROP_MAX_RECONNECT, Integer.toString(DEFAULT_MAX_RECONNECT))));
 		//PROP_RECONNECT_WAIT
 		if (props.containsKey(PROP_RECONNECT_WAIT))
-			this.setPort(Integer.parseInt(
+			this.setReconnectWait(Integer.parseInt(
 					props.getProperty(PROP_RECONNECT_WAIT, Integer.toString(DEFAULT_RECONNECT_WAIT))));
 		//PROP_CONNECTION_TIMEOUT
 		if (props.containsKey(PROP_CONNECTION_TIMEOUT))
-			this.setPort(Integer.parseInt(
+			this.setConnectionTimeout(Integer.parseInt(
 					props.getProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(DEFAULT_TIMEOUT))));
 		//PROP_PING_INTERVAL
 		if (props.containsKey(PROP_PING_INTERVAL))
-			this.setPort(Integer.parseInt(
+			this.setPingInterval(Integer.parseInt(
 					props.getProperty(PROP_PING_INTERVAL, Integer.toString(DEFAULT_PING_INTERVAL))));
 		//PROP_MAX_PINGS
 		if (props.containsKey(PROP_MAX_PINGS))
-			this.setPort(Integer.parseInt(
+			this.setMaxPingsOut(Integer.parseInt(
 					props.getProperty(PROP_MAX_PINGS, Integer.toString(DEFAULT_MAX_PINGS_OUT))));
 		//PROP_EXCEPTION_HANDLER
 		if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
@@ -133,6 +136,7 @@ public class ConnectionFactory implements Cloneable {
 				Constructor<?> constructor = clazz.getConstructor();
 				instance = constructor.newInstance();
 			} catch (Exception e) {
+				e.printStackTrace();
 				throw new IllegalArgumentException(e);
 			} finally {}
 			this.setExceptionHandler((ExceptionHandler) instance);
@@ -165,6 +169,18 @@ public class ConnectionFactory implements Cloneable {
 		}
 
 		//PROP_RECONNECTED_HANDLER
+		if (props.containsKey(PROP_RECONNECTED_HANDLER)) {
+			Object instance = null;
+			try {
+				String s = props.getProperty(PROP_RECONNECTED_HANDLER);
+				Class<?> clazz = Class.forName(s);
+				Constructor<?> constructor = clazz.getConstructor();
+				instance = constructor.newInstance();
+			} catch (Exception e) {
+				throw new IllegalArgumentException(e);
+			} finally {}
+			this.setReconnectedEventHandler((ReconnectedEventHandler) instance);
+		}
 	}
 
 	public ConnectionFactory() {
@@ -192,7 +208,7 @@ public class ConnectionFactory implements Cloneable {
 			this.servers = new ArrayList<URI>();
 			for (String s : servers) {
 				try {
-					this.getServers().add(new URI(s));
+					this.getServers().add(new URI(s.trim()));
 				} catch (URISyntaxException e) {
 					// TODO Auto-generated catch block
 					throw new IllegalArgumentException(
@@ -216,6 +232,18 @@ public class ConnectionFactory implements Cloneable {
 		Options options = options();
 
 		conn = new ConnectionImpl(options);
+
+		conn.start();
+
+		return conn;
+	}
+
+	// For unit test/mock purposes only.
+	ConnectionImpl createConnection(TCPConnection tcpconn) throws IOException, TimeoutException {
+		ConnectionImpl conn = null;
+		Options options = options();
+
+		conn = new ConnectionImpl(options, tcpconn);
 
 		conn.start();
 
@@ -424,7 +452,7 @@ public class ConnectionFactory implements Cloneable {
 			this.servers.clear();
 			for (String s : servers) {
 				try {
-					this.servers.add(new URI(s));
+					this.servers.add(new URI(s.trim()));
 				} catch (URISyntaxException e) {
 					throw new IllegalArgumentException(e);
 				}

@@ -150,10 +150,6 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 		}
 	}
 
-	public int queuedMsgs() {
-		return 0;
-	}
-
 	/**
 	 * @return the sid
 	 */
@@ -165,8 +161,8 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 	/**
 	 * @param l the sid to set
 	 */
-	public void setSid(long l) {
-		this.sid = l;
+	public void setSid(long id) {
+		this.sid = id;
 	}
 
 	/**

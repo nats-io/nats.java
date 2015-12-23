@@ -10,6 +10,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -17,6 +21,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+
+import io.nats.client.Constants.ConnState;
 
 public class ClusterTest {
 	@Rule
@@ -174,8 +180,8 @@ public class ClusterTest {
 	@Test
 	public void testBasicClusterReconnect() throws IOException, TimeoutException
 	{
-		final AtomicBoolean disconnected = new AtomicBoolean(false);
-		final AtomicBoolean reconnected = new AtomicBoolean(false);
+//		final AtomicBoolean disconnected = new AtomicBoolean(false);
+//		final AtomicBoolean reconnected = new AtomicBoolean(false);
 		String[] plainServers = new String[] {
 				"nats://localhost:1222",
 				"nats://localhost:1224"
@@ -186,30 +192,40 @@ public class ClusterTest {
 		cf.setReconnectWait(1000);
 		cf.setNoRandomize(true);
 
-		final Object disconnectLock = new Object();
+		final Lock disconnectLock = new ReentrantLock();
+		final Condition disconnected = disconnectLock.newCondition();
 		cf.setDisconnectedEventHandler(new DisconnectedEventHandler() {
 			@Override
 			public void onDisconnect(ConnectionEvent event) {
-				// Suppress any additional calls
 				System.out.println("In onDisconnect");
-				synchronized(disconnectLock) {
+				disconnectLock.lock(); 
+				try {
+					// Suppress any additional calls
 					event.getConnection().setDisconnectedEventHandler(null);
-					disconnected.set(true);
-					disconnectLock.notify();
+//					disconnected.set(true);
+					disconnected.signal();
+				}
+				finally {
+					disconnectLock.unlock();
 				}
 			}
 
 		});
 
-		final Object reconnectLock = new Object();
+		final Lock reconnectLock = new ReentrantLock();
+		final Condition reconnected = reconnectLock.newCondition();
 		cf.setReconnectedEventHandler(new ReconnectedEventHandler() {
 			@Override
 			public void onReconnect(ConnectionEvent event) {
 				System.out.println("In onReconnect");
-				synchronized(reconnectLock) {
+				reconnectLock.lock();
+				try
+				{
 					event.getConnection().setReconnectedEventHandler(null);
-					reconnected.set(true);
-					reconnectLock.notify();
+					reconnected.signal();
+//					reconnectLock.notify();
+				} finally {
+					reconnectLock.unlock();
 				}
 			}
 
@@ -223,29 +239,47 @@ public class ClusterTest {
 		Connection c = cf.createConnection();
 
 		System.out.println("Connected to: " + c.getConnectedUrl());
-		synchronized(disconnectLock)
+		disconnectLock.lock();
+		try
 		{
 			try {
 				Thread.sleep(2000);
 			} catch (InterruptedException e1) {}
 			s1.shutdown();
-			long t0=System.nanoTime();
+
 			try {
-				disconnectLock.wait(20000);
-			} catch (InterruptedException e) {}
-			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
-			assertTrue("disconnect lock waited "+elapsed+"msec", elapsed < 20000);
+				assertTrue("Timed out awaiting disconnect", disconnected.await(20, TimeUnit.SECONDS));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+//			long t0=System.nanoTime();
+//			try {
+//				disconnectLock.wait(20000);
+//			} catch (InterruptedException e) {}
+//			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
+//			assertTrue("disconnect lock waited "+elapsed+"msec", elapsed < 20000);
+		} finally {
+			disconnectLock.unlock();
 		}
 
-		synchronized(reconnectLock)
+		reconnectLock.lock();
+		try
 		{
-			long thist0 = System.nanoTime();
 			try {
-				reconnectLock.wait(20000);
-			} catch (InterruptedException e) {}
-			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - thist0);
-			assertTrue("reconnect lock waited " +elapsed+"msec", elapsed < 20000);
+				assertTrue("Timed out awaiting reconnect", reconnected.await(20, TimeUnit.SECONDS));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 
+//			long thist0 = System.nanoTime();
+//			try {
+//				reconnectLock.wait(20000);
+//			} catch (InterruptedException e) {}
+//			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - thist0);
+//			assertTrue("reconnect lock waited " +elapsed+"msec", elapsed < 20000);
+
+		} finally {
+			reconnectLock.unlock();
 		}
 
 		assertTrue(c.getConnectedUrl().equals(testServers[2]));
@@ -261,7 +295,7 @@ public class ClusterTest {
 		// GO's.  Look shortening it, or living with it.
 		//if (reconnectSw.ElapsedMilliseconds > opts.ReconnectWait)
 		//{
-		//   Assert.Fail("Reconnect time took to long: {0} millis.",
+		//   Assert.Fail("Reconnect time took too long: {0} millis.",
 		//        reconnectSw.ElapsedMilliseconds);
 		//}
 	}
@@ -325,175 +359,219 @@ public class ClusterTest {
 	} //SimClient
 
 
-//	@Test
-//	public void TestHotSpotReconnect()
-//	{
-//		ExecutorService executor = 
-//				Executors.newCachedThreadPool(
-//						new NATSThreadFactory("testhotspotreconnect"));
-//		int numClients = 10;
-//		List<SimClient> clients = new ArrayList<SimClient>();
-//
-//		ConnectionFactory cf = new ConnectionFactory();
-//		cf.setServers(testServers);
-//
-//		NATSServer s1 = utils.createServerOnPort(1222);
-//		WaitGroup wg = new WaitGroup();
-//
-//
-//		for (int i = 0; i < numClients; i++)
-//		{
-//			SimClient client = new SimClient();
-//			executor.execute(client);
-//			clients.add(client);
-//			wg.add(1);
-//		}
-//
-//
-//		NATSServer s2 = utils.createServerOnPort(1224);
-//		NATSServer s3 = utils.createServerOnPort(1226);
-//
-//		s1.shutdown();
-//		try { wg.await(); } catch (InterruptedException e) {}
-//
-//		int s2Count = 0;
-//		int s3Count = 0;
-//		int unknown = 0;
-//
-//		for (int i = 0; i < numClients; i++)
-//		{
-//			if (testServers[2].equals(clients.get(i).getConnectedUrl()))
-//				s2Count++;
-//			else if (testServers[4].equals(clients.get(i).getConnectedUrl()))
-//				s3Count++;
-//			else
-//				unknown++;
-//		}
-//
-//		s2.shutdown();
-//		s3.shutdown();
-//
-//		assertTrue(unknown == 0);
-//		int delta = Math.abs(s2Count - s3Count);
-//		int range = numClients / 30;
-//		if (delta > range)
-//		{
-//			String s = String.format("Connected clients to servers out of range: %d/%d", 
-//					delta, range);
-//			fail(s);
-//		}
-//
-//
-//	}
+	//	@Test
+	//	public void TestHotSpotReconnect()
+	//	{
+	//		ExecutorService executor = 
+	//				Executors.newCachedThreadPool(
+	//						new NATSThreadFactory("testhotspotreconnect"));
+	//		int numClients = 10;
+	//		List<SimClient> clients = new ArrayList<SimClient>();
+	//
+	//		ConnectionFactory cf = new ConnectionFactory();
+	//		cf.setServers(testServers);
+	//
+	//		NATSServer s1 = utils.createServerOnPort(1222);
+	//		WaitGroup wg = new WaitGroup();
+	//
+	//
+	//		for (int i = 0; i < numClients; i++)
+	//		{
+	//			SimClient client = new SimClient();
+	//			executor.execute(client);
+	//			clients.add(client);
+	//			wg.add(1);
+	//		}
+	//
+	//
+	//		NATSServer s2 = utils.createServerOnPort(1224);
+	//		NATSServer s3 = utils.createServerOnPort(1226);
+	//
+	//		s1.shutdown();
+	//		try { wg.await(); } catch (InterruptedException e) {}
+	//
+	//		int s2Count = 0;
+	//		int s3Count = 0;
+	//		int unknown = 0;
+	//
+	//		for (int i = 0; i < numClients; i++)
+	//		{
+	//			if (testServers[2].equals(clients.get(i).getConnectedUrl()))
+	//				s2Count++;
+	//			else if (testServers[4].equals(clients.get(i).getConnectedUrl()))
+	//				s3Count++;
+	//			else
+	//				unknown++;
+	//		}
+	//
+	//		s2.shutdown();
+	//		s3.shutdown();
+	//
+	//		assertTrue(unknown == 0);
+	//		int delta = Math.abs(s2Count - s3Count);
+	//		int range = numClients / 30;
+	//		if (delta > range)
+	//		{
+	//			String s = String.format("Connected clients to servers out of range: %d/%d", 
+	//					delta, range);
+	//			fail(s);
+	//		}
+	//
+	//
+	//	}
 
-	//	[TestMethod]
-	//			public void TestProperReconnectDelay()
-	//	{
-	//		Object mu = new Object();
-	//		Options opts = ConnectionFactory.GetDefaultOptions();
-	//		opts.Servers = testServers;
-	//		opts.NoRandomize = true;
-	//
-	//		bool disconnectHandlerCalled = false;
-	//		opts.DisconnectedEventHandler = (sender, args) =>
-	//		{
-	//			opts.DisconnectedEventHandler = null;
-	//			disconnectHandlerCalled = true;
-	//			lock (mu)
-	//			{
-	//				disconnectHandlerCalled = true;
-	//				Monitor.Pulse(mu);
-	//			}
-	//		};
-	//
-	//		bool closedCbCalled = false;
-	//		opts.ClosedEventHandler = (sender, args) =>
-	//		{
-	//			closedCbCalled = true;
-	//		};
-	//
-	//		using (NATSServer s1 = utils.CreateServerOnPort(1222))
-	//		{
-	//			IConnection c = new ConnectionFactory().CreateConnection(opts);
-	//
-	//			lock (mu)
-	//			{
-	//				s1.Shutdown();
-	//				// wait for disconnect
-	//				Assert.IsTrue(Monitor.Wait(mu, 10000));
-	//
-	//
-	//				// Wait, want to make sure we don't spin on
-	//				//reconnect to non-existant servers.
-	//				Thread.Sleep(1000);
-	//
-	//				Assert.IsFalse(closedCbCalled);
-	//				Assert.IsTrue(disconnectHandlerCalled);
-	//				Assert.IsTrue(c.State == ConnState.RECONNECTING);
-	//			}
-	//
-	//		}
-	//	}
-	//
-	//	[TestMethod]
-	//			public void TestProperFalloutAfterMaxAttempts()
-	//	{
-	//		Options opts = ConnectionFactory.GetDefaultOptions();
-	//
-	//		Object dmu = new Object();
-	//		Object cmu = new Object();
-	//
-	//		opts.Servers = this.testServersShortList;
-	//		opts.NoRandomize = true;
-	//		opts.MaxReconnect = 2;
-	//		opts.ReconnectWait = 25; // millis
-	//		opts.Timeout = 500;
-	//
-	//		bool disconnectHandlerCalled = false;
-	//
-	//		opts.DisconnectedEventHandler = (sender, args) =>
-	//		{
-	//			lock (dmu)
-	//			{
-	//				disconnectHandlerCalled = true;
-	//				Monitor.Pulse(dmu);
-	//			}
-	//		};
-	//
-	//		bool closedHandlerCalled = false;
-	//		opts.ClosedEventHandler = (sender, args) =>
-	//		{
-	//			lock (cmu)
-	//			{
-	//				closedHandlerCalled = true;
-	//				Monitor.Pulse(cmu);
-	//			}
-	//		};
-	//
-	//		using (NATSServer s1 = utils.CreateServerOnPort(1222))
-	//		{
-	//			using (IConnection c = new ConnectionFactory().CreateConnection(opts))
-	//			{
-	//				s1.Shutdown();
-	//
-	//				lock (dmu)
-	//				{
-	//					if (!disconnectHandlerCalled)
-	//						Assert.IsTrue(Monitor.Wait(dmu, 20000));
-	//				}
-	//
-	//				lock (cmu)
-	//				{
-	//					if (!closedHandlerCalled)
-	//						Assert.IsTrue(Monitor.Wait(cmu, 60000));
-	//				}
-	//
-	//				Assert.IsTrue(disconnectHandlerCalled);
-	//				Assert.IsTrue(closedHandlerCalled);
-	//				Assert.IsTrue(c.IsClosed());
-	//			}
-	//		}
-	//	}
+	@Test
+	public void TestProperReconnectDelay() throws Exception
+	{
+		//		final Object mu = new Object();
+		final Lock lock = new ReentrantLock();
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setServers(testServers);
+		cf.setNoRandomize(true);
+
+		//		final AtomicBoolean disconnectHandlerCalled = new AtomicBoolean(false);
+		final Condition disconnectHandlerCalled = lock.newCondition();
+		cf.setDisconnectedEventHandler( new DisconnectedEventHandler() {
+
+			@Override
+			public void onDisconnect(ConnectionEvent event) {
+				event.getConnection().setDisconnectedEventHandler(null);
+				//				disconnectHandlerCalled.set(true);
+				lock.lock();
+				try
+				{
+					disconnectHandlerCalled.signal();
+					//					mu.notify();
+				} finally {
+					lock.unlock();
+				}
+			}
+		});
+
+		//		final AtomicBoolean closedCbCalled = new AtomicBoolean(false);
+		final AtomicBoolean closedCbCalled = new AtomicBoolean(false);
+
+		cf.setClosedEventHandler(new ClosedEventHandler()
+		{
+			@Override
+			public void onClose(ConnectionEvent event) {
+				closedCbCalled.set(true);
+			}
+		});
+
+		try (NATSServer s1 = utils.createServerOnPort(1222))
+		{
+			try (Connection c = cf.createConnection())
+			{
+				assertFalse(c.isClosed());
+
+				lock.lock();
+				try
+				{
+					s1.shutdown();
+					// wait for disconnect
+					try {
+						System.err.println("Waiting for DisconnectedEventHandler");
+						assertTrue("DisconnectedEventHandler not called withing timeout.",
+								disconnectHandlerCalled.await(2, TimeUnit.SECONDS));
+						System.err.println("DisconnectedEventHandler triggered successfully");
+					} catch (InterruptedException e1) {
+					}
+
+					// Wait, want to make sure we don't spin on
+					//reconnect to non-existant servers.
+					try {Thread.sleep(1000);} catch (InterruptedException e) {}
+
+					assertFalse("Closed CB was triggered, should not have been.",
+							closedCbCalled.get());
+					assertEquals(c.getState(), ConnState.RECONNECTING);
+				} finally {
+					lock.unlock();
+				}
+
+			}
+		}
+	}
+
+	@Test
+	public void TestProperFalloutAfterMaxAttempts() throws Exception
+	{
+		ConnectionFactory cf = new ConnectionFactory();
+		final Lock dmu = new ReentrantLock();
+		final Lock cmu = new ReentrantLock();
+
+		cf.setServers(testServersShortList);
+		cf.setNoRandomize(true);
+		cf.setMaxReconnect(5);
+		cf.setReconnectWait(25); // millis
+		cf.setConnectionTimeout(500);
+
+		final Condition disconnectHandlerCalled = dmu.newCondition();
+
+		cf.setDisconnectedEventHandler(new DisconnectedEventHandler()
+		{
+			@Override
+			public void onDisconnect(ConnectionEvent event) {
+				dmu.lock();
+				try
+				{
+					disconnectHandlerCalled.signal();
+					//					Monitor.Pulse(dmu);
+				} 
+				finally {
+					dmu.unlock();
+				}
+			}
+		});
+
+		final Condition closedHandlerCalled = cmu.newCondition();
+		cf.setClosedEventHandler(new ClosedEventHandler()
+		{
+			@Override
+			public void onClose(ConnectionEvent event) {
+				cmu.lock();
+				try
+				{
+					closedHandlerCalled.signal();
+				} finally {
+					cmu.unlock();
+				}				
+			}
+		});
+
+		try (NATSServer s1 = utils.createServerOnPort(1222))
+		{
+			try (Connection c = cf.createConnection())
+			{
+				s1.shutdown();
+
+				dmu.lock();
+				try
+				{
+					assertTrue("Did not receive a disconnect callback message",
+							disconnectHandlerCalled.await(2,TimeUnit.SECONDS));
+				} catch (InterruptedException e) {
+				}
+				finally {
+					dmu.unlock();
+				}
+
+				cmu.lock();
+				try
+				{
+					assertTrue("Did not receive a closed callback message",
+							closedHandlerCalled.await(2,TimeUnit.SECONDS));
+				} catch (InterruptedException e) {
+				} finally {
+					cmu.unlock();
+				}
+
+//				Assert.IsTrue(disconnectHandlerCalled);
+//				Assert.IsTrue(closedHandlerCalled);
+				assertTrue("Wrong status: " + c.getState(), c.isClosed());
+			}
+		}
+	}
 	//
 	//	[TestMethod]
 	//			public void TestTimeoutOnNoServers()
@@ -564,56 +642,76 @@ public class ClusterTest {
 	//		}
 	//	}
 	//
-	//	//[TestMethod]
-	//	public void TestPingReconnect()
-	//	{
-	//		/// Work in progress
-	//		int RECONNECTS = 4;
-	//
-	//		Options opts = ConnectionFactory.GetDefaultOptions();
-	//		Object mu = new Object();
-	//
-	//		opts.Servers = testServersShortList;
-	//		opts.NoRandomize = true;
-	//		opts.ReconnectWait = 200;
-	//		opts.PingInterval = 50;
-	//		opts.MaxPingsOut = -1;
-	//		opts.Timeout = 1000;
-	//
-	//
-	//		Stopwatch disconnectedTimer = new Stopwatch();
-	//
-	//		opts.DisconnectedEventHandler = (sender, args) =>
+	//		@Test
+	//		public void TestPingReconnect() throws Exception
 	//		{
-	//			disconnectedTimer.Reset();
-	//			disconnectedTimer.Start();
-	//		};
-	//
-	//		opts.ReconnectedEventHandler = (sender, args) =>
-	//		{
-	//			lock (mu)
+	//			/// Work in progress
+	//			int RECONNECTS = 4;
+	//	
+	//			ConnectionFactory cf = new ConnectionFactory();
+	//			final Lock mu = new ReentrantLock();
+	//			final Condition reconnected = mu.newCondition();
+	//			
+	//			cf.setServers(testServersShortList);
+	//			cf.setNoRandomize(true);
+	//			cf.setReconnectWait(200);
+	//			cf.setPingInterval(50);
+	//			cf.setMaxPingsOut(-1);
+	////			cf.setConnectionTimeout(1000);
+	//	
+	//			final AtomicLong disconnectTime = new AtomicLong();
+	//			final AtomicLong reconnectTime = new AtomicLong();
+	//			final AtomicLong reconnectElapsed = new AtomicLong();
+	//	
+	////			Stopwatch disconnectedTimer = new Stopwatch();
+	//	
+	//			
+	//			cf.setDisconnectedEventHandler(new DisconnectedEventHandler()
 	//			{
-	//				args.Conn.Opts.MaxPingsOut = 500;
-	//				disconnectedTimer.Stop();
-	//				Monitor.Pulse(mu);
-	//			}
-	//		};
-	//
-	//		using (NATSServer s1 = utils.CreateServerOnPort(1222))
-	//		{
-	//			using (IConnection c = new ConnectionFactory().CreateConnection(opts))
+	//				@Override
+	//				public void onDisconnect(ConnectionEvent event) {
+	//					disconnectTime.set(System.nanoTime());
+	//				}
+	//			});
+	//	
+	//			cf.setReconnectedEventHandler(new ReconnectedEventHandler()
 	//			{
-	//				s1.Shutdown();
-	//				for (int i = 0; i < RECONNECTS; i++)
-	//				{
-	//					lock (mu)
+	//				@Override
+	//				public void onReconnect(ConnectionEvent event) {
+	//					mu.lock();
+	//					try
 	//					{
-	//						Assert.IsTrue(Monitor.Wait(mu, 100000));
+	//						reconnectTime.set(System.nanoTime());
+	//						reconnectElapsed.set(TimeUnit.NANOSECONDS.toMillis(
+	//								reconnectTime.get() - disconnectTime.get()));
+	//						reconnected.signal();
+	//					}
+	//					finally {
+	//						mu.unlock();
+	//					}
+	//				}
+	//			});
+	//	
+	//			try (NATSServer s1 = utils.createServerOnPort(1222))
+	//			{
+	//				try (Connection c = cf.createConnection())
+	//				{
+	//					s1.shutdown();
+	//					for (int i = 0; i < RECONNECTS; i++)
+	//					{
+	//						mu.lock();
+	//						try
+	//						{
+	//							assertTrue(reconnected.await(2 * cf.getPingInterval(), TimeUnit.MILLISECONDS));
+	//						}
+	//						finally
+	//						{
+	//							mu.unlock();
+	//						}
 	//					}
 	//				}
 	//			}
 	//		}
-	//	}
 
 	public class WaitGroup {
 

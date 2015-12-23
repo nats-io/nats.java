@@ -1,16 +1,9 @@
 package io.nats.client;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
-import java.nio.charset.Charset;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.net.ssl.SSLContext;
@@ -36,10 +29,9 @@ public class Options {
 	private ExceptionHandler exceptionHandler;
 	private SSLContext sslContext;
 	
-	private List<X509Certificate> certificates =
-			new ArrayList<X509Certificate>();
+//	private List<X509Certificate> certificates =
+//			new ArrayList<X509Certificate>();
 	
-//	private ConnectionEventHandler connectionEventHandler;
 	/**
 	 * @return the subChanLen
 	 */
@@ -243,24 +235,24 @@ public class Options {
 		this.disconnectedEventHandler = cb;
 	}
 	
-	public void addCertificate(X509Certificate cert) {
-		if (cert==null)
-			throw new IllegalArgumentException("Null certificate");
-		certificates.add(cert);
-	}
-	
-	public void addCertificate(byte[] cert) throws CertificateException {
-		if (cert==null)
-			throw new IllegalArgumentException("Null certificate");
-		CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-		InputStream in = new ByteArrayInputStream(cert);
-		X509Certificate theCert = (X509Certificate)certFactory.generateCertificate(in);
-		certificates.add(theCert);
-	}
-	
-	public void addCertificate(String cert) throws CertificateException {
-		addCertificate(cert.getBytes(Charset.forName("UTF-8")));
-	}
+//	public void addCertificate(X509Certificate cert) {
+//		if (cert==null)
+//			throw new IllegalArgumentException("Null certificate");
+//		certificates.add(cert);
+//	}
+//	
+//	public void addCertificate(byte[] cert) throws CertificateException {
+//		if (cert==null)
+//			throw new IllegalArgumentException("Null certificate");
+//		CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+//		InputStream in = new ByteArrayInputStream(cert);
+//		X509Certificate theCert = (X509Certificate)certFactory.generateCertificate(in);
+//		certificates.add(theCert);
+//	}
+//	
+//	public void addCertificate(String cert) throws CertificateException {
+//		addCertificate(cert.getBytes(Charset.forName("UTF-8")));
+//	}
 	/**
 	 * @return the sslContext
 	 */

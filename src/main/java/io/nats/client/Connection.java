@@ -18,9 +18,9 @@ public interface Connection extends AbstractConnection {
 	public Subscription QueueSubscribe(String subject, String queue, MessageHandler cb) throws ConnectionClosedException;
 	public SyncSubscription QueueSubscribeSync(String subject, String queue) throws ConnectionClosedException;
 	
-	public void publish(String subject, byte[] data) throws ConnectionClosedException;
-	public void publish(Message msg) throws ConnectionClosedException;
-	public void publish(String subject, String reply, byte[] data) throws ConnectionClosedException;
+	public void publish(String subject, byte[] data) throws ConnectionClosedException, IllegalStateException;
+	public void publish(Message msg) throws ConnectionClosedException, IllegalStateException;
+	public void publish(String subject, String reply, byte[] data) throws ConnectionClosedException, IllegalStateException;
 	
     public Message request(String subject, byte[] data, long timeout) 
     		throws TimeoutException, IOException;

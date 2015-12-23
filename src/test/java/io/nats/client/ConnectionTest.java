@@ -7,6 +7,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.junit.Assert.*;
 import org.junit.After;
@@ -24,10 +27,10 @@ public class ConnectionTest {
 	final Logger logger = LoggerFactory.getLogger(ConnectionTest.class);
 
 	@Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
+	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
 	ExecutorService executor = Executors.newFixedThreadPool(5);
-//	UnitTestUtilities utils = new UnitTestUtilities();
+	//	UnitTestUtilities utils = new UnitTestUtilities();
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
@@ -119,156 +122,200 @@ public class ConnectionTest {
 
 	}
 
-		@Test
-		public void testServerStopDisconnectedHandler() 
-				throws IOException, TimeoutException
+	@Test
+	public void testServerStopDisconnectedHandler() 
+			throws IOException, TimeoutException
+	{
+		final Lock disconnectLock = new ReentrantLock();
+		final Condition hasBeenDisconnected = disconnectLock.newCondition();
+
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setReconnectAllowed(false);
+		cf.setDisconnectedEventHandler(new DisconnectedEventHandler()
 		{
-			final AtomicBoolean disconnected = new AtomicBoolean(false);
-			final Object mu = new Object();
-	
-			ConnectionFactory cf = new ConnectionFactory();
-			cf.setReconnectAllowed(false);
-			cf.setDisconnectedEventHandler(new DisconnectedEventHandler()
-			{
-				@Override
-				public void onDisconnect(ConnectionEvent event) {
-					synchronized (mu)
-					{
-						disconnected.set(true);
-						mu.notify();
-					} 
+			@Override
+			public void onDisconnect(ConnectionEvent event) {
+				System.err.println("onDisconnect fired");
+				disconnectLock.lock();
+				try
+				{
+					hasBeenDisconnected.signal();
+					System.err.println("disconnected");
+				} finally {
+					disconnectLock.unlock();
 				}
-			});
-	
-			Connection c = cf.createConnection();
-			synchronized(mu)
-			{
-				UnitTestUtilities.bounceDefaultServer(1000);
-				try {
-					System.out.println("waiting for 10 sec for mu");
-					long t0=System.nanoTime();
-					mu.wait(10000);
-					System.out.printf("waited %d sec for mu\n", TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()-t0));
-				} catch (InterruptedException e) {}
 			}
-			c.close();
-			assertTrue("disconnected should be 'true'.", disconnected.get());
-		}
-	
-		@Test
-		public void testClosedConnections() throws Exception
+		});
+
+		try (Connection c = cf.createConnection())
 		{
-			Connection c = new ConnectionFactory().createConnection();
-			SyncSubscription s = c.subscribeSync("foo");
-	
-			c.close();
-	
-			// While we can annotate all the exceptions in the test framework,
-			// just do it manually.
-			
-			boolean failed=true;
-			
-			try { c.publish("foo", null);
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
+			assertFalse(c.isClosed());
+			disconnectLock.lock();
+			try {
+				UnitTestUtilities.bounceDefaultServer(1000);
+				assertTrue(hasBeenDisconnected.await(10, TimeUnit.SECONDS));
+			} catch (InterruptedException e) {
 			}
+			finally {
+				disconnectLock.unlock();
+			}
+		}	
+	}
 
-			failed=true;
-			try { c.publish(new Message("foo", null, null)); 
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
+	@Test
+	public void testClosedConnections() throws Exception
+	{
+		Connection c = new ConnectionFactory().createConnection();
+		SyncSubscription s = c.subscribeSync("foo");
 
-			failed=true;
-			try { c.subscribeAsync("foo");
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
-	
-			failed=true;
-			try { c.subscribeSync("foo");
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
+		c.close();
 
-			failed=true;
-			try { c.subscribeAsync("foo", "bar");
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
+		// While we can annotate all the exceptions in the test framework,
+		// just do it manually.
 
-			failed=true;
-			try { c.subscribeSync("foo", "bar");
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
+		boolean failed=true;
 
-			failed=true;
-			try { c.request("foo", null);
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
-
-			failed=true;
-			try { s.nextMessage();
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
-
-			failed=true;
-			try { s.nextMessage(100);
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
-
-			failed=true;
-			try { s.unsubscribe();
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
-
-			failed=true;
-			try { s.autoUnsubscribe(1);
-			} catch (Exception e) {
-				assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
-				failed=false;
-			} finally {
-				assertFalse("Didn't throw an exception", failed);
-			}
+		try { c.publish("foo", null);
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
 		}
+
+		failed=true;
+		try { c.publish(new Message("foo", null, null)); 
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { c.subscribeAsync("foo");
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { c.subscribeSync("foo");
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { c.subscribeAsync("foo", "bar");
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { c.subscribeSync("foo", "bar");
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { c.request("foo", null);
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { s.nextMessage();
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { s.nextMessage(100);
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { s.unsubscribe();
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+
+		failed=true;
+		try { s.autoUnsubscribe(1);
+		} catch (Exception e) {
+			assertTrue("Expected ConnectionClosedException", e instanceof ConnectionClosedException);
+			failed=false;
+		} finally {
+			assertFalse("Didn't throw an exception", failed);
+		}
+	}
 
 	/// TODO NOT IMPLEMENTED:
 	/// TestServerSecureConnections
 	/// TestErrOnConnectAndDeadlock
 	/// TestErrOnMaxPayloadLimit
+	@Test
+	public void testErrOnMaxPayloadLimit() {
+		long expectedMaxPayload = 10;
+		String serverInfo = "INFO {\"server_id\":\"foobar\",\"version\":\"0.6.6\",\"go\":\"go1.5.1\",\"host\":\"%s\",\"port\":%d,\"auth_required\":false,\"ssl_required\":false,\"max_payload\":%d}\r\n";
+
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			String infoString = (String.format(serverInfo, "mockserver", 2222, 
+					expectedMaxPayload));
+			System.err.println(infoString);
+			mock.setServerInfoString(infoString);
+			ConnectionFactory cf = new ConnectionFactory();
+			try (Connection c = cf.createConnection(mock))
+			{
+				// Make sure we parsed max payload correctly
+				assertEquals(c.getMaxPayload(), expectedMaxPayload);
+
+				// Check for correct exception 
+				boolean failed=false;
+				try {
+					c.publish("hello", "hello world".getBytes());
+				} catch (MaxPayloadException e) {
+					failed = true;
+				}
+				finally {
+					assertTrue("Should have generated a MaxPayloadException.", failed);
+				}
+
+				// Check for success on less than maxPayload
+
+			} catch (IOException | TimeoutException e) {
+				//				e.printStackTrace();
+				fail("Connection to mock server failed: " + e.getMessage());
+			}
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
+	}
 }

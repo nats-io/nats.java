@@ -49,13 +49,6 @@ class TCPConnection {
 	public TCPConnection() {
 	}
 
-	public TCPConnection(String host, int port, int timeoutMillis) 
-			throws IOException {
-		//		this.addr = new InetSocketAddress(host, port);
-		//		this.timeout = timeoutMillis;
-		this.open(host, port, timeoutMillis);
-	}
-
 	public void open(String host, int port, int timeoutMillis)
 			throws IOException
 	{
@@ -93,13 +86,9 @@ class TCPConnection {
 	public void teardown() {
 		mu.lock();
 		try {
-			Socket c = client;
-
-			client = null;
-			writeStream = null;
-			readStream = null;
-
-			c.close();
+			if (client != null) {	
+				client.close();
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 			// ignore

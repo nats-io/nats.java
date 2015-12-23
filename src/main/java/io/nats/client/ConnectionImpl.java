@@ -102,7 +102,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 
 	private AtomicLong sidCounter		= new AtomicLong();
 	private URI url 						= null;
-	private Options opts 					= null;
+	protected Options opts 					= null;
 
 	private TCPConnection conn				= null;
 
@@ -147,8 +147,6 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 	protected Statistics stats				= null;
 	private Queue<Channel<Boolean>> pongs	= new LinkedBlockingQueue<Channel<Boolean>>(8);
 
-	private static final int NUM_TASK_THREADS = 5;
-//	private final ExecutorService taskExec = Executors.newFixedThreadPool(NUM_TASK_THREADS, new NATSThreadFactory("natsthreadfactory"));
 	private final ExecutorService taskExec = Executors.newCachedThreadPool(new NATSThreadFactory("natsthreadfactory"));
 	private Random r						= null;
 
@@ -167,6 +165,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 			version = props.getProperty("client.version");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
+			logger.warn("Couldn't load internal client properties.", e);
 			e.printStackTrace();
 		}
 		this.opts = o;
@@ -197,7 +196,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 
 		setupServerPool();
 	}
-	
+
 	private void buildPublishProtocolBuffer(int size)
 	{
 		pubProtoBuf = new byte[size];
@@ -235,7 +234,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 			} catch (URISyntaxException e) {
 			}
 		}
-		
+
 		/* 
 		 * At this point, srvPool being empty would be 
 		 * programmer error. 
@@ -246,19 +245,20 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 	}
 
 	protected Srv currentServer() {
-		Iterator<Srv> it = srvPool.listIterator();
-		while (it.hasNext()) {
-			Srv s = it.next();
-			if (s.url.equals(this.url))
-				return s;
+		Srv rv = null;
+		for (Srv s : srvPool) {
+			if (s.url.equals(this.url)) {
+				rv = s;
+				break;
+			}
 		}
-		return null;
+		return rv;
 	}
 
 	protected Srv selectNextServer() {
 		int maxReconnect = opts.getMaxReconnect();
 		Srv s = currentServer();
-
+		logger.trace("In selectNextServer()");
 		/**
 		 * Remove the current server from the list. remove() is O(N) but the
 		 * server list will never be large enough for this to be a huge factor
@@ -272,6 +272,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		 * 
 		 */
 		if ((maxReconnect < 0) || (s.reconnects < maxReconnect)) {
+			logger.trace("s.reconnects: " + s.reconnects);
 			srvPool.add(s);
 		}
 
@@ -312,7 +313,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 				}
 			} catch (Exception e) {
 				logger.debug("{} Exception: {}", this.url, e.getMessage());
-//				e.printStackTrace();
+				//				e.printStackTrace();
 				lastEx = e;
 				close(ConnState.DISCONNECTED, false);
 				mu.lock();
@@ -333,6 +334,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 				if (lastEx == null)
 					lastEx = new IOException("Unable to connect to a server.");
 
+				//				logger.error("Error during connection process", this.lastEx);
 				throw (IOException)this.lastEx;
 			}
 		} finally {
@@ -460,7 +462,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 				// being invoked out of order
 				logger.debug("Calling disconnectedEventHandler from Connection.close()");
 				disconnectedEventHandler = opts.getDisconnectedEventHandler();
-				taskExec.execute(new DisconnectedEventHandlerTask(disconnectedEventHandler, new ConnectionEvent(this)));
+				taskExec.submit(new DisconnectedEventHandlerTask(disconnectedEventHandler, new ConnectionEvent(this)));
 			}
 
 			// Go ahead and make sure we have flushed the outbound buffer.
@@ -483,19 +485,18 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 
 		if (invokeDelegates && closedEventHandler != null)
 		{
-			//			taskExec.execute(new ConnEventHandlerTask(closedEventHandler, new ConnectionEvent(this)));
 			closedEventHandler.onClose(new ConnectionEvent(this));
 		}
 
-		taskExec.shutdown();
+		taskExec.shutdownNow();
 		try {
-		  taskExec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+			logger.trace("Waiting for executor to shutdown");
+			taskExec.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 		} catch (InterruptedException e) {
-		  logger.error("Thread executor shutdown error", e);
 		} finally {
 			logger.trace("Thread executor has been shut down");
 		}
-		
+
 		mu.lock();
 		try {
 			status = closeState;
@@ -529,39 +530,39 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		// Start the readLoop and flusher threads
 		spinUpSocketWatchers();
 	}
-	
-    // This will check to see if the connection should be
-    // secure. This can be dictated from either end and should
-    // only be called after the INIT protocol has been received.
-    private void checkForSecure() throws 
-    SecureConnectionWantedException, SecureConnRequiredException,
-    IOException
-    {
-        // Check to see if we need to engage TLS
-        // Check for mismatch in setups
-        if (opts.isSecure() && !info.tlsRequired)
-        {
-            throw new SecureConnectionWantedException();
-        }
-        else if (info.tlsRequired && !opts.isSecure())
-        {
-            throw new SecureConnRequiredException();
-        }
 
-        // Need to rewrap with bufio
-        if (opts.isSecure())
-        {
-            makeTLSConn();
-        }
-    }
+	// This will check to see if the connection should be
+	// secure. This can be dictated from either end and should
+	// only be called after the INIT protocol has been received.
+	private void checkForSecure() throws 
+	SecureConnectionWantedException, SecureConnRequiredException,
+	IOException
+	{
+		// Check to see if we need to engage TLS
+		// Check for mismatch in setups
+		if (opts.isSecure() && !info.tlsRequired)
+		{
+			throw new SecureConnectionWantedException();
+		}
+		else if (info.tlsRequired && !opts.isSecure())
+		{
+			throw new SecureConnRequiredException();
+		}
 
-    // makeSecureConn will wrap an existing Conn using TLS
-    private void makeTLSConn() throws IOException
-    {
-        conn.makeTLS(opts.getSslContext());
-        bw = conn.getWriteBufferedStream(DEFAULT_BUF_SIZE);
-        br = conn.getReadBufferedStream(DEFAULT_BUF_SIZE);
-    }
+		// Need to rewrap with bufio
+		if (opts.isSecure())
+		{
+			makeTLSConn();
+		}
+	}
+
+	// makeSecureConn will wrap an existing Conn using TLS
+	private void makeTLSConn() throws IOException
+	{
+		conn.makeTLS(opts.getSslContext());
+		bw = conn.getWriteBufferedStream(DEFAULT_BUF_SIZE);
+		br = conn.getReadBufferedStream(DEFAULT_BUF_SIZE);
+	}
 
 	protected void processExpectedInfo() throws ConnectionException {
 		Control c;
@@ -647,7 +648,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 
 	private void processOpError(Exception e) {
 		logger.trace("processOpError(e={}) state={} reconnectAllowed={} ", e.getClass().getName(), status, opts.isReconnectAllowed());
-//		e.printStackTrace();
+		//		e.printStackTrace();
 		boolean disconnected = false;
 
 		mu.lock();
@@ -686,11 +687,6 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		status = ConnState.DISCONNECTED;
 		if (lastEx == null)
 			return;
-
-		if (info.isSslRequired())
-			lastEx = new SecureConnRequiredException();
-		else
-			lastEx = new ConnectionClosedException();
 	}
 
 	// This will process a disconnect when reconnect is allowed.
@@ -718,7 +714,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 				conn.teardown();
 			}
 
-			taskExec.execute(new ReconnectTask());
+			taskExec.submit(new ReconnectTask());
 
 		} finally {
 			mu.unlock();
@@ -810,7 +806,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 			mu.unlock();
 			disconnectedEventHandler = opts.getDisconnectedEventHandler();
 
-			taskExec.execute(new DisconnectedEventHandlerTask(disconnectedEventHandler,new ConnectionEvent(this)));
+			taskExec.submit(new DisconnectedEventHandlerTask(disconnectedEventHandler,new ConnectionEvent(this)));
 
 			mu.lock();
 		}
@@ -860,7 +856,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 
 			try
 			{
-				logger.debug("doReconnect: trying createConn(), s.reconnects={}", s.reconnects);
+				logger.debug("doReconnect: trying createConn() for s.url={}, s.reconnects={}", s.url, s.reconnects);
 				// try to create a new connection
 				if (!createConn())
 					continue;
@@ -960,7 +956,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		boolean invokeDelegates = false;
 		Exception ex = null;
 		String s = new String(errorStream.array(), 0, errorStream.position(), Charset.forName("UTF-8"));
-		logger.debug("processErr(errorStream={})", s);
+		logger.info("processErr(errorStream={})", s);
 
 		if (STALE_CONNECTION.equals(s))
 		{
@@ -988,6 +984,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 	// caller must lock
 	protected void sendConnect() throws IOException, SecureConnRequiredException
 	{
+		logger.trace("sendConnect()");
 		try {
 			bw.write(Utilities.stringToBytesASCII(connectProto()));
 			logger.trace("=> {}", connectProto().trim());
@@ -1037,10 +1034,10 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 	}
 
 	/* 
-	 * This method is only used by sendPong. It is also used in the Go 
-	 * client's tests.
+	 * This method is only used by processPing. It is also used in the gnatsd 
+	 * tests.
 	 */
-	private void sendProto(byte[] value, int length) throws IOException
+	protected void sendProto(byte[] value, int length) throws IOException
 	{
 		mu.lock();
 		try {
@@ -1091,6 +1088,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		InputStreamReader is = conn.getInputStreamReader();
 		BufferedReader br = new BufferedReader(is);
 
+		logger.trace("readOp() Reading from input stream");
 		String s = br.readLine();
 		logger.trace("<= {}", s.trim());
 		Control c = new Control(s);
@@ -1112,8 +1110,6 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 				t.join();
 			} catch (InterruptedException e) {}
 		}
-
-
 
 		//        taskExec.shutdown();
 		//        while (!taskExec.isTerminated()) {
@@ -1140,8 +1136,8 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		// We will wait on both going forward.
 		// nc.wg.Add(2)
 
-		//taskExec.execute(new ReadLoopTask(this));  
-		//taskExec.execute(new Flusher(this));
+		//taskExec.submit(new ReadLoopTask(this));  
+		//taskExec.submit(new Flusher(this));
 		Thread t = null;
 
 		t = new NATSThread(new ReadLoopTask(), "readloop");
@@ -1175,7 +1171,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		protected Control(String s) {
 			if (s==null)
 				return;
-			
+
 			String[] parts = s.split(" ", 2);
 
 			switch (parts.length) {
@@ -1251,7 +1247,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		public ServerInfo(String jsonString) {
 			try {
 				jsonString = jsonString.substring(jsonString.indexOf('{') + 1);
-				jsonString = jsonString.substring(0, jsonString.lastIndexOf('}') - 1);
+				jsonString = jsonString.substring(0, jsonString.lastIndexOf('}'));
 			} catch (IndexOutOfBoundsException iobe) {
 				// do nothing
 			}
@@ -1382,7 +1378,8 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 	{
 		// Stack based buffer.
 		byte[] buffer = new byte[DEFAULT_BUF_SIZE];
-		Parser parser = new Parser(this);
+		//		Parser parser = new Parser(this);
+		Parser parser = this.ps;
 		int    len;
 		boolean sb;
 
@@ -1408,7 +1405,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 				parser.parse(buffer, len);
 			} catch (Exception e)
 			{
-//				logger.trace("Exception in readLoop(): Conn.State was {}", status, e);
+				logger.trace("Exception in readLoop(): Conn.State was {}", status, e);
 				if (status != ConnState.CLOSED)
 				{
 					processOpError(e);
@@ -1496,6 +1493,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		String s = new String(buffer, 0, (int)length);
 		String[] args = s.split(" ");
 
+		logger.trace("processMsgArgs() for buffer {}", s);
 		switch (args.length)
 		{
 		case 3:
@@ -1613,13 +1611,13 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 	// async error handler if registered.
 	void processSlowConsumer(SubscriptionImpl s)
 	{
-		
+
 		lastEx = new SlowConsumerException();
 
 		if (this.exceptionHandler != null && !s.sc)
 		{
 			//TODO fix this; reconcile opts with Connection params
-			taskExec.execute(new ExceptionHandlerTask(this.exceptionHandler, this,
+			taskExec.submit(new ExceptionHandlerTask(this.exceptionHandler, this,
 					s, new SlowConsumerException()));
 		}
 		s.sc = true;
@@ -1729,7 +1727,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 			}
 
 			// We will send all subscriptions when reconnecting
-			// so that we can supress here.
+			// so that we can suppress here.
 			if (!isReconnecting()) {
 				String str = String.format(UNSUB_PROTO, s.getSid(), max);
 				byte[] unsub = str.getBytes(Charset.forName("UTF-8"));
@@ -1744,7 +1742,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		kickFlusher();
 	}
 
-	private void kickFlusher()
+	protected void kickFlusher()
 	{
 		flusherLock.lock();
 		try
@@ -1855,8 +1853,9 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		mu.lock();
 		try
 		{
-			if (isClosed())
+			if (isClosed()) {
 				throw new ConnectionClosedException();
+			}
 
 			sendPing(ch);
 		} finally {
@@ -1878,7 +1877,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		}
 		if (lastEx != null)
 		{
-//			lastEx.printStackTrace();
+			//			lastEx.printStackTrace();
 			removeFlushEntry(ch);
 			throw lastEx;
 		}
@@ -2029,8 +2028,8 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		subs.put(s.getSid(), s);
 		logger.debug("Successfully added subscription to {} [{}]", 
 				s.getSubject(), s.getSid());
-//		if (logger.isDebugEnabled())
-//			printSubs(this);
+		//		if (logger.isDebugEnabled())
+		//			printSubs(this);
 	}
 
 	@Override
@@ -2094,38 +2093,38 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 	}
 
 
-//	// Roll our own fast conversion - we know it's the right
-//	// encoding. 
-//	char[] convertToStrBuf = new char[MAX_CONTROL_LINE_SIZE];
-//
-//	// Caller must ensure thread safety.
-//	private String convertToString(byte[] buffer, int length)
-//	{
-//		// expand if necessary
-//		if (length > convertToStrBuf.length)
-//		{
-//			convertToStrBuf = new char[length];
-//		}
-//
-//		for (int i = 0; i < length; i++)
-//		{
-//			convertToStrBuf[i] = (char)buffer[i];
-//		}
-//
-//		// This is the copy operation for msg arg strings.
-//		return new String(convertToStrBuf, 0, (int)length);
-//	}
+	//	// Roll our own fast conversion - we know it's the right
+	//	// encoding. 
+	//	char[] convertToStrBuf = new char[MAX_CONTROL_LINE_SIZE];
+	//
+	//	// Caller must ensure thread safety.
+	//	private String convertToString(byte[] buffer, int length)
+	//	{
+	//		// expand if necessary
+	//		if (length > convertToStrBuf.length)
+	//		{
+	//			convertToStrBuf = new char[length];
+	//		}
+	//
+	//		for (int i = 0; i < length; i++)
+	//		{
+	//			convertToStrBuf[i] = (char)buffer[i];
+	//		}
+	//
+	//		// This is the copy operation for msg arg strings.
+	//		return new String(convertToStrBuf, 0, (int)length);
+	//	}
 
 
 	// publish is the internal function to publish messages to a gnatsd.
 	// Sends a protocol data message by queueing into the bufio writer
 	// and kicking the flush go routine. These writes should be protected.
 	@Override
-	public void publish(String subject, String reply, byte[] data) throws ConnectionClosedException
+	public void publish(String subject, String reply, byte[] data) throws IllegalStateException
 	{
 		if ((subject==null) || subject.isEmpty())
 		{
-			throw new IllegalArgumentException(
+			throw new BadSubjectException(
 					"Subject cannot be null, empty, or whitespace.");
 		}
 
@@ -2137,7 +2136,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		{
 			// Proactively reject payloads over the threshold set by server.
 			if (msgSize > info.getMaxPayload())
-				throw new IllegalArgumentException("Message payload size (" 
+				throw new MaxPayloadException("Message payload size (" 
 						+ msgSize + ") larger than maxPayloadSize: " 
 						+ info.getMaxPayload());
 
@@ -2197,12 +2196,14 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 	} // publish
 
 	@Override
-	public void publish(String subject, byte[] data) throws IllegalStateException {
+	public void publish(String subject, byte[] data) throws IllegalStateException
+	{
 		publish(subject, null, data);
 	}
 
 	@Override
-	public void publish(Message msg) throws IllegalStateException {
+	public void publish(Message msg) throws IllegalStateException
+	{
 		publish(msg.getSubject(), msg.getReplyTo(), msg.getData());
 	}
 
@@ -2365,13 +2366,13 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		this.exceptionHandler = exceptionHandler;
 	}
 
-//	static void printSubs(ConnectionImpl c) {
-//		c.logger.debug("SUBS:");
-//		for (long key : c.subs.keySet())
-//		{
-//			c.logger.debug("\tkey: " + key + " value: " + c.subs.get(key));
-//		}
-//	}
+	//	static void printSubs(ConnectionImpl c) {
+	//		c.logger.debug("SUBS:");
+	//		for (long key : c.subs.keySet())
+	//		{
+	//			c.logger.debug("\tkey: " + key + " value: " + c.subs.get(key));
+	//		}
+	//	}
 
 	@Override
 	public String getConnectedUrl()
@@ -2389,7 +2390,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 			mu.unlock();
 		}
 	}
-	
+
 	@Override
 	public String getConnectedId()
 	{
@@ -2422,8 +2423,13 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		try {
 			this.close();
 		} catch (Exception e) {
-			
+
 		}
+	}
+
+	@Override
+	public ServerInfo getConnectedServerInfo() {
+		return this.info;
 	}
 
 }

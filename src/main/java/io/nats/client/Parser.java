@@ -18,54 +18,21 @@ final class Parser {
 	ByteBuffer msgBufStream = null;
 	
 	protected class ParseState {
-		int	state;
-		int	as;
-		int	drop;
+		int		state;
+		int		as;
+		int		drop;
 		MsgArg	ma;
-		String	argBuf;
-		String msgBuf;
-		String scratch; 
+		String 	argBuf;
+		String 	msgBuf;
+		String 	scratch; 
 	}
-//	private static enum NatsOp {
-//		OP_START,
-//		OP_PLUS,
-//		OP_PLUS_O,
-//		OP_PLUS_OK,
-//		OP_MINUS,
-//		OP_MINUS_E,
-//		OP_MINUS_ER,
-//		OP_MINUS_ERR,
-//		OP_MINUS_ERR_SPC,
-//		MINUS_ERR_ARG,
-//		OP_C,
-//		OP_CO,
-//		OP_CON,
-//		OP_CONN,
-//		OP_CONNE,
-//		OP_CONNEC,
-//		OP_CONNECT,
-//		CONNECT_ARG,
-//		OP_M,
-//		OP_MS,
-//		OP_MSG,
-//		OP_MSG_SPC,
-//		MSG_ARG,
-//		MSG_PAYLOAD,
-//		MSG_END,
-//		OP_P,
-//		OP_PI,
-//		OP_PIN,
-//		OP_PING,
-//		OP_PO,
-//		OP_PON,
-//		OP_PONG
-//	}
+
 	private static class NatsOp {
         // For performance declare these as consts - they'll be
         // baked into the IL code (thus faster).  An enum would
         // be nice, but we want speed in this critical section of
         // message handling.
-		private static Map<Integer, String> names = new HashMap<Integer, String>();
+		protected static Map<Integer, String> names = new HashMap<Integer, String>();
         final static int OP_START         = 0;
         static { names.put(OP_START, "OP_START");}  
         
@@ -177,7 +144,7 @@ final class Parser {
         for (i = 0; i < len; i++)
         {
             b = (char)buffer[i];
-
+//System.err.println("at top, new byte == '" + b + "', current state: " + NatsOp.names.get(new Integer(state)));
             switch (state)
             {
                 case NatsOp.OP_START:
@@ -388,6 +355,7 @@ final class Parser {
                             break;
                         default:
                             state = NatsOp.MINUS_ERR_ARG;
+                            i--;
                             break;
                     }
                     break;
@@ -397,11 +365,16 @@ final class Parser {
                         case '\r':
                             break;
                         case '\n':
+//                        	System.err.println(new String(buffer));
+//                        	System.err.println(String.format("argBufBase=%s, position=%d",
+//                        			new String(buffer, 0, argBufStream.position()), argBufStream.position()));
+//                        	System.err.println(new String(argBufBase, 0, argBufStream.position()));
                             conn.processErr(argBufStream);
                             argBufStream.position(0);
                             state = NatsOp.OP_START;
                             break;
                         default:
+//                        	System.err.println("stream putting " + b);
                             argBufStream.put((byte)b);
                             break;
                     }
