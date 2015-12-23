@@ -8,8 +8,8 @@ import java.util.List;
 
 class NATSServer implements Runnable, AutoCloseable
 {
-	final static String GNATSD = "/Users/larry/Dropbox/workspace/go/bin/gnatsd";
-//	final static String GNATSD = "gnatsd";
+//	final static String GNATSD = "/Users/larry/Dropbox/workspace/go/bin/gnatsd";
+	final static String GNATSD = "gnatsd";
     // Enable this for additional server debugging info.
     boolean debug = false;
     ProcessBuilder pb;
