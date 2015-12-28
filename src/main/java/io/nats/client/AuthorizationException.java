@@ -11,7 +11,10 @@ import java.io.IOException;
  */
 public class AuthorizationException extends IOException {
 
-	private static final long serialVersionUID = -4860115934074829966L;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	public AuthorizationException() {
 		super();

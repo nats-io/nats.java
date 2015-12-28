@@ -15,12 +15,15 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 
 import static io.nats.client.Constants.*;
 
 public class ConnectionFactoryTest implements ExceptionHandler,
-	ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
+ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
+	@Rule
+	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
@@ -130,7 +133,7 @@ public class ConnectionFactoryTest implements ExceptionHandler,
 			{
 				ConnectionImpl ci = (ConnectionImpl)c;
 				assertFalse(ci.isClosed());
-				
+
 				assertEquals(hostname, ci.opts.getHost());
 				assertEquals(password, ci.opts.getPassword());
 				List<URI> s3 = ci.opts.getServers();
@@ -202,12 +205,34 @@ public class ConnectionFactoryTest implements ExceptionHandler,
 		assertEquals(sList, cf.getServers());
 	}
 
-	//
-	//	@Test
-	//	public void testConnectionFactoryStringStringArray() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
+	@Test
+	public void testConnectionFactoryStringStringArray() {
+		String url = "nats://localhost:1222";
+		String[] servers = { "nats://localhost:1234", "nats://localhost:5678" }; 
+		List<URI> s1 = new ArrayList<URI>();
+		ConnectionFactory cf = new ConnectionFactory(servers);
+		cf.setServers(servers);
+
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			for (String s : servers) {
+				s1.add(new URI(s));
+			}
+			try (ConnectionImpl c = cf.createConnection(mock))
+			{
+				List<URI> serverList = c.opts.getServers();
+				assertEquals(s1, serverList);
+				assertEquals(url, c.opts.getUrl().toString());
+			} catch (IOException | TimeoutException e) {
+				fail("Couldn't connect");
+				e.printStackTrace();
+			}
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	}
+
 	//	@Test
 	//	public void testCreateConnection() {
 	//		fail("Not yet implemented"); // TODO
@@ -242,28 +267,71 @@ public class ConnectionFactoryTest implements ExceptionHandler,
 	//	public void testGetUrlString() {
 	//		fail("Not yet implemented"); // TODO
 	//	}
-	
-		@Test(expected=IllegalArgumentException.class)
-		public void testSetMalformedUrl() {
-			ConnectionFactory cf = new ConnectionFactory("this is a : badly formed url");
-			assertNotNull(cf);
+
+	@Test(expected=IllegalArgumentException.class)
+	public void testSetMalformedUrl() {
+		ConnectionFactory cf = new ConnectionFactory("this is a : badly formed url");
+		assertNotNull(cf);
+	}
+
+	@Test
+	public void testGetHost() {
+		String url = "nats://foobar:1234";
+		ConnectionFactory cf = new ConnectionFactory(url);
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			try (Connection c = cf.createConnection(mock))
+			{
+				assertEquals("foobar", cf.getHost());
+			} catch (IOException | TimeoutException e) {
+				fail("Exception thrown");
+				e.printStackTrace();
+			}
+		} catch (Exception e1) {
+			fail("Exception thrown");
+			e1.printStackTrace();
+		}
+	}
+
+		@Test
+		public void testSetHost() {
+			String url = "nats://foobar:1234";
+			ConnectionFactory cf = new ConnectionFactory(url);
+			try (TCPConnectionMock mock = new TCPConnectionMock())
+			{
+				try (Connection c = cf.createConnection(mock))
+				{
+					assertEquals("foobar", cf.getHost());
+				} catch (IOException | TimeoutException e) {
+					fail("Exception thrown");
+					e.printStackTrace();
+				}
+			} catch (Exception e1) {
+				fail("Exception thrown");
+				e1.printStackTrace();
+			}		
 		}
 	
-	//	@Test
-	//	public void testGetHost() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
-	//	@Test
-	//	public void testSetHost() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
-	//	@Test
-	//	public void testGetPort() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
+	
+	@Test
+	public void testGetPort() {
+		String url = "nats://foobar:1234";
+		ConnectionFactory cf = new ConnectionFactory(url);
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			try (Connection c = cf.createConnection(mock))
+			{
+				assertEquals(1234, cf.getPort());
+			} catch (IOException | TimeoutException e) {
+				fail("Exception thrown");
+				e.printStackTrace();
+			}
+		} catch (Exception e1) {
+			fail("Exception thrown");
+			e1.printStackTrace();
+		}		
+	}
+
 	//	@Test
 	//	public void testSetPort() {
 	//		fail("Not yet implemented"); // TODO
@@ -465,27 +533,27 @@ public class ConnectionFactoryTest implements ExceptionHandler,
 	//	}
 
 
-		@Override
-		public void onDisconnect(ConnectionEvent event) {
-			// TODO Auto-generated method stub
+	@Override
+	public void onDisconnect(ConnectionEvent event) {
+		// TODO Auto-generated method stub
 
-		}
+	}
 
-		@Override
-		public void onReconnect(ConnectionEvent event) {
-			// TODO Auto-generated method stub
+	@Override
+	public void onReconnect(ConnectionEvent event) {
+		// TODO Auto-generated method stub
 
-		}
+	}
 
-		@Override
-		public void onClose(ConnectionEvent event) {
-			// TODO Auto-generated method stub
+	@Override
+	public void onClose(ConnectionEvent event) {
+		// TODO Auto-generated method stub
 
-		}
+	}
 
-		@Override
-		public void onException(Connection conn, Subscription sub, Throwable e) {
-			// TODO Auto-generated method stub
+	@Override
+	public void onException(Connection conn, Subscription sub, Throwable e) {
+		// TODO Auto-generated method stub
 
-		}
+	}
 }

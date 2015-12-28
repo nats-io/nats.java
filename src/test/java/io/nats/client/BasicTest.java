@@ -679,6 +679,29 @@ public class BasicTest {
 		assertEquals(1, c.getStats().getOutMsgs());
 		c.close();
 	}
+	
+	@Test
+	public void testStatsClone() {
+		Statistics s1 = new Statistics();
+		Statistics s2 = null;
+
+		s1.incrementInMsgs();
+		s1.incrementInBytes(8192);
+		s1.incrementOutMsgs();
+		s1.incrementOutBytes(512);
+		s1.incrementReconnects();
+		
+		try {
+			s2 = (Statistics)s1.clone();
+		} catch (CloneNotSupportedException e) {
+			fail("Clone should not throw an exception");
+		}
+		assertEquals(s1.getInMsgs(), s2.getInMsgs());
+		assertEquals(s1.getOutMsgs(), s2.getOutMsgs());
+		assertEquals(s1.getInBytes(), s2.getInBytes());
+		assertEquals(s1.getOutBytes(), s2.getOutBytes());
+		assertEquals(s1.getReconnects(), s2.getReconnects());
+	}
 
 	@Test
 	public void testBadSubject() throws IOException, TimeoutException

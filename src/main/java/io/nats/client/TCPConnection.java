@@ -15,6 +15,7 @@ import java.security.cert.X509Certificate;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -97,8 +98,8 @@ class TCPConnection {
 		}
 	}
 
-	public InputStreamReader getInputStreamReader() {
-		return new InputStreamReader(readStream);
+	public BufferedReader getBufferedInputStreamReader() {
+		return new BufferedReader(new InputStreamReader(readStream));
 	}
 
 	public InputStream getReadBufferedStream(int size) {

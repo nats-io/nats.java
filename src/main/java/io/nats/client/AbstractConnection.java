@@ -3,8 +3,6 @@ package io.nats.client;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-import io.nats.client.ConnectionImpl.ServerInfo;
-
 import static io.nats.client.Constants.*;
 
 interface AbstractConnection extends AutoCloseable {
@@ -42,7 +40,9 @@ interface AbstractConnection extends AutoCloseable {
 
 	public String getConnectedId();
 
-	ConnState getState();
+	public ConnState getState();
 
-	ServerInfo getConnectedServerInfo();
+	public ServerInfo getConnectedServerInfo();
+	
+	public Exception getLastError();
 }

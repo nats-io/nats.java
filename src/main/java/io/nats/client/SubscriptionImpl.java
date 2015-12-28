@@ -92,7 +92,7 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 	// to the channel.
 	boolean addMessage(Message m, int maxCount)
 	{
-		logger.debug("Entered addMessage({}, maxCount={}", m, maxCount);
+		logger.trace("Entered addMessage({}, maxCount={}", m, maxCount);
 		if (mch != null)
 		{
 			if (mch.getCount() >= maxCount)

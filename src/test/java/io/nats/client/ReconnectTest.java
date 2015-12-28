@@ -663,7 +663,6 @@ public class ReconnectTest {
 		UnitTestUtilities.startDefaultServer();
 		ConnectionFactory cf = new ConnectionFactory();
 		cf.setMaxReconnect(4);
-//		try (Connection c = new ConnectionFactory().createConnection())
 		try (Connection c = cf.createConnection())
 		{
 			assertFalse(c.isClosed());
@@ -688,8 +687,8 @@ public class ReconnectTest {
 				UnitTestUtilities.stopDefaultServer();
 				System.out.println("Awaiting reconnect.");				
 				assertFalse(reconnected.await(3,TimeUnit.SECONDS));
-				assertTrue(c.getState()==ConnState.RECONNECTING);
-				while(c.getState()==ConnState.RECONNECTING) {
+				assertTrue(c.isReconnecting());
+				while(c.isReconnecting()) {
 //				while(true) {
 					try { Thread.sleep(5000);} catch (InterruptedException e) {}
 				}

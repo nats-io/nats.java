@@ -42,40 +42,53 @@ public class AuthTest {
 
 	UnitTestUtilities util = new UnitTestUtilities();
 
-	class DisconnectHandler implements DisconnectedEventHandler {
-		@Override
-		public void onDisconnect(ConnectionEvent event) {
-			hitDisconnect++;
-		}
-	}
-	private void connectAndFail(String url)
+	@Test
+	public void testAuthFailure()
 	{
+		String[] urls = 
+			{ 
+					"nats://username@localhost:1222",
+					"nats://username:badpass@localhost:1222",
+					"nats://localhost:1222", 
+					"nats://badname:password@localhost:1222"
+			};
+		
 		try
 		{
-			System.out.println("Trying: " + url);
-
 			hitDisconnect = 0;
-			ConnectionFactory cf = new ConnectionFactory(url);
-			cf.setDisconnectedEventHandler(new DisconnectHandler());
-			Connection c = cf.createConnection();
-			c.close();
-			assertTrue(c.isClosed());
-			
-			fail("Expected a failure; did not receive one");
+			ConnectionFactory cf = new ConnectionFactory();
+			cf.setDisconnectedEventHandler(new DisconnectedEventHandler() {
+				@Override
+				public void onDisconnect(ConnectionEvent event) {
+					hitDisconnect++;
+				}				
+			});
+
+			for (String url : urls)
+			{
+				boolean exThrown = false;
+				System.err.println("Trying: " + url);
+				cf.setUrl(url);
+				try (Connection c = cf.createConnection())
+				{
+					assertTrue(c.isClosed());
+					fail("Should have received an error while trying to connect");
+				} catch (AuthorizationException e) {
+					exThrown = true;
+					System.out.println("Success with expected failure: " + e.getMessage());					
+				} finally {
+					assertTrue("Should have received an error while trying to connect",
+							exThrown);
+				}
+				
+			}
 		}
 		catch (AuthorizationException e) {
 			System.out.println("Success with expected failure: " + e.getMessage());
 		}
 		catch (Exception e)
 		{
-//			if (e.getMessage().contains("Authorization"))
-//			{
-//				System.out.println("Success with expected failure: " + e.getMessage());
-//			}
-//			else
-//			{
-				fail("Unexpected exception thrown: " + e);
-//			}
+			fail("Unexpected exception thrown: " + e);
 		}
 		finally
 		{
@@ -88,18 +101,12 @@ public class AuthTest {
 	public void testAuthSuccess() 
 			throws IOException, TimeoutException
 	{
-		Connection c = new ConnectionFactory("nats://username:password@localhost:1222").createConnection();
-		assertTrue(!c.isClosed());
-		c.close();
-		assertTrue(c.isClosed());
-	}
-
-	@Test
-	public void testAuthFailure()
-	{
-		connectAndFail("nats://username@localhost:1222");
-		connectAndFail("nats://username:badpass@localhost:1222");
-		connectAndFail("nats://localhost:1222");
-		connectAndFail("nats://badname:password@localhost:1222");
+		try(Connection c = new ConnectionFactory("nats://username:password@localhost:1222")
+				.createConnection())
+		{
+			assertTrue(!c.isClosed());
+			c.close();
+			assertTrue(c.isClosed());
+		}
 	}
 }

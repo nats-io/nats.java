@@ -73,7 +73,8 @@ public class TLSTest {
 			assertNotNull(c);
 			c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
-			ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
+			ConnectionFactory cf = new ConnectionFactory();
+			cf.setUrl("nats://localhost:1222");
 			cf.setSecure(true);
 			cf.setSslContext(c);
 

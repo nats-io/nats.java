@@ -21,7 +21,7 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	class MessageFeeder implements Runnable {
 		@Override
 		public void run(){
-			logger.debug("msgFeeder has started");
+			logger.trace("msgFeeder has started");
 			conn.deliverMsgs(mch);
 		}
 	}
@@ -90,7 +90,7 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 		if (msgFeederThread == null) {
 			msgFeederThread = new NATSThread(msgFeeder, "msgFeeder");
 			msgFeederThread.start();
-			logger.debug("Started msgFeeder for subject: " + this.getSubject() + " sid: " + this.getSid());
+			logger.trace("Started msgFeeder for subject: " + this.getSubject() + " sid: " + this.getSid());
 		}
 	}
 

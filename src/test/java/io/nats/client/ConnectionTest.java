@@ -1,7 +1,10 @@
 package io.nats.client;
 
+import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -317,5 +320,192 @@ public class ConnectionTest {
 			e1.printStackTrace();
 		}
 
+	}
+	
+	@Test
+	public void testGetPropertiesFailure() {
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				Properties props = c.getProperties("foobar.properties");
+				assertNull(props);
+				
+				InputStream is = mock(InputStream.class);
+				doThrow(new IOException("Foo")).when(is).read(any(byte[].class));
+				doThrow(new IOException("Foo")).when(is).read(any(byte[].class), any(Integer.class), any(Integer.class));;
+				doThrow(new IOException("Foo")).when(is).read();
+
+				props = c.getProperties(is);
+				assertNull("getProperties() should have returned null", props);
+				System.err.println("Success.");				
+			} catch (IOException e) {
+				fail("Should not have thrown any exception");
+			} 
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testGetPropertiesSuccess() {
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				Properties props = c.getProperties("jnats.properties");
+				assertNotNull(props);
+				String version = props.getProperty("client.version");
+				assertNotNull(version);
+				System.out.println("version: " + version);
+			} catch (Exception e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			} 
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testCreateConnFailure() {
+		boolean exThrown = false;
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			mock.setOpenFailure(true);
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				assertTrue(c.isClosed());
+			} catch (IOException | TimeoutException e) {
+				exThrown = true;
+				assertTrue(e instanceof NoServersException);
+			} 
+			assertTrue("Should have thrown exception.", exThrown);
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test 
+	public void testGetServerInfo() {
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				assertTrue(!c.isClosed());
+				ServerInfo info = c.getConnectedServerInfo();
+				assertEquals("0.0.0.0",info.getHost());
+				assertEquals("0.7.2", info.getVersion());
+				assertEquals(4222, info.getPort());
+				assertFalse(info.isAuthRequired());
+				assertFalse(info.isTlsRequired());
+				assertEquals(1048576, info.getMaxPayload());
+			} catch (IOException | TimeoutException e) {
+				fail("Should not have thrown exception");
+				e.printStackTrace();
+			} 
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testFlushFailure() {
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+//			mock.setBadWriter(true);
+			boolean exThrown = false;
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				assertFalse(c.isClosed());
+				c.close();
+				try {
+					c.flush(-1);
+				} catch (IllegalArgumentException e) {
+					exThrown=true;
+				}
+				assertTrue(exThrown);
+
+				exThrown=false;
+				try {
+					c.flush();
+				} catch (ConnectionClosedException e) {
+					exThrown=true;
+				}
+				assertTrue(exThrown);
+
+				exThrown = false;
+				try {
+					mock.setNoPongs(true);
+					c.flush(5000);
+				} catch (ConnectionClosedException e) {
+					System.err.println("timeout connection closed");
+					exThrown=true;
+				} catch (Exception e) {
+					fail("Wrong exception");
+					e.printStackTrace();
+				}
+				assertTrue(exThrown);
+				
+			} catch (IOException | TimeoutException e) {
+				fail("Exception thrown");
+			} 
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testFlushFailureNoPong() {
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+//			mock.setBadWriter(true);
+			boolean exThrown = false;
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				assertFalse(c.isClosed());
+				exThrown = false;
+				try {
+					mock.setNoPongs(true);
+					c.flush(2000);
+				} catch (TimeoutException e) {
+					System.err.println("timeout connection closed");
+					exThrown=true;
+				} catch (Exception e) {
+					fail("Wrong exception: " + e.getClass().getName());
+					Throwable cause = e.getCause();
+					if (cause != null)
+						cause.printStackTrace();
+					e.printStackTrace();
+				}
+				assertTrue(exThrown);
+				
+			} catch (IOException | TimeoutException e) {
+				fail("Exception thrown");
+			} 
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	@Test
+	public void testBadSid() {
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				assertFalse(c.isClosed());
+				try {
+					mock.deliverMessage("foo", 27, null, "Hello".getBytes());
+				} catch (Exception e) {
+					fail("Shouldn't have thrown an exception.");
+					e.printStackTrace();
+				}
+				
+			} catch (IOException | TimeoutException e) {
+				fail("Exception thrown");
+			} 
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 }
