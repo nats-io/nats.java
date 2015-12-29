@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.net.ssl.SSLContext;
@@ -28,10 +29,10 @@ public class Options {
 	private int maxPingsOut;
 	private ExceptionHandler exceptionHandler;
 	private SSLContext sslContext;
-	
-//	private List<X509Certificate> certificates =
-//			new ArrayList<X509Certificate>();
-	
+
+	//	private List<X509Certificate> certificates =
+	//			new ArrayList<X509Certificate>();
+
 	/**
 	 * @return the subChanLen
 	 */
@@ -49,7 +50,7 @@ public class Options {
 	public ClosedEventHandler closedEventHandler;
 	public ReconnectedEventHandler reconnectedEventHandler;
 	public ExceptionHandler asyncErrorEventHandler;
-	
+
 	public URI getUrl() {
 		return url;
 	}	
@@ -60,20 +61,20 @@ public class Options {
 				this.setHost(url.getHost());
 			}
 			this.setPort(url.getPort());
-			
-	        String userInfo = url.getRawUserInfo();
-	        if (userInfo != null) {
-	            String userPass[] = userInfo.split(":");
-	            if (userPass.length > 2) {
-	                throw new IllegalArgumentException("Bad user info in NATS " +
-	                                                   "URI: " + userInfo);
-	            }
 
-	            setUsername(uriDecode(userPass[0]));
-	            if (userPass.length == 2) {
-	                setPassword(uriDecode(userPass[1]));
-	            }
-	        }
+			String userInfo = url.getRawUserInfo();
+			if (userInfo != null) {
+				String userPass[] = userInfo.split(":");
+				if (userPass.length > 2) {
+					throw new IllegalArgumentException("Bad user info in NATS " +
+							"URI: " + userInfo);
+				}
+
+				setUsername(uriDecode(userPass[0]));
+				if (userPass.length == 2) {
+					setPassword(uriDecode(userPass[1]));
+				}
+			}
 		}
 	}
 	private String uriDecode(String s) {
@@ -87,11 +88,18 @@ public class Options {
 		}
 	}
 	public void setUrl(String url) {
-		try {
-			if ((url != null) && !url.isEmpty())
-			this.url = new URI(url);
-		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException("Bad server URL: " + url);
+		if (url==null) {
+			return;
+		} else {
+			if (url.isEmpty()) {
+				return;
+			} else {
+				try {
+					this.url = new URI(url);
+				} catch (URISyntaxException e) {
+					throw new IllegalArgumentException("Bad server URL: " + url);
+				}
+			}
 		}
 	}
 	public String getHost() {
@@ -121,17 +129,21 @@ public class Options {
 	public List<URI> getServers() {
 		return servers;
 	}
-	public void setServers(String[] servers) {
-		if (servers != null) {
-			for (String s : servers) {
+	public void setServers(String[] serverArray) {
+		if ((serverArray != null) && (serverArray.length != 0)) {
+			if (this.servers == null)
+				this.servers = new ArrayList<URI>();
+			for (String s : serverArray) {
 				if (s!=null && !s.isEmpty())
 				{
 					try {
-						this.servers.add(new URI(s));						
+						this.servers.add(new URI(s.trim()));						
 					} catch (URISyntaxException e) {
 						throw new IllegalArgumentException("Bad server URL: " + s);
 					}
-				}
+				} else 
+					continue;
+				
 			}
 		}
 	}
@@ -210,12 +222,12 @@ public class Options {
 	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
 		this.exceptionHandler = exceptionHandler;
 	}
-//	public ConnectionEventHandler getConnectionListener() {
-//		return connectionEventHandler;
-//	}
-//	public void setConnectionListener(ConnectionEventHandler cb) {
-//		this.connectionEventHandler = cb;
-//	}
+	//	public ConnectionEventHandler getConnectionListener() {
+	//		return connectionEventHandler;
+	//	}
+	//	public void setConnectionListener(ConnectionEventHandler cb) {
+	//		this.connectionEventHandler = cb;
+	//	}
 	public ClosedEventHandler getClosedEventHandler() {
 		return closedEventHandler;
 	}
@@ -234,25 +246,25 @@ public class Options {
 	public void setDisconnectedEventHandler(DisconnectedEventHandler cb) {
 		this.disconnectedEventHandler = cb;
 	}
-	
-//	public void addCertificate(X509Certificate cert) {
-//		if (cert==null)
-//			throw new IllegalArgumentException("Null certificate");
-//		certificates.add(cert);
-//	}
-//	
-//	public void addCertificate(byte[] cert) throws CertificateException {
-//		if (cert==null)
-//			throw new IllegalArgumentException("Null certificate");
-//		CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-//		InputStream in = new ByteArrayInputStream(cert);
-//		X509Certificate theCert = (X509Certificate)certFactory.generateCertificate(in);
-//		certificates.add(theCert);
-//	}
-//	
-//	public void addCertificate(String cert) throws CertificateException {
-//		addCertificate(cert.getBytes(Charset.forName("UTF-8")));
-//	}
+
+	//	public void addCertificate(X509Certificate cert) {
+	//		if (cert==null)
+	//			throw new IllegalArgumentException("Null certificate");
+	//		certificates.add(cert);
+	//	}
+	//	
+	//	public void addCertificate(byte[] cert) throws CertificateException {
+	//		if (cert==null)
+	//			throw new IllegalArgumentException("Null certificate");
+	//		CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+	//		InputStream in = new ByteArrayInputStream(cert);
+	//		X509Certificate theCert = (X509Certificate)certFactory.generateCertificate(in);
+	//		certificates.add(theCert);
+	//	}
+	//	
+	//	public void addCertificate(String cert) throws CertificateException {
+	//		addCertificate(cert.getBytes(Charset.forName("UTF-8")));
+	//	}
 	/**
 	 * @return the sslContext
 	 */

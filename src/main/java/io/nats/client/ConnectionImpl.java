@@ -828,9 +828,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 
 				mu.unlock();
 				try {
-					Thread.sleep((int)sleepTime);
-				} catch (InterruptedException e) { 
-
+					sleepMsec((int)sleepTime);
 				} finally {
 					mu.lock();
 				}
@@ -841,9 +839,7 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 				// proceed.
 				mu.unlock();
 				try {
-					Thread.sleep(50);
-				} catch (InterruptedException e) { 
-
+					sleepMsec(50);
 				} finally {
 					mu.lock();
 				}
@@ -1412,6 +1408,8 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		if (msgArgs.size < 0)
 		{
 			throw new ParserException("Invalid Message - Bad or Missing Size: " + s);
+		} else { 
+			// OK
 		}
 	}
 
@@ -2318,6 +2316,14 @@ final class ConnectionImpl implements Connection, AutoCloseable {
 		for (long key : c.subs.keySet())
 		{
 			c.logger.trace("\tkey: " + key + " value: " + c.subs.get(key));
+		}
+	}
+	
+	protected void sleepMsec(long msec) {
+		try {
+			Thread.sleep(msec);
+		} catch (InterruptedException e) {
+			// NOOP
 		}
 	}
 

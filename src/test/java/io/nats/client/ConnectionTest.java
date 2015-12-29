@@ -508,4 +508,41 @@ public class ConnectionTest {
 			fail(e.getMessage());
 		}
 	}
+	
+	@Test
+	public void testProcessMsgArgsErrors() {
+		String tooFewArgsString = "foo bar";
+		byte[] args = tooFewArgsString.getBytes();
+		
+		boolean exThrown = false;
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				c.processMsgArgs(args, args.length);
+			} catch (ParserException e) {
+				exThrown = true;
+				assertTrue(e.getMessage().startsWith("Unable to parse message arguments: "));
+			} finally {
+				assertTrue("Should have thrown ParserException", exThrown);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		String badSizeString = "foo 1 -1";
+		args = badSizeString.getBytes();
+		
+		exThrown = false;
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				c.processMsgArgs(args, args.length);
+			} catch (ParserException e) {
+				exThrown = true;
+				assertTrue(e.getMessage().startsWith("Invalid Message - Bad or Missing Size: "));
+			} finally {
+				assertTrue("Should have thrown ParserException", exThrown);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+	}
 }

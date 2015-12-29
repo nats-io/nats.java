@@ -183,7 +183,7 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		fail("Should have thrown exception");
 	}
 
-	List<URI> serverArrayToList(String[] sarray)
+	public static List<URI> serverArrayToList(String[] sarray)
 	{
 		List<URI> rv = new ArrayList<URI>();
 		for (String s : serverArray)
@@ -210,8 +210,10 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		String url = "nats://localhost:1222";
 		String[] servers = { "nats://localhost:1234", "nats://localhost:5678" }; 
 		List<URI> s1 = new ArrayList<URI>();
-		ConnectionFactory cf = new ConnectionFactory(servers);
+		ConnectionFactory cf = new ConnectionFactory(url, servers);
 		cf.setServers(servers);
+		assertNotNull(cf.getUrlString());
+		assertEquals(url, cf.getUrlString());
 
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
@@ -263,10 +265,12 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
-	//	@Test
-	//	public void testGetUrlString() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
+	@Test
+	public void testGetUrlString() {
+		String urlString = "nats://natshost:2222";
+		ConnectionFactory cf = new ConnectionFactory(urlString);
+		assertEquals(urlString, cf.getUrlString());
+	}
 
 	@Test(expected=IllegalArgumentException.class)
 	public void testSetMalformedUrl() {
@@ -293,26 +297,26 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		}
 	}
 
-		@Test
-		public void testSetHost() {
-			String url = "nats://foobar:1234";
-			ConnectionFactory cf = new ConnectionFactory(url);
-			try (TCPConnectionMock mock = new TCPConnectionMock())
+	@Test
+	public void testSetHost() {
+		String url = "nats://foobar:1234";
+		ConnectionFactory cf = new ConnectionFactory(url);
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			try (Connection c = cf.createConnection(mock))
 			{
-				try (Connection c = cf.createConnection(mock))
-				{
-					assertEquals("foobar", cf.getHost());
-				} catch (IOException | TimeoutException e) {
-					fail("Exception thrown");
-					e.printStackTrace();
-				}
-			} catch (Exception e1) {
+				assertEquals("foobar", cf.getHost());
+			} catch (IOException | TimeoutException e) {
 				fail("Exception thrown");
-				e1.printStackTrace();
-			}		
-		}
-	
-	
+				e.printStackTrace();
+			}
+		} catch (Exception e1) {
+			fail("Exception thrown");
+			e1.printStackTrace();
+		}		
+	}
+
+
 	@Test
 	public void testGetPort() {
 		String url = "nats://foobar:1234";
@@ -362,16 +366,49 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
-	//	@Test
-	//	public void testSetServersListOfURI() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
-	//	@Test
-	//	public void testSetServersStringArray() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
+	@Test
+	public void testSetServersListOfURI() {
+		String[] servers = { "nats://localhost:1234", "nats://localhost:5678" }; 
+		List<URI> s1 = new ArrayList<URI>();
+
+		try {
+			for (String s : servers) {
+				s1.add(new URI(s));
+			}
+		} catch (URISyntaxException e) {
+			fail(e.getMessage());
+		}
+
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setServers(s1);
+		assertEquals(s1, cf.getServers());
+	}
+
+	@Test
+	public void testSetServersStringArray() {
+		String[] servers = { "nats://localhost:1234", "nats://localhost:5678" }; 
+		List<URI> s1 = new ArrayList<URI>();
+		ConnectionFactory cf = new ConnectionFactory(servers);
+		cf.setServers(servers);
+
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			for (String s : servers) {
+				s1.add(new URI(s));
+			}
+			try (ConnectionImpl c = cf.createConnection(mock))
+			{
+				List<URI> serverList = c.opts.getServers();
+				assertEquals(s1, serverList);
+			} catch (IOException | TimeoutException e) {
+				fail("Couldn't connect");
+				e.printStackTrace();
+			}
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
+	}
+
 	//	@Test
 	//	public void testIsNoRandomize() {
 	//		fail("Not yet implemented"); // TODO
