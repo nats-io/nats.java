@@ -65,54 +65,47 @@ public class ClusterTest {
 	@Test
 	public void testServersOption() throws IOException, TimeoutException
 	{
-		Connection c = null;
 		ConnectionFactory cf = new ConnectionFactory();
 		cf.setNoRandomize(true);
 
 		cf.setServers(testServers);
 
 		// Make sure we can connect to first server if running
-		NATSServer ns = utils.createServerOnPort(1222);
-		try {
-			Thread.sleep(500);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		try (NATSServer ns = utils.createServerOnPort(1222)) {
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
-		try {
-			c = cf.createConnection();
-			assertTrue(String.format("%s != %s", testServers[0], c.getConnectedUrl()),
-					testServers[0].equals(c.getConnectedUrl()));
-		} catch (IOException e) {
-			throw e;
-		} catch (TimeoutException e) {
-			throw e;
-		} 
-		finally {
-			c.close();
-			ns.shutdown();
+			try (Connection c = cf.createConnection()) {
+				assertTrue(String.format("%s != %s", testServers[0], c.getConnectedUrl()),
+						testServers[0].equals(c.getConnectedUrl()));
+			} catch (IOException | TimeoutException e) {
+				throw e;
+			}
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 		}
 
 		// make sure we can connect to a non-first server.
-		ns = utils.createServerOnPort(1227);
-		try {
-			Thread.sleep(500);
-		} catch (InterruptedException e) {
+		try (NATSServer ns = utils.createServerOnPort(1227)) {
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			try (Connection c = cf.createConnection()) {
+				assertTrue(testServers[5] + " != " + c.getConnectedUrl(), testServers[5].equals(c.getConnectedUrl()));
+			} catch (IOException | TimeoutException e) {
+				throw e;
+			}
+		} catch (Exception e1) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		try {
-			c = cf.createConnection();
-			assertTrue(testServers[5] + " != " + c.getConnectedUrl(), testServers[5].equals(c.getConnectedUrl()));
-		} catch (IOException e) {
-			throw e;
-		} catch (TimeoutException e) {
-			throw e;
-		} 
-		finally {
-			c.close();
-			ns.shutdown();
+			e1.printStackTrace();
 		}
 	}
 
@@ -134,18 +127,13 @@ public class ClusterTest {
 
 		try {Thread.sleep(500);} catch (InterruptedException e) {}
 
-		Connection c = null;
 		boolean failed=true;
-		try { 
-			c = cf.createConnection();
-			if (c != null)
-				System.err.println("Connected URL = " + c.getConnectedUrl());
+		try (Connection c = cf.createConnection()) {
+			System.err.println("Connected URL = " + c.getConnectedUrl());
 		} catch (Exception e) {
 			assertTrue("Expected IOException", e instanceof IOException);
 			failed=false;
 		} finally {
-			if (c != null)
-				c.close();
 			assertFalse("Didn't throw an exception", failed);
 		}
 
@@ -158,8 +146,8 @@ public class ClusterTest {
 		cf.setServers(authServers);
 
 		try {Thread.sleep(500);} catch (InterruptedException e) {}
-		try {
-			c = cf.createConnection();
+		try (Connection c = cf.createConnection()) {
+			assertTrue(c.getConnectedUrl().equals(authServers[1]));
 		} catch (IOException e) {
 			if (e instanceof AuthorizationException) {
 				System.out.println("ignoring AuthorizationException");
@@ -170,8 +158,6 @@ public class ClusterTest {
 			throw e;
 		}
 		finally {
-			assertTrue(c.getConnectedUrl().equals(authServers[1]));
-			c.close();
 			as1.shutdown();
 			as2.shutdown();
 		}
@@ -180,8 +166,8 @@ public class ClusterTest {
 	@Test
 	public void testBasicClusterReconnect() throws IOException, TimeoutException
 	{
-//		final AtomicBoolean disconnected = new AtomicBoolean(false);
-//		final AtomicBoolean reconnected = new AtomicBoolean(false);
+		//		final AtomicBoolean disconnected = new AtomicBoolean(false);
+		//		final AtomicBoolean reconnected = new AtomicBoolean(false);
 		String[] plainServers = new String[] {
 				"nats://localhost:1222",
 				"nats://localhost:1224"
@@ -202,7 +188,7 @@ public class ClusterTest {
 				try {
 					// Suppress any additional calls
 					event.getConnection().setDisconnectedEventHandler(null);
-//					disconnected.set(true);
+					//					disconnected.set(true);
 					disconnected.signal();
 				}
 				finally {
@@ -223,7 +209,7 @@ public class ClusterTest {
 				{
 					event.getConnection().setReconnectedEventHandler(null);
 					reconnected.signal();
-//					reconnectLock.notify();
+					//					reconnectLock.notify();
 				} finally {
 					reconnectLock.unlock();
 				}
@@ -252,12 +238,12 @@ public class ClusterTest {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-//			long t0=System.nanoTime();
-//			try {
-//				disconnectLock.wait(20000);
-//			} catch (InterruptedException e) {}
-//			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
-//			assertTrue("disconnect lock waited "+elapsed+"msec", elapsed < 20000);
+			//			long t0=System.nanoTime();
+			//			try {
+			//				disconnectLock.wait(20000);
+			//			} catch (InterruptedException e) {}
+			//			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
+			//			assertTrue("disconnect lock waited "+elapsed+"msec", elapsed < 20000);
 		} finally {
 			disconnectLock.unlock();
 		}
@@ -271,12 +257,12 @@ public class ClusterTest {
 				e.printStackTrace();
 			}
 
-//			long thist0 = System.nanoTime();
-//			try {
-//				reconnectLock.wait(20000);
-//			} catch (InterruptedException e) {}
-//			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - thist0);
-//			assertTrue("reconnect lock waited " +elapsed+"msec", elapsed < 20000);
+			//			long thist0 = System.nanoTime();
+			//			try {
+			//				reconnectLock.wait(20000);
+			//			} catch (InterruptedException e) {}
+			//			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - thist0);
+			//			assertTrue("reconnect lock waited " +elapsed+"msec", elapsed < 20000);
 
 		} finally {
 			reconnectLock.unlock();
@@ -566,8 +552,8 @@ public class ClusterTest {
 					cmu.unlock();
 				}
 
-//				Assert.IsTrue(disconnectHandlerCalled);
-//				Assert.IsTrue(closedHandlerCalled);
+				//				Assert.IsTrue(disconnectHandlerCalled);
+				//				Assert.IsTrue(closedHandlerCalled);
 				assertTrue("Wrong status: " + c.getState(), c.isClosed());
 			}
 		}

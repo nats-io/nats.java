@@ -13,7 +13,7 @@ import java.util.concurrent.Executors;
  */
 class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscription {
 
-//	private ExecutorService executor = Executors.newSingleThreadExecutor(new NATSThreadFactory("msgfeederfactory"));
+	//	private ExecutorService executor = Executors.newSingleThreadExecutor(new NATSThreadFactory("msgfeederfactory"));
 	private MessageHandler msgHandler;
 	private NATSThread msgFeederThread = null;
 	private MessageFeeder msgFeeder;
@@ -26,8 +26,8 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 		}
 	}
 
-	protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, MessageHandler cb) {
-		super(nc, subj, queue);
+	protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, MessageHandler cb, int max) {
+		super(nc, subj, queue, max);
 		this.msgHandler = cb;
 		msgFeeder = new MessageFeeder();
 	}
@@ -69,8 +69,7 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 				} catch (IllegalStateException e) {
 					logger.debug("Bad subscription while unsubscribing:", e);
 				} catch (IOException e) {
-					logger.debug("Exception while unsubscribing:", e);
-					e.printStackTrace();
+					logger.debug("IOException while unsubscribing:", e);
 				} finally {
 					this.conn = null;
 				}
@@ -79,11 +78,10 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 		return true;
 	}
 
-    private boolean isStarted()
-    {
-        return (msgFeederThread != null);
-//    	return (!executor.isTerminated());
-    }
+	boolean isStarted()
+	{
+		return (msgFeederThread != null);
+	}
 
 
 	void enable() {
@@ -96,10 +94,14 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 
 	void disable() {
 		if (msgFeeder != null) {
-			try {
-				msgFeederThread.join();
-			} catch (InterruptedException e) {
-			}
+			if (msgFeederThread != null)
+			{
+				try {
+					msgFeederThread.join();
+				} catch (InterruptedException e) {
+				}
+				msgFeederThread = null;
+			}			
 			msgFeeder = null;
 		}
 	}
@@ -111,18 +113,23 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 
 	@Override
 	public void start() throws IllegalStateException 
-    {
+	{
 		//TODO fix exception handling
 		if (isStarted())
-            return;
+			return;
 
-        if (!isValid())
-            throw new IllegalStateException("Subscription is not valid.");
+		if (!isValid())
+			throw new BadSubscriptionException("Subscription is not valid.");
 
-        conn.sendSubscriptionMessage(this);
-        
-        enable();
-    }
+		enable();
 
+		conn.sendSubscriptionMessage(this);
+	}
+
+	@Override
+	public void close() {
+		super.close();
+		disable();
+	}
 
 }

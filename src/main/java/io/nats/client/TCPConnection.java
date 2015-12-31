@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 
 /// Convenience class representing the TCP connection to prevent 
 /// managing two variables throughout the NATs client code.
-class TCPConnection {
+class TCPConnection implements AutoCloseable {
 	final Logger logger = LoggerFactory.getLogger(TCPConnection.class);
 
 	/// TODO: Test various scenarios for efficiency. Is a
@@ -46,7 +46,8 @@ class TCPConnection {
 	protected InputStream readStream = null;
 	protected InetSocketAddress addr = null;
 	protected int timeout = 0;
-
+	boolean tlsDebug = false;
+	
 	public TCPConnection() {
 	}
 
@@ -61,14 +62,27 @@ class TCPConnection {
 			client = new Socket();
 			client.connect(addr, timeout);
 
+			open();
+			
+		} catch (IOException e) {
+			throw e;
+		} finally {
+			mu.unlock();
+		}
+	}
+
+	public void open() throws IOException {
+		mu.lock();
+		try {
 			client.setTcpNoDelay(false);
 			client.setReceiveBufferSize(ConnectionImpl.DEFAULT_BUF_SIZE);
 			client.setSendBufferSize(ConnectionImpl.DEFAULT_BUF_SIZE);
 
 			writeStream = client.getOutputStream();
 			readStream = client.getInputStream();
+
 		} catch (IOException e) {
-			throw e;
+			throw e;		
 		} finally {
 			mu.unlock();
 		}
@@ -90,8 +104,7 @@ class TCPConnection {
 			if (client != null) {	
 				client.close();
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
+		} catch (IOException e) {
 			// ignore
 		} finally {
 			mu.unlock();
@@ -130,24 +143,24 @@ class TCPConnection {
 		return rv;
 	}
 
-//	class TraceEnabledBufferedOutputStream  extends BufferedOutputStream {
-//
-//		public TraceEnabledBufferedOutputStream(OutputStream out) {
-//			super(out);
-//		}
-//		public TraceEnabledBufferedOutputStream(OutputStream out, int size) {
-//			super(out, size);
-//		}		
-//	}
-//
-//	class TraceEnabledBufferedInputStream  extends BufferedInputStream {
-//		public TraceEnabledBufferedInputStream(InputStream in) {
-//			super(in);
-//		}
-//		public TraceEnabledBufferedInputStream(InputStream in, int size) {
-//			super(in, size);
-//		}		
-//	}
+	//	class TraceEnabledBufferedOutputStream  extends BufferedOutputStream {
+	//
+	//		public TraceEnabledBufferedOutputStream(OutputStream out) {
+	//			super(out);
+	//		}
+	//		public TraceEnabledBufferedOutputStream(OutputStream out, int size) {
+	//			super(out, size);
+	//		}		
+	//	}
+	//
+	//	class TraceEnabledBufferedInputStream  extends BufferedInputStream {
+	//		public TraceEnabledBufferedInputStream(InputStream in) {
+	//			super(in);
+	//		}
+	//		public TraceEnabledBufferedInputStream(InputStream in, int size) {
+	//			super(in, size);
+	//		}		
+	//	}
 
 	/**
 	 * Set the socket factory used to make connections with. Can be
@@ -171,13 +184,22 @@ class TCPConnection {
 		this.readStream = sslSocket.getInputStream();
 		this.writeStream = sslSocket.getOutputStream();
 
-		if (logger.isTraceEnabled())
+		if (isTlsDebug())
 			sslSocket.addHandshakeCompletedListener(new HandshakeListener());
-		
+
 		sslSocket.startHandshake();
 
 	}
-	
+
+	protected void setSocket(Socket sock) {
+		mu.lock();
+		try {
+			client = sock;
+		} finally {
+			mu.unlock();
+		}
+	}
+
 	class HandshakeListener implements HandshakeCompletedListener
 	{
 		public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent
@@ -207,5 +229,25 @@ class TCPConnection {
 				logger.trace("No peer certificates presented");
 			}
 		}
+	}
+
+	/**
+	 * @return the tlsDebug
+	 */
+	public boolean isTlsDebug() {
+		return tlsDebug;
+	}
+
+	/**
+	 * @param tlsDebug the tlsDebug to set
+	 */
+	public void setTlsDebug(boolean tlsDebug) {
+		this.tlsDebug = tlsDebug;
+	}
+
+	@Override
+	public void close() throws Exception {
+		if (client!=null)
+			client.close();
 	}
 }

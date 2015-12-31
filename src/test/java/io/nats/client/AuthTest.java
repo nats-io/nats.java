@@ -14,7 +14,7 @@ import org.junit.Test;
 
 public class AuthTest {
 	@Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
+	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
 	NATSServer s = null;
 
@@ -29,14 +29,11 @@ public class AuthTest {
 
 	@Before
 	public void setUp() throws Exception {
-		s = util.createServerWithConfig("auth_1222.conf");
-		Thread.sleep(500);
+
 	}
 
 	@After
 	public void tearDown() throws Exception {
-		s.shutdown();
-		Thread.sleep(500);
 	}
 
 
@@ -52,8 +49,8 @@ public class AuthTest {
 					"nats://localhost:1222", 
 					"nats://badname:password@localhost:1222"
 			};
-		
-		try
+
+		try	(NATSServer	s = util.createServerWithConfig("auth_1222.conf"))
 		{
 			hitDisconnect = 0;
 			ConnectionFactory cf = new ConnectionFactory();
@@ -69,10 +66,11 @@ public class AuthTest {
 				boolean exThrown = false;
 				System.err.println("Trying: " + url);
 				cf.setUrl(url);
+				Thread.sleep(100);
 				try (Connection c = cf.createConnection())
 				{
 					assertTrue(c.isClosed());
-					fail("Should have received an error while trying to connect");
+					fail("Should not have connected");
 				} catch (AuthorizationException e) {
 					exThrown = true;
 					System.out.println("Success with expected failure: " + e.getMessage());					
@@ -80,7 +78,7 @@ public class AuthTest {
 					assertTrue("Should have received an error while trying to connect",
 							exThrown);
 				}
-				
+				Thread.sleep(100);				
 			}
 		}
 		catch (AuthorizationException e) {
@@ -92,8 +90,8 @@ public class AuthTest {
 		}
 		finally
 		{
-			if (hitDisconnect > 0)
-				fail("The disconnect event handler was incorrectly invoked.");
+			assertTrue("The disconnect event handler was incorrectly invoked.",
+					hitDisconnect == 0);
 		}
 	}
 
@@ -101,12 +99,19 @@ public class AuthTest {
 	public void testAuthSuccess() 
 			throws IOException, TimeoutException
 	{
-		try(Connection c = new ConnectionFactory("nats://username:password@localhost:1222")
-				.createConnection())
+		try	(NATSServer	s = util.createServerWithConfig("auth_1222.conf"))
 		{
-			assertTrue(!c.isClosed());
-			c.close();
-			assertTrue(c.isClosed());
+
+			try(Connection c = new ConnectionFactory("nats://username:password@localhost:1222")
+					.createConnection())
+			{
+				assertTrue(!c.isClosed());
+				c.close();
+				assertTrue(c.isClosed());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 }

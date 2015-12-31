@@ -528,7 +528,7 @@ public class ReconnectTest {
 	}
 
 	@Test
-	public void TestIsClosed() throws IOException, TimeoutException
+	public void testIsClosed() throws IOException, TimeoutException
 	{
 		ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
 		cf.setReconnectAllowed(true);

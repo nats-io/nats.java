@@ -5,11 +5,15 @@ import static org.junit.Assert.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
+
+import javax.net.ssl.SSLContext;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -66,6 +70,7 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 	final static int timeout = 2000;
 	final static int pingInterval = 5000;
 	final static int maxPings = 4;
+	final static Boolean tlsDebug = true;
 
 	@Test
 	public void testConnectionFactoryProperties() {
@@ -129,9 +134,8 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		cf.setSecure(false);
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
-			try (Connection c = cf.createConnection(mock))
+			try (ConnectionImpl ci = cf.createConnection(mock))
 			{
-				ConnectionImpl ci = (ConnectionImpl)c;
 				assertFalse(ci.isClosed());
 
 				assertEquals(hostname, ci.opts.getHost());
@@ -155,19 +159,62 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 				assertEquals(dcb.getClass().getName(), ci.opts.getDisconnectedEventHandler().getClass().getName());
 				assertEquals(rcb.getClass().getName(), ci.opts.getReconnectedEventHandler().getClass().getName());
 			} catch (IOException | TimeoutException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 				fail("Didn't connect");
 			}
 		} catch (Exception e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			fail("Unexpected exception");
 		}
 	}
 
 	@Test
+	public void testConnectionFactoryEmptyServersProp() {
+		Properties props = new Properties();
+		props.setProperty(PROP_SERVERS, "");
+		boolean exThrown = false;
+		try {
+			ConnectionFactory cf = new ConnectionFactory(props);
+		} catch (IllegalArgumentException e) {
+			exThrown=true;
+		} finally {
+			assertTrue(exThrown);
+		}
+	}
+
+	@Test
+	public void testConnectionFactoryBadCallbackProps() {
+		String[] propNames = { PROP_EXCEPTION_HANDLER,
+				PROP_CLOSED_HANDLER,
+				PROP_DISCONNECTED_HANDLER,
+				PROP_RECONNECTED_HANDLER
+		};
+
+
+		for (String p : propNames) {
+			Properties props = new Properties();
+			props.setProperty(p, "foo.bar.baz");
+
+			boolean exThrown = false;
+			try {
+				ConnectionFactory cf = new ConnectionFactory(props);
+			} catch (IllegalArgumentException e) {
+				exThrown=true;
+			} finally {
+				assertTrue(exThrown);
+			}
+		}
+
+	}
+
+	@Test
 	public void testConnectionFactory() {
-		new ConnectionFactory();
+		try {
+			new ConnectionFactory();
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
 	}
 
 	@Test(expected=IllegalArgumentException.class)
@@ -209,29 +256,93 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 	public void testConnectionFactoryStringStringArray() {
 		String url = "nats://localhost:1222";
 		String[] servers = { "nats://localhost:1234", "nats://localhost:5678" }; 
-		List<URI> s1 = new ArrayList<URI>();
-		ConnectionFactory cf = new ConnectionFactory(url, servers);
-		cf.setServers(servers);
-		assertNotNull(cf.getUrlString());
-		assertEquals(url, cf.getUrlString());
+		ArrayList<URI> s1 = new ArrayList<URI>(10);
+		ArrayList<URI> s2 = new ArrayList<URI>(10);
 
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
 			for (String s : servers) {
 				s1.add(new URI(s));
+				s2.add(new URI(s));
 			}
+			// test null, servers
+			ConnectionFactory cf = new ConnectionFactory(null, servers);
+			assertNull(cf.getUrlString());
+			assertNotNull(cf.getServers());
+			assertEquals(s1, cf.getServers());
+
 			try (ConnectionImpl c = cf.createConnection(mock))
 			{
+				// test passed-in options
 				List<URI> serverList = c.opts.getServers();
 				assertEquals(s1, serverList);
-				assertEquals(url, c.opts.getUrl().toString());
+
+				// Test the URLS produced by setupServerPool
+				List<URI> connServerPool = new ArrayList<URI>();
+				List<ConnectionImpl.Srv> srvPool = c.srvPool;
+				for (ConnectionImpl.Srv srv : srvPool) {
+					connServerPool.add(srv.url);
+				}
+				assertEquals(s1, connServerPool);
 			} catch (IOException | TimeoutException e) {
 				fail("Couldn't connect");
 				e.printStackTrace();
 			}
+
+			// test url, null
+			cf = new ConnectionFactory(url, null);
+			assertEquals(url, cf.getUrlString());
+			try (ConnectionImpl c = cf.createConnection(mock))
+			{
+				// test passed-in options
+				assertNull(c.opts.getServers());
+
+				// Test the URLS produced by setupServerPool
+				List<URI> connServerPool = new ArrayList<URI>();
+				List<ConnectionImpl.Srv> srvPool = c.srvPool;
+				for (ConnectionImpl.Srv srv : srvPool) {
+					connServerPool.add(srv.url);
+				}
+				s1.clear();
+				s1.add(new URI(url));
+				assertEquals(s1, connServerPool);
+			} catch (IOException | TimeoutException e) {
+				fail("Couldn't connect");
+				e.printStackTrace();
+			}
+
+			s1.clear();
+			s1.addAll(s2);
+			assertEquals(s1, s2);
+
+			// test url, servers
+			cf = new ConnectionFactory(url, servers);
+			assertNotNull(cf.getUrlString());
+			assertEquals(url, cf.getUrlString());
+			try (ConnectionImpl c = cf.createConnection(mock))
+			{
+				// test passed-in options
+				List<URI> serverList = c.opts.getServers();
+				assertEquals(s1, serverList);
+				assertEquals(url, c.opts.getUrl().toString());
+
+				// Test the URLS produced by setupServerPool
+				List<URI> connServerPool = new ArrayList<URI>();
+				List<ConnectionImpl.Srv> srvPool = c.srvPool;
+				for (ConnectionImpl.Srv srv : srvPool) {
+					connServerPool.add(srv.url);
+				}
+				s1.add(0,new URI(url));
+				assertEquals(s1, connServerPool);
+			} catch (IOException | TimeoutException e) {
+				fail("Couldn't connect");
+				e.printStackTrace();
+			}
+
 		} catch (Exception e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			fail(e1.getMessage());
 		}
 	}
 
@@ -260,11 +371,23 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
-	//	@Test
-	//	public void testSetUri() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
+	@Test(expected=IllegalArgumentException.class)
+	public void testSetUriBadUserInfo() {
+		String urlString = "nats://foo:bar:baz@natshost:2222";
+		ConnectionFactory cf = new ConnectionFactory();
+
+		try {
+			URI uri = new URI(urlString);
+			cf.setUri(uri);
+		} catch (IllegalArgumentException e) {
+			throw(e);
+		} catch (URISyntaxException e) {
+			fail("Bad URI: " + e.getMessage());
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+	}
+
 	@Test
 	public void testGetUrlString() {
 		String urlString = "nats://natshost:2222";
@@ -407,6 +530,31 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
+
+		try
+		{
+			ConnectionFactory cf2 = new ConnectionFactory((String[])null);
+		} catch (IllegalArgumentException e) {
+			fail(e.getMessage());
+		}
+		try
+		{
+			ConnectionFactory cf2 = new ConnectionFactory();
+			cf.setServers((String[])null);
+		} catch (IllegalArgumentException e) {
+			fail(e.getMessage());
+		}
+
+		String[] badServers = { "foo bar", "bar" };
+		boolean exThrown = false;
+		try {
+			cf = new ConnectionFactory(badServers);
+		} catch (IllegalArgumentException e) {
+			exThrown = true;
+		} finally {
+			assertTrue(exThrown);
+		}
+
 	}
 
 	//	@Test
@@ -453,7 +601,23 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 	//	public void testIsSecure() {
 	//		fail("Not yet implemented"); // TODO
 	//	}
-	//
+
+	@Test
+	public void testIsTlsDebug() {
+		try (TCPConnectionMock mock = new TCPConnectionMock())
+		{
+			ConnectionFactory cf = new ConnectionFactory();
+			cf.setTlsDebug(true);
+			assertTrue(cf.isTlsDebug());
+			try (ConnectionImpl c = cf.createConnection(mock)) {
+				assertTrue(c.opts.isTlsDebug());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Shouldn't have thrown exception");
+		}
+	}
+
 	//	@Test
 	//	public void testSetSecure() {
 	//		fail("Not yet implemented"); // TODO
@@ -554,21 +718,44 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
-	//	@Test
-	//	public void testSetExceptionHandler() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
-	//	@Test
-	//	public void testGetSslContext() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
-	//	@Test
-	//	public void testSetSslContext() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
+	@Test
+	public void testSetExceptionHandler() {
+		ConnectionFactory cf = new ConnectionFactory();
+		boolean exThrown = false;
+		try {
+			cf.setExceptionHandler(null);
+		} catch (IllegalArgumentException e) {
+			exThrown = true;
+		} finally {
+			assertTrue(exThrown);
+		}
+	}
 
+	@Test
+	public void testGetSslContext() {
+		ConnectionFactory cf = new ConnectionFactory();
+		try {
+			SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+			cf.setSslContext(c);
+			assertEquals(c, cf.getSslContext());
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}			
+	}
+
+	@Test
+	public void testSetSslContext() {
+		ConnectionFactory cf = new ConnectionFactory();
+		try {
+			SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+			cf.setSslContext(c);
+			assertEquals(c, cf.getSslContext());
+		} catch (NoSuchAlgorithmException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 
 	@Override
 	public void onDisconnect(ConnectionEvent event) {

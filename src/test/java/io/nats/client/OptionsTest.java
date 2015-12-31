@@ -266,6 +266,19 @@ public class OptionsTest {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
+		@Test
+		public void testIsTlsDebug() {
+			Options o = new Options();
+			o.setTlsDebug(true);
+			assertTrue(o.isTlsDebug());
+		}
+	
+//		@Test
+//		public void testSetTlsDebug() {
+//			fail("Not yet implemented"); // TODO
+//		}
+//	
+//
 	//	@Test
 	//	public void testIsReconnectAllowed() {
 	//		fail("Not yet implemented"); // TODO

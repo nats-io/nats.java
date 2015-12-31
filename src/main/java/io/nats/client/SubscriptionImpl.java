@@ -31,22 +31,21 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 	AtomicLong delivered = new AtomicLong(); // uint64
 	long bytes; //     uint64
 	long max; //       uint64
-	//		mch       chan *Msg
+	int maxChannelLength;
 
 	// slow consumer
 	boolean sc;
 
 	ConnectionImpl conn 			= null;
-	Channel<Message> mch = new Channel<Message>();
+//	Channel<Message> mch = new Channel<Message>();
+	Channel<Message> mch;
 
-	SubscriptionImpl() {
-
-	}
-
-	public SubscriptionImpl(ConnectionImpl conn, String subject, String queue) {
+	public SubscriptionImpl(ConnectionImpl conn, String subject, String queue, int chanLen) {
 		this.conn = conn;
 		this.subject = subject;
 		this.queue = queue;
+		this.maxChannelLength = chanLen;
+		this.mch = new Channel<Message>(this.maxChannelLength);
 	}
 
 	void closeChannel() {
@@ -59,6 +58,7 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 		}
 	}
 
+	@Override
 	public String getSubject() {
 		return subject;
 	}
@@ -69,10 +69,20 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 		return queue;
 	}
 
+	public Channel<Message> getChannel() {
+		return this.mch;
+	}
+
+	public void setChannel(Channel<Message> ch) {
+		this.mch = ch;
+	}
+
 	public boolean tallyMessage(long length) {
 		mu.lock();
 		try
 		{
+			logger.trace("getMax()={}, msgs={}",
+					getMax(), msgs);
 			if (getMax() > 0 && msgs > getMax())
 				return true;
 
@@ -90,36 +100,38 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 	// returns false if the message could not be added because
 	// the channel is full, true if the message was added
 	// to the channel.
-	boolean addMessage(Message m, int maxCount)
+//	boolean addMessage(Message m, int maxCount)
+	boolean addMessage(Message m)
 	{
-		logger.trace("Entered addMessage({}, maxCount={}", m, maxCount);
+		logger.trace("Entered addMessage({}, count={} max={}", 
+				m, 
+				mch.getCount(),
+				maxChannelLength);
 		if (mch != null)
 		{
-			if (mch.getCount() >= maxCount)
+			if (mch.getCount() >= maxChannelLength)
 			{
 				logger.debug("MAXIMUM COUNT ({}) REACHED FOR SID: {}",
-						maxCount, getSid());
+						maxChannelLength, getSid());
 				return false;
 			}
 			else
 			{
 				sc = false;
 				mch.add(m);
-				logger.debug("Added message to channel: " + m);
+				logger.trace("Added message to channel: " + m);
 			}
 		} // mch != null
 		return true;
 	}
 
 	public boolean isValid() {
-		boolean rv = false;
 		mu.lock();
 		try {
-			rv = (conn != null);
+			return (conn != null);
 		} finally {
 			mu.unlock();
 		}
-		return rv;
 	}
 
 	@Override
@@ -182,6 +194,10 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 	@Override
 	public Connection getConnection() {
 		return (Connection)this.conn;
+	}
+
+	public void setConnection(ConnectionImpl conn) {
+		this.conn = conn;
 	}
 
 	@Override

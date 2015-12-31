@@ -41,42 +41,42 @@ class Utilities {
 		return end;
 	}
 	
-	/**
-	 * Convert a string that is encoded in the system default 
-	 * (2-byte) character set to the equivalent byte array.
-	 * 
-	 * @param str the string to convert.
-	 * @return an array of the bytes that make up the input
-	 * string (2 bytes per character). 
-	 */
-	public static byte[] stringToBytesUTFCustom(String str) {
-		byte[] b = new byte[str.length() << 1];
-		for(int i = 0; i < str.length(); i++) {
-			char strChar = str.charAt(i);
-			int bpos = i << 1;
-			b[bpos] = (byte) ((strChar&0xFF00)>>8);
-			b[bpos + 1] = (byte) (strChar&0x00FF);
-		}
-		return b;
-	}
-
-	/**
-	 * Convert a byte array to a string using the system default 
-	 * (2-byte) character encoding.
-	 * 
-	 * @param bytes - the array of bytes to convert.
-	 * @return a string composed of the 2-byte characters contained
-	 * in <code>bytes</code>.
-	 */
-	public static String bytesToStringUTFCustom(byte[] bytes) {
-		char[] buffer = new char[bytes.length >> 1];
-		for(int i = 0; i < buffer.length; i++) {
-			int bpos = i << 1;
-			char c = (char)(((bytes[bpos]&0x00FF)<<8) + (bytes[bpos+1]&0x00FF));
-			buffer[i] = c;
-		}
-		return new String(buffer);
-	}
+//	/**
+//	 * Convert a string that is encoded in the system default 
+//	 * (2-byte) character set to the equivalent byte array.
+//	 * 
+//	 * @param str the string to convert.
+//	 * @return an array of the bytes that make up the input
+//	 * string (2 bytes per character). 
+//	 */
+//	public static byte[] stringToBytesUTFCustom(String str) {
+//		byte[] b = new byte[str.length() << 1];
+//		for(int i = 0; i < str.length(); i++) {
+//			char strChar = str.charAt(i);
+//			int bpos = i << 1;
+//			b[bpos] = (byte) ((strChar&0xFF00)>>8);
+//			b[bpos + 1] = (byte) (strChar&0x00FF);
+//		}
+//		return b;
+//	}
+//
+//	/**
+//	 * Convert a byte array to a string using the system default 
+//	 * (2-byte) character encoding.
+//	 * 
+//	 * @param bytes - the array of bytes to convert.
+//	 * @return a string composed of the 2-byte characters contained
+//	 * in <code>bytes</code>.
+//	 */
+//	public static String bytesToStringUTFCustom(byte[] bytes) {
+//		char[] buffer = new char[bytes.length >> 1];
+//		for(int i = 0; i < buffer.length; i++) {
+//			int bpos = i << 1;
+//			char c = (char)(((bytes[bpos]&0x00FF)<<8) + (bytes[bpos+1]&0x00FF));
+//			buffer[i] = c;
+//		}
+//		return new String(buffer);
+//	}
 
 	final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
 

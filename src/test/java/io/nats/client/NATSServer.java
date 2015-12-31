@@ -5,12 +5,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 class NATSServer implements Runnable, AutoCloseable
 {
 	final static String GNATSD = "gnatsd";
     // Enable this for additional server debugging info.
     boolean debug = false;
+//    boolean verbose = false;
+
     ProcessBuilder pb;
     Process p;
     ProcessStartInfo psInfo;
@@ -83,6 +87,7 @@ class NATSServer implements Runnable, AutoCloseable
             psInfo.addArgument("-DV");
 //            psInfo.addArgument("-l gnatsd.log");
         }
+
         return psInfo;
     }
 
@@ -91,7 +96,12 @@ class NATSServer implements Runnable, AutoCloseable
         try {
         	pb = new ProcessBuilder(psInfo.arguments);
         	pb.directory(new File("src/test/resources"));
-        	pb.inheritIO();
+        	if (debug)
+        		pb.inheritIO();
+        	else {
+        		pb.redirectError(new File("/dev/null"));
+        		pb.redirectOutput(new File("/dev/null"));
+        	}
         	p = pb.start();
 	        System.out.println("Started [" + psInfo + "]");
 		} catch (IOException e) {
@@ -120,6 +130,6 @@ class NATSServer implements Runnable, AutoCloseable
 
 	@Override
 	public void close() throws Exception {
-		
+		this.shutdown();
 	}
 }

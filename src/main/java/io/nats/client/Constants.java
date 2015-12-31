@@ -52,6 +52,7 @@ public final class Constants {
 	final static String PROP_VERBOSE 				= PFX + "verbose";
 	final static String PROP_PEDANTIC 				= PFX + "pedantic";
 	final static String PROP_SECURE 				= PFX + "secure";
+	final static String PROP_TLS_DEBUG 				= PFX + "tls.debug";
 	final static String PROP_RECONNECT_ALLOWED		= PFX + "reconnect.allowed";
 	final static String PROP_MAX_RECONNECT			= PFX + "reconnect.max";
 	final static String PROP_RECONNECT_WAIT 		= PFX + "reconnect.wait";

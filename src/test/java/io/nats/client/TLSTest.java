@@ -76,11 +76,12 @@ public class TLSTest {
 			ConnectionFactory cf = new ConnectionFactory();
 			cf.setUrl("nats://localhost:1222");
 			cf.setSecure(true);
+			cf.setTlsDebug(true);
 			cf.setSslContext(c);
 
 			try (Connection connection = cf.createConnection()) {
 				assertFalse(connection.isClosed());
-
+				
 				connection.publish("foo", "Hello".getBytes());
 				connection.close();
 			} finally {
@@ -116,6 +117,7 @@ public class TLSTest {
 			// so we'll override the 
 			ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
 			cf.setSecure(true);
+			cf.setTlsDebug(true);
 			cf.setSslContext(context);
 
 			try (Connection c = cf.createConnection())

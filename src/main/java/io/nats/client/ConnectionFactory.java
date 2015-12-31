@@ -53,10 +53,7 @@ public class ConnectionFactory implements Cloneable {
 	// The size of the buffered channel used between the socket
 	// Go routine and the message delivery or sync subscription.
 	private int subChanLen							= Constants.DEFAULT_MAX_CHAN_LEN;
-
-	//	public ConnectionFactory(Properties props) {
-	//		
-	//	}
+	private boolean tlsDebug;
 
 	public ConnectionFactory(Properties props) {
 		if (props==null)
@@ -64,7 +61,7 @@ public class ConnectionFactory implements Cloneable {
 
 		//PROP_URL
 		if (props.containsKey(PROP_URL))
-			this.setUrl(props.getProperty(PROP_URL));
+			this.setUrl(props.getProperty(PROP_URL, DEFAULT_URL));
 		//PROP_HOST
 		if (props.containsKey(PROP_HOST))
 			this.setHost(props.getProperty(PROP_HOST, DEFAULT_HOST));
@@ -82,9 +79,10 @@ public class ConnectionFactory implements Cloneable {
 		//PROP_SERVERS
 		if (props.containsKey(PROP_SERVERS)) {
 			String s = props.getProperty(PROP_SERVERS);
-			if (!(s==null) && !s.isEmpty()) {
+			if (s.isEmpty())
+				throw new IllegalArgumentException(PROP_SERVERS + " cannot be empty");
+			else {
 				String[] servers = s.trim().split(",\\s*");
-//				String[] servers = s.trim().split("\\s+|,");
 				this.setServers(servers);
 			}
 		}
@@ -103,6 +101,9 @@ public class ConnectionFactory implements Cloneable {
 		//PROP_SECURE
 		if (props.containsKey(PROP_SECURE))
 			this.setSecure(Boolean.parseBoolean(props.getProperty(PROP_SECURE)));
+		//PROP_TLS_DEBUG
+		if (props.containsKey(PROP_TLS_DEBUG))
+			this.setTlsDebug(Boolean.parseBoolean(props.getProperty(PROP_TLS_DEBUG)));
 		//PROP_RECONNECT_ALLOWED
 		if (props.containsKey(PROP_RECONNECT_ALLOWED))
 			this.setReconnectAllowed(Boolean.parseBoolean(
@@ -136,7 +137,6 @@ public class ConnectionFactory implements Cloneable {
 				Constructor<?> constructor = clazz.getConstructor();
 				instance = constructor.newInstance();
 			} catch (Exception e) {
-				e.printStackTrace();
 				throw new IllegalArgumentException(e);
 			} finally {}
 			this.setExceptionHandler((ExceptionHandler) instance);
@@ -198,24 +198,8 @@ public class ConnectionFactory implements Cloneable {
 
 	public ConnectionFactory(String url, String[] servers)
 	{
-		if ((url!=null) && !url.isEmpty())
-		{
-			this.setUrl(url);
-		}
-
-		if ((servers != null) && (servers.length != 0))
-		{
-			this.servers = new ArrayList<URI>();
-			for (String s : servers) {
-				try {
-					this.getServers().add(new URI(s.trim()));
-				} catch (URISyntaxException e) {
-					// TODO Auto-generated catch block
-					throw new IllegalArgumentException(
-							"Badly formed server URL: " + s);
-				}
-			}
-		}
+		this.setUrl(url);
+		this.setServers(servers);
 		if (this.url==null && this.servers==null) {
 			this.setUrl(Constants.DEFAULT_URL);
 		}
@@ -262,6 +246,7 @@ public class ConnectionFactory implements Cloneable {
 		result.setVerbose(verbose);
 		result.setPedantic(pedantic);
 		result.setSecure(secure);
+		result.setTlsDebug(tlsDebug);
 		result.setReconnectAllowed(reconnectAllowed);
 		result.setMaxReconnect(maxReconnect);
 		result.setReconnectWait(reconnectWait);
@@ -334,23 +319,24 @@ public class ConnectionFactory implements Cloneable {
 						"URI: " + userInfo);
 			}
 
-			setUsername(uriDecode(userPass[0]));
+			setUsername(userPass[0]);
 			if (userPass.length == 2) {
-				setPassword(uriDecode(userPass[1]));
+				setPassword(userPass[1]);
 			}
 		}
 	}
 
-	private String uriDecode(String s) {
-		try {
-			// URLDecode decodes '+' to a space, as for
-			// form encoding.  So protect plus signs.
-			return URLDecoder.decode(s.replace("+", "%2B"), "US-ASCII");
-		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+//	protected String uriDecode(String s) {
+//		try {
+//			// URLDecode decodes '+' to a space, as for
+//			// form encoding.  So protect plus signs.
+////			return URLDecoder.decode(s.replace("+", "%2B"), "US-ASCII");
+//			return URLDecoder.decode(s.replace("+", "%2B"), "UTF-8");
+//		}
+//		catch (IOException e) {
+//			throw new RuntimeException(e);
+//		}
+//	}
 
 	/**
 	 * @return the url
@@ -364,10 +350,14 @@ public class ConnectionFactory implements Cloneable {
 	 */
 	public void setUrl(String url) {
 		this.urlString=url;
-		try {
-			this.setUri(new URI(url));
-		} catch (URISyntaxException e) {
-			throw new IllegalArgumentException(e);
+		if (url==null)
+			this.url = null;
+		else {
+			try {
+				this.setUri(new URI(url));
+			} catch (NullPointerException | URISyntaxException e) {
+				throw new IllegalArgumentException(e);
+			}
 		}
 	}
 
@@ -449,6 +439,9 @@ public class ConnectionFactory implements Cloneable {
 			this.servers=null;
 		else
 		{
+			if (this.servers == null) {
+				this.servers = new ArrayList<URI>();
+			}
 			this.servers.clear();
 			for (String s : servers) {
 				try {
@@ -531,6 +524,20 @@ public class ConnectionFactory implements Cloneable {
 	 */
 	public void setSecure(boolean secure) {
 		this.secure = secure;
+	}
+
+	/**
+	 * @return the tlsDebug
+	 */
+	public boolean isTlsDebug() {
+		return tlsDebug;
+	}
+	
+	/**
+	 * @param debug the tlsDebug to set
+	 */
+	public void setTlsDebug(boolean debug) {
+		this.tlsDebug = debug;
 	}
 
 	/**

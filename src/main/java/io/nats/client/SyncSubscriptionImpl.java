@@ -3,10 +3,10 @@ package io.nats.client;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-final class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
+class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
 
-	public SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
-		super(nc, subj, queue);
+	public SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, int max) {
+		super(nc, subj, queue, max);
 	}
 
 	@Override

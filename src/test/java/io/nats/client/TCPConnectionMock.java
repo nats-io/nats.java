@@ -448,7 +448,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		logger.trace("in close()");
 		if (executor != null)
 			executor.shutdownNow();

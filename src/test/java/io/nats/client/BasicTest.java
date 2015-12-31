@@ -215,11 +215,10 @@ public class BasicTest {
 				Message m = s.nextMessage(timeoutMsec);
 				assertTrue("Messages are not equal.", compare(omsg, m));
 			} catch (IOException e) {
-				throw e;
+				fail("nextMessage(timeout) failed: " + e.getMessage());
 			} catch (TimeoutException e) {
 				fail("Timed out. Should have received a message within " +
 						timeoutMsec + "msec");
-				throw e;
 			}
 		}
 	}
@@ -500,24 +499,24 @@ public class BasicTest {
 		final byte[] response = 
 				"I will help you.".getBytes();
 
-		final Connection c = new ConnectionFactory().createConnection();
-		AsyncSubscription s = c.subscribeAsync("foo",  
-				new MessageHandler() {
-			@Override 
-			public void onMessage(Message m)
-			{
-				try {
-					c.publish(m.getReplyTo(), response);
-				} catch (Exception e){}
-			}
-		});
+		try (final Connection c = new ConnectionFactory().createConnection()) {
+			AsyncSubscription s = c.subscribeAsync("foo",  
+					new MessageHandler() {
+				@Override 
+				public void onMessage(Message m)
+				{
+					try {
+						c.publish(m.getReplyTo(), response);
+					} catch (Exception e){}
+				}
+			});
 
-		s.start();
+			s.start();
 
-		Message m = c.request("foo", null, 50000);
+			Message m = c.request("foo", null, 50000);
 
-		assertTrue("Response isn't valid.", compare(m.getData(), response));
-		c.close();
+			assertTrue("Response isn't valid.", compare(m.getData(), response));
+		}
 
 	}
 
@@ -679,7 +678,7 @@ public class BasicTest {
 		assertEquals(1, c.getStats().getOutMsgs());
 		c.close();
 	}
-	
+
 	@Test
 	public void testStatsClone() {
 		Statistics s1 = new Statistics();
@@ -690,7 +689,7 @@ public class BasicTest {
 		s1.incrementOutMsgs();
 		s1.incrementOutBytes(512);
 		s1.incrementReconnects();
-		
+
 		try {
 			s2 = (Statistics)s1.clone();
 		} catch (CloneNotSupportedException e) {

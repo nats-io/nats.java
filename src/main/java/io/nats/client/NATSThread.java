@@ -23,7 +23,6 @@ class NATSThread extends Thread {
 
 	public NATSThread(Runnable runnable, String name) {
 		super(runnable, name + "-" + created.incrementAndGet());
-//		log.setLevel (Level.FINE);
 		setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
 			public void uncaughtException(Thread t,
 					Throwable e) {

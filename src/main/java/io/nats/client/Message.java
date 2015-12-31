@@ -25,26 +25,29 @@ public final class Message {
 	
 	public Message(String subject, String reply, byte[] data)
     {
+		this(data, (null!=data ? data.length : 0), subject, reply, null);
+    }
+	
+	protected Message(MsgArg msgArgs, SubscriptionImpl sub, byte[] data, long length) {
+		this(data, length, msgArgs.subject, msgArgs.reply, sub);        
+	}
+
+	protected Message(byte[] data, long length, String subject, String reply, SubscriptionImpl sub)
+	{
         if (subject==null || subject.trim().length()==0)
         {
             throw new IllegalArgumentException(
                 "Subject cannot be null, empty, or whitespace.");
         }
-
+        this.data = new byte[(int) length];
+        // make a deep copy of the bytes for this message.
+        if (data !=null)
+        	System.arraycopy(data, 0, this.data, 0, (int)length);
         this.subject = subject;
         this.replyTo = reply;
-        this.data = data;
-    }
-	
-	protected Message(MsgArg msgArgs, SubscriptionImpl sub, byte[] msg, long length) {
-		this.subject = msgArgs.subject;
-		this.replyTo = msgArgs.reply;
-		this.sub = sub;
-        // make a deep copy of the bytes for this message.
-        this.data = new byte[(int) length];
-        System.arraycopy(msg, 0, this.data, 0, (int)length);
+        this.sub = sub;
 	}
-
+	
 	public byte[] getData() {
 		return data;
 	}
@@ -67,15 +70,17 @@ public final class Message {
 		return this;
 	}
 	
-	public io.nats.client.Subscription getSubscription() {
-		// TODO Auto-generated method stub
+	public Subscription getSubscription() {
 		return this.sub;
 	}
 	
 	public Message setData(byte[] data, int offset, int len) {
-		this.data = new byte[len];
-		if (data != null)
+		if (data == null) {
+			this.data = null;
+		} else {
+			this.data = new byte[len];
 			this.data = Arrays.copyOfRange(data, offset, len);
+		}
 		return this;
 	}
 	

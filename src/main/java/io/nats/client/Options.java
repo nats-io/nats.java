@@ -29,6 +29,7 @@ public class Options {
 	private int maxPingsOut;
 	private ExceptionHandler exceptionHandler;
 	private SSLContext sslContext;
+	private boolean tlsDebug;
 
 	//	private List<X509Certificate> certificates =
 	//			new ArrayList<X509Certificate>();
@@ -70,23 +71,14 @@ public class Options {
 							"URI: " + userInfo);
 				}
 
-				setUsername(uriDecode(userPass[0]));
+				setUsername(userPass[0]);
 				if (userPass.length == 2) {
-					setPassword(uriDecode(userPass[1]));
+					setPassword(userPass[1]);
 				}
 			}
 		}
 	}
-	private String uriDecode(String s) {
-		try {
-			// URLDecode decodes '+' to a space, as for
-			// form encoding.  So protect plus signs.
-			return URLDecoder.decode(s.replace("+", "%2B"), "US-ASCII");
-		}
-		catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-	}
+
 	public void setUrl(String url) {
 		if (url==null) {
 			return;
@@ -179,6 +171,12 @@ public class Options {
 	}
 	public void setSecure(boolean secure) {
 		this.secure = secure;
+	}
+	public boolean isTlsDebug() {
+		return tlsDebug;
+	}
+	public void setTlsDebug(boolean debug) {
+		this.tlsDebug = debug;
 	}
 	public boolean isReconnectAllowed() {
 		return reconnectAllowed;
