@@ -2,13 +2,20 @@ package io.nats.client;
 
 import static org.junit.Assert.*;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(UnitTest.class)
 public class NATSThreadTest implements Runnable {
+	@Rule
+	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
 	final static int NUM_THREADS = 5;
 	@BeforeClass
@@ -29,9 +36,25 @@ public class NATSThreadTest implements Runnable {
 
 	@Test
 	public void testRun() {
+		final AtomicBoolean exThrown = new AtomicBoolean(false);
+		Thread.UncaughtExceptionHandler h = new Thread.UncaughtExceptionHandler() {
+		    public void uncaughtException(Thread th, Throwable ex) {
+//		        System.out.println("Uncaught exception: " + ex);
+		    	exThrown.set(true);
+		    }
+		};
 		NATSThread nt = new NATSThread(this);
+		nt.setUncaughtExceptionHandler(h);
 		throwException = true;
 		nt.start();
+		try {
+			Thread.sleep(100);
+			nt.join();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		assertTrue(exThrown.get());
 	}
 	
 	boolean throwException = false;
@@ -41,8 +64,6 @@ public class NATSThreadTest implements Runnable {
 				throw new Error("just for a test");
 			Thread.sleep(2000);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 	}
 
@@ -55,7 +76,7 @@ public class NATSThreadTest implements Runnable {
 			threads[i] = nt;
 		}
 		try {
-			Thread.sleep(500);
+			Thread.sleep(100);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

@@ -3,7 +3,7 @@ package io.nats.client;
 public class BadSubjectException extends IllegalArgumentException {
 
 	public BadSubjectException() {
-		// TODO Auto-generated constructor stub
+		this("nats: Invalid Subject");
 	}
 
 	public BadSubjectException(String s) {

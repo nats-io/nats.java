@@ -1,9 +1,7 @@
 package io.nats.client;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,10 +45,10 @@ public class Options {
 		this.subChanLen = subChanLen;
 	}
 	private int subChanLen;
-	public DisconnectedEventHandler disconnectedEventHandler;
-	public ClosedEventHandler closedEventHandler;
-	public ReconnectedEventHandler reconnectedEventHandler;
-	public ExceptionHandler asyncErrorEventHandler;
+	protected DisconnectedCallback disconnectedCB;
+	protected ClosedCallback closedCB;
+	protected ReconnectedCallback reconnectedCB;
+	protected ExceptionHandler asyncErrorCB;
 
 	public URI getUrl() {
 		return url;
@@ -220,29 +218,23 @@ public class Options {
 	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
 		this.exceptionHandler = exceptionHandler;
 	}
-	//	public ConnectionEventHandler getConnectionListener() {
-	//		return connectionEventHandler;
-	//	}
-	//	public void setConnectionListener(ConnectionEventHandler cb) {
-	//		this.connectionEventHandler = cb;
-	//	}
-	public ClosedEventHandler getClosedEventHandler() {
-		return closedEventHandler;
+	public ClosedCallback getClosedCallback() {
+		return closedCB;
 	}
-	public void setClosedEventHandler(ClosedEventHandler cb) {
-		this.closedEventHandler = cb;
+	public void setClosedCallback(ClosedCallback cb) {
+		this.closedCB = cb;
 	}
-	public ReconnectedEventHandler getReconnectedEventHandler() {
-		return reconnectedEventHandler;
+	public ReconnectedCallback getReconnectedCallback() {
+		return reconnectedCB;
 	}
-	public void setReconnectedEventHandler(ReconnectedEventHandler cb) {
-		this.reconnectedEventHandler = cb;
+	public void setReconnectedCallback(ReconnectedCallback cb) {
+		this.reconnectedCB = cb;
 	}
-	public DisconnectedEventHandler getDisconnectedEventHandler() {
-		return disconnectedEventHandler;
+	public DisconnectedCallback getDisconnectedCallback() {
+		return disconnectedCB;
 	}
-	public void setDisconnectedEventHandler(DisconnectedEventHandler cb) {
-		this.disconnectedEventHandler = cb;
+	public void setDisconnectedCallback(DisconnectedCallback cb) {
+		this.disconnectedCB = cb;
 	}
 
 	//	public void addCertificate(X509Certificate cert) {

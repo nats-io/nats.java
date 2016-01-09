@@ -30,7 +30,6 @@ public class TestCasePrinterRule implements TestRule {
             out.write(beforeContent.getBytes());
         };
  
- 
         @Override
         protected void after() {
             try {

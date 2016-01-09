@@ -8,7 +8,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-abstract class SubscriptionImpl implements Subscription, AutoCloseable {
+abstract class SubscriptionImpl implements Subscription {
 
 	protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -32,6 +32,9 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 	long bytes; //     uint64
 	long max; //       uint64
 	int maxChannelLength;
+
+	protected boolean closed;
+	protected boolean connClosed;
 
 	// slow consumer
 	boolean sc;
@@ -83,7 +86,7 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 		{
 			logger.trace("getMax()={}, msgs={}",
 					getMax(), msgs);
-			if (getMax() > 0 && msgs > getMax())
+			if (getMax() > 0 && msgs >= getMax())
 				return true;
 
 			this.msgs++;
@@ -135,7 +138,7 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 	}
 
 	@Override
-	public void unsubscribe() throws IllegalStateException, IOException
+	public void unsubscribe() throws IOException
 	{
 		ConnectionImpl c;
 		mu.lock();
@@ -146,8 +149,8 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 			mu.unlock();
 		}
 
-		if ((c == null)||c.isClosed())
-			throw new ConnectionClosedException("Not connected.");
+		if (c == null)
+			throw new BadSubscriptionException();
 
 		c.unsubscribe(this, 0);
 	}
@@ -157,7 +160,7 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 	public void close() {
 		try {
 			unsubscribe();
-		} catch (IllegalStateException | IOException e) {
+		} catch (Exception e) {
 			// Just ignore. This is for AutoCloseable.
 		}
 	}
@@ -207,9 +210,8 @@ abstract class SubscriptionImpl implements Subscription, AutoCloseable {
 		mu.lock();
 		try
 		{
-			if ((conn == null)|| conn.isClosed())
-				throw new ConnectionClosedException();
-//				throw new BadSubscriptionException();
+			if (!isValid())
+				throw new BadSubscriptionException();
 
 			c = conn;
 		} finally {

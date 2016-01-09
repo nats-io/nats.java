@@ -11,6 +11,7 @@ public class Statistics implements Cloneable {
 	private AtomicLong inBytes = new AtomicLong();
 	private AtomicLong outBytes = new AtomicLong();
 	private AtomicLong reconnects = new AtomicLong();
+	private AtomicLong flushes = new AtomicLong();
 	
 	Statistics () {
 		
@@ -24,6 +25,7 @@ public class Statistics implements Cloneable {
         this.outBytes = obj.outBytes;
         this.outMsgs = obj.outMsgs;
         this.reconnects = obj.reconnects;
+        this.flushes = obj.flushes;
     }
 
 	@Override
@@ -33,17 +35,17 @@ public class Statistics implements Cloneable {
 
 	public void clear() {
 		this.inBytes.set(0L);
-		this.inMsgs.set(0L);;
-		this.outBytes.set(0L);;
+		this.inMsgs.set(0L);
+		this.outBytes.set(0L);
 		this.outMsgs.set(0L);
-
+		this.flushes.set(0L);
 	}
 
 	/**
 	 * @return the number of messages that have been 
 	 * received on this Connection.
 	 */
-	public synchronized long getInMsgs() {
+	public long getInMsgs() {
 		return inMsgs.get();
 	}
 
@@ -51,7 +53,7 @@ public class Statistics implements Cloneable {
 	 * Increments the number of messages received on 
 	 * this connection. 
 	 */
-	synchronized long incrementInMsgs() {
+	long incrementInMsgs() {
 		return inMsgs.incrementAndGet();
 	}
 
@@ -59,11 +61,11 @@ public class Statistics implements Cloneable {
 	 * @return the number of messages published on 
 	 * this Connection.
 	 */
-	public synchronized long getOutMsgs() {
+	public long getOutMsgs() {
 		return outMsgs.get();
 	}
 
-	synchronized long incrementOutMsgs() {
+	long incrementOutMsgs() {
 		return outMsgs.incrementAndGet();
 	}
 
@@ -71,14 +73,14 @@ public class Statistics implements Cloneable {
 	 * @return the number of bytes received on this
 	 * Connection.
 	 */
-	public synchronized long getInBytes() {
+	public long getInBytes() {
 		return inBytes.get();
 	}
 	
 	/*
 	 * Increments the number of bytes received. 
 	 */
-	synchronized long incrementInBytes(long amount) {
+	long incrementInBytes(long amount) {
 		return inBytes.addAndGet(amount);
 	}
 
@@ -86,13 +88,13 @@ public class Statistics implements Cloneable {
 	 * @return the number of bytes that have been output
 	 * on this Connection.
 	 */
-	public synchronized long getOutBytes() {
+	public long getOutBytes() {
 		return outBytes.get();
 	}
 	/*
 	 * Increments the number of bytes output 
 	 */
-	synchronized long incrementOutBytes(long delta) {
+	long incrementOutBytes(long delta) {
 		return outBytes.addAndGet(delta);
 	}
 
@@ -100,12 +102,24 @@ public class Statistics implements Cloneable {
 	 * @return the number of times this Connection has 
 	 * reconnected.
 	 */
-	public synchronized long getReconnects() {
+	public long getReconnects() {
 		return reconnects.get();
 	}
 	
-	synchronized long incrementReconnects() {
+	long incrementReconnects() {
 		return reconnects.incrementAndGet();
+	}
+	
+	/**
+	 * @return the number of times this Connection has 
+	 * reconnected.
+	 */
+	long getFlushes() {
+		return flushes.get();
+	}
+	
+	long incrementFlushes() {
+		return flushes.incrementAndGet();
 	}
 
 }

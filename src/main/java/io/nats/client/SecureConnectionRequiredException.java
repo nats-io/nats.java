@@ -10,7 +10,7 @@ public class SecureConnectionRequiredException extends IOException {
 	private static final long serialVersionUID = 1L;
 
 	public SecureConnectionRequiredException() {
-		this("A secure connection is required by the server.");
+		this("nats: Secure Connection required");
 	}
 
 	public SecureConnectionRequiredException(String msg) {

@@ -17,7 +17,7 @@ public class AuthorizationException extends IOException {
 	private static final long serialVersionUID = 1L;
 
 	public AuthorizationException() {
-		super();
+		this("nats: Authorization Failed");
 	}
 
 	public AuthorizationException(String arg0) {

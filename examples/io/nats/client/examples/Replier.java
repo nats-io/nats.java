@@ -1,3 +1,4 @@
+package io.nats.client.examples;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
@@ -34,42 +35,44 @@ public class Replier implements MessageHandler {
 		parseArgs(args);
 		banner();
 
-		ConnectionFactory cf = null;
-		Connection c = null;
+		try (Connection c = new ConnectionFactory(url).createConnection()) {
+			//		try {
+			//			cf = new ConnectionFactory(url);
+			//			c = cf.createConnection();
+			//		} catch (IOException e) {
+			//			System.err.println("Couldn't connect: " + e.getCause());
+			//			System.exit(-1);
+			//		} catch (TimeoutException e) {
+			//			System.err.println("Couldn't connect: " + e.getCause());
+			//			System.exit(-1);
+			//		}
 
-		try {
-			cf = new ConnectionFactory(url);
-			c = cf.createConnection();
-		} catch (IOException e) {
-			System.err.println("Couldn't connect: " + e.getCause());
+			long elapsed, seconds;
+
+			if (sync)
+			{
+				elapsed = receiveSyncSubscriber(c);
+			}
+			else
+			{
+				elapsed = receiveAsyncSubscriber(c);
+			}
+			seconds = TimeUnit.NANOSECONDS.toSeconds(elapsed);
+			System.out.printf("Replied to %d msgs in %d seconds ", received, seconds);
+
+			if (seconds > 0) {
+				System.out.printf("(%d msgs/second).\n",
+						(received / seconds));
+			} else {
+				System.out.println();
+				System.out.println("Test not long enough to produce meaningful stats. "
+						+ "Please increase the message count (-count n)");
+			}
+			printStats(c);
+		} catch (IOException | TimeoutException e) {
+			System.err.println("Couldn't connect: " + e.getMessage());
 			System.exit(-1);
-		} catch (TimeoutException e) {
-			System.err.println("Couldn't connect: " + e.getCause());
-			System.exit(-1);
 		}
-
-		long elapsed, seconds;
-
-		if (sync)
-		{
-			elapsed = receiveSyncSubscriber(c);
-		}
-		else
-		{
-			elapsed = receiveAsyncSubscriber(c);
-		}
-		seconds = TimeUnit.NANOSECONDS.toSeconds(elapsed);
-		System.out.printf("Replied to %d msgs in %d seconds ", received, seconds);
-
-		if (seconds > 0) {
-			System.out.printf("(%d msgs/second).\n",
-					(received / seconds));
-		} else {
-			System.out.println();
-			System.out.println("Test not long enough to produce meaningful stats. "
-					+ "Please increase the message count (-count n)");
-		}
-		printStats(c);
 	}
 
 	private void printStats(Connection c)

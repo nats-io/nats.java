@@ -14,7 +14,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(UnitTest.class)
 public class ParserTest {
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -44,38 +46,38 @@ public class ParserTest {
 
 		Control c = null;
 
-		System.out.println("Test with NULL line: ");
+		// Test with NULL line
 		c = conn.new Control(null);
 		assertTrue(c.op == null);
 		assertTrue(c.args == null);
 
-		System.out.println("Test line with single op: ");
+		// Test line with single op
 		c = conn.new Control("op");
 		assertNotNull(c.op);
 		assertEquals(c.op,"op");
 		assertNull(c.args);
 
-		System.out.println("Test line with trailing spaces: ");
+		// Test line with trailing spaces
 		c = conn.new Control("op   ");
 		assertNotNull(c.op);
 		assertEquals (c.op,"op");
 		assertNull(c.args);
 
-		System.out.println("Test line with op and args: ");
+		// Test line with op and args
 		c = conn.new Control("op    args");
 		assertNotNull(c.op);
 		assertEquals (c.op,"op");
 		assertNotNull(c.args);
 		assertEquals(c.args, "args");
 
-		System.out.println("Test line with op and args and trailing spaces: ");
+		// Test line with op and args and trailing spaces
 		c = conn.new Control("op   args  ");
 		assertNotNull(c.op);
 		assertEquals(c.op,"op");
 		assertNotNull(c.args);
 		assertEquals(c.args, "args");
 
-		System.out.println("Test line with op and args args: ");
+		// Test line with op and args args
 		c = conn.new Control("op   args  args   ");
 		assertNotNull(c.op);
 		assertEquals(c.op,"op");
@@ -102,33 +104,24 @@ public class ParserTest {
 		};
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
-
 				parser = c.ps;
 				try (Subscription sub = c.subscribeSync("foo")) {
 					for (String s : goodLines) {
-						System.err.println("Parsing [" + s + "]");
 						ConnectionImpl.printSubs(c);
 
 						byte[] buffer = s.getBytes();
 						try {
 							parser.parse(buffer, buffer.length);
 						} catch (Exception e) {
-							e.printStackTrace();
 							fail("Should not have thrown an exception for [" + s + "]");
 						}			
 					}
-
-				} catch (IOException e) {
-					// Could be from the subscription close or connection close
-					e.printStackTrace();
-				} 
-			} catch (TimeoutException e2) {
-				// From the connection only
-				e2.printStackTrace();
+				}
 			} // ConnectionImpl
-		} catch (Exception e1) {
-			// From the mock close, or anything else
-			e1.printStackTrace();
+			catch (IOException | TimeoutException e1) {
+				// TODO Auto-generated catch block
+				fail(e1.getMessage());
+			}
 		}// TCPConnectionMock
 	}
 
@@ -146,7 +139,7 @@ public class ParserTest {
 				} catch (Exception e) {
 					fail("Should not have thrown an exception for [" + s + "]");
 				}
-				
+
 				s = "-ERR  'A boring error'\r\n";
 				try {		
 					byte[] b = s.getBytes();
@@ -155,16 +148,13 @@ public class ParserTest {
 					fail("Should not have thrown an exception for [" + s + "]");
 				} 
 
-			} catch (IOException | TimeoutException e2) {
+			} catch (IOException | TimeoutException e) {
 				// From the connection only
-				e2.printStackTrace();
+				fail(e.getMessage());
 			} // ConnectionImpl
-		} catch (Exception e1) {
-			// From the mock close, or anything else
-			e1.printStackTrace();
-		}// TCPConnectionMock
+		} // TCPConnectionMock
 	}
-	
+
 	@Test 
 	public void testParseBadLines() {
 		Parser parser = null;
@@ -216,35 +206,28 @@ public class ParserTest {
 
 				for (String s : badLines)
 				{
-					System.err.println("Parsing [" + s + "]");
 					exThrown = false;
 					byte[] buffer = s.getBytes();
 					try {
 						parser.parse(buffer, buffer.length);
 					} catch (Exception e) {
-						System.err.println(e.getMessage());
 						assertTrue("Wrong exception type. Should have thrown ParserException", 
 								e instanceof ParserException);
 						exThrown = true;
 					} finally {
-						if (!exThrown)
-							System.err.println("Should have thrown ParserException");
 						assertTrue("Should have thrown ParserException", exThrown);
 					}
 					// Reset to OP_START for next line
 					parser.state = NatsOp.OP_START;
 				}
 
-			} catch (TimeoutException e2) {
-				// From the connection only
-				e2.printStackTrace();
 			} // ConnectionImpl
-		} catch (Exception e1) {
-			// From the mock close, or anything else
-			e1.printStackTrace();
-		}// TCPConnectionMock
+			catch (IOException | TimeoutException e1) {
+				fail(e1.getMessage());
+			}
+		} // TCPConnectionMock
 	}
-	
+
 	@Test
 	public void testLargeArgs() {
 		Parser parser = null;
@@ -256,7 +239,7 @@ public class ParserTest {
 		}
 		buf[buf.length-2] = '\r';
 		buf[buf.length-1] = '\n';
-		
+
 		String msg = String.format("MSG foo 1 %d\r\n", payloadSize);
 		byte[] msgBytes = msg.getBytes();
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
@@ -264,26 +247,17 @@ public class ParserTest {
 
 				parser = c.ps;
 				try (Subscription sub = c.subscribeSync("foo")) {
-						System.err.println("Parsing msg of size " + msgBytes.length);
-//						byte[] buffer = s.getBytes();
-						try {
-							parser.parse(msgBytes, msgBytes.length);
-						} catch (Exception e) {
-							e.printStackTrace();
-							fail("Should not have thrown an exception.");
-						}			
+					try {
+						parser.parse(msgBytes, msgBytes.length);
+					} catch (Exception e) {
+						fail(e.getMessage());
+					}			
 
-				} catch (IOException e) {
-					// Could be from the subscription close or connection close
-					e.printStackTrace();
-				} 
-			} catch (TimeoutException e2) {
-				// From the connection only
-				e2.printStackTrace();
-			} // ConnectionImpl
-		} catch (Exception e1) {
-			// From the mock close, or anything else
-			e1.printStackTrace();
-		}// TCPConnectionMock
+				}
+			}  // ConnectionImpl
+			catch (IOException | TimeoutException e1) {
+				fail(e1.getMessage());
+			}
+		} // TCPConnectionMock
 	}
 }

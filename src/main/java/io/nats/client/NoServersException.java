@@ -10,7 +10,7 @@ public class NoServersException extends IOException {
 	private static final long serialVersionUID = 1L;
 
 	public NoServersException() {
-		this("No servers available for connection");
+		this("nats: No servers available for connection");
 	}
 
 	public NoServersException(String message) {

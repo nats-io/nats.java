@@ -2,6 +2,10 @@ package io.nats.client;
 
 public interface MessageHandler {
 	
-	public void onMessage(Message msg);
+	/**
+	 * @param msg - the received Message that triggered the callback
+	 * invocation.
+	 */
+	void onMessage(Message msg);
 
 }

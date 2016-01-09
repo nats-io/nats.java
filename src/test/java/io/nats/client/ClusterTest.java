@@ -21,9 +21,11 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import io.nats.client.Constants.ConnState;
 
+@Category(UnitTest.class)
 public class ClusterTest {
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -72,13 +74,6 @@ public class ClusterTest {
 
 		// Make sure we can connect to first server if running
 		try (NATSServer ns = utils.createServerOnPort(1222)) {
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
 			try (Connection c = cf.createConnection()) {
 				assertTrue(String.format("%s != %s", testServers[0], c.getConnectedUrl()),
 						testServers[0].equals(c.getConnectedUrl()));
@@ -86,26 +81,18 @@ public class ClusterTest {
 				throw e;
 			}
 		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+			fail(e1.getMessage());
 		}
 
 		// make sure we can connect to a non-first server.
 		try (NATSServer ns = utils.createServerOnPort(1227)) {
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 			try (Connection c = cf.createConnection()) {
 				assertTrue(testServers[5] + " != " + c.getConnectedUrl(), testServers[5].equals(c.getConnectedUrl()));
 			} catch (IOException | TimeoutException e) {
 				throw e;
 			}
 		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
+			fail(e1.getMessage());
 		}
 	}
 
@@ -122,168 +109,142 @@ public class ClusterTest {
 		cf.setServers(plainServers);
 		cf.setConnectionTimeout(5000);
 
-		NATSServer as1 = utils.createServerWithConfig("auth_1222.conf"),
-				as2 = utils.createServerWithConfig("auth_1224.conf");
+		try (NATSServer as1 = utils.createServerWithConfig("auth_1222.conf")) {
+			try (NATSServer as2 = utils.createServerWithConfig("auth_1224.conf")) {
+				boolean exThrown=false;
+				try (Connection c = cf.createConnection()) {
+					assertNotNull(c.getConnectedUrl());
+				} catch (Exception e) {
+					assertTrue("Expected IOException", e instanceof IOException);
+					assertNotNull(e.getMessage());
+					assertTrue("Wrong error, wanted Auth failure, got '" + e.getMessage() +  "'",
+							e.getMessage().contains("Authorization"));
+					exThrown=true;
+				} finally {
+					assertTrue("Expect Auth failure, got no error\n", exThrown);
+				}
 
-		try {Thread.sleep(500);} catch (InterruptedException e) {}
 
-		boolean failed=true;
-		try (Connection c = cf.createConnection()) {
-			System.err.println("Connected URL = " + c.getConnectedUrl());
-		} catch (Exception e) {
-			assertTrue("Expected IOException", e instanceof IOException);
-			failed=false;
-		} finally {
-			assertFalse("Didn't throw an exception", failed);
-		}
+				// Test that we can connect to a subsequent correct server.
+				String[] authServers = new String[] {
+						"nats://localhost:1222",
+				"nats://username:password@localhost:1224"};
 
+				cf.setServers(authServers);
 
-		// Test that we can connect to a subsequent correct server.
-		String[] authServers = new String[] {
-				"nats://localhost:1222",
-		"nats://username:password@localhost:1224"};
-		System.out.println("\n");
-		cf.setServers(authServers);
-
-		try {Thread.sleep(500);} catch (InterruptedException e) {}
-		try (Connection c = cf.createConnection()) {
-			assertTrue(c.getConnectedUrl().equals(authServers[1]));
-		} catch (IOException e) {
-			if (e instanceof AuthorizationException) {
-				System.out.println("ignoring AuthorizationException");
-			}
-			else
-				throw e;
-		} catch (TimeoutException e) {
-			throw e;
-		}
-		finally {
-			as1.shutdown();
-			as2.shutdown();
-		}
+				try (Connection c = cf.createConnection()) {
+					assertTrue(c.getConnectedUrl().equals(authServers[1]));
+				} catch (IOException | TimeoutException e) {
+					if (e.getMessage().contains("Authorization")) {
+						// ignore Authorization Failure
+					}
+					else {
+						fail("Expected to connect properly: " + e.getMessage());
+					}
+				}
+			} // as2
+		} // as1
 	}
 
 	@Test
 	public void testBasicClusterReconnect() throws IOException, TimeoutException
 	{
-		//		final AtomicBoolean disconnected = new AtomicBoolean(false);
-		//		final AtomicBoolean reconnected = new AtomicBoolean(false);
-		String[] plainServers = new String[] {
-				"nats://localhost:1222",
-				"nats://localhost:1224"
-		};
+		try (NATSServer s1 = utils.createServerOnPort(1222)) {
+			try (NATSServer s2 = utils.createServerOnPort(1224)) {
 
-		final ConnectionFactory cf = new ConnectionFactory(plainServers);
-		cf.setMaxReconnect(2);
-		cf.setReconnectWait(1000);
-		cf.setNoRandomize(true);
+				//		final AtomicBoolean disconnected = new AtomicBoolean(false);
+				//		final AtomicBoolean reconnected = new AtomicBoolean(false);
+				String[] plainServers = new String[] {
+						"nats://localhost:1222",
+						"nats://localhost:1224"
+				};
 
-		final Lock disconnectLock = new ReentrantLock();
-		final Condition disconnected = disconnectLock.newCondition();
-		cf.setDisconnectedEventHandler(new DisconnectedEventHandler() {
-			@Override
-			public void onDisconnect(ConnectionEvent event) {
-				System.out.println("In onDisconnect");
-				disconnectLock.lock(); 
-				try {
-					// Suppress any additional calls
-					event.getConnection().setDisconnectedEventHandler(null);
-					//					disconnected.set(true);
-					disconnected.signal();
-				}
-				finally {
-					disconnectLock.unlock();
+				final AtomicLong disconTimestamp = new AtomicLong(0L);
+				final AtomicLong reconTimestamp = new AtomicLong(0L);
+				final ConnectionFactory cf = new ConnectionFactory(plainServers);
+				cf.setMaxReconnect(2);
+				cf.setReconnectWait(1000);
+				cf.setNoRandomize(true);
+
+				final Lock disconnectLock = new ReentrantLock();
+				final Condition disconnected = disconnectLock.newCondition();
+				cf.setDisconnectedCallback(new DisconnectedCallback() {
+					@Override
+					public void onDisconnect(ConnectionEvent event) {
+						disconnectLock.lock(); 
+						try {
+							disconTimestamp.set(System.nanoTime());
+							// Suppress any additional calls
+							event.getConnection().setDisconnectedCallback(null);
+							disconnected.signal();
+						}
+						finally {
+							disconnectLock.unlock();
+						}
+					}
+
+				});
+
+				final Lock reconnectLock = new ReentrantLock();
+				final Condition reconnected = reconnectLock.newCondition();
+				cf.setReconnectedCallback(new ReconnectedCallback() {
+					@Override
+					public void onReconnect(ConnectionEvent event) {
+						reconTimestamp.set(System.nanoTime());
+						reconnectLock.lock();
+						try
+						{
+							event.getConnection().setReconnectedCallback(null);
+							reconnected.signal();
+						} finally {
+							reconnectLock.unlock();
+						}
+					}
+				});
+
+				cf.setConnectionTimeout(200);
+
+				try (Connection c = cf.createConnection()) {
+					assertNotNull(c.getConnectedUrl());
+
+					s1.shutdown();
+
+					disconnectLock.lock();
+					try
+					{
+						try {
+							assertTrue("Timed out awaiting disconnect", disconnected.await(2, TimeUnit.SECONDS));
+						} catch (InterruptedException e) {
+						}
+					} finally {
+						disconnectLock.unlock();
+					}
+
+					reconnectLock.lock();
+					try
+					{
+						try {
+							assertTrue("Timed out awaiting reconnect", reconnected.await(2, TimeUnit.SECONDS));
+						} catch (InterruptedException e) {
+						}
+
+					} finally {
+						reconnectLock.unlock();
+					}
+
+					assertTrue(c.getConnectedUrl().equals(testServers[2]));
+
+					c.close();
+					s2.shutdown();
+
+					long reconElapsed = TimeUnit.NANOSECONDS.toMillis(
+							reconTimestamp.get() - disconTimestamp.get());
+					assertTrue(reconElapsed <= cf.getReconnectWait());
+					//		System.err.println("elapsed = " + reconElapsed);
+					//		System.err.println("reconnectWait = " + cf.getReconnectWait());
 				}
 			}
-
-		});
-
-		final Lock reconnectLock = new ReentrantLock();
-		final Condition reconnected = reconnectLock.newCondition();
-		cf.setReconnectedEventHandler(new ReconnectedEventHandler() {
-			@Override
-			public void onReconnect(ConnectionEvent event) {
-				System.out.println("In onReconnect");
-				reconnectLock.lock();
-				try
-				{
-					event.getConnection().setReconnectedEventHandler(null);
-					reconnected.signal();
-					//					reconnectLock.notify();
-				} finally {
-					reconnectLock.unlock();
-				}
-			}
-
-		});
-
-		cf.setConnectionTimeout(200);
-
-		NATSServer 	s1 = utils.createServerOnPort(1222),
-				s2 = utils.createServerOnPort(1224);
-		try {Thread.sleep(1000);} catch (InterruptedException e){}
-		Connection c = cf.createConnection();
-
-		System.out.println("Connected to: " + c.getConnectedUrl());
-		disconnectLock.lock();
-		try
-		{
-			try {
-				Thread.sleep(2000);
-			} catch (InterruptedException e1) {}
-			s1.shutdown();
-
-			try {
-				assertTrue("Timed out awaiting disconnect", disconnected.await(20, TimeUnit.SECONDS));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			//			long t0=System.nanoTime();
-			//			try {
-			//				disconnectLock.wait(20000);
-			//			} catch (InterruptedException e) {}
-			//			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
-			//			assertTrue("disconnect lock waited "+elapsed+"msec", elapsed < 20000);
-		} finally {
-			disconnectLock.unlock();
 		}
-
-		reconnectLock.lock();
-		try
-		{
-			try {
-				assertTrue("Timed out awaiting reconnect", reconnected.await(20, TimeUnit.SECONDS));
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-
-			//			long thist0 = System.nanoTime();
-			//			try {
-			//				reconnectLock.wait(20000);
-			//			} catch (InterruptedException e) {}
-			//			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - thist0);
-			//			assertTrue("reconnect lock waited " +elapsed+"msec", elapsed < 20000);
-
-		} finally {
-			reconnectLock.unlock();
-		}
-
-		assertTrue(c.getConnectedUrl().equals(testServers[2]));
-
-		c.close();
-		s2.shutdown();
-		//reconnectSw.Stop();
-
-		// Make sure we did not wait on reconnect for default time.
-		// Reconnect should be fast since it will be a switch to the
-		// second server and not be dependent on server restart time.
-		// TODO:  .NET connect timeout is exceeding long compared to
-		// GO's.  Look shortening it, or living with it.
-		//if (reconnectSw.ElapsedMilliseconds > opts.ReconnectWait)
-		//{
-		//   Assert.Fail("Reconnect time took too long: {0} millis.",
-		//        reconnectSw.ElapsedMilliseconds);
-		//}
 	}
 
 	private class SimClient implements Runnable
@@ -310,7 +271,7 @@ public class ClusterTest {
 		{
 			ConnectionFactory cf = new ConnectionFactory();
 			cf.setServers(servers);
-			cf.setReconnectedEventHandler(new ReconnectedEventHandler()
+			cf.setReconnectedCallback(new ReconnectedCallback()
 			{
 				@Override
 				public void onReconnect(ConnectionEvent event) {
@@ -322,14 +283,9 @@ public class ClusterTest {
 			});
 			try {
 				c = cf.createConnection();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (TimeoutException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (IOException | TimeoutException e) {
+				fail(e.getMessage());
 			}
-
 		}
 
 		public void close()
@@ -345,6 +301,7 @@ public class ClusterTest {
 	} //SimClient
 
 
+	//TODO complete this
 	//	@Test
 	//	public void TestHotSpotReconnect()
 	//	{
@@ -407,7 +364,7 @@ public class ClusterTest {
 	//	}
 
 	@Test
-	public void TestProperReconnectDelay() throws Exception
+	public void testProperReconnectDelay() throws Exception
 	{
 		//		final Object mu = new Object();
 		final Lock lock = new ReentrantLock();
@@ -417,11 +374,11 @@ public class ClusterTest {
 
 		//		final AtomicBoolean disconnectHandlerCalled = new AtomicBoolean(false);
 		final Condition disconnectHandlerCalled = lock.newCondition();
-		cf.setDisconnectedEventHandler( new DisconnectedEventHandler() {
+		cf.setDisconnectedCallback( new DisconnectedCallback() {
 
 			@Override
 			public void onDisconnect(ConnectionEvent event) {
-				event.getConnection().setDisconnectedEventHandler(null);
+				event.getConnection().setDisconnectedCallback(null);
 				//				disconnectHandlerCalled.set(true);
 				lock.lock();
 				try
@@ -437,7 +394,7 @@ public class ClusterTest {
 		//		final AtomicBoolean closedCbCalled = new AtomicBoolean(false);
 		final AtomicBoolean closedCbCalled = new AtomicBoolean(false);
 
-		cf.setClosedEventHandler(new ClosedEventHandler()
+		cf.setClosedCallback(new ClosedCallback()
 		{
 			@Override
 			public void onClose(ConnectionEvent event) {
@@ -457,16 +414,10 @@ public class ClusterTest {
 					s1.shutdown();
 					// wait for disconnect
 					try {
-						System.err.println("Waiting for DisconnectedEventHandler");
-						assertTrue("DisconnectedEventHandler not called withing timeout.",
+						assertTrue("DisconnectedCallback not called within timeout.",
 								disconnectHandlerCalled.await(2, TimeUnit.SECONDS));
-						System.err.println("DisconnectedEventHandler triggered successfully");
 					} catch (InterruptedException e1) {
 					}
-
-					// Wait, want to make sure we don't spin on
-					//reconnect to non-existant servers.
-					try {Thread.sleep(1000);} catch (InterruptedException e) {}
 
 					assertFalse("Closed CB was triggered, should not have been.",
 							closedCbCalled.get());
@@ -494,7 +445,7 @@ public class ClusterTest {
 
 		final Condition disconnectHandlerCalled = dmu.newCondition();
 
-		cf.setDisconnectedEventHandler(new DisconnectedEventHandler()
+		cf.setDisconnectedCallback(new DisconnectedCallback()
 		{
 			@Override
 			public void onDisconnect(ConnectionEvent event) {
@@ -511,7 +462,7 @@ public class ClusterTest {
 		});
 
 		final Condition closedHandlerCalled = cmu.newCondition();
-		cf.setClosedEventHandler(new ClosedEventHandler()
+		cf.setClosedCallback(new ClosedCallback()
 		{
 			@Override
 			public void onClose(ConnectionEvent event) {
@@ -558,76 +509,71 @@ public class ClusterTest {
 			}
 		}
 	}
-	//
-	//	[TestMethod]
-	//			public void TestTimeoutOnNoServers()
-	//	{
-	//		Options opts = ConnectionFactory.GetDefaultOptions();
-	//		Object dmu = new Object();
-	//		Object cmu = new Object();
-	//
-	//		opts.Servers = testServersShortList;
-	//		opts.NoRandomize = true;
-	//		opts.MaxReconnect = 2;
-	//		opts.ReconnectWait = 100; // millis
-	//
-	//		bool disconnectHandlerCalled = false;
-	//		bool closedHandlerCalled = false;
-	//
-	//		opts.DisconnectedEventHandler = (sender, args) =>
-	//		{
-	//			lock (dmu)
-	//			{
-	//				disconnectHandlerCalled = true;
-	//				Monitor.Pulse(dmu);
-	//			}
-	//		};
-	//
-	//		opts.ClosedEventHandler = (sender, args) =>
-	//		{
-	//			lock (cmu)
-	//			{
-	//				closedHandlerCalled = true;
-	//				Monitor.Pulse(cmu);
-	//			}
-	//		};
-	//
-	//		using (NATSServer s1 = utils.CreateServerOnPort(1222))
-	//		{
-	//			using (IConnection c = new ConnectionFactory().CreateConnection(opts))
-	//			{
-	//				s1.Shutdown();
-	//
-	//				lock (dmu)
-	//				{
-	//					if (!disconnectHandlerCalled)
-	//						Assert.IsTrue(Monitor.Wait(dmu, 20000));
-	//				}
-	//
-	//				Stopwatch sw = new Stopwatch();
-	//				sw.Start();
-	//
-	//				lock (cmu)
-	//				{
-	//					if (!closedHandlerCalled)
-	//						Assert.IsTrue(Monitor.Wait(cmu, 60000));
-	//				}
-	//
-	//				sw.Stop();
-	//
-	//				int expected = opts.MaxReconnect * opts.ReconnectWait;
-	//
-	//				// .NET has long connect times, so revisit this after
-	//				// a connect timeout has been added.
-	//				//Assert.IsTrue(sw.ElapsedMilliseconds < (expected + 500));
-	//
-	//				Assert.IsTrue(disconnectHandlerCalled);
-	//				Assert.IsTrue(closedHandlerCalled);
-	//				Assert.IsTrue(c.IsClosed());
-	//			}
-	//		}
-	//	}
-	//
+
+	@Test
+	public void testTimeoutOnNoServers()
+	{
+		final ConnectionFactory cf = new ConnectionFactory();
+		cf.setServers(testServers);
+		cf.setNoRandomize(true);
+		cf.setMaxReconnect(10);
+		cf.setReconnectWait(100); // millis
+
+		final AtomicBoolean dcbCalled = new AtomicBoolean(false);
+
+		final Channel<Boolean> dch = new Channel<Boolean>();
+		cf.setDisconnectedCallback(new DisconnectedCallback() {
+			public void onDisconnect(ConnectionEvent ev) {
+				ev.getConnection().setDisconnectedCallback(null);
+				dcbCalled.set(true);
+				dch.add(true);
+			}
+		});
+
+		final Channel<Boolean> cch = new Channel<Boolean>();
+		cf.setClosedCallback(new ClosedCallback() {
+			public void onClose(ConnectionEvent ev) {
+				cch.add(true);
+			}
+		});
+
+		try (NATSServer s1 = new NATSServer(1222)) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e1) {
+			}
+
+			try (Connection c = cf.createConnection())
+			{
+				s1.shutdown();
+
+				// wait for disconnect
+				assertTrue("Did not receive a disconnect callback message", 
+						dch.get(2000)); 
+
+				long t0 = System.nanoTime();
+
+				// Wait for ClosedCB
+				assertTrue("Did not receive a closed callback message", 
+						cch.get(2000));
+
+				long elapsedMsec = TimeUnit.NANOSECONDS.toMillis(
+						System.nanoTime() - t0);
+
+				// Use 500ms as variable time delta
+				int variable = 500000;
+				long expected = cf.getMaxReconnect() * cf.getReconnectWait();
+
+				assertFalse("Waited too long for Closed state: " 
+						+ elapsedMsec,
+						elapsedMsec > (expected + variable));
+			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
+				fail(e.getMessage());			
+			}
+		}
+	}
+
 	//		@Test
 	//		public void TestPingReconnect() throws Exception
 	//		{
@@ -652,7 +598,7 @@ public class ClusterTest {
 	////			Stopwatch disconnectedTimer = new Stopwatch();
 	//	
 	//			
-	//			cf.setDisconnectedEventHandler(new DisconnectedEventHandler()
+	//			cf.setDisconnectedCallback(new DisconnectedCallback()
 	//			{
 	//				@Override
 	//				public void onDisconnect(ConnectionEvent event) {
@@ -660,7 +606,7 @@ public class ClusterTest {
 	//				}
 	//			});
 	//	
-	//			cf.setReconnectedEventHandler(new ReconnectedEventHandler()
+	//			cf.setReconnectedCallback(new ReconnectedCallback()
 	//			{
 	//				@Override
 	//				public void onReconnect(ConnectionEvent event) {

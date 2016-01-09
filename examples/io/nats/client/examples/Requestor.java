@@ -1,3 +1,4 @@
+package io.nats.client.examples;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
@@ -26,57 +27,47 @@ public class Requestor {
 		parseArgs(args);
 		banner();
 
-		ConnectionFactory cf = null;
-		Connection c = null;
+		try (Connection c = new ConnectionFactory(url).createConnection()) {
+			start = System.nanoTime();
+			int received = 0;
 
-		try {
-			cf = new ConnectionFactory(url);
-			c = cf.createConnection();
-		} catch (IOException e) {
-			System.err.println("Couldn't connect: " + e.getCause());
-			System.exit(-1);
-		} catch (TimeoutException e) {
-			System.err.println("Couldn't connect: " + e.getCause());
-			System.exit(-1);
-		}
+			Message m = null;
+			byte[] reply = null;
+			try {
+				for (int i = 0; i < count; i++)
+				{
+					m = c.request(subject, payload, 10000);
+					if (m == null)
+						break;
 
-		start = System.nanoTime();
-
-		int received = 0;
-
-		Message m = null;
-		byte[] reply = null;
-		try {
-			for (int i = 0; i < count; i++)
-			{
-				m = c.request(subject, payload, 10000);
-				if (m == null)
-					break;
-				
-				received++;
-				reply = m.getData();
-				if (reply != null)
-					System.out.println("Got reply: " + new String(reply));
+					received++;
+					reply = m.getData();
+					if (reply != null)
+						System.out.println("Got reply: " + new String(reply));
 					else
 						System.out.println("Got reply with null payload");
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 
-		end = System.nanoTime();
-		elapsed = TimeUnit.NANOSECONDS.toSeconds(end-start);
+			end = System.nanoTime();
+			elapsed = TimeUnit.NANOSECONDS.toSeconds(end-start);
 
-		System.out.printf("Completed %d requests in %d seconds ", received, elapsed);
-		if (elapsed > 0) {
-		System.out.printf("(%d msgs/second).\n",
-				(received / elapsed));
-		} else {
-			System.out.println();
-			System.out.println("Test not long enough to produce meaningful stats. "
-					+ "Please increase the message count (-count n)");
+			System.out.printf("Completed %d requests in %d seconds ", received, elapsed);
+			if (elapsed > 0) {
+				System.out.printf("(%d msgs/second).\n",
+						(received / elapsed));
+			} else {
+				System.out.println();
+				System.out.println("Test not long enough to produce meaningful stats. "
+						+ "Please increase the message count (-count n)");
+			}
+			printStats(c);
+		} catch (IOException | TimeoutException e) {
+			System.err.println("Couldn't connect: " + e.getMessage());
+			System.exit(-1);
 		}
-		printStats(c);
 
 	}
 

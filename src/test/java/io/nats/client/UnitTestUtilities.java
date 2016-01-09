@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Assert.*;
 import org.junit.Test;
@@ -50,22 +51,6 @@ public class UnitTestUtilities {
 		authServerProcess = Runtime.getRuntime().exec("gnatsd -config auth.conf");
 	}
 
-	//	private static void testExpectedException(Action call, Type exType)
-	//	{
-	//		try {
-	//			call.Invoke();
-	//		}
-	//		catch (Exception e)
-	//		{
-	//			System.out.println(e);
-	//			
-	//			assertThat(e, instanceOf(exType));
-	//			return;
-	//		}
-	//
-	//		fail("No exception thrown!");
-	//	}
-
 	NATSServer createServerOnPort(int p)
 	{
 		NATSServer n = new NATSServer(p);
@@ -76,7 +61,7 @@ public class UnitTestUtilities {
 	NATSServer createServerWithConfig(String configFile)
 	{
 		NATSServer n = new NATSServer(configFile);
-		//		try { Thread.sleep(500); } catch (InterruptedException e) {}
+		try { Thread.sleep(500); } catch (InterruptedException e) {}
 		return n;
 	}
 
@@ -162,5 +147,12 @@ public class UnitTestUtilities {
 			e.printStackTrace();
 		} 
 
+	}
+	
+	static void sleep(int millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+		}
 	}
 }

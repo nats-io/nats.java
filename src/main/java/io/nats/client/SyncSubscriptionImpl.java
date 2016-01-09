@@ -11,54 +11,64 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
 	@Override
 	public Message nextMessage()
-			throws IOException, IllegalStateException, TimeoutException {
+			throws IOException, TimeoutException {
 		return nextMessage(-1);
 	}
 
 	@Override
 	public Message nextMessage(long timeout)
-			throws IOException, IllegalStateException, TimeoutException {
+			throws IOException, TimeoutException {
 		Message msg = null;
 		ConnectionImpl localConn;
 		Channel<Message> localChannel;
 		long localMax;
 
 		mu.lock();
-		try {
-			if (conn == null) {
+		if (connClosed) {
+			mu.unlock();
+			throw new ConnectionClosedException();
+		}
+		if (mch == null) {
+			if ((max > 0) && (delivered.get() >= max)) {
+				mu.unlock();
+				throw new MaxMessagesException();
+			} else if (closed) {
+				mu.unlock();
 				throw new BadSubscriptionException();
 			}
-			if (mch == null) {
-				throw new ConnectionClosedException();
-			}
-			if (sc == true) {
-				sc = false;
-				throw new SlowConsumerException();
-			}
-			localConn = (ConnectionImpl) this.getConnection();
-			localChannel = mch;
-			localMax = getMax();
-		} finally {
-			mu.unlock();
 		}
+		if (sc == true) {
+			sc = false;
+			mu.unlock();
+			throw new SlowConsumerException();
+		}
+		localConn = (ConnectionImpl) this.getConnection();
+		localChannel = mch;
+		localMax = getMax();
+		mu.unlock();
 
 		if (timeout >= 0) {
-			msg = localChannel.get(timeout);
+			try {
+				msg = localChannel.get(timeout);
+			} catch (TimeoutException e) {
+				throw e;
+			}
 		} else {
-			msg = localChannel.get(-1);
+			msg = localChannel.get();
 		}
 
-		if (msg != null) {
-			long d = this.delivered.incrementAndGet();
-			if (d == max) {
-				// Remove subscription if we have reached max.
+		long d = delivered.incrementAndGet();
+		if (localMax > 0) {
+			if (d > localMax) {
+				throw new MaxMessagesException();					
+			}
+			// Remove subscription if we have reached max.
+			if (d == localMax) {
+				localConn.mu.lock();
 				localConn.removeSub(this);
-			}
-			if (localMax > 0 && d > localMax) {
-				throw new MaxMessagesException("nats: Max messages delivered");
+				localConn.mu.unlock();
 			}
 		}
-
 		return msg;
 
 	}

@@ -13,7 +13,7 @@ public class SlowConsumerException extends IOException {
 	private static final long serialVersionUID = 1L;
 
 	public SlowConsumerException() {
-		// TODO Auto-generated constructor stub
+		this("nats: Slow Consumer, messages dropped");
 	}
 
 	public SlowConsumerException(String msg) {

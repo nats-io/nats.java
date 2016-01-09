@@ -4,11 +4,8 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
@@ -21,11 +18,13 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import static io.nats.client.Constants.*;
 
+@Category(UnitTest.class)
 public class ConnectionFactoryTest implements ExceptionHandler,
-ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
+ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
@@ -74,9 +73,9 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 
 	@Test
 	public void testConnectionFactoryProperties() {
-		final ClosedEventHandler ccb = this;
-		final DisconnectedEventHandler dcb = this;
-		final ReconnectedEventHandler rcb = this;
+		final ClosedCallback ccb = this;
+		final DisconnectedCallback dcb = this;
+		final ReconnectedCallback rcb = this;
 		final ExceptionHandler eh = this;
 
 		Properties props = new Properties();
@@ -97,7 +96,6 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		props.setProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(timeout));
 		props.setProperty(PROP_PING_INTERVAL, Integer.toString(pingInterval));
 		props.setProperty(PROP_MAX_PINGS, Integer.toString(maxPings));
-		System.out.println(eh.getClass().getName());
 		props.setProperty(PROP_EXCEPTION_HANDLER, 
 				eh.getClass().getName());
 		props.setProperty(PROP_CLOSED_HANDLER, ccb.getClass().getName());
@@ -112,7 +110,7 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 
 		assertEquals(username, cf.getUsername());
 		assertEquals(password, cf.getPassword());
-		List<URI> s1 = this.serverArrayToList(serverArray);
+		List<URI> s1 = ConnectionFactoryTest.serverArrayToList(serverArray);
 		List<URI> s2 = cf.getServers();
 		assertEquals(s1, s2);
 		assertEquals(noRandomize, cf.isNoRandomize());
@@ -127,9 +125,9 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		assertEquals(pingInterval, cf.getPingInterval());
 		assertEquals(maxPings, cf.getMaxPingsOut());
 		assertEquals(eh.getClass().getName(), cf.getExceptionHandler().getClass().getName());
-		assertEquals(ccb.getClass().getName(), cf.getClosedEventHandler().getClass().getName());
-		assertEquals(dcb.getClass().getName(), cf.getDisconnectedEventHandler().getClass().getName());
-		assertEquals(rcb.getClass().getName(), cf.getReconnectedEventHandler().getClass().getName());
+		assertEquals(ccb.getClass().getName(), cf.getClosedCallback().getClass().getName());
+		assertEquals(dcb.getClass().getName(), cf.getDisconnectedCallback().getClass().getName());
+		assertEquals(rcb.getClass().getName(), cf.getReconnectedCallback().getClass().getName());
 
 		cf.setSecure(false);
 		try (TCPConnectionMock mock = new TCPConnectionMock())
@@ -155,16 +153,14 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 				assertEquals(pingInterval, ci.opts.getPingInterval());
 				assertEquals(maxPings, ci.opts.getMaxPingsOut());
 				assertEquals(eh.getClass().getName(), ci.opts.getExceptionHandler().getClass().getName());
-				assertEquals(ccb.getClass().getName(), ci.opts.getClosedEventHandler().getClass().getName());
-				assertEquals(dcb.getClass().getName(), ci.opts.getDisconnectedEventHandler().getClass().getName());
-				assertEquals(rcb.getClass().getName(), ci.opts.getReconnectedEventHandler().getClass().getName());
+				assertEquals(ccb.getClass().getName(), ci.opts.getClosedCallback().getClass().getName());
+				assertEquals(dcb.getClass().getName(), ci.opts.getDisconnectedCallback().getClass().getName());
+				assertEquals(rcb.getClass().getName(), ci.opts.getReconnectedCallback().getClass().getName());
 			} catch (IOException | TimeoutException e) {
-				e.printStackTrace();
-				fail("Didn't connect");
+				fail(e.getMessage());
 			}
 		} catch (Exception e1) {
-			e1.printStackTrace();
-			fail("Unexpected exception");
+			fail("Unexpected exception: " + e1.getMessage());
 		}
 	}
 
@@ -212,7 +208,6 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		try {
 			new ConnectionFactory();
 		} catch (Exception e) {
-			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
@@ -235,12 +230,7 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		List<URI> rv = new ArrayList<URI>();
 		for (String s : serverArray)
 		{
-			try {
-				rv.add(new URI(s.trim()));
-			} catch (URISyntaxException e) {
-				e.printStackTrace();
-				fail("URI input problem.");
-			}
+			rv.add(URI.create(s.trim()));
 		}
 		return rv;
 	}
@@ -250,6 +240,11 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		sList = serverArrayToList(serverArray);
 		ConnectionFactory cf = new ConnectionFactory(serverArray);
 		assertEquals(sList, cf.getServers());
+		assertEquals(null, cf.getUrlString());
+//		try (ConnectionImpl c = cf.createConnection()) {
+//		} catch (IOException | TimeoutException e) {
+//			fail(e.getMessage());
+//		}
 	}
 
 	@Test
@@ -262,8 +257,8 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
 			for (String s : servers) {
-				s1.add(new URI(s));
-				s2.add(new URI(s));
+				s1.add(URI.create(s));
+				s2.add(URI.create(s));
 			}
 			// test null, servers
 			ConnectionFactory cf = new ConnectionFactory(null, servers);
@@ -280,18 +275,22 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 				// Test the URLS produced by setupServerPool
 				List<URI> connServerPool = new ArrayList<URI>();
 				List<ConnectionImpl.Srv> srvPool = c.srvPool;
+				c.close();
+				assertTrue(c.getState()==ConnState.CLOSED);
 				for (ConnectionImpl.Srv srv : srvPool) {
 					connServerPool.add(srv.url);
 				}
 				assertEquals(s1, connServerPool);
 			} catch (IOException | TimeoutException e) {
-				fail("Couldn't connect");
-				e.printStackTrace();
+				fail(e.getMessage());
 			}
 
+			mock.bounce();
+			
 			// test url, null
 			cf = new ConnectionFactory(url, null);
 			assertEquals(url, cf.getUrlString());
+			System.err.println("Connecting to: " + url);
 			try (ConnectionImpl c = cf.createConnection(mock))
 			{
 				// test passed-in options
@@ -304,16 +303,17 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 					connServerPool.add(srv.url);
 				}
 				s1.clear();
-				s1.add(new URI(url));
+				s1.add(URI.create(url));
 				assertEquals(s1, connServerPool);
 			} catch (IOException | TimeoutException e) {
-				fail("Couldn't connect");
-				e.printStackTrace();
+				fail(e.getMessage());
 			}
 
 			s1.clear();
 			s1.addAll(s2);
 			assertEquals(s1, s2);
+
+			mock.bounce();
 
 			// test url, servers
 			cf = new ConnectionFactory(url, servers);
@@ -332,17 +332,11 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 				for (ConnectionImpl.Srv srv : srvPool) {
 					connServerPool.add(srv.url);
 				}
-				s1.add(0,new URI(url));
+				s1.add(0,URI.create(url));
 				assertEquals(s1, connServerPool);
 			} catch (IOException | TimeoutException e) {
-				fail("Couldn't connect");
-				e.printStackTrace();
+				fail(e.getMessage());
 			}
-
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-			fail(e1.getMessage());
 		}
 	}
 
@@ -376,16 +370,8 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		String urlString = "nats://foo:bar:baz@natshost:2222";
 		ConnectionFactory cf = new ConnectionFactory();
 
-		try {
-			URI uri = new URI(urlString);
-			cf.setUri(uri);
-		} catch (IllegalArgumentException e) {
-			throw(e);
-		} catch (URISyntaxException e) {
-			fail("Bad URI: " + e.getMessage());
-		} catch (Exception e) {
-			fail(e.getMessage());
-		}
+		URI uri = URI.create(urlString);
+		cf.setUri(uri);
 	}
 
 	@Test
@@ -411,12 +397,8 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 			{
 				assertEquals("foobar", cf.getHost());
 			} catch (IOException | TimeoutException e) {
-				fail("Exception thrown");
-				e.printStackTrace();
+				fail(e.getMessage());
 			}
-		} catch (Exception e1) {
-			fail("Exception thrown");
-			e1.printStackTrace();
 		}
 	}
 
@@ -430,13 +412,9 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 			{
 				assertEquals("foobar", cf.getHost());
 			} catch (IOException | TimeoutException e) {
-				fail("Exception thrown");
-				e.printStackTrace();
+				fail(e.getMessage());
 			}
-		} catch (Exception e1) {
-			fail("Exception thrown");
-			e1.printStackTrace();
-		}		
+		}	
 	}
 
 
@@ -450,12 +428,8 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 			{
 				assertEquals(1234, cf.getPort());
 			} catch (IOException | TimeoutException e) {
-				fail("Exception thrown");
-				e.printStackTrace();
+				fail(e.getMessage());
 			}
-		} catch (Exception e1) {
-			fail("Exception thrown");
-			e1.printStackTrace();
 		}		
 	}
 
@@ -494,12 +468,8 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		String[] servers = { "nats://localhost:1234", "nats://localhost:5678" }; 
 		List<URI> s1 = new ArrayList<URI>();
 
-		try {
-			for (String s : servers) {
-				s1.add(new URI(s));
-			}
-		} catch (URISyntaxException e) {
-			fail(e.getMessage());
+		for (String s : servers) {
+			s1.add(URI.create(s));
 		}
 
 		ConnectionFactory cf = new ConnectionFactory();
@@ -517,23 +487,20 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
 			for (String s : servers) {
-				s1.add(new URI(s));
+				s1.add(URI.create(s));
 			}
 			try (ConnectionImpl c = cf.createConnection(mock))
 			{
 				List<URI> serverList = c.opts.getServers();
 				assertEquals(s1, serverList);
 			} catch (IOException | TimeoutException e) {
-				fail("Couldn't connect");
-				e.printStackTrace();
+				fail(e.getMessage());
 			}
-		} catch (Exception e1) {
-			e1.printStackTrace();
 		}
 
 		try
 		{
-			ConnectionFactory cf2 = new ConnectionFactory((String[])null);
+			new ConnectionFactory((String[])null);
 		} catch (IllegalArgumentException e) {
 			fail(e.getMessage());
 		}
@@ -611,10 +578,9 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 			assertTrue(cf.isTlsDebug());
 			try (ConnectionImpl c = cf.createConnection(mock)) {
 				assertTrue(c.opts.isTlsDebug());
+			} catch (IOException | TimeoutException e) {
+				fail(e.getMessage());
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail("Shouldn't have thrown exception");
 		}
 	}
 
@@ -679,32 +645,32 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 	//	}
 	//
 	//	@Test
-	//	public void testGetClosedEventHandler() {
+	//	public void testGetClosedCallback() {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
 	//	@Test
-	//	public void testSetClosedEventHandler() {
+	//	public void testSetClosedCallback() {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
 	//	@Test
-	//	public void testGetDisconnectedEventHandler() {
+	//	public void testGetDisconnectedCallback() {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
 	//	@Test
-	//	public void testSetDisconnectedEventHandler() {
+	//	public void testSetDisconnectedCallback() {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
 	//	@Test
-	//	public void testGetReconnectedEventHandler() {
+	//	public void testGetReconnectedCallback() {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
 	//	@Test
-	//	public void testSetReconnectedEventHandler() {
+	//	public void testSetReconnectedCallback() {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
@@ -739,8 +705,7 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 			cf.setSslContext(c);
 			assertEquals(c, cf.getSslContext());
 		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			fail(e.getMessage());
 		}			
 	}
 
@@ -752,8 +717,7 @@ ClosedEventHandler, DisconnectedEventHandler, ReconnectedEventHandler {
 			cf.setSslContext(c);
 			assertEquals(c, cf.getSslContext());
 		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 

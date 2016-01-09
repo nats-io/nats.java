@@ -12,8 +12,8 @@ import java.util.concurrent.TimeoutException;
  */
 public interface SyncSubscription extends Subscription {
 	public Message nextMessage() 
-			throws IOException, IllegalStateException, TimeoutException;
+			throws IOException, TimeoutException;
 	public Message nextMessage(long timeout) 
-			throws TimeoutException, IOException, IllegalStateException;
+			throws TimeoutException, IOException;
 
 }

@@ -23,7 +23,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(UnitTest.class)
 public class TLSTest {
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -46,7 +48,6 @@ public class TLSTest {
 	@After
 	public void tearDown() throws Exception {
 	}
-
 
 	@Test
 	public void testTlsSuccessWithCert() throws Exception {
@@ -94,7 +95,7 @@ public class TLSTest {
 	}
 
 	@Test
-	public void testTlsSuccessSecureConnect() throws Exception
+	public void testTlsSuccessSecureConnect()
 	{
 		ClassLoader classLoader = getClass().getClassLoader();
 
@@ -120,14 +121,21 @@ public class TLSTest {
 			cf.setTlsDebug(true);
 			cf.setSslContext(context);
 
+			String subj = "foo";
+			byte[] omsg = "Hello TLS!".getBytes();
+			
 			try (Connection c = cf.createConnection())
 			{
-				try (SyncSubscription s = c.subscribeSync("foo"))
+				try { Thread.sleep(200); } catch (InterruptedException e) {}
+				
+				try (SyncSubscription s = c.subscribeSync(subj))
 				{
-					c.publish("foo", null);
+					c.publish(subj, omsg);
 					c.flush();
 					Message m = s.nextMessage();
-					System.out.println("Received msg over TLS conn.");
+					assertNotNull(m);
+					assertEquals(subj, m.getSubject());
+					assertArrayEquals(omsg, m.getData());
 				} catch (Exception e) {
 					fail(e.getMessage());
 				}
@@ -136,6 +144,9 @@ public class TLSTest {
 			} finally {
 				srv.shutdown();
 			}
+		} catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | KeyManagementException e1) {
+			// TODO Auto-generated catch block
+			fail(e1.getMessage());
 		} 
 	}
 }

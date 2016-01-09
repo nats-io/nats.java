@@ -12,7 +12,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(UnitTest.class)
 public class AsyncSubscriptionImplTest {
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -61,26 +63,23 @@ public class AsyncSubscriptionImplTest {
 		ConnectionImpl nc = mock(ConnectionImpl.class);
 
 		// test for when the mcb is null
-		System.out.println("Testing null callback");
 		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
 		{
 			assertTrue("s.processMsg should have returned true", s.processMsg(m));
 		}
 
 		// test for > max
-		System.out.println("Testing for max messages reached");
 		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50))
 		{
 			s.setMax(2);
 			assertTrue("s.processMsg should have returned true", s.processMsg(m));
 			when(nc.isClosed()).thenReturn(true);
 			assertTrue("s.processMsg should have returned true", s.processMsg(m));
-			System.out.println("Testing for BadSubscriptionException");
+			// Testing for MaxMessagesException?
 			assertFalse("s.processMsg should have returned false", s.processMsg(m));
 		}
 		when(nc.isClosed()).thenReturn(false);
 		// test for unsubscribe IOException
-		System.out.println("Testing for unsubscribe IOException");
 		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50))
 		{
 			s.setMax(1);
@@ -103,29 +102,33 @@ public class AsyncSubscriptionImplTest {
 		{
 			s.unsubscribe();
 		} catch (IllegalStateException | IOException e) {
-			assertTrue("Exception should have been ConnectionClosedException", 
-					e instanceof ConnectionClosedException);
+			assertTrue("Exception should have been BadSubscriptionException", 
+					e instanceof BadSubscriptionException);
 			exThrown = true;
 		} finally {
-			assertTrue("Should have thrown ConnectionClosedException", exThrown);
+			assertTrue("Should have thrown BadSubscriptionException", exThrown);
 		}
 	}
 
 	@Test
 	public void testUnsubscribeConnectionClosed() {
-		ConnectionImpl nc = mock(ConnectionImpl.class);
-		when(nc.isClosed()).thenReturn(true);
-
-		boolean exThrown = false;
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+		try(ConnectionImpl nc = mock(ConnectionImpl.class))
 		{
-			s.unsubscribe();
-		} catch (IllegalStateException | IOException e) {
-			assertTrue("Exception should have been ConnectionClosedException", 
-					e instanceof ConnectionClosedException);
-			exThrown = true;
-		} finally {
-			assertTrue("Should have thrown ConnectionClosedException", exThrown);
+			when(nc.isClosed()).thenReturn(true);
+
+			boolean exThrown = false;
+			try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+			{
+				doThrow(ConnectionClosedException.class).when(nc).unsubscribe(s, 0);
+				s.unsubscribe();
+			} catch (Exception e) {
+				assertTrue("Exception should have been ConnectionClosedException, got: " 
+						+ e.getClass().getSimpleName(), 
+						e instanceof ConnectionClosedException);
+				exThrown = true;
+			} finally {
+				assertTrue("Should have thrown ConnectionClosedException", exThrown);
+			}
 		}
 	}
 

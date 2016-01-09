@@ -3,6 +3,9 @@ package io.nats.client;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.junit.experimental.categories.Category;
+
+@Category(UnitTest.class)
 public class ClientConnectInfo {
 
 	public ClientConnectInfo() {

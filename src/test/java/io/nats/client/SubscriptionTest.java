@@ -21,9 +21,11 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Category(UnitTest.class)
 public class SubscriptionTest {
 	final Logger logger = LoggerFactory.getLogger(SubscriptionTest.class);
 
@@ -51,7 +53,7 @@ public class SubscriptionTest {
 	}
 
 	@Test
-	public void testServerAutoUnsub() throws Exception
+	public void testServerAutoUnsub()
 	{
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
@@ -59,142 +61,223 @@ public class SubscriptionTest {
 			final AtomicLong received = new AtomicLong(0L);
 			int max = 10;
 
-			try (AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler () {
-
+			try (Subscription s = c.subscribe("foo", new MessageHandler () {
 				@Override
 				public void onMessage(Message msg) {
-					System.out.println("Received msg.");
 					received.incrementAndGet();
 				}
-
 			}))
 			{
 				s.autoUnsubscribe(max);
-				s.start();
-				assertTrue(s.isValid());
+				int total = 100;
 
-				for (int i = 0; i < (max * 2); i++)
+				for (int i = 0; i < total; i++)
 				{
-					c.publish("foo", "hello".getBytes("UTF-8"));
+					c.publish("foo", "Hello".getBytes());
 				}
-				c.flush();
+				try {
+					c.flush();
+				} catch (Exception e1) {
+					fail(e1.getMessage());
+				}
 
 				try {Thread.sleep(100); } catch (InterruptedException e) {}
 
-				assertTrue(String.format("Received (%d) != max (%d)",
-						received.get(), max),
-						received.get()==max);
+				assertEquals(max, received.get());
 
-				assertFalse(s.isValid());
+				assertFalse("Expected subscription to be invalid after hitting max",
+						s.isValid());
 			}
+		} catch (IOException | TimeoutException e1) {
+			fail("Should have connected: " + e1.getMessage());
 		}
 	}
 
 	@Test
-	public void testClientAutoUnsub() throws IllegalStateException, Exception
+	public void testClientSyncAutoUnsub()
 	{
 		try (Connection c = new ConnectionFactory().createConnection()) {
 			assertFalse(c.isClosed());
 
 			long received = 0;
 			int max = 10;
-
+			boolean exThrown = false;
 			try (SyncSubscription s = c.subscribeSync("foo")) {
 				s.autoUnsubscribe(max);
 
-				for (int i = 0; i < max * 2; i++)
+				int total = 100;
+				for (int i = 0; i < total; i++)
 				{
-					c.publish("foo", null);
+					c.publish("foo", "Hello".getBytes());
 				}
-				c.flush();
-
-				try { Thread.sleep(100);
-				} catch (InterruptedException e1) {
+				try {
+					c.flush();
+				} catch (Exception e) {
+					fail(e.getMessage());
 				}
 
-				try
+				while (true)
 				{
-					while (true)
+					try
 					{
-						s.nextMessage(0);
+						s.nextMessage(10);
 						received++;
 					}
+					catch (MaxMessagesException e) {
+						exThrown = true;
+						break;
+					}
+					catch (Exception e) {
+						// catch-all
+						fail("Wrong exception: " + e.getMessage());
+					}
 				}
-				catch (BadSubscriptionException e) { /* ignore */ }
-
-				assertTrue(received == max);
-				assertFalse(s.isValid());
+				assertTrue("Should have thrown MaxMessagesException", exThrown);
+				assertEquals(max, received);
+				assertFalse("Expected subscription to be invalid after hitting max", 
+						s.isValid());
 			}
+		} catch (IOException | TimeoutException e2) {
+			fail("Should have connected");
 		}
 	}
 
+	@Test
+	public void testClientAsyncAutoUnsub()
+	{
+		final AtomicInteger received = new AtomicInteger(0);
+		MessageHandler mh = new MessageHandler()
+		{
+			@Override
+			public void onMessage(Message msg) {
+				received.getAndIncrement();
+			}
+		};
+
+		try (Connection c = new ConnectionFactory().createConnection()) {
+			assertFalse(c.isClosed());
+
+			int max = 10;
+			try (Subscription s = c.subscribe("foo", mh )) {
+				s.autoUnsubscribe(max);
+
+				int total = 100;
+				for (int i = 0; i < total; i++)
+				{
+					c.publish("foo", "Hello".getBytes());
+				}
+				try { c.flush(); } catch (Exception e1) {}
+
+				try {Thread.sleep(10);} catch (InterruptedException e) {}
+				assertFalse("Expected subscription to be invalid after hitting max", 
+						s.isValid());
+				assertEquals(max, received.get());
+			} 
+		} catch (IOException | TimeoutException e) {
+			fail("Should have connected");
+		}
+	}
 
 	@Test
-	public void testCloseSubRelease() throws IOException, TimeoutException
+	public void testCloseSubRelease()
 	{
 		try (final Connection c = new ConnectionFactory().createConnection())
 		{
 			try (SyncSubscription s = c.subscribeSync("foo"))
 			{
+				long timeout = 50;
 				long t0 = System.nanoTime();
-				try
-				{
-					executor.execute(new Runnable() {
-						@Override
-						public void run() {
-							try { Thread.sleep(10); } catch (InterruptedException e) {}
-							c.close();
-							assertTrue(c.isClosed());
-						}
-					});
-					s.nextMessage(10000);
+				executor.execute(new Runnable() {
+					@Override
+					public void run() {
+						try { Thread.sleep(1); } catch (InterruptedException e) {}
+						c.close();
+						assertTrue(c.isClosed());
+					}
+				});
+				boolean exThrown=false;
+				try {
+					try { Thread.sleep(5); } catch (InterruptedException e) {}
+					s.nextMessage(timeout);
+				} catch (Exception e) {
+
+					exThrown=true;
+				} finally {
+					assertTrue("Connection should be closed", c.isClosed());
+					assertTrue("Expected an error from nextMsg", exThrown);
 				}
-				catch (Exception e) { /* ignore */ }
 
-				long elapsed = System.nanoTime()-t0;
-				assertTrue("wait time was: " + TimeUnit.NANOSECONDS.toMillis(elapsed),
-						TimeUnit.NANOSECONDS.toMillis(elapsed) <= 20);
-			} catch (Exception e1) {
-				e1.printStackTrace();
-				fail(e1.getMessage());
+				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
+				String msg = String.format("Too much time has elapsed to release NextMsg: %dms", elapsed);
+				assertTrue(msg, elapsed <= 10);
+			} catch (Exception e) {
+				fail("Subscription failed: " + e.getMessage());
 			}	
+		} catch (IOException | TimeoutException e2) {
+			fail("Failed to connect");
 		}
 	}
 
 	@Test
-	public void testValidSubscriber() 
-			throws TimeoutException, IllegalStateException, IOException
+	public void testIsValidSubscriber() 
 	{
-		try (final Connection c = new ConnectionFactory().createConnection())
+		try (final Connection nc = new ConnectionFactory().createConnection())
 		{
-			try (SyncSubscription s = c.subscribeSync("foo")) {
-				assertTrue(s.isValid());
+			try (SyncSubscription sub = nc.subscribeSync("foo")) {
+				assertTrue("Subscription should be valid", sub.isValid());
 
-				try { s.nextMessage(100); }
-				catch (TimeoutException e) { }
+				for (int i = 0; i < 10; i++) {
+					nc.publish("foo", "Hello".getBytes());
+				}
+				nc.flush();
 
-				assertTrue(s.isValid());
+				try {
+					sub.nextMessage(200);
+				} catch (Exception e) {
+					fail("nextMsg threw an exception: " + e.getMessage());
+				}
 
-				s.unsubscribe();
+				sub.unsubscribe();
 
-				assertFalse(s.isValid());
 
-				try { s.nextMessage(100); }
-				catch (BadSubscriptionException e) { }
-			} catch (Exception e1) {
-				e1.printStackTrace();
-				fail(e1.getMessage());
+				boolean exThrown = false;
+				try { 
+					sub.autoUnsubscribe(1);
+				} catch (Exception e) {
+					assertTrue(e instanceof BadSubscriptionException);
+					exThrown=true;
+				} finally {
+					assertTrue("nextMsg should have thrown an exception", 
+							exThrown);
+				}
+
+				exThrown = false;
+				try { 
+					sub.nextMessage(200); 
+					fail("Shouldn't be here");
+				} catch (Exception e) {
+					assertTrue(e.getMessage(), e instanceof BadSubscriptionException);
+					exThrown=true;
+				} finally {
+					assertTrue("nextMsg should have thrown an exception", 
+							exThrown);
+				}
+			} catch (Exception e) {
+				fail(e.getMessage());
 			}
+		} catch (IOException | TimeoutException e) {
+			fail(e.getMessage());
 		}
 	}
 
 	@Test
-	public void testSlowSubscriber() throws Exception
+	public void testSlowSubscriber()
 	{
 		ConnectionFactory cf = new ConnectionFactory();
 		cf.setSubChanLen(100);
+		final AtomicBoolean exThrown = new AtomicBoolean(false);
 
-		try (final Connection c = cf.createConnection())
+		try (Connection c = cf.createConnection())
 		{
 			try (SyncSubscription s = c.subscribeSync("foo")) {
 				for (int i=0; i < (cf.getSubChanLen()+100); i++)
@@ -202,69 +285,61 @@ public class SubscriptionTest {
 					c.publish("foo", "Hello".getBytes());
 				}
 
-				try
-				{
-					int timeout = 5000;
-					long t0 = System.nanoTime();
+				int timeout = 5000;
+				long t0 = System.nanoTime();
+				try {
 					c.flush(timeout);
-					long elapsed = TimeUnit.NANOSECONDS.toMillis(
-							System.nanoTime()-t0);
-					assertFalse(
-							String.format(
-									"Flush did not return before timeout: %d >= %d",
-									elapsed, timeout),
-							elapsed >= timeout);
+				} catch (Exception e1) {
+					/* NOOP */
 				}
-				catch (SlowConsumerException e) {
-					// NOOP: This is expected
-				}
-				catch (Exception ex)
-				{
-					logger.error("Exception: ", ex);
-					if (ex.getCause() != null)
-						logger.error("Caused by: ", ex.getCause());
-					throw ex;
-				}
-
+				long elapsed = TimeUnit.NANOSECONDS.toMillis(
+						System.nanoTime()-t0);
+				assertFalse(
+						String.format(
+								"Flush did not return before timeout: %d >= %d",
+								elapsed, timeout),
+						elapsed >= timeout);
+				exThrown.set(false);
 				try 
 				{
-					s.nextMessage(500);
+					s.nextMessage(200);
 				}
 				catch (SlowConsumerException e)
 				{
-					return;
+					exThrown.set(true);
+				} finally {
+					assertTrue("nextMsg should have thrown an exception",
+							exThrown.get());
 				}
-			}
+			} 
+		} catch (IOException | TimeoutException e1) {
+			fail("Should have connected: " + e1.getMessage());
 		}
-
-		fail("Did not receive an exception.");
 	}
 
 	@Test
 	public void testSlowAsyncSubscriber() throws IOException, TimeoutException
 	{
 		ConnectionFactory cf = new ConnectionFactory();
-		cf.setSubChanLen(10);
+		cf.setSubChanLen(100);
 
 		try (final Connection c = cf.createConnection()) {
-			final Object mu = new Object();
+			final Lock mu = new ReentrantLock();
+			final Condition released = mu.newCondition();
 			try (final AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
 				@Override
 				public void onMessage(Message msg) {
-					synchronized(mu)
+					mu.lock();
+					try
 					{
-						System.out.println("Subscriber Waiting....");
-						long t0 = System.nanoTime();
-						try {mu.wait(30000);} catch (InterruptedException e) {}
-						long elapsed = TimeUnit.NANOSECONDS.toMillis(
-								System.nanoTime() - t0);
-						assertTrue(elapsed < 20000);
-						System.out.println("Subscriber done.");
+						assertTrue(released.await(5, TimeUnit.SECONDS));
+					} catch (InterruptedException e) {
+					} finally {
+						mu.unlock();
 					}
 				}
 			})) {
 
-				System.err.println("subChanLen = " + cf.getSubChanLen());
 				for (int i = 0; i < (cf.getSubChanLen() + 100); i++)
 				{
 					c.publish("foo", "Hello".getBytes());
@@ -277,9 +352,7 @@ public class SubscriptionTest {
 				boolean exThrown = false;
 				try
 				{
-					System.out.println("flushing: " + flushTimeout + " msec" );
 					c.flush(flushTimeout);
-					System.out.println("flush complete." );
 				}
 				catch (Exception e)
 				{
@@ -290,211 +363,185 @@ public class SubscriptionTest {
 				assertTrue("Flush did not return before timeout, elabsed msec="+elapsed, 
 						elapsed < flushTimeout);
 
-				synchronized(mu)
+				mu.lock();
+				try
 				{
-					System.out.println("notifying messageCB");
-					mu.notify();
+					released.signal();
+				} finally {
+					mu.unlock();
 				}
 
 				assertTrue("Expected an error indicating slow consumer", exThrown);
-			} catch (Exception e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-				fail(e1.getMessage());
 			}
 		}
 	}
 
 	@Test
-	public void testAsyncErrHandler() throws IllegalStateException, IOException, TimeoutException, Exception
+	public void testAsyncErrHandler()
 	{
-		final Object subLock = new Object();
-		final Object testLock = new Object();
-		final AtomicBoolean handledError = new AtomicBoolean(false);
-		final AtomicBoolean blockedOnSubscriber = new AtomicBoolean(false);
+		final String subj = "async_test";
+		final AtomicInteger aeCalled = new AtomicInteger(0);
 
 		ConnectionFactory cf = new ConnectionFactory();
 		cf.setSubChanLen(10);
 
-		Connection c = cf.createConnection();
+		final Channel<Boolean> ch = new Channel<Boolean>(1);
+		final Channel<Boolean> bch = new Channel<Boolean>(1);
 
-		final AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler()
+		final MessageHandler mcb = new MessageHandler()
 		{
 			@Override
 			public void onMessage(Message msg) {
-				synchronized(subLock)
-				{
-					if (blockedOnSubscriber.get())
-						return;
+				if (aeCalled.get()==1)
+					return;
 
-					System.out.println("Subscriber Waiting....");
-					long t0 = System.nanoTime();
-					try { subLock.wait(10000);} catch (InterruptedException e) {
+				try {
+					bch.get();
+				} catch (TimeoutException e) {
+					fail("Timed out");
+				}
+			}
+		};
+
+		try (Connection c = cf.createConnection()) {
+			try (final AsyncSubscription s = c.subscribeAsync(subj, mcb)) 
+			{
+				c.setExceptionHandler(new ExceptionHandler()
+				{
+					public void onException(Connection conn, Subscription sub, 
+							Throwable e) {
+
+						// Suppress additional calls
+						if (aeCalled.get() == 1)
+							return;
+						aeCalled.incrementAndGet();					
+
+						assertEquals("Did not receive proper subscription", s, sub);
+						assertTrue("Expected SlowConsumerException, but got " + e, 
+								e instanceof SlowConsumerException);
+
+						bch.add(true);
+
+						ch.add(true);
+
 					}
-					long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
-					assertTrue("monitor timed out", elapsed < 10000 );
-					System.out.println("Subscriber done.");
-					blockedOnSubscriber.set(true);
-				}
-			}
-		});
-		c.setExceptionHandler(new ExceptionHandler()
-		{
-			public void onException(Connection conn, Subscription sub, 
-					Throwable e) {
-				synchronized(subLock)
+				});
+
+				for (int i = 0; i < (cf.getSubChanLen() + 10); i++)
 				{
-					if (handledError.get())
-						return;
-
-					handledError.set(true);
-
-					assertTrue(sub == s);
-
-					assertTrue("Expected SlowConsumerException, but got " + e, 
-							e instanceof SlowConsumerException);
-
-					// release the subscriber
-					subLock.notify();
+					c.publish(subj, "Hello World!".getBytes());
 				}
-				// release the test
-				synchronized(testLock) { testLock.notify(); }
-			}
-		});
+				try {
+					c.flush(5000);
+				} catch (Exception e) { /* NOOP */ }
 
 
-		synchronized(testLock)
-		{
+				assertTrue("Failed to call async err handler", ch.get(5000));
 
-			for (int i = 0; i < (cf.getSubChanLen() + 100); i++)
-			{
-				c.publish("foo", null);
-			}
-			try {
-				c.flush(1000);
-			} catch (SlowConsumerException e)
-			{
-				// NOOP - expected here
-			}
-
-			long t0 = System.nanoTime();
-			testLock.wait(10000);
-			long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
-			assertTrue("monitor timed out", elapsed < 10000 );
+			} // AsyncSubscription
+		} // Connection 
+		catch (IOException | TimeoutException e) {
+			fail("Could not connect to server: " + e.getMessage());
 		}
-		c.close();
 	}
 
 	@Test
-	public void testAsyncSubscriberStarvation() throws Exception
+	public void testAsyncSubscriberStarvation()
 	{
-		//		final Object waitCond = new Object();
-		final Lock cbLock = new ReentrantLock();
-		final Condition cbFired = cbLock.newCondition();
+		final Channel<Boolean> ch = new Channel<Boolean>();
+
 		try (final Connection c = new ConnectionFactory().createConnection())
 		{
-			AsyncSubscription helper = c.subscribeAsync("helper",
-					new MessageHandler()
-			{
+			// Helper
+			try (AsyncSubscription helper = c.subscribe("helper",
+					new MessageHandler() {
 				@Override
 				public void onMessage(Message msg) {
-					System.err.println("Helper");
-					c.publish(msg.getReplyTo(),
-							"Hello".getBytes(Charset.forName("UTF-8")));				
-				}
-			});
-			
-			try {Thread.sleep(100);} catch (InterruptedException e) {}
-
-			AsyncSubscription start = c.subscribeAsync("start", new MessageHandler()
-			{
-				@Override
-				public void onMessage(Message msg) {
-					System.err.println("Responder");
-					String responseIB = c.newInbox();
-					AsyncSubscription ia = c.subscribe(responseIB,
-							new MessageHandler()
-					{
-						@Override
-						public void onMessage(Message msg) {
-							System.err.println("Internal subscriber.");
-							cbLock.lock();
-							try {
-								cbFired.signal(); 
-							} finally {
-								cbLock.unlock();
-							}
-						}
-					});
-					c.publish("helper", responseIB,
-							"Help me!".getBytes(Charset.forName("UTF-8")));
-				}
-			});
-
-			try {Thread.sleep(100);} catch (InterruptedException e) {}
-
-//			c.publish("start", "Begin".getBytes(Charset.forName("UTF-8")));
-//			System.err.println("Started");
-//			c.flush();
-
-			cbLock.lock();
-			try { 
-				c.publish("start", "Begin".getBytes(Charset.forName("UTF-8")));
-				System.err.println("Started");
-				c.flush();
-				assertTrue("Was stalled inside of callback waiting on another callback",
-						cbFired.await(2, TimeUnit.SECONDS));
-			} finally {
-				cbLock.unlock();
-			}
-		}
-	}
-
-	@Test
-	public void TestAsyncSubscribersOnClose() throws IllegalStateException, IOException, TimeoutException, Exception
-	{
-		/// basically tests if the subscriber sub channel gets
-		/// cleared on a close.
-		final Object waitCond = new Object();
-		final AtomicInteger callbacks = new AtomicInteger(0);
-
-		try (Connection c = new ConnectionFactory().createConnection()) {
-			try (AsyncSubscription s = c.subscribe("foo",
-					new MessageHandler()
-			{
-				@Override
-				public void onMessage(Message msg) {
-					callbacks.getAndIncrement();
-					synchronized(waitCond)
-					{
-						try { waitCond.wait();} 
-						catch (InterruptedException e) {}
-					}							
+//					System.err.println("Helper");
+					c.publish(msg.getReplyTo(), "Hello".getBytes());				
 				}
 			})) 
 			{
-
-				for (int i = 0; i < 10; i++)
+//				System.err.println("helper subscribed");
+				// Kickoff
+				try (AsyncSubscription start = c.subscribe("start", new MessageHandler() {
+					@Override
+					public void onMessage(Message msg) {
+//						System.err.println("Responder");
+						String responseIB = c.newInbox();
+						c.subscribe(responseIB, new MessageHandler() {
+							@Override
+							public void onMessage(Message msg) {
+								// System.err.println("Internal subscriber.");
+								ch.add(true);
+							}
+						}); 
+//						System.err.println("starter subscribed");
+						c.publishRequest("helper", responseIB, "Help me!".getBytes());
+					} // "start" onMessage
+				})) 
 				{
-					c.publish("foo", null);
-				}
-				c.flush();
+					c.publish("start", "Begin".getBytes());
+//					System.err.println("Started");
+					assertTrue("Was stalled inside of callback waiting on another callback",
+							ch.get(5000));
+				} // Start
+			} // Helper
+		} catch (IOException | TimeoutException e) {
+			fail(e.getMessage());
+		}
+	}
 
-				try {Thread.sleep(500);
-				} catch (InterruptedException e) {}
+	@Test
+	public void testAsyncSubscribersOnClose()
+	{
+		/// basically tests if the subscriber sub channel gets
+		/// cleared on a close.
+		final AtomicInteger callbacks = new AtomicInteger(0);
+		int toSend = 10;
+		final Channel<Boolean> ch = new Channel<Boolean>(toSend);
+
+		MessageHandler mh = new MessageHandler()
+		{
+			@Override
+			public void onMessage(Message msg) {
+				callbacks.getAndIncrement();
+				try {
+					ch.get();
+				} catch (TimeoutException e) { /* Ignore, not possible */ }
+			}
+		};
+
+		try (Connection c = new ConnectionFactory().createConnection()) {
+			try (AsyncSubscription s = c.subscribe("foo", mh)) 
+			{
+				for (int i = 0; i < toSend; i++)
+				{
+					c.publish("foo", "Hello World!".getBytes());
+				}
+				try {
+					c.flush();
+				} catch (Exception e) {
+					fail("Flush failure: " + e.getMessage());
+				}
+				try {Thread.sleep(10);} catch (InterruptedException e) {}
 				c.close();
 
-				synchronized(waitCond)
-				{
-					waitCond.notify();
+				assertEquals(0, s.getQueuedMessageCount());
+
+				// Release callbacks
+				for (int i=0; i<toSend; i++) {
+					ch.add(true);
 				}
 
-				try {Thread.sleep(500);
-				} catch (InterruptedException e) {}
+				try {Thread.sleep(10);} catch (InterruptedException e) {}
 
-				assertTrue(callbacks.get() == 1);
-			} // AsyncSubscription
+				assertEquals(1, callbacks.get());
+			}
 		} // Connection
+		catch (IOException | TimeoutException e1) {
+			fail("Should have connected: " + e1.getMessage());
+		}
 	}
 
 }

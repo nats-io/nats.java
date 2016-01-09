@@ -13,7 +13,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(UnitTest.class)
 public class TCPConnectionTest {
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -49,7 +51,6 @@ public class TCPConnectionTest {
 		} catch (SocketException e) {
 			throw(e);
 		} catch (Exception e) {
-			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
@@ -139,12 +140,10 @@ public class TCPConnectionTest {
 				try { Thread.sleep(100); } catch (InterruptedException e) {}
 				assertTrue(conn.isDataAvailable());
 			} catch (Exception e) {
-				e.printStackTrace();
 				fail(e.getMessage());
 			}
-		} catch (Exception e1) {
-			e1.printStackTrace();
-			fail(e1.getMessage());
+		} catch (Exception e) {
+			fail(e.getMessage());
 		}
 	}
 
@@ -168,7 +167,6 @@ public class TCPConnectionTest {
 			conn.setTlsDebug(false);
 			assertFalse(conn.isTlsDebug());
 		} catch (Exception e) {
-			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}

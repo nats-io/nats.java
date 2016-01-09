@@ -3,7 +3,6 @@ package io.nats.client;
 import static org.junit.Assert.*;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.List;
 
 import org.junit.After;
@@ -11,7 +10,9 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(UnitTest.class)
 public class OptionsTest {
 
 	@BeforeClass
@@ -56,30 +57,24 @@ public class OptionsTest {
 		assertEquals(url, uriString);
 	}
 
-	@Test
+	@Test(expected=IllegalArgumentException.class)
 	public void testSetUrlURI() {
 		String urlString = "nats://localhost:1234";
 		String badUrlString = "nats://larry:one:two@localhost:5151";
-		Options o = new Options();
-		try {
-			URI url = new URI(urlString);
-			o.setUrl(url);
-			assertEquals(url, o.getUrl());
-		} catch (URISyntaxException e) {
-			fail(e.getMessage());
-		}
-		boolean exThrown = false;
-		try {
-			URI url = new URI(badUrlString);
-			o.setUrl(url);
-		} catch (IllegalArgumentException | URISyntaxException e) {
-			exThrown = true;
-			assertTrue("Wrong exception thrown", 
-					e instanceof IllegalArgumentException);
-		} finally {
-			assertTrue("Should have thrown exception", exThrown);
-		}
 
+		Options o = new Options();
+		URI url = URI.create(urlString);
+		o.setUrl(url);
+		assertEquals(url, o.getUrl());
+
+		try {
+			url = URI.create(badUrlString);
+		} catch (Exception e) {
+			fail("Shouldn't throw exception here");
+		}
+		// This should thrown an IllegalArgumentException due to malformed
+		// user info in the URL
+		o.setUrl(url);
 	}
 
 	@Test
@@ -117,14 +112,10 @@ public class OptionsTest {
 
 	@Test
 	public void testGetHost() {
-		try {
-			URI uri = new URI("nats://somehost:5555");
-			Options o = new Options();
-			o.setUrl(uri);
-			assertEquals(uri.getHost(), o.getHost());
-		} catch (URISyntaxException e) {
-			fail(e.getMessage());
-		}
+		URI uri = URI.create("nats://somehost:5555");
+		Options o = new Options();
+		o.setUrl(uri);
+		assertEquals(uri.getHost(), o.getHost());
 	}
 
 	//	@Test
@@ -134,14 +125,10 @@ public class OptionsTest {
 	//
 	@Test
 	public void testGetPort() {
-		try {
-			URI uri = new URI("nats://somehost:5555");
-			Options o = new Options();
-			o.setUrl(uri);
-			assertEquals(uri.getPort(), o.getPort());
-		} catch (URISyntaxException e) {
-			fail(e.getMessage());
-		}
+		URI uri = URI.create("nats://somehost:5555");
+		Options o = new Options();
+		o.setUrl(uri);
+		assertEquals(uri.getPort(), o.getPort());
 	}
 
 	//	@Test
@@ -151,16 +138,12 @@ public class OptionsTest {
 	//
 	@Test
 	public void testGetUsername() {
-		try {
-			URI uri = new URI("nats://larry:foobar@somehost:5555");
-			Options o = new Options();
-			o.setUrl(uri);
-			String [] userTokens = uri.getUserInfo().split(":");
-			String username = userTokens[0];
-			assertEquals(username, o.getUsername());
-		} catch (URISyntaxException e) {
-			fail(e.getMessage());
-		}
+		URI uri = URI.create("nats://larry:foobar@somehost:5555");
+		Options o = new Options();
+		o.setUrl(uri);
+		String [] userTokens = uri.getUserInfo().split(":");
+		String username = userTokens[0];
+		assertEquals(username, o.getUsername());
 	}
 
 	@Test

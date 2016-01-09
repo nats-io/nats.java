@@ -13,7 +13,6 @@ class NATSServer implements Runnable, AutoCloseable
 	final static String GNATSD = "gnatsd";
     // Enable this for additional server debugging info.
     boolean debug = false;
-//    boolean verbose = false;
 
     ProcessBuilder pb;
     Process p;
@@ -103,9 +102,9 @@ class NATSServer implements Runnable, AutoCloseable
         		pb.redirectOutput(new File("/dev/null"));
         	}
         	p = pb.start();
-	        System.out.println("Started [" + psInfo + "]");
+        	if (debug)
+        		System.out.println("Started [" + psInfo + "]");
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
     }
@@ -116,7 +115,8 @@ class NATSServer implements Runnable, AutoCloseable
             return;
 
         p.destroy();
-        System.out.println("Stopped [" + psInfo + "]");
+        if (debug)
+        	System.out.println("Stopped [" + psInfo + "]");
 
         p = null;
     }
@@ -129,7 +129,7 @@ class NATSServer implements Runnable, AutoCloseable
 
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		this.shutdown();
 	}
 }

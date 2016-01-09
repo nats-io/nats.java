@@ -44,9 +44,9 @@ public class ConnectionFactory implements Cloneable {
 	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
 	private SSLContext sslContext;
 	private ExceptionHandler exceptionHandler;
-	private ClosedEventHandler closedEventHandler;
-	private DisconnectedEventHandler disconnectedEventHandler;
-	private ReconnectedEventHandler reconnectedEventHandler;
+	private ClosedCallback closedCallback;
+	private DisconnectedCallback disconnectedCallback;
+	private ReconnectedCallback reconnectedCallback;
 
 	private String urlString 						= Constants.DEFAULT_URL;
 
@@ -152,7 +152,7 @@ public class ConnectionFactory implements Cloneable {
 			} catch (Exception e) {
 				throw new IllegalArgumentException(e);
 			} finally {}
-			this.setClosedEventHandler((ClosedEventHandler) instance);
+			this.setClosedCallback((ClosedCallback) instance);
 		}
 		//PROP_DISCONNECTED_HANDLER
 		if (props.containsKey(PROP_DISCONNECTED_HANDLER)) {
@@ -165,7 +165,7 @@ public class ConnectionFactory implements Cloneable {
 			} catch (Exception e) {
 				throw new IllegalArgumentException(e);
 			} finally {}
-			this.setDisconnectedEventHandler((DisconnectedEventHandler) instance);
+			this.setDisconnectedCallback((DisconnectedCallback) instance);
 		}
 
 		//PROP_RECONNECTED_HANDLER
@@ -179,7 +179,7 @@ public class ConnectionFactory implements Cloneable {
 			} catch (Exception e) {
 				throw new IllegalArgumentException(e);
 			} finally {}
-			this.setReconnectedEventHandler((ReconnectedEventHandler) instance);
+			this.setReconnectedCallback((ReconnectedCallback) instance);
 		}
 	}
 
@@ -212,14 +212,7 @@ public class ConnectionFactory implements Cloneable {
 	 * @throws TimeoutException if the connection timeout has been exceeded.
 	 */
 	public ConnectionImpl createConnection() throws IOException, TimeoutException {
-		ConnectionImpl conn = null;
-		Options options = options();
-
-		conn = new ConnectionImpl(options);
-
-		conn.start();
-
-		return conn;
+		return createConnection(null);
 	}
 
 	// For unit test/mock purposes only.
@@ -229,7 +222,7 @@ public class ConnectionFactory implements Cloneable {
 
 		conn = new ConnectionImpl(options, tcpconn);
 
-		conn.start();
+		conn.connect();
 
 		return conn;
 	}
@@ -254,11 +247,10 @@ public class ConnectionFactory implements Cloneable {
 		result.setPingInterval(pingInterval);
 		result.setMaxPingsOut(maxPingsOut);
 		result.setExceptionHandler(exceptionHandler);
-		result.setClosedEventHandler(closedEventHandler);
-		result.setDisconnectedEventHandler(disconnectedEventHandler);
-		result.setReconnectedEventHandler(reconnectedEventHandler);
+		result.setClosedCallback(closedCallback);
+		result.setDisconnectedCallback(disconnectedCallback);
+		result.setReconnectedCallback(reconnectedCallback);
 		result.setSubChanLen(subChanLen);
-		//    	private ConnectionEventHandler connectionEventHandler 	= null;		return null;
 		result.setSslContext(sslContext);
 		return result;
 	}
@@ -505,7 +497,7 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @param pedantic when <code>true</code>, strict 
+	 * @param pedantic when {@code true}, strict 
 	 * 				   server-side protocol checking occurs.
 	 */
 	public void setPedantic(boolean pedantic) {
@@ -622,45 +614,46 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the closedEventHandler
+	 * @return the closedCB
 	 */
-	public ClosedEventHandler getClosedEventHandler() {
-		return closedEventHandler;
+	public ClosedCallback getClosedCallback() {
+		return closedCallback;
 	}
 
 	/**
-	 * @param closedEventHandler the closedEventHandler to set
+	 * @param cb the connection closed callback to set
 	 */
-	public void setClosedEventHandler(ClosedEventHandler closedEventHandler) {
-		this.closedEventHandler = closedEventHandler;
+	public void setClosedCallback(ClosedCallback cb) {
+		this.closedCallback = cb;
 	}
 
 	/**
-	 * @return the disconnectedEventHandler
+	 * @return the disconnected callback
 	 */
-	public DisconnectedEventHandler getDisconnectedEventHandler() {
-		return disconnectedEventHandler;
+	public DisconnectedCallback getDisconnectedCallback() {
+		return disconnectedCallback;
 	}
 
 	/**
-	 * @param disconnectedEventHandler the disconnectedEventHandler to set
+	 * @param cb the DisconnectedCallback to set
 	 */
-	public void setDisconnectedEventHandler(DisconnectedEventHandler disconnectedEventHandler) {
-		this.disconnectedEventHandler = disconnectedEventHandler;
+	public void setDisconnectedCallback(DisconnectedCallback cb) {
+		this.disconnectedCallback = cb;
 	}
 
 	/**
-	 * @return the reconnectedEventHandler
+	 * @return the ReconnectedCallback for this connection
+	 * @return null if not set
 	 */
-	public ReconnectedEventHandler getReconnectedEventHandler() {
-		return reconnectedEventHandler;
+	public ReconnectedCallback getReconnectedCallback() {
+		return reconnectedCallback;
 	}
 
 	/**
-	 * @param reconnectedEventHandler the reconnectedEventHandler to set
+	 * @param cb the reconnectedCB to set
 	 */
-	public void setReconnectedEventHandler(ReconnectedEventHandler reconnectedEventHandler) {
-		this.reconnectedEventHandler = reconnectedEventHandler;
+	public void setReconnectedCallback(ReconnectedCallback cb) {
+		this.reconnectedCallback = cb;
 	}
 
 	/**

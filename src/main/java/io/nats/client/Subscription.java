@@ -39,7 +39,7 @@ public interface Subscription extends AutoCloseable {
     /* 
      * Removes interest in the given subject.
      */
-    void unsubscribe() throws IllegalStateException, IOException;
+    void unsubscribe() throws IOException;
 
     /*
      * autoUnsubscribe will issue an automatic unsubscribe that is
@@ -49,7 +49,7 @@ public interface Subscription extends AutoCloseable {
      * @param max The number of messages to receive before 
      *            unsubscribing.
      */
-    void autoUnsubscribe(int max) throws IllegalStateException, IOException;
+    void autoUnsubscribe(int max) throws IOException;
 
     /*
      * Gets the number of messages delivered to, but not processed, by
@@ -65,4 +65,9 @@ public interface Subscription extends AutoCloseable {
 	long getSid();
 
 	void setMax(long max);
+	
+	long getMax();
+	
+	@Override
+	void close();
 }

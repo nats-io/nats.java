@@ -10,10 +10,13 @@ import java.io.IOException;
  */
 public class MaxMessagesException extends IOException {
 
-	private static final long serialVersionUID = -3230721002784773022L;
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	public MaxMessagesException() {
-		// TODO Auto-generated constructor stub
+		this("nats: Maximum messages delivered");
 	}
 
 	public MaxMessagesException(String msg) {

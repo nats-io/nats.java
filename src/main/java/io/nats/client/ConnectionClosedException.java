@@ -3,7 +3,7 @@ package io.nats.client;
 import java.io.IOException;
 
 public class ConnectionClosedException extends IllegalStateException {
-	final static String DEFAULT_MSG = "Connection closed.";
+	final static String DEFAULT_MSG = "nats: Connection Closed";
 
 
 	/**

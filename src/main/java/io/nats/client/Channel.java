@@ -13,7 +13,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class Channel<T> {
+class Channel<T> implements AutoCloseable {
 
 	final static Logger logger = LoggerFactory.getLogger(Channel.class);
 	/**
@@ -38,59 +38,48 @@ class Channel<T> {
 		q = new LinkedBlockingQueue<T>(c);
 	}
 
-	synchronized T get(long timeout) throws TimeoutException {
-		T item = null;
+	T get() throws TimeoutException {
+		return get(-1);
+	}
+	
+	T get(long timeout) throws TimeoutException {
+		T item = defaultVal;
 		if (finished) {
 			return this.defaultVal;
 		}
-
-		if (q.size() > 0) {
-			try { item = q.take(); } catch (InterruptedException e) {}
-			return item;
-		} else {
-			if (timeout < 0) {
-				try { this.wait(); } catch (InterruptedException e) {}
-			} else {
-				long t0 = System.nanoTime();
-				try {this.wait(timeout);} catch (InterruptedException e) {}
-				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
-				if (!(elapsed < timeout))
-					throw new TimeoutException("Channel timed out waiting for items");					
-			}
-
-			if (finished) {
-				return this.defaultVal;
-			}	
-			
-			item = q.poll();
-//			if (item==null)
-//				throw new TimeoutException("Channel timed out waiting for items");
-
-			return item;
+//		if (q.size() > 0) {
+//			try { item = q.take(); } catch (InterruptedException e) {}
+//			return item;
+//		}
+//		else
+		try {
+			if (timeout < 0)
+				item = q.take();
+			else
+				item = q.poll(timeout, TimeUnit.MILLISECONDS);
+				if (item==null) {
+					throw new TimeoutException("Channel timed out waiting for items");
+				}
+		} catch (InterruptedException e) {
 		}
-
-	} // get
-
-	synchronized void add(T item)
+		return item;
+	}
+	
+	void add(T item)
 	{
-		q.add(item);
-
-		// if the queue count was previously zero, we were
-		// waiting, so signal.
-		if (q.size() <= 1)
-		{
-			this.notify();
+		try {
+			q.put(item);
+		} catch (InterruptedException e) {
 		}
 	}
 
-	synchronized void close()
+	public void close()
 	{
 		finished = true;
 		logger.trace("Channel.close: notifying");
-		this.notify();
 	}
 
-	synchronized int getCount()
+	int getCount()
 	{
 		return q.size();
 	}

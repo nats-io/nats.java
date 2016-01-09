@@ -6,6 +6,7 @@ package io.nats.client;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /*
  * This is the implementation of the AsyncSubscription interface.
@@ -13,23 +14,12 @@ import java.util.concurrent.Executors;
  */
 class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscription {
 
-	//	private ExecutorService executor = Executors.newSingleThreadExecutor(new NATSThreadFactory("msgfeederfactory"));
+	private ExecutorService executor = null;
 	private MessageHandler msgHandler;
-	private NATSThread msgFeederThread = null;
-	private MessageFeeder msgFeeder;
-
-	class MessageFeeder implements Runnable {
-		@Override
-		public void run(){
-			logger.trace("msgFeeder has started");
-			conn.deliverMsgs(mch);
-		}
-	}
 
 	protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, MessageHandler cb, int max) {
 		super(nc, subj, queue, max);
 		this.msgHandler = cb;
-		msgFeeder = new MessageFeeder();
 	}
 
 	@Override
@@ -80,30 +70,31 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 
 	boolean isStarted()
 	{
-		return (msgFeederThread != null);
+		return (executor != null);
 	}
 
 
 	void enable() {
-		if (msgFeederThread == null) {
-			msgFeederThread = new NATSThread(msgFeeder, "msgFeeder");
-			msgFeederThread.start();
+		Runnable msgFeeder = new Runnable() {
+			public void run(){
+				logger.trace("msgFeeder has started");
+				conn.deliverMsgs(mch);
+			}
+		};
+
+		if (!isStarted()) {
+			executor = Executors.newSingleThreadExecutor(new NATSThreadFactory("msgfeederfactory"));
+			executor.execute(msgFeeder);
 			logger.trace("Started msgFeeder for subject: " + this.getSubject() + " sid: " + this.getSid());
 		}
 	}
 
 	void disable() {
-		if (msgFeeder != null) {
-			if (msgFeederThread != null)
-			{
-				try {
-					msgFeederThread.join();
-				} catch (InterruptedException e) {
-				}
-				msgFeederThread = null;
-			}			
-			msgFeeder = null;
-		}
+		if (isStarted())
+		{
+				executor.shutdownNow();
+				executor = null;
+		}			
 	}
 
 	@Override
@@ -112,9 +103,8 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	}
 
 	@Override
-	public void start() throws IllegalStateException 
+	public void start()
 	{
-		//TODO fix exception handling
 		if (isStarted())
 			return;
 
@@ -130,6 +120,4 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	public void close() {
 		super.close();
 		disable();
-	}
-
-}
+	}}

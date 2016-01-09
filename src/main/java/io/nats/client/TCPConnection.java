@@ -115,11 +115,11 @@ class TCPConnection implements AutoCloseable {
 		return new BufferedReader(new InputStreamReader(readStream));
 	}
 
-	public InputStream getReadBufferedStream(int size) {
+	public BufferedInputStream getBufferedInputStream(int size) {
 		return new BufferedInputStream(readStream, size);
 	}
 
-	public OutputStream getWriteBufferedStream(int size) {
+	public BufferedOutputStream getBufferedOutputStream(int size) {
 		return new BufferedOutputStream(writeStream, size);
 	}
 
@@ -143,31 +143,12 @@ class TCPConnection implements AutoCloseable {
 		return rv;
 	}
 
-	//	class TraceEnabledBufferedOutputStream  extends BufferedOutputStream {
-	//
-	//		public TraceEnabledBufferedOutputStream(OutputStream out) {
-	//			super(out);
-	//		}
-	//		public TraceEnabledBufferedOutputStream(OutputStream out, int size) {
-	//			super(out, size);
-	//		}		
-	//	}
-	//
-	//	class TraceEnabledBufferedInputStream  extends BufferedInputStream {
-	//		public TraceEnabledBufferedInputStream(InputStream in) {
-	//			super(in);
-	//		}
-	//		public TraceEnabledBufferedInputStream(InputStream in, int size) {
-	//			super(in, size);
-	//		}		
-	//	}
-
 	/**
 	 * Set the socket factory used to make connections with. Can be
 	 * used to enable SSL connections by passing in a
 	 * javax.net.ssl.SSLSocketFactory instance.
 	 *
-	 * @see #useSslProtocol
+	 * @see #makeTLS
 	 */
 	protected void setSocketFactory(SocketFactory factory) {
 		this.factory = factory;

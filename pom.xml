@@ -30,6 +30,12 @@
 			<version>1.7.5</version>
 		</dependency>
 		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<version>1.7.5</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.11</version>
@@ -39,12 +45,6 @@
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
 			<version>2.0.31-beta</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>1.7.5</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -83,12 +83,9 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.19</version>
-<!--
 				<configuration>
-					<reuseForks>false</reuseForks>
-					<forkCount>1</forkCount>
+					<groups>io.nats.client.UnitTest</groups>
 				</configuration>
--->
 			</plugin>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>

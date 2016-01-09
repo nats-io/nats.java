@@ -66,7 +66,7 @@ class Utilities {
 //	 * 
 //	 * @param bytes - the array of bytes to convert.
 //	 * @return a string composed of the 2-byte characters contained
-//	 * in <code>bytes</code>.
+//	 * in {@code bytes}.
 //	 */
 //	public static String bytesToStringUTFCustom(byte[] bytes) {
 //		char[] buffer = new char[bytes.length >> 1];
@@ -85,12 +85,10 @@ class Utilities {
 	 * <p>
 	 * Converts an array of bytes to its hexadecimal string representation.
 	 * <p>
-	 * <code>
-	 * public static String bytesToHex(byte[] bytes)
-	 * </code>
+	 * {@code public static String bytesToHex(byte[] bytes) }
 	 * <p>
 	 * @param bytes - the byte array to convert
-	 * @return		the hexidecimal string representation of <code>bytes</code>.
+	 * @return		the hexidecimal string representation of {@code bytes}.
 	 */
 	public static String bytesToHex(byte[] bytes) {
 	    char[] hexChars = new char[bytes.length * 2];

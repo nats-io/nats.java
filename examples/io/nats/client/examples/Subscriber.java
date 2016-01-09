@@ -1,3 +1,4 @@
+package io.nats.client.examples;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,41 +37,34 @@ public class Subscriber implements MessageHandler, ExceptionHandler {
 		parseArgs(args);
 		banner();
 
-		ConnectionFactory cf = new ConnectionFactory(url);
-		Connection c = null;
+		try (Connection c = new ConnectionFactory(url).createConnection()) {
 
-		try {
-			c = cf.createConnection();
-		} catch (IOException e) {
-			System.err.println("Couldn't connect: " + e.getCause());
-			System.exit(-1);
-		} catch (TimeoutException e) {
-			System.err.println("Couldn't connect: " + e.getCause());
-			System.exit(-1);
-		}
+			if (sync)
+			{
+				elapsed = receiveSyncSubscriber(c);
+			}
+			else
+			{
+				c.setExceptionHandler(this);
 
-		if (sync)
-		{
-			elapsed = receiveSyncSubscriber(c);
+				elapsed = receiveAsyncSubscriber(c);
+			}
+			long elapsedSeconds = TimeUnit.SECONDS.convert(elapsed, TimeUnit.NANOSECONDS);
+			System.out.printf("Received %d msgs in %d seconds ", received, 
+					elapsedSeconds);
+			if (elapsedSeconds > 0) {
+				System.out.printf("(%d msgs/second).\n",
+						(received / elapsedSeconds));
+			} else {
+				System.out.println();
+				System.out.println("Test not long enough to produce meaningful stats. "
+						+ "Please increase the message count (-count n)");
+			}
+			printStats(c);
+		} catch (IOException | TimeoutException e) {
+			System.err.println("Couldn't connect: " + e.getMessage());
+			System.exit(-1);
 		}
-		else
-		{
-			c.setExceptionHandler(this);
-			
-			elapsed = receiveAsyncSubscriber(c);
-		}
-		long elapsedSeconds = TimeUnit.SECONDS.convert(elapsed, TimeUnit.NANOSECONDS);
-		System.out.printf("Received %d msgs in %d seconds ", received, 
-				elapsedSeconds);
-		if (elapsedSeconds > 0) {
-		System.out.printf("(%d msgs/second).\n",
-				(received / elapsedSeconds));
-		} else {
-			System.out.println();
-			System.out.println("Test not long enough to produce meaningful stats. "
-					+ "Please increase the message count (-count n)");
-		}
-		printStats(c);
 	}
 
 	private void printStats(Connection c)
@@ -102,7 +96,7 @@ public class Subscriber implements MessageHandler, ExceptionHandler {
 			}
 		}
 	}
-	
+
 	private long receiveAsyncSubscriber(Connection c)
 	{
 		AsyncSubscription s = c.subscribeAsync(subject, this);
@@ -127,7 +121,7 @@ public class Subscriber implements MessageHandler, ExceptionHandler {
 	private long receiveSyncSubscriber(Connection c)
 	{
 		SyncSubscription s = (SyncSubscription) c.subscribeSync(subject);
-		
+
 		try
 		{
 			while (received < count)

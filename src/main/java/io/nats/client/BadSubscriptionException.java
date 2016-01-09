@@ -8,7 +8,7 @@ public class BadSubscriptionException extends IllegalStateException {
 	private static final long serialVersionUID = 1L;
 
 	public BadSubscriptionException() {
-		// TODO Auto-generated constructor stub
+		this("nats: Invalid Subscription");
 	}
 
 	public BadSubscriptionException(String msg) {

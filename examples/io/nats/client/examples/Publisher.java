@@ -1,12 +1,15 @@
+package io.nats.client.examples;
 /**
  * 
  */
 
 
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
@@ -29,47 +32,43 @@ public class Publisher {
 	public void run(String[] args)
 	{
 		long elapsed = 0L;
-		Connection c = null;
 
 		parseArgs(args);
 		banner();
 
-		ConnectionFactory cf = new ConnectionFactory();
-		cf.setUrl(url);
-		try {
-			c = cf.createConnection();
-		} catch (Exception e) {
-			e.printStackTrace();
+		try (Connection c = new ConnectionFactory(url).createConnection()) {
+
+			long t0 = System.nanoTime();
+
+			try {
+				for (int i = 0; i < count; i++)
+				{
+					c.publish(subject, payload);
+				}
+				c.flush();
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			long t1 = System.nanoTime();
+
+			elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
+			System.out.println("Elapsed time is " + elapsed + " seconds");
+
+			System.out.printf("Published %d msgs in %d seconds ", count, elapsed);
+			if (elapsed > 0) {
+				System.out.printf("(%d msgs/second).\n",
+						(int)(count / elapsed));
+			} else {
+				System.out.println("\nTest not long enough to produce meaningful stats. "
+						+ "Please increase the message count (-count n)");
+			} 
+			printStats(c);
+		} catch (IOException | TimeoutException e) {
+			System.err.println("Couldn't connect: " + e.getMessage());
 			System.exit(-1);
 		}
-
-		long t0 = System.nanoTime();
-
-		try {
-			for (int i = 0; i < count; i++)
-			{
-				c.publish(subject, payload);
-			}
-			c.flush();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		long t1 = System.nanoTime();
-
-		elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
-		System.out.println("Elapsed time is " + elapsed + " seconds");
-
-		System.out.printf("Published %d msgs in %d seconds ", count, elapsed);
-		if (elapsed > 0) {
-			System.out.printf("(%d msgs/second).\n",
-					(int)(count / elapsed));
-		} else {
-			System.out.println("\nTest not long enough to produce meaningful stats. "
-					+ "Please increase the message count (-count n)");
-		} 
-		printStats(c);
 	}
 
 	private void printStats(Connection c)

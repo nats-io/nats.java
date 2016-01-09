@@ -10,7 +10,7 @@ public class MaxPayloadException extends IllegalArgumentException {
 	private static final long serialVersionUID = 1L;
 
 	public MaxPayloadException() {
-		// TODO Auto-generated constructor stub
+		this("nats: Maximum Payload Exceeded");
 	}
 
 	public MaxPayloadException(String message) {

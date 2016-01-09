@@ -63,11 +63,11 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 
 	private BufferedReader isr = null;
 	private BufferedInputStream bis = null;
-	private OutputStream bos = null;
+	private BufferedOutputStream bos = null;
 
 	ServerInfo serverInfo = new ServerInfo(defaultInfo);
 	ClientConnectInfo connectInfo;
-	
+
 	private boolean sendNullPong;
 
 	private boolean sendGenericError;
@@ -86,6 +86,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 
 	private boolean noPongs;
 
+	private boolean throwTimeoutException;
+
 	/* (non-Javadoc)
 	 * @see io.nats.client.TCPConnection#open(java.lang.String, int, int)
 	 */
@@ -94,33 +96,40 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 	{
 		mu.lock();
 		try {
+			client = mock(Socket.class);
+			when(client.isConnected()).thenReturn(false);
+			when(client.isClosed()).thenReturn(false);
+
 			this.addr = new InetSocketAddress(host, port);
-			logger.info("opening TCPConnectionMock for {}:{}", 
+			logger.trace("opening TCPConnectionMock for {}:{}", 
 					addr.getHostName(), addr.getPort());
 
-			client = mock(Socket.class);
-
 			if (openFailure) {
-				when(client.isConnected()).thenReturn(false);
-				return;
+				throw new IOException("Mock: Connection refused");
 			}			
 
 			writeStream = new PipedOutputStream();
 			in = new PipedInputStream(writeStream, DEFAULT_BUF_SIZE);
-			
+
 			readStream = new PipedInputStream(DEFAULT_BUF_SIZE);
 			out = new PipedOutputStream(readStream);
 			isr = null;
 
 			bw = new BufferedOutputStream(out,DEFAULT_BUF_SIZE);
 
-			executor = Executors.newCachedThreadPool(
-					new NATSThreadFactory("mockserver"));
-			executor.execute(this);
+			if (!shutdown) {
+				if (executor != null) {
+					executor.shutdownNow();
+					executor = null;
+				}
+				executor = Executors.newCachedThreadPool(
+						new NATSThreadFactory("mockserver"));
+				executor.execute(this);
+				logger.trace("Thread started");
+			}
 			when(client.isConnected()).thenReturn(true);
+			when(client.isClosed()).thenReturn(false);
 			logger.trace("TCPConnectionMock is open and initialized");
-			logger.trace("sendGenericError is {}", sendGenericError);
-
 		} finally {
 			mu.unlock();
 		}
@@ -150,9 +159,13 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		logger.trace("in teardown()");
 
 		super.teardown();
-		when(client.isConnected()).thenReturn(false);
+		when(client.isClosed()).thenReturn(true);
 
-		//		executor.shutdown();
+		//		executor.shutdownNow();
+	}
+
+	public void setBufferedInputStreamReader(BufferedReader isr) {
+		this.isr = isr;
 	}
 
 	/* (non-Javadoc)
@@ -170,6 +183,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 			}
 		} else if (isr == null) 
 		{
+			if (readStream==null)
+				logger.trace("NULL readstream");
 			isr = new BufferedReader(new InputStreamReader(readStream));
 		}
 		return isr;
@@ -179,7 +194,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 	 * @see io.nats.client.TCPConnection#getReadBufferedStream(int)
 	 */
 	@Override
-	public InputStream getReadBufferedStream(int size) {
+	public BufferedInputStream getBufferedInputStream(int size) {
 		bis = new BufferedInputStream(readStream, size);
 		return bis;
 	}
@@ -188,7 +203,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 	 * @see io.nats.client.TCPConnection#getWriteBufferedStream(int)
 	 */
 	@Override
-	public OutputStream getWriteBufferedStream(int size) {
+	public BufferedOutputStream getBufferedOutputStream(int size) {
 		//		return new BufferedOutputStream(writeStream, size);
 		if (badWriter) {
 			bos = mock(BufferedOutputStream.class);
@@ -201,7 +216,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 			}
 		}
 		else if (bos == null) {
-			bos = writeStream;
+			//			bos = writeStream;
+			bos = new BufferedOutputStream(writeStream);
 		}
 		return bos;
 	}
@@ -233,7 +249,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		InputStreamReader is = new InputStreamReader(in);
 		BufferedReader br = new BufferedReader(is);
 
-		logger.info("started");
+		logger.trace("started");
 
 		try {
 			if (!noInfo)
@@ -244,7 +260,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 				}
 				bw.write(serverInfo.toString().getBytes());
 				bw.flush();
-				logger.info("=> {}", serverInfo.toString().trim());
+				logger.trace("=> {}", serverInfo.toString().trim());
 			}
 			else
 			{
@@ -252,16 +268,16 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 				byte[] fakeOp = fakeOpStr.getBytes();
 				bw.write(fakeOp);
 				bw.flush();
-				logger.info("=> {}", fakeOpStr.trim());
+				logger.trace("=> {}", fakeOpStr.trim());
 			}
-			
+
 			while(!shutdown)
 			{
 				control = br.readLine();
 				if (control==null)
 					break;
 
-				logger.info("<= {}", control);
+				logger.trace("<= {}", control);
 				if (control.equalsIgnoreCase(PING_PROTO.trim())) {
 					byte[] response = null;
 					String logMsg = null;
@@ -277,11 +293,11 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 						logMsg = ("=> NULL PONG");						
 					} 
 					else if (sendGenericError) {
-						System.err.println("Sending generic error");
+						logger.trace("Sending generic error");
 						sendErr("Generic error message.");
 					}
 					else if (sendAuthorizationError) {
-						sendErr("nats: Authorization Failed");
+						sendErr("Authorization Violation");
 					}
 					else if (sendTlsError) {
 						// TODO Does gnatsd even send any error that starts with "tls:"?
@@ -303,12 +319,12 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 						bw.flush();
 					}
 					if (logMsg != null)
-						logger.info(logMsg);
+						logger.trace(logMsg);
 				} 
 				else if (control.equalsIgnoreCase(PONG_PROTO.trim())) {
 				}
 				else if (control.toUpperCase().startsWith("CONNECT")) {
-					System.err.println("Processing CONNECT");
+					logger.trace("Processing CONNECT");
 					this.connectInfo = new ClientConnectInfo(control);
 				}
 				else if (control.startsWith("UNSUB")) {
@@ -366,7 +382,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		String str = String.format("-ERR '%s'\r\n", err);
 		bw.write(str.getBytes());
 		bw.flush();
-		logger.info("=> " + str.trim());		
+		logger.trace("=> " + str.trim());		
 	}
 	public void deliverMessage(String subj, int sid, String reply, byte[] payload) {
 		String out = null;
@@ -383,13 +399,13 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		else
 			out = String.format("MSG %s %d %d\r\n", 
 					subj, sid, payload.length);
-		System.err.println(out);
+		logger.trace(out);
 		try {
 			bw.write(out.getBytes());
 			bw.write(payload, 0, payload.length);
 			bw.write(ConnectionImpl._CRLF_.getBytes());
 			bw.flush();
-			System.err.println(String.format("=> %s\r\n", out + new String(payload)));
+			logger.trace(String.format("=> %s\r\n", out + new String(payload)));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -496,13 +512,57 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 	public void bounce() {
 		// TODO Auto-generated method stub
 		try {
+			logger.trace("bouncing");
+			in.close();
+			in = null;
+			writeStream.close();
+			writeStream = null;
+
 			out.close();
-//			close();
+			out = null;
+			readStream.close();	
+			readStream = null;
+
+			if (br!=null) {
+				br.close();
+				br = null;
+			}
+
+			if (bw!=null) {
+				bw.close();
+				bw = null;
+			}
+
+			if (isr != null) {
+				isr.close();
+				isr = null;
+			}
+
+			if (bis != null) {
+				bis.close();
+				bis = null;
+			}
+
+			if (bos != null) {
+				bos.close();
+				bos = null;
+			}
+
+			shutdown();
+			executor.shutdownNow();
+			executor=null;
+			shutdown = false;
+			//			close();
 			try {Thread.sleep(100);} catch (InterruptedException e) {}
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	public void setThrowTimeoutException(boolean b) {
+		this.throwTimeoutException = b;
+		
 	}
 
 }

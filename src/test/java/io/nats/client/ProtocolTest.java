@@ -15,7 +15,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@Category(UnitTest.class)
 public class ProtocolTest {
 
 	@Rule
@@ -45,23 +47,19 @@ public class ProtocolTest {
 			conn.open("localhost", 2222, 200);
 			assertTrue(conn.isConnected());
 
-			OutputStream bw = conn.getWriteBufferedStream(
+			OutputStream bw = conn.getBufferedOutputStream(
 					ConnectionImpl.DEFAULT_STREAM_BUF_SIZE);
 			assertNotNull(bw);
 
 			BufferedReader br = conn.getBufferedInputStreamReader();
 			assertNotNull (br);
 
-			System.err.println("Reading from mock connection inputStream");
 			String s = br.readLine().trim();
-			System.err.println("<= " + s);
 
 			assertEquals("INFO strings not equal.", TCPConnectionMock.defaultInfo.trim(), s);
 
 			bw.write(defaultConnect.getBytes());
 		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
 			fail(e1.getMessage());
 		}
 	}
@@ -77,24 +75,13 @@ public class ProtocolTest {
 				try (SyncSubscription sub = c.subscribeSync("foo")) {
 					c.publish("foo", "Hello".getBytes());
 					Message m = sub.nextMessage();
-					System.err.println("Msg = " + m);
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} finally {
-					c.close();
+					fail(e.getMessage());
 				}	
 			} catch (IOException | TimeoutException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 				fail(e.getMessage());
-			} finally {
-				mock.close();
 			}
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+		} 
 	}
 
 	@Test
@@ -107,13 +94,8 @@ public class ProtocolTest {
 				assertTrue(!c.isClosed());
 				try {Thread.sleep(5000); } catch (InterruptedException e) {}
 			} catch (IOException | TimeoutException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 				fail(e.getMessage());
 			} 
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
 		}
 	}
 
@@ -130,16 +112,11 @@ public class ProtocolTest {
 				c.processErr(argBufStream);
 				assertTrue(c.isClosed());
 			} catch (IOException | TimeoutException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 				fail(e.getMessage());
 			} 
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+		} 
 	}
-	
+
 	@Test
 	public void testVerbose() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
@@ -147,24 +124,18 @@ public class ProtocolTest {
 			ConnectionFactory cf = new ConnectionFactory();
 			cf.setVerbose(true);
 			try (ConnectionImpl c = cf.createConnection(mock)) {
-//			try (ConnectionImpl c = cf.createConnection()) {
+				//			try (ConnectionImpl c = cf.createConnection()) {
 				assertTrue(!c.isClosed());
 				SyncSubscription s = c.subscribeSync("foo");
 				c.flush();
 				c.close();
 				assertTrue(c.isClosed());
-			} catch (IOException | TimeoutException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (Exception e) {
 				fail(e.getMessage());
 			} 
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-			fail(e1.getMessage());			
-		}
+		} 
 	}
-	
+
 	@Test
 	public void testProcessErrStaleConnection() {
 		byte[] argBufBase = new byte[DEFAULT_BUF_SIZE];
@@ -179,13 +150,9 @@ public class ProtocolTest {
 
 			} catch (IOException | TimeoutException e) {
 				// TODO Auto-generated catch block
-				e.printStackTrace();
 				fail(e.getMessage());
 			} 
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+		} 
 	}
 
 	@Test
@@ -195,19 +162,13 @@ public class ProtocolTest {
 			final String expectedId = "a1c9cf0c66c3ea102c600200d441ad8e";
 			try (Connection c = new ConnectionFactory().createConnection(mock)) {
 				assertTrue(!c.isClosed());
-				assertEquals("Wrong server ID", c.getConnectedId(),expectedId);
+				assertEquals("Wrong server ID", c.getConnectedServerId(),expectedId);
 				c.close();
-				assertNull("Should have returned NULL", c.getConnectedId());
+				assertNull("Should have returned NULL", c.getConnectedServerId());
 			} catch (IOException | TimeoutException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 				fail(e.getMessage());
 			} 
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		} 
 	}
 
 	@Test
@@ -217,40 +178,28 @@ public class ProtocolTest {
 		{
 			try (Connection c = new ConnectionFactory().createConnection(mock)) {
 				assertFalse(c.isClosed());
-				Thread.sleep(500);
+				try { Thread.sleep(500); } catch (InterruptedException e) { /* NOOP */ }
 				mock.sendPing();
 			} catch (IOException | TimeoutException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 				fail(e.getMessage());
 			} 
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 
-	@Test //(expected=ConnectionClosedException.class)
-	public void testServerParseError() throws Exception {
+	@Test
+	public void testServerParseError() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 				assertTrue(!c.isClosed());
 				byte[] data = "Hello\r\n".getBytes();
 				c.sendProto(data, data.length);
-				System.err.println("Sent malformed control");
-				Thread.sleep(100);
+				try { Thread.sleep(100); } catch (InterruptedException e) { /* NOOP */ }
 				assertTrue(c.isClosed());
-			} catch (Exception e) {
-				throw (e);
-			} finally {
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-			throw(e);
-		}
+			} catch (IOException | TimeoutException e) {
+				fail(e.getMessage());
+			} 
+		} 
 	}
 
 	//	@Test
@@ -270,15 +219,9 @@ public class ProtocolTest {
 				assertEquals("Wrong server INFO", expected, info);
 
 			} catch (IOException | TimeoutException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 				fail(e.getMessage());
 			} 
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		} 
 	}
 
 	@Test
@@ -290,15 +233,11 @@ public class ProtocolTest {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof IOException);
-				assertEquals("Error sending connect protocol message", e.getMessage());
-				System.err.println("Success.");
+				assertEquals("nats: I/O error during connect protocol.", e.getMessage());
 			} 
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testReadOpException() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
@@ -311,15 +250,10 @@ public class ProtocolTest {
 				assertTrue("Got " + name + " instead of ConnectionException", 
 						e instanceof ConnectionException);
 				assertEquals("nats: Connection read error.", e.getMessage());
-				System.err.println("Success.");
 			} 
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		
+		} 
 	}
-	
+
 	@Test
 	public void testConnectNullPong() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
@@ -329,15 +263,11 @@ public class ProtocolTest {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof IOException);
-				assertTrue(e.getMessage().startsWith("nats: Unexpected protocol line:"));
-				System.err.println("Success.");
+				assertTrue("Unexpected text: " + e.getMessage(), e.getMessage().startsWith("nats: "));
 			} 
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testErrOpConnectionEx() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
@@ -349,60 +279,11 @@ public class ProtocolTest {
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof ConnectionException);
 				assertEquals("nats: 'Generic error message.'", e.getMessage());
-				System.err.println("Success.");
 			} 
 		} catch (Exception e) {
-			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		
-	}
 
-	@Test
-	public void testErrOpReconnectEx() {
-		// TODO fix this test
-		try (TCPConnectionMock mock = new TCPConnectionMock())
-		{
-			ConnectionFactory cf = new ConnectionFactory();
-			cf.setMaxReconnect(1);
-//			boolean exThrown = false;
-			try (ConnectionImpl c = cf.createConnection(mock)) {
-				assertFalse(c.isClosed());
-				c.setReconnectedEventHandler(new ReconnectedEventHandler() {
-					@Override
-					public void onReconnect(ConnectionEvent event) {
-						System.err.println("Reconnected");
-					}
-				});
-				Thread.sleep(500);
-				mock.setSendGenericError(true);
-				System.err.println("Restarting server");
-				mock.bounce();
-				System.err.println("Restarted server");
-				while (c.isReconnecting()) {
-					Thread.sleep(500);
-				}
-				assertTrue(c.isClosed());
-				Exception e = c.getLastError();
-//				assertTrue(e instanceof IOException);
-//				assertTrue(e instanceof ConnectionException);
-//				e.printStackTrace();
-//				assertEquals("nats: 'Generic error message.'", e.getMessage());
-//				System.err.println("Success.");
-
-			} catch (IOException | TimeoutException e) {
-//				exThrown = true;
-				assertTrue(e instanceof ConnectionException);
-				assertEquals("'Generic error message.'", e.getMessage());
-				System.err.println("Success.");
-			} finally {
-			}
-//			assertTrue(exThrown);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-		
 	}
 
 	@Test
@@ -413,13 +294,9 @@ public class ProtocolTest {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
-				assertTrue(e instanceof AuthorizationException);
-				assertEquals("'nats: Authorization Failed'", e.getMessage());
-				System.err.println("Success.");
+				assertTrue(e instanceof IOException);
+				assertEquals("nats: 'Authorization Violation'", e.getMessage());
 			} 
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
 
@@ -433,14 +310,10 @@ public class ProtocolTest {
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof IOException);
 				assertEquals("nats: Connection read error.", e.getMessage());
-				System.err.println("Success.");
 			} 
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testNoInfoSent() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
@@ -451,14 +324,10 @@ public class ProtocolTest {
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof IOException);
 				assertEquals("Protocol exception, INFO not received", e.getMessage());
-				System.err.println("Success.");
 			} 
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		} 
 	}
-	
+
 	@Test
 	public void testTlsMismatchServer() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
@@ -472,12 +341,9 @@ public class ProtocolTest {
 				assertNotNull("Exception cause should not be NULL", cause);
 				assertTrue(cause instanceof SecureConnectionRequiredException);
 				assertNotNull(cause.getMessage());
-				assertEquals("A secure connection is required by the server.",
+				assertEquals("nats: Secure Connection required",
 						cause.getMessage());
-				System.err.println("Success.");			} 
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			} 
 		}
 	}
 
@@ -495,12 +361,9 @@ public class ProtocolTest {
 				assertNotNull("Exception cause should not be NULL", cause);
 				assertTrue(cause instanceof SecureConnectionWantedException);
 				assertNotNull(cause.getMessage());
-				assertEquals("A secure connection is required by the client.",
+				assertEquals("nats: Secure Connection not available",
 						cause.getMessage());
-				System.err.println("Success.");
 			} 
-		} catch (Exception e) {
-			fail(e.getMessage());
 		}
 	}
 

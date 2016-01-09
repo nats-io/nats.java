@@ -83,7 +83,17 @@ public final class Message {
 		}
 		return this;
 	}
-	
+
+	public Message setData(byte[] data) {
+		if (data == null) {
+			this.data = null;
+		} else {
+			this.data = new byte[data.length];
+			this.data = Arrays.copyOfRange(data, 0, data.length);
+		}
+		return this;
+	}
+
 	/**
 	 * (non-Javadoc)
 	 * @see java.lang.Object#toString()

@@ -10,7 +10,7 @@ public class StaleConnectionException extends IOException {
 	private static final long serialVersionUID = 1L;
 
 	public StaleConnectionException() {
-		// TODO Auto-generated constructor stub
+		this("nats: Stale Connection");
 	}
 
 	public StaleConnectionException(String msg) {
