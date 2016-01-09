@@ -528,7 +528,7 @@ public class BasicTest {
 
 				final byte[] request = "help".getBytes();
 				Message m = null;
-				try { m = c.request("foo", request, 1000); } 
+				try { m = c.request("foo", request, 5000); } 
 				catch (Exception e) {
 					fail("Request failed: " + e.getMessage());
 				}
@@ -567,11 +567,11 @@ public class BasicTest {
 				}
 			}))
 			{
-				Message m = c.request("foo", null, 500);
+				Message m = c.request("foo", null, 5000);
 				assertArrayEquals("Response isn't valid.", response, m.getData());
 
 			} catch (TimeoutException | IOException e) {
-				fail("Received an error on Request test: " + e.getMessage());
+				fail(e.getMessage());
 			}
 		} catch (IOException | TimeoutException e1) {
 			fail(e1.getMessage());
