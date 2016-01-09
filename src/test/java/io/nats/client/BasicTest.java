@@ -519,7 +519,6 @@ public class BasicTest {
 		{
 			try (AsyncSubscription s = c.subscribeAsync("foo",  
 					new MessageHandler() {
-				@Override 
 				public void onMessage(Message m)
 				{
 					c.publish(m.getReplyTo(), response);
@@ -529,7 +528,7 @@ public class BasicTest {
 
 				final byte[] request = "help".getBytes();
 				Message m = null;
-				try { m = c.request("foo", request, 500); } 
+				try { m = c.request("foo", request, 1000); } 
 				catch (Exception e) {
 					fail("Request failed: " + e.getMessage());
 				}

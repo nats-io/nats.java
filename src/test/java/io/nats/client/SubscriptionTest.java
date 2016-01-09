@@ -209,7 +209,7 @@ public class SubscriptionTest {
 
 				long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime()-t0);
 				String msg = String.format("Too much time has elapsed to release NextMsg: %dms", elapsed);
-				assertTrue(msg, elapsed <= 10);
+				assertTrue(msg, elapsed <= 50);
 			} catch (Exception e) {
 				fail("Subscription failed: " + e.getMessage());
 			}	
