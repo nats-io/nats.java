@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.junit.Assert.*;
@@ -408,17 +415,16 @@ public class SubscriptionTest {
 			{
 				c.setExceptionHandler(new ExceptionHandler()
 				{
-					public void onException(Connection conn, Subscription sub, 
-							Throwable e) {
+					public void onException(NATSException e) {
 
 						// Suppress additional calls
 						if (aeCalled.get() == 1)
 							return;
 						aeCalled.incrementAndGet();					
 
-						assertEquals("Did not receive proper subscription", s, sub);
+						assertEquals("Did not receive proper subscription", s, e.getSubscription());
 						assertTrue("Expected SlowConsumerException, but got " + e, 
-								e instanceof SlowConsumerException);
+								e.getCause() instanceof SlowConsumerException);
 
 						bch.add(true);
 
@@ -455,7 +461,6 @@ public class SubscriptionTest {
 			// Helper
 			try (AsyncSubscription helper = c.subscribe("helper",
 					new MessageHandler() {
-				@Override
 				public void onMessage(Message msg) {
 //					System.err.println("Helper");
 					c.publish(msg.getReplyTo(), "Hello".getBytes());				
@@ -465,19 +470,17 @@ public class SubscriptionTest {
 //				System.err.println("helper subscribed");
 				// Kickoff
 				try (AsyncSubscription start = c.subscribe("start", new MessageHandler() {
-					@Override
 					public void onMessage(Message msg) {
 //						System.err.println("Responder");
 						String responseIB = c.newInbox();
 						c.subscribe(responseIB, new MessageHandler() {
-							@Override
 							public void onMessage(Message msg) {
 								// System.err.println("Internal subscriber.");
 								ch.add(true);
 							}
 						}); 
 //						System.err.println("starter subscribed");
-						c.publishRequest("helper", responseIB, "Help me!".getBytes());
+						c.publish("helper", responseIB, "Help me!".getBytes());
 					} // "start" onMessage
 				})) 
 				{

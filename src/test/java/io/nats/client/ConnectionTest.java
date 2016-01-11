@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.mockito.Mockito.*;
@@ -7,7 +14,6 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
@@ -179,7 +185,7 @@ public class ConnectionTest {
 		when(mock.getBufferedInputStreamReader()).thenReturn(br);
 		when(mock.getBufferedOutputStream(any(int.class))).thenReturn(bw);
 
-		SyncSubscription sub = mock(SyncSubscriptionImpl.class);
+		SyncSubscriptionImpl sub = mock(SyncSubscriptionImpl.class);
 		when(sub.getSubject()).thenReturn("foo");
 		when(sub.getQueue()).thenReturn(null);
 		when(sub.getSid()).thenReturn(1L);
@@ -224,7 +230,7 @@ public class ConnectionTest {
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 				c.subscribeAsync(subject, queue);
-				c.queueSubscribeSync(subject, queue);
+				c.subscribeSync(subject, queue);
 			} catch (IOException | TimeoutException e) {
 				fail("Connection failed");
 			} catch (ConnectionClosedException e) {
@@ -890,7 +896,7 @@ public class ConnectionTest {
 				Map subs = c.getSubs();
 				assertNotNull(subs);
 				c.setSubs(subs);
-				SyncSubscription s = c.subscribeSync("foo");
+				SyncSubscriptionImpl s = (SyncSubscriptionImpl) c.subscribeSync("foo");
 				MsgArg args = new MsgArg();
 				args.sid = s.getSid();
 				args.subject = s.getSubject();
@@ -911,7 +917,7 @@ public class ConnectionTest {
 		boolean exThrown = false;
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
-				SyncSubscription s = c.subscribeSync("foo");
+				SyncSubscriptionImpl s = (SyncSubscriptionImpl) c.subscribeSync("foo");
 				long sid = s.getSid();
 				assertNotNull("Sub should have been present", c.getSubs().get(sid));
 				s.unsubscribe();

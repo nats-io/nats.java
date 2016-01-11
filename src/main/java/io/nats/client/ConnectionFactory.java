@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import java.io.IOException;
@@ -18,6 +25,11 @@ import static io.nats.client.Constants.*;
  * Factory class for opening a {@link ConnectionImpl} to the NATS server (gnatsd). 
  */
 
+/**
+ * A {@code ConnectionFactory} object encapsulates a set of connection configuration
+ * options. A client uses it to create a connection to NATS.
+
+ */
 public class ConnectionFactory implements Cloneable {
 
 	// Default request channel length
@@ -55,6 +67,10 @@ public class ConnectionFactory implements Cloneable {
 	private int subChanLen							= Constants.DEFAULT_MAX_CHAN_LEN;
 	private boolean tlsDebug;
 
+	/**
+	 * Constructs a new connection factory from a {@link Properties} object
+	 * @param props the {@link Properties} object
+	 */
 	public ConnectionFactory(Properties props) {
 		if (props==null)
 			throw new IllegalArgumentException("Properties cannot be null");
@@ -141,11 +157,11 @@ public class ConnectionFactory implements Cloneable {
 			} finally {}
 			this.setExceptionHandler((ExceptionHandler) instance);
 		}
-		//PROP_CLOSED_HANDLER
-		if (props.containsKey(PROP_CLOSED_HANDLER)) {
+		//PROP_CLOSED_CB
+		if (props.containsKey(PROP_CLOSED_CB)) {
 			Object instance = null;
 			try {
-				String s = props.getProperty(PROP_CLOSED_HANDLER);
+				String s = props.getProperty(PROP_CLOSED_CB);
 				Class<?> clazz = Class.forName(s);
 				Constructor<?> constructor = clazz.getConstructor();
 				instance = constructor.newInstance();
@@ -154,11 +170,11 @@ public class ConnectionFactory implements Cloneable {
 			} finally {}
 			this.setClosedCallback((ClosedCallback) instance);
 		}
-		//PROP_DISCONNECTED_HANDLER
-		if (props.containsKey(PROP_DISCONNECTED_HANDLER)) {
+		//PROP_DISCONNECTED_CB
+		if (props.containsKey(PROP_DISCONNECTED_CB)) {
 			Object instance = null;
 			try {
-				String s = props.getProperty(PROP_DISCONNECTED_HANDLER);
+				String s = props.getProperty(PROP_DISCONNECTED_CB);
 				Class<?> clazz = Class.forName(s);
 				Constructor<?> constructor = clazz.getConstructor();
 				instance = constructor.newInstance();
@@ -168,11 +184,11 @@ public class ConnectionFactory implements Cloneable {
 			this.setDisconnectedCallback((DisconnectedCallback) instance);
 		}
 
-		//PROP_RECONNECTED_HANDLER
-		if (props.containsKey(PROP_RECONNECTED_HANDLER)) {
+		//PROP_RECONNECTED_CB
+		if (props.containsKey(PROP_RECONNECTED_CB)) {
 			Object instance = null;
 			try {
-				String s = props.getProperty(PROP_RECONNECTED_HANDLER);
+				String s = props.getProperty(PROP_RECONNECTED_CB);
 				Class<?> clazz = Class.forName(s);
 				Constructor<?> constructor = clazz.getConstructor();
 				instance = constructor.newInstance();
@@ -183,19 +199,41 @@ public class ConnectionFactory implements Cloneable {
 		}
 	}
 
+	/**
+	 * 
+	 */
 	public ConnectionFactory() {
 		this(null, null);
 	}
 
+	/**
+	 * Constructs a connection factory using the supplied URL string
+	 * as default
+	 * @param url the default server URL to use
+	 */
 	public ConnectionFactory(String url)
 	{
 		this(url, null);
 	}
 
+	/**
+	 * Constructs a connection factory from a list of NATS server
+	 * URL strings
+	 * @param servers the list of cluster server URL strings
+	 */
 	public ConnectionFactory(String[] servers) {
 		this(null, servers);
 	}
 
+	/**
+	 * Constructs a connection factory from a list of NATS server
+	 * URLs, using {@code url} as the primary address.
+	 * <p>
+	 * Note that {@code url} will be first in the list, even if 
+	 * the {@link #isNoRandomize()} is {@code false}
+	 * @param url the default server URL to set
+	 * @param servers the list of cluster server URL strings
+	 */
 	public ConnectionFactory(String url, String[] servers)
 	{
 		this.setUrl(url);
@@ -206,7 +244,7 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * 
+	 * Creates an active connection to a NATS server
 	 * @return the Connection.
 	 * @throws IOException if a Connection cannot be established for some reason.
 	 * @throws TimeoutException if the connection timeout has been exceeded.
@@ -256,19 +294,24 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the subChanLen
+	 * Gets the size of the {@code Subscription}'s delivery channel 
+	 * @return the channel size
 	 */
 	public int getSubChanLen() {
 		return subChanLen;
 	}
 
 	/**
-	 * @param subChanLen the subChanLen to set
+	 * Sets the size of the {@code Subscription}'s delivery channel 
+	 * @param len the channel size to set
 	 */
-	public void setSubChanLen(int subChanLen) {
-		this.subChanLen = subChanLen;
+	public void setSubChanLen(int len) {
+		this.subChanLen = len;
 	}
 
+	/** 
+	 * {@inheritDoc}
+	 */
 	@Override public ConnectionFactory clone(){
 		try {
 			return (ConnectionFactory)super.clone();
@@ -318,27 +361,17 @@ public class ConnectionFactory implements Cloneable {
 		}
 	}
 
-//	protected String uriDecode(String s) {
-//		try {
-//			// URLDecode decodes '+' to a space, as for
-//			// form encoding.  So protect plus signs.
-////			return URLDecoder.decode(s.replace("+", "%2B"), "US-ASCII");
-//			return URLDecoder.decode(s.replace("+", "%2B"), "UTF-8");
-//		}
-//		catch (IOException e) {
-//			throw new RuntimeException(e);
-//		}
-//	}
-
 	/**
-	 * @return the url
+	 * Returns the default server URL string, if set
+	 * @return the default server URL, or {@code null} if not set
 	 */
 	public String getUrlString() {
 		return this.urlString;
 	}
 
 	/**
-	 * @param url the url to set
+	 * Sets the default server URL string
+	 * @param url the URL to set
 	 */
 	public void setUrl(String url) {
 		this.urlString=url;
@@ -354,13 +387,15 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the host
+	 * Gets the default server host, if set
+	 * @return the host, or {@code null} if not set
 	 */
 	public String getHost() {
 		return this.host;
 	}
 
 	/**
+	 * Sets the default server host
 	 * @param host the host to set
 	 */
 	public void setHost(String host) {
@@ -368,13 +403,15 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the port
+	 * Gets the default server port, if set
+	 * @return the default server port, or {@code -1} if not set
 	 */
 	public int getPort() {
 		return this.port;
 	}
 
 	/**
+	 * Sets the default server port
 	 * @param port the port to set
 	 */
 	public void setPort(int port) {
@@ -382,13 +419,15 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the username
+	 * Gets the default username, if set
+	 * @return the username, or {@code null} if not set
 	 */
 	public String getUsername() {
 		return this.username;
 	}
 
 	/**
+	 * Sets the default username
 	 * @param username the username to set
 	 */
 	public void setUsername(String username) {
@@ -396,6 +435,7 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
+	 * Gets the default password, or {@code null} if not set
 	 * @return the password
 	 */
 	public String getPassword() {
@@ -403,6 +443,7 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
+	 * Sets the default password
 	 * @param password the password to set
 	 */
 	public void setPassword(String password) {
@@ -410,13 +451,15 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the servers
+	 * Gets the server list as {@code URI}
+	 * @return the list of server {@code URI}s, or {@code null} if not set
 	 */
 	public List<URI> getServers() {
 		return this.servers;
 	}
 
 	/**
+	 * Sets the server list from a list of {@code URI}
 	 * @param servers the servers to set
 	 */
 	public void setServers(List<URI> servers) {
@@ -424,7 +467,10 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
+	 * Sets the server list from a list of {@code String}
 	 * @param servers the servers to set
+	 * @throws IllegalArgumentException if any of the {@code URI}s
+	 * are malformed
 	 */
 	public void setServers(String[] servers) {
 		if (servers==null) 
@@ -448,11 +494,23 @@ public class ConnectionFactory implements Cloneable {
 	/**
 	 * @return the noRandomize
 	 */
+	/**
+	 * Indicates whether server list randomization is disabled
+	 * <p>
+	 * {@code true} means that the server list will be traversed 
+	 * in the order in which it was received
+	 * <p>
+	 * {@code false} means that the server list will be randomized
+	 * before it is traversed
+	 * @return {@code true} if server list randomization is disabled,
+	 * otherwise {@code false}
+	 */
 	public boolean isNoRandomize() {
 		return noRandomize;
 	}
 
 	/**
+	 * Disables or enables server list randomization
 	 * @param noRandomize the noRandomize to set
 	 */
 	public void setNoRandomize(boolean noRandomize) {
@@ -460,28 +518,34 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the connection name associated with this Connection.
+	 * Gets the name associated with this Connection
+	 * @return the name associated with this Connection.
 	 */
 	public String getConnectionName() {
 		return this.connectionName;
 	}
 
 	/**
-	 * @param connectionName the name to set for this Connection.
+	 * Sets the name associated with this Connection
+	 * @param connectionName the name to set.
 	 */
 	public void setConnectionName(String connectionName) {
 		this.connectionName=connectionName;
 	}
 
 	/**
-	 * @return whether or not the connection will require +OK/+ERR
+	 * Indicates whether {@code verbose} is set
+	 * <p> When {@code verbose==true}, the server will acknowledge each
+	 * protocol line with {@code +OK or -ERR}
+	 * @return whether {@code verbose} is set
 	 */
 	public boolean isVerbose() {
 		return this.verbose;
 	}
 
 	/**
-	 * @param verbose whether or not this Connection should 
+	 * Sets whether {@code verbose} is set
+	 * @param verbose whether or not this connection should 
 	 * require protocol acks from the server (+OK/-ERR)
 	 */
 	public void setVerbose(boolean verbose) {
@@ -489,109 +553,145 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return whether strict server-side protocol checking 
-	 * 		   is enabled
+	 * Indicates whether strict server-side protocol checking 
+	 * is enabled
+	 * @return whether {@code pedantic} is set
 	 */
 	public boolean isPedantic() {
 		return this.pedantic;
 	}
 
 	/**
-	 * @param pedantic when {@code true}, strict 
-	 * 				   server-side protocol checking occurs.
+	 * Sets whether strict server-side protocol checking 
+	 * is enabled. 
+	 * <p>
+	 * When {@code pedantic==true}, strict 
+	 * server-side protocol checking occurs.
+	 * @param pedantic whether or not this connection should
+	 * require strict server-side protocol checking
 	 */
 	public void setPedantic(boolean pedantic) {
 		this.pedantic = pedantic;
 	}
 
 	/**
-	 * @return the secure
+	 * Indicates whether to require a secure connection with the 
+	 * NATS server
+	 * @return {@code true} if secure is required, otherwise {@code false}
 	 */
 	public boolean isSecure() {
 		return this.secure;
 	}
 
 	/**
-	 * @param secure the secure to set
+	 * Sets whether to require a secure connection with the 
+	 * NATS server
+	 * @param secure whether to require a secure connection with the 
+	 * NATS server
 	 */
 	public void setSecure(boolean secure) {
 		this.secure = secure;
 	}
 
 	/**
-	 * @return the tlsDebug
+	 * Indicates whether TLS debug output should be enabled
+	 * @return {@code true} if TLS debug is enabled, otherwise {@code false}
 	 */
 	public boolean isTlsDebug() {
 		return tlsDebug;
 	}
 	
 	/**
-	 * @param debug the tlsDebug to set
+	 * Sets whether TLS debug output should be enabled
+	 * @param debug whether TLS debug output should be enabled
 	 */
 	public void setTlsDebug(boolean debug) {
 		this.tlsDebug = debug;
 	}
 
 	/**
-	 * @return the reconnectAllowed
+	 * Indicates whether reconnection is enabled
+	 * @return {@code true} if reconnection is allowed, otherwise 
+	 * {@code false} 
 	 */
 	public boolean isReconnectAllowed() {
 		return this.reconnectAllowed;
 	}
 
 	/**
-	 * @param reconnectAllowed the reconnectAllowed to set
+	 * Sets whether reconnection is enabled
+	 * @param reconnectAllowed whether to allow reconnects
 	 */
 	public void setReconnectAllowed(boolean reconnectAllowed) {
 		this.reconnectAllowed = reconnectAllowed;
 	}
 
 	/**
-	 * @return the maxReconnect
+	 * Gets the maximum number of reconnection attempts for this
+	 * connection
+	 * @return the maximum number of reconnection attempts
 	 */
 	public int getMaxReconnect() {
 		return this.maxReconnect;
 	}
 
 	/**
-	 * @param maxReconnect the maxReconnect to set
+	 * Sets the maximum number of reconnection attempts for this 
+	 * connection
+	 * @param max the maximum number of reconnection attempts
 	 */
-	public void setMaxReconnect(int maxReconnect) {
-		this.maxReconnect = maxReconnect;
+	public void setMaxReconnect(int max) {
+		this.maxReconnect = max;
 	}
 
 	/**
-	 * @return the reconnectWait
+	 * Returns the reconnect wait interval in milliseconds. This is the
+	 * amount of time to wait before attempting reconnection to the 
+	 * current server
+	 * @return the reconnect wait interval in milliseconds
 	 */
 	public long getReconnectWait() {
 		return this.reconnectWait;
 	}
 
 	/**
-	 * @param reconnectWait the reconnectWait to set
+	 * Sets the reconnect wait interval in milliseconds. This is the
+	 * amount of time to wait before attempting reconnection to the 
+	 * current server
+	 * @param interval the reconnectWait to set
 	 */
-	public void setReconnectWait(long reconnectWait) {
-		this.reconnectWait = reconnectWait;
+	public void setReconnectWait(long interval) {
+		this.reconnectWait = interval;
 	}
 
 	/**
-	 * @return the connectionTimeout
+	 * Returns the connection timeout interval in milliseconds. This
+	 * is the maximum amount of time to wait for a connection to a
+	 * NATS server to complete successfully
+	 * @return the connection timeout
 	 */
 	public int getConnectionTimeout() {
 		return this.connectionTimeout;
 	}
 
 	/**
-	 * @param connectionTimeout the connectionTimeout to set
+	 * Sets the connection timeout interval in milliseconds. This
+	 * is the maximum amount of time to wait for a connection to a
+	 * NATS server to complete successfully
+	 * @param timeout the connection timeout
+	 * @throws IllegalArgumentException if {@code timeout < 0}
 	 */
-	public void setConnectionTimeout(int connectionTimeout) {
-		if(connectionTimeout < 0) {
+	public void setConnectionTimeout(int timeout) {
+		if(timeout < 0) {
 			throw new IllegalArgumentException("TCP connection timeout cannot be negative");
 		}
-		this.connectionTimeout = connectionTimeout;
+		this.connectionTimeout = timeout;
 	}
 
 	/**
+	 * Gets the server ping interval in milliseconds. The connection 
+	 * will send a PING to the server at this interval to ensure the 
+	 * server is still alive
 	 * @return the pingInterval
 	 */
 	public long getPingInterval() {
@@ -599,80 +699,102 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @param pingInterval the pingInterval to set
+	 * Sets the server ping interval in milliseconds. The connection 
+	 * will send a PING to the server at this interval to ensure the 
+	 * server is still alive
+	 * @param interval the ping interval to set in milliseconds
 	 */
-	public void setPingInterval(long pingInterval) {
-		this.pingInterval = pingInterval;
+	public void setPingInterval(long interval) {
+		this.pingInterval = interval;
 	}
 
 	/**
+	 * Returns the maximum number of outstanding server pings
 	 * @return the maximum number of oustanding outbound pings before 
-	 * 		   marking the Connection stale and triggering reconnection.
+	 * marking the Connection stale and triggering reconnection
+	 * (if allowed).
 	 */
 	public int getMaxPingsOut() {
 		return this.maxPingsOut;
 	}
 
 	/**
-	 * @return the closedCB
+	 * Sets the maximum number of outstanding pings (pings for which 
+	 * no pong has been received). Once this 
+	 * limit is exceeded, the connection is marked as stale and closed. 
+	 * @param max the maximum number of outstanding pings
+	 */
+	public void setMaxPingsOut(int max) {
+		this.maxPingsOut = max;
+	}
+
+	/**
+	 * Returns the {@link ClosedCallback}, if one is registered
+	 *
+	 * @return the {@link ClosedCallback}, if one is registered
+	 *
 	 */
 	public ClosedCallback getClosedCallback() {
 		return closedCallback;
 	}
 
 	/**
-	 * @param cb the connection closed callback to set
+	 * Sets the {@link ClosedCallback}
+	 * @param cb the {@link ClosedCallback} to set
 	 */
 	public void setClosedCallback(ClosedCallback cb) {
 		this.closedCallback = cb;
 	}
 
 	/**
-	 * @return the disconnected callback
+	 * Returns the {@link DisconnectedCallback}, if one is registered
+	 *
+	 * @return the {@link DisconnectedCallback}, if one is registered
+	 *
 	 */
 	public DisconnectedCallback getDisconnectedCallback() {
 		return disconnectedCallback;
 	}
 
 	/**
-	 * @param cb the DisconnectedCallback to set
+	 * Sets the {@link DisconnectedCallback}
+	 * @param cb the {@link DisconnectedCallback} to set
 	 */
 	public void setDisconnectedCallback(DisconnectedCallback cb) {
 		this.disconnectedCallback = cb;
 	}
 
 	/**
-	 * @return the ReconnectedCallback for this connection
-	 * @return null if not set
+	 * Returns the {@link ReconnectedCallback}, if one is registered
+	 *
+	 * @return the {@link ReconnectedCallback}, if one is registered
+	 *
 	 */
 	public ReconnectedCallback getReconnectedCallback() {
 		return reconnectedCallback;
 	}
 
 	/**
-	 * @param cb the reconnectedCB to set
+	 * Sets the {@link ReconnectedCallback}
+	 * @param cb the {@link ReconnectedCallback} to set
 	 */
 	public void setReconnectedCallback(ReconnectedCallback cb) {
 		this.reconnectedCallback = cb;
 	}
 
 	/**
-	 * @param maxPingsOut the maxPingsOut to set
-	 */
-	public void setMaxPingsOut(int maxPingsOut) {
-		this.maxPingsOut = maxPingsOut;
-	}
-
-	/**
-	 * @return the exceptionHandler
+	 * Returns the {@link ExceptionHandler}, if one is registered
+	 * @return the {@link ExceptionHandler}, if one is registered
+	 *
 	 */
 	public ExceptionHandler getExceptionHandler() {
 		return exceptionHandler;
 	}
 
 	/**
+	 * Sets the {@link ExceptionHandler}
 	 * @param exceptionHandler the {@link ExceptionHandler} to set for 
-	 *        connections.
+	 *        connection.
 	 */
 	public void setExceptionHandler(ExceptionHandler exceptionHandler) {
 		if (exceptionHandler == null) {
@@ -682,16 +804,18 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * @return the sslContext
+	 * Returns the {@link SSLContext} for this connection factory
+	 * @return the {@link SSLContext} for this connection factory
 	 */
 	public SSLContext getSslContext() {
 		return sslContext;
 	}
 
 	/**
-	 * @param sslContext the sslContext to set
+	 * Sets the {@link SSLContext} for this connection factory
+	 * @param ctx the {@link SSLContext} to set
 	 */
-	public void setSslContext(SSLContext sslContext) {
-		this.sslContext = sslContext;
+	public void setSslContext(SSLContext ctx) {
+		this.sslContext = ctx;
 	}
 }

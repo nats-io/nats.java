@@ -1,12 +1,27 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2015 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
+/**
+ * A {@code ConnectionEvent} object contains information about about an
+ * asynchronous event that has occurred on a connection.  
+ *
+ */
 public class ConnectionEvent {
 	Connection nc;
 
-	public ConnectionEvent(ConnectionImpl c) {
+	protected ConnectionEvent(Connection c) {
 		this.nc = c;
 	}
 
+	/**
+	 * @return the {@code Connection} object for which the event has occurred.
+	 */
 	public Connection getConnection() {
 		return nc;
 	}

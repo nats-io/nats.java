@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.junit.Assert.*;
@@ -110,11 +117,13 @@ public class MessageTest {
 //		fail("Not yet implemented"); // TODO
 //	}
 //
-//	@Test
-//	public void testSetData() {
-//		fail("Not yet implemented"); // TODO
-//	}
-//
+	@Test
+	public void testSetData() {
+		byte[] data = "hello".getBytes();
+		Message m = new Message();
+		m.setData(data);
+	}
+
 //	@Test
 //	public void testToString() {
 //		fail("Not yet implemented"); // TODO

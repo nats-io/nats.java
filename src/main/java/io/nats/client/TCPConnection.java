@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import javax.net.SocketFactory;
@@ -59,7 +66,7 @@ class TCPConnection implements AutoCloseable {
 		try {
 
 			this.addr = new InetSocketAddress(host, port);
-			client = new Socket();
+			client = factory.createSocket();
 			client.connect(addr, timeout);
 
 			open();
@@ -129,18 +136,11 @@ class TCPConnection implements AutoCloseable {
 		return client.isConnected();
 	}
 
-	public boolean isDataAvailable() {
-		boolean rv = false;
+	public boolean isDataAvailable() throws IOException {
 		if (readStream == null)
 			return false;
 
-		try {
-			rv = (readStream.available() > 0);
-		} catch (IOException e) {
-			// ignore
-		}
-
-		return rv;
+		return (readStream.available() > 0);
 	}
 
 	/**
@@ -227,8 +227,11 @@ class TCPConnection implements AutoCloseable {
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() {
 		if (client!=null)
-			client.close();
+			try {
+				client.close();
+			} catch (IOException e) {
+			}
 	}
 }

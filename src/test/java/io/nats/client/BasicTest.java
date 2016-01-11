@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.junit.Assert.*;
@@ -256,7 +263,7 @@ public class BasicTest {
 		{
 			try (SyncSubscription s = c.subscribeSync("foo")) {
 				final byte[] omsg = "Hello World".getBytes();
-				c.publishRequest("foo", "reply", omsg);
+				c.publish("foo", "reply", omsg);
 				try { c.flush(); } catch (Exception e) { e.printStackTrace(); }
 				try {
 					Thread.sleep(100);
@@ -279,7 +286,7 @@ public class BasicTest {
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
 			SyncSubscription s = c.subscribeSync("foo");
-			c.publishRequest("foo", "reply", omsg);
+			c.publish("foo", "reply", omsg);
 			try {
 				c.flush();
 			} catch (Exception e) {
@@ -296,8 +303,8 @@ public class BasicTest {
 		final byte[] omsg = "Hello World".getBytes();
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
-			SyncSubscription s1 = c.queueSubscribeSync("foo", "bar"),
-					s2 = c.queueSubscribeSync("foo", "bar");
+			SyncSubscription s1 = c.subscribeSync("foo", "bar"),
+					s2 = c.subscribeSync("foo", "bar");
 			c.publish("foo", omsg);
 			try {c.flush();} catch (Exception e) { /* IGNORE */ }
 
@@ -363,7 +370,7 @@ public class BasicTest {
 				{
 					received.set(false);
 					try {Thread.sleep(200);} catch (InterruptedException e) {}
-					c.publishRequest("foo", "bar", null);
+					c.publish("foo", "bar", (byte[])null);
 					try {
 						mu.wait(5000);
 					} catch (InterruptedException e) {}
@@ -382,7 +389,7 @@ public class BasicTest {
 		try (Connection c = new ConnectionFactory().createConnection()) {
 			try (SyncSubscription s = c.subscribeSync("foo")) {
 				try {Thread.sleep(500);} catch (InterruptedException e) {}
-				c.publishRequest("foo", replyExpected, null);
+				c.publish("foo", replyExpected, (byte[])null);
 				Message m = null;
 				try {
 					m = s.nextMessage(1000);
@@ -428,7 +435,7 @@ public class BasicTest {
 
 				for (int i = 0; i < max; i++)
 				{
-					c.publishRequest("foo", null, null);
+					c.publish("foo", null, (byte[])null);
 				}
 				Thread.sleep(100);
 				c.flush();
@@ -517,6 +524,7 @@ public class BasicTest {
 				"I will help you.".getBytes();
 		try (final Connection c = new ConnectionFactory().createConnection())
 		{
+			UnitTestUtilities.sleep(100);
 			try (AsyncSubscription s = c.subscribeAsync("foo",  
 					new MessageHandler() {
 				public void onMessage(Message m)
@@ -525,7 +533,7 @@ public class BasicTest {
 				}
 			}))
 			{
-
+				UnitTestUtilities.sleep(100);
 				final byte[] request = "help".getBytes();
 				Message m = null;
 				try { m = c.request("foo", request, 5000); } 
@@ -567,6 +575,7 @@ public class BasicTest {
 				}
 			}))
 			{
+				UnitTestUtilities.sleep(100);
 				Message m = c.request("foo", null, 5000);
 				assertArrayEquals("Response isn't valid.", response, m.getData());
 
@@ -872,7 +881,7 @@ public class BasicTest {
 
 			s.start();
 
-			c.publishRequest(subject, reply, null);
+			c.publish(subject, reply, (byte[])null);
 			c.flush();
 
 			synchronized(testLock)

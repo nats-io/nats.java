@@ -1,0 +1,678 @@
+/*
+ * Classic Javadoc StyleSheet v1.2
+ * http://junk-box.appspot.com/stylesheet/classic-javadoc-stylesheet/index.html
+ *
+ * Copyright (C) 2015 S.Ishigaki
+ * Licensed under the MIT license
+ * http://www.opensource.org/licenses/mit-license.php
+ *
+ * Date: 2015-09-02
+ */
+
+/*
+ * Copyright styles
+ */
+.aboutLanguage {
+	position: absolute;
+	right: 0px;
+	background-color: #ffffff;
+	padding-left: 54px;
+	padding-right: 8px;
+	margin-top: -4px;
+	font-style: italic;
+}
+
+.legalCopy {
+	display: inline-block;
+	margin-top: 10px;
+}
+
+/*
+ * Navigation bar styles
+ */
+.topNav {
+	margin-top: 10px;
+	background-color: #EEEEFF;
+	float: left;
+	padding: 4px;
+	width: 100%;
+	clear: right;
+	overflow: hidden;
+}
+
+.topNav:before {
+	content: "";
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	width: 98%;
+	height: 0px;
+	border-top: solid 1px #9a9a9a;
+}
+
+.bottomNav {
+	position: relative;
+	margin-top: 20px;
+	background-color: #EEEEFF;
+	float: left;
+	padding: 4px;
+	width: 100%;
+	clear: right;
+}
+
+.bottomNav:after {
+	content: "";
+	position: absolute;
+	top: -11px;
+	left: 0px;
+	width: 99%;
+	height: 0px;
+	border-top: solid 1px #9a9a9a;
+}
+
+.subNav {
+	border-bottom: 1px solid #9eadc0;
+	float: left;
+	width: 100%;
+	overflow: hidden;
+	padding-bottom: 5px;
+	font-weight: bold;
+}
+
+.subNav div {
+	display: none;
+}
+
+.subNav li {
+	font-size: x-small;
+}
+
+.subNavList {
+	font-weight: normal;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 12px;
+}
+
+ul.navList, ul.subNavList {
+	float: left;
+	margin: 0 180px 0 0;
+	padding: 0;
+}
+
+ul.navList li{
+	list-style: none;
+	float: left;
+	padding: 0 5px;
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+ul.subNavList li{
+	list-style: none;
+	float: left;
+	font-size: 90%;
+}
+
+.topNav a:link, .topNav a:active, .topNav a:visited, .bottomNav a:link, .bottomNav a:active, .bottomNav a:visited {
+	color: #000000;
+	font-weight: bold;
+}
+.navBarCell1Rev {
+	background-color: #00008B;
+	color: #FFFFFF;
+	font-family: Arial, Helvetica, sans-serif;
+	font-weight: bold;
+}
+
+div.skipNav {
+	display: none;
+}
+
+/*
+ * Page header and footer styles
+ */
+.header, .footer {
+	clear: both;
+}
+
+.header {
+	padding-top: 25px;
+}
+
+.footer {
+	padding-top: 40px;
+	padding-bottom: 5px;
+}
+
+.indexHeader {
+	margin: 10px;
+	margin-left: 3px;
+	position: relative;
+	font-family: Helvetica, Arial, sans-serif;
+	font-size: 90%;
+}
+
+h1.title {
+	text-align: center;
+	margin-top: 0px;
+	margin-bottom: 0px;
+	font-size: 145%;
+}
+
+h1.title[title="Deprecated API"] {
+	padding-bottom: 18px;
+	border-bottom: solid 5px #808080;
+	font-size: 1.5em;
+}
+
+h2.title[title^="Uses of Class"] {
+	text-align: center;
+}
+
+h2[title="Class Hierarchy"] {
+	margin-top: 0px;
+	padding-top: 15px;
+	border-top: solid 1px gray;
+}
+
+h1.title[title="Deprecated API"] + h2[title="Contents"] {
+	padding-top: 8px;
+	padding-bottom: 3px;
+	font-size: 16px;
+}
+
+h1.title[title="Deprecated API"] + h2[title="Contents"] + ul li {
+	margin-left: 40px;
+	list-style-type: disc;
+	font-size: 16px;
+}
+
+.subTitle {
+	margin: 5px 0 0 0;
+	font-weight: bold;
+	font-size: 12px;
+}
+
+.subTitle .block {
+	font-weight: initial;
+	font-size: initial;
+}
+
+.header ul {
+	padding: 0;
+}
+
+.header p {
+	font-weight: bold;
+}
+
+.header h2 {
+	margin-top: 0px;
+}
+
+/*
+ * Heading styles
+ */
+div.details {
+	margin-top: 30px
+}
+
+div.details ul.blockList ul.blockList ul.blockList {
+	border-bottom: solid 1px #9a9a9a;
+}
+
+div.details ul.blockList ul.blockList ul.blockListLast {
+	border-bottom: none;
+}
+
+div.details ul.blockList ul.blockList ul.blockList li.blockList h4, div.details ul.blockList ul.blockList ul.blockListLast li.blockList h4 {
+	margin:0 0 6px -8px;
+	padding:2px 0px;
+	font-size: 18px;
+}
+
+div.details ul.blockList ul.blockList ul.blockList li.blockList pre, div.details ul.blockList ul.blockList ul.blockListLast li.blockList pre {
+	margin-left: -8px;
+}
+
+div.details ul.blockList ul.blockList ul.blockList li.blockList div, div.details ul.blockList ul.blockList ul.blockListLast li.blockList div {
+	margin-left: 32px;
+}
+
+div.details ul.blockList ul.blockList ul.blockList li.blockList dl, div.details ul.blockList ul.blockList ul.blockListLast li.blockList dl {
+	margin-bottom: 0px;
+	margin-left: 32px;
+}
+
+ul.blockList ul.blockList ul.blockList li.blockList h3 {
+	background-color: #eeeeff;
+	border-top: none;
+	border-bottom: 2px solid gray;
+	border-left: none;
+	border-right: none;
+	margin: 0 0 3px -3px;
+	padding: 3px 5px 3px 3px;
+	font-weight: bold;
+	font-size: initial;
+}
+
+ul.blockList ul.blockList ul.blockList li.blockList code {
+	font-family: monospace;
+}
+
+ul.blockList ul.blockList li.blockList h3 {
+	padding: 3px 3px;
+	margin: 0px;
+	background-color: #ccccff;
+	border: solid 2px gray;
+	font-size: 24px;
+	font-weight: bold;
+}
+
+ul.blockList li.blockList .overviewSummary th {
+	display: none;
+}
+
+ul.blockList li.blockList h2 {
+	font-size: 18px;
+}
+
+ul.blockList li.blockList h2 ~ p {
+	margin-left: 40px;
+}
+
+ul.blockList li.blockList h2 ~ ul {
+	margin-left: 40px;
+	list-style-type: disc;
+}
+
+table.memberSummary th {
+	display: none;
+}
+
+/*
+ * Page layout container styles
+ */
+h1.bar {
+	font-family: Helvetica, Arial, sans-serif;
+	font-size: 90%;
+}
+
+h1.bar strong {
+	font-size: 110%;
+}
+
+h1.bar a {
+	font-weight: normal;
+	font-size: 16px;
+}
+
+.indexContainer {
+	margin: 3px;
+	position: relative;
+	font-size: 90%;
+	font-family: Helvetica, Arial, sans-serif;
+}
+
+.indexContainer h2 {
+	margin-top: 8px;
+	margin-bottom: 0;
+	font-weight: normal;
+	font-size: 16px;
+}
+
+.indexContainer ul {
+	margin: 0;
+	padding: 0;
+}
+
+.indexContainer ul li {
+	list-style: none;
+	padding: 1px;
+}
+
+.contentContainer .description dl dt, .contentContainer .details dl dt, .serializedFormContainer dl dt {
+	font-weight: bold;
+}
+
+.contentContainer .description dl dd, .contentContainer  .serializedFormContainer dl dd {
+	margin: 10px 0 10px 40px;
+}
+
+.serializedFormContainer {
+	margin-top: 28px;
+}
+
+.serializedFormContainer ul.blockList li.blockList h2 {
+	position: relative;
+	background-color: #eeeeff;
+	border: solid 2px gray;
+	text-align: center;
+	font-size: 24px;
+	padding: 2px;
+}
+
+.serializedFormContainer ul.blockList li.blockList h2:after {
+	content: "";
+	position: absolute;
+	top: -14px;
+	left: 0px;
+	width: 100%;
+	height: 0;
+	border-top: solid 4px gray;
+}
+
+.serializedFormContainer ul.blockList li.blockList ul.blockList {
+	margin-left: 0;
+}
+
+.serializedFormContainer ul.blockList li.blockList ul.blockList h3 {
+	background-color: #eeeeff;
+}
+
+.serializedFormContainer ul.blockList ul.blockList ul.blockList li.blockList {
+	border: none;
+	border-bottom: solid 1px gray;
+}
+
+.serializedFormContainer ul.blockList li.blockList ul.blockList ul.blockList h3 {
+	background-color: #ccccff;
+	border: solid 2px gray;
+	font-size: 24px;
+	padding: 2px;
+}
+
+
+.serializedFormContainer dl.nameValue dt {
+	margin-left: 1px;
+	display: inline;
+	font-weight: bold;
+}
+
+.serializedFormContainer dl.nameValue dd {
+	margin: 0 0 0 1px;
+	display: inline;
+}
+
+/*
+ * List styles
+ */
+ul.horizontal {
+	margin-left: 40px;
+}
+
+ul.horizontal li {
+	display: inline;
+}
+
+ul.inheritance {
+	margin: 0;
+	padding: 0;
+	font-family: monospace;
+}
+
+ul.inheritance li {
+	display: inline;
+	list-style: none;
+	font-weight: bold;
+}
+
+ul.inheritance a {
+	font-weight: initial;
+}
+
+ul.inheritance li ul.inheritance {
+	margin-left: 15px;
+	padding-left: 15px;
+	padding-top: 1px;
+}
+
+ul.blockList, ul.blockListLast {
+	margin: 15px 0 0 0;
+	padding: 0;
+}
+
+div.classUseContainer ul.blockList li.blockList {
+	padding-bottom: 18px;
+}
+
+ul.blockList li.blockList, ul.blockListLast li.blockList {
+	list-style:none;
+}
+
+ul.blockList ul.blockList ul.blockList li.blockList{
+	padding: 0 0 3px 3px;
+	border: solid 2px gray;
+}
+
+.details ul.blockList ul.blockList ul.blockList li.blockList, .details ul.blockList ul.blockList ul.blockListLast li.blockList {
+	padding: 0 0 15px 8px;
+	border: none;
+}
+
+/*
+ * Table styles
+ */
+.contentContainer table, .classUseContainer table, .constantValuesContainer table {
+	width: 100%;
+}
+
+.contentContainer ul li table, .classUseContainer ul li table, .constantValuesContainer ul li table {
+	width: 100%;
+}
+
+.contentContainer ul li table th.colOne, .contentContainer ul li table th.colFirst, .contentContainer ul li table th.colLast, .classUseContainer ul li table th, .constantValuesContainer ul li table th, .contentContainer ul li table td.colOne, .contentContainer ul li table td.colFirst, .contentContainer ul li table td.colLast, .classUseContainer ul li table td, .constantValuesContainer ul li table td{
+	vertical-align: top;
+}
+
+.contentContainer ul li table th.colLast, .classUseContainer ul li table th.colLast,.constantValuesContainer ul li table th.colLast,
+.contentContainer ul li table td.colLast, .classUseContainer ul li table td.colLast,.constantValuesContainer ul li table td.colLast,
+.contentContainer ul li table th.colOne, .classUseContainer ul li table th.colOne,
+.contentContainer ul li table td.colOne, .classUseContainer ul li table td.colOne {
+	padding-right: 3px;
+}
+
+.overviewSummary caption, .packageSummary caption, .contentContainer ul.blockList li.blockList caption, .summary caption, .classUseContainer caption, .constantValuesContainer caption {
+	position: relative;
+	text-align: left;
+	background-repeat: no-repeat;
+	color: #000000;
+	font-weight: bold;
+	clear: none;
+	overflow: hidden;
+	padding: 0px;
+	margin: 0px;
+	display: none;
+}
+
+div.classUseContainer ul.blockList li.blockList h3 + table caption {
+	display: table-caption;
+	margin-top: 32px;
+	color: initial;
+	background-color: #eeeeff;
+	border: solid 2px gray;
+	padding: 3px;
+	padding-bottom: 1px;
+}
+
+div.classUseContainer ul.blockList li.blockList h3 + table span {
+	padding: 0;
+}
+
+.overviewSummary caption span, .packageSummary caption span, .contentContainer ul.blockList li.blockList caption span, .summary caption span, .classUseContainer caption span, .constantValuesContainer caption span {
+	white-space: nowrap;
+	padding-top: 8px;
+	padding-left: 8px;
+	display: block;
+	float: left;
+	height: 18px;
+}
+
+ul.blockList ul.blockList li.blockList table {
+	margin: 0 0 17px 0px;
+	width: 100%;
+}
+
+.overviewSummary td, .packageSummary td, .contentContainer ul.blockList li.blockList td, .summary td, .classUseContainer td, .constantValuesContainer td {
+	padding: 3px 3px 3px 7px;
+}
+
+ul.blockList li.blockList .overviewSummary td, .packageSummary td, .contentContainer ul.blockList li.blockList td, .summary td, .classUseContainer td, .constantValuesContainer td {
+	padding: 5px 3px 3px 3px;
+}
+
+th.colFirst, th.colLast, th.colOne, .constantValuesContainer th {
+	background: #ccccff;
+	border-top: 2px solid gray;
+	border-bottom: 2px solid gray;
+	text-align: left;
+	padding:3px 3px 3px 7px;
+	font-size: 24px;
+}
+
+td.colFirst a:link {
+	font-weight: bold;
+}
+
+ul.blockList li.blockList td.colFirst {
+	padding-left: 8px;
+	font-size: 12px;
+}
+
+ul.blockList li.blockList td.colFirst a:link {
+	font-weight: normal;
+}
+
+td.colFirst, th.colFirst {
+	border-left: 2px solid gray;
+	border-bottom: 2px solid gray;
+	white-space: nowrap;
+}
+
+td.colFirst {
+	border-right: 2px solid gray;
+}
+
+td.colLast, th.colLast {
+	border-right: 2px solid gray;
+	border-bottom: 2px solid gray;
+}
+
+th.colLast {
+	color: #ccccff;
+}
+
+td.colOne {
+	border-bottom: solid 2px gray;
+}
+
+td.colOne, th.colOne {
+	border-right: 2px solid gray;
+	border-left: 2px solid gray;
+}
+
+table.overviewSummary  {
+	padding: 0px;
+	margin-left: 0px;
+}
+
+.contentContainer ul.blockList li.blockList table.packageSummary td.colFirst {
+	vertical-align: middle;
+	padding: 3px 3px 0 3px;
+	font-weight: bold;
+	font-size: 16px;
+}
+
+.contentContainer ul.blockList li.blockList table.packageSummary td.colFirst a {
+	font-weight: bold;
+	font-size: 16px;
+}
+
+.contentContainer ul.blockList li.blockList table.packageSummary td.colLast {
+	padding: 3px;
+}
+
+.contentContainer ul.blockList li.blockList table.packageSummary td.colLast div.block {
+	margin: 0;
+}
+
+ul.blockList li.blockList table.overviewSummary td.colFirst {
+	width: initial;
+}
+
+div.classUseContainer ul.blockList li.blockList td.colFirst {
+	padding: 3px 3px 0 3px;
+}
+
+div.classUseContainer ul.blockList li.blockList td.colFirst a {
+	font-weight: bold;
+	font-size: 16px;
+}
+
+div.classUseContainer ul.blockList li.blockList h3 + table th.colFirst, div.classUseContainer ul.blockList li.blockList h3 + table th.colLast {
+	display: none;
+}
+
+/*
+ * Content styles
+ */
+
+.description {
+	position: relative;
+	padding-bottom: 3px;
+}
+
+.description:after {
+	content: "";
+	position: absolute;
+	bottom: 0px;
+	left: 0px;
+	width: 99%;
+	height: 0px;
+	border-top: solid 1px #9a9a9a;
+}
+
+.contentContainer .description dl dd {
+	margin-top: 0px;
+	margin-left: 40px;
+}
+
+.description pre {
+	margin-top: 0;
+	font-family: monospace;
+}
+
+.description code {
+	font-family: monospace;
+}
+
+.summary {
+	padding-top: 5px;
+}
+
+.summary td.colFirst {
+	text-align: right;
+}
+
+/*
+ * Formatting effect styles
+ */
+.block {
+	display: block;
+	margin: 3px 0 0 0;
+}
+
+td.colOne div.block {
+	margin-left: 50px;
+}
+
+ul.blockList li.blockList td.colLast div.block {
+	margin-left: 50px;
+}
+
+.strong {
+	font-weight:bold;
+}
+
+.memberNameLink {
+	font-weight: bold;
+}

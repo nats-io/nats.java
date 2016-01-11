@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import java.io.IOException;
@@ -218,7 +225,7 @@ abstract class SubscriptionImpl implements Subscription {
 			mu.unlock();
 		}
 
-		c.unsubscribe((Subscription)this, max);
+		c.unsubscribe(this, max);
 
 	}
 
@@ -235,5 +242,15 @@ abstract class SubscriptionImpl implements Subscription {
 		return s;
 	}
 
-	protected abstract boolean processMsg(Message msg);
+	protected void setSlowConsumer(boolean sc) {
+		this.sc = sc;
+	}
+	
+	protected boolean isSlowConsumer() {
+		return this.sc;
+	}
+
+	protected boolean processMsg(Message msg) {
+		return true;
+	}
 }

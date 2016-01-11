@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.junit.Assert.*;
@@ -22,11 +29,15 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.nats.client.Constants.ConnState;
 
 @Category(UnitTest.class)
 public class ClusterTest {
+	final static Logger logger = LoggerFactory.getLogger(ClusterTest.class);
+	
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
@@ -141,6 +152,9 @@ public class ClusterTest {
 					else {
 						fail("Expected to connect properly: " + e.getMessage());
 					}
+				} catch (Exception e) {
+					e.printStackTrace();
+					fail(e.getMessage());
 				}
 			} // as2
 		} // as1
@@ -431,11 +445,9 @@ public class ClusterTest {
 	}
 
 	@Test
-	public void TestProperFalloutAfterMaxAttempts() throws Exception
+	public void testProperFalloutAfterMaxAttempts() throws Exception
 	{
 		ConnectionFactory cf = new ConnectionFactory();
-		final Lock dmu = new ReentrantLock();
-		final Lock cmu = new ReentrantLock();
 
 		cf.setServers(testServersShortList);
 		cf.setNoRandomize(true);
@@ -443,36 +455,25 @@ public class ClusterTest {
 		cf.setReconnectWait(25); // millis
 		cf.setConnectionTimeout(500);
 
-		final Condition disconnectHandlerCalled = dmu.newCondition();
+		final AtomicBoolean dcbCalled = new AtomicBoolean(false);
 
+		final Channel<Boolean> dch = new Channel<Boolean>();
 		cf.setDisconnectedCallback(new DisconnectedCallback()
 		{
-			@Override
 			public void onDisconnect(ConnectionEvent event) {
-				dmu.lock();
-				try
-				{
-					disconnectHandlerCalled.signal();
-					//					Monitor.Pulse(dmu);
-				} 
-				finally {
-					dmu.unlock();
-				}
+				dcbCalled.set(true);
+				dch.add(true);
 			}
 		});
 
-		final Condition closedHandlerCalled = cmu.newCondition();
+		final AtomicBoolean closedCbCalled = new AtomicBoolean(false);
+		final Channel<Boolean> cch = new Channel<Boolean>();
+		
 		cf.setClosedCallback(new ClosedCallback()
 		{
-			@Override
 			public void onClose(ConnectionEvent event) {
-				cmu.lock();
-				try
-				{
-					closedHandlerCalled.signal();
-				} finally {
-					cmu.unlock();
-				}				
+				closedCbCalled.set(true);
+				cch.add(true);
 			}
 		});
 
@@ -482,29 +483,19 @@ public class ClusterTest {
 			{
 				s1.shutdown();
 
-				dmu.lock();
-				try
-				{
-					assertTrue("Did not receive a disconnect callback message",
-							disconnectHandlerCalled.await(2,TimeUnit.SECONDS));
-				} catch (InterruptedException e) {
-				}
-				finally {
-					dmu.unlock();
-				}
+				// wait for disconnect
+				assertTrue("Did not receive a disconnect callback message",
+						dch.get(2,TimeUnit.SECONDS));
 
-				cmu.lock();
-				try
-				{
-					assertTrue("Did not receive a closed callback message",
-							closedHandlerCalled.await(2,TimeUnit.SECONDS));
-				} catch (InterruptedException e) {
-				} finally {
-					cmu.unlock();
-				}
+				// Wait for ClosedCB
+				assertTrue("Did not receive a closed callback message",
+						cch.get(2,TimeUnit.SECONDS));
 
-				//				Assert.IsTrue(disconnectHandlerCalled);
-				//				Assert.IsTrue(closedHandlerCalled);
+				// Make sure we are not still reconnecting.
+				assertTrue("Closed CB was not triggered, should have been.",
+						closedCbCalled.get());
+
+				// Expect connection to be closed...
 				assertTrue("Wrong status: " + c.getState(), c.isClosed());
 			}
 		}
@@ -516,7 +507,7 @@ public class ClusterTest {
 		final ConnectionFactory cf = new ConnectionFactory();
 		cf.setServers(testServers);
 		cf.setNoRandomize(true);
-		cf.setMaxReconnect(10);
+		cf.setMaxReconnect(2);
 		cf.setReconnectWait(100); // millis
 
 		final AtomicBoolean dcbCalled = new AtomicBoolean(false);
@@ -524,7 +515,8 @@ public class ClusterTest {
 		final Channel<Boolean> dch = new Channel<Boolean>();
 		cf.setDisconnectedCallback(new DisconnectedCallback() {
 			public void onDisconnect(ConnectionEvent ev) {
-				ev.getConnection().setDisconnectedCallback(null);
+				Connection conn = ev.getConnection();
+				conn.setDisconnectedCallback(null);
 				dcbCalled.set(true);
 				dch.add(true);
 			}
@@ -545,17 +537,20 @@ public class ClusterTest {
 
 			try (Connection c = cf.createConnection())
 			{
+				assertNotNull(c.getDisconnectedCallback());
 				s1.shutdown();
-
+				while(dch.getCount()!=1) {
+					UnitTestUtilities.sleep(50);
+				}
 				// wait for disconnect
 				assertTrue("Did not receive a disconnect callback message", 
-						dch.get(2000)); 
+						dch.get(5000)); 
 
 				long t0 = System.nanoTime();
 
 				// Wait for ClosedCB
 				assertTrue("Did not receive a closed callback message", 
-						cch.get(2000));
+						cch.get(5000));
 
 				long elapsedMsec = TimeUnit.NANOSECONDS.toMillis(
 						System.nanoTime() - t0);

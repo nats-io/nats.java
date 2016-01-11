@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import java.util.Collection;
@@ -13,7 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class Channel<T> implements AutoCloseable {
+class Channel<T> {
 
 	final static Logger logger = LoggerFactory.getLogger(Channel.class);
 	/**
@@ -22,12 +29,13 @@ class Channel<T> implements AutoCloseable {
 	 */
 	LinkedBlockingQueue<T> q;
 	T defaultVal = null;
-//	final Object mu = new Object(); 
-
-	boolean finished = false;
 
 	Channel() {
 		q = new LinkedBlockingQueue<T>();
+	}
+
+	Channel(LinkedBlockingQueue<T> queue) {
+		q = queue;
 	}
 
 	Channel(int capacity) {
@@ -42,27 +50,24 @@ class Channel<T> implements AutoCloseable {
 		return get(-1);
 	}
 	
-	T get(long timeout) throws TimeoutException {
+	T get(long timeout, TimeUnit unit) throws TimeoutException {
 		T item = defaultVal;
-		if (finished) {
-			return this.defaultVal;
-		}
-//		if (q.size() > 0) {
-//			try { item = q.take(); } catch (InterruptedException e) {}
-//			return item;
-//		}
-//		else
+
 		try {
 			if (timeout < 0)
 				item = q.take();
 			else
-				item = q.poll(timeout, TimeUnit.MILLISECONDS);
+				item = q.poll(timeout, unit);
 				if (item==null) {
 					throw new TimeoutException("Channel timed out waiting for items");
 				}
 		} catch (InterruptedException e) {
 		}
 		return item;
+	}
+	
+	T get(long timeout) throws TimeoutException {
+		return(get(timeout, TimeUnit.MILLISECONDS));
 	}
 	
 	void add(T item)
@@ -75,8 +80,7 @@ class Channel<T> implements AutoCloseable {
 
 	public void close()
 	{
-		finished = true;
-		logger.trace("Channel.close: notifying");
+		logger.trace("Channel close()");
 	}
 
 	int getCount()

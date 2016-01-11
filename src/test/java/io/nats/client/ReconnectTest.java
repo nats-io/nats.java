@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.junit.Assert.*;
@@ -449,8 +456,8 @@ public class ReconnectTest {
 				} // onMessage
 			};
 
-			c.queueSubscribe(subj, qgroup, cb);
-			c.queueSubscribe(subj, qgroup, cb);
+			c.subscribe(subj, qgroup, cb);
+			c.subscribe(subj, qgroup, cb);
 			c.flush();
 
 			//Base test

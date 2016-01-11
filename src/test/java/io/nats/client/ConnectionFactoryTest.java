@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.junit.Assert.*;
@@ -98,9 +105,9 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		props.setProperty(PROP_MAX_PINGS, Integer.toString(maxPings));
 		props.setProperty(PROP_EXCEPTION_HANDLER, 
 				eh.getClass().getName());
-		props.setProperty(PROP_CLOSED_HANDLER, ccb.getClass().getName());
-		props.setProperty(PROP_DISCONNECTED_HANDLER, dcb.getClass().getName());
-		props.setProperty(PROP_RECONNECTED_HANDLER, rcb.getClass().getName());
+		props.setProperty(PROP_CLOSED_CB, ccb.getClass().getName());
+		props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
+		props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
 
 
 		ConnectionFactory cf = new ConnectionFactory(props);
@@ -181,9 +188,9 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	@Test
 	public void testConnectionFactoryBadCallbackProps() {
 		String[] propNames = { PROP_EXCEPTION_HANDLER,
-				PROP_CLOSED_HANDLER,
-				PROP_DISCONNECTED_HANDLER,
-				PROP_RECONNECTED_HANDLER
+				PROP_CLOSED_CB,
+				PROP_DISCONNECTED_CB,
+				PROP_RECONNECTED_CB
 		};
 
 
@@ -740,7 +747,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	}
 
 	@Override
-	public void onException(Connection conn, Subscription sub, Throwable e) {
+	public void onException(NATSException e) {
 		// TODO Auto-generated method stub
 
 	}

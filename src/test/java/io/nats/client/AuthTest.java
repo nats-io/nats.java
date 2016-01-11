@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.junit.Assert.*;
@@ -55,6 +62,7 @@ public class AuthTest {
 			} catch (IOException | TimeoutException e) {
 				assertEquals("nats: 'Authorization Violation'", e.getMessage());
 			}
+
 			try(Connection c = new ConnectionFactory(authUrl).createConnection())
 			{
 				assertFalse(c.isClosed());
@@ -100,7 +108,7 @@ public class AuthTest {
 		};
 
 		UnitTestUtilities utils = new UnitTestUtilities();
-		final Channel<Boolean> reconnectCh = new Channel<Boolean>();
+		final Channel<Boolean> rcb = new Channel<Boolean>();
 
 		// First server: no auth.
 		try	(NATSServer	ts = utils.createServerOnPort(1221))
@@ -119,7 +127,7 @@ public class AuthTest {
 					cf.setReconnectedCallback(new ReconnectedCallback() {
 						@Override
 						public void onReconnect(ConnectionEvent event) {
-							reconnectCh.add(true);
+							rcb.add(true);
 						}
 					});
 					try(Connection c = cf.createConnection())
@@ -132,7 +140,7 @@ public class AuthTest {
 
 						try {
 							boolean rcbFired = false;
-							rcbFired = reconnectCh.get(5000);
+							rcbFired = rcb.get(5000);
 							assertTrue("Reconnect callback should have been triggered", rcbFired);
 							assertFalse("Should have reconnected", c.isClosed());
 							assertEquals(servers[2], c.getConnectedUrl());

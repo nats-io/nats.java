@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import java.io.IOException;
@@ -11,8 +18,14 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
 	@Override
 	public Message nextMessage()
-			throws IOException, TimeoutException {
-		return nextMessage(-1);
+			throws IOException {
+		Message m = null;
+		try {
+			m = nextMessage(-1);
+		} catch (TimeoutException e) {
+			// Can't happen
+		}
+		return m;
 	}
 
 	@Override
@@ -71,10 +84,5 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 		}
 		return msg;
 
-	}
-
-	@Override
-	protected boolean processMsg(Message msg) {
-		return true;
 	}
 }

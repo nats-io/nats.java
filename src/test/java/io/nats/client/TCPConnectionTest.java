@@ -1,11 +1,21 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2016 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketException;
+
+import javax.net.SocketFactory;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -38,7 +48,9 @@ public class TCPConnectionTest {
 
 	@Test
 	public void testTCPConnection() {
-		TCPConnection conn = new TCPConnection();
+		try (TCPConnection conn = new TCPConnection()) {
+			
+		}
 	}
 
 	@Test(expected=SocketException.class)
@@ -68,12 +80,13 @@ public class TCPConnectionTest {
 		Socket sock = null;
 		conn.setSocket(sock);
 		assertFalse(conn.isSetup());
+		conn.close();
 
 		conn = new TCPConnection();
 		sock = mock(Socket.class);
 		conn.setSocket(sock);
 		assertTrue(conn.isSetup());
-
+		conn.close();
 	}
 
 	@Test
@@ -88,6 +101,7 @@ public class TCPConnectionTest {
 		} catch (IOException e) {
 			fail("Shouldn't have thrown: " + e.getMessage());
 		}
+		conn.close();
 
 		conn = new TCPConnection();
 		sock = mock(Socket.class);
@@ -100,7 +114,7 @@ public class TCPConnectionTest {
 		} catch (IOException e) {
 			fail("Shouldn't have thrown: " + e.getMessage());
 		}
-
+		conn.close();
 	}
 
 	//	@Test
@@ -130,7 +144,50 @@ public class TCPConnectionTest {
 	}
 
 	@Test
+	public void testIsDataAvailableFailure() {
+		SocketFactory factory = mock(SocketFactory.class);
+		InputStream is = mock(InputStream.class);
+		Socket sock = mock(Socket.class);
+		try {
+			when(factory.createSocket()).thenReturn(sock);
+		} catch (IOException e1) {
+			fail("Couldn't create mock socket");
+		}
+		try (NATSServer s = new NATSServer()) {
+			try { Thread.sleep(100); } catch (InterruptedException e) {}
+			try (TCPConnection conn = new TCPConnection())
+			{
+				conn.setSocketFactory(factory);
+				conn.open("localhost", 4222, 100);
+//				assertTrue(conn.isConnected());
+				try { Thread.sleep(100); } catch (InterruptedException e) {}
+
+				when(sock.getInputStream()).thenReturn(null);
+				assertFalse(conn.isDataAvailable());
+				
+				when(sock.getInputStream()).thenReturn(is);
+				conn.open("localhost", 4222, 100);
+				doThrow(new IOException("available() exception")).
+					when(is).available();
+				boolean exThrown=false;
+				try {
+					conn.isDataAvailable();
+				} catch (IOException e) {
+					exThrown=true;
+					assertEquals("available() exception", e.getMessage());
+				}
+				assertTrue("Should have thrown IOException", exThrown);
+			} catch (Exception e) {
+				fail(e.getMessage());
+			}
+		} catch (Exception e) {
+			fail(e.getMessage());
+		}
+		
+	}
+	@Test
 	public void testIsDataAvailable() {
+		
 		try (NATSServer s = new NATSServer()) {
 			try { Thread.sleep(100); } catch (InterruptedException e) {}
 			try (TCPConnection conn = new TCPConnection())

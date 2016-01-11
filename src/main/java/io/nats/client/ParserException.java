@@ -1,3 +1,10 @@
+/*******************************************************************************
+ * Copyright (c) 2012, 2015 Apcera Inc.
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the MIT License (MIT)
+ * which accompanies this distribution, and is available at
+ * http://opensource.org/licenses/MIT
+ *******************************************************************************/
 package io.nats.client;
 
 public class ParserException extends Exception {
@@ -5,7 +12,7 @@ public class ParserException extends Exception {
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 6250978396296475549L;
+	private static final long serialVersionUID = 1L;
 
 	public ParserException() {
 		// TODO Auto-generated constructor stub
