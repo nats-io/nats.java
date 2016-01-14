@@ -1990,13 +1990,14 @@ class ConnectionImpl implements Connection {
 				// ignore for now
 				// e.printStackTrace();
 			}
-			if (fch.getCount()==0)
-				kickFlusher();
+//			if (fch.getCount()==0)
+//				kickFlusher();
 
 		} finally {
 			mu.unlock();
 		}
-//		kickFlusher();
+		if (fch.getCount()==0)
+			kickFlusher();
 
 	} // publish
 
