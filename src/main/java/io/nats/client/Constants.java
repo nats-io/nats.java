@@ -116,25 +116,26 @@ public final class Constants {
 
 	// Error messages
 	// For detection and proper handling of a Stale Connection
-	final static String STALE_CONNECTION = "Stale Connection";
-
-	public final static String ERR_CONNECTION_CLOSED 		= "nats: Connection Closed";
-	public final static String ERR_SECURE_CONN_REQUIRED 	= "nats: Secure Connection required";
-	public final static String ERR_SECURE_CONN_WANTED 		= "nats: Secure Connection not available";
-	public final static String ERR_BAD_SUBSCRIPTION 		= "nats: Invalid Subscription";
-	public final static String ERR_BAD_SUBJECT				= "nats: Invalid Subject";
-	public final static String ERR_SLOW_CONSUMER 			= "nats: Slow Consumer, messages dropped";
-	public final static String ERR_TIMEOUT 					= "nats: Timeout";
-	public final static String ERR_BAD_TIMEOUT 				= "nats: Timeout Invalid";
-	public final static String ERR_AUTHORIZATION 			= "nats: Authorization Failed";
-	public final static String ERR_NO_SERVERS 				= "nats: No servers available for connection";
-	public final static String ERR_JSON_PARSE 				= "nats: Connect message, json parse err";
+	final static String STALE_CONNECTION = "stale connection";
+	// Common messages with Go
+	public final static String ERR_CONNECTION_CLOSED 		= "nats: connection closed";
+	public final static String ERR_SECURE_CONN_REQUIRED 	= "nats: secure connection required";
+	public final static String ERR_SECURE_CONN_WANTED 		= "nats: secure connection not available";
+	public final static String ERR_BAD_SUBSCRIPTION 		= "nats: invalid subscription";
+	public final static String ERR_BAD_SUBJECT				= "nats: invalid subject";
+	public final static String ERR_SLOW_CONSUMER 			= "nats: slow consumer, messages dropped";
+	public final static String ERR_TIMEOUT 					= "nats: timeout";
+	public final static String ERR_BAD_TIMEOUT 				= "nats: timeout invalid";
+	public final static String ERR_AUTHORIZATION 			= "nats: authorization failed";
+	public final static String ERR_NO_SERVERS 				= "nats: no servers available for connection";
+	public final static String ERR_JSON_PARSE 				= "nats: connect message, json parse err";
+	public final static String ERR_MAX_PAYLOAD 				= "nats: maximum payload exceeded";
+	public final static String ERR_MAX_MESSAGES 			= "nats: maximum messages delivered";
+	public final static String ERR_SYNC_SUB_REQUIRED		= "nats: illegal call on an async subscription";
 	public final static String ERR_STALE_CONNECTION			= "nats: " + STALE_CONNECTION;
-	public final static String ERR_MAX_PAYLOAD 				= "nats: Maximum Payload Exceeded";
-	public final static String ERR_MAX_MESSAGES 			= "nats: Maximum messages delivered";
-	public final static String ERR_SYNC_SUB_REQUIRED		= "nats: Illegal call on an async Subscription";
-	public final static String ERR_CONNECTION_READ 			= "nats: Connection Read Error";
-	public final static String ERR_PROTOCOL 				= "nats: Protocol Error";
+	// jnats specific
+	public final static String ERR_CONNECTION_READ 			= "nats: connection read error";
+	public final static String ERR_PROTOCOL 				= "nats: protocol error";
 	
 	// Encoder names
 	public final static String DEFAULT_ENCODER = "default";
