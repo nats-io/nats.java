@@ -70,7 +70,7 @@ If you don't already have your pom.xml configured for using Maven snapshots, you
     </repository>
 </repositories>
 ```
-### Source code (this repository)
+#### Building from source code (this repository)
 First, download the source code:
 ```
 git clone git@github.com:nats-io/jnats.git .
@@ -81,13 +81,15 @@ To build the library, use [maven](https://maven.apache.org/). From the root dire
 ```
 mvn package verify
 ```
-Then copy the jar file to your classpath and you're all set.
+The jar file will be built in the `target` directory. Then copy the jar file to your classpath and you're all set.
+
+NOTE: running the unit tests requires that `gnatsd` be installed on your system and available in your executable search path.
 
 ## Basic Usage
 
 ```java
 
-ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL)
+ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL);
 Connection nc = cf.createConnection();
 
 // Simple Publisher
@@ -139,15 +141,15 @@ nc.subscribe("foo.bar.*", new MessageHandler() {
 	public void onMessage(Message m) {
     		System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
     	}
-})
+});
 
 // ">" matches any length of the tail of a subject, and can only be the last token
 // E.g. 'foo.>' will match 'foo.bar', 'foo.bar.baz', 'foo.foo.bar.bax.22'
-nc.Subscribe("foo.>", new MessageHandler() {
+nc.subscribe("foo.>", new MessageHandler() {
 	public void onMessage(Message m) {
     	System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
     }
-})
+});
 
 // Matches all of the above
 nc.publish("foo.bar.baz", "Hello World");
