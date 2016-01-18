@@ -2100,6 +2100,7 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 				// mu.unlock();
 				return;
 			}
+<<<<<<< HEAD
 			kickFlusher();
 
 			stats.incrementOutMsgs();
@@ -2107,11 +2108,21 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 
 //			logger.trace("Successfully published to {}", 
 //					subject);
+=======
+//			if (fch.getCount()==0)
+//				kickFlusher();
+>>>>>>> 1461f94d6f5bf9c830a070601fe92ce3f6fb2206
 
 		} finally {
 			mu.unlock();
 		}
+<<<<<<< HEAD
 		
+=======
+		if (fch.getCount()==0)
+			kickFlusher();
+
+>>>>>>> 1461f94d6f5bf9c830a070601fe92ce3f6fb2206
 	} // publish
 
 	@Override

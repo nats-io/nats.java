@@ -38,8 +38,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+<<<<<<< HEAD
 import static io.nats.client.Constants.*;
 import static io.nats.client.UnitTestUtilities.sleep;
+=======
+import static io.nats.client.UnitTestUtilities.*;
+>>>>>>> 1461f94d6f5bf9c830a070601fe92ce3f6fb2206
 
 @Category(UnitTest.class)
 public class BasicTest {
@@ -946,6 +950,36 @@ public class BasicTest {
 			}
 
 			assertEquals(3, received.get());
+		}
+	}
+
+	@Test
+	public void testManyRequests() {
+		int numMsgs = 500;
+		try (NATSServer ts = new NATSServer()) {
+			sleep(500);
+			ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL);
+			try (final Connection conn = cf.createConnection()) {
+				try (Subscription s = conn.subscribe("foo", new MessageHandler() {
+					public void onMessage(Message message) {
+						conn.publish(message.getReplyTo(), "response".getBytes());
+					}
+				})) {
+					for (int i = 0; i < numMsgs; i++) {
+						try {
+//							System.out.println(conn.request("foo", "request".getBytes(), 5000));
+							conn.request("foo", "request".getBytes(), 5000);
+						} catch (TimeoutException e) {
+							System.err.println("got timeout " + i);
+							fail("timed out: " + i);
+						} catch (IOException e) {
+							fail(e.getMessage());
+						}
+					}
+				} 
+			} catch (IOException | TimeoutException e1) {
+				fail(e1.getMessage());
+			}
 		}
 	}
 }
