@@ -38,12 +38,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-<<<<<<< HEAD
 import static io.nats.client.Constants.*;
-import static io.nats.client.UnitTestUtilities.sleep;
-=======
 import static io.nats.client.UnitTestUtilities.*;
->>>>>>> 1461f94d6f5bf9c830a070601fe92ce3f6fb2206
 
 @Category(UnitTest.class)
 public class BasicTest {
