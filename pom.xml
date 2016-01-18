@@ -16,7 +16,7 @@
 
 	<groupId>io.nats</groupId>
 	<artifactId>jnats</artifactId>
-	<version>0.3.1</version>
+	<version>0.4-SNAPSHOT</version>
 
 	<name>jnats</name>
 	<description>Java client library for NATS Messaging System</description>
