@@ -590,6 +590,7 @@ public class SubscriptionTest {
 					}
 				}))
 				{
+					conn.flush();
 					for (int i = 0; i < numRequests; i++) {
 						try {
 							assertNotNull(pub.request("foo", "blah".getBytes(), 5000));
