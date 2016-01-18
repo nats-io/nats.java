@@ -376,7 +376,7 @@ class ConnectionImpl implements Connection {
 	// createConn will connect to the server and wrap the appropriate
 	// bufio structures. It will do the right thing when an existing
 	// connection is in place.
-	private void createConn() throws IOException {
+	protected void createConn() throws IOException {
 		Srv s = currentServer();
 		if (s == null)
 			throw new IOException(ERR_NO_SERVERS);
@@ -2126,7 +2126,7 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 		publish(msg.getSubject(), msg.getReplyTo(), msg.getData());
 	}
 
-	private Message _request(String subject, byte[] data, long timeout)
+	private Message _request(String subject, byte[] data, long timeout, TimeUnit unit)
 			throws TimeoutException, IOException 
 	{
 		String inbox 	= newInbox();
@@ -2135,7 +2135,7 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 		{
 			s.autoUnsubscribe(1);
 			publish(subject, inbox, data);
-			m = s.nextMessage(timeout);
+			m = s.nextMessage(timeout, unit);
 		} catch (IOException | TimeoutException e) {
 			throw(e);
 		} 
@@ -2150,6 +2150,12 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 	@Override
 	public Message request(String subject, byte[] data, long timeout) 
 			throws TimeoutException, IOException {
+		return request(subject, data, timeout, TimeUnit.MILLISECONDS);
+	}
+
+	@Override
+	public Message request(String subject, byte[] data, long timeout, TimeUnit unit) 
+			throws TimeoutException, IOException {
 //		logger.trace("In request({},{},{})", subject, 
 //				data==null?"null":new String(data), timeout);
 		if (timeout <= 0)
@@ -2158,13 +2164,13 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 					"Timeout must be greater that 0.");
 		}
 
-		return _request(subject, data, timeout);
+		return _request(subject, data, timeout, unit);
 	}
 
 	@Override
 	public Message request(String subject, byte[] data) 
 			throws IOException, TimeoutException {
-		return _request(subject, data, -1);
+		return _request(subject, data, -1, TimeUnit.MILLISECONDS);
 	}
 
 	@Override

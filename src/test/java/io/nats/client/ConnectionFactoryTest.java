@@ -7,6 +7,7 @@
  *******************************************************************************/
 package io.nats.client;
 
+import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -97,6 +98,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		props.setProperty(PROP_VERBOSE, Boolean.toString(verbose));
 		props.setProperty(PROP_PEDANTIC, Boolean.toString(pedantic));
 		props.setProperty(PROP_SECURE, Boolean.toString(secure));
+		props.setProperty(PROP_TLS_DEBUG, Boolean.toString(secure));
 		props.setProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(reconnectAllowed));
 		props.setProperty(PROP_MAX_RECONNECT, Integer.toString(maxReconnect));
 		props.setProperty(PROP_RECONNECT_WAIT, Integer.toString(reconnectWait));
@@ -374,6 +376,33 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
+	@Test
+	public void testSetUriBadScheme() {
+		URI uri = URI.create("file:///etc/fstab");
+		
+		ConnectionFactory cf = new ConnectionFactory();
+		boolean exThrown = false;
+		try {
+			cf.setUri(uri);
+		} catch (IllegalArgumentException e) {
+			exThrown = true;
+		}
+		assertTrue("Should have thrown exception.", exThrown);
+		exThrown = false;
+		
+		uri = URI.create("nats:///etc/fstab");
+		cf.setUri(uri);
+		assertNull("Host should be null.", cf.getHost());
+		assertEquals(-1, cf.getPort());
+		
+		uri = URI.create("tcp://localhost:4222");
+		try {
+			cf.setUri(uri);
+		} catch (Exception e) {
+			fail("Should not have thrown exception.");
+		}
+	}
+	
 	@Test
 	public void testSetUriBadUserInfo() {
 		String urlString = "nats://foo:bar:baz@natshost:2222";

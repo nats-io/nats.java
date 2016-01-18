@@ -16,7 +16,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -1036,6 +1038,28 @@ public class ConnectionTest {
 			} catch (IOException | TimeoutException e) {
 				fail("Connection failed");
 			} 
+		}
+	}
+	
+	@Test
+	public void testExhaustedSrvPool() {
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection()) {
+				List<ConnectionImpl.Srv> pool = 
+						new ArrayList<ConnectionImpl.Srv>();
+				c.setServerPool(pool);
+				boolean exThrown = false;
+				try {
+					assertNull(c.currentServer());
+					c.createConn();
+				} catch (IOException e) {
+					assertEquals(ERR_NO_SERVERS, e.getMessage());
+					exThrown = true;
+				}
+				assertTrue("Should have thrown exception.", exThrown);
+			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 }

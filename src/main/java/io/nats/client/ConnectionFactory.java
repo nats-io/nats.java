@@ -34,7 +34,7 @@ public class ConnectionFactory implements Cloneable {
 
 	private URI url									= null;
 	private String host								= null;
-	private int port								= Constants.DEFAULT_PORT;
+	private int port								= -1;
 	private String username							= null;
 	private String password							= null;
 	private List<URI> servers						= new ArrayList<URI>();	
@@ -739,9 +739,7 @@ public class ConnectionFactory implements Cloneable {
 
 	/**
 	 * Returns the {@link ClosedCallback}, if one is registered
-	 *
 	 * @return the {@link ClosedCallback}, if one is registered
-	 *
 	 */
 	public ClosedCallback getClosedCallback() {
 		return closedCallback;
@@ -757,9 +755,7 @@ public class ConnectionFactory implements Cloneable {
 
 	/**
 	 * Returns the {@link DisconnectedCallback}, if one is registered
-	 *
 	 * @return the {@link DisconnectedCallback}, if one is registered
-	 *
 	 */
 	public DisconnectedCallback getDisconnectedCallback() {
 		return disconnectedCallback;
@@ -775,7 +771,6 @@ public class ConnectionFactory implements Cloneable {
 
 	/**
 	 * Returns the {@link ReconnectedCallback}, if one is registered
-	 *
 	 * @return the {@link ReconnectedCallback}, if one is registered
 	 *
 	 */
@@ -813,6 +808,9 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
+	 * 
+	 * @deprecated use {@link #getSSLContext} instead.
+	 * 
 	 * Returns the {@link SSLContext} for this connection factory
 	 * @return the {@link SSLContext} for this connection factory
 	 */
@@ -821,10 +819,33 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
+	 * 
+	 * Returns the {@link SSLContext} for this connection factory
+	 * @return the {@link SSLContext} for this connection factory
+	 */
+	public SSLContext getSSLContext() {
+		return sslContext;
+	}
+	
+	/**
+	 * 
+	 * @deprecated use {@link #setSSLContext} instead.
+	 * 
 	 * Sets the {@link SSLContext} for this connection factory
 	 * @param ctx the {@link SSLContext} to set
+	 * 
 	 */
+	@Deprecated
 	public void setSslContext(SSLContext ctx) {
+		setSSLContext(ctx);
+	}
+	
+	/**
+	 * Sets the {@link SSLContext} for this connection factory
+	 * @param ctx the {@link SSLContext} to set
+	 * 
+	 */	
+	public void setSSLContext(SSLContext ctx) {
 		this.sslContext = ctx;
 	}
 }

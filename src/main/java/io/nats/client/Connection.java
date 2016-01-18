@@ -11,6 +11,7 @@
 package io.nats.client;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -72,6 +73,8 @@ public interface Connection extends AbstractConnection {
      */
     public Message request(String subject, byte[] data) 
     		throws TimeoutException, IOException;
+
+	Message request(String subject, byte[] data, long timeout, TimeUnit unit) throws TimeoutException, IOException;
  
 
 }
