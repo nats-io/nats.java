@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
-
+import static io.nats.client.Constants.*;
 /*
  * This is the implementation of the AsyncSubscription interface.
  *
@@ -39,7 +39,7 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 		try {
 			localConn = this.getConnection();
 			localHandler = this.msgHandler;
-			localMax = this.getMax();
+			localMax = this.max;
 		} finally {
 			mu.unlock();
 		}
@@ -55,7 +55,6 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 
 		long d = delivered.incrementAndGet();
 		if (localMax <= 0 || d <= localMax) {
-
 			try {
 				localHandler.onMessage(m);
 			} catch (Exception e) { }
@@ -63,13 +62,9 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 			if (d == localMax) {
 				try {
 					unsubscribe();
-				} catch (BadSubscriptionException e) {
-					logger.debug("Bad subscription while unsubscribing:", e);
-				} catch (IOException e) {
-					logger.debug("IOException while unsubscribing:", e);
-				} finally {
-					this.conn = null;
+				} catch (Exception e) {
 				}
+				this.conn = null;
 			}
 		}
 		return true;
@@ -84,13 +79,17 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	void enable() {
 		Runnable msgFeeder = new Runnable() {
 			public void run(){
-				logger.trace("msgFeeder has started");
-				conn.deliverMsgs(mch);
+				logger.trace("msgFeeder has started for subj: {} sid: {}", subject, sid);
+				try {
+					conn.deliverMsgs(mch);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 		};
 
 		if (!isStarted()) {
-			executor = Executors.newSingleThreadExecutor(new NATSThreadFactory("msgfeederfactory"));
+			executor = Executors.newSingleThreadExecutor(new NATSThreadFactory("msgfeeder"));
 			executor.execute(msgFeeder);
 			logger.trace("Started msgFeeder for subject: " + this.getSubject() + " sid: " + this.getSid());
 		}
@@ -116,7 +115,7 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 			return;
 
 		if (!isValid())
-			throw new BadSubscriptionException("Subscription is not valid.");
+			throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
 
 		enable();
 

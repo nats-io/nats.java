@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -216,8 +216,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		if (badWriter) {
 			bos = mock(BufferedOutputStream.class);
 			try {
-				doThrow(new IOException()).when(bos).write(any(byte[].class));
-				doThrow(new IOException()).when(bos).flush();		
+				doThrow(new IOException("Mock write I/O error")).when(bos).write(any(byte[].class));
+				doThrow(new IOException("Mock write I/O error")).when(bos).flush();		
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -319,7 +319,6 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 						logMsg = "=> tls: Secure Connection Failed";
 					}
 					else if (closeStream) {
-						//						bw.close();
 						out.close();
 						logMsg = "=> Close stream.";
 					}

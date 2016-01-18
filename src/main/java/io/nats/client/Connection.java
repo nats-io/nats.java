@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -11,6 +11,7 @@
 package io.nats.client;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -72,6 +73,8 @@ public interface Connection extends AbstractConnection {
      */
     public Message request(String subject, byte[] data) 
     		throws TimeoutException, IOException;
+
+	Message request(String subject, byte[] data, long timeout, TimeUnit unit) throws TimeoutException, IOException;
  
 
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -10,6 +10,7 @@ package io.nats.client;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -20,6 +21,9 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+
+import static io.nats.client.Constants.*;
+import static io.nats.client.UnitTestUtilities.*;
 
 @Category(UnitTest.class)
 public class AuthTest {
@@ -88,8 +92,7 @@ public class AuthTest {
 
 		try	(NATSServer	s = util.createServerWithConfig("auth_1222.conf"))
 		{
-			try(Connection c = cf.createConnection())
-			{
+			try(Connection c = cf.createConnection()) {
 				fail("Should have received an error while trying to connect");
 			} catch (IOException | TimeoutException e) {
 				assertEquals("nats: 'Authorization Violation'", e.getMessage());
@@ -111,45 +114,48 @@ public class AuthTest {
 		final Channel<Boolean> rcb = new Channel<Boolean>();
 
 		// First server: no auth.
-		try	(NATSServer	ts = utils.createServerOnPort(1221))
+		try	(final NATSServer ts = utils.createServerOnPort(1221, false))
 		{
 			// Second server: user/pass auth.
-			try	(NATSServer	ts2 = util.createServerWithConfig("auth_1222.conf"))
+			try	(final NATSServer ts2 = util.createServerWithConfig("auth_1222.conf", false))
 			{
 				// Third server: no auth.
-				try	(NATSServer	ts3 = utils.createServerOnPort(1223))
+				try	(final NATSServer ts3 = utils.createServerOnPort(1223, false))
 				{
 					ConnectionFactory cf = new ConnectionFactory(servers);
 					cf.setReconnectAllowed(true);
 					cf.setNoRandomize(true);
 					cf.setMaxReconnect(10);
-					cf.setReconnectWait(100000);
+					cf.setReconnectWait(100);
 					cf.setReconnectedCallback(new ReconnectedCallback() {
 						@Override
 						public void onReconnect(ConnectionEvent event) {
 							rcb.add(true);
 						}
 					});
-					try(Connection c = cf.createConnection())
+					try(ConnectionImpl c = cf.createConnection())
 					{
+						assertEquals("nats://localhost:1221", c.getConnectedUrl());
+						assertTrue(c.opts.isNoRandomize());
+
 						// Stop the server
 						ts.shutdown();
 
+						sleep(2, TimeUnit.SECONDS);
+						
 						// The client will try to connect to the second server, and that
 						// should fail. It should then try to connect to the third and succeed.
 
 						try {
-							boolean rcbFired = false;
-							rcbFired = rcb.get(5000);
-							assertTrue("Reconnect callback should have been triggered", rcbFired);
+							assertTrue("Reconnect callback should have been triggered",
+									rcb.get(5, TimeUnit.SECONDS));
 							assertFalse("Should have reconnected", c.isClosed());
 							assertEquals(servers[2], c.getConnectedUrl());
 						} catch (TimeoutException e) {
 							fail("Reconnect callback should have been triggered");
 						}
-
 					} catch (IOException | TimeoutException e) {
-						fail("Should have connected ok: " + e.getMessage());
+						fail(e.getMessage());
 					}
 				}
 			}
@@ -189,7 +195,7 @@ public class AuthTest {
 					assertTrue(c.isClosed());
 					fail("Should not have connected");
 				} catch (Exception e) {
-					assertTrue(e instanceof ConnectionException);
+					assertTrue(e instanceof IOException);
 					assertEquals("nats: 'Authorization Violation'", e.getMessage());
 					exThrown = true;
 				} finally {

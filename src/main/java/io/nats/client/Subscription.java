@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -24,49 +24,47 @@ import java.io.IOException;
  */
 public interface Subscription extends AutoCloseable {
  
-	/*
-	 * Retrieves the subject of interest from the AsyncSubscriptionImpl object.
+	/**
+	 * Retrieves the subject of interest from the {@code Subscription} object.
 	 * @return the subject of interest
 	 */
     String getSubject();
 
-    /*
-     * Optional queue group name. If present, all subscriptions with the
+    /**
+     * Returns the optional queue group name. If present, all subscriptions with the
      * same name will form a distributed queue, and each message will
      * only be processed by one member of the group.
-     * @return the name of the queue groups this subscriber belongs to.
-     * 
+     * @return the name of the queue group this Subscription belongs to.
      */
     String getQueue();
-
-    /*
-     * @return the Connection this subscriber was created on.
-     */
-    Connection getConnection();
-
-    /*
-     * @return true if the subscription is active, false otherwise.
+    
+    /**
+     * Returns whether the Subscription object is still active (subscribed).
+     * @return true if the Subscription is active, false otherwise.
      */
     boolean isValid();
-
-    /* 
-     * Removes interest in the given subject.
+    
+    /** 
+     * Removes interest in the {@code Subscription} object's subject immediately.
+     * @throws IOException if an error occurs while notifying the server
      */
     void unsubscribe() throws IOException;
-
-    /*
-     * autoUnsubscribe will issue an automatic unsubscribe that is
-     * processed by the server when max messages have been received.
+    
+    /**
+     * Issues an automatic unsubscribe request. The unsubscribe is
+     * executed by the server when max messages have been received.
      * This can be useful when sending a request to an unknown number
      * of subscribers. request() uses this functionality.
      * @param max The number of messages to receive before 
      *            unsubscribing.
+     * @throws IOException if an error occurs while sending the unsubscribe
+     * request to the NATS server.
      */
     void autoUnsubscribe(int max) throws IOException;
-
-    /*
-     * Gets the number of messages delivered to, but not processed, by
-     * this subscriber.
+    
+    /**
+     * Returns the number of messages delivered to, but not processed, by
+     * this Subscription.
      * @return the number of delivered messages.
      */
     int getQueuedMessageCount();

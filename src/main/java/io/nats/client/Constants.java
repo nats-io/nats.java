@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2015 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -76,9 +76,9 @@ public final class Constants {
 	/**
 	 * Default maximum channel length
 	 * <p>
-	 * This property is defined as String {@value #DEFAULT_MAX_CHAN_LEN}
+	 * This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
 	 */
-	static final int		DEFAULT_MAX_CHAN_LEN	= 65536;
+	static final int		DEFAULT_MAX_PENDING_MSGS	= 65536;
 
 	/**
 	 * Maximum size of a control line (message header)
@@ -114,6 +114,33 @@ public final class Constants {
 		CONNECTING
 	}
 
+	// Error messages
+	// For detection and proper handling of a Stale Connection
+	final static String STALE_CONNECTION = "Stale Connection";
+
+	public final static String ERR_CONNECTION_CLOSED 		= "nats: Connection Closed";
+	public final static String ERR_SECURE_CONN_REQUIRED 	= "nats: Secure Connection required";
+	public final static String ERR_SECURE_CONN_WANTED 		= "nats: Secure Connection not available";
+	public final static String ERR_BAD_SUBSCRIPTION 		= "nats: Invalid Subscription";
+	public final static String ERR_BAD_SUBJECT				= "nats: Invalid Subject";
+	public final static String ERR_SLOW_CONSUMER 			= "nats: Slow Consumer, messages dropped";
+	public final static String ERR_TIMEOUT 					= "nats: Timeout";
+	public final static String ERR_BAD_TIMEOUT 				= "nats: Timeout Invalid";
+	public final static String ERR_AUTHORIZATION 			= "nats: Authorization Failed";
+	public final static String ERR_NO_SERVERS 				= "nats: No servers available for connection";
+	public final static String ERR_JSON_PARSE 				= "nats: Connect message, json parse err";
+	public final static String ERR_STALE_CONNECTION			= "nats: " + STALE_CONNECTION;
+	public final static String ERR_MAX_PAYLOAD 				= "nats: Maximum Payload Exceeded";
+	public final static String ERR_MAX_MESSAGES 			= "nats: Maximum messages delivered";
+	public final static String ERR_SYNC_SUB_REQUIRED		= "nats: Illegal call on an async Subscription";
+	public final static String ERR_CONNECTION_READ 			= "nats: Connection Read Error";
+	public final static String ERR_PROTOCOL 				= "nats: Protocol Error";
+	
+	// Encoder names
+	public final static String DEFAULT_ENCODER = "default";
+	public final static String JSON_ENCODER    = "json";
+//	GOB_ENCODER     = "gob"
+	
 	// Property names
 	/**
 	 * 
@@ -207,4 +234,8 @@ public final class Constants {
 	 * This property is defined as String {@value #PROP_RECONNECTED_CB}
 	 */
 	public final static String PROP_RECONNECTED_CB			= PFX + "callback.reconnected";
+	/**
+	 * This property is defined as String {@value #PROP_MAX_PENDING_MSGS}
+	 */
+	public final static String PROP_MAX_PENDING_MSGS 		= PFX + "maxpings";
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -32,14 +32,9 @@ import static io.nats.client.Constants.*;
  */
 public class ConnectionFactory implements Cloneable {
 
-	// Default request channel length
-	// protected static final int		REQUEST_CHAN_LEN		= 4;
-	// Default server pool size
-	// protected static final int DEFAULT_SERVER_POOL_SIZE = 4;
-
 	private URI url									= null;
-	private String host								= Constants.DEFAULT_HOST;
-	private int port								= Constants.DEFAULT_PORT;
+	private String host								= null;
+	private int port								= -1;
 	private String username							= null;
 	private String password							= null;
 	private List<URI> servers						= new ArrayList<URI>();	
@@ -60,11 +55,11 @@ public class ConnectionFactory implements Cloneable {
 	private DisconnectedCallback disconnectedCallback;
 	private ReconnectedCallback reconnectedCallback;
 
-	private String urlString 						= Constants.DEFAULT_URL;
+	private String urlString 						= null;
 
-	// The size of the buffered channel used between the socket
-	// Go routine and the message delivery or sync subscription.
-	private int subChanLen							= Constants.DEFAULT_MAX_CHAN_LEN;
+	// The size of the buffered channel used for message delivery or sync 
+	// subscription.
+	private int maxPendingMsgs						= Constants.DEFAULT_MAX_PENDING_MSGS;
 	private boolean tlsDebug;
 
 	/**
@@ -183,7 +178,6 @@ public class ConnectionFactory implements Cloneable {
 			} finally {}
 			this.setDisconnectedCallback((DisconnectedCallback) instance);
 		}
-
 		//PROP_RECONNECTED_CB
 		if (props.containsKey(PROP_RECONNECTED_CB)) {
 			Object instance = null;
@@ -197,6 +191,11 @@ public class ConnectionFactory implements Cloneable {
 			} finally {}
 			this.setReconnectedCallback((ReconnectedCallback) instance);
 		}
+		//PROP_MAX_PENDING_MSGS
+		if (props.containsKey(PROP_MAX_PENDING_MSGS))
+			this.setMaxPendingMsgs(Integer.parseInt(
+					props.getProperty(PROP_MAX_PENDING_MSGS, Integer.toString(DEFAULT_MAX_PENDING_MSGS))));
+
 	}
 
 	/**
@@ -238,9 +237,6 @@ public class ConnectionFactory implements Cloneable {
 	{
 		this.setUrl(url);
 		this.setServers(servers);
-		if (this.url==null && this.servers==null) {
-			this.setUrl(Constants.DEFAULT_URL);
-		}
 	}
 
 	/**
@@ -265,7 +261,7 @@ public class ConnectionFactory implements Cloneable {
 		return conn;
 	}
 
-	private Options options() {
+	protected Options options() {
 		Options result = new Options();
 		result.setUrl(url);
 		result.setHost(host);
@@ -288,25 +284,33 @@ public class ConnectionFactory implements Cloneable {
 		result.setClosedCallback(closedCallback);
 		result.setDisconnectedCallback(disconnectedCallback);
 		result.setReconnectedCallback(reconnectedCallback);
-		result.setSubChanLen(subChanLen);
+		result.setMaxPendingMsgs(maxPendingMsgs);
 		result.setSslContext(sslContext);
 		return result;
 	}
 
 	/**
-	 * Gets the size of the {@code Subscription}'s delivery channel 
-	 * @return the channel size
+	 * Gets the maximum number of pending messages for a subscription. If
+	 * this maximum is exceeded, an exception is thrown and the subscription
+	 * is removed (unsubscribed by the connection).
+	 * 
+	 * @return the maximum number of pending messages allowable for this subscription
+	 * @see Constants#DEFAULT_MAX_PENDING_MSGS
 	 */
-	public int getSubChanLen() {
-		return subChanLen;
+	public int getMaxPendingMsgs() {
+		return this.maxPendingMsgs;
 	}
 
 	/**
-	 * Sets the size of the {@code Subscription}'s delivery channel 
-	 * @param len the channel size to set
-	 */
-	public void setSubChanLen(int len) {
-		this.subChanLen = len;
+	 * Sets the maximum number of pending messages for a subscription. If
+	 * this maximum is exceeded, an exception is thrown and the subscription
+	 * is removed (unsubscribed by the connection).
+	 * 
+	 * @param max The maximum number of pending messages for a subscription
+	 * @see Constants#DEFAULT_MAX_PENDING_MSGS
+	 */	
+	public void setMaxPendingMsgs(int max) {
+		this.maxPendingMsgs = max;
 	}
 
 	/** 
@@ -346,17 +350,22 @@ public class ConnectionFactory implements Cloneable {
 			setPort(port);
 		}
 
-		String userInfo = uri.getRawUserInfo();
+		String userInfo = uri.getUserInfo();
 		if (userInfo != null) {
-			String userPass[] = userInfo.split(":");
-			if (userPass.length > 2) {
-				throw new IllegalArgumentException("Bad user info in NATS " +
-						"URI: " + userInfo);
-			}
-
-			setUsername(userPass[0]);
-			if (userPass.length == 2) {
-				setPassword(userPass[1]);
+			String userpass[] = userInfo.split(":");
+			if (userpass[0].length() > 0) {
+				setUsername(userpass[0]);
+				switch (userpass.length)
+				{
+				case 1:
+					break;
+				case 2:
+					setPassword(userpass[1]);
+					break;
+				default:
+					throw new IllegalArgumentException("Bad user info in NATS " +
+							"URI: " + userInfo);
+				}
 			}
 		}
 	}
@@ -730,9 +739,7 @@ public class ConnectionFactory implements Cloneable {
 
 	/**
 	 * Returns the {@link ClosedCallback}, if one is registered
-	 *
 	 * @return the {@link ClosedCallback}, if one is registered
-	 *
 	 */
 	public ClosedCallback getClosedCallback() {
 		return closedCallback;
@@ -748,9 +755,7 @@ public class ConnectionFactory implements Cloneable {
 
 	/**
 	 * Returns the {@link DisconnectedCallback}, if one is registered
-	 *
 	 * @return the {@link DisconnectedCallback}, if one is registered
-	 *
 	 */
 	public DisconnectedCallback getDisconnectedCallback() {
 		return disconnectedCallback;
@@ -766,7 +771,6 @@ public class ConnectionFactory implements Cloneable {
 
 	/**
 	 * Returns the {@link ReconnectedCallback}, if one is registered
-	 *
 	 * @return the {@link ReconnectedCallback}, if one is registered
 	 *
 	 */
@@ -804,6 +808,9 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
+	 * 
+	 * @deprecated use {@link #getSSLContext} instead.
+	 * 
 	 * Returns the {@link SSLContext} for this connection factory
 	 * @return the {@link SSLContext} for this connection factory
 	 */
@@ -812,10 +819,33 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
+	 * 
+	 * Returns the {@link SSLContext} for this connection factory
+	 * @return the {@link SSLContext} for this connection factory
+	 */
+	public SSLContext getSSLContext() {
+		return sslContext;
+	}
+	
+	/**
+	 * 
+	 * @deprecated use {@link #setSSLContext} instead.
+	 * 
 	 * Sets the {@link SSLContext} for this connection factory
 	 * @param ctx the {@link SSLContext} to set
+	 * 
 	 */
+	@Deprecated
 	public void setSslContext(SSLContext ctx) {
+		setSSLContext(ctx);
+	}
+	
+	/**
+	 * Sets the {@link SSLContext} for this connection factory
+	 * @param ctx the {@link SSLContext} to set
+	 * 
+	 */	
+	public void setSSLContext(SSLContext ctx) {
 		this.sslContext = ctx;
 	}
 }

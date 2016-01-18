@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -16,11 +16,14 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(UnitTest.class)
 public class OptionsTest {
+	@Rule
+	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
 	@BeforeClass
 	public static void setUpBeforeClass() throws Exception {
@@ -39,19 +42,19 @@ public class OptionsTest {
 	}
 
 	@Test
-	public void testGetSubChanLen() {
+	public void testGetMaxPendingMsgs() {
 		Options o = new Options();
 		int len = 47;
-		o.setSubChanLen(len);
-		assertEquals(len, o.getSubChanLen());
+		o.setMaxPendingMsgs(len);
+		assertEquals(len, o.getMaxPendingMsgs());
 	}
 
 	@Test
-	public void testSetSubChanLen() {
+	public void testSetMaxPendingMsgs() {
 		Options o = new Options();
 		int len = 128;
-		o.setSubChanLen(len);
-		assertEquals(len, o.getSubChanLen());
+		o.setMaxPendingMsgs(len);
+		assertEquals(len, o.getMaxPendingMsgs());
 	}
 
 	@Test

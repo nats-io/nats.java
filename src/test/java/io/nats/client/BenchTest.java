@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -22,6 +23,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import static io.nats.client.UnitTestUtilities.*;
 
 @Category(BenchmarkTest.class)
 public class BenchTest {
@@ -50,7 +52,7 @@ public class BenchTest {
 
 	@Test
 	public void testPubSpeed() {
-		int count = 50000000;
+		int count = 120000000;
 		String url = Constants.DEFAULT_URL;
 		String subject = "foo";
 		byte[] payload = null;
@@ -64,10 +66,8 @@ public class BenchTest {
 			{
 				c.publish(subject, payload);
 			}
-			try {
-				c.flush();
-			} catch (Exception e) {
-			}
+			// Make sure they are all processed
+			try { c.flush(); } catch (Exception e) {}
 
 			long t1 = System.nanoTime();
 
@@ -78,12 +78,79 @@ public class BenchTest {
 			if (elapsed > 0) {
 				System.out.printf("(%d msgs/second).\n",
 						(int)(count / elapsed));
-//				assertTrue(count/elapsed >= 2000000);
-//				assertTrue(c.getStats().getFlushes() < 1000);
 			} else {
 				fail("Test not long enough to produce meaningful stats.");
 			} 
 			printStats(c);
+		} catch (IOException | TimeoutException e) {
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void testPubSubSpeed() {
+		final int count = 20000000;
+		String url = Constants.DEFAULT_URL;
+		String subject = "foo";
+		byte[] payload = null;
+		long elapsed = 0L;
+
+		ConnectionFactory cf = new ConnectionFactory(url);
+		cf.setExceptionHandler(new ExceptionHandler() {
+			public void onException(NATSException e) {
+				System.err.println("Error: " + e.getMessage());
+				e.printStackTrace();
+			}
+		});
+		
+		try (Connection nc = cf.createConnection()) {
+			final Channel<Boolean> ch = new Channel<Boolean>();
+			final AtomicInteger received = new AtomicInteger(0);
+			
+			nc.subscribe(subject, new MessageHandler() {
+				public void onMessage(Message msg) {
+					if (received.incrementAndGet()>=count) {
+						ch.add(true);
+					}
+				}
+			});
+			
+			payload  = "Hello World".getBytes();
+			
+			long t0 = System.nanoTime();
+
+			for (int i = 0; i < count; i++)
+			{
+				nc.publish(subject, payload);
+				// Don't overrun ourselves and be a slow consumer, server will cut us off
+				if ((i - received.get()) > 8192) {
+					sleep(1);
+				}
+			}
+
+			// Make sure they are all processed
+			try {
+			String s = String.format("Timed out waiting for messages, received %d/%d", 
+					received.get(), count);
+			assertTrue(s, ch.get(10,TimeUnit.SECONDS));
+			} catch (TimeoutException e) {
+				fail(String.format("Timed out waiting for messages, received %d/%d", 
+						received.get(), count));
+			}
+			assertEquals(count, received.get());
+			long t1 = System.nanoTime();
+
+			elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
+			System.out.println("Elapsed time is " + elapsed + " seconds");
+
+			System.out.printf("Pub/Sub %d msgs in %d seconds ", count, elapsed);
+			if (elapsed > 0) {
+				System.out.printf("(%d msgs/second).\n",
+						(int)(count / elapsed));
+			} else {
+				fail("Test not long enough to produce meaningful stats.");
+			} 
+			printStats(nc);
 		} catch (IOException | TimeoutException e) {
 			fail(e.getMessage());
 		}
@@ -98,5 +165,10 @@ public class BenchTest {
 		System.out.printf("   Flushes: %d\n", s.getFlushes());
 	}
 
-
+	public static void main(String[] args) {
+        BenchTest b = new BenchTest();
+        
+//        b.testPubSpeed();
+        b.testPubSubSpeed();
+    }
 }

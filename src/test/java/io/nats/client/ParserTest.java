@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -10,6 +10,7 @@ package io.nats.client;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.concurrent.TimeoutException;
 
 import io.nats.client.ConnectionImpl.Control;
@@ -116,8 +117,7 @@ public class ParserTest {
 				parser = c.ps;
 				try (Subscription sub = c.subscribeSync("foo")) {
 					for (String s : goodLines) {
-						ConnectionImpl.printSubs(c);
-
+//						ConnectionImpl.printSubs(c);
 						byte[] buffer = s.getBytes();
 						try {
 							parser.parse(buffer, buffer.length);
@@ -219,13 +219,12 @@ public class ParserTest {
 					byte[] buffer = s.getBytes();
 					try {
 						parser.parse(buffer, buffer.length);
-					} catch (Exception e) {
-						assertTrue("Wrong exception type. Should have thrown ParserException", 
-								e instanceof ParserException);
+					} catch (ParseException e) {
+						assertTrue("Wrong exception type. Should have thrown ParseException", 
+								e instanceof ParseException);
 						exThrown = true;
-					} finally {
-						assertTrue("Should have thrown ParserException", exThrown);
 					}
+					assertTrue("Should have thrown ParseException", exThrown);
 					// Reset to OP_START for next line
 					parser.state = NatsOp.OP_START;
 				}

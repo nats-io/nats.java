@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -7,6 +7,7 @@
  *******************************************************************************/
 package io.nats.client.examples;
 import java.io.IOException;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -20,10 +21,11 @@ import io.nats.client.ExceptionHandler;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NATSException;
-import io.nats.client.SlowConsumerException;
 import io.nats.client.Statistics;
 import io.nats.client.Subscription;
 import io.nats.client.SyncSubscription;
+
+import static io.nats.client.Constants.*;
 
 public class Subscriber implements MessageHandler, ExceptionHandler {
 	Map<String, String> parsedArgs = new HashMap<String, String>();
@@ -228,8 +230,10 @@ public class Subscriber implements MessageHandler, ExceptionHandler {
 
 	@Override
 	public void onException(NATSException e) {
-		if (e.getCause() instanceof SlowConsumerException)
-			System.err.println("Warning: SLOW CONSUMER");
+		if (e.getCause() instanceof IOException) {
+			if (ERR_SLOW_CONSUMER.equals(e.getCause().getMessage()))
+				System.err.println("Warning: SLOW CONSUMER");
+		}
 		else
 			e.printStackTrace();
 	}

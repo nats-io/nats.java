@@ -3,26 +3,35 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 [![License MIT](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
 [![Build Status](https://travis-ci.org/nats-io/jnats.svg?branch=master)](http://travis-ci.org/nats-io/jnats)
-[![Javadoc](http://javadoc-badge.appspot.com/com.github.nats-io/jnats.svg?label=javadoc)](http://nats-io.github.io/jnats)
+[![Javadoc](http://javadoc-badge.appspot.com/io.nats/jnats.svg?label=javadoc)](http://nats-io.github.io/jnats)
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/jnats?branch=master)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/cz.jirutka.rsql/rsql-parser)
 
-This is a WORK IN PROGRESS. 
-Documentation (javadoc) is in progress. 
-
-## TODO
-
-- [x] TLSv1.2 support (requires gnatsd v0.7.0)
-- [ ] EncodedConnection support w/protobuf
-- [ ] Maven Central
-- [ ] Complete Javadoc
-- [ ] More test coverage
-- [ ] More TLS test cases
+Documentation (javadoc) is [here](http://nats-io.github.io/jnats). 
 
 ## Installation
 
 ### Maven Central
 
-Snapshots are regularly uploaded to the Sonatype OSSRH (OSS Repository Hosting) using maven.
+#### Releases
+
+The current stable release is 0.3.1, available on Maven Central.
+Add the following dependency to your project's `pom.xml`:
+
+```xml
+  <dependencies>
+    ...
+    <dependency>
+      <groupId>io.nats</groupId>
+      <artifactId>jnats</artifactId>
+      <version>0.3.1</version>
+    </dependency>
+  </dependencies>
+```
+#### Snapshots
+
+Snapshots are regularly uploaded to the Sonatype OSSRH (OSS Repository Hosting) using
+the same Maven coordinates.
 Add the following dependency to your project's `pom.xml`.
 
 ```xml
@@ -31,7 +40,7 @@ Add the following dependency to your project's `pom.xml`.
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.3.0-SNAPSHOT</version>
+      <version>0.4-SNAPSHOT</version>
     </dependency>
   </dependencies>
 ```
@@ -49,7 +58,7 @@ If you don't already have your pom.xml configured for using Maven snapshots, you
     </repository>
 </repositories>
 ```
-### Source code (this repository)
+#### Building from source code (this repository)
 First, download the source code:
 ```
 git clone git@github.com:nats-io/jnats.git .
@@ -58,24 +67,26 @@ git clone git@github.com:nats-io/jnats.git .
 To build the library, use [maven](https://maven.apache.org/). From the root directory of the project:
 
 ```
-mvn clean install
+mvn package verify
 ```
+The jar file will be built in the `target` directory. Then copy the jar file to your classpath and you're all set.
+
+NOTE: running the unit tests requires that `gnatsd` be installed on your system and available in your executable search path.
 
 ## Basic Usage
 
 ```java
 
-ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL)
+ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL);
 Connection nc = cf.createConnection();
 
 // Simple Publisher
-nc.publish("foo", "Hello World");
+nc.publish("foo", "Hello World".getBytes());
 
 // Simple Async Subscriber
 nc.subscribe("foo", new MessageHandler() {
-	@Override
 	public void onMessage(Message m) {
-    	System.out.println("Received a message: %s\n", string(m.Data));
+    	System.out.println("Received a message: %s\n", new String(m.Data));
     }
 });
 
@@ -92,15 +103,52 @@ msg = nc.request("help", "help me", 10000);
 
 // Replies
 nc.subscribe("help", new MessageHandler() {
-	@Override
 	public void onMessage(Message m) {
-    	nc.publish(m.getReplyTo(), "I can help!");
-    }
+    		nc.publish(m.getReplyTo(), "I can help!");
+    	}
 });
 
 // Close connection
-nc = nats.Connect("nats://localhost:4222")
+ConnectionFactory cf = new ConnectionFactory("nats://localhost:4222");
+nc = cf.createConnection();
 nc.close();
+```
+## TLS
+
+A TLS/SSL connection is configured through the use of the [javax.net.ssl.SSLContext](https://docs.oracle.com/javase/7/docs/api/javax/net/ssl/SSLContext.html]
+ 
+```java
+	// Set up and load the keystore
+	final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	final char[] keyPassPhrase = "password".toCharArray();
+	final KeyStore ks = KeyStore.getInstance("JKS");
+	ks.load(classLoader.getResourceAsStream("keystore.jks"), keyPassPhrase);
+	kmf.init(ks, keyPassPhrase);
+
+	// Set up and load the trust store
+	final char[] trustPassPhrase = "password".toCharArray();
+	final KeyStore tks = KeyStore.getInstance("JKS");
+	tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
+	final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	tmf.init(tks);
+
+	// Get and initialize the SSLContext
+	SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+	c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+	// Create a new NATS connection factory
+	ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
+	cf.setSecure(true); 	// Set the secure option, indicating that TLS is required
+	cf.setTlsDebug(true);   // Set TLS debug, which will produce additional console output
+	cf.setSslContext(c);	// Set the context for this factory
+
+	// Create a new SSL connection
+	try (Connection connection = cf.createConnection()) {
+		connection.publish("foo", "Hello".getBytes());
+		connection.close();
+	} catch (Exception e) {
+		e.printStackTrace();
+	}
 ```
 
 ## Wildcard Subscriptions
@@ -109,27 +157,24 @@ nc.close();
 
 // "*" matches any token, at any level of the subject.
 nc.subscribe("foo.*.baz", new MessageHandler() {
-	@Override
+	public void onMessage(Message m) {
+    		System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
+    	}
+});
+
+nc.subscribe("foo.bar.*", new MessageHandler() {
+	public void onMessage(Message m) {
+    		System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
+    	}
+});
+
+// ">" matches any length of the tail of a subject, and can only be the last token
+// E.g. 'foo.>' will match 'foo.bar', 'foo.bar.baz', 'foo.foo.bar.bax.22'
+nc.subscribe("foo.>", new MessageHandler() {
 	public void onMessage(Message m) {
     	System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
     }
 });
-
-nc.subscribe("foo.bar.*", new MessageHandler() {
-	@Override
-	public void onMessage(Message m) {
-    	System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-    }
-})
-
-// ">" matches any length of the tail of a subject, and can only be the last token
-// E.g. 'foo.>' will match 'foo.bar', 'foo.bar.baz', 'foo.foo.bar.bax.22'
-nc.Subscribe("foo.>", new MessageHandler() {
-	@Override
-	public void onMessage(Message m) {
-    	System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-    }
-})
 
 // Matches all of the above
 nc.publish("foo.bar.baz", "Hello World");
@@ -145,7 +190,6 @@ nc.publish("foo.bar.baz", "Hello World");
 // Normal subscribers will continue to work as expected.
 
 nc.queueSubscribe("foo", "job_workers", new MessageHandler() {
-	@Override
 	public void onMessage(Message m) {
   		long received += 1;
   	}
@@ -161,11 +205,11 @@ nc.queueSubscribe("foo", "job_workers", new MessageHandler() {
 nc.flush()
 System.out.println("All clear!");
 
-// FlushTimeout specifies a timeout value as well.
-boolean flushed = nc.flush(1000);
-if (flushed) {
+// flush can also be called with a timeout value.
+try {
+    flushed = nc.flush(1000);
     System.out.println("All clear!");
-} else {
+} catch (TimeoutException e) {
     System.out.println("Flushed timed out!");
 }
 
@@ -179,10 +223,9 @@ nc1 = cf.createConnection("nats://host1:4222");
 nc2 = cf.createConnection("nats://host2:4222");
 
 nc1.subscribe("foo", new MessageHandler() {
-	@Override
 	public void onMessage(Message m) {
-    	System.out.printf("Received a message: %s\n", new String(m.getData()));
-    }
+		System.out.printf("Received a message: %s\n", new String(m.getData()));
+    	}
 });
 
 nc2.publish("foo", "Hello World!");
@@ -214,23 +257,38 @@ cf.setNoRandomize(true);
 Connection nc = cf.createConnection();
 
 // Setup callbacks to be notified on disconnects and reconnects
-nc.setDisconnectedCB(new DisconnectedEventHandler() {
-	@Override
+nc.setDisconnectedCallback(new DisconnectedCallback() {
 	public void onDisconnect(ConnectionEvent event) {
     	System.out.printf("Got disconnected!\n")
     }
 });
 
 // See who we are connected to on reconnect.
-nc.setReconnectedCB(new ReconnectedEventHandler() {
-	@Override
+nc.setReconnectedCallback(new ReconnectedCallback() {
 	public void onReconnect(ConnectionEvent event) {
 	    System.out.printf("Got reconnected to %s!\n", event.getConnectedUrl())
     }
 });
 
-```
+// Setup a callback to be notified when the Connection is closed
+nc.setClosedCallback(new ClosedCallback() {
+	public void onClose(ConnectionEvent event) {
+	    System.out.printf("Got reconnected to %s!\n", event.getConnectedUrl())
+    }
+});
 
+```
+## TODO
+
+- [x] TLSv1.2 support (requires gnatsd v0.7.0)
+- [ ] EncodedConnection support 
+	- [ ] default (Java) encoder
+	- [ ] JSON encoder
+	- [ ] protobuf encoder
+- [x] Maven Central
+- [x] Complete Javadoc
+- [x] More test coverage
+- [ ] More TLS test cases
 
 ## License
 

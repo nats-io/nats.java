@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -53,14 +53,24 @@ class NATSServer implements Runnable, AutoCloseable
     	}
     }
 
-    public NATSServer()
+    public NATSServer(boolean debug)
     {
-    	this(-1);
+    	this(-1, debug);
     }
 
+    public NATSServer()
+    {
+    	this(-1, false);
+    }
 
 	public NATSServer(int port)
     {
+		this(port, false);
+    }
+	
+	public NATSServer(int port, boolean debug)
+    {
+		this.debug = debug;
         psInfo = this.createProcessStartInfo();
 
         if (port > 1023) {
@@ -77,8 +87,9 @@ class NATSServer implements Runnable, AutoCloseable
     	return configFile;
     }
 
-    public NATSServer(String configFile)
+    public NATSServer(String configFile, boolean debug)
     {
+    	this.debug = debug;
         psInfo = this.createProcessStartInfo();
         psInfo.addArgument("-config " + buildConfigFileName(configFile));
         start();
@@ -91,7 +102,7 @@ class NATSServer implements Runnable, AutoCloseable
         if (debug)
         {
             psInfo.addArgument("-DV");
-//            psInfo.addArgument("-l gnatsd.log");
+            psInfo.addArgument("-l gnatsd.log");
         }
 
         return psInfo;
@@ -102,9 +113,10 @@ class NATSServer implements Runnable, AutoCloseable
         try {
         	pb = new ProcessBuilder(psInfo.arguments);
         	pb.directory(new File("src/test/resources"));
-        	if (debug)
+        	if (debug) {
+        		System.err.println("Inheriting IO, psInfo =" + psInfo);
         		pb.inheritIO();
-        	else {
+        	} else {
         		pb.redirectError(new File("/dev/null"));
         		pb.redirectOutput(new File("/dev/null"));
         	}

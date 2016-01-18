@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -19,7 +19,7 @@ public interface AsyncSubscription extends Subscription {
 
 	/**
 	 * Starts asynchronous message delivery to this subscription
-	 * @throws BadSubscriptionException if the subscription is invalid/closed.
+	 * @throws IllegalStateException if the subscription is invalid/closed.
 	 * Reasons for this could include reaching the subscription's 
 	 * autoUnsubscribe limit, calling {@link #unsubscribe()}, or closing 
 	 * the Connection.

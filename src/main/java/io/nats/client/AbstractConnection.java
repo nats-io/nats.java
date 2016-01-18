@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -24,9 +24,10 @@ interface AbstractConnection extends AutoCloseable {
 	 * @param cb a {@code MessageHandler} object used to process messages received
 	 * by the {@code AsyncSubscription}
 	 * @return the started {@code AsyncSubscription}
-	 * @throws BadSubjectException if the subject is null or the subject (or queue) 
+	 * @throws IllegalArgumentException if the subject (or queue) name 
 	 * contains illegal characters.
-	 * @throws ConnectionClosedException if the connection is closed
+	 * @throws NullPointerException if the subject name is null
+	 * @throws IllegalStateException if the connection is closed
 	 */
 	public AsyncSubscription subscribe(String subject, MessageHandler cb);
 	
@@ -38,9 +39,10 @@ interface AbstractConnection extends AutoCloseable {
 	 * @param cb a {@code MessageHandler} object used to process messages received
 	 * by the {@code AsyncSubscription}
 	 * @return the started {@code AsyncSubscription}
-	 * @throws BadSubjectException if the subject is null or the subject (or queue) 
+	 * @throws IllegalArgumentException if the subject (or queue) name 
 	 * contains illegal characters.
-	 * @throws ConnectionClosedException if the connection is closed
+	 * @throws NullPointerException if the subject name is null
+	 * @throws IllegalStateException if the connection is closed
 	 */
 	public AsyncSubscription subscribeAsync(String subject, MessageHandler cb);
 	
@@ -55,9 +57,10 @@ interface AbstractConnection extends AutoCloseable {
 	 * @param subject the subject of interest
 	 * @param queue the queue group
 	 * @return the {@code SyncSubscription}
-	 * @throws BadSubjectException if the subject is null or the subject (or queue) 
+	 * @throws IllegalArgumentException if the subject (or queue) name 
 	 * contains illegal characters.
-	 * @throws ConnectionClosedException if the connection is closed
+	 * @throws NullPointerException if the subject name is null
+	 * @throws IllegalStateException if the connection is closed
 	 */
 	public SyncSubscription subscribeSync(String subject, String queue);
 	
@@ -72,10 +75,10 @@ interface AbstractConnection extends AutoCloseable {
 	 * @param subject the subject of interest
 	 * @param queue the name of the queue group
 	 * @return the {@code Subscription}
-	 * @throws BadSubjectException if the subject is null or the subject (or queue) 
+	 * @throws IllegalArgumentException if the subject (or queue) name 
 	 * contains illegal characters.
-	 * @throws ConnectionClosedException if the connection is closed
-	 */
+	 * @throws NullPointerException if the subject name is null
+	 * @throws IllegalStateException if the connection is closed	 */
 	public AsyncSubscription subscribeAsync(String subject, String queue);
 
 	/**
@@ -100,10 +103,10 @@ interface AbstractConnection extends AutoCloseable {
 	 * @param queue the name of the queue group
 	 * @param cb a message callback for this subscription
 	 * @return the {@code AsyncSubscription}
-	 * @throws BadSubjectException if the subject is null or the subject (or queue) 
+	 * @throws IllegalArgumentException if the subject (or queue) name 
 	 * contains illegal characters.
-	 * @throws ConnectionClosedException if the connection is closed
-	 */
+	 * @throws NullPointerException if the subject name is null
+	 * @throws IllegalStateException if the connection is closed	 */
 	public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb);
 
 	/**
@@ -112,9 +115,10 @@ interface AbstractConnection extends AutoCloseable {
      * {@link AsyncSubscription#start()} must be called.
 	 * @param subject the subject of interest
 	 * @return the {@code AsyncSubscription}
-	 * @throws BadSubjectException if the subject is null or the subject (or queue) 
+	 * @throws IllegalArgumentException if the subject name 
 	 * contains illegal characters.
-	 * @throws ConnectionClosedException if the connection is closed
+	 * @throws NullPointerException if the subject name is null
+	 * @throws IllegalStateException if the connection is closed	 
 	 */
 	public AsyncSubscription subscribeAsync(String subject);
 	
@@ -124,9 +128,10 @@ interface AbstractConnection extends AutoCloseable {
      * {@link AsyncSubscription#start()} must be called.
 	 * @param subject the subject of interest
 	 * @return the {@code AsyncSubscription}
-	 * @throws BadSubjectException if the subject is null or the subject (or queue) 
+	 * @throws IllegalArgumentException if the subject name 
 	 * contains illegal characters.
-	 * @throws ConnectionClosedException if the connection is closed
+	 * @throws NullPointerException if the subject name is null
+	 * @throws IllegalStateException if the connection is closed	 
 	 */
 	public SyncSubscription subscribeSync(String subject);
 	
@@ -177,9 +182,9 @@ interface AbstractConnection extends AutoCloseable {
      * Flushes the current connection, waiting up to {@code timeout} for
      * successful completion.
      * @param timeout - the connection timeout in milliseconds.
-     * @throws IOException - if a connection-related error prevents
+     * @throws IOException if a connection-related error prevents
      * the flush from completing
-     * @throws TimeoutException - if the connection does not complete
+     * @throws TimeoutException if the connection does not complete
      * within the specified interval
      * @throws Exception if some other error occurs
      */
@@ -275,5 +280,5 @@ interface AbstractConnection extends AutoCloseable {
 	 * Returns the last exception registered on the connection
 	 * @return the last exception registered on this connection
 	 */
-	Exception getLastError();
+	Exception getLastException();
 }
