@@ -5,7 +5,7 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Build Status](https://travis-ci.org/nats-io/jnats.svg?branch=master)](http://travis-ci.org/nats-io/jnats)
 [![Javadoc](http://javadoc-badge.appspot.com/io.nats/jnats.svg?label=javadoc)](http://nats-io.github.io/jnats)
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/jnats?branch=master)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/cz.jirutka.rsql/rsql-parser)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
 
 Documentation (javadoc) is [here](http://nats-io.github.io/jnats). 
 
