@@ -9,18 +9,6 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 Documentation (javadoc) is [here](http://nats-io.github.io/jnats). 
 
-## TODO
-
-- [x] TLSv1.2 support (requires gnatsd v0.7.0)
-- [ ] EncodedConnection support 
-	- [ ] default (Java) encoder
-	- [ ] JSON encoder
-	- [ ] protobuf encoder
-- [x] Maven Central
-- [x] Complete Javadoc
-- [x] More test coverage
-- [ ] More TLS test cases
-
 ## Installation
 
 ### Maven Central
@@ -43,7 +31,7 @@ Add the following dependency to your project's `pom.xml`:
 #### Snapshots
 
 Snapshots are regularly uploaded to the Sonatype OSSRH (OSS Repository Hosting) using
-the same Maven coordinates. Ad
+the same Maven coordinates.
 Add the following dependency to your project's `pom.xml`.
 
 ```xml
@@ -52,7 +40,7 @@ Add the following dependency to your project's `pom.xml`.
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.3.0-SNAPSHOT</version>
+      <version>0.4-SNAPSHOT</version>
     </dependency>
   </dependencies>
 ```
@@ -124,6 +112,43 @@ nc.subscribe("help", new MessageHandler() {
 ConnectionFactory cf = new ConnectionFactory("nats://localhost:4222");
 nc = cf.createConnection();
 nc.close();
+```
+## TLS
+
+A TLS/SSL connection is configured through the use of the [javax.net.ssl.SSLContext](https://docs.oracle.com/javase/7/docs/api/javax/net/ssl/SSLContext.html]
+ 
+```java
+	// Set up and load the keystore
+	final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+	final char[] keyPassPhrase = "password".toCharArray();
+	final KeyStore ks = KeyStore.getInstance("JKS");
+	ks.load(classLoader.getResourceAsStream("keystore.jks"), keyPassPhrase);
+	kmf.init(ks, keyPassPhrase);
+
+	// Set up and load the trust store
+	final char[] trustPassPhrase = "password".toCharArray();
+	final KeyStore tks = KeyStore.getInstance("JKS");
+	tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
+	final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+	tmf.init(tks);
+
+	// Get and initialize the SSLContext
+	SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+	c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+
+	// Create a new NATS connection factory
+	ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
+	cf.setSecure(true); 	// Set the secure option, indicating that TLS is required
+	cf.setTlsDebug(true);   // Set TLS debug, which will produce additional console output
+	cf.setSslContext(c);	// Set the context for this factory
+
+	// Create a new SSL connection
+	try (Connection connection = cf.createConnection()) {
+		connection.publish("foo", "Hello".getBytes());
+		connection.close();
+	} catch (Exception e) {
+		e.printStackTrace();
+	}
 ```
 
 ## Wildcard Subscriptions
@@ -253,7 +278,17 @@ nc.setClosedCallback(new ClosedCallback() {
 });
 
 ```
+## TODO
 
+- [x] TLSv1.2 support (requires gnatsd v0.7.0)
+- [ ] EncodedConnection support 
+	- [ ] default (Java) encoder
+	- [ ] JSON encoder
+	- [ ] protobuf encoder
+- [x] Maven Central
+- [x] Complete Javadoc
+- [x] More test coverage
+- [ ] More TLS test cases
 
 ## License
 
