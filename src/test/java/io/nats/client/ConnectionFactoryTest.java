@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -272,7 +272,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 			assertNull(cf.getUrlString());
 			assertNotNull(cf.getServers());
 			assertEquals(s1, cf.getServers());
-
+			cf.setNoRandomize(true);
 			try (ConnectionImpl c = cf.createConnection(mock))
 			{
 				// test passed-in options
@@ -296,6 +296,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 			
 			// test url, null
 			cf = new ConnectionFactory(url, null);
+			cf.setNoRandomize(true);
 			assertEquals(url, cf.getUrlString());
 			System.err.println("Connecting to: " + url);
 			try (ConnectionImpl c = cf.createConnection(mock))
@@ -324,6 +325,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 
 			// test url, servers
 			cf = new ConnectionFactory(url, servers);
+			cf.setNoRandomize(true);
 			assertNotNull(cf.getUrlString());
 			assertEquals(url, cf.getUrlString());
 			try (ConnectionImpl c = cf.createConnection(mock))
@@ -372,14 +374,51 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
-	@Test(expected=IllegalArgumentException.class)
+	@Test
 	public void testSetUriBadUserInfo() {
 		String urlString = "nats://foo:bar:baz@natshost:2222";
+		String urlString2 = "nats://foo:@natshost:2222";
+		String urlString3 = "nats://:pass@natshost:2222";
 		ConnectionFactory cf = new ConnectionFactory();
 
+		boolean exThrown = false;
 		URI uri = URI.create(urlString);
-		cf.setUri(uri);
-	}
+		try {
+			cf.setUri(uri);
+		} catch (IllegalArgumentException e) {
+			exThrown = true;
+		}
+		assertTrue(exThrown);
+
+		cf.setUsername(null);
+		cf.setPassword(null);
+		
+		exThrown = false;
+		uri = URI.create(urlString2);
+		try {
+			cf.setUri(uri);
+			assertEquals("foo", cf.getUsername());
+			assertNull(cf.getPassword());
+		} catch (IllegalArgumentException e) {
+			exThrown = true;
+			fail(e.getMessage());
+		}
+		assertFalse(exThrown);
+
+		cf.setUsername(null);
+		cf.setPassword(null);
+
+		exThrown = false;
+		uri = URI.create(urlString3);
+		try {
+			cf.setUri(uri);
+			assertNull(cf.getUsername());
+			assertNull(cf.getPassword());
+		} catch (IllegalArgumentException e) {
+			exThrown = true;
+		}
+		assertFalse(exThrown);
+}
 
 	@Test
 	public void testGetUrlString() {
@@ -490,7 +529,10 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		List<URI> s1 = new ArrayList<URI>();
 		ConnectionFactory cf = new ConnectionFactory(servers);
 		cf.setServers(servers);
+		cf.setNoRandomize(true);
 
+		assertNull(cf.getUrlString());
+		
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
 			for (String s : servers) {
@@ -511,6 +553,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		} catch (IllegalArgumentException e) {
 			fail(e.getMessage());
 		}
+		
 		try
 		{
 			ConnectionFactory cf2 = new ConnectionFactory();

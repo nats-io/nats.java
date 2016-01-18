@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -7,10 +7,11 @@
  *******************************************************************************/
 package io.nats.client;
 
+import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
+import static io.nats.client.UnitTestUtilities.*;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +32,8 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static io.nats.client.Constants.*;
 
 @Category(UnitTest.class)
 public class SubscriptionTest {
@@ -59,6 +62,16 @@ public class SubscriptionTest {
 		UnitTestUtilities.stopDefaultServer();
 	}
 
+	@Test
+	public void testToString()
+	{
+		ConnectionImpl nc = null;
+		Subscription s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20);
+		assertEquals("{subject=foo, queue=bar, sid=0, queued=0, max=20, valid=false}", s.toString());
+		s = new AsyncSubscriptionImpl(nc, "foo", null, null, -1);
+		assertEquals("{subject=foo, queue=null, sid=0, queued=0, max=65536, valid=false}", s.toString());
+	}
+	
 	@Test
 	public void testServerAutoUnsub()
 	{
@@ -127,10 +140,11 @@ public class SubscriptionTest {
 				{
 					try
 					{
-						s.nextMessage(10);
+						s.nextMessage(100);
 						received++;
 					}
-					catch (MaxMessagesException e) {
+					catch (IOException e) {
+						assertEquals(ERR_MAX_MESSAGES, e.getMessage());
 						exThrown = true;
 						break;
 					}
@@ -139,7 +153,7 @@ public class SubscriptionTest {
 						fail("Wrong exception: " + e.getMessage());
 					}
 				}
-				assertTrue("Should have thrown MaxMessagesException", exThrown);
+				assertTrue("Should have thrown IOException", exThrown);
 				assertEquals(max, received);
 				assertFalse("Expected subscription to be invalid after hitting max", 
 						s.isValid());
@@ -251,7 +265,8 @@ public class SubscriptionTest {
 				try { 
 					sub.autoUnsubscribe(1);
 				} catch (Exception e) {
-					assertTrue(e instanceof BadSubscriptionException);
+					assertTrue(e instanceof IllegalStateException);
+					assertEquals(ERR_BAD_SUBSCRIPTION, e.getMessage());
 					exThrown=true;
 				} finally {
 					assertTrue("nextMsg should have thrown an exception", 
@@ -263,7 +278,8 @@ public class SubscriptionTest {
 					sub.nextMessage(200); 
 					fail("Shouldn't be here");
 				} catch (Exception e) {
-					assertTrue(e.getMessage(), e instanceof BadSubscriptionException);
+					assertTrue(e instanceof IllegalStateException);
+					assertEquals(ERR_BAD_SUBSCRIPTION, e.getMessage());
 					exThrown=true;
 				} finally {
 					assertTrue("nextMsg should have thrown an exception", 
@@ -281,13 +297,13 @@ public class SubscriptionTest {
 	public void testSlowSubscriber()
 	{
 		ConnectionFactory cf = new ConnectionFactory();
-		cf.setSubChanLen(100);
+		cf.setMaxPendingMsgs(100);
 		final AtomicBoolean exThrown = new AtomicBoolean(false);
 
 		try (Connection c = cf.createConnection())
 		{
 			try (SyncSubscription s = c.subscribeSync("foo")) {
-				for (int i=0; i < (cf.getSubChanLen()+100); i++)
+				for (int i=0; i < (cf.getMaxPendingMsgs()+100); i++)
 				{
 					c.publish("foo", "Hello".getBytes());
 				}
@@ -311,8 +327,9 @@ public class SubscriptionTest {
 				{
 					s.nextMessage(200);
 				}
-				catch (SlowConsumerException e)
+				catch (IOException e)
 				{
+					assertEquals(ERR_SLOW_CONSUMER, e.getMessage());
 					exThrown.set(true);
 				} finally {
 					assertTrue("nextMsg should have thrown an exception",
@@ -328,7 +345,7 @@ public class SubscriptionTest {
 	public void testSlowAsyncSubscriber() throws IOException, TimeoutException
 	{
 		ConnectionFactory cf = new ConnectionFactory();
-		cf.setSubChanLen(100);
+		cf.setMaxPendingMsgs(100);
 
 		try (final Connection c = cf.createConnection()) {
 			final Lock mu = new ReentrantLock();
@@ -347,7 +364,7 @@ public class SubscriptionTest {
 				}
 			})) {
 
-				for (int i = 0; i < (cf.getSubChanLen() + 100); i++)
+				for (int i = 0; i < (cf.getMaxPendingMsgs() + 100); i++)
 				{
 					c.publish("foo", "Hello".getBytes());
 				}
@@ -367,7 +384,7 @@ public class SubscriptionTest {
 				}
 				elapsed = TimeUnit.NANOSECONDS.toMillis(
 						System.nanoTime() - t0);
-				assertTrue("Flush did not return before timeout, elabsed msec="+elapsed, 
+				assertTrue("Flush did not return before timeout, elapsed msec="+elapsed, 
 						elapsed < flushTimeout);
 
 				mu.lock();
@@ -390,7 +407,7 @@ public class SubscriptionTest {
 		final AtomicInteger aeCalled = new AtomicInteger(0);
 
 		ConnectionFactory cf = new ConnectionFactory();
-		cf.setSubChanLen(10);
+		cf.setMaxPendingMsgs(10);
 
 		final Channel<Boolean> ch = new Channel<Boolean>(1);
 		final Channel<Boolean> bch = new Channel<Boolean>(1);
@@ -401,12 +418,7 @@ public class SubscriptionTest {
 			public void onMessage(Message msg) {
 				if (aeCalled.get()==1)
 					return;
-
-				try {
-					bch.get();
-				} catch (TimeoutException e) {
-					fail("Timed out");
-				}
+				bch.get();
 			}
 		};
 
@@ -423,8 +435,9 @@ public class SubscriptionTest {
 						aeCalled.incrementAndGet();					
 
 						assertEquals("Did not receive proper subscription", s, e.getSubscription());
-						assertTrue("Expected SlowConsumerException, but got " + e, 
-								e.getCause() instanceof SlowConsumerException);
+						assertTrue("Expected IOException, but got " + e, 
+								e.getCause() instanceof IOException);
+						assertEquals(ERR_SLOW_CONSUMER, e.getCause().getMessage());
 
 						bch.add(true);
 
@@ -433,7 +446,7 @@ public class SubscriptionTest {
 					}
 				});
 
-				for (int i = 0; i < (cf.getSubChanLen() + 10); i++)
+				for (int i = 0; i < (cf.getMaxPendingMsgs() + 10); i++)
 				{
 					c.publish(subj, "Hello World!".getBytes());
 				}
@@ -447,7 +460,7 @@ public class SubscriptionTest {
 			} // AsyncSubscription
 		} // Connection 
 		catch (IOException | TimeoutException e) {
-			fail("Could not connect to server: " + e.getMessage());
+			fail(e.getMessage());
 		}
 	}
 
@@ -463,6 +476,7 @@ public class SubscriptionTest {
 					new MessageHandler() {
 				public void onMessage(Message msg) {
 //					System.err.println("Helper");
+					UnitTestUtilities.sleep(100);
 					c.publish(msg.getReplyTo(), "Hello".getBytes());				
 				}
 			})) 
@@ -476,14 +490,17 @@ public class SubscriptionTest {
 						c.subscribe(responseIB, new MessageHandler() {
 							public void onMessage(Message msg) {
 								// System.err.println("Internal subscriber.");
+								UnitTestUtilities.sleep(100);
 								ch.add(true);
 							}
 						}); 
 //						System.err.println("starter subscribed");
+						UnitTestUtilities.sleep(100);
 						c.publish("helper", responseIB, "Help me!".getBytes());
 					} // "start" onMessage
 				})) 
 				{
+					UnitTestUtilities.sleep(100);
 					c.publish("start", "Begin".getBytes());
 //					System.err.println("Started");
 					assertTrue("Was stalled inside of callback waiting on another callback",
@@ -498,20 +515,17 @@ public class SubscriptionTest {
 	@Test
 	public void testAsyncSubscribersOnClose()
 	{
-		/// basically tests if the subscriber sub channel gets
-		/// cleared on a close.
+		// Tests if the subscriber sub channel gets
+		// cleared on a close.
 		final AtomicInteger callbacks = new AtomicInteger(0);
 		int toSend = 10;
 		final Channel<Boolean> ch = new Channel<Boolean>(toSend);
 
 		MessageHandler mh = new MessageHandler()
 		{
-			@Override
 			public void onMessage(Message msg) {
 				callbacks.getAndIncrement();
-				try {
-					ch.get();
-				} catch (TimeoutException e) { /* Ignore, not possible */ }
+				ch.get();
 			}
 		};
 
@@ -527,7 +541,21 @@ public class SubscriptionTest {
 				} catch (Exception e) {
 					fail("Flush failure: " + e.getMessage());
 				}
-				try {Thread.sleep(10);} catch (InterruptedException e) {}
+				sleep(10);
+				
+				/*
+				 *  Since callbacks for a given sub are invoked sequentially in 
+				 *  the same thread, only one message has been dequeued from the
+				 *  subscription's message channel and delivered to the MessageHandler 
+				 *  callback at this point. The callback is waiting on a boolean signal 
+				 *  channel before proceeding.
+				 *  
+				 *  Closing the connection will remove and close the subsriptions
+				 *  on that connection, which will clear our subscription's
+				 *  message channel of any queued message. Therefore, no matter how many 
+				 *  times we signal ch below, only that one message will be processed. 
+				 */
+
 				c.close();
 
 				assertEquals(0, s.getQueuedMessageCount());
@@ -537,9 +565,12 @@ public class SubscriptionTest {
 					ch.add(true);
 				}
 
-				try {Thread.sleep(10);} catch (InterruptedException e) {}
+				sleep(10);
 
-				assertEquals(1, callbacks.get());
+				assertEquals(String.format(
+						"Expected only one callback, received %d callbacks\n",
+						callbacks.get()),
+						1, callbacks.get());
 			}
 		} // Connection
 		catch (IOException | TimeoutException e1) {
@@ -547,4 +578,28 @@ public class SubscriptionTest {
 		}
 	}
 
+	@Test 
+	public void testManyRequests() throws Exception {
+		final int numRequests = 1000;
+		ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL);
+		try(final Connection conn = cf.createConnection()) {
+			try (final Connection pub = cf.createConnection()) {
+				try(Subscription sub = conn.subscribe("foo", "bar", new MessageHandler() {
+					public void onMessage(Message message) {
+						conn.publish(message.getReplyTo(), "hello".getBytes());
+					}
+				}))
+				{
+					for (int i = 0; i < numRequests; i++) {
+						try {
+							assertNotNull(pub.request("foo", "blah".getBytes(), 5000));
+						} catch (TimeoutException e) {
+							fail("timeout " + i);
+							return;
+						}
+					} // for
+				} // Subscription
+			} // pub
+		} // conn 
+	}
 }

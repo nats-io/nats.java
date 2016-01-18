@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -8,6 +8,8 @@
 package io.nats.client;
 
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
+import static io.nats.client.Constants.*;
+
 import static org.junit.Assert.*;
 
 import java.io.BufferedReader;
@@ -232,7 +234,7 @@ public class ProtocolTest {
 	}
 
 	@Test
-	public void testSendConnectException() {
+	public void testSendConnectEx() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
 			mock.setBadWriter(true);
@@ -240,7 +242,7 @@ public class ProtocolTest {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof IOException);
-				assertEquals("nats: I/O error during connect protocol.", e.getMessage());
+				assertEquals("Mock write I/O error", e.getMessage());
 			} 
 		}
 	}
@@ -255,8 +257,8 @@ public class ProtocolTest {
 			} catch (IOException | TimeoutException e) {
 				String name = e.getClass().getName();
 				assertTrue("Got " + name + " instead of ConnectionException", 
-						e instanceof ConnectionException);
-				assertEquals("nats: Connection read error.", e.getMessage());
+						e instanceof IOException);
+				assertEquals(ERR_CONNECTION_READ, e.getMessage());
 			} 
 		} 
 	}
@@ -284,7 +286,7 @@ public class ProtocolTest {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
-				assertTrue(e instanceof ConnectionException);
+				assertTrue(e instanceof IOException);
 				assertEquals("nats: 'Generic error message.'", e.getMessage());
 			} 
 		} catch (Exception e) {
@@ -316,7 +318,7 @@ public class ProtocolTest {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof IOException);
-				assertEquals("nats: Connection read error.", e.getMessage());
+				assertEquals(ERR_CONNECTION_READ, e.getMessage());
 			} 
 		}
 	}
@@ -330,7 +332,7 @@ public class ProtocolTest {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof IOException);
-				assertEquals("Protocol exception, INFO not received", e.getMessage());
+				assertEquals(ERR_PROTOCOL+", INFO not received", e.getMessage());
 			} 
 		} 
 	}
@@ -343,13 +345,9 @@ public class ProtocolTest {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
-				assertTrue(e instanceof ConnectionException);
-				Throwable cause = e.getCause();
-				assertNotNull("Exception cause should not be NULL", cause);
-				assertTrue(cause instanceof SecureConnectionRequiredException);
-				assertNotNull(cause.getMessage());
-				assertEquals("nats: Secure Connection required",
-						cause.getMessage());
+				assertTrue(e instanceof IOException);
+				assertNotNull(e.getMessage());
+				assertEquals(ERR_SECURE_CONN_REQUIRED, e.getMessage());
 			} 
 		}
 	}
@@ -363,13 +361,9 @@ public class ProtocolTest {
 			try (ConnectionImpl c = cf.createConnection(mock)) {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
-				assertTrue(e instanceof ConnectionException);
-				Throwable cause = e.getCause();
-				assertNotNull("Exception cause should not be NULL", cause);
-				assertTrue(cause instanceof SecureConnectionWantedException);
-				assertNotNull(cause.getMessage());
-				assertEquals("nats: Secure Connection not available",
-						cause.getMessage());
+				assertTrue(e instanceof IOException);
+				assertNotNull(e.getMessage());
+				assertEquals(ERR_SECURE_CONN_WANTED, e.getMessage());
 			} 
 		}
 	}

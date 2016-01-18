@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -61,7 +61,7 @@ class TCPConnection implements AutoCloseable {
 	public void open(String host, int port, int timeoutMillis)
 			throws IOException
 	{
-		logger.debug("TCPConnection.open({},{},{})", host, port, timeoutMillis);
+		logger.trace("TCPConnection.open({},{},{})", host, port, timeoutMillis);
 		mu.lock();
 		try {
 

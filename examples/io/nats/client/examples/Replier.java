@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -18,7 +18,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import io.nats.client.*;
 
-public class Replier implements MessageHandler {
+public class Replier {
 	Map<String, String> parsedArgs = new HashMap<String, String>();
 
 	int count = 20000;
@@ -43,17 +43,6 @@ public class Replier implements MessageHandler {
 		banner();
 
 		try (Connection c = new ConnectionFactory(url).createConnection()) {
-			//		try {
-			//			cf = new ConnectionFactory(url);
-			//			c = cf.createConnection();
-			//		} catch (IOException e) {
-			//			System.err.println("Couldn't connect: " + e.getCause());
-			//			System.exit(-1);
-			//		} catch (TimeoutException e) {
-			//			System.err.println("Couldn't connect: " + e.getCause());
-			//			System.exit(-1);
-			//		}
-
 			long elapsed, seconds;
 
 			if (sync)
@@ -92,40 +81,41 @@ public class Replier implements MessageHandler {
 		System.out.printf("   Outgoing Messages: %d\n", s.getOutMsgs());
 	}
 
-	@Override
-	public void onMessage(Message msg) {
-		if (received++ == 0)
-			start = System.nanoTime();
 
-		if (verbose)
-			System.out.println("Received: " + msg);
-
-		Connection c = msg.getSubscription().getConnection();
-		try {
-			c.publish(msg.getReplyTo(), replyBytes);
-		} catch (ConnectionClosedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		if (received >= count)
-		{
-			end = System.nanoTime();
-			testLock.lock();
-			try
-			{
-				System.out.println("I'M DONE");
-				done=true;
-				allDone.signal();
-			}
-			finally {
-				testLock.unlock();
-			}
-		}		
-	}
-	private long receiveAsyncSubscriber(Connection c)
+	private long receiveAsyncSubscriber(Connection conn)
 	{
-		AsyncSubscription s = c.subscribeAsync(subject, this);
+		final Connection c = conn;
+		MessageHandler mh = new MessageHandler() {
+			public void onMessage(Message msg) {
+				if (received++ == 0)
+					start = System.nanoTime();
+
+				if (verbose)
+					System.out.println("Received: " + msg);
+
+				try {
+					c.publish(msg.getReplyTo(), replyBytes);
+				} catch (IllegalStateException e) {
+					e.printStackTrace();
+				}
+
+				if (received >= count)
+				{
+					end = System.nanoTime();
+					testLock.lock();
+					try
+					{
+						done=true;
+						allDone.signal();
+					}
+					finally {
+						testLock.unlock();
+					}
+				}		
+			}
+		};
+		
+		AsyncSubscription s = c.subscribeAsync(subject, mh);
 		// just wait to complete
 		testLock.lock();
 		try

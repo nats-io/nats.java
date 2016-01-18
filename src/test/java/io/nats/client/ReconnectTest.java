@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -10,18 +10,13 @@ package io.nats.client;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -30,11 +25,16 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static io.nats.client.Constants.*;
+import static io.nats.client.UnitTestUtilities.*;
 
 @Category(UnitTest.class)
 public class ReconnectTest {
+	final static Logger logger = LoggerFactory.getLogger(ReconnectTest.class);
+
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
@@ -71,114 +71,114 @@ public class ReconnectTest {
 	UnitTestUtilities utils = new UnitTestUtilities();
 
 	@Test
-	public void testReconnectDisallowedFlags() throws Exception
+	public void testReconnectDisallowedFlags()
 	{
-		final Lock closedLock = new ReentrantLock();
-		final Condition closed = closedLock.newCondition();
-
 		ConnectionFactory cf = new ConnectionFactory(reconnectOptions);
 		cf.setUrl("nats://localhost:22222");
 		cf.setReconnectAllowed(false);
 
+		final Channel<Boolean> cch = new Channel<Boolean>();
 		cf.setClosedCallback(new ClosedCallback() {
-			@Override
 			public void onClose(ConnectionEvent event) {
-				closedLock.lock();
-				try {
-					closed.signal();
-				} finally {
-					closedLock.unlock();
-				}
+				cch.add(true);
 			}
 		});
 
-		try(NATSServer ns = utils.createServerOnPort(22222))
+		try(NATSServer ts = utils.createServerOnPort(22222))
 		{
 			try (Connection c = cf.createConnection())
 			{
-				Thread.sleep(500);
-				closedLock.lock();
-				try
-				{
-					ns.shutdown();
-					assertTrue(closed.await(2, TimeUnit.SECONDS));
-				} catch (InterruptedException e) {
-
-				} finally {
-					closedLock.unlock();
+				sleep(500);
+				ts.shutdown();
+				try {
+					assertTrue(cch.get(5, TimeUnit.SECONDS));
+				} catch (TimeoutException e) {
+					fail(e.getMessage());
 				}
-			} catch (Exception e) {
-				fail(e.getMessage());
-			} 
+			} catch (IOException | TimeoutException e1) {
+				fail(e1.getMessage());
+			}  
 		}
 	}
 
 	@Test
-	public void testReconnectAllowedFlags() throws Exception
+	public void testReconnectAllowedFlags()
 	{
-		final Lock closedLock = new ReentrantLock();
-		final Condition closed = closedLock.newCondition();
-		final Lock disconnectedLock = new ReentrantLock();
-		final Condition disconnected = disconnectedLock.newCondition();
-
+		final int maxRecon = 2;
+		final long reconWait = TimeUnit.SECONDS.toMillis(1);
 		ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
 		cf.setReconnectAllowed(true);
-		cf.setMaxReconnect(2);
-		cf.setReconnectWait(1000);
+		cf.setMaxReconnect(maxRecon);
+		cf.setReconnectWait(reconWait);
 
-		cf.setClosedCallback(new ClosedCallback() {
-			@Override
-			public void onClose(ConnectionEvent event) {
-				closedLock.lock();
-				try {
-					closed.signal();
-				} finally {
-					closedLock.unlock();
-				}
-			}
-		});
-		cf.setDisconnectedCallback(new DisconnectedCallback() {
-			@Override
-			public void onDisconnect(ConnectionEvent event) {
-				disconnectedLock.lock();
-				try
-				{				
-					disconnected.signal();
-				} finally {
-					disconnectedLock.unlock();
-				}
+		final Channel<Boolean> cch = new Channel<Boolean>();
+		final Channel<Boolean> dch = new Channel<Boolean>();
 
-			}
-		});
-
-		try (NATSServer ns = utils.createServerOnPort(22222))
+		try (NATSServer ts = utils.createServerOnPort(22222))
 		{
-			try (Connection c = cf.createConnection())
+			final AtomicLong ccbTime = new AtomicLong(0L);
+			final AtomicLong dcbTime = new AtomicLong(0L);
+			try (final ConnectionImpl c = cf.createConnection())
 			{
+				c.setClosedCallback(new ClosedCallback() {
+					public void onClose(ConnectionEvent event) {
+						ccbTime.set(System.nanoTime());
+						long closeInterval = 
+								TimeUnit.NANOSECONDS.toMillis(ccbTime.get() - dcbTime.get());
+						logger.trace("in onClose(), interval was " + closeInterval);
+						// Check to ensure that the disconnect cb fired first
+						assertTrue ((dcbTime.get() - ccbTime.get()) < 0);
+						logger.trace("Interval = " + TimeUnit.NANOSECONDS.toMillis(
+								(dcbTime.get() - ccbTime.get())) + "ms");
+						assertNotEquals("ClosedCB triggered prematurely.", 0L, dcbTime);
+						cch.add(true);
+						logger.trace("Signaled close");
+						assertTrue(c.isClosed());
+					}
+				});
+
+				c.setDisconnectedCallback(new DisconnectedCallback() {
+					public void onDisconnect(ConnectionEvent event) {
+						// Check to ensure that the closed cb didn't fire first
+						dcbTime.set(System.nanoTime());
+						assertTrue ((dcbTime.get() - ccbTime.get()) > 0);
+						assertEquals("ClosedCB triggered prematurely.", 0, cch.getCount());
+						dch.add(true);
+						assertFalse(c.isClosed());
+					}
+				});
 				assertFalse(c.isClosed());
 
-				ns.shutdown();
+				ts.shutdown();
 
-				closedLock.lock();
-				try {
-					assertFalse("ClosedCB triggered incorrectly.",
-							closed.await(500, TimeUnit.MILLISECONDS));
-				} finally {
-					closedLock.unlock();
-				}
+				// We want wait to timeout here, and the connection
+				// should not trigger the Close CB.
+				assertEquals(0, cch.getCount());
+				assertFalse(UnitTestUtilities.waitTime(cch, 500, TimeUnit.MILLISECONDS));
 
-				//			ns.shutdown();
 
-				disconnectedLock.lock();
+				// We should wait to get the disconnected callback to ensure
+				// that we are in the process of reconnecting.
 				try {
 					assertTrue("DisconnectedCB should have been triggered.", 
-							disconnected.await(10, TimeUnit.SECONDS));
-				} finally {
-					disconnectedLock.unlock();
+							dch.get(5, TimeUnit.SECONDS));
+					assertEquals("dch should be empty", 0, dch.getCount());
+				} catch (TimeoutException e) {
+					fail("DisconnectedCB triggered incorrectly. " + e.getMessage());				
 				}
 
-				c.setClosedCallback(null);
+				assertTrue("Expected to be in a reconnecting state", c.isReconnecting());
+
+				//				assertEquals(1, cch.getCount());
+				//				assertTrue(UnitTestUtilities.waitTime(cch, 1000, TimeUnit.MILLISECONDS));
+
 			} // Connection
+			catch (IOException | TimeoutException e1) {
+				fail("Should have connected OK: " + e1.getMessage());
+			}
+			catch (NullPointerException e) {
+				e.printStackTrace();
+			}
 		} // NATSServer
 	}
 
@@ -189,29 +189,15 @@ public class ReconnectTest {
 		cf.setMaxReconnect(2);
 		cf.setReconnectWait(5000);
 
-		final Lock disconnectedLock = new ReentrantLock();
-		final Condition disconnected = disconnectedLock.newCondition();
-		final Lock msgLock = new ReentrantLock();
-		final Condition gotmessage = msgLock.newCondition();
+		final Channel<Boolean> ch = new Channel<Boolean>();
+		final Channel<Boolean> dch = new Channel<Boolean>();
 
 		cf.setDisconnectedCallback(new DisconnectedCallback() {
-			@Override
 			public void onDisconnect(ConnectionEvent event) {
-				disconnectedLock.lock();
-				try {
-					disconnected.signal();
-				} finally {
-					disconnectedLock.unlock();
-				}
+				dch.add(true);;
 			}
 		});
-
-		cf.setReconnectedCallback(new ReconnectedCallback() {
-			@Override
-			public void onReconnect(ConnectionEvent event) {
-			}
-		});
-
+		final String testString = "bar";
 
 		try (NATSServer ns1 = utils.createServerOnPort(22222))
 		{
@@ -221,42 +207,30 @@ public class ReconnectTest {
 
 							@Override
 							public void onMessage(Message msg) {
-								msgLock.lock();
-								try
-								{
-									gotmessage.signal();
-								} finally {
-									msgLock.unlock();
-								}
+								String s = new String(msg.getData());
+								if (!s.equals(testString))
+									fail("String doesn't match");
+								ch.add(true);
 							}			
 						});
 
 				c.flush();
 
-				disconnectedLock.lock();
-				try
-				{
-					ns1.shutdown();
-					assertTrue("Should have received disconnect notification",
-							disconnected.await(3, TimeUnit.SECONDS));
-				} finally {
-					disconnectedLock.unlock();
-				}
+				ns1.shutdown();
+				// server is stopped here...
 
-				c.publish("foo", "Hello".getBytes(Charset.forName("UTF-8")));
+				assertTrue("Did not get the disconnected callback on time",
+						dch.get(5, TimeUnit.SECONDS));
+
+				UnitTestUtilities.sleep(50);
+				c.publish("foo", testString.getBytes());
 
 				// restart the server.
 				try (NATSServer ns2 = utils.createServerOnPort(22222))
 				{
-					msgLock.lock();
-					try
-					{
-						c.flush(50000);
-						assertTrue("Expected to receive message", 
-								gotmessage.await(5, TimeUnit.SECONDS));
-					} finally {
-						msgLock.unlock();
-					}
+					c.flush(5000);
+					assertTrue("Did not receive our message", 
+							ch.get(5, TimeUnit.SECONDS));
 					assertEquals("Wrong number of reconnects.", 
 							1, c.getStats().getReconnects());
 					c.setClosedCallback(null);
@@ -264,24 +238,33 @@ public class ReconnectTest {
 				} // ns2
 			} // Connection
 			catch (Exception e) {
+				e.printStackTrace();
 				fail(e.getMessage());
 			}
 		} // ns1
 	}
 
-	AtomicInteger received = new AtomicInteger(0);
-
 	@Test
 	public void testExtendedReconnectFunctionality() 
-			throws IllegalStateException, Exception
 	{
 		Properties opts = reconnectOptions;
 		ConnectionFactory cf = new ConnectionFactory(opts);
 
-		final Lock disconnectedLock = new ReentrantLock();
-		final Condition disconnected = disconnectedLock.newCondition();
-		final Lock reconnectedLock = new ReentrantLock();
-		final Condition reconnected = reconnectedLock.newCondition();
+		final Channel<Boolean> dch = new Channel<Boolean>();
+		cf.setDisconnectedCallback(new DisconnectedCallback() {
+			public void onDisconnect(ConnectionEvent event) {
+				dch.add(true);
+			}
+		});
+
+		final Channel<Boolean> rch = new Channel<Boolean>();
+		cf.setReconnectedCallback(new ReconnectedCallback() {
+			public void onReconnect(ConnectionEvent event) {
+				rch.add(true);
+			}
+		});
+
+		final AtomicInteger received = new AtomicInteger(0);
 
 		MessageHandler mh = new MessageHandler()
 		{
@@ -291,115 +274,89 @@ public class ReconnectTest {
 			}
 		};
 
-		cf.setDisconnectedCallback(new DisconnectedCallback() {
-			@Override
-			public void onDisconnect(ConnectionEvent event) {
-				disconnectedLock.lock();
-				try
-				{
-					disconnected.signal();
-				} finally {
-					disconnectedLock.unlock();
-				}
-			}
-		});
-
-		cf.setReconnectedCallback(new ReconnectedCallback() {
-			@Override
-			public void onReconnect(ConnectionEvent event) {
-				reconnectedLock.lock();
-				try
-				{
-					reconnected.signal();
-				} finally {
-					reconnectedLock.unlock();
-				}
-			}
-		});
-
-		NATSServer ts = null;
 		byte[] payload = "bar".getBytes();
 		try (NATSServer ns = utils.createServerOnPort(22222))
 		{
 			try (Connection c = cf.createConnection())
 			{
-				AsyncSubscription s1 = c.subscribe("foo", mh);
-				AsyncSubscription s2 = c.subscribe("foobar", mh);
+				c.subscribe("foo", mh);
+				AsyncSubscription sub  = c.subscribe("foobar", mh);
 
 				received.set(0);
 
 				c.publish("foo", payload);
-				c.flush();
+				try {
+					c.flush();
+				} catch (Exception e2) {
+					fail(e2.getMessage());
+				}
 
-				disconnectedLock.lock();
-				try
-				{
-					ns.shutdown();
-					// server is stopped here.
+				ns.shutdown();
+				// server is stopped here.
+
+				// wait for disconnect
+				try {
 					assertTrue("Did not receive a disconnect callback message",
-							disconnected.await(20,TimeUnit.SECONDS));
-				} catch (InterruptedException e) {
-				} finally {
-					disconnectedLock.unlock();
+							dch.get(2,TimeUnit.SECONDS));
+				} catch (TimeoutException e1) {
+					fail("Did not receive a disconnect callback message");
 				}
 
 				// subscribe to bar while disconnected.
-				AsyncSubscription s3 = c.subscribe("bar", mh);
+				c.subscribe("bar", mh);
 
 				// Unsub foobar while disconnected
-				s2.unsubscribe();
+				sub.unsubscribe();
 
 				c.publish("foo", payload);
 				c.publish("bar", payload);
 
 				// wait for reconnect
-				reconnectedLock.lock();
-				try
-				{
-					ts = utils.createServerOnPort(22222);
+				try (NATSServer ts1 = utils.createServerOnPort(22222)) {
 					// server is restarted here...
 
-					assertTrue("Did not receive a reconnect callback message",
-							reconnected.await(2, TimeUnit.SECONDS));
-				} catch (InterruptedException e) {
-				} finally {
-					reconnectedLock.unlock();
-				}
-
-				c.publish("foobar", payload);
-				c.publish("foo", payload);
-
-				final Lock msgLock = new ReentrantLock();
-				final Condition done = msgLock.newCondition();
-				AsyncSubscription s4 = c.subscribe("done",new MessageHandler()
-				{
-					public void onMessage(Message msg)
-					{
-						msgLock.lock();
-						try
-						{
-							done.signal();
-						} finally {
-							msgLock.unlock();
-						}
+					try {
+						assertTrue("Did not receive a reconnect callback message",
+								rch.get(2, TimeUnit.SECONDS));
+					} catch (TimeoutException e) {
+						fail("Did not receive a reconnect callback message: " + e.getMessage());
 					}
-				});
 
-				msgLock.lock();
-				try
-				{
-					c.publish("done", payload);
-					assertTrue("Did not receive a disconnect callback message",
-							done.await(2, TimeUnit.SECONDS));
-				} finally {
-					msgLock.unlock();
+					c.publish("foobar", payload);
+					c.publish("foo", payload);
+
+					final Channel<Boolean> ch = new Channel<Boolean>(); 
+					c.subscribe("done",new MessageHandler()
+					{
+						public void onMessage(Message msg)
+						{
+							ch.add(true);
+						}
+					});
+
+					UnitTestUtilities.sleep(100);
+					c.publish("done", null);
+
+					try {
+						assertTrue("Did not receive a disconnect callback message",
+								ch.get(5, TimeUnit.SECONDS));
+					} catch (TimeoutException e) {
+						fail("Did not receive our message: "+
+								e.getMessage());
+					}
+
+					UnitTestUtilities.sleep(50);
+
+					assertEquals(4, received.get());
+
+					c.setDisconnectedCallback(null);
 				}
-
-				assertEquals("Wrong number of messages.", 
-						4, received.get());
-				c.setDisconnectedCallback(null);
-				ts.shutdown();
 			} // Connection c
+			catch (IOException | TimeoutException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+				fail(e1.getMessage());
+			}
 		} // NATSServer ns
 	}
 
@@ -410,74 +367,60 @@ public class ReconnectTest {
 	public void testQueueSubsOnReconnect() throws IllegalStateException, Exception
 	{
 		ConnectionFactory cf = new ConnectionFactory(reconnectOptions);
-
-		final Lock reconnectedLock = new ReentrantLock();
-		final Condition reconnected = reconnectedLock.newCondition();
-
-		String subj = "foo.bar";
-		String qgroup = "workers";
-
-		cf.setReconnectedCallback(new ReconnectedCallback()
-		{
-			@Override
-			public void onReconnect(ConnectionEvent event) {
-				reconnectedLock.lock();
-				try
-				{
-					reconnected.signal();
-				} finally {
-					reconnectedLock.unlock();
-				}
-			}
-		});
-		Connection c = null;
 		try (NATSServer ts = utils.createServerOnPort(22222)) {
 
-			c = cf.createConnection();
-			assertFalse(c.isClosed());
-			// TODO create encoded connection
+			final Channel<Boolean> rch = new Channel<Boolean>();
+			cf.setReconnectedCallback(new ReconnectedCallback() {
+				public void onReconnect(ConnectionEvent event) {
+					rch.add(true);
+				}
+			});
 
-			// Make sure we got what we needed, 1 msg only and all seqnos accounted for..
+			try (Connection c = cf.createConnection())
+			{
+				assertFalse(c.isClosed());
+				// TODO create encoded connection
 
-			MessageHandler cb = new MessageHandler() {
-				@Override
-				public void onMessage(Message msg) {
-					//				synchronized(mu) {
-					String num = new String(msg.getData());
-					Integer seqno = Integer.parseInt(num);
-					if (results.containsKey(seqno))
-					{
-						Integer val = results.get(seqno);
-						results.put(seqno, val++);
-					}
-					else {
-						results.put(seqno, 1);
-					}
-				} // onMessage
-			};
+				// Make sure we got what we needed, 1 msg only and all seqnos accounted for..
+				MessageHandler cb = new MessageHandler() {
+					public void onMessage(Message msg) {
+						String num = new String(msg.getData());
+						Integer seqno = Integer.parseInt(num);
+						if (results.containsKey(seqno))
+						{
+							Integer val = results.get(seqno);
+							results.put(seqno, val++);
+						}
+						else {
+							results.put(seqno, 1);
+						}
+					} // onMessage
+				};
 
-			c.subscribe(subj, qgroup, cb);
-			c.subscribe(subj, qgroup, cb);
-			c.flush();
 
-			//Base test
-			sendAndCheckMsgs(c, subj, 10);
-		} // ts
-		// server should stop...
+				String subj = "foo.bar";
+				String qgroup = "workers";
 
-		// start back up
-		reconnectedLock.lock();
-		try{
-			try (NATSServer ts2 = utils.createServerOnPort(22222)) {
+				c.subscribe(subj, qgroup, cb);
+				c.subscribe(subj, qgroup, cb);
+				c.flush();
 
-				assertTrue("Did not fire ReconnectedCB",
-						reconnected.await(3,TimeUnit.SECONDS));
+				//Base test
 				sendAndCheckMsgs(c, subj, 10);
-			} // ts2
 
-		} finally {
-			reconnectedLock.unlock();
-		}
+				// Stop and restart server
+				ts.shutdown();
+
+				// start back up
+				try (NATSServer ts2 = utils.createServerOnPort(22222)) {
+					sleep(500);
+					assertTrue("Did not fire ReconnectedCB",
+							rch.get(3,TimeUnit.SECONDS));
+					sendAndCheckMsgs(c, subj, 10);
+				} // ts2
+			} // connection
+		} // ts
+
 	} 
 
 	void checkResults(int numSent) {
@@ -512,7 +455,6 @@ public class ReconnectTest {
 		try {Thread.sleep(50);} catch(InterruptedException e) {}
 
 		checkResults(numSent);
-
 	}
 
 	@Test
@@ -545,150 +487,148 @@ public class ReconnectTest {
 	@Test 
 	public void testIsReconnectingAndStatus() {
 
-		NATSServer ts = utils.createServerOnPort(22222);
+		try (NATSServer ts = utils.createServerOnPort(22222)) {
+			final Channel<Boolean> dch = new Channel<Boolean>();
+			final Channel<Boolean> rch = new Channel<Boolean>();
 
-		// This will kill the last 'ts' server that is created
-		//defer func() { ts.Shutdown() }()
-		//disconnectedch := make(chan bool)
-		final Lock disconnectedLock = new ReentrantLock(); 
-		final Condition disconnected = disconnectedLock.newCondition();
-		//reconnectch := make(chan bool)
-		final Lock reconnectedLock = new ReentrantLock(); 
-		final Condition reconnected = reconnectedLock.newCondition();
+			ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
+			cf.setReconnectAllowed(true);
+			cf.setMaxReconnect(10000);
+			cf.setReconnectWait(100);
 
-		ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
-		cf.setReconnectAllowed(true);
-		cf.setMaxReconnect(10000);
-		cf.setReconnectWait(100);
-
-		cf.setDisconnectedCallback(new DisconnectedCallback() {
-			@Override
-			public void onDisconnect(ConnectionEvent event) {
-				disconnectedLock.lock();
-				try
-				{
-					disconnected.signal();
-				} finally {
-					disconnectedLock.unlock();
-				}
-			}
-		});
-
-		cf.setReconnectedCallback(new ReconnectedCallback() {
-			@Override
-			public void onReconnect(ConnectionEvent event) {
-				reconnectedLock.lock();
-				try
-				{
-					reconnected.signal();
-				} finally {
-					reconnectedLock.unlock();
-				}
-			}
-		});
-
-		// Connect, verify initial reconnecting state check, then stop the server
-		Connection c = null;
-		try {
-			c = cf.createConnection();
-		} catch (Exception e) {
-			ts.shutdown();
-			fail("Should have connected ok: " + e.getMessage());
-		}
-
-		assertFalse("isReconnecting returned true when the connection is still open.",
-				c.isReconnecting());
-
-		assertTrue("Status returned " + c.getState() +" when connected instead of CONNECTED",
-				c.getState()==ConnState.CONNECTED);
-
-		ts.shutdown();
-
-		disconnectedLock.lock();
-		try
-		{
-			assertTrue("Disconnect callback wasn't triggered.",
-					disconnected.await(3,TimeUnit.SECONDS));
-		} catch (InterruptedException e) {
-		} finally {
-			disconnectedLock.unlock();
-		}
-
-		assertTrue("isReconnecting returned false when the client is reconnecting.", 
-				c.isReconnecting());
-
-		assertTrue("Status returned " + c.getState() +" when connected instead of RECONNECTING",
-				c.getState()==ConnState.RECONNECTING);
-
-		// Wait until we get the reconnect callback
-		reconnectedLock.lock();
-		try 
-		{
-			ts = utils.createServerOnPort(22222);
-
-			assertTrue("reconnectedCB callback wasn't triggered.", 
-					reconnected.await(3, TimeUnit.SECONDS));
-		} catch (InterruptedException e) {
-		} finally {
-			reconnectedLock.lock();
-		}
-
-		assertFalse("isReconnecting returned true after the client was reconnected.", c.isReconnecting());
-
-		assertTrue("Status returned " + c.getState() +" when reconnected instead of CONNECTED",
-				c.getState()==ConnState.CONNECTED);
-
-		// Close the connection, reconnecting should still be false
-		c.close();
-
-		assertFalse("isReconnecting returned true after close() was called.",
-				c.isReconnecting());
-
-		assertTrue("Status returned " + c.getState() +
-				" after close() was called instead of CLOSED",
-				c.getState()==ConnState.CLOSED);
-
-		ts.shutdown();
-	}
-	@Test
-	public void testDefaultReconnectFailure() {
-		final Lock reconnectLock = new ReentrantLock();
-		final Condition reconnected = reconnectLock.newCondition();
-
-		UnitTestUtilities.startDefaultServer();
-		ConnectionFactory cf = new ConnectionFactory();
-		cf.setMaxReconnect(4);
-		try (Connection c = cf.createConnection())
-		{
-			assertFalse(c.isClosed());
-			c.setReconnectedCallback(new ReconnectedCallback() {
-
-				@Override
-				public void onReconnect(ConnectionEvent event) {
-					reconnectLock.lock();
-					try {
-						reconnected.signal();
-					} finally {
-						reconnectLock.unlock();
-					}
+			cf.setDisconnectedCallback(new DisconnectedCallback() {
+				public void onDisconnect(ConnectionEvent event) {
+					dch.add(true);
 				}
 			});
 
-			try {Thread.sleep(500);} catch (InterruptedException e) {}
-			reconnectLock.lock();
-			try {
-				UnitTestUtilities.stopDefaultServer();
-				assertFalse(reconnected.await(3,TimeUnit.SECONDS));
-				while(c.isReconnecting())
-					Thread.sleep(500);
-				assertTrue("Should have been closed but is " + c.getState(), c.isClosed());
-			} catch (InterruptedException e) {
-			} finally {
-				reconnectLock.unlock();
-				UnitTestUtilities.stopDefaultServer();
+			cf.setReconnectedCallback(new ReconnectedCallback() {
+				public void onReconnect(ConnectionEvent event) {
+					rch.add(true);
+				}
+			});
+
+			// Connect, verify initial reconnecting state check, then stop the server
+			try (Connection c = cf.createConnection())
+			{
+				assertFalse("isReconnecting returned true when the connection is still open.",
+						c.isReconnecting());
+
+				assertEquals(ConnState.CONNECTED, c.getState());
+
+				ts.shutdown();
+
+				try
+				{
+					assertTrue("Disconnect callback wasn't triggered.",
+							dch.get(5,TimeUnit.SECONDS));
+				} catch (TimeoutException e) {
+					e.printStackTrace();
+					fail(e.getMessage());
+				} 
+				assertTrue("isReconnecting returned false when the client is reconnecting.", 
+						c.isReconnecting());
+
+				assertEquals(ConnState.RECONNECTING, c.getState());
+
+				// Wait until we get the reconnect callback
+				try (NATSServer ts2 = utils.createServerOnPort(22222)) {
+					try
+					{
+						assertTrue("reconnectedCB callback wasn't triggered.", 
+								rch.get(3, TimeUnit.SECONDS));
+					} catch (TimeoutException e) {
+						e.printStackTrace();
+						fail(e.getMessage());
+					}
+
+					assertFalse("isReconnecting returned true after the client was reconnected.", 
+							c.isReconnecting());
+
+					assertEquals(ConnState.CONNECTED, c.getState());
+
+					// Close the connection, reconnecting should still be false
+					c.close();
+
+					assertFalse("isReconnecting returned true after close() was called.",
+							c.isReconnecting());
+
+					assertTrue("Status returned " + c.getState() +
+							" after close() was called instead of CLOSED",
+							c.isClosed());
+				}
+			} catch (IOException | TimeoutException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+				fail();
 			}
-		} catch (IOException | TimeoutException e) {
-			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void testDefaultReconnectFailure() {
+		try (NATSServer ts = utils.createServerOnPort(4222)) {
+			ConnectionFactory cf = new ConnectionFactory();
+			cf.setMaxReconnect(4);
+
+			final Channel<Boolean> cch = new Channel<Boolean>();
+			try (Connection c = cf.createConnection())
+			{
+				assertFalse(c.isClosed());
+
+				final Channel<Boolean> dch = new Channel<Boolean>();
+				c.setDisconnectedCallback(new DisconnectedCallback() {
+					public void onDisconnect(ConnectionEvent event) {
+						dch.add(true);
+					}
+				});
+				final Channel<Boolean> rch = new Channel<Boolean>();
+				c.setReconnectedCallback(new ReconnectedCallback() {
+					public void onReconnect(ConnectionEvent event) {
+						rch.add(true);
+					}
+				});
+
+				c.setClosedCallback(new ClosedCallback() {
+					public void onClose(ConnectionEvent event) {
+						cch.add(true);
+					}
+				});
+
+				ts.shutdown();
+
+				boolean disconnected = false;
+				try {
+					disconnected = dch.get(1,TimeUnit.SECONDS);
+				} catch (TimeoutException e) {
+					fail("Should have signaled disconnected");
+				}
+				assertTrue("Should have signaled disconnected", disconnected);
+
+				boolean reconnected = false;
+				try {
+					reconnected = rch.get(1,TimeUnit.SECONDS);
+				} catch (TimeoutException e) {
+					// This should happen
+				}
+				assertFalse("Should not have reconnected", reconnected);
+
+			} // conn
+			catch (IOException | TimeoutException e1) {
+				e1.printStackTrace();
+				fail(e1.getMessage());
+			}
+			boolean closed = false;
+			try {
+				closed = cch.get(2, TimeUnit.SECONDS);
+			} catch (TimeoutException e) {
+				fail("Connection didn't close within timeout");
+			}
+			assertTrue("Conn should have closed within timeout", closed);
+
+			//			assertEquals(0, c.getStats().getReconnects());
+			//			assertTrue("Should have been closed but is " + c.getState(), c.isClosed());
+
+		} // ts
 	}
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -7,12 +7,15 @@
  *******************************************************************************/
 package io.nats.client;
 
+import static io.nats.client.Constants.*;
+
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
 
-	public SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, int max) {
+	protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, int max) {
 		super(nc, subj, queue, max);
 	}
 
@@ -27,9 +30,15 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 		}
 		return m;
 	}
-
+	
 	@Override
 	public Message nextMessage(long timeout)
+			throws IOException, TimeoutException {
+		return nextMessage(timeout, TimeUnit.MILLISECONDS);
+	}
+	
+	@Override
+	public Message nextMessage(long timeout, TimeUnit unit)
 			throws IOException, TimeoutException {
 		Message msg = null;
 		ConnectionImpl localConn;
@@ -39,30 +48,37 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 		mu.lock();
 		if (connClosed) {
 			mu.unlock();
-			throw new ConnectionClosedException();
+			throw new IllegalStateException(ERR_CONNECTION_CLOSED);
 		}
 		if (mch == null) {
-			if ((max > 0) && (delivered.get() >= max)) {
+			if ((this.max > 0) && (delivered.get() >= this.max)) {
 				mu.unlock();
-				throw new MaxMessagesException();
+				throw new IOException(ERR_MAX_MESSAGES);
 			} else if (closed) {
 				mu.unlock();
-				throw new BadSubscriptionException();
+				throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
 			}
 		}
 		if (sc == true) {
 			sc = false;
 			mu.unlock();
-			throw new SlowConsumerException();
+			throw new IOException(ERR_SLOW_CONSUMER);
 		}
 		localConn = (ConnectionImpl) this.getConnection();
 		localChannel = mch;
-		localMax = getMax();
+		localMax = max;
 		mu.unlock();
 
 		if (timeout >= 0) {
 			try {
-				msg = localChannel.get(timeout);
+logger.trace("Calling Channel.get({}, {}) for {}", timeout, unit, this.subject);
+//				long t0 = System.nanoTime();
+//				boolean expired = false;
+//				while (msg==null && !expired) {
+//					expired = (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0) > unit.toMillis(timeout));
+//					msg = localChannel.poll();
+//				}
+				msg = localChannel.get(timeout, unit);
 			} catch (TimeoutException e) {
 				throw e;
 			}
@@ -70,16 +86,16 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 			msg = localChannel.get();
 		}
 
-		long d = delivered.incrementAndGet();
-		if (localMax > 0) {
-			if (d > localMax) {
-				throw new MaxMessagesException();					
-			}
+		if (msg != null) {
+			long d = delivered.incrementAndGet();
 			// Remove subscription if we have reached max.
 			if (d == localMax) {
 				localConn.mu.lock();
 				localConn.removeSub(this);
 				localConn.mu.unlock();
+			}
+			if ((localMax > 0) && (d > localMax)) {
+				throw new IOException(ERR_MAX_MESSAGES);					
 			}
 		}
 		return msg;

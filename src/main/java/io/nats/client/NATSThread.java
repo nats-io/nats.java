@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2015 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -7,8 +7,11 @@
  *******************************************************************************/
 package io.nats.client;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.*;
-import java.util.logging.*;
+
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 /**
  * NATSThread
@@ -22,8 +25,10 @@ class NATSThread extends Thread {
 	private static volatile boolean debugLifecycle = false;
 	private static final AtomicInteger created = new AtomicInteger();
 	private static final AtomicInteger alive = new AtomicInteger();
-	private static final Logger log = Logger.getAnonymousLogger();
-
+	private CountDownLatch startSignal=null;
+	private CountDownLatch doneSignal=null;
+	private final Logger logger=LoggerFactory.getLogger(NATSThread.class);
+	
 	public NATSThread(Runnable r) {
 		this(r, DEFAULT_NAME);
 	}
@@ -33,22 +38,37 @@ class NATSThread extends Thread {
 		setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
 			public void uncaughtException(Thread t,
 					Throwable e) {
-				log.log(Level.SEVERE,
-						"UNCAUGHT in thread " + t.getName(), e);
+				logger.debug("UNCAUGHT in thread {}", t.getName(), e);
 			}
 		});
 	}
 
+	public NATSThread(Runnable r, String poolName, CountDownLatch 
+			startSignal, CountDownLatch doneSignal)
+	{
+		super(r, poolName);
+		this.startSignal=startSignal;
+		this.doneSignal=doneSignal;
+	}
+
 	public void run() {
+		logger.trace("In RUN");
 		// Copy debug flag to ensure consistent value throughout.
 		boolean debug = debugLifecycle;
-		if (debug) log.log(Level.FINE, "Created " + getName());
+		if (debug) logger.debug("Created {}", getName());
 		try {
+			if (startSignal != null)
+				startSignal.await();
 			alive.incrementAndGet();
 			super.run();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			logger.trace("Interrupted: ", e);
 		} finally {
+			if (this.doneSignal != null)
+				this.doneSignal.countDown();
 			alive.decrementAndGet();
-			if (debug) log.log(Level.FINE, "Exiting " + getName());
+			if (debug) logger.debug("Exiting {}" + getName());
 		}
 	}
 

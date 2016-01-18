@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -16,7 +16,7 @@ import java.util.Arrays;
  * A {@code Message} object is used to send a message containing a 
  * stream of uninterpreted bytes.
  */
-public final class Message {
+public class Message {
 	private String subject;
 	private String replyTo;
 	private byte[] data;  

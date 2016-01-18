@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -124,9 +124,21 @@ public class MessageTest {
 		m.setData(data);
 	}
 
-//	@Test
-//	public void testToString() {
-//		fail("Not yet implemented"); // TODO
-//	}
+	@Test
+	public void testToString() {
+		byte[] data = "hello".getBytes();
+		Message m = new Message();
+		m.setData(data);
+		m.setSubject("foo");
+		m.setReplyTo("bar");
+		assertEquals("{Subject=foo;Reply=bar;Payload=<hello>}", m.toString());
+		
+		String longPayload = "this is a really long message that's easily over 32 "
+				+ "characters long so it will be truncated.";
+		data = longPayload.getBytes();
+		m.setData(data);
+		assertEquals("{Subject=foo;Reply=bar;Payload="
+				+ "<this is a really long message th60 more bytes>}", m.toString());
+	}
 
 }

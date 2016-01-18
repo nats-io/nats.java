@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,6 +37,9 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+
+import static io.nats.client.Constants.*;
+import static io.nats.client.UnitTestUtilities.sleep;
 
 @Category(UnitTest.class)
 public class BasicTest {
@@ -157,7 +161,7 @@ public class BasicTest {
 		}
 	}
 
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void testSimplePublishError() 
 	{
 		try (Connection c = new ConnectionFactory().createConnection())
@@ -478,7 +482,7 @@ public class BasicTest {
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
 			assertFalse(c.isClosed());
-			c.request("foo", "help".getBytes(), 10);
+			assertNull("timeout waiting for response", c.request("foo", "help".getBytes(), 10));
 		} catch (IOException e) {
 			fail(e.getMessage());
 		}
@@ -755,7 +759,8 @@ public class BasicTest {
 			boolean exThrown = false;
 			try {
 				c.publish("", null);
-			} catch (BadSubjectException e) {
+			} catch (IllegalArgumentException e) {
+				assertEquals(ERR_BAD_SUBJECT, e.getMessage());
 				exThrown = true;
 			} finally {
 				assertTrue(exThrown);
@@ -763,7 +768,8 @@ public class BasicTest {
 			exThrown = false;
 			try {
 				c.publish(null, "Hello".getBytes());
-			} catch (BadSubjectException e) {
+			} catch (NullPointerException e) {
+				assertEquals(ERR_BAD_SUBJECT, e.getMessage());
 				exThrown = true;
 			} finally {
 				assertTrue(exThrown);

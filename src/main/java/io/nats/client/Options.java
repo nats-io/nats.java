@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2016 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -40,18 +40,18 @@ class Options {
 	//			new ArrayList<X509Certificate>();
 
 	/**
-	 * @return the subChanLen
+	 * @return the maxPendingMsgs
 	 */
-	public int getSubChanLen() {
-		return subChanLen;
+	public int getMaxPendingMsgs() {
+		return maxPendingMsgs;
 	}
 	/**
-	 * @param subChanLen the subChanLen to set
+	 * @param maxPendingMsgs the maxPendingMsgs to set
 	 */
-	public void setSubChanLen(int subChanLen) {
-		this.subChanLen = subChanLen;
+	public void setMaxPendingMsgs(int subChanLen) {
+		this.maxPendingMsgs = subChanLen;
 	}
-	private int subChanLen;
+	private int maxPendingMsgs;
 	protected DisconnectedCallback disconnectedCB;
 	protected ClosedCallback closedCB;
 	protected ReconnectedCallback reconnectedCB;

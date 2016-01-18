@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2012, 2015 Apcera Inc.
+ * Copyright (c) 2015-2016 Apcera Inc.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the MIT License (MIT)
  * which accompanies this distribution, and is available at
@@ -8,6 +8,7 @@
 package io.nats.client;
 
 import java.nio.ByteBuffer;
+import java.text.ParseException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -69,7 +70,7 @@ final class Parser {
 		this.conn.ps = null;
 	}
 	
-	protected void parse(byte[] buffer, int len) throws ParserException {
+	protected void parse(byte[] buffer, int len) throws ParseException {
 		int i;
 		char b;
 		boolean error = false;
@@ -402,9 +403,9 @@ final class Parser {
             } // switch(state)
             if (error) {
             	error = false;
-            	throw new ParserException(String.format("Parse Error [%s], [%s] [%s]", 
-            			state, new String(buffer), 
-            			Arrays.toString(buffer)));
+            	throw new ParseException(String.format("Parse Error [%s], [%s] [%d]", 
+            			state, new String(buffer),argBufStream.position()),
+            			argBufStream.position());
             }
         }  // for
 		
