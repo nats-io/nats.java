@@ -1,11 +1,9 @@
-<!--
-    Copyright (c) 2015-2016 Apcera Inc.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the MIT License (MIT)
-    which accompanies this distribution, and is available at
-    http://opensource.org/licenses/MIT
- -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<!-- Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program 
+	and the accompanying materials are made available under the terms of the 
+	MIT License (MIT) which accompanies this distribution, and is available at 
+	http://opensource.org/licenses/MIT -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
@@ -16,7 +14,7 @@
 
 	<groupId>io.nats</groupId>
 	<artifactId>jnats</artifactId>
-	<version>0.4-SNAPSHOT</version>
+	<version>0.4.0-SNAPSHOT</version>
 
 	<name>jnats</name>
 	<description>Java client library for NATS Messaging System</description>
@@ -56,37 +54,46 @@
 	</dependencies>
 
 	<profiles>
-	    <profile>
-	        <id>unitTests</id>
-	        <activation>
-	            <activeByDefault>true</activeByDefault>
-	        </activation>
-	        <build>
-	            <plugins>
-	                <plugin>
-	                    <groupId>org.apache.maven.plugins</groupId>
-	                    <artifactId>maven-surefire-plugin</artifactId>
-	                    <configuration>
-	                        <groups>io.nats.client.UnitTest</groups>
-	                    </configuration>
-	                </plugin>
-	            </plugins>
-	        </build>
-	    </profile>
-	    <profile>
-	        <id>benchTests</id>
-	        <build>
-	            <plugins>
-	                <plugin>
-	                    <groupId>org.apache.maven.plugins</groupId>
-	                    <artifactId>maven-surefire-plugin</artifactId>
-	                    <configuration>
-	                        <groups>io.nats.client.BenchmarkTest</groups>
-	                    </configuration>
-	                </plugin>
-	            </plugins>
-	        </build>
-	    </profile>
+		<profile>
+			<id>unitTests</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<groups>io.nats.client.UnitTest</groups>
+							<argLine>${argLine}</argLine>
+						</configuration>
+						<executions>
+							<execution>
+								<id>run-unit-tests</id>
+								<goals>
+									<goal>test</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>benchTests</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<groups>io.nats.client.BenchmarkTest</groups>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 	</profiles>
 	<build>
 		<plugins>
@@ -106,7 +113,7 @@
 				<artifactId>maven-gpg-plugin</artifactId>
 				<version>1.6</version>
 				<configuration>
-					<useAgent>false</useAgent>
+					<useAgent>true</useAgent>
 				</configuration>
 				<executions>
 					<execution>
@@ -122,6 +129,18 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.19</version>
+				<executions>
+					<execution>
+						<id>default-test</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<argLine>${surefireArgLine}</argLine>
+						</configuration>
+					</execution>
+				</executions>
 				<configuration>
 					<!-- Sets the VM argument line used when unit tests are run. -->
 					<argLine>${surefireArgLine}</argLine>
@@ -129,7 +148,7 @@
 					<skipTests>${skip.unit.tests}</skipTests>
 					<!-- Excludes integration tests when unit tests are run. -->
 					<excludes>
-					    <exclude>**/IT*.java</exclude>
+						<exclude>**/IT*.java</exclude>
 					</excludes>
 					<!-- Includes specific categories when unit tests are run. -->
 					<groups>io.nats.client.UnitTest</groups>
@@ -148,42 +167,19 @@
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.7.5.201505241946</version>
 				<executions>
-					<!-- 
-						Prepares the property pointing to the JaCoCo runtime agent which 
-						is passed as VM argument when Maven the Surefire plugin is executed. 
-					-->
 					<execution>
-						<id>pre-unit-test</id>
+						<id>default-prepare-agent</id>
 						<goals>
 							<goal>prepare-agent</goal>
 						</goals>
-						<configuration>
-							<!-- Sets the path to the file which contains the execution data. -->
-							<destFile>${project.build.directory}/coverage-reports/jacoco-ut.exec</destFile>
-							<!-- 
-								Sets the name of the property containing the settings for JaCoCo 
-								runtime agent. 
-							-->
-							<propertyName>surefireArgLine</propertyName>
-						</configuration>
 					</execution>
-			        <!--
-			            Ensures that the code coverage report for unit tests is created after
-			            unit tests have been run.
-			        -->
-			        <execution>
-			            <id>post-unit-test</id>
-			            <phase>test</phase>
-			            <goals>
-			                <goal>report</goal>
-			            </goals>
-			            <configuration>
-			                <!-- Sets the path to the file which contains the execution data. -->
-			                <dataFile>${project.build.directory}/coverage-reports/jacoco-ut.exec</dataFile>
-			                <!-- Sets the output directory for the code coverage report. -->
-			                <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
-			            </configuration>
-			        </execution>
+					<execution>
+						<id>default-report</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
 					<execution>
 						<id>default-check</id>
 						<goals>
@@ -191,13 +187,15 @@
 						</goals>
 						<configuration>
 							<rules>
+								<!-- implementation is needed only for Maven 2 -->
 								<rule implementation="org.jacoco.maven.RuleConfiguration">
 									<element>BUNDLE</element>
 									<limits>
+										<!-- implementation is needed only for Maven 2 -->
 										<limit implementation="org.jacoco.report.check.Limit">
 											<counter>COMPLEXITY</counter>
 											<value>COVEREDRATIO</value>
-											<minimum>0.80</minimum>
+											<minimum>0.60</minimum>
 										</limit>
 									</limits>
 								</rule>
@@ -211,6 +209,8 @@
 				<artifactId>coveralls-maven-plugin</artifactId>
 				<version>2.2.0</version>
 				<configuration>
+					<jacocoFile>${project.reporting.outputDirectory}/jacoco-ut/
+						jacoco.xml</jacocoFile>
 					<sourceEncoding>UTF8</sourceEncoding>
 				</configuration>
 			</plugin>
@@ -236,11 +236,9 @@
 					<footer>jnats ${project.version}</footer>
 					<author>false</author>
 					<doctitle>${project.name} (${project.version})</doctitle>
-<!-- 					
-					<stylesheetfile>${basedir}/src/main/javadoc/kenai-stylesheet.css</stylesheetfile>
-					<javadocDirectory>${basedir}/src/main/javadoc</javadocDirectory>  
- -->					
- 					<docfilessubdirs>true</docfilessubdirs>  
+					<!-- <stylesheetfile>${basedir}/src/main/javadoc/kenai-stylesheet.css</stylesheetfile> 
+						<javadocDirectory>${basedir}/src/main/javadoc</javadocDirectory> -->
+					<docfilessubdirs>true</docfilessubdirs>
 					<additionalJOption>-J-Xmx1024m</additionalJOption>
 				</configuration>
 				<executions>
@@ -319,8 +317,8 @@
 		<url>https://github.com/nats-io/jnats</url>
 		<connection>scm:git:git://github.com/nats-io/jnats.git</connection>
 		<developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
-	  <tag>HEAD</tag>
-  </scm>
+		<tag>HEAD</tag>
+	</scm>
 
 	<organization>
 		<url>http://nats.io</url>

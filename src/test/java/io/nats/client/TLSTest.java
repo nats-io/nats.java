@@ -9,14 +9,12 @@ package io.nats.client;
 
 import static org.junit.Assert.*;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.concurrent.TimeoutException;
 
@@ -85,7 +83,7 @@ public class TLSTest {
 			cf.setUrl("nats://localhost:1222");
 			cf.setSecure(true);
 			cf.setTlsDebug(true);
-			cf.setSslContext(c);
+			cf.setSSLContext(c);
 
 			try (Connection connection = cf.createConnection()) {
 				assertFalse(connection.isClosed());
@@ -126,7 +124,7 @@ public class TLSTest {
 			ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
 			cf.setSecure(true);
 			cf.setTlsDebug(true);
-			cf.setSslContext(context);
+			cf.setSSLContext(context);
 
 			String subj = "foo";
 			byte[] omsg = "Hello TLS!".getBytes();
