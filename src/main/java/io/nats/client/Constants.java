@@ -238,5 +238,5 @@ public final class Constants {
 	/**
 	 * This property is defined as String {@value #PROP_MAX_PENDING_MSGS}
 	 */
-	public final static String PROP_MAX_PENDING_MSGS 		= PFX + "maxpings";
+	public final static String PROP_MAX_PENDING_MSGS 		= PFX + "maxpending";
 }
