@@ -114,7 +114,7 @@ public class ParserTest {
 		};
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
-				parser = c.ps;
+				parser = c.parser;
 				try (Subscription sub = c.subscribeSync("foo")) {
 					for (String s : goodLines) {
 //						ConnectionImpl.printSubs(c);
@@ -140,7 +140,7 @@ public class ParserTest {
 		Parser parser;
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
-				parser = c.ps;
+				parser = c.parser;
 				String s = "-ERR 'A boring error'\r\n";
 				try {		
 					byte[] b = s.getBytes();
@@ -210,7 +210,7 @@ public class ParserTest {
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 
-				parser = c.ps;
+				parser = c.parser;
 				boolean exThrown = false;
 
 				for (String s : badLines)
@@ -226,7 +226,7 @@ public class ParserTest {
 					}
 					assertTrue("Should have thrown ParseException", exThrown);
 					// Reset to OP_START for next line
-					parser.state = NatsOp.OP_START;
+					c.ps.state = NatsOp.OP_START;
 				}
 
 			} // ConnectionImpl
@@ -253,7 +253,7 @@ public class ParserTest {
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 
-				parser = c.ps;
+				parser = c.parser;
 				try (Subscription sub = c.subscribeSync("foo")) {
 					try {
 						parser.parse(msgBytes, msgBytes.length);

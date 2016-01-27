@@ -96,7 +96,7 @@ class ConnectionImpl implements Connection {
 	public static final String PING_PROTO  = "PING" + _CRLF_;
 	public static final String PONG_PROTO  = "PONG" + _CRLF_;
 	public static final String PUB_PROTO   = "PUB %s %s %d" + _CRLF_;
-	public static final String SUB_PROTO   = "SUB %s %s %d" + _CRLF_;
+	public static final String SUB_PROTO   = "SUB %s%s %d" + _CRLF_;
 	public static final String UNSUB_PROTO = "UNSUB %d %s" + _CRLF_;
 	public static final String OK_PROTO    = _OK_OP_ + _CRLF_;
 
@@ -134,7 +134,9 @@ class ConnectionImpl implements Connection {
 	private int pout;
 
 	// Initialized in readLoop
-	protected Parser ps						= null;
+	protected Parser parser					= new Parser(this);
+	protected Parser.ParseState ps			= null;
+
 	protected MsgArg msgArgs				= null;
 	protected byte[] pingProtoBytes			= null;
 	protected int pingProtoBytesLen			= 0;
@@ -156,6 +158,10 @@ class ConnectionImpl implements Connection {
 	private Phaser phaser					= new Phaser();
 //	private Phaser ioPhaser					= new Phaser();
 	private Channel<Boolean> fch			= new Channel<Boolean>();
+
+	ConnectionImpl() {
+		
+	}
 	
 	ConnectionImpl(Options o)
 	{
@@ -168,7 +174,6 @@ class ConnectionImpl implements Connection {
 
 		this.opts = o;
 		this.stats = new Statistics();
-		this.ps = new Parser(this);
 		this.msgArgs = new MsgArg();
 		if (tcpconn != null)
 			this.conn = tcpconn;
@@ -1342,12 +1347,10 @@ logger.trace("doReconnect finished successfully!");
 		// stack copy
 		TCPConnection conn = null;
 
-		// Create a parseState of needed/
 		mu.lock();
 		try {
-			if (this.ps == null)
-				this.ps = new Parser(this);
-			parser = this.ps;
+			parser = this.parser;
+			this.ps = parser.ps;
 		} finally {
 			mu.unlock();
 		}
@@ -1362,7 +1365,7 @@ logger.trace("doReconnect finished successfully!");
 			{
 				sb = (isClosed() || isReconnecting());
 				if (sb) {
-					this.ps = parser;
+					this.ps = parser.ps;
 				}
 				conn = this.conn;
 			} finally {
@@ -2208,8 +2211,11 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 			// so that we can suppress here.
 			if (!isReconnecting())
 			{
-				String s = String.format(SUB_PROTO, sub.getSubject(), 
-						sub.getQueue(), sub.getSid());
+				String queue = sub.getQueue();
+				String s = String.format(SUB_PROTO, 
+						sub.getSubject(), 
+						queue!=null ? " " + queue : "",
+						sub.getSid());
 				try {
 					bw.write(Utilities.stringToBytesASCII(s));
 //					logger.trace("=> {}", s.trim() );

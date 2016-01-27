@@ -15,31 +15,28 @@ import java.util.Map;
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
 
 final class Parser {
-	/**
-	 * Maximum size of a control line (message header)
-	 */
-	final static int 		MAX_CONTROL_LINE_SIZE = 1024;
+	final static int MAX_CONTROL_LINE_SIZE = 1024;
 	
-	private ConnectionImpl conn;
-//	protected int state = 0;
-	NatsOp state = NatsOp.OP_START;
+	private ConnectionImpl nc;
 	
-	byte[] argBufBase = new byte[DEFAULT_BUF_SIZE];
-	ByteBuffer argBufStream = null;
-	
-	byte[] msgBufBase = new byte[DEFAULT_BUF_SIZE];
-	ByteBuffer msgBufStream = null;
-	
-//	protected class ParseState {
+	protected class ParseState {
+		NatsOp state = NatsOp.OP_START;
 //		int		state;
-//		int		as;
-//		int		drop;
-//		MsgArg	ma;
-//		String 	argBuf;
-//		String 	msgBuf;
-//		String 	scratch; 
-//	}
+		int		as;
+		int		drop;
+		MsgArg	ma;
 
+//		String 	argBuf;
+		byte[] argBuf = new byte[DEFAULT_BUF_SIZE];
+		ByteBuffer argBufStream = null;
+		
+//		String 	msgBuf;
+		byte[] msgBuf = new byte[DEFAULT_BUF_SIZE];
+		ByteBuffer msgBufStream = null;
+		
+		String 	scratch; 
+	}
+	
 	static enum NatsOp {
 	    		OP_START,
 	    	    OP_PLUS,
@@ -67,11 +64,14 @@ final class Parser {
 	    	    OP_PONG
 	}
 	
-	public Parser(ConnectionImpl connectionImpl) {
-		argBufStream = ByteBuffer.wrap(argBufBase);
-		msgBufStream = ByteBuffer.wrap(msgBufBase);
-		this.conn = connectionImpl;
-		this.conn.ps = null;
+	protected ParseState ps = null;
+	
+	protected Parser(ConnectionImpl connectionImpl) {
+		this.ps = new ParseState();
+		ps.argBufStream = ByteBuffer.wrap(ps.argBuf);
+		ps.msgBufStream = ByteBuffer.wrap(ps.msgBuf);
+		this.nc = connectionImpl;
+		this.nc.ps = ps;
 	}
 	
 	protected void parse(byte[] buffer, int len) throws ParseException {
@@ -82,25 +82,25 @@ final class Parser {
         for (i = 0; i < len; i++)
         {
             b = (char)buffer[i];
-//            System.err.println("STATE=" + state + ", byte=" + b);
-            switch (state)
+//            System.err.println("STATE=" + ps.state + ", byte=" + b);
+            switch (ps.state)
             {
                 case OP_START:
                     switch (b)
                     {
                         case 'M':
                         case 'm':
-                            state = NatsOp.OP_M;
+                            ps.state = NatsOp.OP_M;
                             break;
                         case 'P':
                         case 'p':
-                            state = NatsOp.OP_P;
+                            ps.state = NatsOp.OP_P;
                             break;
                         case '+':
-                            state = NatsOp.OP_PLUS;
+                            ps.state = NatsOp.OP_PLUS;
                             break;
                         case '-':
-                            state = NatsOp.OP_MINUS;
+                            ps.state = NatsOp.OP_MINUS;
                             break;
                         default:
                             error=true;
@@ -112,7 +112,7 @@ final class Parser {
                     {
                         case 'S':
                         case 's':
-                            state = NatsOp.OP_MS;
+                            ps.state = NatsOp.OP_MS;
                             break;
                         default:
                             error=true;
@@ -124,7 +124,7 @@ final class Parser {
                     {
                         case 'G':
                         case 'g':
-                            state = NatsOp.OP_MSG;
+                            ps.state = NatsOp.OP_MSG;
                             break;
                         default:
                             error=true;
@@ -136,7 +136,7 @@ final class Parser {
                     {
                         case ' ':
                         case '\t':
-                            state = NatsOp.OP_MSG_SPC;
+                            ps.state = NatsOp.OP_MSG_SPC;
                             break;
                         default:
                             error=true;
@@ -151,7 +151,7 @@ final class Parser {
                         case '\t':
                             break;
                         default:
-                            state = NatsOp.MSG_ARG;
+                            ps.state = NatsOp.MSG_ARG;
                             i--;
                             break;
                     }
@@ -162,39 +162,39 @@ final class Parser {
                         case '\r':
                             break;
                         case '\n':
-                            conn.processMsgArgs(argBufBase, argBufStream.position());
-                            argBufStream.position(0);
-                            if (conn.msgArgs.size > msgBufBase.length)
+                            nc.processMsgArgs(ps.argBuf, ps.argBufStream.position());
+                            ps.argBufStream.position(0);
+                            if (nc.msgArgs.size > ps.msgBuf.length)
                             {
                             	// Add 2 to account for the \r\n
-                                msgBufBase = new byte[conn.msgArgs.size+1];
-                                msgBufStream = ByteBuffer.wrap(msgBufBase);
+                                ps.msgBuf = new byte[nc.msgArgs.size+1];
+                                ps.msgBufStream = ByteBuffer.wrap(ps.msgBuf);
                             }
-                            state = NatsOp.MSG_PAYLOAD;
+                            ps.state = NatsOp.MSG_PAYLOAD;
                             break;
                         default:
-                            argBufStream.put((byte)b);
+                            ps.argBufStream.put((byte)b);
                             break;
                     }
                     break;
                 case MSG_PAYLOAD:
-                    long position = msgBufStream.position();
-                    if (position >= conn.msgArgs.size)
+                    long position = ps.msgBufStream.position();
+                    if (position >= nc.msgArgs.size)
                     {
-                        conn.processMsg(msgBufBase, position);
-                        msgBufStream.position(0);
-                        state = NatsOp.MSG_END;
+                        nc.processMsg(ps.msgBuf, position);
+                        ps.msgBufStream.position(0);
+                        ps.state = NatsOp.MSG_END;
                     }
                     else
                     {
-                        msgBufStream.put((byte)b);
+                        ps.msgBufStream.put((byte)b);
                     }
                     break;
                 case MSG_END:
                     switch (b)
                     {
                         case '\n':
-                            state = NatsOp.OP_START;
+                            ps.state = NatsOp.OP_START;
                             break;
                         default:
                             continue;
@@ -205,7 +205,7 @@ final class Parser {
                     {
                         case 'O':
                         case 'o':
-                            state = NatsOp.OP_PLUS_O;
+                            ps.state = NatsOp.OP_PLUS_O;
                             break;
                         default:
                             error=true;
@@ -217,7 +217,7 @@ final class Parser {
                     {
                         case 'K':
                         case 'k':
-                            state = NatsOp.OP_PLUS_OK;
+                            ps.state = NatsOp.OP_PLUS_OK;
                             break;
                         default:
                             error=true;
@@ -228,8 +228,8 @@ final class Parser {
                     switch (b)
                     {
                         case '\n':
-                            conn.processOK();
-                            state = NatsOp.OP_START;
+                            nc.processOK();
+                            ps.state = NatsOp.OP_START;
                             break;
                     }
                     break;
@@ -238,7 +238,7 @@ final class Parser {
                     {
                         case 'E':
                         case 'e':
-                            state = NatsOp.OP_MINUS_E;
+                            ps.state = NatsOp.OP_MINUS_E;
                             break;
                         default:
                             error=true;
@@ -250,7 +250,7 @@ final class Parser {
                     {
                         case 'R':
                         case 'r':
-                            state = NatsOp.OP_MINUS_ER;
+                            ps.state = NatsOp.OP_MINUS_ER;
                             break;
                         default:
                             error=true;
@@ -262,7 +262,7 @@ final class Parser {
                     {
                         case 'R':
                         case 'r':
-                            state = NatsOp.OP_MINUS_ERR;
+                            ps.state = NatsOp.OP_MINUS_ERR;
                             break;
                         default:
                             error=true;
@@ -274,7 +274,7 @@ final class Parser {
                     {
                         case ' ':
                         case '\t':
-                            state = NatsOp.OP_MINUS_ERR_SPC;
+                            ps.state = NatsOp.OP_MINUS_ERR_SPC;
                             break;
                         default:
                             error=true;
@@ -286,10 +286,10 @@ final class Parser {
                     {
                         case ' ':
                         case '\t':
-                            state = NatsOp.OP_MINUS_ERR_SPC;
+                            ps.state = NatsOp.OP_MINUS_ERR_SPC;
                             break;
                         default:
-                            state = NatsOp.MINUS_ERR_ARG;
+                            ps.state = NatsOp.MINUS_ERR_ARG;
                             i--;
                             break;
                     }
@@ -300,12 +300,12 @@ final class Parser {
                         case '\r':
                             break;
                         case '\n':
-                            conn.processErr(argBufStream);
-                            argBufStream.position(0);
-                            state = NatsOp.OP_START;
+                            nc.processErr(ps.argBufStream);
+                            ps.argBufStream.position(0);
+                            ps.state = NatsOp.OP_START;
                             break;
                         default:
-                            argBufStream.put((byte)b);
+                            ps.argBufStream.put((byte)b);
                             break;
                     }
                     break;
@@ -314,11 +314,11 @@ final class Parser {
                     {
                         case 'I':
                         case 'i':
-                            state = NatsOp.OP_PI;
+                            ps.state = NatsOp.OP_PI;
                             break;
                         case 'O':
                         case 'o':
-                            state = NatsOp.OP_PO;
+                            ps.state = NatsOp.OP_PO;
                             break;
                         default:
                             error=true;
@@ -330,7 +330,7 @@ final class Parser {
                     {
                         case 'N':
                         case 'n':
-                            state = NatsOp.OP_PON;
+                            ps.state = NatsOp.OP_PON;
                             break;
                         default:
 //                            parseError(buffer, i);
@@ -343,7 +343,7 @@ final class Parser {
                     {
                         case 'G':
                         case 'g':
-                            state = NatsOp.OP_PONG;
+                            ps.state = NatsOp.OP_PONG;
                             break;
                         default:
                         	error=true;
@@ -356,8 +356,8 @@ final class Parser {
                         case '\r':
                             break;
                         case '\n':
-                            conn.processPong();
-                            state = NatsOp.OP_START;
+                            nc.processPong();
+                            ps.state = NatsOp.OP_START;
                             break;
                         default:
                         	error=true;
@@ -369,7 +369,7 @@ final class Parser {
                     {
                         case 'N':
                         case 'n':
-                            state = NatsOp.OP_PIN;
+                            ps.state = NatsOp.OP_PIN;
                             break;
                         default:
                         	error=true;
@@ -381,7 +381,7 @@ final class Parser {
                     {
                         case 'G':
                         case 'g':
-                            state = NatsOp.OP_PING;
+                            ps.state = NatsOp.OP_PING;
                             break;
                         default:
                         	error=true;
@@ -394,8 +394,8 @@ final class Parser {
                         case '\r':
                             break;
                         case '\n':
-                            conn.processPing();
-                            state = NatsOp.OP_START;
+                            nc.processPing();
+                            ps.state = NatsOp.OP_START;
                             break;
                         default:
                         	error=true;
@@ -404,12 +404,12 @@ final class Parser {
                     break;
                default:
                 	break;
-            } // switch(state)
+            } // switch(ps.state)
             if (error) {
             	error = false;
             	throw new ParseException(String.format("Parse Error [%s], [%s] [%d]", 
-            			state, new String(buffer),argBufStream.position()),
-            			argBufStream.position());
+            			ps.state, new String(buffer),ps.argBufStream.position()),
+            			ps.argBufStream.position());
             }
         }  // for
 		
