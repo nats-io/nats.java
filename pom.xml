@@ -70,7 +70,8 @@
 						</configuration>
 						<executions>
 							<execution>
-								<id>run-unit-tests</id>
+								<!-- <id>run-unit-tests</id> -->
+								<id>default-test</id>
 								<goals>
 									<goal>test</goal>
 								</goals>
