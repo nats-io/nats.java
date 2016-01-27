@@ -19,72 +19,34 @@ public final class Constants {
 	private Constants() {}
 	
 	/**
+	 *  @deprecated use {@link ConnectionFactory#DEFAULT_HOST} instead.
+	 *  <p>
 	 * 	Default server host
 	 * <p>
 	 * This property is defined as String {@value #DEFAULT_HOST}
 	 */
+	@Deprecated
 	public static final String	DEFAULT_HOST		= "localhost";
 	/**
+	 *  @deprecated use {@link ConnectionFactory#DEFAULT_PORT} instead.
+	 *  <p>
 	 * Default server port
 	 * <p>
 	 * This property is defined as int {@value #DEFAULT_PORT}
 	 */
+	@Deprecated
 	public static final int DEFAULT_PORT			= 4222;
 	/**
+	 * 	@deprecated use {@link ConnectionFactory#DEFAULT_URL} instead.
+	 *  <p>
 	 * Default server URL 
 	 * <p>
 	 * This property is defined as String {@value #DEFAULT_URL}
 	 */
+	@Deprecated
 	public static final String 	DEFAULT_URL				= 
 			"nats://" + DEFAULT_HOST+ ":" + DEFAULT_PORT;	
-	/**
-	 * Default SSL/TLS protocol version
-	 * <p>
-	 * This property is defined as String {@value #DEFAULT_SSL_PROTOCOL}
-	 */
-	static final String		DEFAULT_SSL_PROTOCOL 	= "TLSv1.2";
-	/**
-	 * Default maximum number of reconnect attempts. 
-	 * <p>
-	 * This property is defined as String {@value #DEFAULT_MAX_RECONNECT}
-	 */
-	static final int		DEFAULT_MAX_RECONNECT	= 60;
-	/**
-	 * Default wait time before attempting reconnection to the same server 
-	 * <p>
-	 * This property is defined as String {@value #DEFAULT_RECONNECT_WAIT}
-	 */
-	static final int		DEFAULT_RECONNECT_WAIT	= 2 * 1000;
-	/**
-	 * Default connection timeout
-	 * <p>
-	 * This property is defined as String {@value #DEFAULT_TIMEOUT}
-	 */
-	static final int		DEFAULT_TIMEOUT			= 2 * 1000;
-	/**
-	 * Default ping interval; <=0 means disabled
-	 * <p>
-	 * This property is defined as String {@value #DEFAULT_PING_INTERVAL}
-	 */
-	static final int 		DEFAULT_PING_INTERVAL	= 2 * 60000;
-	/**
-	 * Default maximum number of pings that have not received a response
-	 * <p>
-	 * This property is defined as String {@value #DEFAULT_MAX_PINGS_OUT}
-	 */
-	static final int		DEFAULT_MAX_PINGS_OUT	= 2;
-	/**
-	 * Default maximum channel length
-	 * <p>
-	 * This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
-	 */
-	static final int		DEFAULT_MAX_PENDING_MSGS	= 65536;
 
-	/**
-	 * Maximum size of a control line (message header)
-	 */
-	final static int 		MAX_CONTROL_LINE_SIZE = 1024;
-	
 	/**
 	 * Connection states for {@link Connection#getState()}
 	 */

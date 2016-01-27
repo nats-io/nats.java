@@ -15,7 +15,11 @@ import java.util.Map;
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
 
 final class Parser {
-
+	/**
+	 * Maximum size of a control line (message header)
+	 */
+	final static int 		MAX_CONTROL_LINE_SIZE = 1024;
+	
 	private ConnectionImpl conn;
 //	protected int state = 0;
 	NatsOp state = NatsOp.OP_START;

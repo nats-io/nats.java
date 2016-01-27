@@ -29,6 +29,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import static io.nats.client.Constants.*;
+import static io.nats.client.ConnectionFactory.*;
 
 @Category(UnitTest.class)
 public class ConnectionFactoryTest implements ExceptionHandler,
@@ -780,7 +781,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	public void testGetSslContext() {
 		ConnectionFactory cf = new ConnectionFactory();
 		try {
-			SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+			SSLContext c = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
 			cf.setSslContext(c);
 			assertEquals(c, cf.getSslContext());
 		} catch (NoSuchAlgorithmException e) {
@@ -792,7 +793,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	public void testSetSslContext() {
 		ConnectionFactory cf = new ConnectionFactory();
 		try {
-			SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+			SSLContext c = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
 			cf.setSslContext(c);
 			assertEquals(c, cf.getSslContext());
 		} catch (NoSuchAlgorithmException e) {

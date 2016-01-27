@@ -188,7 +188,7 @@ class ConnectionImpl implements Connection {
 		crlfProtoBytesLen = crlfProtoBytes.length;
 
 		// predefine the start of the publish protocol message.
-		buildPublishProtocolBuffer(MAX_CONTROL_LINE_SIZE);
+		buildPublishProtocolBuffer(Parser.MAX_CONTROL_LINE_SIZE);
 
 		setupServerPool();
 	}
@@ -2071,7 +2071,7 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 			{
 				// We can get here if we have very large subjects.
 				// Expand with some room to spare.
-				int resizeAmount = MAX_CONTROL_LINE_SIZE + subject.length()
+				int resizeAmount = Parser.MAX_CONTROL_LINE_SIZE + subject.length()
 				+ (reply != null ? reply.length() : 0);
 
 				buildPublishProtocolBuffer(resizeAmount);

@@ -212,7 +212,7 @@ abstract class SubscriptionImpl implements Subscription {
 	protected void setMaxPending(int pending) {
 		this.pendingMax = pending;
 		if (pending<=0) {
-			pendingMax = Constants.DEFAULT_MAX_PENDING_MSGS;
+			pendingMax = ConnectionFactory.DEFAULT_MAX_PENDING_MSGS;
 		}
 	}
 

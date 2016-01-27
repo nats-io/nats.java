@@ -75,7 +75,7 @@ public class TLSTest {
 			assertNotNull(tmf);
 			tmf.init(tks);
 
-			SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+			SSLContext c = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
 			assertNotNull(c);
 			c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
@@ -115,7 +115,7 @@ public class TLSTest {
 			assertNotNull(tmf);
 			tmf.init(tks);
 
-			SSLContext context = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
+			SSLContext context = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
 			assertNotNull(context);
 			context.init(null, tmf.getTrustManagers(), new SecureRandom());
 

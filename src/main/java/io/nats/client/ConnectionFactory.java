@@ -32,6 +32,70 @@ import static io.nats.client.Constants.*;
  */
 public class ConnectionFactory implements Cloneable {
 
+	/**
+	 * 	Default server host
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_HOST}
+	 */
+	public static final String	DEFAULT_HOST		= "localhost";
+	/**
+	 * Default server port
+	 * <p>
+	 * This property is defined as int {@value #DEFAULT_PORT}
+	 */
+	public static final int DEFAULT_PORT			= 4222;
+	/**
+	 * Default server URL 
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_URL}
+	 */
+	public static final String 	DEFAULT_URL				= 
+			"nats://" + DEFAULT_HOST+ ":" + DEFAULT_PORT;	
+	/**
+	 * Default SSL/TLS protocol version
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_SSL_PROTOCOL}
+	 */
+	static final String		DEFAULT_SSL_PROTOCOL 	= "TLSv1.2";
+	/**
+	 * Default maximum number of reconnect attempts. 
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_MAX_RECONNECT}
+	 */
+	public static final int		DEFAULT_MAX_RECONNECT	= 60;
+	/**
+	 * Default wait time before attempting reconnection to the same server 
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_RECONNECT_WAIT}
+	 */
+	public static final int		DEFAULT_RECONNECT_WAIT	= 2 * 1000;
+	/**
+	 * Default connection timeout
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_TIMEOUT}
+	 */
+	public static final int		DEFAULT_TIMEOUT			= 2 * 1000;
+	/**
+	 * Default server ping interval. {@code <=0} means disabled
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_PING_INTERVAL}
+	 */
+	public static final int 		DEFAULT_PING_INTERVAL	= 2 * 60000;
+	/**
+	 * Default maximum number of pings that have not received a response
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_MAX_PINGS_OUT}
+	 */
+	public static final int		DEFAULT_MAX_PINGS_OUT	= 2;
+	/**
+	 * Default maximum channel length
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
+	 */
+	public static final int		DEFAULT_MAX_PENDING_MSGS	= 65536;
+
+
+	
 	private URI url									= null;
 	private String host								= null;
 	private int port								= -1;
@@ -44,11 +108,11 @@ public class ConnectionFactory implements Cloneable {
 	private boolean pedantic						= false;
 	private boolean secure							= false;
 	private boolean reconnectAllowed				= true;
-	private int maxReconnect						= Constants.DEFAULT_MAX_RECONNECT;
-	private long reconnectWait						= Constants.DEFAULT_RECONNECT_WAIT;
-	private int connectionTimeout					= Constants.DEFAULT_TIMEOUT;
-	private long pingInterval						= Constants.DEFAULT_PING_INTERVAL;
-	private int maxPingsOut							= Constants.DEFAULT_MAX_PINGS_OUT;
+	private int maxReconnect						= DEFAULT_MAX_RECONNECT;
+	private long reconnectWait						= DEFAULT_RECONNECT_WAIT;
+	private int connectionTimeout					= DEFAULT_TIMEOUT;
+	private long pingInterval						= DEFAULT_PING_INTERVAL;
+	private int maxPingsOut							= DEFAULT_MAX_PINGS_OUT;
 	private SSLContext sslContext;
 	private ExceptionHandler exceptionHandler;
 	private ClosedCallback closedCallback;
@@ -59,7 +123,7 @@ public class ConnectionFactory implements Cloneable {
 
 	// The size of the buffered channel used for message delivery or sync 
 	// subscription.
-	private int maxPendingMsgs						= Constants.DEFAULT_MAX_PENDING_MSGS;
+	private int maxPendingMsgs						= DEFAULT_MAX_PENDING_MSGS;
 	private boolean tlsDebug;
 
 	/**
@@ -261,8 +325,35 @@ public class ConnectionFactory implements Cloneable {
 		return conn;
 	}
 
+	protected URI constructURI() {
+		URI res = null;
+		if (url != null) {
+			res = url;
+		} else {
+			String str = null;
+			if (getHost() != null) {
+				str = "nats://";
+				if (getUsername() != null) { 
+					str = str.concat(getUsername());
+					if (getPassword() != null) {
+						str = str.concat(":" + getPassword());
+					}
+					str = str.concat("@");
+				}
+				str = str.concat(getHost() + ":");
+				if (getPort() > -1) {
+					str = str.concat(String.valueOf(getPort()));
+				} else {
+					str = str.concat(String.valueOf(DEFAULT_PORT));
+				}
+				res = URI.create(str);
+			}
+		}
+		return res;
+	}
 	protected Options options() {
 		Options result = new Options();
+		url = constructURI();
 		result.setUrl(url);
 		result.setHost(host);
 		result.setPort(port);
@@ -295,7 +386,7 @@ public class ConnectionFactory implements Cloneable {
 	 * is removed (unsubscribed by the connection).
 	 * 
 	 * @return the maximum number of pending messages allowable for this subscription
-	 * @see Constants#DEFAULT_MAX_PENDING_MSGS
+	 * @see #DEFAULT_MAX_PENDING_MSGS
 	 */
 	public int getMaxPendingMsgs() {
 		return this.maxPendingMsgs;
@@ -307,7 +398,7 @@ public class ConnectionFactory implements Cloneable {
 	 * is removed (unsubscribed by the connection).
 	 * 
 	 * @param max The maximum number of pending messages for a subscription
-	 * @see Constants#DEFAULT_MAX_PENDING_MSGS
+	 * @see #DEFAULT_MAX_PENDING_MSGS
 	 */	
 	public void setMaxPendingMsgs(int max) {
 		this.maxPendingMsgs = max;
@@ -814,6 +905,7 @@ public class ConnectionFactory implements Cloneable {
 	 * Returns the {@link SSLContext} for this connection factory
 	 * @return the {@link SSLContext} for this connection factory
 	 */
+	@Deprecated
 	public SSLContext getSslContext() {
 		return sslContext;
 	}
