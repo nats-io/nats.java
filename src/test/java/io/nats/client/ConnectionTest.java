@@ -213,10 +213,13 @@ public class ConnectionTest {
 		
 		final AtomicBoolean exThrown = new AtomicBoolean(false);
 
-		String s = String.format(ConnectionImpl.SUB_PROTO, sub.getSubject(), 
-				sub.getQueue(), sub.getSid());
+		String s = String.format(ConnectionImpl.SUB_PROTO, 
+				sub.getSubject(), 
+				sub.getQueue()!=null ? " " + sub.getQueue() : "",
+				sub.getSid());
+
 		byte[] bufToExpect = Utilities.stringToBytesASCII(s);
-		
+		System.err.println("Sending string: [" + s + "]");
 		try {
 			doAnswer(new Answer<Void>() {
 				@Override
