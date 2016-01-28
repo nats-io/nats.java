@@ -178,17 +178,32 @@ final class Parser {
                     }
                     break;
                 case MSG_PAYLOAD:
-                    long position = ps.msgBufStream.position();
-                    if (position >= nc.msgArgs.size)
-                    {
-                        nc.processMsg(ps.msgBuf, position);
-                        ps.msgBufStream.position(0);
-                        ps.state = NatsOp.MSG_END;
-                    }
-                    else
-                    {
-                        ps.msgBufStream.put((byte)b);
-                    }
+                	int msgSize = nc.msgArgs.size;
+                	if (msgSize == 0)
+                	{
+                		nc.processMsg(ps.msgBuf, msgSize);
+                		ps.state = NatsOp.MSG_END;
+                	}
+                	else
+                	{
+                        long position = ps.msgBufStream.position();
+                		int writeLen = msgSize - (int)position;
+                		int avail = len - 1;
+                		
+                		if (avail < writeLen) {
+                			writeLen = avail;
+                		}
+                		
+                		ps.msgBufStream.put(buffer, i, writeLen);
+                		i += (writeLen - 1);
+                		
+                		if (position + writeLen >= msgSize)
+                		{
+                			nc.processMsg(ps.msgBuf, msgSize);
+                			ps.msgBufStream.position(0);
+                            ps.state = NatsOp.MSG_END;
+                		}
+                	}
                     break;
                 case MSG_END:
                     switch (b)
