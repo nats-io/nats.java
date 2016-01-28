@@ -287,20 +287,28 @@ public class ConnectionFactory implements Cloneable {
 	public ConnectionFactory(String[] servers) {
 		this(null, servers);
 	}
-
+	
 	/**
 	 * Constructs a connection factory from a list of NATS server
 	 * URLs, using {@code url} as the primary address.
 	 * <p>
-	 * Note that {@code url} will be first in the list, even if 
-	 * the {@link #isNoRandomize()} is {@code false}
+	 * If {@code url} contains a single server address, that 
+	 * address will be first in the server list, even if 
+	 * {@link #isNoRandomize()} is {@code false}.
+	 * <p>
+	 * If {@code url} is a comma-delimited list of servers,
+	 * then {@code servers} will be ignored.
 	 * @param url the default server URL to set
 	 * @param servers the list of cluster server URL strings
 	 */
 	public ConnectionFactory(String url, String[] servers)
 	{
-		this.setUrl(url);
-		this.setServers(servers);
+		if (url != null && url.contains(",")) {
+			this.setServers(url);
+		} else {
+			this.setUrl(url);
+			this.setServers(servers);
+		}
 	}
 
 	/**
@@ -470,19 +478,26 @@ public class ConnectionFactory implements Cloneable {
 	}
 
 	/**
-	 * Sets the default server URL string
+	 * Sets the default server URL string. 
+	 * <p>
+	 * If {@code url} is a comma-delimited
+	 * list, then {@link #setServers(String)} will be invoked without 
+	 * setting the default server URL string.
 	 * @param url the URL to set
 	 */
 	public void setUrl(String url) {
-		this.urlString=url;
-		if (url==null)
+		if (url==null) {
 			this.url = null;
+		} else if (url.contains(",")) {
+			setServers(url);
+		}
 		else {
 			try {
 				this.setUri(new URI(url));
 			} catch (NullPointerException | URISyntaxException e) {
 				throw new IllegalArgumentException(e);
 			}
+			this.urlString=this.url.toString();
 		}
 	}
 
@@ -566,6 +581,17 @@ public class ConnectionFactory implements Cloneable {
 		this.servers=servers;
 	}
 
+	/**
+	 * Sets the server list from a comma-delimited list
+	 * of server addresses in a single string.
+	 * @param urlString the servers to set
+	 */
+	public void setServers(String urlString) {
+		String[] servers = urlString.trim().split("\\s*,\\s*");
+		this.setServers(servers);
+		System.err.println("Servers = " + getServers());
+	}
+	
 	/**
 	 * Sets the server list from a list of {@code String}
 	 * @param servers the servers to set

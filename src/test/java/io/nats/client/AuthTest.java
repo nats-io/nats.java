@@ -192,16 +192,14 @@ public class AuthTest {
 				Thread.sleep(100);
 				try (Connection c = cf.createConnection())
 				{
-					assertTrue(c.isClosed());
 					fail("Should not have connected");
 				} catch (Exception e) {
-					assertTrue(e instanceof IOException);
-					assertEquals("nats: 'Authorization Violation'", e.getMessage());
+					assertTrue("Wrong exception thrown", e instanceof IOException);
+					assertEquals("Wrong exception text", "nats: 'Authorization Violation'", e.getMessage());
 					exThrown = true;
-				} finally {
-					assertTrue("Should have received an error while trying to connect",
-							exThrown);
 				}
+				assertTrue("Should have received an error while trying to connect",
+							exThrown);
 				Thread.sleep(100);				
 			}
 		}
@@ -209,11 +207,8 @@ public class AuthTest {
 		{
 			fail("Unexpected exception thrown: " + e);
 		}
-		finally
-		{
-			assertTrue("The disconnect event handler was incorrectly invoked.",
-					hitDisconnect == 0);
-		}
+		assertTrue("The disconnect event handler was incorrectly invoked.",
+				hitDisconnect == 0);
 	}
 
 	@Test
