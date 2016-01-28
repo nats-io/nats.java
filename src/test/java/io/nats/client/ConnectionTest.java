@@ -219,7 +219,6 @@ public class ConnectionTest {
 				sub.getSid());
 
 		byte[] bufToExpect = Utilities.stringToBytesASCII(s);
-		System.err.println("Sending string: [" + s + "]");
 		try {
 			doAnswer(new Answer<Void>() {
 				@Override
