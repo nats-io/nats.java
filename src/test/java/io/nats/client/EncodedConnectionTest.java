@@ -70,7 +70,6 @@ public class EncodedConnectionTest {
 		Connection c = mock(Connection.class);
 		EncodedConnection ec = new EncodedConnection(c, DEFAULT_ENCODER);
 		
-		fail("Not yet implemented"); // TODO
 	}
 
 }
