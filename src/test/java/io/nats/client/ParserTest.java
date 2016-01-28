@@ -226,7 +226,7 @@ public class ParserTest {
 					}
 					assertTrue("Should have thrown ParseException", exThrown);
 					// Reset to OP_START for next line
-					c.ps.state = NatsOp.OP_START;
+					parser.ps.state = NatsOp.OP_START;
 				}
 
 			} // ConnectionImpl
