@@ -710,9 +710,7 @@ class ConnectionImpl implements Connection {
 				close();
 			}
 		} finally {
-			logger.trace("processOpError() releasing lock");
 			mu.unlock();
-			logger.trace("processOpError() released lock");
 		}
 	}
 
