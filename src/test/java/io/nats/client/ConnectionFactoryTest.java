@@ -301,7 +301,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 			cf = new ConnectionFactory(url, null);
 			cf.setNoRandomize(true);
 			assertEquals(url, cf.getUrlString());
-			System.err.println("Connecting to: " + url);
+//			System.err.println("Connecting to: " + url);
 			try (ConnectionImpl c = cf.createConnection(mock))
 			{
 				// test passed-in options
@@ -416,7 +416,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		}
 		
 		URI goodUri = URI.create(urlString);
-		System.err.println(goodUri.toString());
+//		System.err.println(goodUri.toString());
 		assertEquals(secret, goodUri.getRawUserInfo());
 		ConnectionFactory cf = new ConnectionFactory();
 		try {
@@ -628,11 +628,10 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	}
 
 	@Test
-	public void testSetServersCommaDelimitedString() {
+	public void testConnectionFactoryCommaDelimitedString() {
 		String servers = "nats://localhost:1234, nats://localhost:5678"; 
 		List<URI> s1 = new ArrayList<URI>();
 		ConnectionFactory cf = new ConnectionFactory(servers);
-//		cf.setServers(servers);
 		cf.setNoRandomize(true);
 
 		for (String s : servers.trim().split(",")) {
