@@ -143,6 +143,19 @@ interface AbstractConnection extends AutoCloseable {
     
 	/**
 	 * Closes the connection, also closing all subscriptions on this connection.
+	 * <p>
+	 * When {@code close()} is called, the following things happen, in order:
+	 * <ol>
+	 * <li>The Connection is flushed, and any other pending flushes previously 
+	 * requested by the user are immediately cleared.
+	 * <li>Message delivery to all active subscriptions is terminated immediately, 
+	 * without regard to any messages that may have been delivered to the client's 
+	 * connection, but not to the relevant subscription(s). Any such undelivered 
+	 * messages are discarded immediately.
+	 * <li>The DisconnectedCallback, if registered, is invoked.
+	 * <li>The ClosedCallback, if registered, is invoked.
+	 * <li>The TCP/IP socket connection to the NATS server is gracefully closed.
+	 * </ol>
 	 * @see java.lang.AutoCloseable#close()
 	 */
 	void close();
