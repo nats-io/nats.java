@@ -201,4 +201,16 @@ public final class Constants {
 	 * This property is defined as String {@value #PROP_MAX_PENDING_MSGS}
 	 */
 	public final static String PROP_MAX_PENDING_MSGS 		= PFX + "maxpending";
+	
+	// Server error strings
+	protected final static String SERVER_ERR_PARSER = "'Parser Error'";
+	protected final static String SERVER_ERR_AUTH_TIMEOUT = "'Authorization Timeout'";
+	protected final static String SERVER_ERR_AUTH_VIOLATION = "'Authorization Violation'";
+	protected final static String SERVER_ERR_MAX_PAYLOAD = "'Maximum Payload Violation'";
+	protected final static String SERVER_ERR_INVALID_SUBJECT = "'Invalid Subject'";
+	protected final static String SERVER_UNKNOWN_PROTOCOL_OP = "'Unknown Protocol Operation'";
+	protected final static String SERVER_ERR_TLS_REQUIRED = "'Secure Connection - TLS Required'";
+
+
+	
 }
