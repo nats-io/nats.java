@@ -10,15 +10,20 @@
  */
 package io.nats.client;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+
+import io.nats.client.Parser.MsgArg;
 
 /**
  * A {@code Message} object is used to send a message containing a 
  * stream of uninterpreted bytes.
  */
 public class Message {
-	private String subject;
-	private String replyTo;
+	private byte[] subject;
+	private String subjectString;
+	private byte[] replyTo;
+	private String replyToString;
 	private byte[] data;  
 	protected SubscriptionImpl sub;
 
@@ -26,10 +31,10 @@ public class Message {
 	 * 
 	 */
 	public Message() {
-        this.subject = null;
-        this.replyTo = null;
-        this.data    = null;
-        this.sub     = null;
+//        this.subject = null;
+//        this.replyTo = null;
+//        this.data    = null;
+//        this.sub     = null;
 	}
 	
 	/**
@@ -43,23 +48,44 @@ public class Message {
 		this(data, (null!=data ? data.length : 0), subject, reply, null);
     }
 	
-	protected Message(MsgArg msgArgs, SubscriptionImpl sub, byte[] data, long length) {
-		this(data, length, msgArgs.subject, msgArgs.reply, sub);        
+//	protected Message(MsgArg ma, SubscriptionImpl sub, byte[] data, int length) {
+//		this(data, length, ma.subject, ma.reply, sub);        
+//	}
+
+	protected Message(MsgArg ma, SubscriptionImpl sub, byte[] buf, int offset, int length) {
+		this.setSubject(ma.subject, ma.subjectLength);
+		this.setReplyTo(ma.reply, ma.replyLength);
+		this.sub = sub;		
+		// make a deep copy of the bytes for this message.
+		if (ma.size > 0) {
+			this.data = new byte[ma.size];
+			try {
+			System.arraycopy(buf, offset, this.data, 0, length);
+			} catch (ArrayIndexOutOfBoundsException e) {
+				System.err.printf("buf.length=%d, offset=%d, data.length=%d, length=%d\n, buf=[%s]",
+						buf.length, offset, data.length, length, new String(buf));
+				e.printStackTrace();				
+			}
+		}
 	}
 
-	protected Message(byte[] data, long length, String subject, String reply, SubscriptionImpl sub)
+//	protected Message(byte[] data, int length, byte[] subject, byte[] reply, SubscriptionImpl sub)
+//	{
+//		this.setSubject(subject);
+//        // make a deep copy of the bytes for this message.
+//        this.data = Arrays.copyOf(data, length);
+//        this.setReplyTo(reply);
+//        this.sub = sub;		
+//	}
+	
+	protected Message(byte[] data, int length, String subject, String reply, SubscriptionImpl sub)
 	{
-        if (subject==null || subject.trim().length()==0)
-        {
-            throw new IllegalArgumentException(
-                "Subject cannot be null, empty, or whitespace.");
-        }
-        this.data = new byte[(int) length];
+		this.setSubject(subject);
         // make a deep copy of the bytes for this message.
-        if (data !=null)
-        	System.arraycopy(data, 0, this.data, 0, (int)length);
-        this.subject = subject;
-        this.replyTo = reply;
+		if (data != null) {
+			this.data = Arrays.copyOf(data, length);
+		}
+        this.setReplyTo(reply);
         this.sub = sub;
 	}
 	
@@ -76,15 +102,33 @@ public class Message {
 	 * @return the message subject
 	 */
 	public String getSubject() {
+		if (subjectString == null) {
+			subjectString = new String(subject);
+			return subjectString;
+		}
+		return subjectString;
+	}
+
+	byte[] getSubjectBytes() {
 		return subject;
 	}
-	
+
 	/**
 	 * Sets the subject of the message
 	 * @param subject the subject to set
 	 */
 	public void setSubject(String subject) {
-		this.subject = subject;
+		String s = subject.trim();
+        if (s==null || s.isEmpty())
+        {
+            throw new IllegalArgumentException(
+                "Subject cannot be null, empty, or whitespace.");
+        }
+		this.subject = s.getBytes();
+	}
+	
+	void setSubject(byte[] subject, int length) {
+		this.subject = Arrays.copyOf(subject, length);
 	}
 	
 	/**
@@ -92,17 +136,44 @@ public class Message {
 	 * @return the reply subject
 	 */
 	public String getReplyTo() {
-		return this.replyTo;
+		if (replyToString == null) {
+			if (replyTo != null) {
+				replyToString = new String(replyTo);
+			}
+		}
+		return replyToString;
 	}
-	
+
+	byte[] getReplyToBytes() {
+		return replyTo;
+	}
+
 	/**
 	 * Sets the message reply subject
 	 * @param replyTo the message reply subject
 	 */
 	public void setReplyTo(String replyTo) {
-		this.replyTo = replyTo;
+		if (replyTo == null) {
+			this.replyTo=null;
+		}
+		if (replyTo != null) {
+			String r = replyTo.trim();
+			if (r.isEmpty()) {
+				throw new IllegalArgumentException(
+						"Reply subject cannot be empty or whitespace.");
+			}
+			this.replyTo = replyTo.getBytes();
+		}
 	}
-	
+
+	void setReplyTo(byte[] replyTo, int length) {
+		if (replyTo==null) {
+			this.replyTo = null;
+		} else {
+			this.replyTo = Arrays.copyOf(replyTo, length);
+		}
+	}
+
 	/**
 	 * Returns the {@code Subscription} object the message 
 	 * was received on
