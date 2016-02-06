@@ -48,6 +48,10 @@ public class Statistics implements Cloneable {
 		this.flushes.set(0L);
 	}
 
+	public String toString() {
+		return String.format("{IN: msgs=%d, bytes=%d, OUT: msgs=%d, bytes=%d, FLUSHES: %d}", 
+				inMsgs.get(), inBytes.get(), outMsgs.get(), outBytes.get(), flushes.get());
+	}
 	/**
 	 * @return the number of messages that have been 
 	 * received on this Connection.
