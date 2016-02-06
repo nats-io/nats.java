@@ -17,9 +17,12 @@ import java.io.InputStream;
 import java.net.SocketException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
@@ -133,11 +136,10 @@ class ConnectionImpl implements Connection {
 //	private Vector<Thread> socketWatchers	= new Vector<Thread>();
 	private int pout;
 
-	// Initialized in readLoop
 	protected Parser parser					= new Parser(this);
-	protected Parser.ParseState ps			= null;
+	protected Parser.ParseState ps			= parser.new ParseState();
 
-	protected MsgArg msgArgs				= null;
+//	protected MsgArg msgArgs				= null;
 	protected byte[] pingProtoBytes			= null;
 	protected int pingProtoBytesLen			= 0;
 	protected byte[] pongProtoBytes			= null;
@@ -174,7 +176,7 @@ class ConnectionImpl implements Connection {
 
 		this.opts = o;
 		this.stats = new Statistics();
-		this.msgArgs = new MsgArg();
+//		this.msgArgs = new MsgArg();
 		if (tcpconn != null)
 			this.conn = tcpconn;
 		else 
@@ -446,12 +448,9 @@ class ConnectionImpl implements Connection {
 		logger.trace("close({}, {})", closeState, String.valueOf(doCBs));
 		final ConnectionImpl nc = this;
 
-		logger.trace("Acquiring lock");
 		mu.lock();
-		logger.trace("Acquired lock");
 		if (isClosed())
 		{
-			logger.trace("ALREADY CLOSED, WE'RE DONE");
 			this.status = closeState;
 			mu.unlock();
 			return;
@@ -459,10 +458,8 @@ class ConnectionImpl implements Connection {
 		this.status = ConnState.CLOSED;
 
 		// Kick the Flusher routines so they fall out.
-		logger.trace("Kicking flusher");
 		kickFlusher();
 		mu.unlock();
-		logger.trace("Kicked flusher");
 		
 		// Clear any queued pongs, e.g. pending flush calls.
 		clearPendingFlushCalls();
@@ -1375,7 +1372,7 @@ logger.trace("doReconnect finished successfully!");
 			{
 				sb = (isClosed() || isReconnecting());
 				if (sb) {
-					this.ps = parser.ps;
+					this.ps = parser.new ParseState();
 				}
 				conn = this.conn;
 			} finally {
@@ -1458,77 +1455,47 @@ logger.trace("doReconnect finished successfully!");
 		}
 	}
 
-	protected void processMsgArgs(byte[] buffer, long length) throws ParseException
-	{
-		String s = new String(buffer, 0, (int)length);
-		String[] args = s.split(" ");
-
-//		logger.trace("processMsgArgs() for buffer {}", s);
-		switch (args.length)
-		{
-		case 3:
-			msgArgs.subject = args[0];
-			msgArgs.sid     = Long.parseLong(args[1]);
-			msgArgs.reply   = null;
-			msgArgs.size    = Integer.parseInt(args[2]);
-			break;
-		case 4:
-			msgArgs.subject = args[0];
-			msgArgs.sid     = Long.parseLong(args[1]);
-			msgArgs.reply   = args[2];
-			msgArgs.size    = Integer.parseInt(args[3]);
-			break;
-		default:
-			throw new ParseException("Unable to parse message arguments: " + s, 0);
-		}
-
-		if (msgArgs.size < 0)
-		{
-			throw new ParseException("Invalid Message - Bad or Missing Size: " + s, 9);
-		} else { 
-			// OK
-		}
-	}
-
 	// processMsg is called by parse and will place the msg on the
 	// appropriate channel for processing. All subscribers have their
 	// their own channel. If the channel is full, the connection is
 	// considered a slow subscriber.
-	protected void processMsg(byte[] data, long length)
+	protected void processMsg(byte[] data, int offset, int length)
+//	protected void processMsg(ByteBuffer bbuf)
 	{
 		//		logger.trace("In ConnectionImpl.processMsg(), msg length = {}. msg bytes = [{}]", length, msg);
 		//		logger.trace("msg = [{}]", new String(msg));
-		//		logger.trace("In ConnectionImpl.processMsg(), msg length = {}. msg = [{}]", length, 
-		//				new String(msg));
+		//				System.err.println("bbuf = " + bbuf);
 
 		boolean maxReached = false;
-		SubscriptionImpl s;
+		SubscriptionImpl sub;
 
 		mu.lock();
 		try
 		{
+//			System.err.printf("processMsg for bbuf=[%s]\n", bbuf);
+//			System.err.printf("Adding %d bytes\n", parser.ps.ma.size);
 			stats.incrementInMsgs();
-			stats.incrementInBytes(length);
+			stats.incrementInBytes(parser.ps.ma.size);
 
-			s = subs.get(msgArgs.sid);
-			if (s==null)
+			sub = subs.get(ps.ma.sid);
+			if (sub==null)
 			{
 				return;
 			}
 
-			s.mu.lock();
+			sub.mu.lock();
 			try
 			{
-				maxReached = s.tallyMessage(length);
+				maxReached = sub.tallyMessage(ps.ma.size);
 				if (!maxReached) {
-					Message m = new Message(msgArgs, s, data, length);
-					if (!s.addMessage(m)) {
-						processSlowConsumer(s);
+					Message m = new Message(ps.ma, sub, data, offset, length);
+					if (!sub.addMessage(m)) {
+						processSlowConsumer(sub);
 					}
 				} // maxreached == false
 			} // lock s.mu
 			finally {
-				s.mu.unlock();
+				sub.mu.unlock();
 			}
 		} // lock conn.mu
 		finally
@@ -1536,7 +1503,7 @@ logger.trace("doReconnect finished successfully!");
 			mu.unlock();
 		}
 		if (maxReached)
-			removeSub(s);
+			removeSub(sub);
 	}
 
 	void removeSub(SubscriptionImpl sub) {
@@ -1841,27 +1808,27 @@ logger.trace("doReconnect finished successfully!");
 			}
 
 			ch = new Channel<Boolean>(1);
-logger.trace("flush({}): calling sendPing(ch)", timeout);
+//logger.trace("flush({}): calling sendPing(ch)", timeout);
 			sendPing(ch);
-logger.trace("flush({}): returned from sendPing(ch)", timeout);
+//logger.trace("flush({}): returned from sendPing(ch)", timeout);
 		} finally {
 			mu.unlock();
 		}
 
-logger.trace("flush({}): awaiting PONG", timeout);
+//logger.trace("flush({}): awaiting PONG", timeout);
 		Boolean rv = null;
 		while (!timedOut && !isClosed() && (rv == null)) {
 			elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
 			timedOut = (elapsed >= timeout);
 			rv = ch.poll();
 		}
-logger.trace("elapsed = {}", elapsed);
+//logger.trace("elapsed = {}", elapsed);
 //			Boolean rv = ch.get(timeout);
 		if (rv != null && !rv)
 		{
 			err = new IllegalStateException(ERR_CONNECTION_CLOSED);
 		} else {
-logger.trace("flush({}): received PONG", timeout);
+//logger.trace("flush({}): received PONG", timeout);
 			mu.lock();
 			err = getLastException();
 			mu.unlock();
@@ -1870,9 +1837,9 @@ logger.trace("flush({}): received PONG", timeout);
 
 		if (err != null)
 		{
-logger.trace("flush({}): calling removeFlushEntry(ch)", timeout, timeout);
+//logger.trace("flush({}): calling removeFlushEntry(ch)", timeout, timeout);
 			this.removeFlushEntry(ch);
-logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout);
+//logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout);
 			throw err;
 		}
 	}
@@ -2006,6 +1973,38 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 		return (SyncSubscription)subscribe(subject, "", (MessageHandler)null);
 	}
 
+	private int writePublishProto(byte[] dst, byte[] subject, byte[] reply, int msgSize) {
+		//		logger.info("subject={}, Reply={}, msgSize={}, arraySize={}, msgBytes={}", 
+		//				subject, reply, msgSize, dst.length, dst);
+		// skip past the predefined "PUB "
+		int index = pubPrimBytesLen;
+
+		// Subject
+		System.arraycopy(subject, 0, dst, index, subject.length);
+		index += subject.length;
+
+		if (reply != null)
+		{
+			// " REPLY"
+			dst[index++] = (byte)' ';
+
+			System.arraycopy(reply, 0, dst, index, reply.length);
+			index += reply.length;
+		}
+
+		// " "
+		dst[index++] = (byte)' ';
+
+		// " SIZE"
+		index = Utilities.stringToBytesASCII(dst, index, String.valueOf(msgSize));
+
+		// "\r\n"
+		System.arraycopy(crlfProtoBytes, 0, dst, index, crlfProtoBytesLen);
+		index += crlfProtoBytesLen;
+
+		return index;
+	}
+	
 	// Use low level primitives to build the protocol for the publish
 	// message.
 	private int writePublishProto(byte[] dst, String subject, String reply, int msgSize)
@@ -2040,7 +2039,11 @@ logger.trace("flush({}): after removeFlushEntry(ch), throwing", timeout, timeout
 
 		return index;
 	}
-
+	
+	void _publish(byte[] subject, byte[] reply, byte[] data) {
+		
+	}
+	
 	// Sends a protocol data message by queueing into the bufio writer
 	// and kicking the flush go routine. These writes should be protected.
 	// publish can throw a few different unchecked exceptions:
