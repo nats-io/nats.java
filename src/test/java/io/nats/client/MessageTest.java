@@ -60,7 +60,7 @@ public class MessageTest {
 		assertTrue(Arrays.equals( "baz".getBytes(), m.getData()));
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
+	@Test(expected=NullPointerException.class)
 	public void testNullSubject() {
 		new Message(null, "bar", "baz".getBytes());
 	}

@@ -10,6 +10,7 @@ package io.nats.client;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.util.concurrent.TimeoutException;
 
@@ -55,7 +56,7 @@ public class ParserTest {
 		Control c = null;
 
 		NatsOp.valueOf(NatsOp.OP_START.toString());
-		
+
 		// Test with NULL line
 		c = conn.new Control(null);
 		assertTrue(c.op == null);
@@ -117,12 +118,14 @@ public class ParserTest {
 				parser = c.parser;
 				try (Subscription sub = c.subscribeSync("foo")) {
 					for (String s : goodLines) {
-//						ConnectionImpl.printSubs(c);
+						//						ConnectionImpl.printSubs(c);
 						byte[] buffer = s.getBytes();
 						try {
 							parser.parse(buffer, buffer.length);
 						} catch (Exception e) {
-							fail("Should not have thrown an exception for [" + s + "]");
+							e.printStackTrace();
+							fail("Should not have thrown an exception for [" + s + "]: " 
+									+ e.getMessage());
 						}			
 					}
 				}
@@ -136,16 +139,17 @@ public class ParserTest {
 
 	// Tests OP_MINUS_ERR, OP_MINUS_ERR_SPC, MINUS_ERR_ARG
 	@Test
-	public void testMinusErr() {
+	public void testMinusErrDoesNotThrow() {
 		Parser parser;
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 				parser = c.parser;
-				String s = "-ERR 'A boring error'\r\n";
+				String s = String.format("-ERR %s\r\n", Constants.SERVER_ERR_AUTH_VIOLATION);
 				try {		
 					byte[] b = s.getBytes();
 					parser.parse(b, b.length);
 				} catch (Exception e) {
+					e.printStackTrace();
 					fail("Should not have thrown an exception for [" + s + "]");
 				}
 
@@ -200,17 +204,17 @@ public class ParserTest {
 				// OP_PIN default
 				"PINT\r\n",
 				// OP_PING default
-				"PING\r\t\n",
+				//				"PING\r\t\n",
 				// OP_PONG default
-				"PONG\r\t\n",
+				//				"PONG\r\t\n",
 				// state default
 				"Z\r\n"
 		};
 
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
-			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+			try (ConnectionImpl nc = new ConnectionFactory().createConnection(mock)) {
 
-				parser = c.parser;
+				parser = nc.parser;
 				boolean exThrown = false;
 
 				for (String s : badLines)
@@ -224,9 +228,9 @@ public class ParserTest {
 								e instanceof ParseException);
 						exThrown = true;
 					}
-					assertTrue("Should have thrown ParseException", exThrown);
+					assertTrue("Should have thrown ParseException for " + s, exThrown);
 					// Reset to OP_START for next line
-					parser.ps.state = NatsOp.OP_START;
+					nc.ps.state = NatsOp.OP_START;
 				}
 
 			} // ConnectionImpl
@@ -268,4 +272,212 @@ public class ParserTest {
 			}
 		} // TCPConnectionMock
 	}
+
+	@Test
+	public void TestParserSplitMsg() {
+
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl nc = new ConnectionFactory().createConnection(mock)) {
+				//				nc.ps = &parseState{}
+				byte[] buf = null;
+
+				nc.parser.ps = nc.parser.new ParseState();
+				boolean exThrown = false;
+				buf = "MSG a\r\n".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					exThrown = true;
+				}
+				assertTrue(exThrown);
+
+				nc.parser.ps = nc.parser.new ParseState();
+				exThrown = false;
+				buf = "MSG a b c\r\n".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					exThrown = true;
+				}
+				assertTrue(exThrown);
+
+				nc.parser.ps = nc.parser.new ParseState();
+
+				int expectedCount = 1;
+				int expectedSize = 3;
+				
+				assertEquals(0, nc.getStats().getInMsgs());
+				assertEquals(0, nc.getStats().getInBytes());
+				
+				buf = "MSG a".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					fail("Parser error: " + e.getMessage());
+				}
+				if (nc.parser.ps.argBuf == null) {
+					fail("Arg buffer should have been created");
+				}
+
+				buf = " 1 3\r\nf".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+
+				assertEquals("Wrong msg size: ", 3, nc.parser.ps.ma.size);
+				assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
+				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject, 0, nc.parser.ps.ma.subjectLength));
+				assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
+
+				buf = "oo\r\n".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+				assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
+				assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
+				assertNull("Buffers should be null now", nc.parser.ps.argBuf);
+				assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
+
+				buf = "MSG a 1 3\r\nfo".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+				assertEquals("Wrong msg size: ", 3, nc.parser.ps.ma.size);
+				assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
+				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject, 0, nc.parser.ps.ma.subjectLength));
+				assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
+				assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
+
+				expectedCount++;
+				expectedSize += 3;
+
+				buf = "o\r\n".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+
+				assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
+				assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
+				assertNull("Buffers should be null now", nc.parser.ps.argBuf);
+				assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
+
+				buf = "MSG a 1 6\r\nfo".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+
+				assertEquals("Wrong msg size: ", 6, nc.parser.ps.ma.size);
+				assertEquals("Wromg sid: ", 1, nc.parser.ps.ma.sid);
+				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject, 0, nc.parser.ps.ma.subjectLength));
+				assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
+				assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
+
+				buf = "ob".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+
+				expectedCount++;
+				expectedSize += 6;
+
+				buf = "ar\r\n".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+
+				assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
+				assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
+				assertNull("Buffers should be null now", nc.parser.ps.argBuf);
+				assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
+
+				// Let's have a msg that is bigger than the parser's scratch size.
+				// Since we prepopulate the msg with 'foo', adding 3 to the size.
+				int msgSize = nc.parser.ps.msgBufStore.length + 100 + 3;
+				buf = String.format("MSG a 1 b %d\r\nfoo", msgSize).getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+
+				assertEquals("Wrong msg size: ", msgSize, nc.parser.ps.ma.size);
+				assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
+				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject, 0, nc.parser.ps.ma.subjectLength));
+				assertEquals("Wrong reply: ", "b", new String(nc.parser.ps.ma.reply, 0, nc.parser.ps.ma.replyLength));
+				assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
+				assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
+
+				expectedCount++;
+				expectedSize += msgSize;
+
+				int bufSize = msgSize - 3;
+
+				buf = new byte[bufSize];
+				for (int i = 0; i < bufSize; i++) {
+					buf[i] = (byte)('a' + (i % 26));
+				}
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+				
+				assertEquals("Wrong state: ", nc.parser.ps.state, Parser.NatsOp.MSG_PAYLOAD);
+				assertEquals("Wrong msg size: ", msgSize, nc.parser.ps.ma.size);
+				assertEquals("Wrong msg size: ", nc.parser.ps.msgBuf.limit(), nc.parser.ps.ma.size);
+				// Check content:
+				byte[] tmp = new byte[3];
+				ByteBuffer tmpBuf = nc.parser.ps.msgBuf.duplicate();
+				tmpBuf.rewind();
+				tmpBuf.get(tmp);
+				assertEquals("Wrong msg content: ", "foo", new String(tmp));
+				for (int k = 3; k < nc.ps.ma.size; k++) {
+					assertEquals("Wrong msg content: ", (byte)('a'+((k-3)%26)), tmpBuf.get(k));
+				}
+
+				buf = "\r\n".getBytes();
+				try {
+					nc.parser.parse(buf, buf.length);
+				} catch (ParseException e) {
+					e.printStackTrace();
+					fail("Parser error: " + e.getMessage());
+				}
+				
+				assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
+				assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
+				assertNull("Buffers should be null now", nc.parser.ps.argBuf);
+				assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
+				assertEquals("Wrong state: ", nc.parser.ps.state, Parser.NatsOp.OP_START);
+			} catch (IOException | TimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				fail(e.getMessage());
+				
+			} // Connection
+		} // mockServer
+	} // testParserSplitMsg
 }
+

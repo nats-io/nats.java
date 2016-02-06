@@ -564,16 +564,15 @@ public class BasicTest {
 	@Test
 	public void testRequestNoBody()
 	{
-		final byte[] response = 
-				"I will help you.".getBytes();
+		final byte[] response = "I will help you.".getBytes();
 
 		try (final Connection c = new ConnectionFactory().createConnection()) {
 			try (AsyncSubscription s = c.subscribeAsync("foo",  
 					new MessageHandler() {
-				@Override 
 				public void onMessage(Message m)
 				{
 					try {
+						System.err.printf("replyTo==%s\n", m.getReplyTo());
 						c.publish(m.getReplyTo(), response);
 					} catch (Exception e){}
 				}
@@ -693,6 +692,7 @@ public class BasicTest {
 					try { c.flush(); } catch (Exception e) {}
 
 					stats = c.getStats();
+					System.err.printf("Stats: %s\n", stats);
 					assertEquals("Not properly tracking InMsgs: ", 2 * iter, stats.getInMsgs());
 					assertEquals("Not properly tracking InBytes: ", 2 * iter * data.length, stats.getInBytes());
 				}
@@ -777,58 +777,40 @@ public class BasicTest {
 		}
 	}
 
-	public class CaptureHandler implements MessageHandler {
-
-		Message message = null;
-		final Object testLock;
-
-		CaptureHandler(Object obj) {
-			testLock = obj;
-		}
-
-		@Override
-		public void onMessage(Message msg) {
-			this.message=msg;
-			synchronized(testLock)
-			{
-				testLock.notify();
-			}
-		}
-
-		public Message getMsg() {
-			return message;
-		}
-	}
-
 	@Test
-	public void testLargeMessage() throws Exception
+	public void testLargeMessage()
 	{
-		final Connection c = new ConnectionFactory().createConnection();
-		int msgSize = 51200;
-		final byte[] msg = new byte[msgSize];
-		byte[] output = null;
-		for (int i = 0; i < msgSize; i++)
-			msg[i] = (byte)'A';
+		try (final Connection c = new ConnectionFactory().createConnection()) {
+			int msgSize = 51200;
+			final byte[] omsg = new byte[msgSize];
+			byte[] output = null;
+			for (int i = 0; i < msgSize; i++)
+				omsg[i] = (byte)'A';
 
-		msg[msgSize-1] = (byte)'Z';
+			omsg[msgSize-1] = (byte)'Z';
 
-		final Object testLock = new Object();
-		CaptureHandler handler = new CaptureHandler(testLock);
-		AsyncSubscription s = c.subscribeAsync("foo", handler);
-		s.start();
+			final Channel<Boolean> ch = new Channel<Boolean>();
+			AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+				@Override
+				public void onMessage(Message msg) {
+					assertTrue("Response isn't valid.", compare(omsg, msg.getData()));
+					ch.add(true);
+				}
+			});
 
-		c.publish("foo", msg);
-		c.flush(1000);
-
-		synchronized(testLock)
-		{
+			c.publish("foo", omsg);
 			try {
-				testLock.wait(2000);
-			} catch (InterruptedException e) {}
-			output = handler.getMsg().getData();
+				c.flush(1000);
+			} catch (Exception e1) {
+				e1.printStackTrace();
+				fail("Flush failed");
+			}
+			assertTrue("Didn't receive callback message", ch.get(2, TimeUnit.SECONDS));
+
+		} catch (IOException | TimeoutException e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
-		assertTrue("Response isn't valid.", compare(msg, output));
-		c.close();
 	}
 
 	@Test
@@ -865,38 +847,50 @@ public class BasicTest {
 	}
 
 	@Test
-	public void testLargeSubjectAndReply() throws Exception
+	public void testLargeSubjectAndReply()
 	{
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
-			String subject = "";
-			for (int i = 0; i < 1024; i++)
+			int size = 12;
+			byte[] subjBytes = new byte[size];
+			for (int i = 0; i < size; i++)
 			{
-				subject += "A";
+				subjBytes[i] = 'A';
 			}
+			final String subject = new String(subjBytes);
 
-			String reply = "";
-			for (int i = 0; i < 1024; i++)
+			byte[] replyBytes = new byte[size];
+			for (int i = 0; i < size; i++)
 			{
-				reply += "A";
+				replyBytes[i] = 'A';
 			}
+			final String reply = new String(replyBytes);
 
-			Object testLock = new Object();
-			CaptureHandler cb = new CaptureHandler(testLock);
-			AsyncSubscription s = c.subscribeAsync(subject, cb);
+			final Channel<Boolean> ch = new Channel<Boolean>();
+			try (AsyncSubscription s = c.subscribeAsync(subject, new MessageHandler() {
+				@Override
+				public void onMessage(Message msg) {
+					assertEquals(subject.length(), msg.getSubject().length());
+					assertEquals(subject, msg.getSubject());
+					assertEquals(reply.length(), msg.getReplyTo().length());
+					assertEquals(reply, msg.getReplyTo());
+					ch.add(true);
+				}
+			})) {
 
-			s.start();
+				c.publish(subject, reply, (byte[])null);
+				try {
+					c.flush();
+				} catch (Exception e) {
+					e.printStackTrace();
+					fail(e.getMessage());
+				}
 
-			c.publish(subject, reply, (byte[])null);
-			c.flush();
-
-			synchronized(testLock)
-			{
-				testLock.wait(1000);
+				assertTrue(ch.get(5, TimeUnit.SECONDS));
 			}
-			Message m = cb.getMsg();
-			assertTrue("Invalid subject received.", subject.equals(m.getSubject()));
-			assertTrue("Invalid subject received.", reply.equals(m.getReplyTo()));
+		} catch (IOException | TimeoutException e) {
+			e.printStackTrace();
+			fail(e.getMessage());
 		}
 	}
 

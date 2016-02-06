@@ -83,8 +83,8 @@ class NATSServer implements Runnable, AutoCloseable
 
     private String buildConfigFileName(String configFile)
     {
-//    	return new String("src/test/resources/"+configFile);
-    	return configFile;
+    	return new String("../src/test/resources/"+configFile);
+//    	return configFile;
     }
 
     public NATSServer(String configFile, boolean debug)
@@ -112,7 +112,7 @@ class NATSServer implements Runnable, AutoCloseable
     {
         try {
         	pb = new ProcessBuilder(psInfo.arguments);
-        	pb.directory(new File("src/test/resources"));
+        	pb.directory(new File("target"));
         	if (debug) {
         		System.err.println("Inheriting IO, psInfo =" + psInfo);
         		pb.inheritIO();

@@ -53,7 +53,7 @@ public class BenchTest {
 	@Test
 	public void testPubSpeed() {
 		int count = 120000000;
-		String url = Constants.DEFAULT_URL;
+		String url = ConnectionFactory.DEFAULT_URL;
 		String subject = "foo";
 		byte[] payload = null;
 		long elapsed = 0L;
@@ -66,6 +66,9 @@ public class BenchTest {
 			{
 				c.publish(subject, payload);
 			}
+
+			assertEquals(count, c.getStats().getOutMsgs());
+
 			// Make sure they are all processed
 			try { c.flush(); } catch (Exception e) {}
 
@@ -86,58 +89,111 @@ public class BenchTest {
 			fail(e.getMessage());
 		}
 	}
-	
+
 	@Test
 	public void testPubSubSpeed() {
-		final int count = 20000000;
-		String url = Constants.DEFAULT_URL;
-		String subject = "foo";
-		byte[] payload = null;
+		final int count = 10000000;
+		final int MAX_BACKLOG = 32000;
+		//		final int count = 2000;
+		final String url = ConnectionFactory.DEFAULT_URL;
+		final String subject = "foo";
+		final byte[] payload = "test".getBytes();
 		long elapsed = 0L;
 
-		ConnectionFactory cf = new ConnectionFactory(url);
+		final Channel<Boolean> ch = new Channel<Boolean>();
+		final Channel<Boolean> ready = new Channel<Boolean>();
+		final Channel<Long> slow = new Channel<Long>();
+
+		final AtomicInteger received = new AtomicInteger(0);
+
+		final ConnectionFactory cf = new ConnectionFactory(url);
+
 		cf.setExceptionHandler(new ExceptionHandler() {
 			public void onException(NATSException e) {
 				System.err.println("Error: " + e.getMessage());
+				Subscription sub = e.getSubscription();
+				System.err.printf("Queued = %d\n", sub.getQueuedMessageCount());
 				e.printStackTrace();
+//				fail(e.getMessage());
 			}
 		});
-		
-		try (Connection nc = cf.createConnection()) {
-			final Channel<Boolean> ch = new Channel<Boolean>();
-			final AtomicInteger received = new AtomicInteger(0);
-			
-			nc.subscribe(subject, new MessageHandler() {
-				public void onMessage(Message msg) {
-					if (received.incrementAndGet()>=count) {
-						ch.add(true);
-					}
-				}
-			});
-			
-			payload  = "Hello World".getBytes();
-			
-			long t0 = System.nanoTime();
 
-			for (int i = 0; i < count; i++)
-			{
-				nc.publish(subject, payload);
-				// Don't overrun ourselves and be a slow consumer, server will cut us off
-				if ((i - received.get()) > 8192) {
-					sleep(1);
+		Runnable r = new Runnable() {
+			public void run() {
+				try (Connection nc1 = cf.createConnection()) {
+					Subscription sub = nc1.subscribe(subject, new MessageHandler() {
+						public void onMessage(Message msg) {
+							int numReceived = received.incrementAndGet();
+							if (numReceived>=count) {
+								ch.add(true);
+							}
+						}
+					});
+					ready.add(true);
+					while (received.get() < count) {
+						if (sub.getQueuedMessageCount() > 8192) {
+							System.err.printf("queued=%d\n", sub.getQueuedMessageCount());
+							if (slow.getCount()==0) {
+								slow.add((long)sub.getQueuedMessageCount());
+							}
+							sleep(1);
+						}
+					}
+					System.out.println("nc1 (subscriber):\n=======");
+					printStats(nc1);
+				} catch (IOException | TimeoutException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 			}
+		};
+
+		Thread subscriber = new Thread(r);
+		subscriber.start();
+
+		try (final Connection nc2 = cf.createConnection()) {
+			long t0 = System.nanoTime();
+			long numSleeps=0L;
+
+			ready.get();
+			int sleepTime = 100;
+
+			for (int i=0; i<count; i++)
+			{
+				nc2.publish(subject, payload);
+				// Don't overrun ourselves and be a slow consumer, server will cut us off
+				if ((i-received.get()) > MAX_BACKLOG) {
+					int rec = received.get();
+					int sent = i+1;
+					int backlog = sent - rec;
+					
+					System.err.printf("sent=%d, received=%d, backlog=%d, ratio=%.2f, sleepInt=%d\n",
+							sent, rec, backlog, (double)backlog/cf.getMaxPendingMsgs(), sleepTime);
+
+//					sleepTime += 100;
+					sleep(sleepTime);
+					numSleeps++;
+				}
+			}
+			System.err.println("numSleeps="+numSleeps);
 
 			// Make sure they are all processed
 			try {
-			String s = String.format("Timed out waiting for messages, received %d/%d", 
-					received.get(), count);
-			assertTrue(s, ch.get(10,TimeUnit.SECONDS));
+				String s = String.format("Timed out waiting for messages, received %d/%d", 
+						received.get(), count);
+				assertTrue(s, ch.get(30,TimeUnit.SECONDS));
 			} catch (TimeoutException e) {
-				fail(String.format("Timed out waiting for messages, received %d/%d", 
+				fail(String.format("Timed out waiting for delivery completion, received %d/%d", 
 						received.get(), count));
 			}
 			assertEquals(count, received.get());
+			try {
+				subscriber.join();
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+
 			long t1 = System.nanoTime();
 
 			elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
@@ -150,12 +206,16 @@ public class BenchTest {
 			} else {
 				fail("Test not long enough to produce meaningful stats.");
 			} 
-			printStats(nc);
+			System.out.println("nc2 (publisher):\n=======");
+			printStats(nc2);
+
 		} catch (IOException | TimeoutException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 			fail(e.getMessage());
 		}
 	}
-	
+
 	private void printStats(Connection c)
 	{
 		Statistics s = c.getStats();
@@ -166,9 +226,7 @@ public class BenchTest {
 	}
 
 	public static void main(String[] args) {
-        BenchTest b = new BenchTest();
-        
-//        b.testPubSpeed();
-        b.testPubSubSpeed();
-    }
+		BenchTest b = new BenchTest();
+		b.testPubSubSpeed();
+	}
 }

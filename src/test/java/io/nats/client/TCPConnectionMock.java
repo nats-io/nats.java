@@ -36,6 +36,8 @@ import static io.nats.client.ConnectionImpl.*;
 class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable {
 	final Logger logger = LoggerFactory.getLogger(TCPConnectionMock.class);
 
+	final static Charset encoding = Charset.forName("UTF-8");
+	
 	ExecutorService executor = null;
 
 	volatile boolean shutdown = false;
@@ -368,7 +370,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 					}
 
 					if (nBytes>0) {
-						payload = br.readLine().getBytes(Charset.forName("UTF-8"));
+						payload = br.readLine().getBytes(encoding);
 						if (payload.length > nBytes)
 							throw new IllegalArgumentException("actual payload size ("+ payload.length 
 									+ "), expected: " + nBytes);							

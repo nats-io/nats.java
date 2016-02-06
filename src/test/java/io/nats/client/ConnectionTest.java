@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -724,7 +725,7 @@ public class ConnectionTest {
 				try {
 					mock.deliverMessage("foo", 27, null, "Hello".getBytes());
 				} catch (Exception e) {
-					fail("Shouldn't have thrown an exception: " + e.getMessage());
+					fail("Mock server shouldn't have thrown an exception: " + e.getMessage());
 				}
 
 			} catch (IOException | TimeoutException e) {
@@ -743,10 +744,11 @@ public class ConnectionTest {
 		boolean exThrown = false;
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
-				c.processMsgArgs(args, args.length);
+				c.parser.processMsgArgs(args, 0, args.length);
 			} catch (ParseException e) {
 				exThrown = true;
-				assertTrue(e.getMessage().startsWith("Unable to parse message arguments: "));
+				String msg = String.format("Wrong msg: [%s]\n", e.getMessage());
+				assertTrue(msg, e.getMessage().startsWith("nats: processMsgArgs bad number of args"));
 			} finally {
 				assertTrue("Should have thrown ParseException", exThrown);
 			}
@@ -759,10 +761,11 @@ public class ConnectionTest {
 		exThrown = false;
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
-				c.processMsgArgs(args, args.length);
+				c.parser.processMsgArgs(args, 0, args.length);
 			} catch (ParseException e) {
 				exThrown = true;
-				assertTrue(e.getMessage().startsWith("Invalid Message - Bad or Missing Size: "));
+				String msg = String.format("Wrong msg: [%s]\n", e.getMessage());
+				assertTrue(msg, e.getMessage().startsWith("nats: processMsgArgs bad or missing size: "));
 			} finally {
 				assertTrue("Should have thrown ParseException", exThrown);
 			}
@@ -939,21 +942,23 @@ public class ConnectionTest {
 
 	@Test
 	public void testProcessMsgMaxReached() {
+		final String subject = "foo";
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 				Map<Long, SubscriptionImpl> subs = c.getSubs();
 				assertNotNull(subs);
 				c.setSubs(subs);
-				SyncSubscriptionImpl s = (SyncSubscriptionImpl) c.subscribeSync("foo");
-				MsgArg args = new MsgArg();
+				SyncSubscriptionImpl s = (SyncSubscriptionImpl) c.subscribeSync(subject);
+				Parser.MsgArg args = c.parser.new MsgArg();
 				args.sid = s.getSid();
-				args.subject = s.getSubject();
+				args.subjectLength = subject.length();
+				System.arraycopy(subject.getBytes(), 0, args.subject, 0, args.subjectLength);
 				s.setMax(1);
-				c.msgArgs = args;
+				c.ps.ma = args;
 				assertNotNull("Sub should have been present", c.getSubs().get(args.sid));
-				c.processMsg(null, 0);
-				c.processMsg(null, 0);
-				c.processMsg(null, 0);
+				c.processMsg(null, 0, 0);
+				c.processMsg(null, 0, 0);
+				c.processMsg(null, 0, 0);
 				assertNull("Sub should have been removed", c.getSubs().get(args.sid));
 			} catch (IOException | TimeoutException e) {
 				fail("Connection failed");
