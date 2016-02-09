@@ -79,12 +79,12 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	void enable() {
 		Runnable msgFeeder = new Runnable() {
 			public void run(){
-				logger.trace("msgFeeder has started for subj: {} sid: {}", subject, sid);
 				try {
 					conn.deliverMsgs(mch);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
+				logger.trace("msgFeeder has started for subj: {} sid: {}", subject, sid);
 			}
 		};
 
