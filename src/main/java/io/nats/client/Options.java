@@ -265,14 +265,17 @@ class Options {
 	/**
 	 * @return the sslContext
 	 */
-	public SSLContext getSslContext() {
+	public SSLContext getSSLContext() {
 		return sslContext;
 	}
 	/**
 	 * @param sslContext the sslContext to set
 	 */
-	public void setSslContext(SSLContext sslContext) {
+	public void setSSLContext(SSLContext sslContext) {
 		this.sslContext = sslContext;
+		if (sslContext != null) {
+			setSecure(true);
+		}
 	}
 
 
