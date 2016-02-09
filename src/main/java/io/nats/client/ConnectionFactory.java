@@ -114,7 +114,7 @@ public class ConnectionFactory implements Cloneable {
 	private long pingInterval						= DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= DEFAULT_MAX_PINGS_OUT;
 	private SSLContext sslContext;
-	private ExceptionHandler exceptionHandler;
+	private ExceptionHandler exceptionHandler		= new DefaultExceptionHandler();
 	private ClosedCallback closedCallback;
 	private DisconnectedCallback disconnectedCallback;
 	private ReconnectedCallback reconnectedCallback;
@@ -384,7 +384,7 @@ public class ConnectionFactory implements Cloneable {
 		result.setDisconnectedCallback(disconnectedCallback);
 		result.setReconnectedCallback(reconnectedCallback);
 		result.setMaxPendingMsgs(maxPendingMsgs);
-		result.setSslContext(sslContext);
+		result.setSSLContext(sslContext);
 		return result;
 	}
 
