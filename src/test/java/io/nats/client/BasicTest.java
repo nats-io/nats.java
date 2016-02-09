@@ -8,26 +8,20 @@
 package io.nats.client;
 
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.After;
@@ -80,10 +74,10 @@ public class BasicTest {
 
 			u = c.getConnectedUrl();
 			assertNotNull(badUrl, u);
-			assertEquals(badUrl, Constants.DEFAULT_URL, u);
+			assertEquals(badUrl, ConnectionFactory.DEFAULT_URL, u);
 
 			assertNotNull(c.currentServer().toString());
-			assertTrue(c.currentServer().toString().contains(Constants.DEFAULT_URL));
+			assertTrue(c.currentServer().toString().contains(ConnectionFactory.DEFAULT_URL));
 
 			srv = c.getConnectedServerId();
 			assertNotNull("Expected a connected server id", srv); 
@@ -177,31 +171,12 @@ public class BasicTest {
 		return Arrays.equals(p1, p2);
 	}
 
-	private boolean compare(byte[] payload, Message m)
-	{
-		return Arrays.equals(payload, m.getData());
-	}
-
-	private boolean compare(Message a, Message b)
-	{
-		if (a.getSubject().equals(b.getSubject()) == false)
-			return false;
-
-		if (a.getReplyTo() != null && a.getReplyTo().equals(b.getReplyTo()))
-		{
-			return false;
-		}
-
-		return compare(a.getData(), b.getData());
-	}
-
 	@Test
 	public void testAsyncSubscribe()
 	{
-		final Object mu = new Object();
 		final byte[] omsg = "Hello World".getBytes();
 
-		final AtomicBoolean received = new AtomicBoolean(false);
+		final Channel<Boolean> ch = new Channel<Boolean>();
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
 			try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
@@ -211,25 +186,14 @@ public class BasicTest {
 
 					assertNotNull("Callback does not have a valid Subscription", 
 							msg.getSubscription());
-
-					synchronized(mu)
-					{
-						received.set(true);
-						mu.notify();
-					}
+					ch.add(true);
 				}
 
 			})) { 
 
-				synchronized(mu) 
-				{
-					received.set(false);
-					c.publish("foo", omsg);
-					try { c.flush(); } catch (Exception e) {}
-					try { mu.wait(5000); } catch (InterruptedException e) {}
-				}
-
-				assertTrue("Did not receive message.", received.get());
+				c.publish("foo", omsg);
+				try { c.flush(); } catch (Exception e) {}
+				assertTrue("Did not receive message.", ch.get(5, TimeUnit.SECONDS));
 			} // AsyncSubscription
 		} // Connection
 		catch (IOException | TimeoutException e) {
@@ -289,7 +253,7 @@ public class BasicTest {
 
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
-			SyncSubscription s = c.subscribeSync("foo");
+			c.subscribeSync("foo");
 			c.publish("foo", "reply", omsg);
 			try {
 				c.flush();
@@ -351,35 +315,23 @@ public class BasicTest {
 	@Test
 	public void testReplyArg()
 	{
-		final Object mu = new Object();
 		final String replyExpected = "bar";
 		final String ts;
-		final AtomicBoolean received = new AtomicBoolean(false);
 
+		final Channel<Boolean> ch = new Channel<Boolean>();
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
 			try (AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
 				@Override
 				public void onMessage(Message msg) {
-					synchronized(mu)
-					{
-						assertEquals(replyExpected, msg.getReplyTo());
-						received.set(true);
-						mu.notify();
-					}
+					assertEquals(replyExpected, msg.getReplyTo());
+					ch.add(true);
 				}
 			})) 
 			{
-				synchronized(mu)
-				{
-					received.set(false);
-					try {Thread.sleep(200);} catch (InterruptedException e) {}
-					c.publish("foo", "bar", (byte[])null);
-					try {
-						mu.wait(5000);
-					} catch (InterruptedException e) {}
-				}
-				assertTrue("Message not received.", received.get());
+				try {Thread.sleep(200);} catch (InterruptedException e) {}
+				c.publish("foo", "bar", (byte[])null);
+				assertTrue("Message not received.", ch.get(5, TimeUnit.SECONDS));
 			}
 		} catch (IOException | TimeoutException e) {
 			fail(e.getMessage());
@@ -410,7 +362,7 @@ public class BasicTest {
 	@Test
 	public void testUnsubscribe() throws Exception
 	{
-		final Object mu = new Object();
+		final Channel<Boolean> ch = new Channel<Boolean>();
 		final AtomicInteger count = new AtomicInteger(0);
 		final int max = 20;
 		ConnectionFactory cf = new ConnectionFactory();
@@ -428,15 +380,11 @@ public class BasicTest {
 						} catch (Exception e) {
 							fail("Unsubscribe failed with err: " + e.getMessage());
 						}
-						synchronized(mu)
-						{
-							mu.notify();
-						}
+						ch.add(true);
 					}
 				}
 			}))
 			{
-
 				for (int i = 0; i < max; i++)
 				{
 					c.publish("foo", null, (byte[])null);
@@ -444,15 +392,10 @@ public class BasicTest {
 				Thread.sleep(100);
 				c.flush();
 
-				synchronized(mu)
+				if (s.isValid())
 				{
-					if (s.isValid())
-					{
-						try {
-							mu.wait(5000);
-						} catch (InterruptedException e) {}
-						assertFalse(s.isValid());
-					}
+					assertTrue("Test complete signal not received", ch.get(5, TimeUnit.SECONDS));
+					assertFalse(s.isValid());
 				}
 				assertEquals(max, count.get());
 			}
@@ -572,7 +515,6 @@ public class BasicTest {
 				public void onMessage(Message m)
 				{
 					try {
-						System.err.printf("replyTo==%s\n", m.getReplyTo());
 						c.publish(m.getReplyTo(), response);
 					} catch (Exception e){}
 				}
@@ -828,7 +770,8 @@ public class BasicTest {
 				}
 			})) 
 			{
-				s.start();
+//				s.start();
+				assertFalse(c.isClosed());
 				for (int i = 0; i < count; i++)
 				{
 					c.publish("foo", null);
@@ -851,7 +794,7 @@ public class BasicTest {
 	{
 		try (Connection c = new ConnectionFactory().createConnection())
 		{
-			int size = 12;
+			int size = 1066;
 			byte[] subjBytes = new byte[size];
 			for (int i = 0; i < size; i++)
 			{
@@ -948,7 +891,7 @@ public class BasicTest {
 		int numMsgs = 500;
 		try (NATSServer ts = new NATSServer()) {
 			sleep(500);
-			ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL);
+			ConnectionFactory cf = new ConnectionFactory(ConnectionFactory.DEFAULT_URL);
 			try (final Connection conn = cf.createConnection()) {
 				try (Subscription s = conn.subscribe("foo", new MessageHandler() {
 					public void onMessage(Message message) {
