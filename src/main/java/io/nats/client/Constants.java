@@ -104,6 +104,9 @@ public final class Constants {
 	public final static String JSON_ENCODER    = "json";
 //	GOB_ENCODER     = "gob"
 	
+	final static String PROP_PROPERTIES_FILENAME 	= "jnats.properties";
+	final static String PROP_CLIENT_VERSION			= "client.version";
+	
 	// Property names
 	/**
 	 * 
