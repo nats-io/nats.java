@@ -27,17 +27,21 @@ final class Parser {
 //	List<byte[]> args = new ArrayList<byte[]>(); 
 	
 	protected class MsgArg {
-		byte[] 	subject = new byte[MAX_CONTROL_LINE_SIZE];
-		int		subjectLength = 0;
-		byte[] 	reply = new byte [MAX_CONTROL_LINE_SIZE];
-		int		replyLength = 0;
+//		byte[] 	subjectBytes = new byte[MAX_CONTROL_LINE_SIZE];
+		ByteBuffer subject = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
+//		int		subjectLength = 0;
+//		byte[] 	replyBytes = new byte [MAX_CONTROL_LINE_SIZE];
+		ByteBuffer reply = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
+//		int		replyLength = 0;
 		long	sid;
 		int		size;
 		public String toString() {
-			return String.format("{subject=%s(len=%d), reply=%s(len=%d), sid=%d, size=%d}", new String(subject),
-					subjectLength,
-					reply == null ? "null" : new String(reply),
-					replyLength,
+			
+			return String.format("{subject=%s(len=%d), reply=%s(len=%d), sid=%d, size=%d}", new String(subject.array(),
+					0, subject.limit()),
+					subject.limit(),
+					reply == null ? "null" : new String(reply.array(), 0, reply.limit()),
+					reply.limit(),
 					sid, size);
 		}
 	}
@@ -97,25 +101,25 @@ final class Parser {
 		this.nc.ps = conn.ps;
 	}
 	
-	protected void printStatus(byte[] buf, int i) {
-		String s = null;
-		char b = (char)buf[i];
-		if (b == '\r') 
-			s = "\\r";
-		else if (b == '\n')
-			s = "\\n";
-		else if (b == '\t')
-			s = "\\t";
-		else
-			s = String.format("%c", b);
-
-		System.err.printf("ps.state = %s, new char buf[%d] = '%s' (0x%02X) argBuf=[%s]\n", 
-				ps.state, i , s,
-				(int) b < 32 ? (int) b: b,
-						bufToString(ps.argBuf));
-		System.err.printf("ps.argBuf == %s\n", ps.argBuf);
-		System.err.printf("ps.msgBuf == %s\n", ps.msgBuf);
-	}
+//	protected void printStatus(byte[] buf, int i) {
+//		String s = null;
+//		char b = (char)buf[i];
+//		if (b == '\r') 
+//			s = "\\r";
+//		else if (b == '\n')
+//			s = "\\n";
+//		else if (b == '\t')
+//			s = "\\t";
+//		else
+//			s = String.format("%c", b);
+//
+//		System.err.printf("ps.state = %s, new char buf[%d] = '%s' (0x%02X) argBuf=[%s]\n", 
+//				ps.state, i , s,
+//				(int) b < 32 ? (int) b: b,
+//						bufToString(ps.argBuf));
+//		System.err.printf("ps.argBuf == %s\n", ps.argBuf);
+//		System.err.printf("ps.msgBuf == %s\n", ps.msgBuf);
+//	}
 	
 	protected void parse(byte[] buf, int len) throws ParseException {
 		int i;
@@ -238,12 +242,7 @@ final class Parser {
                 	default:
                 		// We have a leftover argBuf we'll continuing filling
                 		if (ps.argBuf != null) {
-                			try {
-	                		ps.argBuf.put(b);
-                			} catch (Exception e) {
-                				System.err.printf("i=%d, b=%c, ps.argBuf=%s\n", i, (char)b, ps.argBuf);
-                				e.printStackTrace();
-                			}
+                			ps.argBuf.put(b);
                 		}
                 		break;
                 	}
@@ -563,7 +562,7 @@ final class Parser {
     	}
 	}
 	
-	private String bufToString(ByteBuffer arg) {
+	protected static String bufToString(ByteBuffer arg) {
 		if (arg==null)
 			return null;
 		int pos = arg.position();
@@ -600,6 +599,9 @@ final class Parser {
 					if (start >= 0) {
 						argLen = i-start;
 //						System.err.printf("start = %d, len = %d, ps.args[%d]=%s\n", start, argLen, numArgs, ps.args[numArgs]);
+						if (argLen > ps.args[numArgs].remaining()) {
+							ps.args[numArgs] = ByteBuffer.allocate(argLen);
+						}
 						ps.args[numArgs++].put(arg, start, argLen).flip();
 						start = -1;
 					}
@@ -613,15 +615,7 @@ final class Parser {
 		}
 		if (start >= 0) {
 			argLen = i-start;
-//			System.err.printf("start = %d, len = %d, ps.args[%d]=%s\n", start, argLen, numArgs, ps.args[numArgs]);
-			try {
-				ps.args[numArgs++].put(arg, start, argLen).flip();
-			} catch (Exception e) {
-				System.err.printf("\nps.args[%d]=%s, arg.arrayOffset=%d, arg.limit=%d\n\n", 
-						numArgs, ps.args[numArgs], start, i-start);
-				throw(e);
-			}
-
+			ps.args[numArgs++].put(arg, start, argLen).flip();
 		}
 
 //		for (i = 0; i<ps.args.length; i++) {
@@ -636,22 +630,27 @@ final class Parser {
 //		System.err.println("ps.args[2] = " + ps.args[2]);
 //		System.err.println("ps.args[3] = " + ps.args[3]);
 
+		ps.ma.subject.clear();
+		ps.ma.reply.clear();
+		
+		if (ps.ma.subject.remaining() < ps.args[0].limit()) {
+			ps.ma.subject = ByteBuffer.allocate(ps.args[0].limit());
+		}
 		switch (numArgs)
 		{
 		case 3:
-			ps.ma.subjectLength = ps.args[0].limit();
-			ps.args[0].get(ps.ma.subject, 0, ps.ma.subjectLength);
+			ps.ma.subject.put(ps.args[0].array(), 0, ps.args[0].limit());
 			ps.ma.sid     = parseLong(ps.args[1].array(), ps.args[1].limit());
-			ps.ma.replyLength = 0;
-			// ps.ma.reply   = null;
+			ps.ma.reply.clear();
 			ps.ma.size    = (int)parseLong(ps.args[2].array(), ps.args[2].limit());
 			break;
 		case 4:
-			ps.ma.subjectLength = ps.args[0].limit();
-			ps.args[0].get(ps.ma.subject, 0, ps.args[0].limit());
+			ps.ma.subject.put(ps.args[0].array(), 0, ps.args[0].limit());
 			ps.ma.sid     = parseLong(ps.args[1].array(), ps.args[1].limit());
-			ps.ma.replyLength = ps.args[2].limit();
-			ps.args[2].get(ps.ma.reply, 0, ps.ma.replyLength);
+			if (ps.ma.reply.remaining() < ps.args[2].limit()) {
+				ps.ma.reply = ByteBuffer.allocate(ps.args[2].limit());
+			}
+			ps.ma.reply.put(ps.args[2].array(), 0, ps.args[2].limit());
 			ps.ma.size    = (int)parseLong(ps.args[3].array(), ps.args[3].limit());
 			break;
 		default:
@@ -676,23 +675,22 @@ final class Parser {
 			throw new ParseException(String.format("nats: processMsgArgs bad or missing size: '%s'", str), 
 						ps.ma.size);
 		} 
+		ps.ma.subject.flip();
+		ps.ma.reply.flip();
 	}
 	
 	// cloneMsgArg is used when the split buffer scenario has the pubArg in the existing read buffer, but
 	// we need to hold onto it into the next read.
 	private void cloneMsgArg() {
 		ps.argBuf = ByteBuffer.wrap(ps.argBufStore);
-//		System.err.printf("ps.argBuf 1= %s\n",  ps.argBuf);
-		ps.argBuf.put(ps.ma.subject, 0, ps.ma.subjectLength);
-//		System.err.printf("ps.argBuf 2= %s\n",  ps.argBuf);
-		if (ps.ma.replyLength != 0) {
-			ps.argBuf.put(ps.ma.reply, 0, ps.ma.replyLength);
+		ps.argBuf.put(ps.ma.subject.array(), 0, ps.ma.subject.limit());
+		if (ps.ma.reply.limit() != 0) {
+			ps.argBuf.put(ps.ma.reply.array(), 0, ps.ma.reply.limit());
 		}
-//		System.err.printf("ps.argBuf 3= %s\n",  ps.argBuf);
 		ps.argBuf.rewind();
-		ps.argBuf.get(ps.ma.subject, 0, ps.ma.subjectLength);
-		if (ps.ma.replyLength != 0) {
-			ps.argBuf.get(ps.ma.reply, 0, ps.ma.replyLength);
+		ps.argBuf.get(ps.ma.subject.array(), 0, ps.ma.subject.limit());
+		if (ps.ma.reply.limit() != 0) {
+			ps.argBuf.get(ps.ma.reply.array(), 0, ps.ma.reply.limit());
 		}
 //		ps.argBuf.flip();
 //		System.err.printf("ps.argBuf 4= %s\n",  ps.argBuf);

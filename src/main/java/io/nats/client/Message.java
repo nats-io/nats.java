@@ -20,10 +20,13 @@ import io.nats.client.Parser.MsgArg;
  * stream of uninterpreted bytes.
  */
 public class Message {
-	private byte[] subject;
+	private byte[] subjectBytes;
 	private String subjectString;
-	private byte[] replyTo;
+//	private ByteBuffer subject;
+//	private ByteBuffer replyTo;
+	private byte[] replyToBytes;
 	private String replyToString;
+//	private ByteBuffer data;
 	private byte[] data;  
 	protected SubscriptionImpl sub;
 
@@ -53,17 +56,19 @@ public class Message {
 //	}
 
 	protected Message(MsgArg ma, SubscriptionImpl sub, byte[] buf, int offset, int length) {
-		this.setSubject(ma.subject, ma.subjectLength);
-		this.setReplyTo(ma.reply, ma.replyLength);
+		this.setSubject(ma.subject.array(), ma.subject.limit());
+		if (ma.reply.limit()>0) {
+			this.setReplyTo(ma.reply.array(), ma.reply.limit());
+		}
 		this.sub = sub;		
 		// make a deep copy of the bytes for this message.
 		if (ma.size > 0) {
-			this.data = new byte[ma.size];
+			data = new byte[ma.size];
 			try {
-			System.arraycopy(buf, offset, this.data, 0, length);
+			System.arraycopy(buf, offset, data, 0, length);
 			} catch (ArrayIndexOutOfBoundsException e) {
 				System.err.printf("buf.length=%d, offset=%d, data.length=%d, length=%d\n, buf=[%s]",
-						buf.length, offset, data.length, length, new String(buf));
+						buf.length, offset, data.length, length, new String(buf, offset, length));
 				e.printStackTrace();				
 			}
 		}
@@ -82,9 +87,7 @@ public class Message {
 	{
 		this.setSubject(subject);
         // make a deep copy of the bytes for this message.
-		if (data != null) {
-			this.data = Arrays.copyOf(data, length);
-		}
+		this.setData(data);
         this.setReplyTo(reply);
         this.sub = sub;
 	}
@@ -103,32 +106,32 @@ public class Message {
 	 */
 	public String getSubject() {
 		if (subjectString == null) {
-			subjectString = new String(subject);
-			return subjectString;
+			subjectString = new String(subjectBytes, 0, subjectBytes.length);
 		}
 		return subjectString;
 	}
 
 	byte[] getSubjectBytes() {
-		return subject;
+		return subjectBytes;
 	}
 
 	/**
 	 * Sets the subject of the message
 	 * @param subject the subject to set
 	 */
-	public void setSubject(String subject) {
+	public void setSubject(final String subject) {
 		String s = subject.trim();
         if (s==null || s.isEmpty())
         {
             throw new IllegalArgumentException(
                 "Subject cannot be null, empty, or whitespace.");
         }
-		this.subject = s.getBytes();
+        this.subjectString = subject;
+		this.subjectBytes = subject.getBytes();
 	}
 	
 	void setSubject(byte[] subject, int length) {
-		this.subject = Arrays.copyOf(subject, length);
+		this.subjectBytes = Arrays.copyOf(subject, length);
 	}
 	
 	/**
@@ -137,15 +140,15 @@ public class Message {
 	 */
 	public String getReplyTo() {
 		if (replyToString == null) {
-			if (replyTo != null) {
-				replyToString = new String(replyTo);
+			if (replyToBytes != null) {
+				replyToString = new String(replyToBytes, 0, replyToBytes.length);
 			}
 		}
 		return replyToString;
 	}
 
 	byte[] getReplyToBytes() {
-		return replyTo;
+		return replyToBytes;
 	}
 
 	/**
@@ -154,23 +157,23 @@ public class Message {
 	 */
 	public void setReplyTo(String replyTo) {
 		if (replyTo == null) {
-			this.replyTo=null;
-		}
-		if (replyTo != null) {
+			this.replyToBytes=null;
+		} else {
 			String r = replyTo.trim();
 			if (r.isEmpty()) {
 				throw new IllegalArgumentException(
 						"Reply subject cannot be empty or whitespace.");
 			}
-			this.replyTo = replyTo.getBytes();
+			this.replyToString = replyTo;
+			this.replyToBytes = replyTo.getBytes();
 		}
 	}
 
 	void setReplyTo(byte[] replyTo, int length) {
 		if (replyTo==null) {
-			this.replyTo = null;
+			this.replyToBytes = null;
 		} else {
-			this.replyTo = Arrays.copyOf(replyTo, length);
+			this.replyToBytes = Arrays.copyOf(replyTo, length);
 		}
 	}
 
@@ -187,14 +190,14 @@ public class Message {
 	 * Sets the message payload data
 	 * @param data the data
 	 * @param offset the start offset in the data
-	 * @param len the number of bytes to write
+	 * @param length the number of bytes to write
 	 */
-	public void setData(byte[] data, int offset, int len) {
+	public void setData(byte[] data, int offset, int length) {
 		if (data == null) {
 			this.data = null;
 		} else {
-			this.data = new byte[len];
-			this.data = Arrays.copyOfRange(data, offset, len);
+			this.data = new byte[length];
+			System.arraycopy(data, offset, this.data, 0, length);
 		}
 	}
 
@@ -203,12 +206,10 @@ public class Message {
 	 * @param data the data
 	 */
 	public void setData(byte[] data) {
-		if (data == null) {
-			this.data = null;
-		} else {
-			this.data = new byte[data.length];
-			this.data = Arrays.copyOfRange(data, 0, data.length);
-		}
+		if (data != null)
+			setData(data, 0, data.length);
+		else
+			setData(null, 0, 0);
 	}
 
 	/**

@@ -329,7 +329,7 @@ public class ParserTest {
 
 				assertEquals("Wrong msg size: ", 3, nc.parser.ps.ma.size);
 				assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
-				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject, 0, nc.parser.ps.ma.subjectLength));
+				assertEquals("Wrong subject: ", "a", Parser.bufToString(nc.parser.ps.ma.subject));
 				assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
 
 				buf = "oo\r\n".getBytes();
@@ -353,7 +353,7 @@ public class ParserTest {
 				}
 				assertEquals("Wrong msg size: ", 3, nc.parser.ps.ma.size);
 				assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
-				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject, 0, nc.parser.ps.ma.subjectLength));
+				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject.array(), 0, nc.parser.ps.ma.subject.limit()));
 				assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
 				assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
 
@@ -383,7 +383,7 @@ public class ParserTest {
 
 				assertEquals("Wrong msg size: ", 6, nc.parser.ps.ma.size);
 				assertEquals("Wromg sid: ", 1, nc.parser.ps.ma.sid);
-				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject, 0, nc.parser.ps.ma.subjectLength));
+				assertEquals("Wrong subject: ", "a", Parser.bufToString(nc.parser.ps.ma.subject));
 				assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
 				assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
 
@@ -424,8 +424,8 @@ public class ParserTest {
 
 				assertEquals("Wrong msg size: ", msgSize, nc.parser.ps.ma.size);
 				assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
-				assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject, 0, nc.parser.ps.ma.subjectLength));
-				assertEquals("Wrong reply: ", "b", new String(nc.parser.ps.ma.reply, 0, nc.parser.ps.ma.replyLength));
+				assertEquals("Wrong subject: ", "a", Parser.bufToString(nc.parser.ps.ma.subject));
+				assertEquals("Wrong reply: ", "b", Parser.bufToString(nc.parser.ps.ma.reply));
 				assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
 				assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
 

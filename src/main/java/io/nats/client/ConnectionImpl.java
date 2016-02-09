@@ -14,18 +14,18 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.SocketException;
 import java.net.URI;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.Charset;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -56,6 +56,8 @@ class ConnectionImpl implements Connection {
 	//	final static int DEFAULT_SCRATCH_SIZE = 512;	
 
 	private static final String inboxPrefix = "_INBOX.";
+
+	private static final String TLS_SCHEME = "tls";
 
 	public ConnState status = ConnState.DISCONNECTED;
 
@@ -115,7 +117,8 @@ class ConnectionImpl implements Connection {
 	private TCPConnection conn				= null;
 
 	// Prepare protocol messages for efficiency
-	byte[] pubProtoBuf = null;
+//	byte[] pubProtoBuf = null;
+	ByteBuffer pubProtoBuf = null;
 
 	// we have a buffered reader for writing, and reading.
 	// This is for both performance, and having to work around
@@ -162,7 +165,6 @@ class ConnectionImpl implements Connection {
 	private Channel<Boolean> fch			= new Channel<Boolean>();
 
 	ConnectionImpl() {
-		
 	}
 	
 	ConnectionImpl(Options o)
@@ -171,8 +173,8 @@ class ConnectionImpl implements Connection {
 	}
 
 	ConnectionImpl(Options o, TCPConnection tcpconn) {
-		Properties props = this.getProperties("jnats.properties");
-		version = props.getProperty("client.version");
+		Properties props = this.getProperties(Constants.PROP_PROPERTIES_FILENAME);
+		version = props.getProperty(Constants.PROP_CLIENT_VERSION);
 
 		this.opts = o;
 		this.stats = new Statistics();
@@ -228,8 +230,10 @@ class ConnectionImpl implements Connection {
 
 	private void buildPublishProtocolBuffer(int size)
 	{
-		pubProtoBuf = new byte[size];
-		System.arraycopy(pubPrimBytes, 0, pubProtoBuf, 0, pubPrimBytesLen);
+		pubProtoBuf = ByteBuffer.allocate(size);
+		pubProtoBuf.put(pubPrimBytes, 0, pubPrimBytesLen);
+		pubProtoBuf.mark();
+//		System.arraycopy(pubPrimBytes, 0, pubProtoBuf, 0, pubPrimBytesLen);
 	}
 
 
@@ -260,14 +264,14 @@ class ConnectionImpl implements Connection {
 		}
 
 		if (srvPool.isEmpty()) {
-			srvPool.add(new Srv(URI.create(DEFAULT_URL)));
+			srvPool.add(new Srv(URI.create(ConnectionFactory.DEFAULT_URL)));
 		}
 
 		/* 
 		 * At this point, srvPool being empty would be 
 		 * programmer error. 
 		 */
-
+		
 		// Return the first server in the list
 		this.url = srvPool.get(0).url;
 	}
@@ -314,7 +318,6 @@ class ConnectionImpl implements Connection {
 			throw new IOException(ERR_NO_SERVERS);
 		}
 
-		this.url = srvPool.get(0).url;
 		return srvPool.get(0);
 	}
 
@@ -579,7 +582,7 @@ class ConnectionImpl implements Connection {
 		}
 
 		// Need to rewrap with bufio
-		if (opts.isSecure())
+		if (opts.isSecure() || TLS_SCHEME.equals(this.url.getScheme()))
 		{
 			makeTLSConn();
 		}
@@ -589,7 +592,7 @@ class ConnectionImpl implements Connection {
 	private void makeTLSConn() throws IOException
 	{
 		conn.setTlsDebug(opts.isTlsDebug());
-		conn.makeTLS(opts.getSslContext());
+		conn.makeTLS(opts.getSSLContext());
 		bw = conn.getBufferedOutputStream(DEFAULT_BUF_SIZE);
 		br = conn.getBufferedInputStream(DEFAULT_BUF_SIZE);
 	}
@@ -805,6 +808,7 @@ class ConnectionImpl implements Connection {
 			Srv cur = null;
 			try {
 				cur = selectNextServer();
+				this.url = cur.url;
 			} catch (IOException nse){
 				logger.trace("doReconnect() calling setLastError({})", nse.getMessage());
 				setLastError(nse);
@@ -943,25 +947,29 @@ logger.trace("doReconnect finished successfully!");
 
 	// processErr processes any error messages from the server and
 	// sets the connection's lastError.
-	protected void processErr(ByteBuffer errorStream)
+	protected void processErr(ByteBuffer error)
 	{
 		boolean doCBs = false;
-		Exception ex = null;
-		String s = new String(errorStream.array(), 0, errorStream.position());
-		logger.trace("processErr(errorStream={})", s);
+		NATSException ex = null;
+		String s = Parser.bufToString(error).trim().replace("'", "");
+//		System.err.printf("errBuf = %s, Full error = [%s]\n", error, s);
+//		System.err.printf("Complete buffer = [%s]\n", new String(error.array(),0,error.limit()));
 
-		if (STALE_CONNECTION.equals(s))
+		logger.trace("processErr(error={})", s);
+
+		if (STALE_CONNECTION.equalsIgnoreCase(s))
 		{
 			processOpError(new IOException(ERR_STALE_CONNECTION));
 		}
 		else
 		{
-			ex = new NATSException(s);
+			ex = new NATSException("nats: " + s);
+			ex.setConnection(this);
+
 			mu.lock();
 			try
 			{
 				setLastError(ex);
-
 				if (status != ConnState.CONNECTING)
 				{
 					doCBs = true;
@@ -969,10 +977,10 @@ logger.trace("doReconnect finished successfully!");
 			} finally {
 				mu.unlock();
 			}
-
 			close(ConnState.CLOSED, doCBs);
 		}
 	}
+	
 	// caller must lock
 	protected void sendConnect() throws IOException
 	{
@@ -1320,9 +1328,13 @@ logger.trace("doReconnect finished successfully!");
 		int reconnects = 0;
 		long lastAttempt = 0L;
 		long lastAttemptNanos = 0L;
+		boolean secure = false;
 
 		protected Srv(URI url) {
 			this.url = url;
+			if (url.getScheme().equals(TLS_SCHEME)) {
+				this.secure = true;
+			}
 		}
 
 		// Mark the last attempt to connect to this Srv
@@ -1384,7 +1396,7 @@ logger.trace("doReconnect finished successfully!");
 			}
 				
 			try
-			{
+			{	
 				len = br.read(buffer, 0, DEFAULT_BUF_SIZE);
 				if (len==-1) {
 					throw new IOException(ERR_STALE_CONNECTION);
@@ -1472,7 +1484,8 @@ logger.trace("doReconnect finished successfully!");
 		mu.lock();
 		try
 		{
-//			System.err.printf("processMsg for bbuf=[%s]\n", bbuf);
+//			System.err.printf("processMsg for data=[%s], offset=%d, length=%d\n", new String(data, offset, length), offset, length);
+//			System.err.printf("full buffer=[%s]\n", new String(data));
 //			System.err.printf("Adding %d bytes\n", parser.ps.ma.size);
 			stats.incrementInMsgs();
 			stats.incrementInBytes(parser.ps.ma.size);
@@ -1864,7 +1877,7 @@ logger.trace("doReconnect finished successfully!");
 		{
 			SubscriptionImpl s = subs.get(key);
 			if (s instanceof AsyncSubscription)
-				((AsyncSubscriptionImpl)s).enable(); //enableAsyncProcessing()
+				((AsyncSubscriptionImpl)s).start(); //enableAsyncProcessing()
 			logger.trace("Resending subscriptions:");
 			sendSubscriptionMessage(s);
 			if (s.getMaxPending() > 0) {
@@ -1960,7 +1973,7 @@ logger.trace("doReconnect finished successfully!");
 
 	@Override
 	public AsyncSubscription subscribe(String subject, MessageHandler cb) {
-		return (AsyncSubscription) subscribe(subject, "", cb);
+		return (AsyncSubscription) subscribe(subject, null, cb);
 	}
 
 	@Override 
@@ -1970,95 +1983,72 @@ logger.trace("doReconnect finished successfully!");
 
 	@Override 
 	public SyncSubscription subscribeSync(String subject) {
-		return (SyncSubscription)subscribe(subject, "", (MessageHandler)null);
+		return (SyncSubscription)subscribe(subject, null, (MessageHandler)null);
 	}
 
-	private int writePublishProto(byte[] dst, byte[] subject, byte[] reply, int msgSize) {
-		//		logger.info("subject={}, Reply={}, msgSize={}, arraySize={}, msgBytes={}", 
-		//				subject, reply, msgSize, dst.length, dst);
-		// skip past the predefined "PUB "
-		int index = pubPrimBytesLen;
-
-		// Subject
-		System.arraycopy(subject, 0, dst, index, subject.length);
-		index += subject.length;
-
-		if (reply != null)
-		{
-			// " REPLY"
-			dst[index++] = (byte)' ';
-
-			System.arraycopy(reply, 0, dst, index, reply.length);
-			index += reply.length;
-		}
-
-		// " "
-		dst[index++] = (byte)' ';
-
-		// " SIZE"
-		index = Utilities.stringToBytesASCII(dst, index, String.valueOf(msgSize));
-
-		// "\r\n"
-		System.arraycopy(crlfProtoBytes, 0, dst, index, crlfProtoBytesLen);
-		index += crlfProtoBytesLen;
-
-		return index;
-	}
-	
 	// Use low level primitives to build the protocol for the publish
 	// message.
-	private int writePublishProto(byte[] dst, String subject, String reply, int msgSize)
-	{
-		//		logger.info("subject={}, Reply={}, msgSize={}, arraySize={}, msgBytes={}", 
-		//				subject, reply, msgSize, dst.length, dst);
-		// skip past the predefined "PUB "
-		int index = pubPrimBytesLen;
-
-		// Subject
-		index = Utilities.stringToBytesASCII(dst, index, subject);
-
-		if (reply != null)
-		{
-			// " REPLY"
-			dst[index] = (byte)' ';
-			index++;
-
-			index = Utilities.stringToBytesASCII(dst, index, reply);
-		}
-
-		// " "
-		dst[index] = (byte)' ';
-		index++;
-
-		// " SIZE"
-		index = Utilities.stringToBytesASCII(dst, index, String.valueOf(msgSize));
-
-		// "\r\n"
-		System.arraycopy(crlfProtoBytes, 0, dst, index, crlfProtoBytesLen);
-		index += crlfProtoBytesLen;
-
-		return index;
-	}
+//	private int writePublishProto(byte[] dst, String subject, String reply, int msgSize)
+//	{
+//		//		logger.info("subject={}, Reply={}, msgSize={}, arraySize={}, msgBytes={}", 
+//		//				subject, reply, msgSize, dst.length, dst);
+//		// skip past the predefined "PUB "
+//		int index = pubPrimBytesLen;
+//
+//		// Subject
+//		index = Utilities.stringToBytesASCII(dst, index, subject);
+//
+//		if (reply != null)
+//		{
+//			// " REPLY"
+//			dst[index] = (byte)' ';
+//			index++;
+//
+//			index = Utilities.stringToBytesASCII(dst, index, reply);
+//		}
+//
+//		// " "
+//		dst[index] = (byte)' ';
+//		index++;
+//
+//		// " SIZE"
+//		index = Utilities.stringToBytesASCII(dst, index, String.valueOf(msgSize));
+//
+//		// "\r\n"
+//		System.arraycopy(crlfProtoBytes, 0, dst, index, crlfProtoBytesLen);
+//		index += crlfProtoBytesLen;
+//
+//		return index;
+//	}
 	
-	void _publish(byte[] subject, byte[] reply, byte[] data) {
+	private void writePublishProto(ByteBuffer buffer, byte[] subject, byte[] reply, int msgSize)
+	{
+		pubProtoBuf.put(subject, 0, subject.length);
+		if (reply != null) {
+			pubProtoBuf.put((byte)' ');
+			pubProtoBuf.put(reply, 0, reply.length);
+		}
+		pubProtoBuf.put((byte)' ');
 		
+		byte[] b = new byte[12];
+		int i = b.length;
+		if (msgSize > 0) {
+			for (int l=msgSize; l>0; l/=10){
+				i--;
+				b[i] = digits[l%10];
+			}
+		} else {
+			i -= 1;
+			b[i] = digits[0];
+		}
+		pubProtoBuf.put(b, i, b.length-i);
+		pubProtoBuf.put(crlfProtoBytes, 0, crlfProtoBytesLen);
 	}
 	
-	// Sends a protocol data message by queueing into the bufio writer
-	// and kicking the flush go routine. These writes should be protected.
-	// publish can throw a few different unchecked exceptions:
-	// IllegalStateException, IllegalArgumentException, NullPointerException 
-	// IOException
-	public void publish(String subject, String reply, byte[] data)
-	{
-		if (subject == null) {
-			throw new NullPointerException(ERR_BAD_SUBJECT);
-		}
-		if (subject.isEmpty())
-		{
-			throw new IllegalArgumentException(ERR_BAD_SUBJECT);
-		}
-
+	// Used for handrolled itoa
+	final static byte[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+			
+	void _publish(byte[] subject, byte[] reply, byte[] data) {
 		int msgSize = (data != null) ? data.length : 0;
 		mu.lock();
 		try
@@ -2072,32 +2062,52 @@ logger.trace("doReconnect finished successfully!");
 			if (status == ConnState.CLOSED)
 				throw new IllegalStateException(ERR_CONNECTION_CLOSED);
 
-			//TODO Throw the right exception here
-			//            if (getLastError() != null)
-			//                throw getLastError();
-
-			int pubProtoLen;
+			// TODO implement reconnect buffer size option
+			// Check if we are reconnecting, and if so check if
+			// we have exceeded our reconnect outbound buffer limits.
+//			if (status == ConnState.RECONNECTING) {
+//				// Flush to underlying buffer
+//				try {bw.flush();} catch (IOException e) {}
+//				if (pending.size() >= opts.reconnectBufSize) {
+//					throw new IOException(ERR_RECONNECT_BUF_EXCEEDED);
+//				}
+//			}
+			
+//			int pubProtoLen;
 			// write our pubProtoBuf buffer to the buffered writer.
 			try
 			{
-				pubProtoLen = writePublishProto(pubProtoBuf, subject,
-						reply, msgSize);
+//				pubProtoLen = writePublishProto(pubProtoBuf, subject,
+//						reply, msgSize);
+				writePublishProto(pubProtoBuf, subject, reply, msgSize);
 			}
-			catch (IndexOutOfBoundsException e)
+			catch (BufferOverflowException e)
 			{
+				System.err.printf("Overflowed buffer, buffer=%s, subject.length=%d, reply.length=%d\n", pubProtoBuf,
+						subject.length, reply.length);
+				
 				// We can get here if we have very large subjects.
 				// Expand with some room to spare.
-				int resizeAmount = Parser.MAX_CONTROL_LINE_SIZE + subject.length()
-				+ (reply != null ? reply.length() : 0);
+				int resizeAmount = Parser.MAX_CONTROL_LINE_SIZE + subject.length
+				+ (reply != null ? reply.length : 0);
 
 				buildPublishProtocolBuffer(resizeAmount);
 
-				pubProtoLen = writePublishProto(pubProtoBuf, subject,
-						reply, msgSize);
+				writePublishProto(pubProtoBuf, subject, reply, msgSize);
+
+//				pubProtoLen = writePublishProto(pubProtoBuf, subject,
+//						reply, msgSize);
 			}
 
 			try {
-				bw.write(pubProtoBuf, 0, pubProtoLen);
+//				bw.write(pubProtoBuf, 0, pubProtoLen);
+
+//				pubProtoBuf.flip();
+//				System.err.printf("protobuf=%s\n", pubProtoBuf);
+//				writeBuffer(pubProtoBuf, bw);
+				bw.write(pubProtoBuf.array(), 0, pubProtoBuf.position());
+//				pubProtoBuf.flip();
+				pubProtoBuf.position(pubPrimBytesLen);
 				// logger.trace("=> {}", new String(pubProtoBuf).trim() );
 
 				if (msgSize > 0)
@@ -2126,7 +2136,35 @@ logger.trace("doReconnect finished successfully!");
 //					subject);
 		} finally {
 			mu.unlock();
+		}	
+	}
+	
+	protected void writeBuffer(ByteBuffer buffer, OutputStream stream) throws IOException {
+		WritableByteChannel channel = Channels.newChannel(stream);
+		channel.write(buffer);
+	}
+
+	// Sends a protocol data message by queueing into the bufio writer
+	// and kicking the flush go routine. These writes should be protected.
+	// publish can throw a few different unchecked exceptions:
+	// IllegalStateException, IllegalArgumentException, NullPointerException 
+	// IOException
+	public void publish(String subject, String reply, byte[] data)
+	{
+		if (subject == null) {
+			throw new NullPointerException(ERR_BAD_SUBJECT);
 		}
+		if (subject.isEmpty())
+		{
+			throw new IllegalArgumentException(ERR_BAD_SUBJECT);
+		}
+
+		byte[] subjBytes = subject.getBytes();
+		byte[] replyBytes = null;
+		if (reply != null) {
+			replyBytes = reply.getBytes();
+		}
+		_publish(subjBytes, replyBytes, data);
 	} // publish
 
 	@Override
@@ -2138,7 +2176,8 @@ logger.trace("doReconnect finished successfully!");
 	@Override
 	public void publish(Message msg)
 	{
-		publish(msg.getSubject(), msg.getReplyTo(), msg.getData());
+		_publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
+//		publish(msg.getSubject(), msg.getReplyTo(), msg.getData());
 	}
 
 	private Message _request(String subject, byte[] data, long timeout, TimeUnit unit)
@@ -2227,7 +2266,7 @@ logger.trace("doReconnect finished successfully!");
 				String queue = sub.getQueue();
 				String s = String.format(SUB_PROTO, 
 						sub.getSubject(), 
-						queue!=null ? " " + queue : "",
+						(queue!=null && !queue.isEmpty()) ? " " + queue : "",
 						sub.getSid());
 				try {
 					bw.write(Utilities.stringToBytesASCII(s));
