@@ -54,17 +54,19 @@ public class BenchTest {
 	public void testPubSpeed() {
 		int count = 120000000;
 		String url = ConnectionFactory.DEFAULT_URL;
-		String subject = "foo";
-		byte[] payload = null;
+		final String subject = "foo";
+		final byte[] payload = null;
 		long elapsed = 0L;
 
 		try (Connection c = new ConnectionFactory(url).createConnection()) {
-
+			final Message msg = new Message(subject, null, payload);
+			
 			long t0 = System.nanoTime();
 
 			for (int i = 0; i < count; i++)
 			{
 				c.publish(subject, payload);
+//				c.publish(msg);
 			}
 
 			assertEquals(count, c.getStats().getOutMsgs());
@@ -90,7 +92,7 @@ public class BenchTest {
 		}
 	}
 
-	@Test
+//	@Test
 	public void testPubSubSpeed() {
 		final int count = 10000000;
 		final int MAX_BACKLOG = 32000;
@@ -227,6 +229,6 @@ public class BenchTest {
 
 	public static void main(String[] args) {
 		BenchTest b = new BenchTest();
-		b.testPubSubSpeed();
+		b.testPubSpeed();
 	}
 }
