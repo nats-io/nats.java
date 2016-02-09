@@ -581,7 +581,7 @@ public class SubscriptionTest {
 	@Test 
 	public void testManyRequests() throws Exception {
 		final int numRequests = 1000;
-		ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL);
+		ConnectionFactory cf = new ConnectionFactory(ConnectionFactory.DEFAULT_URL);
 		try(final Connection conn = cf.createConnection()) {
 			try (final Connection pub = cf.createConnection()) {
 				try(Subscription sub = conn.subscribe("foo", "bar", new MessageHandler() {
