@@ -610,7 +610,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		try
 		{
 			ConnectionFactory cf2 = new ConnectionFactory();
-			cf.setServers((String[])null);
+			cf2.setServers((String[])null);
 		} catch (IllegalArgumentException e) {
 			fail(e.getMessage());
 		}
@@ -821,8 +821,8 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		ConnectionFactory cf = new ConnectionFactory();
 		try {
 			SSLContext c = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
-			cf.setSslContext(c);
-			assertEquals(c, cf.getSslContext());
+			cf.setSSLContext(c);
+			assertEquals(c, cf.getSSLContext());
 		} catch (NoSuchAlgorithmException e) {
 			fail(e.getMessage());
 		}			
@@ -833,8 +833,8 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		ConnectionFactory cf = new ConnectionFactory();
 		try {
 			SSLContext c = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
-			cf.setSslContext(c);
-			assertEquals(c, cf.getSslContext());
+			cf.setSSLContext(c);
+			assertEquals(c, cf.getSSLContext());
 		} catch (NoSuchAlgorithmException e) {
 			fail(e.getMessage());
 		}
