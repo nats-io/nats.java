@@ -86,7 +86,7 @@ public class ConnectionTest {
 				assertNull(c.getClosedCallback());
 				assertNull(c.getReconnectedCallback());
 				assertNull(c.getDisconnectedCallback());
-				assertNull(c.getExceptionHandler());
+				assertEquals(DefaultExceptionHandler.class, c.getExceptionHandler().getClass());
 			} catch (IOException | TimeoutException e) {
 				fail("Unexpected exception: " + e.getMessage());
 			} 
@@ -951,8 +951,8 @@ public class ConnectionTest {
 				SyncSubscriptionImpl s = (SyncSubscriptionImpl) c.subscribeSync(subject);
 				Parser.MsgArg args = c.parser.new MsgArg();
 				args.sid = s.getSid();
-				args.subjectLength = subject.length();
-				System.arraycopy(subject.getBytes(), 0, args.subject, 0, args.subjectLength);
+				args.subject.clear();
+				args.subject.put(subject.getBytes());
 				s.setMax(1);
 				c.ps.ma = args;
 				assertNotNull("Sub should have been present", c.getSubs().get(args.sid));
