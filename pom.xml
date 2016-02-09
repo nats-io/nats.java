@@ -174,6 +174,11 @@
 						<goals>
 							<goal>prepare-agent</goal>
 						</goals>
+						<configuration>
+							<!-- Sets the name of the property containing the settings for JaCoCo 
+								runtime agent. -->
+							<propertyName>surefireArgLine</propertyName>
+						</configuration>
 					</execution>
 					<execution>
 						<id>default-report</id>
@@ -211,8 +216,7 @@
 				<artifactId>coveralls-maven-plugin</artifactId>
 				<version>2.2.0</version>
 				<configuration>
-					<jacocoFile>${project.reporting.outputDirectory}/jacoco-ut/
-						jacoco.xml</jacocoFile>
+					<jacocoFile>${project.reporting.outputDirectory}/jacoco-ut/jacoco.xml</jacocoFile>
 					<sourceEncoding>UTF8</sourceEncoding>
 				</configuration>
 			</plugin>
