@@ -22,7 +22,7 @@ public class Replier {
 	Map<String, String> parsedArgs = new HashMap<String, String>();
 
 	int count = 20000;
-	String url = Constants.DEFAULT_URL;
+	String url = ConnectionFactory.DEFAULT_URL;
 	String subject = "foo";
 	boolean sync = false;
 	int received = 0;

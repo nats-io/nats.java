@@ -24,7 +24,7 @@ public class Requestor {
 	Map<String, String> parsedArgs = new HashMap<String, String>();
 
 	int count = 20000;
-	String url = Constants.DEFAULT_URL;
+	String url = ConnectionFactory.DEFAULT_URL;
 	String subject = "foo";
 	byte[] payload = null;
 	long start, end, elapsed;

@@ -24,7 +24,7 @@ public class Publisher {
 			new HashMap<String, String>();
 
 	int count = 2000000;
-	String url = Constants.DEFAULT_URL;
+	String url = ConnectionFactory.DEFAULT_URL;
 	String subject = "foo";
 	byte[] payload = null;
 

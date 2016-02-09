@@ -31,7 +31,7 @@ public class Subscriber implements MessageHandler, ExceptionHandler {
 	Map<String, String> parsedArgs = new HashMap<String, String>();
 
 	int count 		= 1000000;
-	String url 		= Constants.DEFAULT_URL;
+	String url 		= ConnectionFactory.DEFAULT_URL;
 	String subject 	= "foo";
 	boolean sync 	= false;
 	long received 	= 0L;
