@@ -101,7 +101,7 @@ public class ConnectionFactory implements Cloneable {
 	private int port								= -1;
 	private String username							= null;
 	private String password							= null;
-	private List<URI> servers						= new ArrayList<URI>();	
+	private List<URI> servers						= null;	
 	private boolean noRandomize						= false;
 	private String connectionName					= null;
 	private boolean verbose							= false;
@@ -311,6 +311,36 @@ public class ConnectionFactory implements Cloneable {
 		}
 	}
 
+	public ConnectionFactory(ConnectionFactory cf) {
+		this.url					= cf.url;
+		this.host					= cf.host;
+		this.port					= cf.port;
+		this.username				= cf.username;
+		this.password				= cf.password;
+		if (cf.servers != null) {
+			this.servers				= new ArrayList<URI>(cf.servers);
+		}
+		this.noRandomize			= cf.noRandomize;
+		this.connectionName			= cf.connectionName;
+		this.verbose				= cf.verbose;
+		this.pedantic				= cf.pedantic;
+		this.secure					= cf.secure;
+		this.reconnectAllowed		= cf.reconnectAllowed;
+		this.maxReconnect			= cf.maxReconnect;
+		this.reconnectWait			= cf.reconnectWait;
+		this.connectionTimeout		= cf.connectionTimeout;
+		this.pingInterval			= cf.pingInterval;
+		this.maxPingsOut			= cf.maxPingsOut;
+		this.sslContext				= cf.sslContext;
+		this.exceptionHandler		= cf.exceptionHandler;
+		this.closedCallback			= cf.closedCallback;
+		this.disconnectedCallback	= cf.disconnectedCallback;
+		this.reconnectedCallback	= cf.reconnectedCallback;
+		this.urlString 				= cf.urlString;
+		this.maxPendingMsgs			= cf.maxPendingMsgs;
+		this.tlsDebug				= cf.tlsDebug;	
+	}
+
 	/**
 	 * Creates an active connection to a NATS server
 	 * @return the Connection.
@@ -414,13 +444,11 @@ public class ConnectionFactory implements Cloneable {
 
 	/** 
 	 * {@inheritDoc}
+	 * @throws CloneNotSupportedException 
 	 */
-	@Override public ConnectionFactory clone(){
-		try {
-			return (ConnectionFactory)super.clone();
-		} catch (CloneNotSupportedException e) {
-			throw new Error(e);
-		}
+	@Override 
+	public ConnectionFactory clone() throws CloneNotSupportedException {
+		return new ConnectionFactory(this);
 	}
 
 	/**
@@ -433,7 +461,9 @@ public class ConnectionFactory implements Cloneable {
 		this.url = uri;
 
 		String scheme = uri.getScheme().toLowerCase();
-		if ("nats".equals(scheme) || "tcp".equals(scheme)) {
+		if (NATS_SCHEME.equals(scheme) 
+			|| TCP_SCHEME.equals(scheme)
+			|| TLS_SCHEME.equals(scheme)) {
 			// happy path
 		} else {
 			throw new IllegalArgumentException("Wrong scheme in NATS URI: " +
@@ -589,7 +619,6 @@ public class ConnectionFactory implements Cloneable {
 	public void setServers(String urlString) {
 		String[] servers = urlString.trim().split("\\s*,\\s*");
 		this.setServers(servers);
-		System.err.println("Servers = " + getServers());
 	}
 	
 	/**

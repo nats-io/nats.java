@@ -30,6 +30,7 @@ import org.junit.experimental.categories.Category;
 
 import static io.nats.client.Constants.*;
 import static io.nats.client.ConnectionFactory.*;
+import static org.hamcrest.CoreMatchers.*;
 
 @Category(UnitTest.class)
 public class ConnectionFactoryTest implements ExceptionHandler,
@@ -79,6 +80,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	final static int pingInterval = 5000;
 	final static int maxPings = 4;
 	final static Boolean tlsDebug = true;
+	final static int maxPendingMsgs = 4400;
 
 	@Test
 	public void testConnectionFactoryProperties() {
@@ -111,6 +113,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		props.setProperty(PROP_CLOSED_CB, ccb.getClass().getName());
 		props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
 		props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
+		props.setProperty(PROP_MAX_PENDING_MSGS, Integer.toString(maxPendingMsgs));
 
 
 		ConnectionFactory cf = new ConnectionFactory(props);
@@ -138,6 +141,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		assertEquals(ccb.getClass().getName(), cf.getClosedCallback().getClass().getName());
 		assertEquals(dcb.getClass().getName(), cf.getDisconnectedCallback().getClass().getName());
 		assertEquals(rcb.getClass().getName(), cf.getReconnectedCallback().getClass().getName());
+		assertEquals(maxPendingMsgs, cf.getMaxPendingMsgs());
 
 		cf.setSecure(false);
 		try (TCPConnectionMock mock = new TCPConnectionMock())
@@ -372,11 +376,71 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	//		fail("Not yet implemented"); // TODO
 	//	}
 	//
-	//	@Test
-	//	public void testClone() {
-	//		fail("Not yet implemented"); // TODO
-	//	}
-	//
+
+	@Test
+	public void testClone() {
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setUri(URI.create("nats://localhost:7272"));
+		cf.setHost("localhost");
+		cf.setPort(7272);
+		cf.setServers(new String[] { "nats://somehost:1010", "nats://somehost2:1020" });
+		cf.setUsername("foo");
+		cf.setPassword("bar");
+		cf.setNoRandomize(true);
+		cf.setConnectionName("BAR");
+		cf.setVerbose(true);
+		cf.setPedantic(true);
+		cf.setSecure(true);
+		cf.setReconnectAllowed(false);
+		cf.setMaxReconnect(14);
+		cf.setReconnectWait(55000);
+		cf.setConnectionTimeout(99);
+		cf.setPingInterval(9900);
+		cf.setMaxPingsOut(11);
+		try {
+			cf.setSSLContext(SSLContext.getInstance(DEFAULT_SSL_PROTOCOL));
+		} catch (NoSuchAlgorithmException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		cf.setMaxPendingMsgs(49);
+		cf.setTlsDebug(true);
+		
+		ConnectionFactory cf2 = null;
+		try {
+			cf2 = cf.clone();
+		} catch (CloneNotSupportedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+		assertEquals(cf.getUrlString(), cf2.getUrlString());
+		assertEquals(cf.getHost(), cf2.getHost());
+		assertEquals(cf.getPort(), cf2.getPort());
+		assertEquals(cf.getUsername(), cf2.getUsername());
+		assertEquals(cf.getPassword(), cf2.getPassword());
+		assertEquals(cf.getServers(), cf2.getServers());
+		assertEquals(cf.isNoRandomize(), cf2.isNoRandomize());
+		assertEquals(cf.getConnectionName(), cf2.getConnectionName());
+		assertEquals(cf.isVerbose(), cf2.isVerbose());
+		assertEquals(cf.isPedantic(), cf2.isPedantic());
+		assertEquals(cf.isSecure(), cf2.isSecure());
+		assertEquals(cf.isReconnectAllowed(), cf2.isReconnectAllowed());
+		assertEquals(cf.getMaxReconnect(), cf2.getMaxReconnect());
+		assertEquals(cf.getReconnectWait(), cf2.getReconnectWait());
+		assertEquals(cf.getConnectionTimeout(), cf2.getConnectionTimeout());
+		assertEquals(cf.getPingInterval(), cf2.getPingInterval());
+		assertEquals(cf.getMaxPingsOut(), cf2.getMaxPingsOut());
+		assertEquals(cf.getSSLContext(), cf2.getSSLContext());
+		assertEquals(cf.getExceptionHandler(), cf2.getExceptionHandler());
+		assertEquals(cf.getClosedCallback(), cf2.getClosedCallback());
+		assertEquals(cf.getDisconnectedCallback(), cf2.getDisconnectedCallback());
+		assertEquals(cf.getReconnectedCallback(), cf2.getReconnectedCallback());
+		assertEquals(cf.getUrlString(), cf2.getUrlString());
+		assertEquals(cf.getMaxPendingMsgs(), cf2.getMaxPendingMsgs());
+		assertEquals(cf.isTlsDebug(), cf2.isTlsDebug());		
+	}
+	
 	@Test
 	public void testSetUriBadScheme() {
 		URI uri = URI.create("file:///etc/fstab");
@@ -643,6 +707,23 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		
 		
 	}
+	@Test 
+	public void testSetUrl() {
+		String servers = "nats://localhost:1234, nats://localhost:5678"; 
+		List<URI> s1 = new ArrayList<URI>();
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setNoRandomize(true);
+
+		cf.setUrl(servers);
+		
+		for (String s : servers.trim().split(",")) {
+			s1.add(URI.create(s.trim()));
+		}
+		
+		assertNull(cf.getUrlString());
+		assertEquals(s1, cf.getServers());
+
+	}
 	//	@Test
 	//	public void testIsNoRandomize() {
 	//		fail("Not yet implemented"); // TODO
@@ -817,19 +898,23 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	}
 
 	@Test
-	public void testGetSslContext() {
+	public void testGetSSLContext() {
 		ConnectionFactory cf = new ConnectionFactory();
 		try {
 			SSLContext c = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
 			cf.setSSLContext(c);
 			assertEquals(c, cf.getSSLContext());
+			assertEquals(cf.getSSLContext(), cf.getSslContext());
+			cf.setSslContext(c);
+			assertEquals(c, cf.getSSLContext());
+			assertEquals(cf.getSSLContext(), cf.getSslContext());
 		} catch (NoSuchAlgorithmException e) {
 			fail(e.getMessage());
 		}			
 	}
 
 	@Test
-	public void testSetSslContext() {
+	public void testSetSSLContext() {
 		ConnectionFactory cf = new ConnectionFactory();
 		try {
 			SSLContext c = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
@@ -862,5 +947,39 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	public void onException(NATSException e) {
 		// TODO Auto-generated method stub
 
+	}
+	
+	@Test
+	public void testConstructURI() {
+		final String HOST = "foobar";
+		final int PORT = 7272;
+		final String USER = "derek";
+		final String PASS = "derek";
+		final String expectedURL = String.format("nats://%s:%d", HOST, ConnectionFactory.DEFAULT_PORT);
+		final String expectedURL1 = String.format("nats://%s:%d", HOST, PORT);
+		final String expectedURL2 = String.format("nats://%s@%s:%d", USER, HOST, PORT);
+		final String expectedURL3 = String.format("nats://%s:%s@%s:%d", USER, PASS, HOST, PORT);
+
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setHost(HOST);
+		assertEquals(HOST, cf.getHost());
+		assertEquals(-1, cf.getPort());
+		assertEquals(expectedURL, cf.constructURI().toString());
+		
+		cf.setPort(PORT);
+		assertEquals(PORT, cf.getPort());
+		assertNull(cf.getUrlString());
+		assertEquals(expectedURL1, cf.constructURI().toString());
+
+		assertNull(cf.getUsername());
+		assertNull(cf.getPassword());
+		cf.setUsername(USER);
+		assertEquals(USER, cf.getUsername());
+		assertEquals(expectedURL2, cf.constructURI().toString());
+
+		cf.setPassword(PASS);
+		assertEquals(PASS, cf.getPassword());
+		assertEquals(expectedURL3, cf.constructURI().toString());
+		
 	}
 }
