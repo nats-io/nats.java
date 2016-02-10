@@ -80,7 +80,7 @@ public class TLSTest {
 			c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
 			ConnectionFactory cf = new ConnectionFactory();
-			cf.setUrl("nats://localhost:1222");
+			cf.setUrl("tls://localhost:1222");
 			cf.setSecure(true);
 			cf.setTlsDebug(true);
 			cf.setSSLContext(c);

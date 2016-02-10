@@ -1069,4 +1069,10 @@ public class ConnectionTest {
 			}
 		}
 	}
+	
+	@Test
+	public void testConnection() {
+		ConnectionImpl ci = new ConnectionImpl();
+		assertNotNull(ci);
+	}
 }
