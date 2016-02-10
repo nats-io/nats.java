@@ -214,6 +214,9 @@ public final class Constants {
 	protected final static String SERVER_UNKNOWN_PROTOCOL_OP = "'Unknown Protocol Operation'";
 	protected final static String SERVER_ERR_TLS_REQUIRED = "'Secure Connection - TLS Required'";
 
+	protected static final String NATS_SCHEME = "nats";
+	protected static final String TCP_SCHEME = "tcp";
+	protected static final String TLS_SCHEME = "tls";
 
 	
 }

@@ -57,8 +57,6 @@ class ConnectionImpl implements Connection {
 
 	private static final String inboxPrefix = "_INBOX.";
 
-	private static final String TLS_SCHEME = "tls";
-
 	public ConnState status = ConnState.DISCONNECTED;
 
 	protected final static String STALE_CONNECTION     = "Stale Connection";
