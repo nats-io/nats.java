@@ -634,7 +634,9 @@ public class BasicTest {
 					try { c.flush(); } catch (Exception e) {}
 
 					stats = c.getStats();
-					System.err.printf("Stats: %s\n", stats);
+					String str = stats.toString();
+					assertEquals("{IN: msgs=20, bytes=880, OUT: msgs=10, bytes=440, FLUSHES: 1}", str);
+//					System.err.printf("Stats: %s\n", stats);
 					assertEquals("Not properly tracking InMsgs: ", 2 * iter, stats.getInMsgs());
 					assertEquals("Not properly tracking InBytes: ", 2 * iter * data.length, stats.getInBytes());
 				}
