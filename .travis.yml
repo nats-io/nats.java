@@ -19,7 +19,7 @@ cache:
   - $HOME/.m2
 after_success:
 - mvn jacoco:report coveralls:jacoco
-- if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn -e deploy --settings settings.xml
+- if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn -X deploy --settings settings.xml
   -DperformRelease=true -DskipTests=true; else echo 'Pull request, skipping deploy.';
   fi
 notifications:
