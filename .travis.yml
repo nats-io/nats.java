@@ -5,6 +5,7 @@ before_install:
 - export GPG_DIR=${TRAVIS_BUILD_DIR}/keyrings
 install:
 - go get github.com/nats-io/gnatsd
+- sudo apt-get install gnupg2 -y
 language: java
 jdk:
 - oraclejdk7
