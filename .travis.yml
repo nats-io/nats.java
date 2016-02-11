@@ -10,6 +10,8 @@ jdk:
 - oraclejdk7
 after_success:
 - mvn jacoco:report coveralls:jacoco
+- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/pubring.gpg.enc -out $GPG_DIR/pubring.gpg -d
+- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/secring.gpg.enc -out $GPG_DIR/secring.gpg -d
 - if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn deploy --settings settings.xml
   -DperformRelease=true -DskipTests=true; else echo 'Pull request, skipping deploy.';
   fi
