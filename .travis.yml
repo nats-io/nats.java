@@ -2,15 +2,20 @@ before_install:
 - export GOPATH=$HOME/gopath
 - export PATH=$PATH:$GOPATH/bin
 - export JAVA_OPTS=-Xmx2g
-- export GPG_DIR=deploy
+- export GPG_DIR=${TRAVIS_BUILD_DIR}/keyrings
+
 install:
 - go get github.com/nats-io/gnatsd
+
 language: java
+
 jdk:
 - oraclejdk7
+
 after_success:
-- mvn clean test jacoco:report coveralls:jacoco
-- $GPG_DIR/publish.sh
+- mvn jacoco:report coveralls:jacoco
+- if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn deploy --settings settings.xml -DperformRelease=true -DskipTests=true; else echo 'Pull request, skipping deploy.'; fi
+
 notifications:
   email:
   - larry@apcera.com
