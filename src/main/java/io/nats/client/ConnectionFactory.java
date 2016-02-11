@@ -444,10 +444,10 @@ public class ConnectionFactory implements Cloneable {
 
 	/** 
 	 * {@inheritDoc}
-	 * @throws CloneNotSupportedException 
+	 *
 	 */
 	@Override 
-	public ConnectionFactory clone() throws CloneNotSupportedException {
+	public ConnectionFactory clone() {
 		return new ConnectionFactory(this);
 	}
 

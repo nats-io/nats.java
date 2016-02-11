@@ -407,13 +407,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		cf.setTlsDebug(true);
 		
 		ConnectionFactory cf2 = null;
-		try {
-			cf2 = cf.clone();
-		} catch (CloneNotSupportedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		cf2 = cf.clone();
 		assertEquals(cf.getUrlString(), cf2.getUrlString());
 		assertEquals(cf.getHost(), cf2.getHost());
 		assertEquals(cf.getPort(), cf2.getPort());
