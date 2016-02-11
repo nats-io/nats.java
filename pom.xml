@@ -57,7 +57,7 @@
 		<profile>
 			<id>ossrh</id>
 			<properties>
-				<gpg.executable>gpg2</gpg.executable>
+				<gpg.executable>gpg</gpg.executable>
 				<gpg.keyname>${env.GPG_KEYNAME}</gpg.keyname>
 				<gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
 				<gpg.defaultKeyring>false</gpg.defaultKeyring>
