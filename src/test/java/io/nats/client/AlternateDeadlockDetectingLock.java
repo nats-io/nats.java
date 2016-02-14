@@ -16,6 +16,9 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 // This is a very slow implementation of a ReentrantLock class and is not for
 //   everyday usage. The purpose of this class is to test for deadlocks. The
 // lock()
@@ -25,6 +28,8 @@ import java.util.concurrent.locks.ReentrantLock;
 //   options.
 @SuppressWarnings("serial")
 public class AlternateDeadlockDetectingLock extends ReentrantLock {
+	final static Logger logger = LoggerFactory.getLogger(AlternateDeadlockDetectingLock.class);
+	
 	// List of deadlock detecting locks.
 	// This array is not thread safe, and must be externally synchronized
 	//    by the class lock. Hence, it should only be called by static
@@ -179,7 +184,7 @@ public class AlternateDeadlockDetectingLock extends ReentrantLock {
 		//       condition variables.
 		if (isHeldByCurrentThread()) {
 			if (debugging)
-				System.out.println("Already Own Lock");
+				logger.trace("Already Own Lock");
 			super.lock();
 			freeIfHardwait(hardwaitingThreads, Thread.currentThread());
 			return;
@@ -190,17 +195,23 @@ public class AlternateDeadlockDetectingLock extends ReentrantLock {
 		markAsHardwait(hardwaitingThreads, Thread.currentThread());
 		if (canThreadWaitOnLock(Thread.currentThread(), this)) {
 			if (debugging)
-				System.out.println("Waiting For Lock");
+				logger.trace("Waiting For Lock");
 			super.lock();
 			freeIfHardwait(hardwaitingThreads, Thread.currentThread());
 			if (debugging)
-				System.out.println("Got New Lock");
+				logger.trace("Got New Lock");
 		} else {
 			DDLdeadlockDETECTED = true;
 			if (DDLCleanUp)
 				freeIfHardwait(hardwaitingThreads, Thread.currentThread());
 			throw new DeadlockDetectedException("DEADLOCK DETECTED");
 		}
+	}
+	
+	public void unlock() {
+		super.unlock();
+		if (debugging)
+			logger.trace("Released Lock");
 	}
 
 	//
@@ -218,7 +229,7 @@ public class AlternateDeadlockDetectingLock extends ReentrantLock {
 		//       condition variables.
 		if (isHeldByCurrentThread()) {
 			if (debugging)
-				System.out.println("Already Own Lock");
+				logger.trace("Already Own Lock");
 			try {
 				super.lockInterruptibly();
 			} finally {
@@ -232,14 +243,14 @@ public class AlternateDeadlockDetectingLock extends ReentrantLock {
 		markAsHardwait(hardwaitingThreads, Thread.currentThread());
 		if (canThreadWaitOnLock(Thread.currentThread(), this)) {
 			if (debugging)
-				System.out.println("Waiting For Lock");
+				logger.trace("Waiting For Lock");
 			try {
 				super.lockInterruptibly();
 			} finally {
 				freeIfHardwait(hardwaitingThreads, Thread.currentThread());
 			}
 			if (debugging)
-				System.out.println("Got New Lock");
+				logger.trace("Got New Lock");
 		} else {
 			DDLdeadlockDETECTED = true;
 			if (DDLCleanUp)
@@ -270,7 +281,7 @@ public class AlternateDeadlockDetectingLock extends ReentrantLock {
 		//       condition variables.
 		if (isHeldByCurrentThread()) {
 			if (debugging)
-				System.out.println("Already Own Lock");
+				logger.trace("Already Own Lock");
 			try {
 				return super.tryLock(time, unit);
 			} finally {
@@ -283,13 +294,13 @@ public class AlternateDeadlockDetectingLock extends ReentrantLock {
 		markAsHardwait(hardwaitingThreads, Thread.currentThread());
 		if (canThreadWaitOnLock(Thread.currentThread(), this)) {
 			if (debugging)
-				System.out.println("Waiting For Lock");
+				logger.trace("Waiting For Lock");
 			try {
 				return super.tryLock(time, unit);
 			} finally {
 				freeIfHardwait(hardwaitingThreads, Thread.currentThread());
 				if (debugging)
-					System.out.println("Got New Lock");
+					logger.trace("Got New Lock");
 			}
 		} else {
 			DDLdeadlockDETECTED = true;
