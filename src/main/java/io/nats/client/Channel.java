@@ -29,6 +29,7 @@ class Channel<T> {
 	 */
 	LinkedBlockingQueue<T> q;
 	T defaultVal = null;
+	boolean closed=false;
 
 	Channel() {
 		q = new LinkedBlockingQueue<T>();
@@ -93,12 +94,18 @@ class Channel<T> {
 			return q.offer(item);
 	}
 
-	public void close()
+	public synchronized void close()
 	{
 //		logger.trace("Channel.close(), clearing queue");
+		closed=true;
 		q.clear();
 	}
 
+	synchronized boolean isClosed()
+	{
+		return closed;
+	}
+	
 	int getCount()
 	{
 		return q.size();
