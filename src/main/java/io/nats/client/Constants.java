@@ -94,7 +94,12 @@ public final class Constants {
 	public final static String ERR_MAX_PAYLOAD 				= "nats: maximum payload exceeded";
 	public final static String ERR_MAX_MESSAGES 			= "nats: maximum messages delivered";
 	public final static String ERR_SYNC_SUB_REQUIRED		= "nats: illegal call on an async subscription";
+	public final static String ERR_NO_INFO_RECEIVED 		= "nats: protocol exception, INFO not received";
+	public final static String ERR_RECONNECT_BUF_EXCEEDED	= "nats: outbound buffer limit exceeded";
+	public final static String ERR_INVALID_CONNECTION		= "nats: invalid connection";
+	public final static String ERR_INVALID_MESSAGE			= "nats: invalid message or message nil";
 	public final static String ERR_STALE_CONNECTION			= "nats: " + STALE_CONNECTION;
+
 	// jnats specific
 	public final static String ERR_CONNECTION_READ 			= "nats: connection read error";
 	public final static String ERR_PROTOCOL 				= "nats: protocol error";
