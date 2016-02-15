@@ -162,14 +162,14 @@ class TCPConnection implements AutoCloseable {
 				client.getInetAddress().getHostAddress(),
 				client.getPort(),
 				true);
-		this.readStream = sslSocket.getInputStream();
-		this.writeStream = sslSocket.getOutputStream();
 
 		if (isTlsDebug())
 			sslSocket.addHandshakeCompletedListener(new HandshakeListener());
 
 		sslSocket.startHandshake();
-
+		
+		this.readStream = sslSocket.getInputStream();
+		this.writeStream = sslSocket.getOutputStream();
 	}
 
 	protected void setSocket(Socket sock) {
