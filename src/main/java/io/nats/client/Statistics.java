@@ -49,8 +49,8 @@ public class Statistics implements Cloneable {
 	}
 
 	public String toString() {
-		return String.format("{IN: msgs=%d, bytes=%d, OUT: msgs=%d, bytes=%d, FLUSHES: %d}", 
-				inMsgs.get(), inBytes.get(), outMsgs.get(), outBytes.get(), flushes.get());
+		return String.format("{in: msgs=%d, bytes=%d, out: msgs=%d, bytes=%d, reconnects: %d, flushes: %d}", 
+				inMsgs.get(), inBytes.get(), outMsgs.get(), outBytes.get(), reconnects.get(), flushes.get());
 	}
 	/**
 	 * @return the number of messages that have been 
