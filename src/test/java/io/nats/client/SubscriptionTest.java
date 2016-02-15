@@ -71,7 +71,7 @@ public class SubscriptionTest {
 		s = new AsyncSubscriptionImpl(nc, "foo", null, null, -1);
 		assertEquals("{subject=foo, queue=null, sid=0, queued=0, max=65536, valid=false}", s.toString());
 	}
-	
+
 	@Test
 	public void testServerAutoUnsub()
 	{
@@ -346,21 +346,14 @@ public class SubscriptionTest {
 	{
 		ConnectionFactory cf = new ConnectionFactory();
 		cf.setMaxPendingMsgs(100);
+		final Channel<Boolean> bch = new Channel<Boolean>();
 
 		try (final Connection c = cf.createConnection()) {
-			final Lock mu = new ReentrantLock();
-			final Condition released = mu.newCondition();
+
+			c.setExceptionHandler(null);
 			try (final AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
-				@Override
 				public void onMessage(Message msg) {
-					mu.lock();
-					try
-					{
-						assertTrue(released.await(5, TimeUnit.SECONDS));
-					} catch (InterruptedException e) {
-					} finally {
-						mu.unlock();
-					}
+					bch.get();
 				}
 			})) {
 
@@ -475,17 +468,17 @@ public class SubscriptionTest {
 			try (AsyncSubscription helper = c.subscribe("helper",
 					new MessageHandler() {
 				public void onMessage(Message msg) {
-//					System.err.println("Helper");
+					//					System.err.println("Helper");
 					UnitTestUtilities.sleep(100);
 					c.publish(msg.getReplyTo(), "Hello".getBytes());				
 				}
 			})) 
 			{
-//				System.err.println("helper subscribed");
+				//				System.err.println("helper subscribed");
 				// Kickoff
 				try (AsyncSubscription start = c.subscribe("start", new MessageHandler() {
 					public void onMessage(Message msg) {
-//						System.err.println("Responder");
+						//						System.err.println("Responder");
 						String responseIB = c.newInbox();
 						c.subscribe(responseIB, new MessageHandler() {
 							public void onMessage(Message msg) {
@@ -494,7 +487,7 @@ public class SubscriptionTest {
 								ch.add(true);
 							}
 						}); 
-//						System.err.println("starter subscribed");
+						//						System.err.println("starter subscribed");
 						UnitTestUtilities.sleep(100);
 						c.publish("helper", responseIB, "Help me!".getBytes());
 					} // "start" onMessage
@@ -502,7 +495,7 @@ public class SubscriptionTest {
 				{
 					UnitTestUtilities.sleep(100);
 					c.publish("start", "Begin".getBytes());
-//					System.err.println("Started");
+					//					System.err.println("Started");
 					assertTrue("Was stalled inside of callback waiting on another callback",
 							ch.get(5000));
 				} // Start
@@ -542,7 +535,7 @@ public class SubscriptionTest {
 					fail("Flush failure: " + e.getMessage());
 				}
 				sleep(10);
-				
+
 				/*
 				 *  Since callbacks for a given sub are invoked sequentially in 
 				 *  the same thread, only one message has been dequeued from the

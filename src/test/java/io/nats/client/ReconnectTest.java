@@ -125,15 +125,16 @@ public class ReconnectTest {
 						ccbTime.set(System.nanoTime());
 						long closeInterval = 
 								TimeUnit.NANOSECONDS.toMillis(ccbTime.get() - dcbTime.get());
-						logger.trace("in onClose(), interval was " + closeInterval);
+						logger.debug("in onClose(), interval was " + closeInterval);
 						// Check to ensure that the disconnect cb fired first
 						assertTrue ((dcbTime.get() - ccbTime.get()) < 0);
-						logger.trace("Interval = " + TimeUnit.NANOSECONDS.toMillis(
+						logger.debug("Interval = " + TimeUnit.NANOSECONDS.toMillis(
 								(dcbTime.get() - ccbTime.get())) + "ms");
 						assertNotEquals("ClosedCB triggered prematurely.", 0L, dcbTime);
 						cch.add(true);
-						logger.trace("Signaled close");
+						logger.debug("Signaling close...");
 						assertTrue(c.isClosed());
+						logger.debug("Signaled close");
 					}
 				});
 
@@ -145,8 +146,10 @@ public class ReconnectTest {
 						assertEquals("ClosedCB triggered prematurely.", 0, cch.getCount());
 						dch.add(true);
 						assertFalse(c.isClosed());
+						logger.debug("Signaled disconnect");
 					}
 				});
+				
 				assertFalse(c.isClosed());
 
 				ts.shutdown();
@@ -154,7 +157,7 @@ public class ReconnectTest {
 				// We want wait to timeout here, and the connection
 				// should not trigger the Close CB.
 				assertEquals(0, cch.getCount());
-				assertFalse(UnitTestUtilities.waitTime(cch, 500, TimeUnit.MILLISECONDS));
+				assertFalse(waitTime(cch, 500, TimeUnit.MILLISECONDS));
 
 
 				// We should wait to get the disconnected callback to ensure
@@ -186,15 +189,16 @@ public class ReconnectTest {
 	public void testBasicReconnectFunctionality()
 	{
 		ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
-		cf.setMaxReconnect(2);
-		cf.setReconnectWait(5000);
+		cf.setMaxReconnect(10);
+		cf.setReconnectWait(100);
 
 		final Channel<Boolean> ch = new Channel<Boolean>();
 		final Channel<Boolean> dch = new Channel<Boolean>();
 
 		cf.setDisconnectedCallback(new DisconnectedCallback() {
 			public void onDisconnect(ConnectionEvent event) {
-				dch.add(true);;
+				dch.add(true);
+				logger.debug("dcb triggered");
 			}
 		});
 		final String testString = "bar";
@@ -204,8 +208,6 @@ public class ReconnectTest {
 			try (Connection c = cf.createConnection()) {
 				AsyncSubscription s = 
 						c.subscribeAsync("foo", new MessageHandler() {
-
-							@Override
 							public void onMessage(Message msg) {
 								String s = new String(msg.getData());
 								if (!s.equals(testString))
@@ -214,30 +216,45 @@ public class ReconnectTest {
 							}			
 						});
 
-				c.flush();
+				try {
+					c.flush();
+				} catch (Exception e) {
+					e.printStackTrace();
+					fail(e.getMessage());
+				}
 
+				logger.debug("Shutting down ns1");
 				ns1.shutdown();
 				// server is stopped here...
 
+				logger.debug("Waiting for disconnect callback");
 				assertTrue("Did not get the disconnected callback on time",
 						dch.get(5, TimeUnit.SECONDS));
 
 				UnitTestUtilities.sleep(50);
+				logger.debug("Publishing test message");
 				c.publish("foo", testString.getBytes());
 
 				// restart the server.
+				logger.debug("Spinning up ns2");
 				try (NATSServer ns2 = utils.createServerOnPort(22222))
 				{
-					c.flush(5000);
+					c.setClosedCallback(null);
+					c.setDisconnectedCallback(null);
+					logger.debug("Flushing connection");
+					try {
+						c.flush(5000);
+					} catch (Exception e) {
+						e.printStackTrace();
+						fail(e.getMessage());
+					}
 					assertTrue("Did not receive our message", 
 							ch.get(5, TimeUnit.SECONDS));
 					assertEquals("Wrong number of reconnects.", 
 							1, c.getStats().getReconnects());
-					c.setClosedCallback(null);
-					c.setDisconnectedCallback(null);
 				} // ns2
 			} // Connection
-			catch (Exception e) {
+			catch (IOException | TimeoutException e) {
 				e.printStackTrace();
 				fail(e.getMessage());
 			}

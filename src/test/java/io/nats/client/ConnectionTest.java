@@ -103,7 +103,7 @@ public class ConnectionTest {
 	public void testRemoveFlushEntry() {
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
-				Queue<Channel<Boolean>> pongs = new LinkedBlockingQueue<Channel<Boolean>>();
+				ArrayList<Channel<Boolean>> pongs = new ArrayList<Channel<Boolean>>();
 				c.setPongs(pongs);
 				assertEquals(pongs, c.getPongs());
 				// Basic case
@@ -289,22 +289,22 @@ public class ConnectionTest {
 	}
 
 	@Test
-	public void testCloseHandler() throws IOException, TimeoutException
+	public void testConnClosedCB()
 	{
 		final AtomicBoolean closed = new AtomicBoolean(false);
 
 		ConnectionFactory cf = new ConnectionFactory();
 		cf.setClosedCallback(new ClosedCallback() {
-
-			@Override
 			public void onClose(ConnectionEvent event) {
 				closed.set(true);
 			}
-
 		});
-		Connection c = cf.createConnection();
-		c.close();
-		assertTrue("closed should equal 'true'.", closed.get());
+		try (Connection c = cf.createConnection()) {
+			c.close();
+		} catch (IOException | TimeoutException e) {
+			fail(e.getMessage());
+		}
+		assertTrue("Closed callback not triggered", closed.get());
 	}
 
 	@Test
@@ -1074,5 +1074,16 @@ public class ConnectionTest {
 	public void testConnection() {
 		ConnectionImpl ci = new ConnectionImpl();
 		assertNotNull(ci);
+	}
+	
+	@Test
+	public void testNormalizeErr() {
+		final String errString = "-ERR 'Authorization Violation'";
+		ByteBuffer error = ByteBuffer.allocate(1024);
+		error.put(errString.getBytes());
+		error.flip();
+		
+		String s = ConnectionImpl.normalizeErr(error);
+		assertEquals("authorization violation", s);
 	}
 }

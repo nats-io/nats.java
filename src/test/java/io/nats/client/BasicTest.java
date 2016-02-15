@@ -565,9 +565,9 @@ public class BasicTest {
 			}
 
 			executor.execute(new Runnable() {
-				@Override 
 				public void run() {
 					c.close();
+					assertTrue(c.isClosed());
 				}
 			});
 			try { c.flush(); } catch (Exception e) {}
@@ -635,8 +635,9 @@ public class BasicTest {
 
 					stats = c.getStats();
 					String toStringOutput = stats.toString();
-					String expected = String.format("{IN: msgs=%d, bytes=%d, OUT: msgs=%d, bytes=%d, FLUSHES: %d}",
+					String expected = String.format("{in: msgs=%d, bytes=%d, out: msgs=%d, bytes=%d, reconnects: %d, flushes: %d}",
 							stats.getInMsgs(), stats.getInBytes(), stats.getOutMsgs(), stats.getOutBytes(),
+							stats.getReconnects(),
 							stats.getFlushes());
 					assertEquals(expected, toStringOutput);
 //					System.err.printf("Stats: %s\n", stats);

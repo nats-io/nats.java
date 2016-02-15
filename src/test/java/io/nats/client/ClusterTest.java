@@ -132,16 +132,15 @@ public class ClusterTest {
 			try (NATSServer as2 = utils.createServerWithConfig("auth_1224.conf")) {
 				boolean exThrown=false;
 				try (Connection c = cf.createConnection()) {
-					assertNotNull(c.getConnectedUrl());
+					fail("Expect Auth failure, got no error");
 				} catch (Exception e) {
 					assertTrue("Expected IOException", e instanceof IOException);
 					assertNotNull(e.getMessage());
 					assertTrue("Wrong error, wanted Auth failure, got '" + e.getMessage() +  "'",
 							e.getMessage().contains("Authorization"));
 					exThrown=true;
-				} finally {
-					assertTrue("Expect Auth failure, got no error\n", exThrown);
 				}
+				assertTrue("Expect Auth failure, got no error", exThrown);
 
 
 				// Test that we can connect to a subsequent correct server.
@@ -517,16 +516,17 @@ public class ClusterTest {
 		final ConnectionFactory cf = new ConnectionFactory();
 		cf.setServers(testServers);
 		cf.setNoRandomize(true);
-		cf.setMaxReconnect(2);
-		cf.setReconnectWait(100); // millis
+		
+		// 1 second total time wait
+		cf.setMaxReconnect(10);
+		cf.setReconnectWait(100);
 
 		final AtomicBoolean dcbCalled = new AtomicBoolean(false);
 
 		final Channel<Boolean> dch = new Channel<Boolean>();
 		cf.setDisconnectedCallback(new DisconnectedCallback() {
 			public void onDisconnect(ConnectionEvent ev) {
-				Connection conn = ev.getConnection();
-				conn.setDisconnectedCallback(null);
+				ev.getConnection().setDisconnectedCallback(null);
 				dcbCalled.set(true);
 				dch.add(true);
 			}
@@ -549,28 +549,27 @@ public class ClusterTest {
 			{
 				assertNotNull(c.getDisconnectedCallback());
 				s1.shutdown();
-				while(dch.getCount()!=1) {
-					UnitTestUtilities.sleep(50);
-				}
+//				while(dch.getCount()!=1) {
+//					UnitTestUtilities.sleep(50);
+//				}
 				// wait for disconnect
 				assertTrue("Did not receive a disconnect callback message", 
-						dch.get(5000)); 
+						dch.get(2, TimeUnit.SECONDS)); 
 
 				long t0 = System.nanoTime();
 
 				// Wait for ClosedCB
 				assertTrue("Did not receive a closed callback message", 
-						cch.get(5000));
+						cch.get(2, TimeUnit.SECONDS));
 
 				long elapsedMsec = TimeUnit.NANOSECONDS.toMillis(
 						System.nanoTime() - t0);
 
 				// Use 500ms as variable time delta
-				int variable = 500000;
+				long variable = 500;
 				long expected = cf.getMaxReconnect() * cf.getReconnectWait();
 
-				assertFalse("Waited too long for Closed state: " 
-						+ elapsedMsec,
+				assertFalse("Waited too long for Closed state: " + elapsedMsec,
 						elapsedMsec > (expected + variable));
 			} catch (IOException | TimeoutException e) {
 				e.printStackTrace();
