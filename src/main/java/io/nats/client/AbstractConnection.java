@@ -294,4 +294,12 @@ interface AbstractConnection extends AutoCloseable {
 	 * @return the last exception registered on this connection
 	 */
 	Exception getLastException();
+
+	/**
+	 * Returns the number of valid bytes in the pending output buffer. This buffer
+	 * is only used during disconnect/reconnect sequences to buffer messages that are published
+	 * during a temporary disconnection.
+	 * @return the number of valid bytes in the pending output buffer.
+	 */
+	int getPendingByteCount();
 }
