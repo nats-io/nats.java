@@ -64,7 +64,7 @@ public class AuthTest {
 			{
 				fail("Should have received an error while trying to connect");
 			} catch (IOException | TimeoutException e) {
-				assertEquals("nats: 'Authorization Violation'", e.getMessage());
+				assertEquals(ERR_AUTHORIZATION, e.getMessage());
 			}
 
 			try(Connection c = new ConnectionFactory(authUrl).createConnection())
@@ -95,7 +95,7 @@ public class AuthTest {
 			try(Connection c = cf.createConnection()) {
 				fail("Should have received an error while trying to connect");
 			} catch (IOException | TimeoutException e) {
-				assertEquals("nats: 'Authorization Violation'", e.getMessage());
+				assertEquals(ERR_AUTHORIZATION, e.getMessage());
 			}
 			assertEquals("Should not have received a disconnect callback on auth failure",
 					0, receivedDisconnectCB.get());
@@ -113,26 +113,26 @@ public class AuthTest {
 		UnitTestUtilities utils = new UnitTestUtilities();
 		final Channel<Boolean> rcb = new Channel<Boolean>();
 
+		ConnectionFactory cf = new ConnectionFactory(servers);
+		cf.setReconnectAllowed(true);
+		cf.setNoRandomize(true);
+		cf.setMaxReconnect(1);
+		cf.setReconnectWait(100);
+		cf.setReconnectedCallback(new ReconnectedCallback() {
+			public void onReconnect(ConnectionEvent event) {
+				rcb.add(true);
+			}
+		});
+
 		// First server: no auth.
-		try	(final NATSServer ts = utils.createServerOnPort(1221, false))
+		try	(final NATSServer ts = utils.createServerOnPort(1221))
 		{
 			// Second server: user/pass auth.
-			try	(final NATSServer ts2 = util.createServerWithConfig("auth_1222.conf", false))
+			try	(final NATSServer ts2 = util.createServerWithConfig("auth_1222.conf"))
 			{
 				// Third server: no auth.
-				try	(final NATSServer ts3 = utils.createServerOnPort(1223, false))
+				try	(final NATSServer ts3 = utils.createServerOnPort(1223))
 				{
-					ConnectionFactory cf = new ConnectionFactory(servers);
-					cf.setReconnectAllowed(true);
-					cf.setNoRandomize(true);
-					cf.setMaxReconnect(10);
-					cf.setReconnectWait(100);
-					cf.setReconnectedCallback(new ReconnectedCallback() {
-						@Override
-						public void onReconnect(ConnectionEvent event) {
-							rcb.add(true);
-						}
-					});
 					try(ConnectionImpl c = cf.createConnection())
 					{
 						assertEquals("nats://localhost:1221", c.getConnectedUrl());
@@ -195,7 +195,7 @@ public class AuthTest {
 					fail("Should not have connected");
 				} catch (Exception e) {
 					assertTrue("Wrong exception thrown", e instanceof IOException);
-					assertEquals("Wrong exception text", "nats: 'Authorization Violation'", e.getMessage());
+					assertEquals(ERR_AUTHORIZATION, e.getMessage());
 					exThrown = true;
 				}
 				assertTrue("Should have received an error while trying to connect",

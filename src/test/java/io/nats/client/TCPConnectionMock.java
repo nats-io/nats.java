@@ -168,9 +168,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		logger.trace("in teardown()");
 
 		super.teardown();
-		when(client.isClosed()).thenReturn(true);
-
-		//		executor.shutdownNow();
+//		if (client != null)
+//			when(client.isClosed()).thenReturn(true);
 	}
 
 	public void setBufferedInputStreamReader(BufferedReader isr) {
@@ -181,7 +180,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 	 * @see io.nats.client.TCPConnection#getInputStreamReader()
 	 */
 	@Override
-	public BufferedReader getBufferedInputStreamReader() {
+	public BufferedReader getBufferedReader() {
 		if (badReader) {
 			isr = mock(BufferedReader.class);
 			try {
@@ -195,7 +194,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 			if (readStream==null)
 				logger.trace("NULL readstream");
 			else
-				isr = new BufferedReader(new InputStreamReader(readStream));
+				isr = new BufferedReader(new InputStreamReader(bis));
 		}
 		return isr;
 	}
@@ -297,10 +296,6 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 				if (control.equalsIgnoreCase(PING_PROTO.trim())) {
 					byte[] response = null;
 					String logMsg = null;
-					if (connectInfo.isVerbose()) {
-						bw.write("+OK\r\n".getBytes());
-						bw.flush();
-					}
 					if (noPongs) {
 						// do nothing
 					} 
@@ -310,7 +305,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 					} 
 					else if (sendGenericError) {
 						logger.trace("Sending generic error");
-						sendErr("Generic error message.");
+						sendErr("generic error message");
 					}
 					else if (sendAuthorizationError) {
 						sendErr("Authorization Violation");
@@ -341,6 +336,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 				else if (control.toUpperCase().startsWith("CONNECT")) {
 					logger.trace("Processing CONNECT");
 					this.connectInfo = new ClientConnectInfo(control);
+					sendOK();
 				}
 				else if (control.startsWith("UNSUB")) {
 					processUnsub(control);
@@ -393,6 +389,14 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		}
 	}
 
+	private void sendOK() throws IOException {
+		if (this.connectInfo.isVerbose()) {
+			bw.write("+OK\r\n".getBytes());
+			bw.flush();
+			logger.trace("=> +OK");		
+		}
+	}
+	
 	private void sendErr(String err) throws IOException {
 		String str = String.format("-ERR '%s'\r\n", err);
 		bw.write(str.getBytes());
@@ -484,6 +488,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		if (executor != null)
 			executor.shutdownNow();
 		this.shutdown();
+		this.teardown();
 	}
 
 	public void setBadWriter(boolean bad) {

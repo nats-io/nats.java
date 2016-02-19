@@ -380,13 +380,7 @@ public class SubscriptionTest {
 				assertTrue("Flush did not return before timeout, elapsed msec="+elapsed, 
 						elapsed < flushTimeout);
 
-				mu.lock();
-				try
-				{
-					released.signal();
-				} finally {
-					mu.unlock();
-				}
+				bch.add(true);
 
 				assertTrue("Expected an error indicating slow consumer", exThrown);
 			}
@@ -469,8 +463,12 @@ public class SubscriptionTest {
 					new MessageHandler() {
 				public void onMessage(Message msg) {
 					//					System.err.println("Helper");
-					UnitTestUtilities.sleep(100);
-					c.publish(msg.getReplyTo(), "Hello".getBytes());				
+					sleep(100);
+					try {
+						c.publish(msg.getReplyTo(), "Hello".getBytes());
+					} catch (IOException e) {
+						e.printStackTrace();
+					}				
 				}
 			})) 
 			{
@@ -483,13 +481,17 @@ public class SubscriptionTest {
 						c.subscribe(responseIB, new MessageHandler() {
 							public void onMessage(Message msg) {
 								// System.err.println("Internal subscriber.");
-								UnitTestUtilities.sleep(100);
+								sleep(100);
 								ch.add(true);
 							}
 						}); 
 						//						System.err.println("starter subscribed");
-						UnitTestUtilities.sleep(100);
-						c.publish("helper", responseIB, "Help me!".getBytes());
+						sleep(100);
+						try {
+							c.publish("helper", responseIB, "Help me!".getBytes());
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
 					} // "start" onMessage
 				})) 
 				{
@@ -579,7 +581,11 @@ public class SubscriptionTest {
 			try (final Connection pub = cf.createConnection()) {
 				try(Subscription sub = conn.subscribe("foo", "bar", new MessageHandler() {
 					public void onMessage(Message message) {
-						conn.publish(message.getReplyTo(), "hello".getBytes());
+						try {
+							conn.publish(message.getReplyTo(), "hello".getBytes());
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
 					}
 				}))
 				{

@@ -147,7 +147,7 @@ public class ConnectionTest {
 		}
 		TCPConnection mockConn = mock(TCPConnection.class);
 		when(mockConn.isConnected()).thenReturn(true);
-		when(mockConn.getBufferedInputStreamReader()).thenReturn(br);
+		when(mockConn.getBufferedReader()).thenReturn(br);
 		BufferedInputStream bis = mock(BufferedInputStream.class);
 		when(mockConn.getBufferedInputStream(ConnectionImpl.DEFAULT_STREAM_BUF_SIZE)).thenReturn(bis );
 		when(mockConn.getBufferedOutputStream(any(int.class))).thenReturn(bw);
@@ -158,6 +158,7 @@ public class ConnectionTest {
 			c.sendPing(null);
 
 		} catch (IOException | TimeoutException e) {
+			e.printStackTrace();
 			fail("Unexpected exception: " + e.getMessage());
 		} 
 	}
@@ -186,23 +187,23 @@ public class ConnectionTest {
 			fail(e.getMessage());
 		}
 		
-//		try {
-//			when(bis.read(any(byte[].class), any(int.class), any(int.class)))
-//			.thenAnswer(new Answer<Integer>() {
-//			   @Override
-//			   public Integer answer(InvocationOnMock invocation){
-//			     UnitTestUtilities.sleep(5000);
-//			     return -1;
-//			   }
-//			});
-//		} catch (IOException e2) {
-//			// TODO Auto-generated catch block
-//			e2.printStackTrace();
-//		}
+		try {
+			when(bis.read(any(byte[].class), any(int.class), any(int.class)))
+			.thenAnswer(new Answer<Integer>() {
+			   @Override
+			   public Integer answer(InvocationOnMock invocation){
+			     UnitTestUtilities.sleep(5000);
+			     return -1;
+			   }
+			});
+		} catch (IOException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
 
 		TCPConnection mockConn = mock(TCPConnection.class);
 		when(mockConn.isConnected()).thenReturn(true);
-		when(mockConn.getBufferedInputStreamReader()).thenReturn(br);
+		when(mockConn.getBufferedReader()).thenReturn(br);
 		when(mockConn.getBufferedInputStream(ConnectionImpl.DEFAULT_STREAM_BUF_SIZE)).thenReturn(bis);
 		when(mockConn.getBufferedOutputStream(any(int.class))).thenReturn(bw);
 
@@ -240,6 +241,7 @@ public class ConnectionTest {
 			c.sendSubscriptionMessage(sub);
 			assertFalse("Should not have thrown IOException", exThrown.get());
 		} catch (IOException | TimeoutException e) {
+			e.printStackTrace();
 			fail("Unexpected exception: " + e.getMessage());
 		} 
 	}

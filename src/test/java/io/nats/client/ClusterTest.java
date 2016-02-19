@@ -136,8 +136,7 @@ public class ClusterTest {
 				} catch (Exception e) {
 					assertTrue("Expected IOException", e instanceof IOException);
 					assertNotNull(e.getMessage());
-					assertTrue("Wrong error, wanted Auth failure, got '" + e.getMessage() +  "'",
-							e.getMessage().contains("Authorization"));
+					assertEquals(Constants.ERR_AUTHORIZATION, e.getMessage());
 					exThrown=true;
 				}
 				assertTrue("Expect Auth failure, got no error", exThrown);

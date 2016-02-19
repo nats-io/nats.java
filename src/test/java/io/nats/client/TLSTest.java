@@ -145,6 +145,7 @@ public class TLSTest {
 					fail(e.getMessage());
 				}
 			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
 				fail(e.getMessage());
 			} finally {
 				srv.shutdown();

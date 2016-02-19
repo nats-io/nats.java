@@ -654,6 +654,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 				List<URI> serverList = c.opts.getServers();
 				assertEquals(s1, serverList);
 			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
 				fail(e.getMessage());
 			}
 		}

@@ -9,10 +9,16 @@ package io.nats.client;
 
 import static org.junit.Assert.*;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -145,11 +151,11 @@ public class ReconnectTest {
 						assertTrue ((dcbTime.get() - ccbTime.get()) > 0);
 						assertEquals("ClosedCB triggered prematurely.", 0, cch.getCount());
 						dch.add(true);
-						assertFalse(c.isClosed());
+//						assertFalse(c.isClosed());
 						logger.debug("Signaled disconnect");
 					}
 				});
-				
+
 				assertFalse(c.isClosed());
 
 				ts.shutdown();
@@ -458,7 +464,7 @@ public class ReconnectTest {
 		{
 			try {
 				c.publish(subj, Integer.toString(i).getBytes());
-			} catch (IllegalStateException e) {
+			} catch (IllegalStateException | IOException e) {
 				fail(e.getMessage());
 			}
 			numSent++;
@@ -648,4 +654,162 @@ public class ReconnectTest {
 
 		} // ts
 	}
+
+	@Test
+	public void testReconnectBufSize() {
+		try (NATSServer ts = utils.createServerOnPort(4222)) {
+			ConnectionFactory cf = new ConnectionFactory();
+			cf.setReconnectBufSize(34); // 34 bytes
+
+			final Channel<Boolean> dch = new Channel<Boolean>();
+			cf.setDisconnectedCallback(new DisconnectedCallback() {
+				public void onDisconnect(ConnectionEvent ev) {
+					dch.add(true);
+				}
+			});
+
+			try (ConnectionImpl nc = cf.createConnection()) {
+				try { 
+					nc.flush();
+				} catch (Exception e) {
+					e.printStackTrace();
+					fail("Error during flush: " + e.getMessage());
+				}
+
+				// Force disconnected state
+				ts.shutdown();
+
+				assertTrue("DisconnectedCB should have been triggered",waitTime(dch, 5, TimeUnit.SECONDS));
+
+				byte[] msg = "food".getBytes(); // 4 bytes payload, total proto is 17 bytes
+
+				// The buffer check is before the publish operation, here it will be 0
+				nc.publish("foo", msg);
+
+				// Here the buffer size will be 17 when we check
+				nc.publish("foo", msg);
+
+				// At this point, we are at the buffer limit
+				assertEquals(34, nc.getPendingByteCount());
+
+				// This should fail since we have exhausted the backing buffer.
+				boolean exThrown = false;
+				try {
+					nc.publish("foo", msg);
+				} catch (IOException e) {
+					assertEquals(Constants.ERR_RECONNECT_BUF_EXCEEDED,
+							e.getMessage());
+					exThrown = true;
+				}
+				assertTrue("Expected to fail to publish message: got no error", exThrown);
+
+			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
+		}
+	}
+
+	@Test
+	public void testReconnectVerbose() {
+		try (NATSServer ts = utils.createServerOnPort(4222)) {
+			ConnectionFactory cf = new ConnectionFactory();
+			cf.setVerbose(true);
+
+			final Channel<Boolean> rch = new Channel<Boolean>();
+			cf.setReconnectedCallback(new ReconnectedCallback() {
+				public void onReconnect(ConnectionEvent ev) {
+					rch.add(true);
+				}
+			});
+
+			try (Connection nc = cf.createConnection()) {
+				try {
+					System.err.println("flush");
+					nc.flush();
+				} catch (Exception e) {
+					e.printStackTrace();
+					fail("Error during flush: " + e.getMessage());
+				}
+
+				ts.shutdown();
+				sleep(500);
+				try (NATSServer ts2 = utils.createServerOnPort(4222)) {
+					assertTrue("Should have reconnected OK", waitTime(rch, 5, TimeUnit.SECONDS));
+					try {
+						System.err.println("flush");
+						nc.flush();
+					} catch (Exception e) {
+						e.printStackTrace();
+						fail("Error during flush: " + e.getMessage());
+					}
+				}
+			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
+		}
+	}
+
+//	@Test
+//	public void testFullFlushChanDuringReconnect() {
+//		final ExecutorService exec = Executors.newSingleThreadExecutor();
+//		try (NATSServer ts = utils.createServerOnPort(22222)) {
+//			ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
+//			cf.setReconnectAllowed(true);
+//			cf.setMaxReconnect(10000);
+//			cf.setReconnectWait(100);
+//			final Channel<Boolean> rch = new Channel<Boolean>();
+//			final Channel<Boolean> stop = new Channel<Boolean>();
+//
+//			try (Connection nc = cf.createConnection()) {
+//				// While connected, publish as fast as we can
+//				exec.execute(new Runnable() {
+//					public void run() {
+//						for (int i=0; ; i++) {
+//							try {
+//								nc.publish("foo", "hello".getBytes());
+//								// Make sure we are sending at least flushChanSize (1024) messages
+//								// before potentially pausing.
+//								if (i % 2000 == 0) {
+//									try {
+//										Boolean rv = stop.get(0);
+//										if (rv != null) {
+//											if (rv == true)
+//												return;
+//										} else {
+//											sleep(100, TimeUnit.MILLISECONDS);
+//										}
+//									} catch (TimeoutException e) {
+//									}
+//								}
+//							} catch (IOException e) {
+//							}
+//						}
+//					}
+//				});
+//				
+//				// Send a bit
+//				sleep(500, TimeUnit.MILLISECONDS);
+//				
+//				// Shut down the server
+//				ts.shutdown();
+//				
+//				// Continue sending wile we are disconnected
+//				sleep(1, TimeUnit.SECONDS);
+//				
+//				stop.add(true);
+//				
+//				// Restart the server
+//				try (NATSServer ts2 = utils.createServerOnPort(22222, true)) {
+//					// Wait for the reconnect CB to be invoked (but not for too long)
+//					assertTrue("Reconnect callback wasn't triggered", waitTime(rch, 5, TimeUnit.SECONDS));
+//				}
+//				exec.shutdownNow();
+//			} catch (IOException | TimeoutException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//		}
+//	}
 }
