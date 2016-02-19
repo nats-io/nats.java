@@ -51,6 +51,10 @@ class TCPConnection implements AutoCloseable {
 	Socket client = null;
 	protected OutputStream writeStream = null;
 	protected InputStream readStream = null;
+	protected BufferedReader bisr = null;
+	protected BufferedInputStream bis = null;
+	protected BufferedOutputStream bos = null;
+	
 	protected InetSocketAddress addr = null;
 	protected int timeout = 0;
 	boolean tlsDebug = false;
@@ -111,6 +115,12 @@ class TCPConnection implements AutoCloseable {
 			if (client != null) {	
 				client.close();
 			}
+			client = null;
+			writeStream = null;
+			readStream = null;
+			bisr = null;
+			bis = null;
+			bos = null;
 		} catch (IOException e) {
 			// ignore
 		} finally {
@@ -118,16 +128,20 @@ class TCPConnection implements AutoCloseable {
 		}
 	}
 
-	public BufferedReader getBufferedInputStreamReader() {
-		return new BufferedReader(new InputStreamReader(readStream));
+	public BufferedReader getBufferedReader() {
+		return new BufferedReader(new InputStreamReader(bis));
 	}
 
 	public BufferedInputStream getBufferedInputStream(int size) {
-		return new BufferedInputStream(readStream, size);
+		if (bis == null)
+			bis = new BufferedInputStream(readStream, size);
+		return bis;
 	}
 
 	public BufferedOutputStream getBufferedOutputStream(int size) {
-		return new BufferedOutputStream(writeStream, size);
+		if (bos == null)
+			bos = new BufferedOutputStream(writeStream, size);
+		return bos;
 	}
 
 	public boolean isConnected() {
@@ -166,10 +180,15 @@ class TCPConnection implements AutoCloseable {
 		if (isTlsDebug())
 			sslSocket.addHandshakeCompletedListener(new HandshakeListener());
 
+//		this.setSocket(sslSocket);
+		logger.trace("Starting TLS handshake");
 		sslSocket.startHandshake();
-		
+		logger.trace("TLS handshake complete");
+		this.bisr = null;
 		this.readStream = sslSocket.getInputStream();
+		bis = null;
 		this.writeStream = sslSocket.getOutputStream();
+		bos = null;
 	}
 
 	protected void setSocket(Socket sock) {
@@ -180,7 +199,7 @@ class TCPConnection implements AutoCloseable {
 			mu.unlock();
 		}
 	}
-
+	
 	class HandshakeListener implements HandshakeCompletedListener
 	{
 		public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent
@@ -228,10 +247,12 @@ class TCPConnection implements AutoCloseable {
 
 	@Override
 	public void close() {
-		if (client!=null)
+		if (client!=null) {
 			try {
 				client.close();
 			} catch (IOException e) {
 			}
+		}
+		teardown();
 	}
 }
