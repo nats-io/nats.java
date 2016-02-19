@@ -25,16 +25,18 @@ public interface Connection extends AbstractConnection {
 	 * specified by {@code subject}
 	 * @param subject the subject to publish the message to
 	 * @param data the message payload
+	 * @throws IOException if an I/O error is encountered
 	 */
-	public void publish(String subject, byte[] data);
+	public void publish(String subject, byte[] data) throws IOException;
 	
 	/**
 	 * Publishes a message to a subject. The subject is set via 
 	 * {@link Message#setSubject(String)} or the 
 	 * {@link Message#Message(String, String, byte[])} constructor.
 	 * @param msg the {@code Message} to publish
+	 * @throws IOException if an I/O error is encountered
 	 */
-	public void publish(Message msg);
+	public void publish(Message msg) throws IOException;
 	
 	/**
 	 * Publishes the payload specified by {@code data} to the subject
@@ -44,8 +46,9 @@ public interface Connection extends AbstractConnection {
 	 * @param subject the subject to publish the message to
 	 * @param reply the subject to which subscribers should send responses
 	 * @param data the message payload
+	 * @throws IOException if an I/O error is encountered
 	 */
-	public void publish(String subject, String reply, byte[] data);
+	public void publish(String subject, String reply, byte[] data) throws IOException;
 	
     /** 
      * Publishes a request message to the specified subject, waiting 
