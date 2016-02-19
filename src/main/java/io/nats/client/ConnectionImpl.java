@@ -8,12 +8,12 @@
 package io.nats.client;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.SocketException;
 import java.net.URI;
@@ -29,12 +29,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -120,7 +118,9 @@ class ConnectionImpl implements Connection {
 	// interlinked read/writes (supported by the underlying network
 	// stream, but not the BufferedStream).
 
-	private BufferedOutputStream bw 		= null;
+//	private BufferedOutputStream bw 		= null;
+	private OutputStream bw 				= null;
+
 	private BufferedInputStream br 			= null;
 	private ByteArrayOutputStream pending 	= null;
 
@@ -156,7 +156,7 @@ class ConnectionImpl implements Connection {
 	private ScheduledExecutorService ptmr 	= null;
 	private Random r						= null;
 	private Phaser phaser					= new Phaser();
-	private Channel<Boolean> fch			= new Channel<Boolean>();
+	private Channel<Boolean> fch			= new Channel<Boolean>(FLUSH_CHAN_SIZE);
 
 	ConnectionImpl() {
 	}
@@ -303,8 +303,7 @@ class ConnectionImpl implements Connection {
 		 */
 		int maxReconnect = opts.getMaxReconnect();
 		if ((maxReconnect < 0) || (s.reconnects < maxReconnect)) {
-			logger.trace("selectNextServer: maxReconnect: {}", maxReconnect);
-			logger.trace("selectNextServer adding {}", s);
+			logger.trace("selectNextServer: adding {}, maxReconnect: {}", s, maxReconnect);
 			srvPool.add(s);
 		}
 
@@ -667,15 +666,15 @@ class ConnectionImpl implements Connection {
 				if (this.conn != null) {
 					try { bw.flush(); } catch (IOException e1) {}
 					conn.close();
-					conn = null;
 				}
 				
 				// Create a new pending buffer to underpin the buffered output
 				// stream while we are reconnecting.
-				ByteArrayOutputStream baos = new ByteArrayOutputStream(DEFAULT_PENDING_SIZE);
-				setPending(baos);
-				bw = new BufferedOutputStream(getPending());
+				logger.trace("processOpError: redirecting output to pending buffer");
 
+				setPending(new ByteArrayOutputStream(opts.getReconnectBufSize()));
+//				setOutputStream(new BufferedOutputStream(getPending()));
+				setOutputStream(getPending());
 
 				logger.trace("\t\tspawning doReconnect() in state {}", status);
 				go(new Runnable() {
@@ -786,7 +785,7 @@ class ConnectionImpl implements Connection {
 			logger.trace("Spawned disconnectCB from doReconnect()");
 		}
 
-		while (srvPool.size()>0)
+		while (!srvPool.isEmpty())
 		{
 			Srv cur = null;
 			try {
@@ -828,6 +827,7 @@ class ConnectionImpl implements Connection {
 				createConn();
 				logger.trace("doReconnect: createConn() successful for {}", cur);
 			} catch (Exception e) {
+				conn.teardown();
 				logger.trace("doReconnect: createConn() failed for {}", cur);
 				logger.trace("createConn failed", e);
 				// not yet connected, retry and hold
@@ -839,11 +839,6 @@ class ConnectionImpl implements Connection {
 			// We are reconnected.
 			stats.incrementReconnects();
 
-			logger.trace("Successful reconnect; Resetting reconnects for {}", cur); 
-			// Clear out server stats for the server we connected to..
-			// cur.didConnect = true;
-			cur.reconnects = 0;
-
 			// Process connect logic
 			try
 			{
@@ -851,11 +846,19 @@ class ConnectionImpl implements Connection {
 			}
 			catch (IOException e)
 			{
+				conn.teardown();
+				logger.trace("doReconnect: processConnectInit FAILED for {}", cur, e); 
 				setLastError(e);
 				status = ConnState.RECONNECTING;
 				continue;
 			}
 
+			logger.trace("Successful reconnect; Resetting reconnects for {}", cur); 
+
+			// Clear out server stats for the server we connected to..
+			// cur.didConnect = true;
+			cur.reconnects = 0;
+			
 			// Send existing subscription state
 			resendSubscriptions();
 
@@ -910,11 +913,6 @@ class ConnectionImpl implements Connection {
 		if (getLastException() == null)
 			setLastError(new IOException(ERR_NO_SERVERS));
 
-		// Need to close the TCPConnection here to avoid a double
-		// DisconnectedCallback
-//		conn.close();
-//		conn = null;
-		
 		mu.unlock();
 		logger.trace("Calling   close() from doReconnect()");
 		close();
@@ -931,14 +929,19 @@ class ConnectionImpl implements Connection {
 
 	}
 	
-	static String normalizeErr(ByteBuffer error) {
-		String s = Parser.bufToString(error).trim();
+	static String normalizeErr(String error) {
+		String s = new String(error);
 		if (s.startsWith(_ERR_OP_)) {
 			s = s.replaceFirst(_ERR_OP_+"\\s+", "").toLowerCase();
 		}
 		s = s.replaceAll("^\\s*'","");
 		s = s.replaceAll("\\s*'\\s*$","");
 		return s;
+	}
+	
+	static String normalizeErr(ByteBuffer error) {
+		String s = Parser.bufToString(error).trim();
+		return normalizeErr(s);
 	}
 
 	// processErr processes any error messages from the server and
@@ -982,66 +985,67 @@ class ConnectionImpl implements Connection {
 
 		logger.trace("sendConnect()");
 
-		// Write the protocol into the buffer
+		// Send CONNECT
 		bw.write(connectProto().getBytes());
 		logger.trace("=> {}", connectProto().trim());
+		bw.flush();
 
-		// Add to the buffer the PING protocol
+		// Process +OK
+		if (opts.isVerbose()) {
+			line = readLine();
+			if (!_OK_OP_.equals(line)) {
+				throw new IOException(String.format("nats: expected '%s', got '%s'", _OK_OP_, line));
+			}
+		}
+		
+		// Send PING
 		bw.write(pingProtoBytes, 0, pingProtoBytesLen);
 		logger.trace("=> {}", new String(pingProtoBytes).trim());
-
-		// Flush the buffer
 		bw.flush();
-		logger.trace("=> FLUSH");
 
 		// Now read the response from the server.
 		try {
+			logger.trace("Awaiting PONG...");
 			line = readLine();
 		} catch (IOException e) {
-			//			this.processOpError(e);
-			//			return;
 			throw new IOException(ERR_CONNECTION_READ, e);
-		}
-
-		// If opts.verbose is set, Handle +OK
-		if (opts.isVerbose() && line.equals(_OK_OP_))
-		{
-			// Read the rest now...
-			try {
-				line = readLine();
-			} catch (IOException e) {
-				//				this.processOpError(e);
-				//				return;
-				throw new IOException(ERR_CONNECTION_READ, e);
-			}
 		}
 
 		// We expect a PONG
 		if (!PONG_PROTO.trim().equals(line)) {
 			// But it could be something else, like -ERR
+			
+			// If it's a server error...
 			if (line.startsWith(_ERR_OP_))
 			{
-				throw new IOException("nats: " + line.substring(_ERR_OP_.length()).trim());
+				// Remove -ERR, trim spaces and quotes, and convert to lower case.
+				line = normalizeErr(line);
+				throw new IOException("nats: " + line);
 			} 
-			String msg = line;
-			if (line.startsWith("nats: ")) {
-				msg = line.replace("nats: ", "");
-			}
-			throw new IOException("nats: " + msg);			
+			
+			// Notify that we got an unexpected protocol.
+			throw new IOException(String.format("nats: expected '%s', got '%s'", _PONG_OP_, line));
 		}
 
 		// This is where we are truly connected.
 		status = ConnState.CONNECTED;
 	}
 
+//	protected BufferedReader getBufferedReader() {
+//		BufferedReader breader = null;
+//		if (br != null)
+//			breader = new BufferedReader(new InputStreamReader(br));
+//		return breader;
+//	}
+	
 	// This function is only used during the initial connection process
 	protected String readLine () throws IOException {
+		BufferedReader breader = conn.getBufferedReader();
 		String s = null;
 		logger.trace("readLine() Reading from input stream");
-		BufferedReader breader = conn.getBufferedInputStreamReader();
 		s = breader.readLine();
 		if (s==null)
-			throw new EOFException(ERR_CONNECTION_READ);
+			throw new EOFException(ERR_CONNECTION_CLOSED);
 		logger.trace("<= {}", s != null ? s.trim() : "null");
 		return s;
 	}
@@ -1737,7 +1741,7 @@ class ConnectionImpl implements Connection {
 	// This is the loop of the flusher thread
 	private void flusher()
 	{
-		BufferedOutputStream bw = null;
+		OutputStream bw = null;
 		TCPConnection conn = null;
 		Channel<Boolean> fch = null;
 		
@@ -2013,7 +2017,7 @@ class ConnectionImpl implements Connection {
 	// Used for handrolled itoa
 	final static byte[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 			
-	void _publish(byte[] subject, byte[] reply, byte[] data) {
+	void _publish(byte[] subject, byte[] reply, byte[] data) throws IOException {
 		if (nc == null) {
 			throw new IllegalStateException(ERR_INVALID_CONNECTION);
 		}
@@ -2034,13 +2038,13 @@ class ConnectionImpl implements Connection {
 			// TODO implement reconnect buffer size option
 			// Check if we are reconnecting, and if so check if
 			// we have exceeded our reconnect outbound buffer limits.
-//			if (status == ConnState.RECONNECTING) {
-//				// Flush to underlying buffer
-//				try {bw.flush();} catch (IOException e) {}
-//				if (pending.size() >= opts.reconnectBufSize) {
-//					throw new IOException(ERR_RECONNECT_BUF_EXCEEDED);
-//				}
-//			}
+			if (status == ConnState.RECONNECTING) {
+				// Flush to underlying buffer
+				try {bw.flush();} catch (IOException e) {}
+				if (pending.size() >= opts.getReconnectBufSize()) {
+					throw new IOException(ERR_RECONNECT_BUF_EXCEEDED);
+				}
+			}
 			
 //			int pubProtoLen;
 			// write our pubProtoBuf buffer to the buffered writer.
@@ -2112,7 +2116,7 @@ class ConnectionImpl implements Connection {
 	// and kicking the flush go routine. These writes should be protected.
 	// publish can throw a few different unchecked exceptions:
 	// IllegalStateException, IllegalArgumentException, NullPointerException 
-	public void publish(String subject, String reply, byte[] data)
+	public void publish(String subject, String reply, byte[] data) throws IOException
 	{
 		if (subject == null) {
 			throw new NullPointerException(ERR_BAD_SUBJECT);
@@ -2131,13 +2135,13 @@ class ConnectionImpl implements Connection {
 	} // publish
 
 	@Override
-	public void publish(String subject, byte[] data)
+	public void publish(String subject, byte[] data) throws IOException
 	{
 		publish(subject, null, data);
 	}
 
 	@Override
-	public void publish(Message msg)
+	public void publish(Message msg) throws IOException
 	{
 		_publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
 //		publish(msg.getSubject(), msg.getReplyTo(), msg.getData());
@@ -2466,7 +2470,7 @@ class ConnectionImpl implements Connection {
 		}
 	}
 
-	void setOutputStream(BufferedOutputStream out)
+	void setOutputStream(OutputStream out)
 	{
 		mu.lock();
 		try {
@@ -2474,6 +2478,10 @@ class ConnectionImpl implements Connection {
 		} finally {
 			mu.unlock();
 		}
+	}
+	
+	OutputStream getOutputStream() {
+		return bw;
 	}
 
 	/**
@@ -2512,6 +2520,14 @@ class ConnectionImpl implements Connection {
 	// for testing purposes
 	protected void setServerPool(List<Srv> pool) {
 		this.srvPool = pool;
+	}
+	
+	@Override
+	public int getPendingByteCount() {
+		int rv = 0;
+		if (getPending() != null)
+			rv = getPending().size();
+		return rv;
 	}
 
 }
