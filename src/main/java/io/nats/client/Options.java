@@ -28,6 +28,7 @@ class Options {
 	private boolean secure;
 	private boolean reconnectAllowed;
 	private int maxReconnect;
+	private int reconnectBufSize;
 	private long reconnectWait;
 	private int connectionTimeout;
 	private long pingInterval;
@@ -195,6 +196,12 @@ class Options {
 	public void setMaxReconnect(int maxReconnect) {
 		this.maxReconnect = maxReconnect;
 	}
+	public int getReconnectBufSize() {
+		return reconnectBufSize;
+	}
+	public void setReconnectBufSize(int reconnectBufSize) {
+		this.reconnectBufSize = reconnectBufSize;
+	}
 	public long getReconnectWait() {
 		return reconnectWait;
 	}
@@ -277,6 +284,4 @@ class Options {
 			setSecure(true);
 		}
 	}
-
-
 }
