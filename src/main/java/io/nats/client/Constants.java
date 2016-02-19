@@ -88,7 +88,7 @@ public final class Constants {
 	public final static String ERR_SLOW_CONSUMER 			= "nats: slow consumer, messages dropped";
 	public final static String ERR_TIMEOUT 					= "nats: timeout";
 	public final static String ERR_BAD_TIMEOUT 				= "nats: timeout invalid";
-	public final static String ERR_AUTHORIZATION 			= "nats: authorization failed";
+	public final static String ERR_AUTHORIZATION 			= "nats: authorization violation";
 	public final static String ERR_NO_SERVERS 				= "nats: no servers available for connection";
 	public final static String ERR_JSON_PARSE 				= "nats: connect message, json parse err";
 	public final static String ERR_MAX_PAYLOAD 				= "nats: maximum payload exceeded";
@@ -177,6 +177,10 @@ public final class Constants {
 	 * This property is defined as String {@value #PROP_RECONNECT_WAIT}
 	 */
 	public final static String PROP_RECONNECT_WAIT 		= PFX + "reconnect.wait";
+	/**
+	 * This property is defined as String {@value #PROP_RECONNECT_BUF_SIZE}
+	 */
+	public final static String PROP_RECONNECT_BUF_SIZE 	= PFX + "reconnect.buffer.size";
 	/**
 	 * This property is defined as String {@value #PROP_CONNECTION_TIMEOUT}
 	 */
