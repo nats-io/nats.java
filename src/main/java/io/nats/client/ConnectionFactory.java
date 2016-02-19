@@ -70,6 +70,13 @@ public class ConnectionFactory implements Cloneable {
 	 */
 	public static final int		DEFAULT_RECONNECT_WAIT	= 2 * 1000;
 	/**
+	 * Default of pending message buffer that is used for buffering messages 
+	 * that are published during a disconnect/reconnect 
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_RECONNECT_BUF_SIZE}
+	 */
+	public static final int		DEFAULT_RECONNECT_BUF_SIZE	= 8 * 1024 * 1024;
+	/**
 	 * Default connection timeout
 	 * <p>
 	 * This property is defined as String {@value #DEFAULT_TIMEOUT}
@@ -110,6 +117,7 @@ public class ConnectionFactory implements Cloneable {
 	private boolean reconnectAllowed				= true;
 	private int maxReconnect						= DEFAULT_MAX_RECONNECT;
 	private long reconnectWait						= DEFAULT_RECONNECT_WAIT;
+	private int reconnectBufSize					= DEFAULT_RECONNECT_BUF_SIZE;
 	private int connectionTimeout					= DEFAULT_TIMEOUT;
 	private long pingInterval						= DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= DEFAULT_MAX_PINGS_OUT;
@@ -191,6 +199,10 @@ public class ConnectionFactory implements Cloneable {
 		if (props.containsKey(PROP_RECONNECT_WAIT))
 			this.setReconnectWait(Integer.parseInt(
 					props.getProperty(PROP_RECONNECT_WAIT, Integer.toString(DEFAULT_RECONNECT_WAIT))));
+		//PROP_RECONNECT_BUF_SIZE
+		if (props.containsKey(PROP_RECONNECT_BUF_SIZE))
+			this.setReconnectWait(Integer.parseInt(
+					props.getProperty(PROP_RECONNECT_BUF_SIZE, Integer.toString(DEFAULT_RECONNECT_BUF_SIZE))));
 		//PROP_CONNECTION_TIMEOUT
 		if (props.containsKey(PROP_CONNECTION_TIMEOUT))
 			this.setConnectionTimeout(Integer.parseInt(
@@ -327,6 +339,7 @@ public class ConnectionFactory implements Cloneable {
 		this.secure					= cf.secure;
 		this.reconnectAllowed		= cf.reconnectAllowed;
 		this.maxReconnect			= cf.maxReconnect;
+		this.reconnectBufSize		= cf.reconnectBufSize;
 		this.reconnectWait			= cf.reconnectWait;
 		this.connectionTimeout		= cf.connectionTimeout;
 		this.pingInterval			= cf.pingInterval;
@@ -405,6 +418,7 @@ public class ConnectionFactory implements Cloneable {
 		result.setTlsDebug(tlsDebug);
 		result.setReconnectAllowed(reconnectAllowed);
 		result.setMaxReconnect(maxReconnect);
+		result.setReconnectBufSize(reconnectBufSize);
 		result.setReconnectWait(reconnectWait);
 		result.setConnectionTimeout(connectionTimeout);
 		result.setPingInterval(pingInterval);
@@ -807,6 +821,27 @@ public class ConnectionFactory implements Cloneable {
 	 */
 	public long getReconnectWait() {
 		return this.reconnectWait;
+	}
+
+	/**
+	 * Sets the maximum size in bytes of the pending message buffer, which is
+	 * used to buffer messages between a disconnect and subsequent reconnect
+	 * @param size the reconnect buffer size, in bytes
+	 */
+	public void setReconnectBufSize(int size) {
+		if (size <= 0)
+			this.reconnectBufSize = DEFAULT_RECONNECT_BUF_SIZE;
+		else
+			this.reconnectBufSize = size;
+	}
+
+	/**
+	 * Returns the maximum size in bytes of the pending message buffer, which is
+	 * used to buffer messages between a disconnect and subsequent reconnect
+	 * @return the reconnect buffer size, in bytes
+	 */
+	public long getReconnectBufSize() {
+		return this.reconnectBufSize;
 	}
 
 	/**
