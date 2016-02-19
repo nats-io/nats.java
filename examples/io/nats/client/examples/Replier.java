@@ -95,7 +95,7 @@ public class Replier {
 
 				try {
 					c.publish(msg.getReplyTo(), replyBytes);
-				} catch (IllegalStateException e) {
+				} catch (IllegalStateException | IOException e) {
 					e.printStackTrace();
 				}
 
