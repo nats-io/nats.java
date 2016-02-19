@@ -24,8 +24,8 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 	private ExecutorService executor = null;
 	private MessageHandler msgHandler;
 
-	protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, MessageHandler cb, int max) {
-		super(nc, subj, queue, max);
+	protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, MessageHandler cb, int maxMsgs, long maxBytes) {
+		super(nc, subj, queue, maxMsgs, maxBytes);
 		this.msgHandler = cb;
 	}
 
@@ -53,7 +53,8 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 		if (localConn == null)
 			return false;
 
-		long d = delivered.incrementAndGet();
+//		long d = delivered.incrementAndGet();
+		long d = tallyDeliveredMessage(m);
 		if (localMax <= 0 || d <= localMax) {
 			try {
 				localHandler.onMessage(m);

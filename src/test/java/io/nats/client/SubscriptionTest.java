@@ -66,9 +66,9 @@ public class SubscriptionTest {
 	public void testToString()
 	{
 		ConnectionImpl nc = null;
-		Subscription s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20);
+		Subscription s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
 		assertEquals("{subject=foo, queue=bar, sid=0, queued=0, max=20, valid=false}", s.toString());
-		s = new AsyncSubscriptionImpl(nc, "foo", null, null, -1);
+		s = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
 		assertEquals("{subject=foo, queue=null, sid=0, queued=0, max=65536, valid=false}", s.toString());
 	}
 
@@ -303,7 +303,10 @@ public class SubscriptionTest {
 		try (Connection c = cf.createConnection())
 		{
 			try (SyncSubscription s = c.subscribeSync("foo")) {
-				for (int i=0; i < (cf.getMaxPendingMsgs()+100); i++)
+				s.setMaxPendingMsgs(100);
+				s.setMaxPendingBytes(1024);
+				
+				for (int i=0; i < (s.getMaxPendingMsgs() + 100); i++)
 				{
 					c.publish("foo", "Hello".getBytes());
 				}
@@ -312,8 +315,8 @@ public class SubscriptionTest {
 				long t0 = System.nanoTime();
 				try {
 					c.flush(timeout);
-				} catch (Exception e1) {
-					/* NOOP */
+				} catch (Exception e) {
+					fail(e.getMessage());
 				}
 				long elapsed = TimeUnit.NANOSECONDS.toMillis(
 						System.nanoTime()-t0);
@@ -329,6 +332,7 @@ public class SubscriptionTest {
 				}
 				catch (IOException e)
 				{
+					assertTrue(e instanceof IOException);
 					assertEquals(ERR_SLOW_CONSUMER, e.getMessage());
 					exThrown.set(true);
 				} finally {
@@ -345,19 +349,33 @@ public class SubscriptionTest {
 	public void testSlowAsyncSubscriber() throws IOException, TimeoutException
 	{
 		ConnectionFactory cf = new ConnectionFactory();
-		cf.setMaxPendingMsgs(100);
 		final Channel<Boolean> bch = new Channel<Boolean>();
 
 		try (final Connection c = cf.createConnection()) {
 
 			c.setExceptionHandler(null);
-			try (final AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+			try (final AsyncSubscriptionImpl s = (AsyncSubscriptionImpl) c.subscribeAsync("foo", new MessageHandler() {
 				public void onMessage(Message msg) {
 					bch.get();
 				}
 			})) {
 
-				for (int i = 0; i < (cf.getMaxPendingMsgs() + 100); i++)
+				int pml = s.getMaxPendingMsgs();
+				assertEquals(ConnectionFactory.DEFAULT_MAX_PENDING_MSGS, pml);
+				long pbl = s.getMaxPendingBytes();
+				assertEquals(ConnectionFactory.DEFAULT_MAX_PENDING_BYTES, pbl);
+				
+				// Set new limits
+				pml = 100;
+				pbl = 1024*1024;
+				
+				s.setMaxPendingMsgs(pml);
+				s.setMaxPendingBytes(pbl);
+				
+				assertEquals(pml, s.getMaxPendingMsgs());
+				assertEquals(pbl, s.getMaxPendingBytes());
+				
+				for (int i = 0; i < (pml + 100); i++)
 				{
 					c.publish("foo", "Hello".getBytes());
 				}
@@ -366,23 +384,27 @@ public class SubscriptionTest {
 
 				long t0 = System.nanoTime();
 				long elapsed = 0L;
-				boolean exThrown = false;
 				try
 				{
 					c.flush(flushTimeout);
 				}
 				catch (Exception e)
 				{
-					exThrown = true;
+					e.printStackTrace();
+					fail("Should not have thrown exception: " + e.getMessage());
 				}
+				
 				elapsed = TimeUnit.NANOSECONDS.toMillis(
 						System.nanoTime() - t0);
 				assertTrue("Flush did not return before timeout, elapsed msec="+elapsed, 
 						elapsed < flushTimeout);
 
+				assertTrue(c.getLastException() instanceof IOException); 
+				assertEquals(Constants.ERR_SLOW_CONSUMER, c.getLastException().getMessage());
+				
 				bch.add(true);
-
-				assertTrue("Expected an error indicating slow consumer", exThrown);
+				System.err.printf("Delivered was %d, maxPendingMsgs was %d\n", s.delivered.get(),
+						cf.getMaxPendingMsgs());
 			}
 		}
 	}

@@ -86,7 +86,7 @@ public class ConnectionTest {
 				assertNull(c.getClosedCallback());
 				assertNull(c.getReconnectedCallback());
 				assertNull(c.getDisconnectedCallback());
-				assertEquals(DefaultExceptionHandler.class, c.getExceptionHandler().getClass());
+				assertNull(c.getExceptionHandler());
 			} catch (IOException | TimeoutException e) {
 				fail("Unexpected exception: " + e.getMessage());
 			} 
@@ -211,7 +211,7 @@ public class ConnectionTest {
 		when(sub.getSubject()).thenReturn("foo");
 		when(sub.getQueue()).thenReturn(null);
 		when(sub.getSid()).thenReturn(1L);
-		when(sub.getMaxPending()).thenReturn(100);
+		when(sub.getMaxPendingMsgs()).thenReturn(100);
 		
 		final AtomicBoolean exThrown = new AtomicBoolean(false);
 
@@ -702,7 +702,7 @@ public class ConnectionTest {
 //				exThrown = false;
 //				try {
 //					mock.setNoPongs(true);
-//					c.flush(2000);
+//					c.flush(1000);
 //				} catch (TimeoutException e) {
 ////					System.err.println("timeout connection closed");
 //					exThrown=true;
@@ -718,6 +718,7 @@ public class ConnectionTest {
 //			fail(e.getMessage());
 //		}
 //	}
+	
 	@Test
 	public void testBadSid() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())

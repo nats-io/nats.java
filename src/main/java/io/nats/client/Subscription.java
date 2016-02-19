@@ -69,9 +69,18 @@ public interface Subscription extends AutoCloseable {
      */
     int getQueuedMessageCount();
 
-    /** 
+	int getMaxPendingMsgs();
+
+	long getMaxPendingBytes();
+
+	void setMaxPendingMsgs(int pending);
+
+	void setMaxPendingBytes(long pending);
+
+	/** 
      * {@inheritDoc}
      */
 	@Override
 	void close();
+
 }

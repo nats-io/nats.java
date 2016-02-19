@@ -213,6 +213,10 @@ public final class Constants {
 	 * This property is defined as String {@value #PROP_MAX_PENDING_MSGS}
 	 */
 	public final static String PROP_MAX_PENDING_MSGS 		= PFX + "maxpending";
+	/**
+	 * This property is defined as String {@value #PROP_MAX_PENDING_BYTES}
+	 */
+	public final static String PROP_MAX_PENDING_BYTES 		= PFX + "maxpending.bytes";
 	
 	// Server error strings
 	protected final static String SERVER_ERR_PARSER = "'Parser Error'";

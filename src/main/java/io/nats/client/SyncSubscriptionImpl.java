@@ -15,8 +15,8 @@ import java.util.concurrent.TimeoutException;
 
 class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
 
-	protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, int max) {
-		super(nc, subj, queue, max);
+	protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, int maxMsgs, long maxBytes) {
+		super(nc, subj, queue, maxMsgs, maxBytes);
 	}
 
 	@Override

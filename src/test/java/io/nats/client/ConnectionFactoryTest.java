@@ -81,6 +81,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	final static int maxPings = 4;
 	final static Boolean tlsDebug = true;
 	final static int maxPendingMsgs = 4400;
+	final static long maxPendingBytes = maxPendingMsgs * 1024;
 
 	@Test
 	public void testConnectionFactoryProperties() {
@@ -114,6 +115,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
 		props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
 		props.setProperty(PROP_MAX_PENDING_MSGS, Integer.toString(maxPendingMsgs));
+		props.setProperty(PROP_MAX_PENDING_BYTES, Long.toString(maxPendingBytes));
 
 
 		ConnectionFactory cf = new ConnectionFactory(props);
@@ -142,6 +144,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		assertEquals(dcb.getClass().getName(), cf.getDisconnectedCallback().getClass().getName());
 		assertEquals(rcb.getClass().getName(), cf.getReconnectedCallback().getClass().getName());
 		assertEquals(maxPendingMsgs, cf.getMaxPendingMsgs());
+		assertEquals(maxPendingBytes, cf.getMaxPendingBytes());
 
 		cf.setSecure(false);
 		try (TCPConnectionMock mock = new TCPConnectionMock())

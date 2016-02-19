@@ -95,11 +95,17 @@ public class ConnectionFactory implements Cloneable {
 	 */
 	public static final int		DEFAULT_MAX_PINGS_OUT	= 2;
 	/**
-	 * Default maximum channel length
+	 * Default maximum pending/undelivered messages on a subscription
 	 * <p>
 	 * This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
 	 */
 	public static final int		DEFAULT_MAX_PENDING_MSGS	= 65536;
+	/**
+	 * Default maximum pending/undelivered payload bytes on a subscription
+	 * <p>
+	 * This property is defined as String {@value #DEFAULT_MAX_PENDING_BYTES}
+	 */
+	public static final int		DEFAULT_MAX_PENDING_BYTES	= 65536 * 1024;
 
 
 	
@@ -122,7 +128,7 @@ public class ConnectionFactory implements Cloneable {
 	private long pingInterval						= DEFAULT_PING_INTERVAL;
 	private int maxPingsOut							= DEFAULT_MAX_PINGS_OUT;
 	private SSLContext sslContext;
-	private ExceptionHandler exceptionHandler		= new DefaultExceptionHandler();
+	private ExceptionHandler exceptionHandler		= null;
 	private ClosedCallback closedCallback;
 	private DisconnectedCallback disconnectedCallback;
 	private ReconnectedCallback reconnectedCallback;
@@ -132,6 +138,7 @@ public class ConnectionFactory implements Cloneable {
 	// The size of the buffered channel used for message delivery or sync 
 	// subscription.
 	private int maxPendingMsgs						= DEFAULT_MAX_PENDING_MSGS;
+	private long maxPendingBytes					= DEFAULT_MAX_PENDING_BYTES;
 	private boolean tlsDebug;
 
 	/**
@@ -271,6 +278,10 @@ public class ConnectionFactory implements Cloneable {
 		if (props.containsKey(PROP_MAX_PENDING_MSGS))
 			this.setMaxPendingMsgs(Integer.parseInt(
 					props.getProperty(PROP_MAX_PENDING_MSGS, Integer.toString(DEFAULT_MAX_PENDING_MSGS))));
+		//PROP_MAX_PENDING_BYTES
+		if (props.containsKey(PROP_MAX_PENDING_BYTES))
+			this.setMaxPendingBytes(Long.parseLong(
+					props.getProperty(PROP_MAX_PENDING_BYTES, Long.toString(DEFAULT_MAX_PENDING_BYTES))));
 
 	}
 
@@ -454,6 +465,30 @@ public class ConnectionFactory implements Cloneable {
 	 */	
 	public void setMaxPendingMsgs(int max) {
 		this.maxPendingMsgs = max;
+	}
+
+	/**
+	 * Gets the maximum number of pending message byes for a subscription. If
+	 * this maximum is exceeded, an exception is thrown and the subscription
+	 * is removed (unsubscribed by the connection).
+	 * 
+	 * @return the maximum number of pending message bytes allowable for this subscription
+	 * @see #DEFAULT_MAX_PENDING_BYTES
+	 */
+	public long getMaxPendingBytes() {
+		return this.maxPendingBytes;
+	}
+
+	/**
+	 * Sets the maximum number of pending message bytes for a subscription. If
+	 * this maximum is exceeded, an exception is thrown and the subscription
+	 * is removed (unsubscribed by the connection).
+	 * 
+	 * @param max The maximum number of pending message bytes for a subscription
+	 * @see #DEFAULT_MAX_PENDING_BYTES
+	 */	
+	public void setMaxPendingBytes(long max) {
+		this.maxPendingBytes = max;
 	}
 
 	/** 

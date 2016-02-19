@@ -38,7 +38,7 @@ abstract class SubscriptionImpl implements Subscription {
 	long msgs; 
 	AtomicLong delivered = new AtomicLong(); // uint64
 	long bytes; // uint64
-	int pendingMax; // uint64 in Go, int here due to underlying data structure
+//	int pendingMax; // uint64 in Go, int here due to underlying data structure
 	int max; //
 	
 	protected boolean closed;
@@ -50,15 +50,25 @@ abstract class SubscriptionImpl implements Subscription {
 	ConnectionImpl conn 			= null;
 	Channel<Message> mch;
 
-	SubscriptionImpl(ConnectionImpl conn, String subject, String queue, int maxPending) {
+	// Pending stats, async subscriptions, high-speed etc.
+	int pMsgs;
+	int pBytes;
+	int pMsgsMax; // highest number of pending msgs
+	int pBytesMax; // highest number of pending bytes
+	int pMsgsLimit = 65536;
+	long pBytesLimit = pMsgsLimit * 1024;
+	int dropped;
+	
+	SubscriptionImpl(ConnectionImpl conn, String subject, String queue, int maxPendingMsgs, 
+			long maxPendingBytes) {
 		this.conn = conn;
 		this.subject = subject;
 		this.queue = queue;
 //		if (conn != null) {
 //			this.pendingMax = conn.getOptions().getMaxPendingMsgs();
 //		}
-		this.setMaxPending(maxPending);
-		this.mch = new Channel<Message>(maxPending);
+		this.setMaxPendingMsgs(maxPendingMsgs);
+		this.mch = new Channel<Message>();
 	}
 
 	void closeChannel() {
@@ -112,6 +122,25 @@ abstract class SubscriptionImpl implements Subscription {
 
 	}
 
+	protected void handleSlowConsumer(Message msg) {
+		dropped++;
+		conn.processSlowConsumer(this);
+		pMsgs--;
+		if (msg.getData() != null) {
+			pBytes -= msg.getData().length;
+		}
+	}
+	
+	protected long tallyDeliveredMessage(Message msg) {
+        delivered.incrementAndGet();
+        if (msg.getData() != null) {
+        	pBytes -= msg.getData().length;
+        }
+        pMsgs--;
+
+        return delivered.get();
+	}
+	
 	// returns false if the message could not be added because
 	// the channel is full, true if the message was added
 	// to the channel.
@@ -121,10 +150,29 @@ abstract class SubscriptionImpl implements Subscription {
 //				m, 
 //				mch.getCount(),
 //				max);
+		// Subscription internal stats
+		pMsgs++;
+		if (pMsgs > pMsgsMax) {
+			pMsgsMax = pMsgs;
+		}
+		if (m.getData() != null) {
+			pBytes += m.getData().length;
+		}
+		if (pBytes > pBytesMax) {
+			pBytesMax = pBytes;
+		}
+		
+		// Check for a Slow Consumer
+		if (pMsgs > pMsgsLimit || pBytes > pBytesLimit) {
+			handleSlowConsumer(m);
+			return false;
+		}
+		
 		if (mch != null)
 		{
-			if (mch.getCount() >= getMaxPending())
+			if (mch.getCount() >= getMaxPendingMsgs())
 			{
+				handleSlowConsumer(m);
 //				logger.trace("MAXIMUM COUNT ({}) REACHED FOR SID: {}",
 //						max, getSid());
 				return false;
@@ -200,21 +248,43 @@ abstract class SubscriptionImpl implements Subscription {
 	}
 
 	/**
-	 * @return the maxPending
+	 * @return the maxPendingMsgs
 	 */
-	protected int getMaxPending() {
-		return this.pendingMax;
+	@Override
+	public int getMaxPendingMsgs() {
+		return this.pMsgsLimit;
+	}
+
+	/**
+	 * @return the maxPendingBytes
+	 */
+	@Override
+	public long getMaxPendingBytes() {
+		return this.pBytesLimit;
 	}
 
 	/**
 	 * @param pending the pending to set
 	 */
-	protected void setMaxPending(int pending) {
-		this.pendingMax = pending;
+	@Override
+	public void setMaxPendingMsgs(int pending) {
+		pMsgsLimit = pending;
 		if (pending<=0) {
-			pendingMax = ConnectionFactory.DEFAULT_MAX_PENDING_MSGS;
+			pMsgsLimit = ConnectionFactory.DEFAULT_MAX_PENDING_MSGS;
 		}
 	}
+	
+	/**
+	 * @param pending the pending to set
+	 */
+	@Override
+	public void setMaxPendingBytes(long pending) {
+		this.pBytesLimit = pending;
+		if (pending<=0) {
+			pBytesLimit = ConnectionFactory.DEFAULT_MAX_PENDING_BYTES;
+		}
+	}
+
 
 	protected Connection getConnection() {
 		return (Connection)this.conn;
@@ -235,7 +305,7 @@ abstract class SubscriptionImpl implements Subscription {
 		String s = String.format("{subject=%s, queue=%s, sid=%d, queued=%d, max=%d, valid=%b}",
 				getSubject(), 
 				getQueue()==null ? "null" : getQueue(), 
-				getSid(), getQueuedMessageCount(), getMaxPending(),
+				getSid(), getQueuedMessageCount(), getMaxPendingMsgs(),
 				isValid());
 		return s;
 	}

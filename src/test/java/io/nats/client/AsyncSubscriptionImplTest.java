@@ -50,7 +50,7 @@ public class AsyncSubscriptionImplTest {
 		// Make sure the connection opts aren't null
 		when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
 
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0))
 		{
 			assertEquals(nc, s.getConnection());
 		}
@@ -67,7 +67,7 @@ public class AsyncSubscriptionImplTest {
 		Message m = new Message("foo", "bar", "Hello".getBytes());
 
 		// test for when the conn is null
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", mcb, 20))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", mcb, 20, 0))
 		{
 			assertFalse("s.processMsg should have returned false", s.processMsg(m));
 		}
@@ -75,13 +75,13 @@ public class AsyncSubscriptionImplTest {
 		ConnectionImpl nc = mock(ConnectionImpl.class);
 
 		// test for when the mcb is null
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0))
 		{
 			assertTrue("s.processMsg should have returned true", s.processMsg(m));
 		}
 
 		// test for > max
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50, 0))
 		{
 			// setting this protected var deliberately for testing purposes
 			s.max = 2;
@@ -94,9 +94,9 @@ public class AsyncSubscriptionImplTest {
 		}
 		when(nc.isClosed()).thenReturn(false);
 		// test for unsubscribe IOException
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50, 0))
 		{
-			s.setMaxPending(1);
+			s.setMaxPendingMsgs(1);
 			try {
 				doThrow(new IOException("fake unsubscribe exception")).when(nc).unsubscribe(s,0);
 			} catch (IOException e) {
@@ -112,7 +112,7 @@ public class AsyncSubscriptionImplTest {
 	@Test
 	public void testUnsubscribeConnectionNull() {
 		boolean exThrown = false;
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", null, 20))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", null, 20, 0))
 		{
 			s.unsubscribe();
 		} catch (IllegalStateException | IOException e) {
@@ -135,7 +135,7 @@ public class AsyncSubscriptionImplTest {
 			when(nc.isClosed()).thenReturn(true);
 
 			boolean exThrown = false;
-			try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+			try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0))
 			{
 				doThrow(IllegalStateException.class).when(nc).unsubscribe(s, 0);
 				s.unsubscribe();
@@ -161,7 +161,7 @@ public class AsyncSubscriptionImplTest {
 		ConnectionImpl nc = mock(ConnectionImpl.class);
 		// Make sure the connection opts aren't null
 		when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0))
 		{
 			s.enable();
 			assertTrue(s.isStarted());
@@ -174,7 +174,7 @@ public class AsyncSubscriptionImplTest {
 		// Make sure the connection opts aren't null
 		when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
 
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0))
 		{
 			s.enable();
 			assertTrue("s.enable() failed", s.isStarted());
@@ -190,7 +190,7 @@ public class AsyncSubscriptionImplTest {
 		// Make sure the connection opts aren't null
 		when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
 		
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0))
 		{
 			assertTrue(s.isValid());
 			s.setMessageHandler(new MessageHandler() {
@@ -208,7 +208,7 @@ public class AsyncSubscriptionImplTest {
 		when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
 
 		boolean exThrown = false;
-		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20))
+		try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0))
 		{
 			s.start();
 			s.start();

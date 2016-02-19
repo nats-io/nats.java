@@ -725,7 +725,6 @@ public class ReconnectTest {
 
 			try (Connection nc = cf.createConnection()) {
 				try {
-					System.err.println("flush");
 					nc.flush();
 				} catch (Exception e) {
 					e.printStackTrace();
@@ -737,7 +736,6 @@ public class ReconnectTest {
 				try (NATSServer ts2 = utils.createServerOnPort(4222)) {
 					assertTrue("Should have reconnected OK", waitTime(rch, 5, TimeUnit.SECONDS));
 					try {
-						System.err.println("flush");
 						nc.flush();
 					} catch (Exception e) {
 						e.printStackTrace();

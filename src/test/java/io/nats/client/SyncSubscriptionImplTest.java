@@ -52,13 +52,13 @@ public class SyncSubscriptionImplTest {
 		int max = 20;
 		
 		ConnectionImpl nc = mock(ConnectionImpl.class);
-		try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max))
+		try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max, 0))
 		{
 			s.autoUnsubscribe(max);
 			assertEquals(nc, s.getConnection());
 			assertEquals(subj, s.getSubject());
 			assertEquals(queue, s.getQueue());
-			assertEquals(max, s.getMaxPending());
+			assertEquals(max, s.getMaxPendingMsgs());
 		} catch (IOException e) {
 			fail(e.getMessage());
 		}
@@ -71,7 +71,7 @@ public class SyncSubscriptionImplTest {
 		
 		ConnectionImpl nc = mock(ConnectionImpl.class);
 		Message m = mock(Message.class);
-		try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max))
+		try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max, 0))
 		{
 			assertTrue(s.processMsg(m));
 		}
@@ -101,7 +101,7 @@ public class SyncSubscriptionImplTest {
 		int timeout = 100;
 
 		ConnectionImpl nc = mock(ConnectionImpl.class);
-		try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max))
+		try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max, 0))
 		{
 			try {
 				Message m = s.nextMessage(timeout);

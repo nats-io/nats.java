@@ -165,6 +165,35 @@ public class BasicTest {
 			fail(e.getMessage());
 		}
 	}
+	
+	@Test
+	public void testPublishDoesNotFailOnSlowConsumer() {
+		try (Connection nc = new ConnectionFactory().createConnection())
+		{
+			Subscription sub = nc.subscribeSync("foo");
+			sub.setMaxPendingMsgs(1);
+			sub.setMaxPendingBytes(1000);
+			
+			byte[] msg = "Hello".getBytes();
+			for (int i=0; i<10; i++) {
+				try {
+					nc.publish("foo", msg);
+				} catch (IOException e) {
+					e.printStackTrace();
+					fail("publish() should not fail because of slow consumer. Got " + e.getMessage());
+				}
+				nc.flush();
+			}
+			// Make sure we did record the error, regardless
+			assertTrue(nc.getLastException() instanceof IOException);
+			assertEquals(ERR_SLOW_CONSUMER, nc.getLastException().getMessage());
+
+		} catch (IOException | TimeoutException e) {
+			fail(e.getMessage());
+		} catch (Exception e) {
+			fail("Unexpected exception: " + e.getMessage());
+		}
+	}
 
 	private boolean compare(byte[] p1, byte[] p2)
 	{

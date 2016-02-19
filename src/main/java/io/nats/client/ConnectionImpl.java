@@ -1482,9 +1482,6 @@ class ConnectionImpl implements Connection {
 		mu.lock();
 		try
 		{
-//			System.err.printf("processMsg for data=[%s], offset=%d, length=%d\n", new String(data, offset, length), offset, length);
-//			System.err.printf("full buffer=[%s]\n", new String(data));
-//			System.err.printf("Adding %d bytes\n", parser.ps.ma.size);
 			stats.incrementInMsgs();
 			stats.incrementInBytes(parser.ps.ma.size);
 
@@ -1500,9 +1497,10 @@ class ConnectionImpl implements Connection {
 				maxReached = sub.tallyMessage(ps.ma.size);
 				if (!maxReached) {
 					Message m = new Message(ps.ma, sub, data, offset, length);
-					if (!sub.addMessage(m)) {
-						processSlowConsumer(sub);
-					}
+//					if (!sub.addMessage(m)) {
+//						processSlowConsumer(sub);
+//					}
+					sub.addMessage(m);
 				} // maxreached == false
 			} // lock s.mu
 			finally {
@@ -1871,16 +1869,37 @@ class ConnectionImpl implements Connection {
 	// server. Used in reconnects
 	private void resendSubscriptions()
 	{
+		long adjustedMax = 0;
 		for (Long key : subs.keySet())
 		{
 			SubscriptionImpl s = subs.get(key);
 			if (s instanceof AsyncSubscription)
 				((AsyncSubscriptionImpl)s).start(); //enableAsyncProcessing()
 			logger.trace("Resending subscriptions:");
+			s.mu.lock();
+			try {
+				if (s.max > 0) {
+					if (s.delivered.get() < s.max) { 
+						adjustedMax = s.max - s.delivered.get();
+					}
+					// adjustedMax could be 0 here if the number of delivered msgs
+					// reached the max, if so unsubscribe.
+					if (adjustedMax == 0) {
+						s.mu.unlock();
+						try {
+							unsubscribe(s, s.getMaxPendingMsgs()); 
+						} catch (Exception e) { /* NOOP */}
+						continue;
+					}
+				}
+			} finally {
+				s.mu.unlock();
+			}
+			
 			sendSubscriptionMessage(s);
-			if (s.getMaxPending() > 0) {
+			if (s.getMaxPendingMsgs() > 0) {
 				try {
-					unsubscribe(s, s.getMaxPending()); 
+					unsubscribe(s, s.getMaxPendingMsgs()); 
 				} catch (Exception e) { /* NOOP */}
 			}
 		}
@@ -1901,9 +1920,11 @@ class ConnectionImpl implements Connection {
 				throw new IllegalStateException(ERR_CONNECTION_CLOSED);
 			}
 			if (async)
-				sub = new AsyncSubscriptionImpl(this, subj, queue, cb, opts.getMaxPendingMsgs());
+				sub = new AsyncSubscriptionImpl(this, subj, queue, cb, opts.getMaxPendingMsgs(),
+						opts.getMaxPendingBytes());
 			else
-				sub = new SyncSubscriptionImpl(this, subj, queue, opts.getMaxPendingMsgs());
+				sub = new SyncSubscriptionImpl(this, subj, queue, opts.getMaxPendingMsgs(),
+						opts.getMaxPendingBytes());
 
 			addSubscription(sub);
 
@@ -1933,7 +1954,8 @@ class ConnectionImpl implements Connection {
 			if (isClosed())
 				throw new IllegalStateException(ERR_CONNECTION_CLOSED);
 
-			s = new AsyncSubscriptionImpl(this, subject, queue, null, opts.getMaxPendingMsgs());
+			s = new AsyncSubscriptionImpl(this, subject, queue, null, opts.getMaxPendingMsgs(),
+					opts.getMaxPendingBytes());
 
 			addSubscription((SubscriptionImpl)s);
 
