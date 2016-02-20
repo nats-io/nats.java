@@ -381,8 +381,8 @@ public class ClusterTest {
 					assertEquals(numServers, cs.size());
 					
 					int expected = numClients/numServers;
-					// We expect a 30 percent variance
-					int v = (int) ((float)expected * 0.30);
+					// We expect a 40 percent variance
+					int v = (int) ((float)expected * 0.40);
 
 					int delta = Math.abs(cs.get(testServers[2]) - 
 							cs.get(testServers[4]));
