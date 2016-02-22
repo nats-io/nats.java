@@ -208,7 +208,7 @@ public class ConnectionFactory implements Cloneable {
 					props.getProperty(PROP_RECONNECT_WAIT, Integer.toString(DEFAULT_RECONNECT_WAIT))));
 		//PROP_RECONNECT_BUF_SIZE
 		if (props.containsKey(PROP_RECONNECT_BUF_SIZE))
-			this.setReconnectWait(Integer.parseInt(
+			this.setReconnectBufSize(Integer.parseInt(
 					props.getProperty(PROP_RECONNECT_BUF_SIZE, Integer.toString(DEFAULT_RECONNECT_BUF_SIZE))));
 		//PROP_CONNECTION_TIMEOUT
 		if (props.containsKey(PROP_CONNECTION_TIMEOUT))
