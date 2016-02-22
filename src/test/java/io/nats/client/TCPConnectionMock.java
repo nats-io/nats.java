@@ -63,6 +63,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 
 	BufferedReader br = null;
 	OutputStream bw = null;
+	
+	String control = null;
 
 	Map<String, Integer> subs = new ConcurrentHashMap<String, Integer>();
 	Map<String, ArrayList<Object>> groups = new ConcurrentHashMap<String, ArrayList<Object>>();
@@ -97,6 +99,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 
 	private boolean throwTimeoutException;
 
+	private boolean verboseNoOK;
+	
 	/* (non-Javadoc)
 	 * @see io.nats.client.TCPConnection#open(java.lang.String, int, int)
 	 */
@@ -259,8 +263,6 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 
 	@Override
 	public void run() {
-		String control;
-
 		InputStreamReader is = new InputStreamReader(in);
 		BufferedReader br = new BufferedReader(is);
 
@@ -293,6 +295,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 					break;
 
 				logger.trace("<= {}", control);
+				
 				if (control.equalsIgnoreCase(PING_PROTO.trim())) {
 					byte[] response = null;
 					String logMsg = null;
@@ -391,9 +394,16 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 
 	private void sendOK() throws IOException {
 		if (this.connectInfo.isVerbose()) {
-			bw.write("+OK\r\n".getBytes());
-			bw.flush();
-			logger.trace("=> +OK");		
+			if (!this.isVerboseNoOK()) {
+				bw.write("+OK\r\n".getBytes());
+				bw.flush();
+				logger.trace("=> +OK");
+			} else {
+				bw.write("+WRONGPROTO\r\n".getBytes());
+				bw.flush();
+				logger.trace("=> +WRONGPROTO");
+				
+			}
 		}
 	}
 	
@@ -584,5 +594,22 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
 		this.throwTimeoutException = b;
 		
 	}
+	
+	public String getBuffer() {
+		return control;
+	}
 
+	/**
+	 * @return the verboseNoOK
+	 */
+	public boolean isVerboseNoOK() {
+		return verboseNoOK;
+	}
+
+	/**
+	 * @param verboseNoOK the verboseNoOK to set
+	 */
+	public void setVerboseNoOK(boolean verboseNoOK) {
+		this.verboseNoOK = verboseNoOK;
+	}
 }

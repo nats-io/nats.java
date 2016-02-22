@@ -8,6 +8,7 @@
 package io.nats.client;
 
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
+import static io.nats.client.UnitTestUtilities.*;
 import static io.nats.client.Constants.*;
 
 import static org.junit.Assert.*;
@@ -17,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.After;
@@ -149,16 +151,23 @@ public class ProtocolTest {
 
 	@Test
 	public void testProcessErrStaleConnection() {
-		byte[] argBufBase = new byte[DEFAULT_BUF_SIZE];
-		ByteBuffer argBufStream = ByteBuffer.wrap(argBufBase);
-		argBufStream.put(ConnectionImpl.STALE_CONNECTION.getBytes());
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
 			ConnectionFactory cf = new ConnectionFactory();
+			final Channel<Boolean> cch = new Channel<Boolean>();
+			cf.setClosedCallback(new ClosedCallback() {
+				public void onClose(ConnectionEvent event) {
+					cch.add(true);
+				}
+			});
+			cf.setReconnectAllowed(false);
 			try (ConnectionImpl c = cf.createConnection(mock)) {
-				assertTrue(!c.isClosed());
-				c.processErr(argBufStream);
-
+				ByteBuffer error = ByteBuffer.allocate(DEFAULT_BUF_SIZE);
+				error.put(ConnectionImpl.STALE_CONNECTION.getBytes());
+				error.flip();
+				c.processErr(error);
+				assertTrue(c.isClosed());
+				assertTrue("Closed callback should have fired", waitTime(cch, 5, TimeUnit.SECONDS));
 			} catch (IOException | TimeoutException e) {
 				// TODO Auto-generated catch block
 				fail(e.getMessage());
@@ -239,12 +248,27 @@ public class ProtocolTest {
 	public void testSendConnectEx() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
+			ConnectionFactory cf = new ConnectionFactory();
 			mock.setBadWriter(true);
-			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+			try (ConnectionImpl c = cf.createConnection(mock)) {
 				fail("Shouldn't have connected.");
 			} catch (IOException | TimeoutException e) {
 				assertTrue(e instanceof IOException);
 				assertEquals("Mock write I/O error", e.getMessage());
+			} 
+			
+			mock.bounce();
+			
+			mock.setBadWriter(false);
+			mock.setVerboseNoOK(true);
+			cf.setVerbose(true);
+			try (ConnectionImpl c = cf.createConnection(mock)) {
+				fail("Shouldn't have connected.");
+			} catch (IOException | TimeoutException e) {
+				assertTrue(e instanceof IOException);
+				String expected = String.format("nats: expected '%s', got '%s'", ConnectionImpl._OK_OP_,
+						"+WRONGPROTO");
+				assertEquals(expected, e.getMessage());
 			} 
 		}
 	}
@@ -358,7 +382,7 @@ public class ProtocolTest {
 	public void testTlsMismatchClient() {
 		try (TCPConnectionMock mock = new TCPConnectionMock())
 		{
-			ConnectionFactory cf = new ConnectionFactory();
+			ConnectionFactory cf = new ConnectionFactory("tls://localhost:4222");
 			cf.setSecure(true);
 			try (ConnectionImpl c = cf.createConnection(mock)) {
 				fail("Shouldn't have connected.");

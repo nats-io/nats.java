@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static io.nats.client.Constants.*;
+import static io.nats.client.UnitTestUtilities.*;
 
 @Category(UnitTest.class)
 public class ConnectionTest {
@@ -96,7 +97,23 @@ public class ConnectionTest {
 	@Test 
 	public void testFlushTimeoutFailure()
 	{
-		
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				mock.setNoPongs(true);
+				boolean exThrown = false;
+				try {
+					c.flush(500);
+				} catch (Exception e) {
+					assertTrue(e instanceof TimeoutException);
+					assertEquals(ERR_TIMEOUT, e.getMessage());
+					exThrown=true;
+				}
+				assertTrue("Should have thrown a timeout exception", exThrown);
+				
+			} catch (IOException | TimeoutException e) {
+				fail("Unexpected exception: " + e.getMessage());
+			} 
+		}
 	}
 	
 	@Test
@@ -116,6 +133,9 @@ public class ConnectionTest {
 				testChan2.add(false);
 				pongs.add(testChan);
 				assertFalse("Should not have found chan", c.removeFlushEntry(testChan2));
+
+				pongs.clear();
+				assertFalse("Should have returned false", c.removeFlushEntry(testChan));
 
 			} catch (IOException | TimeoutException e) {
 				fail("Unexpected exception: " + e.getMessage());
@@ -807,6 +827,25 @@ public class ConnectionTest {
 //	}
 
 	@Test
+	public void testDeliverMsgsConnClosed() {
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				Channel<Message> ch = new Channel<Message>();
+				Message m = new Message();
+				ch.add(m);
+				assertEquals(1, ch.getCount());
+				c.close();
+				c.deliverMsgs(ch);
+				assertEquals(1, ch.getCount());
+
+			} catch (IOException | TimeoutException e1) {
+				e1.printStackTrace();
+				fail(e1.getMessage());
+			} 
+		} 
+	}
+	
+	@Test
 	public void testDeliverMsgsSubProcessFail() {
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
 			final String subj = "foo";
@@ -1054,7 +1093,7 @@ public class ConnectionTest {
 	@Test
 	public void testExhaustedSrvPool() {
 		try (TCPConnectionMock mock = new TCPConnectionMock()) {
-			try (ConnectionImpl c = new ConnectionFactory().createConnection()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
 				List<ConnectionImpl.Srv> pool = 
 						new ArrayList<ConnectionImpl.Srv>();
 				c.setServerPool(pool);
@@ -1088,5 +1127,142 @@ public class ConnectionTest {
 		
 		String s = ConnectionImpl.normalizeErr(error);
 		assertEquals("authorization violation", s);
+	}
+	
+	@Test
+	public void testResendSubscriptions() {
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				 AsyncSubscriptionImpl sub = (AsyncSubscriptionImpl)c.subscribe("foo", new MessageHandler() {
+					public void onMessage(Message msg) {
+						System.err.println("got msg: " + msg);
+					}
+				});
+				sub.setMax(122);
+				assertEquals(122, sub.max);
+				sub.delivered.set(122);
+				assertEquals(122, sub.delivered.get());
+				logger.trace("TEST Sub = {}", sub);
+				c.resendSubscriptions();
+				c.getOutputStream().flush();
+				sleep(100);
+				String s = String.format("UNSUB %d", sub.getSid());
+				assertEquals(s, mock.getBuffer());
+				
+				SyncSubscriptionImpl syncSub = (SyncSubscriptionImpl)c.subscribeSync("foo");
+				syncSub.setMax(10);
+				syncSub.delivered.set(8);
+				long adjustedMax = (syncSub.getMax() - syncSub.delivered.get()); 
+				assertEquals(2, adjustedMax);
+				c.resendSubscriptions();
+				c.getOutputStream().flush();
+				sleep(100);
+				s = String.format("UNSUB %d %d", syncSub.getSid(), adjustedMax);
+				assertEquals(s, mock.getBuffer());
+				
+			} catch (IOException | TimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	@Test
+	public void testReadLoopClosedConn() {
+		// Tests to ensure that readLoop() breaks out if the connection is closed
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				c.close();
+				BufferedInputStream br = mock(BufferedInputStream.class);
+				c.setInputStream(br);
+				assertEquals(br, c.getInputStream());
+				doThrow(new IOException("readLoop() should already have terminated")).when(br)
+				.read(any(byte[].class), any(int.class), any(int.class));
+				assertTrue(c.isClosed());
+				c.readLoop();
+			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
+		}
+	}
+	
+	@Test
+	public void testFlusherFalse() {
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				BufferedOutputStream bw = mock(BufferedOutputStream.class);
+				doThrow(new IOException("Should not have flushed")).when(bw)
+				.flush();
+				c.close();
+				c.setOutputStream(bw);
+				Channel<Boolean> fch = c.getFlushChannel();
+				fch.add(false);
+				c.setFlushChannel(fch);
+				c.flusher();
+			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
+				fail(e.getMessage());
+			}
+		}
+	}
+	
+	@Test
+	public void testFlusherFlushError() {
+		OutputStream bw = mock(OutputStream.class);
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				c.close();
+				
+			} catch (IOException | TimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	@Test 
+	public void testProcessExpectedInfoReadOpFailure() {
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			mock.setBadReader(true);
+			boolean exThrown = true;
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+
+			} catch (IOException | TimeoutException e) {
+				assertTrue(e instanceof IOException);
+				assertEquals(ERR_CONNECTION_READ, e.getMessage());
+				exThrown = true;
+			}
+			assertTrue("Should have thrown IOException", exThrown);
+		}
+
+	}
+	
+	@Test
+	public void testNullTcpConnection() {
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				c.setTcpConnection(null);
+				assertEquals(null, c.getTcpConnection());
+				c.close();
+			} catch (IOException | TimeoutException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	@Test
+	public void testUnsubscribeAlreadyRemoved() {
+		try (TCPConnectionMock mock = new TCPConnectionMock()) {
+			try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
+				SyncSubscriptionImpl s = (SyncSubscriptionImpl)c.subscribeSync("foo");
+				c.subs.remove(s.getSid());
+				c.unsubscribe(s, 415);
+				assertNotEquals(415, s.getMax());
+			} catch (IOException | TimeoutException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 	}
 }

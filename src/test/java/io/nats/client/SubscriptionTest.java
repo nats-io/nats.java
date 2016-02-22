@@ -65,11 +65,15 @@ public class SubscriptionTest {
 	@Test
 	public void testToString()
 	{
+		String expected1 = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=20, maxPendingBytes=67108864, valid=false}";
+		String expected2 = "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=65536, maxPendingBytes=67108864, valid=false}";
 		ConnectionImpl nc = null;
 		Subscription s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
-		assertEquals("{subject=foo, queue=bar, sid=0, queued=0, max=20, valid=false}", s.toString());
+//		System.err.println(s);
+		assertEquals(expected1, s.toString());
 		s = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
-		assertEquals("{subject=foo, queue=null, sid=0, queued=0, max=65536, valid=false}", s.toString());
+//		System.err.println(s);
+		assertEquals(expected2, s.toString());
 	}
 
 	@Test
@@ -403,8 +407,8 @@ public class SubscriptionTest {
 				assertEquals(Constants.ERR_SLOW_CONSUMER, c.getLastException().getMessage());
 				
 				bch.add(true);
-				System.err.printf("Delivered was %d, maxPendingMsgs was %d\n", s.delivered.get(),
-						cf.getMaxPendingMsgs());
+//				System.err.printf("Delivered was %d, maxPendingMsgs was %d\n", s.delivered.get(),
+//						cf.getMaxPendingMsgs());
 			}
 		}
 	}

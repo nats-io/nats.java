@@ -76,6 +76,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 	final static Boolean reconnectAllowed = false;
 	final static int maxReconnect = 14;
 	final static int reconnectWait = 100;
+	final static int reconnectBufSize = 12 * 1024 * 1024;
 	final static int timeout = 2000;
 	final static int pingInterval = 5000;
 	final static int maxPings = 4;
@@ -106,6 +107,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		props.setProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(reconnectAllowed));
 		props.setProperty(PROP_MAX_RECONNECT, Integer.toString(maxReconnect));
 		props.setProperty(PROP_RECONNECT_WAIT, Integer.toString(reconnectWait));
+		props.setProperty(PROP_RECONNECT_BUF_SIZE, Integer.toString(reconnectBufSize));
 		props.setProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(timeout));
 		props.setProperty(PROP_PING_INTERVAL, Integer.toString(pingInterval));
 		props.setProperty(PROP_MAX_PINGS, Integer.toString(maxPings));
@@ -136,6 +138,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		assertEquals(reconnectAllowed, cf.isReconnectAllowed());
 		assertEquals(maxReconnect, cf.getMaxReconnect());
 		assertEquals(reconnectWait, cf.getReconnectWait());
+		assertEquals(reconnectBufSize, cf.getReconnectBufSize());
 		assertEquals(timeout, cf.getConnectionTimeout());
 		assertEquals(pingInterval, cf.getPingInterval());
 		assertEquals(maxPings, cf.getMaxPingsOut());
@@ -166,6 +169,7 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 				assertEquals(reconnectAllowed, ci.opts.isReconnectAllowed());
 				assertEquals(maxReconnect, ci.opts.getMaxReconnect());
 				assertEquals(reconnectWait, ci.opts.getReconnectWait());
+				assertEquals(reconnectBufSize, ci.opts.getReconnectBufSize());
 				assertEquals(timeout, ci.opts.getConnectionTimeout());
 				assertEquals(pingInterval, ci.opts.getPingInterval());
 				assertEquals(maxPings, ci.opts.getMaxPingsOut());
@@ -979,5 +983,12 @@ ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 		assertEquals(PASS, cf.getPassword());
 		assertEquals(expectedURL3, cf.constructURI().toString());
 		
+	}
+	
+	@Test
+	public void testSetReconnectBufSizeNegative() {
+		ConnectionFactory cf = new ConnectionFactory();
+		cf.setReconnectBufSize(-14);
+		assertEquals(ConnectionFactory.DEFAULT_RECONNECT_BUF_SIZE, cf.getReconnectBufSize());
 	}
 }
