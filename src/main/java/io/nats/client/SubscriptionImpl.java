@@ -39,7 +39,7 @@ abstract class SubscriptionImpl implements Subscription {
 	AtomicLong delivered = new AtomicLong(); // uint64
 	long bytes; // uint64
 //	int pendingMax; // uint64 in Go, int here due to underlying data structure
-	int max; //
+	long max; // AutoUnsubscribe max
 	
 	protected boolean closed;
 	protected boolean connClosed;
@@ -302,10 +302,15 @@ abstract class SubscriptionImpl implements Subscription {
 	}
 
 	public String toString() {
-		String s = String.format("{subject=%s, queue=%s, sid=%d, queued=%d, max=%d, valid=%b}",
+		String s = String.format("{subject=%s, queue=%s, sid=%d, max=%d, delivered=%d, queued=%d, maxPendingMsgs=%d, maxPendingBytes=%d, valid=%b}",
 				getSubject(), 
 				getQueue()==null ? "null" : getQueue(), 
-				getSid(), getQueuedMessageCount(), getMaxPendingMsgs(),
+				getSid(),
+				getMax(),
+				delivered.get(),
+				getQueuedMessageCount(), 
+				getMaxPendingMsgs(), 
+				getMaxPendingBytes(),
 				isValid());
 		return s;
 	}
@@ -322,10 +327,14 @@ abstract class SubscriptionImpl implements Subscription {
 		return true;
 	}
 
-	protected void setMax(int max) {
+	protected void setMax(long max) {
 		this.max = max;
 	}
-	
+
+	protected long getMax() {
+		return max;
+	}
+
 	Lock getLock() {
 		return this.mu;
 	}
