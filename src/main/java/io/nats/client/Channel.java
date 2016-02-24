@@ -20,7 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class Channel<T> {
+public class Channel<T> {
 
 	final static Logger logger = LoggerFactory.getLogger(Channel.class);
 	/**
@@ -31,15 +31,15 @@ class Channel<T> {
 	T defaultVal = null;
 	boolean closed=false;
 
-	Channel() {
+	public Channel() {
 		q = new LinkedBlockingQueue<T>();
 	}
 
-	Channel(LinkedBlockingQueue<T> queue) {
+	public Channel(LinkedBlockingQueue<T> queue) {
 		q = queue;
 	}
 
-	Channel(int capacity) {
+	public Channel(int capacity) {
 		if (capacity <= 0)
 			q = new LinkedBlockingQueue<T>();
 		else
@@ -50,7 +50,7 @@ class Channel<T> {
 		q = new LinkedBlockingQueue<T>(c);
 	}
 
-	T get() {
+	public T get() {
 		T result = defaultVal; 
 		try {
 			result = get(-1, TimeUnit.MILLISECONDS);
@@ -61,11 +61,11 @@ class Channel<T> {
 		return result;
 	}
 	
-	synchronized T get(long timeout) throws TimeoutException {
+	public synchronized T get(long timeout) throws TimeoutException {
 		return(get(timeout, TimeUnit.MILLISECONDS));
 	}
 	
-	T get(long timeout, TimeUnit unit) throws TimeoutException {
+	public T get(long timeout, TimeUnit unit) throws TimeoutException {
 		T item = defaultVal;
 
 		try {
@@ -82,12 +82,12 @@ class Channel<T> {
 		return item;
 	}
 	
-	T poll() {
+	public T poll() {
 		return q.poll();
 	}
 
 	// Will throw NullPointerException if you try to insert a null item
-	boolean add(T item)
+	public boolean add(T item)
 	{
 		// offer(T e) is used here simply to eliminate exceptions. add returns false only
 		// if adding the item would have exceeded the capacity of a bounded queue.
@@ -101,12 +101,12 @@ class Channel<T> {
 		q.clear();
 	}
 
-	synchronized boolean isClosed()
+	public synchronized boolean isClosed()
 	{
 		return closed;
 	}
 	
-	int getCount()
+	public int getCount()
 	{
 		return q.size();
 	}

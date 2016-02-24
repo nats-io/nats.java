@@ -14,7 +14,7 @@ import java.util.List;
 
 import javax.net.ssl.SSLContext;
 
-class Options {
+public class Options {
 	private URI url;
 	private String host;
 	private int port;
