@@ -83,4 +83,6 @@ public interface Subscription extends AutoCloseable {
 	@Override
 	void close();
 
+	void setPendingLimits(int msgs, int bytes);
+
 }

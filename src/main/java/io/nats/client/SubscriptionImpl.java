@@ -264,6 +264,16 @@ abstract class SubscriptionImpl implements Subscription {
 	}
 
 	/**
+	 * @param msgs the max pending message limit to set
+	 * @param bytes the max pending bytes limit to set
+	 */
+	@Override
+	public void setPendingLimits(int msgs, int bytes) {
+		setMaxPendingMsgs(msgs);
+		setMaxPendingBytes(bytes);
+	}
+	
+	/**
 	 * @param pending the pending to set
 	 */
 	@Override
