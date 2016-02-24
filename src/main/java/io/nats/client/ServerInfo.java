@@ -55,7 +55,7 @@ class ServerInfo {
 		String val;
 
 		kvPair = kvPair.trim();
-		String[] parts = kvPair.split(":");
+		String[] parts = kvPair.split(":", 2);
 		key = parts[0].trim();
 		val = parts[1].trim();
 
