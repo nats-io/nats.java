@@ -112,8 +112,9 @@ public class SubscriptionTest {
 				assertFalse("Expected subscription to be invalid after hitting max",
 						s.isValid());
 			}
-		} catch (IOException | TimeoutException e1) {
-			fail("Should have connected: " + e1.getMessage());
+		} catch (IOException | TimeoutException e) {
+			e.printStackTrace();
+			fail("Should have connected: " + e.getMessage());
 		}
 	}
 
