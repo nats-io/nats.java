@@ -46,28 +46,18 @@ public class Options {
 	//	private List<X509Certificate> certificates =
 	//			new ArrayList<X509Certificate>();
 
-	/**
-	 * @return the maxPendingMsgs
-	 */
 	public int getMaxPendingMsgs() {
 		return maxPendingMsgs;
 	}
-	/**
-	 * @param maxPendingMsgs the maxPendingMsgs to set
-	 */
+
 	public void setMaxPendingMsgs(int max) {
 		this.maxPendingMsgs = max;
 	}
 
-	/**
-	 * @return the maxPendingBytes
-	 */
 	public long getMaxPendingBytes() {
 		return maxPendingBytes;
 	}
-	/**
-	 * @param maxPendingMsgs the maxPendingBytes to set
-	 */
+
 	public void setMaxPendingBytes(long max) {
 		this.maxPendingBytes = max;
 	}
@@ -283,15 +273,11 @@ public class Options {
 	//	public void addCertificate(String cert) throws CertificateException {
 	//		addCertificate(cert.getBytes(Charset.forName("UTF-8")));
 	//	}
-	/**
-	 * @return the sslContext
-	 */
+
 	public SSLContext getSSLContext() {
 		return sslContext;
 	}
-	/**
-	 * @param sslContext the sslContext to set
-	 */
+
 	public void setSSLContext(SSLContext sslContext) {
 		this.sslContext = sslContext;
 		if (sslContext != null) {
