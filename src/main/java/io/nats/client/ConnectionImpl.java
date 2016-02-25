@@ -24,6 +24,7 @@ import java.nio.channels.WritableByteChannel;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -2183,15 +2184,11 @@ class ConnectionImpl implements Connection {
 
 	@Override
 	public String newInbox() {
-		if (r == null)
-			r = new Random();
-
-		byte[] buf = new byte[13];
-
-		r.nextBytes(buf);
-		String s1 = inboxPrefix;
-		String s2 = Utilities.bytesToHex(buf);
-		return s1.concat(s2);
+		byte[] buf = new byte[inboxPrefix.length() + 22];
+		System.arraycopy(inboxPrefix.getBytes(), 0, buf, 0, inboxPrefix.length());
+		byte[] n = NUID.nextGlobal().getBytes();
+		System.arraycopy(n, 0, buf, inboxPrefix.length(), n.length);
+		return new String(buf);
 	}
 
 	@Override
