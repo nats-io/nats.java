@@ -16,13 +16,18 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.nats.client.TestCasePrinterRule;
 
 @Category(UnitTest.class)
 public class NUIDTest {
+	final Logger logger = LoggerFactory.getLogger(NUIDTest.class);
+
 	@Rule
 	public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
+
 	
 	/**
 	 * @throws java.lang.Exception
@@ -106,18 +111,18 @@ public class NUIDTest {
 		
 	}
 
-	@Test
-	public void testBasicUniqueness() {
-		int count = 1000000;
-		Map<String,Boolean> m = new HashMap<String,Boolean>(count);
-		
-		for (int i=0; i<count; i++) {
-			String n = NUID.nextGlobal();
-			if (m.get(n) != null) {
-				fail("Duplicate NUID found: " + n);
-			} else {
-				m.put(n, true);
-			}
-		}
-	}
+//	@Test
+//	public void testBasicUniqueness() {
+//		int count = 10000000;
+//		Map<String,Boolean> m = new HashMap<String,Boolean>(count);
+//		
+//		for (int i=0; i<count; i++) {
+//			String n = NUID.nextGlobal();
+//			if (m.get(n) != null) {
+//				fail("Duplicate NUID found: " + n);
+//			} else {
+//				m.put(n, true);
+//			}
+//		}
+//	}
 }
