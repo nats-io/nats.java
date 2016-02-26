@@ -219,9 +219,12 @@ public class Message {
 	@Override
     public String toString()
     {
-		int maxBytes = 32;
+		int maxBytes 	= 32;
+		int len 		= 0;
+		
 		byte[] b = getData();
-		int len = b.length;
+		if (b != null)
+			len = b.length;
 
 		StringBuilder sb = new StringBuilder();
 		sb.append(String.format(
