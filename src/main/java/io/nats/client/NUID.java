@@ -1,5 +1,6 @@
 package io.nats.client;
 
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Random;
 
@@ -25,8 +26,8 @@ public class NUID {
 	static final long	minInc		= 33L;
 	static final long	maxInc		= 333L;
 	static final int 	totalLen 	= preLen + seqLen;
-	Random srand		 				= new SecureRandom();
-	Random prand		 			= new Random();
+	static Random srand;
+	static Random prand;
 
 	// Instance fields
 	char[] pre;
@@ -46,6 +47,14 @@ public class NUID {
 	}
 	
 	public NUID () {
+		if (srand == null) {
+			try {
+				srand = SecureRandom.getInstance("SHA1PRNG");
+			} catch (NoSuchAlgorithmException e) {
+				logger.error(e);
+			}
+			prand = new Random(); 
+		}
 		seq = nextLong(prand, maxSeq);
 		inc = minInc + nextLong(prand, maxInc-minInc);
 		pre = new char[preLen];
