@@ -51,7 +51,7 @@ public class NUID {
 			try {
 				srand = SecureRandom.getInstance("SHA1PRNG");
 			} catch (NoSuchAlgorithmException e) {
-				logger.error(e);
+				logger.error("stan: nuid algorithm not found", e);
 			}
 			prand = new Random(); 
 		}
