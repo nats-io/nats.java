@@ -53,7 +53,6 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 		if (localConn == null)
 			return false;
 
-//		long d = delivered.incrementAndGet();
 		long d = tallyDeliveredMessage(m);
 		if (localMax <= 0 || d <= localMax) {
 			try {
@@ -81,11 +80,14 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 		Runnable msgFeeder = new Runnable() {
 			public void run(){
 				try {
+					if (conn == null || mch == null)
+						return;
+					logger.trace("msgFeeder starting for subj: {} sid: {}", subject, sid);
 					conn.deliverMsgs(mch);
 				} catch (Exception e) {
+					System.err.println("Error on async subscription for " + AsyncSubscriptionImpl.this.getSubject());
 					e.printStackTrace();
 				}
-				logger.trace("msgFeeder has started for subj: {} sid: {}", subject, sid);
 			}
 		};
 
