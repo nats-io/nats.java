@@ -94,6 +94,11 @@ public class Channel<T> {
 			return q.offer(item);
 	}
 
+	public boolean add(T item, long timeout, TimeUnit unit) throws InterruptedException
+	{
+			return q.offer(item, timeout, unit);
+	}
+
 	public synchronized void close()
 	{
 //		logger.trace("Channel.close(), clearing queue");
