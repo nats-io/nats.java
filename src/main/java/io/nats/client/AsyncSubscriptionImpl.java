@@ -80,12 +80,15 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 		Runnable msgFeeder = new Runnable() {
 			public void run(){
 				try {
-					if (conn == null || mch == null)
-						return;
 					logger.trace("msgFeeder starting for subj: {} sid: {}", subject, sid);
+					if (conn == null || mch == null) {
+						logger.error("Exiting due to NULL connection or NULL message channel");
+						return;
+					}
+					logger.trace("msgFeeder entering delivery loop for subj: {} sid: {}", subject, sid);
 					conn.deliverMsgs(mch);
 				} catch (Exception e) {
-					System.err.println("Error on async subscription for " + AsyncSubscriptionImpl.this.getSubject());
+					logger.error("Error on async subscription for subject {}", AsyncSubscriptionImpl.this.getSubject());
 					e.printStackTrace();
 				}
 			}
