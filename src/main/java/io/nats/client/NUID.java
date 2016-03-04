@@ -58,6 +58,9 @@ public class NUID {
 		seq = nextLong(prand, maxSeq);
 		inc = minInc + nextLong(prand, maxInc-minInc);
 		pre = new char[preLen];
+		for (int i = 0; i < preLen; i++) {
+			pre[i] = '0';
+		}
 		randomizePrefix();
 	}
 	
@@ -102,7 +105,7 @@ public class NUID {
 	public void randomizePrefix() {
 		long n = nextLong(srand, maxPre);
 		int i = pre.length;
-		for (long l = n; l>0; l /= base) {
+		for (long l = n; i>0; l /= base) {
 			i--;
 			pre[i] = digits[(int)(l % base)];
 		}
