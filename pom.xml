@@ -22,33 +22,47 @@
 	<inceptionYear>2015</inceptionYear>
 
 	<properties>
+		<coveralls-maven-plugin-version>2.2.0</coveralls-maven-plugin-version>
+		<jacoco-maven-plugin-version>0.7.5.201505241946</jacoco-maven-plugin-version>
+		<java.version>1.7</java.version>
+		<junit-version>4.11</junit-version>
+		<maven-compiler-plugin-version>3.3</maven-compiler-plugin-version>
+		<maven-failsafe-plugin-version>2.19</maven-failsafe-plugin-version>
+		<maven-gpg-plugin-version>1.6</maven-gpg-plugin-version>
+		<maven-javadoc-plugin-version>2.10.3</maven-javadoc-plugin-version>
+		<maven-release-plugin-version>2.5.3</maven-release-plugin-version>
+		<maven-scm-publish-plugin-version>1.1</maven-scm-publish-plugin-version>
+		<maven-source-plugin-version>2.4</maven-source-plugin-version>
+		<maven-surefire-plugin-version>2.19</maven-surefire-plugin-version>
+		<mockito-version>2.0.31-beta</mockito-version>
+		<nexus-staging-maven-plugin>1.6.3</nexus-staging-maven-plugin>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.sourceEncoding>UTF-8</project.reporting.sourceEncoding>
-		<java.version>1.7</java.version>
+		<slf4j-version>1.7.5</slf4j-version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>1.7.5</version>
+			<version>${slf4j-version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
-			<version>1.7.5</version>
+			<version>${slf4j-version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.11</version>
+			<version>${junit-version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
-			<version>2.0.31-beta</version>
+			<version>${mockito-version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -75,7 +89,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
-						<version>1.6</version>
+						<version>${maven-gpg-plugin-version}</version>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>
@@ -89,7 +103,7 @@
 					<plugin>
 						<groupId>org.sonatype.plugins</groupId>
 						<artifactId>nexus-staging-maven-plugin</artifactId>
-						<version>1.6.3</version>
+						<version>${nexus-staging-maven-plugin}</version>
 						<extensions>true</extensions>
 						<configuration>
 							<serverId>ossrh</serverId>
@@ -110,6 +124,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-surefire-plugin</artifactId>
+						<version>${maven-surefire-plugin-version}</version>
 						<configuration>
 							<groups>io.nats.client.UnitTest</groups>
 							<argLine>${argLine}</argLine>
@@ -134,6 +149,7 @@
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-surefire-plugin</artifactId>
+						<version>${maven-surefire-plugin-version}</version>
 						<configuration>
 							<groups>io.nats.client.BenchmarkTest</groups>
 						</configuration>
@@ -147,7 +163,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.19</version>
+				<version>${maven-surefire-plugin-version}</version>
 				<executions>
 					<execution>
 						<id>default-test</id>
@@ -176,7 +192,7 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.3</version>
+				<version>${maven-compiler-plugin-version}</version>
 				<configuration>
 					<source>${java.version}</source>
 					<target>${java.version}</target>
@@ -185,7 +201,7 @@
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.7.5.201505241946</version>
+				<version>${jacoco-maven-plugin-version}</version>
 				<executions>
 					<execution>
 						<id>default-prepare-agent</id>
@@ -232,7 +248,7 @@
 			<plugin>
 				<groupId>org.eluder.coveralls</groupId>
 				<artifactId>coveralls-maven-plugin</artifactId>
-				<version>2.2.0</version>
+				<version>${coveralls-maven-plugin-version}</version>
 				<configuration>
 					<jacocoFile>${project.reporting.outputDirectory}/jacoco-ut/jacoco.xml</jacocoFile>
 					<sourceEncoding>UTF8</sourceEncoding>
@@ -241,7 +257,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>2.4</version>
+				<version>${maven-source-plugin-version}</version>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
@@ -254,7 +270,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.10.3</version>
+				<version>${maven-javadoc-plugin-version}</version>
 				<configuration>
 					<header>jnats ${project.version}</header>
 					<footer>jnats ${project.version}</footer>
@@ -286,7 +302,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-scm-publish-plugin</artifactId>
-				<version>1.1</version>
+				<version>${maven-scm-publish-plugin-version}</version>
 				<configuration>
 					<checkoutDirectory>${project.build.directory}/scmpublish</checkoutDirectory>
 					<checkinComment>Publishing javadoc for
@@ -303,7 +319,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-release-plugin</artifactId>
-					<version>2.5.3</version>
+					<version>${maven-release-plugin-version}</version>
 					<configuration>
 						<useReleaseProfile>true</useReleaseProfile>
 						<releaseProfiles>release</releaseProfiles>
