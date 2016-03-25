@@ -1,3 +1,4 @@
+![](https://raw.githubusercontent.com/nats-io/nats-site/master/src/img/large-logo.png)
 # NATS - Java client
 A [Java](http://www.java.com) client for the [NATS messaging system](https://nats.io).
 
@@ -294,7 +295,7 @@ nc.setClosedCallback(new ClosedCallback() {
 
 (The MIT License)
 
-Copyright (c) 2012-2015 Apcera Inc.
+Copyright (c) 2012-2016 Apcera Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to

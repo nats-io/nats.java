@@ -31,7 +31,7 @@
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
-	
+
 	<developers>
 		<developer>
 			<id>larry</id>
@@ -50,7 +50,7 @@
 			</properties>
 		</developer>
 	</developers>
-	<contributors/>
+	<contributors />
 
 	<mailingLists>
 		<mailingList>
@@ -62,9 +62,9 @@
 		</mailingList>
 	</mailingLists>
 
-	<prerequisites/>
-	
-	<modules/>
+	<prerequisites />
+
+	<modules />
 
 	<scm>
 		<url>https://github.com/nats-io/jnats</url>
@@ -95,12 +95,13 @@
 			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
 		</snapshotRepository>
 	</distributionManagement>
-	
+
 	<properties>
 		<coveralls-maven-plugin-version>2.2.0</coveralls-maven-plugin-version>
 		<jacoco-maven-plugin-version>0.7.5.201505241946</jacoco-maven-plugin-version>
-		<java.version>1.7</java.version>
+		<java.version>1.8</java.version>
 		<junit-version>4.11</junit-version>
+		<maven-checkstyle-plugin-version>2.17</maven-checkstyle-plugin-version>
 		<maven-compiler-plugin-version>3.5</maven-compiler-plugin-version>
 		<maven-failsafe-plugin-version>2.19</maven-failsafe-plugin-version>
 		<maven-gpg-plugin-version>1.6</maven-gpg-plugin-version>
@@ -116,7 +117,7 @@
 		<slf4j-version>1.7.5</slf4j-version>
 	</properties>
 
-	<dependencyManagement/>
+	<dependencyManagement />
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -143,8 +144,8 @@
 		</dependency>
 	</dependencies>
 
-	<repositories/>
-	<pluginRepositories/>
+	<repositories />
+	<pluginRepositories />
 
 	<build>
 		<plugins>
@@ -169,7 +170,7 @@
 					<argLine>${surefireArgLine}</argLine>
 					<!-- Skips unit tests if the value of skip.unit.tests property is true -->
 					<!-- <skipTests>${skip.unit.tests}</skipTests> -->
-						<skipTests>${skipTests}</skipTests>
+					<skipTests>${skipTests}</skipTests>
 					<!-- Excludes integration tests when unit tests are run. -->
 					<excludes>
 						<exclude>**/IT*.java</exclude>
@@ -327,9 +328,24 @@
 			</resource>
 		</resources>
 	</build>
-	
-	<reporting/>
-	
+
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>${maven-checkstyle-plugin-version}</version>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>checkstyle</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+		</plugins>
+	</reporting>
+
 	<profiles>
 		<profile>
 			<id>ossrh</id>
