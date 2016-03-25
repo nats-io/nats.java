@@ -10,10 +10,9 @@ install:
 - go get github.com/nats-io/gnatsd
 - sudo apt-get update
 - sudo apt-get install -y gnupg
-- sudo apt-get install -y gnupg2
 language: java
 jdk:
-- oraclejdk7
+- oraclejdk8
 cache:
   directories:
   - "$HOME/.m2"
