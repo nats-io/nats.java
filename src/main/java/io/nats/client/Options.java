@@ -13,7 +13,7 @@ import java.util.List;
 
 import javax.net.ssl.SSLContext;
 
-public class Options {
+class Options {
     private URI url;
     private String host;
     private int port;
