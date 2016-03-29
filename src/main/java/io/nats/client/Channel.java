@@ -14,6 +14,11 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * {@code Channel} is a utility wrapper for {@link LinkedBlockingQueue}. Although its visibility is
+ * currently {@code public}, it is not considered an official part of the NATS API and may be
+ * deprecated at any time.
+ */
 public class Channel<T> {
 
     static final Logger logger = LoggerFactory.getLogger(Channel.class);
