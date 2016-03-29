@@ -16,7 +16,7 @@ Documentation (javadoc) is [here](http://nats-io.github.io/jnats).
 
 #### Releases
 
-The current stable release is 0.3.1, available on Maven Central.
+The current stable release is 0.4.0, available on Maven Central.
 Add the following dependency to your project's `pom.xml`:
 
 ```xml
@@ -25,7 +25,7 @@ Add the following dependency to your project's `pom.xml`:
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.3.1</version>
+      <version>0.4.0</version>
     </dependency>
   </dependencies>
 ```
@@ -41,7 +41,7 @@ Add the following dependency to your project's `pom.xml`.
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.4.0-SNAPSHOT</version>
+      <version>0.5.0-SNAPSHOT</version>
     </dependency>
   </dependencies>
 ```
