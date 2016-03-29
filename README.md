@@ -8,7 +8,6 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/jnats?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
 
-Documentation (javadoc) is [here](http://nats-io.github.io/jnats). 
 
 ## Installation
 
