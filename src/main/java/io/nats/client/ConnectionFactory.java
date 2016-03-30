@@ -6,9 +6,6 @@
 
 package io.nats.client;
 
-/*
- * * Factory class for opening a {@link ConnectionImpl} to the NATS server (gnatsd).
- */
 import static io.nats.client.Constants.NATS_SCHEME;
 import static io.nats.client.Constants.PROP_CLOSED_CB;
 import static io.nats.client.Constants.PROP_CONNECTION_NAME;
@@ -58,6 +55,7 @@ public class ConnectionFactory implements Cloneable {
 
     /**
      * Default server host.
+     * 
      * <p>
      * This property is defined as String {@value #DEFAULT_HOST}
      */
