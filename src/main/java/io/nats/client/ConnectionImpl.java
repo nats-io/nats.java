@@ -21,6 +21,8 @@ import static io.nats.client.Constants.ERR_STALE_CONNECTION;
 import static io.nats.client.Constants.ERR_TIMEOUT;
 import static io.nats.client.Constants.TLS_SCHEME;
 
+import io.nats.client.Constants.ConnState;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,8 +56,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import io.nats.client.Constants.ConnState;
 
 class ConnectionImpl implements Connection {
     final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
@@ -1994,16 +1994,10 @@ class ConnectionImpl implements Connection {
                 }
             }
 
-            // int pubProtoLen;
             // write our pubProtoBuf buffer to the buffered writer.
             try {
-                // pubProtoLen = writePublishProto(pubProtoBuf, subject,
-                // reply, msgSize);
                 writePublishProto(pubProtoBuf, subject, reply, msgSize);
             } catch (BufferOverflowException e) {
-                // logger.trace("Overflowed buffer, buffer={}, subject.length={}, reply.length={}",
-                // pubProtoBuf, subject.length, reply.length);
-
                 // We can get here if we have very large subjects.
                 // Expand with some room to spare.
                 int resizeAmount = Parser.MAX_CONTROL_LINE_SIZE + subject.length
@@ -2012,19 +2006,14 @@ class ConnectionImpl implements Connection {
                 buildPublishProtocolBuffer(resizeAmount);
 
                 writePublishProto(pubProtoBuf, subject, reply, msgSize);
-
-                // pubProtoLen = writePublishProto(pubProtoBuf, subject,
-                // reply, msgSize);
             }
 
             try {
                 bw.write(pubProtoBuf.array(), 0, pubProtoBuf.position());
                 pubProtoBuf.position(pubPrimBytesLen);
-                logger.trace("=> {}", new String(pubProtoBuf.array()).trim());
 
                 if (msgSize > 0) {
                     bw.write(data, 0, msgSize);
-                    // logger.trace("=> {}", new String(data, 0, msgSize).trim() );
                 }
 
                 bw.write(crlfProtoBytes, 0, crlfProtoBytesLen);
@@ -2037,9 +2026,6 @@ class ConnectionImpl implements Connection {
 
             stats.incrementOutMsgs();
             stats.incrementOutBytes(msgSize);
-
-            // logger.trace("Successfully published to {}",
-            // subject);
         } finally {
             mu.unlock();
         }
