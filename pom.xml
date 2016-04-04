@@ -355,7 +355,6 @@
 				<gpg.defaultKeyring>false</gpg.defaultKeyring>
 				<gpg.publicKeyring>${env.GPG_DIR}/pubring.gpg</gpg.publicKeyring>
 				<gpg.secretKeyring>${env.GPG_DIR}/secring.gpg</gpg.secretKeyring>
-                <gpg.useAgent>true</gpg.useAgent>
 			</properties>
 			<activation>
 				<property>
