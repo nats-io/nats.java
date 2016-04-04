@@ -13,7 +13,7 @@
 
 	<groupId>io.nats</groupId>
 	<artifactId>jnats</artifactId>
-	<version>0.4.0</version>
+	<version>0.4.1-SNAPSHOT</version>
 
 	<name>jnats</name>
 	<description>Java client library for NATS Messaging System</description>
@@ -349,7 +349,7 @@
 		<profile>
 			<id>ossrh</id>
 			<properties>
-				<gpg.executable>gpg</gpg.executable>
+				<gpg.executable>gpg2</gpg.executable>
 				<gpg.keyname>${env.GPG_KEYNAME}</gpg.keyname>
 				<gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
 				<gpg.defaultKeyring>false</gpg.defaultKeyring>
