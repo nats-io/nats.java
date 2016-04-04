@@ -15,7 +15,7 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 #### Releases
 
-The current stable release is 0.4.0, available on Maven Central.
+The current stable release is 0.4.1, available on Maven Central.
 Add the following dependency to your project's `pom.xml`:
 
 ```xml
@@ -24,7 +24,7 @@ Add the following dependency to your project's `pom.xml`:
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.4.0</version>
+      <version>0.4.1</version>
     </dependency>
   </dependencies>
 ```
