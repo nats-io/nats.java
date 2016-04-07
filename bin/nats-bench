@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ "$M2_REPO" = "" ]; then
+    if [ ! -d $HOME/.m2/repository ]; then
+        echo "$M2_REPO does not exist. Exiting."
+        exit 1
+    fi
+    export M2_REPO=$HOME/.m2/repository
+fi
+
+export SLF4J_API_LIB=$M2_REPO/org/slf4j/slf4j-api/1.7.7/slf4j-api-1.7.7.jar
+export SLF4J_SIMPLE_LIB=$M2_REPO/org/slf4j/slf4j-simple/1.7.7/slf4j-simple-1.7.7.jar
+
+export CLASSPATH=target/classes:$SLF4J_API_LIB:$SLF4J_SIMPLE_LIB
+
+java -cp $CLASSPATH io.nats.client.examples.Benchmark $*

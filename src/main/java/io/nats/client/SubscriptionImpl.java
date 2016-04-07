@@ -240,6 +240,12 @@ abstract class SubscriptionImpl implements Subscription {
         this.sid = id;
     }
 
+
+    @Override
+    public int getDropped() {
+        return dropped;
+    }
+
     /**
      * @return the maxPendingMsgs
      */
