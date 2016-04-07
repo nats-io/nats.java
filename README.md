@@ -84,10 +84,8 @@ Connection nc = cf.createConnection();
 nc.publish("foo", "Hello World".getBytes());
 
 // Simple Async Subscriber
-nc.subscribe("foo", new MessageHandler() {
-	public void onMessage(Message m) {
-    	System.out.println("Received a message: %s\n", new String(m.Data));
-    }
+nc.subscribe("foo", m -> {
+    System.out.println("Received a message: %s\n", new String(m.Data));
 });
 
 // Simple Sync Subscriber
@@ -102,10 +100,8 @@ sub.unsubscribe();
 msg = nc.request("help", "help me", 10000);
 
 // Replies
-nc.subscribe("help", new MessageHandler() {
-	public void onMessage(Message m) {
-    		nc.publish(m.getReplyTo(), "I can help!");
-    	}
+nc.subscribe("help", m -> {
+    nc.publish(m.getReplyTo(), "I can help!");
 });
 
 // Close connection
@@ -156,24 +152,18 @@ A TLS/SSL connection is configured through the use of the [javax.net.ssl.SSLCont
 ```java
 
 // "*" matches any token, at any level of the subject.
-nc.subscribe("foo.*.baz", new MessageHandler() {
-	public void onMessage(Message m) {
-    		System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-    	}
+nc.subscribe("foo.*.baz", m -> {
+    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
 });
 
-nc.subscribe("foo.bar.*", new MessageHandler() {
-	public void onMessage(Message m) {
-    		System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-    	}
+nc.subscribe("foo.bar.*", m -> {
+    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
 });
 
 // ">" matches any length of the tail of a subject, and can only be the last token
 // E.g. 'foo.>' will match 'foo.bar', 'foo.bar.baz', 'foo.foo.bar.bax.22'
-nc.subscribe("foo.>", new MessageHandler() {
-	public void onMessage(Message m) {
-    	System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-    }
+nc.subscribe("foo.>", m -> {
+    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
 });
 
 // Matches all of the above
@@ -189,10 +179,8 @@ nc.publish("foo.bar.baz", "Hello World");
 // using queuing semantics. You can have as many queue groups as you wish.
 // Normal subscribers will continue to work as expected.
 
-nc.queueSubscribe("foo", "job_workers", new MessageHandler() {
-	public void onMessage(Message m) {
-  		long received += 1;
-  	}
+nc.queueSubscribe("foo", "job_workers", m -> {
+    received += 1;
 });
 
 ```
@@ -222,10 +210,8 @@ sub.autoUnsubscribe(MAX_WANTED);
 nc1 = cf.createConnection("nats://host1:4222");
 nc2 = cf.createConnection("nats://host2:4222");
 
-nc1.subscribe("foo", new MessageHandler() {
-	public void onMessage(Message m) {
-		System.out.printf("Received a message: %s\n", new String(m.getData()));
-    	}
+nc1.subscribe("foo", m -> {
+    System.out.printf("Received a message: %s\n", new String(m.getData()));
 });
 
 nc2.publish("foo", "Hello World!");
@@ -257,38 +243,21 @@ cf.setNoRandomize(true);
 Connection nc = cf.createConnection();
 
 // Setup callbacks to be notified on disconnects and reconnects
-nc.setDisconnectedCallback(new DisconnectedCallback() {
-	public void onDisconnect(ConnectionEvent event) {
-    	System.out.printf("Got disconnected!\n")
-    }
+nc.setDisconnectedCallback(event -> {
+    System.out.printf("Got disconnected from %s!\n", event.getConnectedUrl());
 });
 
 // See who we are connected to on reconnect.
-nc.setReconnectedCallback(new ReconnectedCallback() {
-	public void onReconnect(ConnectionEvent event) {
-	    System.out.printf("Got reconnected to %s!\n", event.getConnectedUrl())
-    }
+nc.setReconnectedCallback(event -> {
+    System.out.printf("Got reconnected to %s!\n", event.getConnectedUrl())
 });
 
 // Setup a callback to be notified when the Connection is closed
-nc.setClosedCallback(new ClosedCallback() {
-	public void onClose(ConnectionEvent event) {
-	    System.out.printf("Got reconnected to %s!\n", event.getConnectedUrl())
-    }
+nc.setClosedCallback( event -> {
+    System.out.printf("Connection to %s has been closed.\n", event.getConnectedUrl())
 });
 
 ```
-## TODO
-
-- [x] TLSv1.2 support (requires gnatsd v0.7.0)
-- [ ] EncodedConnection support 
-	- [ ] default (Java) encoder
-	- [ ] JSON encoder
-	- [ ] protobuf encoder
-- [x] Maven Central
-- [x] Complete Javadoc
-- [x] More test coverage
-- [ ] More TLS test cases
 
 ## License
 
