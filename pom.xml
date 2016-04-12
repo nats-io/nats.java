@@ -1,438 +1,298 @@
 <!-- Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program 
-	and the accompanying materials are made available under the terms of the 
-	MIT License (MIT) which accompanies this distribution, and is available at 
-	http://opensource.org/licenses/MIT -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+    and the accompanying materials are made available under the terms of the 
+    MIT License (MIT) which accompanies this distribution, and is available at 
+    http://opensource.org/licenses/MIT -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>org.sonatype.oss</groupId>
-		<artifactId>oss-parent</artifactId>
-		<version>9</version>
-	</parent>
+    <parent>
+        <groupId>io.nats</groupId>
+        <artifactId>java-parent</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>../nats-parent-pom/pom.xml</relativePath>
+    </parent>
 
-	<groupId>io.nats</groupId>
-	<artifactId>jnats</artifactId>
-	<version>0.5.0-SNAPSHOT</version>
-	<name>jnats</name>
-	<description>Java client library for NATS Messaging System</description>
-	<url>https://github.com/nats-io/jnats</url>
-	<inceptionYear>2015</inceptionYear>
-	<organization>
-		<url>http://nats.io</url>
-		<name>Apcera, Inc.</name>
-	</organization>
-	<licenses>
-		<license>
-			<name>MIT License</name>
-			<url>http://www.opensource.org/licenses/mit-license.php</url>
-			<distribution>repo</distribution>
-		</license>
-	</licenses>
+    <groupId>io.nats</groupId>
+    <artifactId>jnats</artifactId>
+    <version>0.5.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
 
-	<developers>
-		<developer>
-			<id>larry</id>
-			<name>Larry McQueary</name>
-			<email>larry@apcera.com</email>
-			<url>https://github.com/mcqueary/</url>
-			<organization>Apcera Inc.</organization>
-			<organizationUrl>http://www.apcera.com</organizationUrl>
-			<roles>
-				<role>Product Manager</role>
-				<role>Developer</role>
-			</roles>
-			<timezone>America/Denver</timezone>
-			<properties>
-				<picUrl>http://www.example.com/jdoe/pic</picUrl>
-			</properties>
-		</developer>
-	</developers>
-	<contributors />
+    <name>jnats</name>
+    <description>Java client library for NATS Messaging System</description>
+    <url>https://github.com/nats-io/jnats</url>
+    <inceptionYear>2015</inceptionYear>
+    <organization>
+        <url>http://nats.io</url>
+        <name>Apcera, Inc.</name>
+    </organization>
 
-	<mailingLists>
-		<mailingList>
-			<name>nats</name>
-			<archive>https://groups.google.com/group/natsio/</archive>
-			<subscribe>natsio+subscribe@googlegroups.com</subscribe>
-			<unsubscribe>natsio+unsubscribe@googlegroups.com</unsubscribe>
-			<post>natsio@googlegroups.com</post>
-		</mailingList>
-	</mailingLists>
 
-	<prerequisites />
+    <developers />
+    <contributors />
 
-	<modules />
+    <mailingLists />
 
-	<scm>
-		<url>https://github.com/nats-io/jnats</url>
-		<connection>scm:git:git://github.com/nats-io/jnats.git</connection>
-		<developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
+    <prerequisites />
+
+    <modules />
+
+    <scm>
+        <url>https://github.com/nats-io/jnats</url>
+        <connection>scm:git:git://github.com/nats-io/jnats.git</connection>
+        <developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
         <tag>HEAD</tag>
-	</scm>
+    </scm>
+    <issueManagement>
+        <url>https://github.com/nats-io/jnats/issues/</url>
+        <system>GitHub Issues</system>
+    </issueManagement>
+    <ciManagement>
+        <system>travis-ci</system>
+        <url>https://travis-ci.org/nats-io/jnats/</url>
+    </ciManagement>
 
-	<issueManagement>
-		<url>https://github.com/nats-io/jnats/issues/</url>
-		<system>GitHub Issues</system>
-	</issueManagement>
+    <dependencyManagement />
+    <dependencies>
 
-	<ciManagement>
-		<system>Travis</system>
-		<url>https://travis-ci.org/nats-io/jnats/</url>
-	</ciManagement>
+    </dependencies>
 
-	<distributionManagement>
-		<repository>
-			<id>ossrh</id>
-			<name>Sonatype OSS Staging</name>
-			<url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
-		</repository>
-		<snapshotRepository>
-			<id>ossrh</id>
-			<name>Sonatype OSS Snapshots</name>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
-		</snapshotRepository>
-	</distributionManagement>
+    <repositories />
+    <pluginRepositories />
 
-	<properties>
-		<coveralls-maven-plugin-version>2.2.0</coveralls-maven-plugin-version>
-		<jacoco-maven-plugin-version>0.7.5.201505241946</jacoco-maven-plugin-version>
-		<java.version>1.8</java.version>
-		<junit-version>4.11</junit-version>
-		<maven-checkstyle-plugin-version>2.17</maven-checkstyle-plugin-version>
-		<maven-compiler-plugin-version>3.5</maven-compiler-plugin-version>
-		<maven-failsafe-plugin-version>2.19</maven-failsafe-plugin-version>
-		<maven-gpg-plugin-version>1.6</maven-gpg-plugin-version>
-		<maven-javadoc-plugin-version>2.10.3</maven-javadoc-plugin-version>
-		<maven-release-plugin-version>2.5.3</maven-release-plugin-version>
-		<maven-scm-publish-plugin-version>1.1</maven-scm-publish-plugin-version>
-		<maven-source-plugin-version>2.4</maven-source-plugin-version>
-		<maven-surefire-plugin-version>2.19</maven-surefire-plugin-version>
-		<mockito-version>2.0.31-beta</mockito-version>
-		<nexus-staging-maven-plugin>1.6.3</nexus-staging-maven-plugin>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.sourceEncoding>UTF-8</project.reporting.sourceEncoding>
-		<slf4j-version>1.7.5</slf4j-version>
-	</properties>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin-version}</version>
+                <executions>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <argLine>${surefireArgLine}</argLine>
+                        </configuration>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- Sets the VM argument line used when unit tests are 
+                        run. -->
+                    <argLine>${surefireArgLine}</argLine>
+                    <!-- Skips unit tests if the value of skip.unit.tests 
+                        property is true -->
+                    <!-- <skipTests>${skip.unit.tests}</skipTests> -->
+                    <skipTests>${skipTests}</skipTests>
+                    <!-- Excludes integration tests when unit tests are run. -->
+                    <excludes>
+                        <exclude>**/IT*.java</exclude>
+                    </excludes>
+                    <!-- Includes specific categories when unit tests are 
+                        run. -->
+                    <groups>io.nats.client.UnitTest</groups>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin-version}</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin-version}</version>
+                <executions>
+                    <execution>
+                        <id>default-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Sets the name of the property containing 
+                                the settings for JaCoCo runtime agent. -->
+                            <propertyName>surefireArgLine</propertyName>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>default-report</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>default-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <!-- implementation is needed only for Maven 
+                                    2 -->
+                                <rule
+                                    implementation="org.jacoco.maven.RuleConfiguration">
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <!-- implementation is needed only 
+                                            for Maven 2 -->
+                                        <limit
+                                            implementation="org.jacoco.report.check.Limit">
+                                            <counter>COMPLEXITY</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.60</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 
-	<dependencyManagement />
-	<dependencies>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-			<version>${slf4j-version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>${slf4j-version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>${junit-version}</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<version>${mockito-version}</version>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin-version}</version>
+                <configuration>
+                    <header>jnats ${project.version}</header>
+                    <footer>jnats ${project.version}</footer>
+                    <author>false</author>
+                    <doctitle>${project.name} (${project.version})</doctitle>
+                    <!-- <stylesheetfile>${basedir}/src/main/javadoc/kenai-stylesheet.css</stylesheetfile> 
+                        <javadocDirectory>${basedir}/src/main/javadoc</javadocDirectory> -->
+                    <docfilessubdirs>true</docfilessubdirs>
+                    <additionalJOption>-J-Xmx1024m</additionalJOption>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                            <goal>aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <failOnError>true</failOnError>
+                            <show>public</show>
+                            <nohelp>true</nohelp>
+                            <header>jnats ${project.version}</header>
+                            <footer>jnats ${project.version}</footer>
+                            <doctitle>jnats ${project.version}</doctitle>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-publish-plugin</artifactId>
+                <version>${maven-scm-publish-plugin-version}</version>
+                <configuration>
+                    <checkoutDirectory>${project.build.directory}/scmpublish</checkoutDirectory>
+                    <checkinComment>Publishing javadoc for
+                        ${project.artifactId}:${project.version}</checkinComment>
+                    <content>${project.reporting.outputDirectory}/apidocs</content>
+                    <skipDeletedFiles>true</skipDeletedFiles>
+                    <pubScmUrl>scm:git:git@github.com:nats-io/jnats.git</pubScmUrl>
+                    <scmBranch>gh-pages</scmBranch> <!-- branch with static site -->
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
-	<repositories />
-	<pluginRepositories />
-
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>${maven-surefire-plugin-version}</version>
-				<executions>
-					<execution>
-						<id>default-test</id>
-						<phase>test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<argLine>${surefireArgLine}</argLine>
-						</configuration>
-					</execution>
-				</executions>
-				<configuration>
-					<!-- Sets the VM argument line used when unit tests are run. -->
-					<argLine>${surefireArgLine}</argLine>
-					<!-- Skips unit tests if the value of skip.unit.tests property is true -->
-					<!-- <skipTests>${skip.unit.tests}</skipTests> -->
-					<skipTests>${skipTests}</skipTests>
-					<!-- Excludes integration tests when unit tests are run. -->
-					<excludes>
-						<exclude>**/IT*.java</exclude>
-					</excludes>
-					<!-- Includes specific categories when unit tests are run. -->
-					<groups>io.nats.client.UnitTest</groups>
-				</configuration>
-			</plugin>
-			<plugin>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>${maven-compiler-plugin-version}</version>
-				<configuration>
-					<source>${java.version}</source>
-					<target>${java.version}</target>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.jacoco</groupId>
-				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>${jacoco-maven-plugin-version}</version>
-				<executions>
-					<execution>
-						<id>default-prepare-agent</id>
-						<goals>
-							<goal>prepare-agent</goal>
-						</goals>
-						<configuration>
-							<!-- Sets the name of the property containing the settings for JaCoCo 
-								runtime agent. -->
-							<propertyName>surefireArgLine</propertyName>
-						</configuration>
-					</execution>
-					<execution>
-						<id>default-report</id>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>default-check</id>
-						<goals>
-							<goal>check</goal>
-						</goals>
-						<configuration>
-							<rules>
-								<!-- implementation is needed only for Maven 2 -->
-								<rule implementation="org.jacoco.maven.RuleConfiguration">
-									<element>BUNDLE</element>
-									<limits>
-										<!-- implementation is needed only for Maven 2 -->
-										<limit implementation="org.jacoco.report.check.Limit">
-											<counter>COMPLEXITY</counter>
-											<value>COVEREDRATIO</value>
-											<minimum>0.60</minimum>
-										</limit>
-									</limits>
-								</rule>
-							</rules>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.eluder.coveralls</groupId>
-				<artifactId>coveralls-maven-plugin</artifactId>
-				<version>${coveralls-maven-plugin-version}</version>
-				<configuration>
-					<jacocoFile>${project.reporting.outputDirectory}/jacoco-ut/jacoco.xml</jacocoFile>
-					<sourceEncoding>UTF8</sourceEncoding>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>${maven-source-plugin-version}</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>${maven-javadoc-plugin-version}</version>
-				<configuration>
-					<header>jnats ${project.version}</header>
-					<footer>jnats ${project.version}</footer>
-					<author>false</author>
-					<doctitle>${project.name} (${project.version})</doctitle>
-					<!-- <stylesheetfile>${basedir}/src/main/javadoc/kenai-stylesheet.css</stylesheetfile> 
-						<javadocDirectory>${basedir}/src/main/javadoc</javadocDirectory> -->
-					<docfilessubdirs>true</docfilessubdirs>
-					<additionalJOption>-J-Xmx1024m</additionalJOption>
-				</configuration>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-							<goal>aggregate</goal>
-						</goals>
-						<configuration>
-							<failOnError>true</failOnError>
-							<show>public</show>
-							<nohelp>true</nohelp>
-							<header>jnats ${project.version}</header>
-							<footer>jnats ${project.version}</footer>
-							<doctitle>jnats ${project.version}</doctitle>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-scm-publish-plugin</artifactId>
-				<version>${maven-scm-publish-plugin-version}</version>
-				<configuration>
-					<checkoutDirectory>${project.build.directory}/scmpublish</checkoutDirectory>
-					<checkinComment>Publishing javadoc for
-						${project.artifactId}:${project.version}</checkinComment>
-					<content>${project.reporting.outputDirectory}/apidocs</content>
-					<skipDeletedFiles>true</skipDeletedFiles>
-					<pubScmUrl>scm:git:git@github.com:nats-io/jnats.git</pubScmUrl>
-					<scmBranch>gh-pages</scmBranch> <!-- branch with static site -->
-				</configuration>
-			</plugin>
-		</plugins>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-release-plugin</artifactId>
-					<version>${maven-release-plugin-version}</version>
-					<configuration>
-						<useReleaseProfile>true</useReleaseProfile>
-						<releaseProfiles>release</releaseProfiles>
-						<allowTimestampedSnapshots>true</allowTimestampedSnapshots>
-						<autoVersionSubmodules>true</autoVersionSubmodules>
-						<localCheckout>true</localCheckout>
-						<pushChanges>false</pushChanges>
-						<goals>deploy</goals>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-		<resources>
-			<resource>
-				<directory>src/main/resources</directory>
-				<filtering>true</filtering>
-			</resource>
-		</resources>
-	</build>
-
-	<reporting>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>${maven-checkstyle-plugin-version}</version>
-				<reportSets>
-					<reportSet>
-						<reports>
-							<report>checkstyle</report>
-						</reports>
-					</reportSet>
-				</reportSets>
-			</plugin>
-		</plugins>
-	</reporting>
-
-	<profiles>
-		<profile>
-			<id>ossrh</id>
-			<properties>
-				<gpg.executable>gpg2</gpg.executable>
-				<gpg.keyname>${env.GPG_KEYNAME}</gpg.keyname>
-				<gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
-				<gpg.defaultKeyring>false</gpg.defaultKeyring>
-				<gpg.publicKeyring>${env.GPG_DIR}/pubring.gpg</gpg.publicKeyring>
-				<gpg.secretKeyring>${env.GPG_DIR}/secring.gpg</gpg.secretKeyring>
-			</properties>
-			<activation>
-				<property>
-					<name>performRelease</name>
-					<value>true</value>
-				</property>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-gpg-plugin</artifactId>
-						<version>${maven-gpg-plugin-version}</version>
-						<executions>
-							<execution>
-								<id>sign-artifacts</id>
-								<phase>verify</phase>
-								<goals>
-									<goal>sign</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-					<plugin>
-						<groupId>org.sonatype.plugins</groupId>
-						<artifactId>nexus-staging-maven-plugin</artifactId>
-						<version>${nexus-staging-maven-plugin}</version>
-						<extensions>true</extensions>
-						<configuration>
-							<serverId>ossrh</serverId>
-							<nexusUrl>https://oss.sonatype.org/</nexusUrl>
-							<autoReleaseAfterClose>true</autoReleaseAfterClose>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>unitTests</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-surefire-plugin</artifactId>
-						<version>${maven-surefire-plugin-version}</version>
-						<configuration>
-							<groups>io.nats.client.UnitTest</groups>
-							<argLine>${argLine}</argLine>
-						</configuration>
-						<executions>
-							<execution>
-								<!-- <id>run-unit-tests</id> -->
-								<id>default-test</id>
-								<goals>
-									<goal>test</goal>
-								</goals>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>benchTests</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-surefire-plugin</artifactId>
-						<version>${maven-surefire-plugin-version}</version>
-						<configuration>
-							<groups>io.nats.client.BenchmarkTest</groups>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
+    <profiles>
+        <profile>
+            <id>ossrh</id>
+            <properties>
+                <gpg.executable>gpg2</gpg.executable>
+                <gpg.keyname>${env.GPG_KEYNAME}</gpg.keyname>
+                <gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
+                <gpg.defaultKeyring>false</gpg.defaultKeyring>
+                <gpg.publicKeyring>${env.GPG_DIR}/pubring.gpg</gpg.publicKeyring>
+                <gpg.secretKeyring>${env.GPG_DIR}/secring.gpg</gpg.secretKeyring>
+            </properties>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin-version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.plugins</groupId>
+                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                        <version>${nexus-staging-maven-plugin}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <serverId>ossrh</serverId>
+                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>unitTests</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven-surefire-plugin-version}</version>
+                        <configuration>
+                            <groups>io.nats.client.UnitTest</groups>
+                            <argLine>${argLine}</argLine>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <!-- <id>run-unit-tests</id> -->
+                                <id>default-test</id>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>benchTests</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven-surefire-plugin-version}</version>
+                        <configuration>
+                            <groups>io.nats.client.BenchmarkTest</groups>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
