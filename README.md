@@ -4,9 +4,9 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 [![License MIT](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
 [![Build Status](https://travis-ci.org/nats-io/jnats.svg?branch=master)](http://travis-ci.org/nats-io/jnats)
-[![Javadoc](http://javadoc-badge.appspot.com/io.nats/jnats.svg?label=javadoc)](http://nats-io.github.io/jnats)
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/jnats?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
+[![Javadoc](http://javadoc-badge.appspot.com/io.nats/jnats.svg?label=javadoc)](http://nats-io.github.io/jnats)
 
 
 ## Installation
@@ -111,7 +111,7 @@ nc.close();
 ```
 ## TLS
 
-A TLS/SSL connection is configured through the use of the [javax.net.ssl.SSLContext](https://docs.oracle.com/javase/7/docs/api/javax/net/ssl/SSLContext.html]
+TLS/SSL connections may be configured through the use of an [SSLContext](https://docs.oracle.com/javase/8/docs/api/javax/net/ssl/SSLContext.html).
  
 ```java
 	// Set up and load the keystore
@@ -179,7 +179,7 @@ nc.publish("foo.bar.baz", "Hello World");
 // using queuing semantics. You can have as many queue groups as you wish.
 // Normal subscribers will continue to work as expected.
 
-nc.queueSubscribe("foo", "job_workers", m -> {
+nc.subscribe("foo", "job_workers", m -> {
     received += 1;
 });
 
@@ -203,6 +203,7 @@ try {
 
 // Auto-unsubscribe after MAX_WANTED messages received
 final static int MAX_WANTED = 10;
+...
 sub = nc.subscribe("foo");
 sub.autoUnsubscribe(MAX_WANTED);
 
