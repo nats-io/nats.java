@@ -8,9 +8,9 @@
 
     <parent>
         <groupId>io.nats</groupId>
-        <artifactId>java-parent</artifactId>
+        <artifactId>nats-parent</artifactId>
         <version>1.0-SNAPSHOT</version>
-        <relativePath>../nats-parent-pom/pom.xml</relativePath>
+<!--         <relativePath>../nats-parent-pom/pom.xml</relativePath> -->
     </parent>
 
     <groupId>io.nats</groupId>
@@ -62,145 +62,38 @@
 
     <build>
         <plugins>
-            <plugin>
+<!--             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>${maven-surefire-plugin-version}</version>
-                <executions>
-                    <execution>
-                        <id>default-test</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                        <configuration>
-                            <argLine>${surefireArgLine}</argLine>
-                        </configuration>
-                    </execution>
-                </executions>
                 <configuration>
-                    <!-- Sets the VM argument line used when unit tests are 
-                        run. -->
+                    Sets the VM argument line used when unit tests are 
+                        run.
                     <argLine>${surefireArgLine}</argLine>
-                    <!-- Skips unit tests if the value of skip.unit.tests 
-                        property is true -->
-                    <!-- <skipTests>${skip.unit.tests}</skipTests> -->
+                    Skips unit tests if the value of skip.unit.tests 
+                        property is true
+                    <skipTests>${skip.unit.tests}</skipTests>
                     <skipTests>${skipTests}</skipTests>
-                    <!-- Excludes integration tests when unit tests are run. -->
+                    Excludes integration tests when unit tests are run.
                     <excludes>
                         <exclude>**/IT*.java</exclude>
                     </excludes>
-                    <!-- Includes specific categories when unit tests are 
-                        run. -->
+                    Includes specific categories when unit tests are 
+                        run.
                     <groups>io.nats.client.UnitTest</groups>
                 </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin-version}</version>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                </configuration>
-            </plugin>
+            </plugin> 
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>${jacoco-maven-plugin-version}</version>
-                <executions>
-                    <execution>
-                        <id>default-prepare-agent</id>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                        <configuration>
-                            <!-- Sets the name of the property containing 
-                                the settings for JaCoCo runtime agent. -->
-                            <propertyName>surefireArgLine</propertyName>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>default-report</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>default-check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <!-- implementation is needed only for Maven 
-                                    2 -->
-                                <rule
-                                    implementation="org.jacoco.maven.RuleConfiguration">
-                                    <element>BUNDLE</element>
-                                    <limits>
-                                        <!-- implementation is needed only 
-                                            for Maven 2 -->
-                                        <limit
-                                            implementation="org.jacoco.report.check.Limit">
-                                            <counter>COMPLEXITY</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.60</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>${maven-javadoc-plugin-version}</version>
-                <configuration>
-                    <header>jnats ${project.version}</header>
-                    <footer>jnats ${project.version}</footer>
-                    <author>false</author>
-                    <doctitle>${project.name} (${project.version})</doctitle>
-                    <!-- <stylesheetfile>${basedir}/src/main/javadoc/kenai-stylesheet.css</stylesheetfile> 
-                        <javadocDirectory>${basedir}/src/main/javadoc</javadocDirectory> -->
-                    <docfilessubdirs>true</docfilessubdirs>
-                    <additionalJOption>-J-Xmx1024m</additionalJOption>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                            <goal>aggregate</goal>
-                        </goals>
-                        <configuration>
-                            <failOnError>true</failOnError>
-                            <show>public</show>
-                            <nohelp>true</nohelp>
-                            <header>jnats ${project.version}</header>
-                            <footer>jnats ${project.version}</footer>
-                            <doctitle>jnats ${project.version}</doctitle>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-scm-publish-plugin</artifactId>
-                <version>${maven-scm-publish-plugin-version}</version>
-                <configuration>
-                    <checkoutDirectory>${project.build.directory}/scmpublish</checkoutDirectory>
-                    <checkinComment>Publishing javadoc for
-                        ${project.artifactId}:${project.version}</checkinComment>
-                    <content>${project.reporting.outputDirectory}/apidocs</content>
-                    <skipDeletedFiles>true</skipDeletedFiles>
-                    <pubScmUrl>scm:git:git@github.com:nats-io/jnats.git</pubScmUrl>
-                    <scmBranch>gh-pages</scmBranch> <!-- branch with static site -->
-                </configuration>
-            </plugin>
+            </plugin> -->
         </plugins>
     </build>
 
@@ -226,7 +119,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>${maven-gpg-plugin-version}</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -240,7 +132,6 @@
                     <plugin>
                         <groupId>org.sonatype.plugins</groupId>
                         <artifactId>nexus-staging-maven-plugin</artifactId>
-                        <version>${nexus-staging-maven-plugin}</version>
                         <extensions>true</extensions>
                         <configuration>
                             <serverId>ossrh</serverId>
@@ -261,7 +152,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>${maven-surefire-plugin-version}</version>
                         <configuration>
                             <groups>io.nats.client.UnitTest</groups>
                             <argLine>${argLine}</argLine>
@@ -286,7 +176,6 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <version>${maven-surefire-plugin-version}</version>
                         <configuration>
                             <groups>io.nats.client.BenchmarkTest</groups>
                         </configuration>
