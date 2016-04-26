@@ -10,7 +10,6 @@
         <groupId>io.nats</groupId>
         <artifactId>nats-parent</artifactId>
         <version>1.0-SNAPSHOT</version>
-<!--         <relativePath>../nats-parent-pom/pom.xml</relativePath> -->
     </parent>
 
     <groupId>io.nats</groupId>
@@ -26,7 +25,6 @@
         <url>http://nats.io</url>
         <name>Apcera, Inc.</name>
     </organization>
-
 
     <developers />
     <contributors />
@@ -62,38 +60,6 @@
 
     <build>
         <plugins>
-<!--             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    Sets the VM argument line used when unit tests are 
-                        run.
-                    <argLine>${surefireArgLine}</argLine>
-                    Skips unit tests if the value of skip.unit.tests 
-                        property is true
-                    <skipTests>${skip.unit.tests}</skipTests>
-                    <skipTests>${skipTests}</skipTests>
-                    Excludes integration tests when unit tests are run.
-                    <excludes>
-                        <exclude>**/IT*.java</exclude>
-                    </excludes>
-                    Includes specific categories when unit tests are 
-                        run.
-                    <groups>io.nats.client.UnitTest</groups>
-                </configuration>
-            </plugin> 
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-scm-publish-plugin</artifactId>
-            </plugin> -->
         </plugins>
     </build>
 
