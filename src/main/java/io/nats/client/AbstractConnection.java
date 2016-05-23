@@ -115,12 +115,11 @@ interface AbstractConnection extends AutoCloseable {
     public SyncSubscription subscribeSync(String subject, String queue);
 
     /**
-     * Creates a {@code AsyncSubscription} with interest in a given subject. In order to receive
-     * messages, a {@code MessageHandler} must be registered, and {@link AsyncSubscription#start()}
-     * must be called.
+     * Creates a {@link SyncSubscription} with interest in a given subject. In order to receive
+     * messages, call one of the available {@link SyncSubscription#nextMessage()}.
      * 
      * @param subject the subject of interest
-     * @return the {@code AsyncSubscription}
+     * @return the {@link SyncSubscription}
      * @throws IllegalArgumentException if the subject name contains illegal characters.
      * @throws NullPointerException if the subject name is null
      * @throws IllegalStateException if the connection is closed
