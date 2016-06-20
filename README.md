@@ -85,7 +85,7 @@ nc.publish("foo", "Hello World".getBytes());
 
 // Simple Async Subscriber
 nc.subscribe("foo", m -> {
-    System.out.println("Received a message: %s\n", new String(m.Data));
+    System.out.println("Received a message: %s\n", new String(m.getData()));
 });
 
 // Simple Sync Subscriber
