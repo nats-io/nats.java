@@ -2,6 +2,8 @@ package io.nats.client.examples;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
+import io.nats.client.Message;
+import io.nats.client.MessageHandler;
 import io.nats.client.Subscription;
 
 import org.slf4j.Logger;
@@ -44,20 +46,26 @@ public class Subscriber {
 
         try (final Connection nc = cf.createConnection()) {
             // System.out.println("Connected successfully to " + cf.getNatsUrl());
-            AtomicInteger count = new AtomicInteger();
-            try (final Subscription sub = nc.subscribe(subject, qgroup, m -> {
-                System.out.printf("[#%d] Received on [%s]: '%s'\n", count.incrementAndGet(),
-                        m.getSubject(), m);
+            final AtomicInteger count = new AtomicInteger();
+            try (final Subscription sub = nc.subscribe(subject, qgroup, new MessageHandler() {
+                @Override
+                public void onMessage(Message m) {
+                    System.out.printf("[#%d] Received on [%s]: '%s'\n", count.incrementAndGet(),
+                            m.getSubject(), m);
+                }
             })) {
                 System.out.printf("Listening on [%s]\n", subject);
-                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                    System.err.println("\nCaught CTRL-C, shutting down gracefully...\n");
-                    try {
-                        sub.unsubscribe();
-                    } catch (IOException e) {
-                        log.error("Problem unsubscribing", e);
+                Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        System.err.println("\nCaught CTRL-C, shutting down gracefully...\n");
+                        try {
+                            sub.unsubscribe();
+                        } catch (IOException e) {
+                            log.error("Problem unsubscribing", e);
+                        }
+                        nc.close();
                     }
-                    nc.close();
                 }));
                 while (true) {
                     // loop forever
