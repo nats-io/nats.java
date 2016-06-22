@@ -13,6 +13,8 @@ install:
 language: java
 jdk:
 - oraclejdk8
+go:
+- 1.6.2
 cache:
   directories:
   - "$HOME/.m2"
