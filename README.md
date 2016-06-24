@@ -245,17 +245,17 @@ Connection nc = cf.createConnection();
 
 // Setup callbacks to be notified on disconnects and reconnects
 nc.setDisconnectedCallback(event -> {
-    System.out.printf("Got disconnected from %s!\n", event.getConnectedUrl());
+    System.out.printf("Got disconnected from %s!\n", event.getConnection().getConnectedUrl());
 });
 
 // See who we are connected to on reconnect.
 nc.setReconnectedCallback(event -> {
-    System.out.printf("Got reconnected to %s!\n", event.getConnectedUrl())
+    System.out.printf("Got reconnected to %s!\n", event.getConnection().getConnectedUrl());
 });
 
 // Setup a callback to be notified when the Connection is closed
 nc.setClosedCallback( event -> {
-    System.out.printf("Connection to %s has been closed.\n", event.getConnectedUrl())
+    System.out.printf("Connection to %s has been closed.\n", event.getConnection().getConnectedUrl());
 });
 
 ```
