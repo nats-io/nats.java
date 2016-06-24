@@ -7,8 +7,15 @@
 package io.nats.client.examples;
 
 import io.nats.client.AsyncSubscription;
+import io.nats.client.ClosedCallback;
 import io.nats.client.Connection;
+import io.nats.client.ConnectionEvent;
 import io.nats.client.ConnectionFactory;
+import io.nats.client.DisconnectedCallback;
+import io.nats.client.ExceptionHandler;
+import io.nats.client.Message;
+import io.nats.client.MessageHandler;
+import io.nats.client.NATSException;
 import io.nats.client.NUID;
 import io.nats.client.Subscription;
 
@@ -16,7 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.text.DecimalFormat;
-import java.time.Duration;
+// import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -76,11 +83,14 @@ public class Benchmark {
         System.err.printf("Starting subscriber(s) on [%s]", subject);
         for (int i = 0; i < numSubs; i++) {
             System.err.printf(".");
-            Thread t = new Thread(() -> {
-                try {
-                    runSubscriber(numMsgs, readySignal, doneSignal);
-                } catch (Exception e) {
-                    log.error("Couldn't start publish thread", e);
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        runSubscriber(numMsgs, readySignal, doneSignal);
+                    } catch (Exception e) {
+                        log.error("Couldn't start publish thread", e);
+                    }
                 }
             });
             t.setName("BenchmarkSubscriber-" + i);
@@ -90,12 +100,15 @@ public class Benchmark {
         System.err.println();
 
 
-        Thread hook = new Thread(() -> {
-            System.err.println("\nCaught CTRL-C, shutting down gracefully...\n");
-            shutdown.set(true);
-            System.err.printf("Sent=%d\n", sent.get());
-            System.err.printf("Received=%d\n", received.get());
+        Thread hook = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                System.err.println("\nCaught CTRL-C, shutting down gracefully...\n");
+                shutdown.set(true);
+                System.err.printf("Sent=%d\n", sent.get());
+                System.err.printf("Received=%d\n", received.get());
 
+            }
         });
 
         Runtime.getRuntime().addShutdownHook(hook);
@@ -103,11 +116,14 @@ public class Benchmark {
         System.err.print("Starting publisher(s)");
         for (int i = 0; i < numPubs; i++) {
             System.err.printf(".");
-            Thread t = new Thread(() -> {
-                try {
-                    runPublisher(numMsgs, readySignal, doneSignal);
-                } catch (Exception e) {
-                    log.error("Couldn't start subscriber thread", e);
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        runPublisher(numMsgs, readySignal, doneSignal);
+                    } catch (Exception e) {
+                        log.error("Couldn't start subscriber thread", e);
+                    }
                 }
             });
             t.setName("BenchmarkPublisher-" + i);
@@ -138,21 +154,19 @@ public class Benchmark {
         }
 
         long t1 = System.nanoTime();
-        Duration delta = Duration.ofNanos(t1 - t0);
+        long delta = t1 - t0;
         double total = (double) numMsgs * numPubs;
         if (numSubs > 0) {
             total *= (double) numSubs;
         }
         System.err.println();
-        log.info("total msgs: {} total duration: {}", formatter.format(total),
-                delta.toString().replace("PT", "").toLowerCase());
-        if (delta.getSeconds() == 0) {
+        double totalTime = (double) delta / 1000000000.0;
+        log.info("total msgs: {} total duration: {}s", formatter.format(total), totalTime);
+        if (totalTime < 1.0) {
             log.warn("NOTE: test duration was < 1 second, results are extrapolated");
         }
-        double extrapTotal = total * 1000000000 / delta.toNanos();
+        double extrapTotal = total * 1000000000 / delta;
         log.info("NATS throughput is {} msgs/sec", formatter.format(extrapTotal));
-        // log.info("NATS throughput is {} msgs/sec",
-        // formatter.format(total / delta.getSeconds()));
     }
 
     void usage() {
@@ -190,35 +204,47 @@ public class Benchmark {
         }
     }
 
-    public void runSubscriber(int numMsgs, CountDownLatch readySignal, CountDownLatch doneSignal)
-            throws Exception {
+    public void runSubscriber(final int numMsgs, CountDownLatch readySignal,
+            final CountDownLatch doneSignal) throws Exception {
         try {
             try (Connection nc = cf.createConnection()) {
 
-                nc.setDisconnectedCallback(ev -> {
-                    System.err.println();
-                    log.error("Subscriber disconnected");
+                nc.setDisconnectedCallback(new DisconnectedCallback() {
+                    @Override
+                    public void onDisconnect(ConnectionEvent ev) {
+                        System.err.println();
+                        log.error("Subscriber disconnected");
+                    }
                 });
-                nc.setClosedCallback(ev -> {
-                    log.error("Subscriber connection closed");
+                nc.setClosedCallback(new ClosedCallback() {
+                    @Override
+                    public void onClose(ConnectionEvent ev) {
+                        log.error("Subscriber connection closed");
+                    }
                 });
-                nc.setExceptionHandler(e -> {
-                    System.err.println();
-                    log.error("Subscriber connection exception", e);
-                    AsyncSubscription s = (AsyncSubscription) e.getSubscription();
-                    log.error("Sent={}, Received={}", sent.get(), received.get());
-                    log.error("Messages dropped (total) = {}", s.getDropped());
-                    System.exit(-1);
+                nc.setExceptionHandler(new ExceptionHandler() {
+                    @Override
+                    public void onException(NATSException e) {
+                        System.err.println();
+                        log.error("Subscriber connection exception", e);
+                        AsyncSubscription s = (AsyncSubscription) e.getSubscription();
+                        log.error("Sent={}, Received={}", sent.get(), received.get());
+                        log.error("Messages dropped (total) = {}", s.getDropped());
+                        System.exit(-1);
+                    }
                 });
 
-                try (final Subscription sub = nc.subscribe(subject, qgroup, m -> {
-                    received.incrementAndGet();
-                    if (received.get() % hashModulo == 0) {
-                        System.err.printf("*");
-                    }
-                    if (received.get() >= numMsgs) {
-                        doneSignal.countDown();
-                        nc.close();
+                try (final Subscription sub = nc.subscribe(subject, qgroup, new MessageHandler() {
+                    @Override
+                    public void onMessage(Message m) {
+                        received.incrementAndGet();
+                        if (received.get() % hashModulo == 0) {
+                            System.err.printf("*");
+                        }
+                        if (received.get() >= numMsgs) {
+                            doneSignal.countDown();
+                            nc.close();
+                        }
                     }
                 })) {
                     nc.flush();

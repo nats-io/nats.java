@@ -1,5 +1,6 @@
 before_install:
 - export GOPATH=$HOME/gopath
+- eval "$(GIMME_GO_VERSION=1.6 gimme)"
 - export PATH=$PATH:$GOPATH/bin
 - export JAVA_OPTS=-Xmx2g
 - openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/pubring.gpg.enc
