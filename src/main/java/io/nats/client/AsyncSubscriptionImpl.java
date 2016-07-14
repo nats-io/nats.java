@@ -140,4 +140,10 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
         super.close();
         disable();
     }
+    
+    @Override
+    public void unsubscribe() throws IOException {
+        super.unsubscribe();
+        disable();
+    }
 }
