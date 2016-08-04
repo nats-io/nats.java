@@ -1,8 +1,9 @@
 before_install:
-  - eval "$(GIMME_GO_VERSION=1.6 gimme)"
   - export GOPATH=$HOME/gopath
   - export PATH=$PATH:$GOPATH/bin
   - export JAVA_OPTS=-Xmx2g
+  - eval "$(GIMME_GO_VERSION=1.6 gimme)"
+
 
 install:
   - go get github.com/nats-io/gnatsd
