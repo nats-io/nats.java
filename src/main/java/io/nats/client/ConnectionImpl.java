@@ -1445,6 +1445,8 @@ logger.trace("doReconnect finished successfully!");
 		}
 	}
 
+	Boolean didIt = Boolean.TRUE;
+
 	protected void processMsgArgs(byte[] buffer, long length) throws ParseException
 	{
 		String s = new String(buffer, 0, (int)length);
@@ -1453,27 +1455,51 @@ logger.trace("doReconnect finished successfully!");
 //		logger.trace("processMsgArgs() for buffer {}", s);
 		switch (args.length)
 		{
-		case 3:
-			msgArgs.subject = args[0];
-			msgArgs.sid     = Long.parseLong(args[1]);
-			msgArgs.reply   = null;
-			msgArgs.size    = Integer.parseInt(args[2]);
-			break;
-		case 4:
-			msgArgs.subject = args[0];
-			msgArgs.sid     = Long.parseLong(args[1]);
-			msgArgs.reply   = args[2];
-			msgArgs.size    = Integer.parseInt(args[3]);
-			break;
-		default:
-			throw new ParseException("Unable to parse message arguments: " + s, 0);
+			case 3:
+				msgArgs.subject = args[0];
+				msgArgs.sid     = safeParseLong(args[1]);
+				msgArgs.reply   = null;
+				msgArgs.size    = safeParseInt(args[2]);
+				break;
+			case 4:
+				msgArgs.subject = args[0];
+				msgArgs.sid     = safeParseLong(args[1]);
+				msgArgs.reply   = args[2];
+				msgArgs.size    = safeParseInt(args[3]);
+				break;
+			default:
+				throw new ParseException("Unable to parse message arguments: " + s, 0);
 		}
 
 		if (msgArgs.size < 0)
 		{
 			throw new ParseException("Invalid Message - Bad or Missing Size: " + s, 9);
-		} else { 
+		} else {
 			// OK
+		}
+	}
+
+	private int safeParseInt(String v) throws ParseException
+	{
+		try
+		{
+			return Integer.parseInt(v);
+		}
+		catch(NumberFormatException ex)
+		{
+			throw new ParseException("Unable for parse [" + v + "] as an Integer.", 0);
+		}
+	}
+
+	private long safeParseLong(String v) throws ParseException
+	{
+		try
+		{
+			return Long.parseLong(v);
+		}
+		catch(NumberFormatException ex)
+		{
+			throw new ParseException("Unable for parse [" + v + "] as an Long.", 0);
 		}
 	}
 

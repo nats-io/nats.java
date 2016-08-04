@@ -158,15 +158,20 @@ final class Parser {
                         case '\r':
                             break;
                         case '\n':
-                            conn.processMsgArgs(argBufBase, argBufStream.position());
-                            argBufStream.position(0);
-                            if (conn.msgArgs.size > msgBufBase.length)
-                            {
-                            	// Add 2 to account for the \r\n
-                                msgBufBase = new byte[conn.msgArgs.size+1];
-                                msgBufStream = ByteBuffer.wrap(msgBufBase);
+                            try {
+                                conn.processMsgArgs(argBufBase, argBufStream.position());
+                                argBufStream.position(0);
+                                if (conn.msgArgs.size > msgBufBase.length)
+                                {
+                                    // Add 2 to account for the \r\n
+                                    msgBufBase = new byte[conn.msgArgs.size+1];
+                                    msgBufStream = ByteBuffer.wrap(msgBufBase);
+                                }
+                                state = NatsOp.MSG_PAYLOAD;
+                            } catch(ParseException ex) {
+                                error = true;
                             }
-                            state = NatsOp.MSG_PAYLOAD;
+
                             break;
                         default:
                             argBufStream.put((byte)b);
