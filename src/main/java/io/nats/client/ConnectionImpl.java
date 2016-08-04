@@ -1444,9 +1444,7 @@ logger.trace("doReconnect finished successfully!");
 			}
 		}
 	}
-
-	Boolean didIt = Boolean.TRUE;
-
+	
 	protected void processMsgArgs(byte[] buffer, long length) throws ParseException
 	{
 		String s = new String(buffer, 0, (int)length);
