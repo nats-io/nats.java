@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-class ConnectionImpl implements Connection {
+public class ConnectionImpl implements Connection {
     final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
 
     String version = null;
