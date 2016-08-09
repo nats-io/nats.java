@@ -835,6 +835,7 @@ class ConnectionImpl implements Connection {
 
             // try to create a new connection
             try {
+                conn.teardown();
                 createConn();
                 logger.trace("doReconnect: createConn() successful for {}", cur);
             } catch (Exception e) {
