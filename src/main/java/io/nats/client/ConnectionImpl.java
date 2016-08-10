@@ -119,6 +119,7 @@ class ConnectionImpl implements Connection {
     private URI url = null;
     protected Options opts = null;
 
+    private TCPConnectionFactory tcf = null;
     private TCPConnection conn = null;
 
     // Prepare protocol messages for efficiency
@@ -177,7 +178,7 @@ class ConnectionImpl implements Connection {
         this(opts, null);
     }
 
-    ConnectionImpl(Options opts, TCPConnection tcpconn) {
+    ConnectionImpl(Options opts, TCPConnectionFactory connFac) {
         Properties props = this.getProperties(Constants.PROP_PROPERTIES_FILENAME);
         version = props.getProperty(Constants.PROP_CLIENT_VERSION);
 
@@ -185,11 +186,12 @@ class ConnectionImpl implements Connection {
         this.opts = opts;
         this.stats = new Statistics();
         // this.msgArgs = new MsgArg();
-        if (tcpconn != null) {
-            this.conn = tcpconn;
+        if (connFac != null) {
+            tcf = connFac;
         } else {
-            this.conn = new TCPConnection();
+            tcf = new TCPConnectionFactory();
         }
+        setTcpConnection(tcf.createConnection());
 
         sidCounter.set(0);
 
@@ -398,9 +400,7 @@ class ConnectionImpl implements Connection {
 
         try {
             logger.trace("Opening {}", srv.url);
-            if (conn == null) {
-                conn = new TCPConnection();
-            }
+            conn = tcf.createConnection();
             conn.open(srv.url.getHost(), srv.url.getPort(), opts.getConnectionTimeout());
             logger.trace("Opened {}", srv.url);
         } catch (IOException e) {
@@ -2371,6 +2371,14 @@ class ConnectionImpl implements Connection {
 
     protected TCPConnection getTcpConnection() {
         return this.conn;
+    }
+
+    protected void setTcpConnectionFactory(TCPConnectionFactory factory) {
+        this.tcf = factory;
+    }
+
+    protected TCPConnectionFactory getTcpConnectionFactory() {
+        return this.tcf;
     }
 
 }

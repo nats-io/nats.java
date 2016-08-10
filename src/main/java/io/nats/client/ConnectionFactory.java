@@ -56,75 +56,60 @@ public class ConnectionFactory implements Cloneable {
     /**
      * Default server host.
      * 
-     * <p>
-     * This property is defined as String {@value #DEFAULT_HOST}
+     * <p> This property is defined as String {@value #DEFAULT_HOST}
      */
     public static final String DEFAULT_HOST = "localhost";
     /**
-     * Default server port.
-     * <p>
-     * This property is defined as int {@value #DEFAULT_PORT}
+     * Default server port. <p> This property is defined as int {@value #DEFAULT_PORT}
      */
     public static final int DEFAULT_PORT = 4222;
     /**
-     * Default server URL.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_URL}
+     * Default server URL. <p> This property is defined as String {@value #DEFAULT_URL}
      */
     public static final String DEFAULT_URL = "nats://" + DEFAULT_HOST + ":" + DEFAULT_PORT;
     /**
-     * Default SSL/TLS protocol version.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_SSL_PROTOCOL}
+     * Default SSL/TLS protocol version. <p> This property is defined as String
+     * {@value #DEFAULT_SSL_PROTOCOL}
      */
     static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
     /**
-     * Default maximum number of reconnect attempts.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_MAX_RECONNECT}
+     * Default maximum number of reconnect attempts. <p> This property is defined as String
+     * {@value #DEFAULT_MAX_RECONNECT}
      */
     public static final int DEFAULT_MAX_RECONNECT = 60;
     /**
-     * Default wait time before attempting reconnection to the same server.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_RECONNECT_WAIT}
+     * Default wait time before attempting reconnection to the same server. <p> This property is
+     * defined as String {@value #DEFAULT_RECONNECT_WAIT}
      */
     public static final int DEFAULT_RECONNECT_WAIT = 2 * 1000;
     /**
      * Default of pending message buffer that is used for buffering messages that are published
-     * during a disconnect/reconnect.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_RECONNECT_BUF_SIZE}
+     * during a disconnect/reconnect. <p> This property is defined as String
+     * {@value #DEFAULT_RECONNECT_BUF_SIZE}
      */
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
     /**
-     * Default connection timeout.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_TIMEOUT}
+     * Default connection timeout. <p> This property is defined as String {@value #DEFAULT_TIMEOUT}
      */
     public static final int DEFAULT_TIMEOUT = 2 * 1000;
     /**
-     * Default server ping interval. {@code <=0} means disabled.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_PING_INTERVAL}
+     * Default server ping interval. {@code <=0} means disabled. <p> This property is defined as
+     * String {@value #DEFAULT_PING_INTERVAL}
      */
     public static final int DEFAULT_PING_INTERVAL = 2 * 60000;
     /**
-     * Default maximum number of pings that have not received a response.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_MAX_PINGS_OUT}
+     * Default maximum number of pings that have not received a response. <p> This property is
+     * defined as String {@value #DEFAULT_MAX_PINGS_OUT}
      */
     public static final int DEFAULT_MAX_PINGS_OUT = 2;
     /**
-     * Default maximum pending/undelivered messages on a subscription.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
+     * Default maximum pending/undelivered messages on a subscription. <p> This property is defined
+     * as String {@value #DEFAULT_MAX_PENDING_MSGS}
      */
     public static final int DEFAULT_MAX_PENDING_MSGS = 65536;
     /**
-     * Default maximum pending/undelivered payload bytes on a subscription.
-     * <p>
-     * This property is defined as String {@value #DEFAULT_MAX_PENDING_BYTES}
+     * Default maximum pending/undelivered payload bytes on a subscription. <p> This property is
+     * defined as String {@value #DEFAULT_MAX_PENDING_BYTES}
      */
     public static final int DEFAULT_MAX_PENDING_BYTES = 65536 * 1024;
 
@@ -353,12 +338,9 @@ public class ConnectionFactory implements Cloneable {
 
     /**
      * Constructs a connection factory from a list of NATS server URLs, using {@code url} as the
-     * primary address.
-     * <p>
-     * If {@code url} contains a single server address, that address will be first in the server
-     * list, even if {@link #isNoRandomize()} is {@code false}.
-     * <p>
-     * If {@code url} is a comma-delimited list of servers, then {@code servers} will be ignored.
+     * primary address. <p> If {@code url} contains a single server address, that address will be
+     * first in the server list, even if {@link #isNoRandomize()} is {@code false}. <p> If
+     * {@code url} is a comma-delimited list of servers, then {@code servers} will be ignored.
      * 
      * @param url the default server URL to set
      * @param servers the list of cluster server URL strings
@@ -420,11 +402,11 @@ public class ConnectionFactory implements Cloneable {
     }
 
     // For unit test/mock purposes only.
-    ConnectionImpl createConnection(TCPConnection tcpconn) throws IOException, TimeoutException {
+    ConnectionImpl createConnection(TCPConnectionFactory tcf) throws IOException, TimeoutException {
         ConnectionImpl conn = null;
         Options options = options();
 
-        conn = new ConnectionImpl(options, tcpconn);
+        conn = new ConnectionImpl(options, tcf);
 
         conn.connect();
 
@@ -596,10 +578,8 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
-     * Sets the default server URL string.
-     * <p>
-     * If {@code url} is a comma-delimited list, then {@link #setServers(String)} will be invoked
-     * without setting the default server URL string.
+     * Sets the default server URL string. <p> If {@code url} is a comma-delimited list, then
+     * {@link #setServers(String)} will be invoked without setting the default server URL string.
      * 
      * @param url the URL to set
      */
@@ -743,12 +723,9 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
-     * Indicates whether server list randomization is disabled.
-     * <p>
-     * {@code true} means that the server list will be traversed in the order in which it was
-     * received
-     * <p>
-     * {@code false} means that the server list will be randomized before it is traversed
+     * Indicates whether server list randomization is disabled. <p> {@code true} means that the
+     * server list will be traversed in the order in which it was received <p> {@code false} means
+     * that the server list will be randomized before it is traversed
      * 
      * @return {@code true} if server list randomization is disabled, otherwise {@code false}
      */
@@ -784,10 +761,8 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
-     * Indicates whether {@code verbose} is set.
-     * <p>
-     * When {@code verbose==true}, the server will acknowledge each protocol line with
-     * {@code +OK or -ERR}
+     * Indicates whether {@code verbose} is set. <p> When {@code verbose==true}, the server will
+     * acknowledge each protocol line with {@code +OK or -ERR}
      * 
      * @return whether {@code verbose} is set
      */
@@ -815,9 +790,8 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
-     * Sets whether strict server-side protocol checking is enabled.
-     * <p>
-     * When {@code pedantic==true}, strict server-side protocol checking occurs.
+     * Sets whether strict server-side protocol checking is enabled. <p> When {@code pedantic==true}
+     * , strict server-side protocol checking occurs.
      * 
      * @param pedantic whether or not this connection should require strict server-side protocol
      *        checking

@@ -9,7 +9,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.junit.After;
@@ -29,7 +28,6 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -160,112 +158,112 @@ public class TLSTest {
         }
     }
 
-    @Test
-    public void testTlsReconnect() {
-        ClassLoader classLoader = getClass().getClassLoader();
-
-        try (NATSServer ns1 = util.createServerWithConfig("tls_1222.conf", true)) {
-
-            UnitTestUtilities.sleep(2000);
-
-            final char[] trustPassPhrase = "password".toCharArray();
-            final KeyStore tks = KeyStore.getInstance("JKS");
-            tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
-            final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-            assertNotNull(tmf);
-            tmf.init(tks);
-
-            SSLContext context = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
-            assertNotNull(context);
-            context.init(null, tmf.getTrustManagers(), new SecureRandom());
-
-            ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
-            cf.setMaxReconnect(10);
-            cf.setReconnectWait(100);
-            cf.setSecure(true);
-            cf.setTlsDebug(true);
-            cf.setSSLContext(context);
-
-            final Channel<Boolean> ch = new Channel<Boolean>();
-            final Channel<Boolean> dch = new Channel<Boolean>();
-
-            cf.setReconnectedCallback(new ReconnectedCallback() {
-                public void onReconnect(ConnectionEvent event) {
-                    // dch.add(true);
-                    logger.info("rcb triggered");
-                }
-            });
-
-            cf.setDisconnectedCallback(new DisconnectedCallback() {
-                public void onDisconnect(ConnectionEvent event) {
-                    dch.add(true);
-                    logger.info("dcb triggered");
-                }
-            });
-
-            String subj = "foo";
-            final String omsg = "Hello TLS!";
-            byte[] payload = omsg.getBytes();
-
-
-            try (Connection c = cf.createConnection()) {
-                logger.info("Connected");
-                UnitTestUtilities.sleep(200);
-                AsyncSubscription s = c.subscribeAsync(subj, new MessageHandler() {
-                    public void onMessage(Message msg) {
-                        String s = new String(msg.getData());
-                        if (!s.equals(omsg)) {
-                            fail("String doesn't match");
-                        }
-                        ch.add(true);
-                    }
-                });
-
-                try {
-                    c.flush();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    fail(e.getMessage());
-                }
-
-                logger.debug("Shutting down ns1");
-                ns1.shutdown();
-                // server is stopped here...
-
-                logger.debug("Waiting for disconnected callback");
-                assertTrue("Did not get the disconnected callback on time",
-                        dch.get(5, TimeUnit.SECONDS));
-
-                // UnitTestUtilities.sleep(2000);
-                logger.debug("Publishing test message");
-                c.publish(subj, payload);
-
-                // restart the server.
-                logger.debug("Spinning up ns2");
-                try (NATSServer ns2 = util.createServerWithConfig("tls_1222.conf", true)) {
-                    UnitTestUtilities.sleep(2000);
-
-                    c.setClosedCallback(null);
-                    c.setDisconnectedCallback(null);
-                    logger.debug("Flushing connection");
-                    try {
-                        c.flush(5000);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        fail(e.getMessage());
-                    }
-                    assertTrue("Did not receive our message", ch.get(5, TimeUnit.SECONDS));
-                    assertEquals("Wrong number of reconnects.", 1, c.getStats().getReconnects());
-                } // ns2
-            } // Connection
-            catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-                fail(e.getMessage());
-            }
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
+    // @Test
+    // public void testTlsReconnect() {
+    // ClassLoader classLoader = getClass().getClassLoader();
+    //
+    // try (NATSServer ns1 = util.createServerWithConfig("tls_1222.conf", true)) {
+    //
+    // UnitTestUtilities.sleep(2000);
+    //
+    // final char[] trustPassPhrase = "password".toCharArray();
+    // final KeyStore tks = KeyStore.getInstance("JKS");
+    // tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
+    // final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
+    // assertNotNull(tmf);
+    // tmf.init(tks);
+    //
+    // SSLContext context = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+    // assertNotNull(context);
+    // context.init(null, tmf.getTrustManagers(), new SecureRandom());
+    //
+    // ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
+    // cf.setMaxReconnect(10);
+    // cf.setReconnectWait(100);
+    // cf.setSecure(true);
+    // cf.setTlsDebug(true);
+    // cf.setSSLContext(context);
+    //
+    // final Channel<Boolean> ch = new Channel<Boolean>();
+    // final Channel<Boolean> dch = new Channel<Boolean>();
+    //
+    // cf.setReconnectedCallback(new ReconnectedCallback() {
+    // public void onReconnect(ConnectionEvent event) {
+    // // dch.add(true);
+    // logger.info("rcb triggered");
+    // }
+    // });
+    //
+    // cf.setDisconnectedCallback(new DisconnectedCallback() {
+    // public void onDisconnect(ConnectionEvent event) {
+    // dch.add(true);
+    // logger.info("dcb triggered");
+    // }
+    // });
+    //
+    // String subj = "foo";
+    // final String omsg = "Hello TLS!";
+    // byte[] payload = omsg.getBytes();
+    //
+    //
+    // try (Connection c = cf.createConnection()) {
+    // logger.info("Connected");
+    // UnitTestUtilities.sleep(200);
+    // AsyncSubscription s = c.subscribeAsync(subj, new MessageHandler() {
+    // public void onMessage(Message msg) {
+    // String s = new String(msg.getData());
+    // if (!s.equals(omsg)) {
+    // fail("String doesn't match");
+    // }
+    // ch.add(true);
+    // }
+    // });
+    //
+    // try {
+    // c.flush();
+    // } catch (Exception e) {
+    // e.printStackTrace();
+    // fail(e.getMessage());
+    // }
+    //
+    // logger.debug("Shutting down ns1");
+    // ns1.shutdown();
+    // // server is stopped here...
+    //
+    // logger.debug("Waiting for disconnected callback");
+    // assertTrue("Did not get the disconnected callback on time",
+    // dch.get(5, TimeUnit.SECONDS));
+    //
+    // // UnitTestUtilities.sleep(2000);
+    // logger.debug("Publishing test message");
+    // c.publish(subj, payload);
+    //
+    // // restart the server.
+    // logger.debug("Spinning up ns2");
+    // try (NATSServer ns2 = util.createServerWithConfig("tls_1222.conf", true)) {
+    // UnitTestUtilities.sleep(2000);
+    //
+    // c.setClosedCallback(null);
+    // c.setDisconnectedCallback(null);
+    // logger.debug("Flushing connection");
+    // try {
+    // c.flush(5000);
+    // } catch (Exception e) {
+    // e.printStackTrace();
+    // fail(e.getMessage());
+    // }
+    // assertTrue("Did not receive our message", ch.get(5, TimeUnit.SECONDS));
+    // assertEquals("Wrong number of reconnects.", 1, c.getStats().getReconnects());
+    // } // ns2
+    // } // Connection
+    // catch (IOException | TimeoutException e) {
+    // e.printStackTrace();
+    // fail(e.getMessage());
+    // }
+    // } catch (Exception e) {
+    // // TODO Auto-generated catch block
+    // e.printStackTrace();
+    // fail(e.getMessage());
+    // }
+    // }
 }
