@@ -1,27 +1,42 @@
+language: java
+jdk:
+- oraclejdk8
 before_install:
 - export GOPATH=$HOME/gopath
 - eval "$(GIMME_GO_VERSION=1.6 gimme)"
 - export PATH=$PATH:$GOPATH/bin
 - export JAVA_OPTS=-Xmx2g
-- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/pubring.gpg.enc
-  -out $GPG_DIR/pubring.gpg -d
-- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/secring.gpg.enc
-  -out $GPG_DIR/secring.gpg -d
+#- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/pubring.gpg.enc
+#  -out $GPG_DIR/pubring.gpg -d
+#- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/secring.gpg.enc
+#  -out $GPG_DIR/secring.gpg -d
 install:
 - go get github.com/nats-io/gnatsd
 - sudo apt-get update
 - sudo apt-get install -y gnupg
-language: java
-jdk:
-- oraclejdk8
+deploy:
+  -
+    provider: script
+    script: .travis/deploy.sh
+    on:
+      repo: nats-io/jnats
+      branch: master
+      jdk: oraclejdk8
+  -
+    provider: script
+    script: .travis/deploy.sh
+    on:
+      repo: nats-io/jnats
+      tags: true
+      jdk: oraclejdk8
 cache:
   directories:
   - "$HOME/.m2"
 after_success:
-- mvn jacoco:report coveralls:jacoco
-- if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn deploy --settings settings.xml
-  -DperformRelease=true -DskipTests=true; else echo 'Pull request, skipping deploy.';
-  fi
+#- mvn jacoco:report coveralls:jacoco
+#- if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn deploy --settings settings.xml
+#  -DperformRelease=true -DskipTests=true; else echo 'Pull request, skipping deploy.';
+#  fi
 #- if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn deploy --settings settings.xml
 #  -DperformRelease=true -DskipTests=true; mvn javadoc:javadoc scm-publish:publish-scm; else echo 'Pull request, skipping deploy.';
 #  fi
@@ -30,7 +45,7 @@ notifications:
   - larry@apcera.com
 env:
   global:
-  - GPG_DIR=${TRAVIS_BUILD_DIR}/keyrings
+  - GPG_DIR=${TRAVIS_BUILD_DIR}/.travis/keyrings
   - secure: F1pNsvz6aUIO7SoZX8aBP7RczzWO+IDUL7CafEEUkwFmfVcESr+sDauDW+sCW5otwOl+CVhfln0XhZDdSVdN3HETYjvQrZplNQMatRKMMVcDdVuKx1kqSTLFwW++qlLGJ3XeKgSZpTDHApILs9KwRuTnNooCin5k76kNfLxaF3k7o6Zu0G/ddgXl9FyBFoj0g65LoksJcuA06MczmNh6uSxEvV2fStMDp0DxZsoGgT4fF/XlRKhj/YNCSWeuW5FAOAUtPapZljvaxYES+ZJBnpsuyFHuKXFTN2t6OOgTi+KjXHYKGBuG+0RuxLImIs42+Iew0QT6JdI8EqlQJCQ6mQtb0MOuozWXA2ukBcbNP/M5Wh+XZIZPkKR+Hrgr/FTS4TOxAwGW5B0nExiMe54Bqgr6HqgJ6TuxYiBuUhSgA7pVuyRfJcderpO9ZsSiDl0PIL6Cdg0ZKfrYgTrs+63CjdEhX0KyqUG51Y0LpDaF6Pp/nX5pp40briDUJSlimUVM+9IAxFUvUE8XMsCswYUl7hDOSYMxltsb9YgwpxIKGgT+7PDxVxyfQpdomlio3FVY6N9dxyVy5/7sE3pQCo8+eKf7fMp6RnRNmWBvo/AlOAx33Odhlp756LdY+PC1CeZ/Aq2B7nNhoI5MPFhzPBhpU60ECzcTdiz4q/WqbiM//Ug=
   - secure: DWr1spGbRgymOhvfDayETqdK5zEPfCNdUfFhUWVE/l/7OBhPbvq2c7c8nudk4d4D1+cpfOXQziYMJYWxaZfkUssZ6YF7BO4QmPsoupiA9to+Yl/zp9aUhQhS378Z3ReWs1LZUwN8mqsN08VS+TjoYzz4YTKqPILZ3VbYfz62Qm4VMVb82AQpUIc5L92TveqY4CmKttrPBOeLQyIy7Ce+imzPadIDX894PKCiCHUw9HZur/COOc7wwwOhgMr0MHn+h6XDPGbNEeadIzWG7o9LSuJe+F6pA1x9TZrlz3l74Lk46jN2jDAJoU6vB/12DCaz3ZYaIK4WtOn6H78YUbnOkzF+UXfHe/z8Z59womSBTnL2/zBZv3kEp2N3kQgptuqJlP2jaO6GH6ex6+bK6BHSi5VmZ6Xg8ee6cie0CjfSZ2qLtaDlh8E0doKbN9sqpEODjDWuz7OL1PC0M8lipx7iJbpIj/uvn+cRFYgkqaeTzG3HnpwM2pd/qPAbddZHdJHzXnrSkBULJWTLpQz1bE5lISpdgTReJBovet0liB9MHAjyOlQhyB1oC2BNB1SWLnUSb5L2tMq4i7wu3YmD3EAm8c8u3PQmffDOd98/7Zm+kGUf6NchEN3GEVFR1r475MilVagGeYv+FHk2E/nMVai02kUau1qZ2ck8/B515VMI7+k=
   - secure: jG9n3fg2eXUml8uCItwlN2hliThxZH9DWKcChZv77oR0G36b2+Tvs5k9AylQUSyb9mPQ4ccwrqxkqi/+6LZB6PJ0h5SbrmOv/DaDDotQrAgNMQJeY28fcKCF280m5MKJ69Onq9g5grzdrG2SeB6OyUQN9emmAS7bvE2bycm9D55llYi3/7TitKdgpdpzqO3kYU5UXvbmDM6ZxrHSeszuOadb5cgzX+wGFAoM0GCUcsf4AXjumFEeyNWwBQbcAjh3kXQlBuJN+SMKmIWkoe3HZ+6wI3LGirTDhkya1mqK/51X5zqdX7bg1wI1z3ViIA3N+rgMI34QDf4n33cKNc6/brKJx+r5oQh31cWn3NVDnFPd3gFsjwZsXNAGqNFWrgDOZ31a95AwVW9y/7MQAymDcNKqcLlLr5OxCYebmehAyJMB+BzICiAxgMad+jNxkwRGNrg6FFzm+r4PRtunth+jtmhidMTw2j4qVxMs8oXt9gWfSEZXMC923yhwtsCFOMVdZvDHWQ0x7TC1Fo47NeS6fQKXehtjRwr3P0lRQ/vGsvnjKYLU3SSiAM1VoJe2prmDM02nCenmmZqWAVyPXdMfOMMJ4bF6hAd1g/Wph5OPnzL1aY1Uei+y9s1h6quOW75VE73Kckm+hvXjfUQIQ+MGFiYLrVmy8vLUOjTzoSZePkc=
