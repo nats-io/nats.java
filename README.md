@@ -15,7 +15,7 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 #### Releases
 
-The current stable release is 0.4.1, available on Maven Central.
+The current stable release is 0.5.0, available on Maven Central.
 Add the following dependency to your project's `pom.xml`:
 
 ```xml
@@ -24,7 +24,7 @@ Add the following dependency to your project's `pom.xml`:
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.4.1</version>
+      <version>0.5.0</version>
     </dependency>
   </dependencies>
 ```
@@ -40,7 +40,7 @@ Add the following dependency to your project's `pom.xml`.
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.5.0-SNAPSHOT</version>
+      <version>0.6.0-SNAPSHOT</version>
     </dependency>
   </dependencies>
 ```
@@ -59,9 +59,16 @@ If you don't already have your pom.xml configured for using Maven snapshots, you
 </repositories>
 ```
 #### Building from source code (this repository)
-First, download the source code:
+First, download and install the parent POM:
 ```
-git clone git@github.com:nats-io/jnats.git .
+git clone git@github.com:nats-io/nats-parent-pom.git
+cd nats-parent-pom
+mvn install
+```
+
+Second, download the source code:
+```
+git clone git@github.com:nats-io/jnats.git
 ```
 
 To build the library, use [maven](https://maven.apache.org/). From the root directory of the project:
