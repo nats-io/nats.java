@@ -73,7 +73,7 @@
         <skip.integration.tests>true</skip.integration.tests>
         <skip.unit.tests>false</skip.unit.tests>
     </properties>
-    
+
     <build>
         <plugins>
             <plugin>
@@ -174,17 +174,17 @@
                     </excludes>
                 </configuration>
                 <executions>
-                <execution>
-                     <id>default-test</id>
-                    <phase>test</phase>
-                    <goals>
-                        <goal>test</goal>
-                    </goals>
-                    <configuration>
-                        <skip>${skip.unit.tests}</skip>
-                        <groups>io.nats.client.UnitTest</groups>
-                    </configuration>
-                </execution>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skip.unit.tests}</skip>
+                            <groups>io.nats.client.UnitTest</groups>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <!-- Used for integration tests -->
@@ -212,16 +212,16 @@
                     </execution>
                 </executions>
             </plugin>
-                            <plugin>
-                    <groupId>org.eluder.coveralls</groupId>
-                    <artifactId>coveralls-maven-plugin</artifactId>
-                    <configuration>
-                        <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile>
-                        <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports>
-                        <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding>
-                    </configuration>
-                </plugin>
-            
+            <plugin>
+                <groupId>org.eluder.coveralls</groupId>
+                <artifactId>coveralls-maven-plugin</artifactId>
+                <configuration>
+                    <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile>
+                    <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports>
+                    <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 
