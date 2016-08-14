@@ -212,6 +212,16 @@
                     </execution>
                 </executions>
             </plugin>
+                            <plugin>
+                    <groupId>org.eluder.coveralls</groupId>
+                    <artifactId>coveralls-maven-plugin</artifactId>
+                    <configuration>
+                        <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile>
+                        <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports>
+                        <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding>
+                    </configuration>
+                </plugin>
+            
         </plugins>
     </build>
 
