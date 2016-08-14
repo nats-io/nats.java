@@ -14,3 +14,4 @@ else
 fi
 
 mvn clean deploy --settings .travis/settings.xml -DskipTests=true -B -U
+mvn javadoc:javadoc scm-publish:publish-scm
