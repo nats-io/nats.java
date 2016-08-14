@@ -898,6 +898,7 @@ public class ConnectionFactoryTest
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetSSLContext() {
         ConnectionFactory cf = new ConnectionFactory();
