@@ -6,14 +6,12 @@ before_install:
 - eval "$(GIMME_GO_VERSION=1.6 gimme)"
 - export PATH=$PATH:$GOPATH/bin
 - export JAVA_OPTS=-Xmx2g
-#- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/pubring.gpg.enc
-#  -out $GPG_DIR/pubring.gpg -d
-#- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/secring.gpg.enc
-#  -out $GPG_DIR/secring.gpg -d
 install:
 - go get github.com/nats-io/gnatsd
 - sudo apt-get update
 - sudo apt-get install -y gnupg
+after_success:
+- mvn coveralls:report
 deploy:
   -
     provider: script
@@ -29,17 +27,6 @@ deploy:
       repo: nats-io/jnats
       tags: true
       jdk: oraclejdk8
-cache:
-  directories:
-  - "$HOME/.m2"
-after_success:
-#- mvn jacoco:report coveralls:jacoco
-#- if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn deploy --settings settings.xml
-#  -DperformRelease=true -DskipTests=true; else echo 'Pull request, skipping deploy.';
-#  fi
-#- if [[ "$TRAVIS_PULL_REQUEST" = "false" ]]; then mvn deploy --settings settings.xml
-#  -DperformRelease=true -DskipTests=true; mvn javadoc:javadoc scm-publish:publish-scm; else echo 'Pull request, skipping deploy.';
-#  fi
 notifications:
   email:
   - larry@apcera.com
