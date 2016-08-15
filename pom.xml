@@ -218,25 +218,20 @@
                 <artifactId>coveralls-maven-plugin</artifactId>
                 <configuration>
                     <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile>
-                    <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports>
+                    <jacocoReports>
+                        <param>
+                            ${project.reporting.outputDirectory}/jacoco-ut/jacoco.xml
+                        </param>
+                    </jacocoReports>
                     <coverageFile>${jacoco.ut.execution.data.file}</coverageFile>
                     <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding>
                 </configuration>
-<!--                 <executions>
-                    <execution>
-                        <id>travis-after-success</id>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                        <configuration>
-                            <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile>
-                            <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports>
-                            <coverageFile>${jacoco.ut.execution.data.file}</coverageFile>
-                            <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding>
-                        </configuration>
-                    </execution>
-                </executions>
- -->            </plugin>
+                <!-- <executions> <execution> <id>travis-after-success</id> 
+                    <goals> <goal>report</goal> </goals> <configuration> <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile> 
+                    <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports> <coverageFile>${jacoco.ut.execution.data.file}</coverageFile> 
+                    <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding> </configuration> 
+                    </execution> </executions> -->
+            </plugin>
         </plugins>
     </build>
 
