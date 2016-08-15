@@ -218,10 +218,24 @@
                 <configuration>
                     <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile>
                     <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports>
+                    <coverageFile>${jacoco.ut.execution.data.file}</coverageFile>
                     <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>travis-after-success</id>
+                        <goals>
+                            <goal>jacoco</goal>
+                        </goals>
+                        <configuration>
+                            <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile>
+                            <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports>
+                            <coverageFile>${jacoco.ut.execution.data.file}</coverageFile>
+                            <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
-
         </plugins>
     </build>
 
