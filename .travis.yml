@@ -15,7 +15,7 @@ install:
 - sudo apt-get update
 - sudo apt-get install -y gnupg
 after_success:
-- mvn jacoco:report coveralls:jacoco
+- mvn coveralls:jacoco
 deploy:
   -
     provider: script
