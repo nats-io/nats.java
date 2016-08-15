@@ -6,10 +6,6 @@ before_install:
 - eval "$(GIMME_GO_VERSION=1.6 gimme)"
 - export PATH=$PATH:$GOPATH/bin
 - export JAVA_OPTS=-Xmx2g
-#- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/pubring.gpg.enc
-#  -out $GPG_DIR/pubring.gpg -d
-#- openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/secring.gpg.enc
-#  -out $GPG_DIR/secring.gpg -d
 install:
 - go get github.com/nats-io/gnatsd
 - sudo apt-get update
@@ -31,9 +27,6 @@ deploy:
       repo: nats-io/jnats
       tags: true
       jdk: oraclejdk8
-cache:
-  directories:
-  - "$HOME/.m2"
 notifications:
   email:
   - larry@apcera.com
