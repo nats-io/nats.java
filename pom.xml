@@ -222,7 +222,7 @@
                     <coverageFile>${jacoco.ut.execution.data.file}</coverageFile>
                     <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding>
                 </configuration>
-                <executions>
+<!--                 <executions>
                     <execution>
                         <id>travis-after-success</id>
                         <goals>
@@ -236,7 +236,7 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
+ -->            </plugin>
         </plugins>
     </build>
 
