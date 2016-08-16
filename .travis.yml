@@ -15,6 +15,7 @@ after_success:
 deploy:
   -
     provider: script
+    skip_cleanup: true
     script: .travis/deploy.sh
     on:
       repo: nats-io/jnats
@@ -22,6 +23,7 @@ deploy:
       jdk: oraclejdk8
   -
     provider: script
+    skip_cleanup: true
     script: .travis/deploy.sh
     on:
       repo: nats-io/jnats
