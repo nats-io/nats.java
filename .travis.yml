@@ -2,7 +2,7 @@ language: java
 jdk:
 - oraclejdk8
 before_install:
-- echo "MAVEN_OPTS='-Xmx2g'" > ~/.mavenrc
+- echo "MAVEN_OPTS='-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1'" > ~/.mavenrc
 - export GOPATH=$HOME/gopath
 - eval "$(GIMME_GO_VERSION=1.6 gimme)"
 - export PATH=$PATH:$GOPATH/bin
@@ -10,7 +10,7 @@ install:
 - sudo apt-get -qq update
 - go get github.com/nats-io/gnatsd
 - sudo apt-get install -y gnupg
-- mvn --settings .travis/settings.xml install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+#- mvn --settings .travis/settings.xml install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 script:
 - mvn --settings .travis/settings.xml test -B
 after_success:
