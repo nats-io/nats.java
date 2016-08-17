@@ -2,11 +2,10 @@ language: java
 jdk:
 - oraclejdk8
 before_install:
+- echo "MAVEN_OPTS='-Xmx2g -XX:MaxPermSize=512m'" > ~/.mavenrc
 - export GOPATH=$HOME/gopath
 - eval "$(GIMME_GO_VERSION=1.6 gimme)"
 - export PATH=$PATH:$GOPATH/bin
-- export JAVA_OPTS=-Xmx2g
-- export MAVEN_OPTS="-Xmx512m"
 install:
 - sudo apt-get -qq update
 - go get github.com/nats-io/gnatsd
