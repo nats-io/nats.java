@@ -10,4 +10,12 @@
             <password>${env.SONATYPE_PASSWORD}</password>
         </server>
     </servers>
+    <mirrors>
+        <mirror>
+            <id>RIP Codehaus</id>
+            <mirrorOf>codehaus.org</mirrorOf>
+            <name>Codehaus.org repo is now in Central. R.I.P.</name>
+            <url>http://repo.maven.apache.org/maven2</url>
+        </mirror>
+    </mirrors>
 </settings>

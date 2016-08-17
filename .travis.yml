@@ -2,16 +2,22 @@ language: java
 jdk:
 - oraclejdk8
 before_install:
+- echo "MAVEN_OPTS='-Xmx2g'" > ~/.mavenrc
 - export GOPATH=$HOME/gopath
 - eval "$(GIMME_GO_VERSION=1.6 gimme)"
 - export PATH=$PATH:$GOPATH/bin
-- export JAVA_OPTS=-Xmx2g
 install:
+- sudo apt-get -qq update
 - go get github.com/nats-io/gnatsd
-- sudo apt-get update
 - sudo apt-get install -y gnupg
+- mvn --settings .travis/settings.xml install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+script:
+- mvn --settings .travis/settings.xml test -B
 after_success:
-- mvn coveralls:report
+- mvn --settings .travis/settings.xml coveralls:report
+cache:
+  directories:
+  - $HOME/.m2
 deploy:
   -
     provider: script

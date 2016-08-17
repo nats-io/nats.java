@@ -37,7 +37,7 @@
 
     <scm>
         <url>https://github.com/nats-io/jnats</url>
-        <connection>scm:git:git://github.com/nats-io/jnats.git</connection>
+        <connection>scm:git:https://github.com/nats-io/jnats.git</connection>
         <developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
