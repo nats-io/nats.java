@@ -10,6 +10,7 @@ install:
 - go get github.com/nats-io/gnatsd
 - sudo apt-get update
 - sudo apt-get install -y gnupg
+- mvn install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
 after_success:
 - mvn coveralls:report
 cache:
