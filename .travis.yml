@@ -1,23 +1,22 @@
 language: java
 jdk:
-- oraclejdk8
+  - oraclejdk8
 before_install:
-- echo "MAVEN_OPTS='-Xmx2g'" > ~/.mavenrc
-- export GOPATH=$HOME/gopath
-- eval "$(GIMME_GO_VERSION=1.6 gimme)"
-- export PATH=$PATH:$GOPATH/bin
+  - echo "MAVEN_OPTS='-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1'" > ~/.mavenrc
+  - export GOPATH=$HOME/gopath
+  - eval "$(GIMME_GO_VERSION=1.6 gimme)"
+  - export PATH=$PATH:$GOPATH/bin
 install:
-- sudo apt-get -qq update
-- go get github.com/nats-io/gnatsd
-- sudo apt-get install -y gnupg
-- mvn --settings .travis/settings.xml install -DskipTests=true -Dmaven.javadoc.skip=true -B -V
+  - sudo apt-get -qq update
+  - go get github.com/nats-io/gnatsd
+  - sudo apt-get install -y gnupg
 script:
-- mvn --settings .travis/settings.xml test -B
+  - mvn --settings .travis/settings.xml clean verify
 after_success:
-- mvn --settings .travis/settings.xml coveralls:report
+  - mvn --settings .travis/settings.xml coveralls:report
 cache:
   directories:
-  - $HOME/.m2
+    - $HOME/.m2
 deploy:
   -
     provider: script
@@ -37,7 +36,7 @@ deploy:
       jdk: oraclejdk8
 notifications:
   email:
-  - larry@apcera.com
+    - larry@apcera.com
 env:
   global:
   - GPG_DIR=${TRAVIS_BUILD_DIR}/.travis/keyrings
