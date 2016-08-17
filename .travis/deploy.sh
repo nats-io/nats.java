@@ -13,5 +13,5 @@ else
     echo "not on a tag -> keep snapshot version in pom.xml"
 fi
 
-mvn deploy --settings .travis/settings.xml -DskipTests=true -B -U
-mvn javadoc:javadoc scm-publish:publish-scm
+mvn --settings .travis/settings.xml -B -U -Dmaven.test.skip=true clean package deploy:deploy
+mvn --settings .travis/settings.xml javadoc:javadoc scm-publish:publish-scm
