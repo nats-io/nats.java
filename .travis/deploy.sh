@@ -14,4 +14,10 @@ else
 fi
 
 mvn --settings .travis/settings.xml -B -U -Dmaven.test.skip=true clean package deploy:deploy
+#
+# Publish the latest javadoc to gh-pages using the maven-scm-publish-plugin
+#
+git config --global user.email "travis@travis-ci.org"
+git config --global user.name "travis-ci"
+
 mvn --settings .travis/settings.xml javadoc:javadoc scm-publish:publish-scm
