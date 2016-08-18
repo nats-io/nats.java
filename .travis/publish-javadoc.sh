@@ -27,7 +27,7 @@ git config credential.helper "store --file=.git/credentials"
 echo "https://${GITHUB_TOKEN}:@github.com" > .git/credentials
 
 # Set URL back to ssh so the push will work
-git remote set-url ssh://git@github.com/nats-io/jnats.git
+git remote set-url origin ssh://git@github.com/nats-io/jnats.git
 
 git rm -rf .
 (cd ${TARG}/apidocs; tar cf - .) | tar xf -
