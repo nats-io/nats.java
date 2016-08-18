@@ -8,9 +8,6 @@ set -o errexit
 git config --global user.email "travis@travis-ci.org"
 git config --global user.name "travis-ci"
 
-# Set git credentials for https clone and push
-git config credential.helper "store --file=.git/credentials"
-echo "https://${GH_TOKEN}:@github.com" > .git/credentials
 
 # Get to the Travis build directory, configure git and clone the repo
 export TARG=${TRAVIS_BUILD_DIR}/target
@@ -24,6 +21,11 @@ git clone --quiet --branch=gh-pages https://github.com/nats-io/jnats.git gh-page
 
 # Copy javadoc, Commit and Push the Changes
 cd gh-pages
+
+# Set git credentials for https clone and push
+git config credential.helper "store --file=.git/credentials"
+echo "https://${GH_TOKEN}:@github.com" > .git/credentials
+
 git rm -rf .
 (cd ${TARG}/apidocs; tar cf - .) | tar xf -
 git add -f .
