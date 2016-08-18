@@ -5,12 +5,22 @@ set -o errexit
 # Get to the Travis build directory, configure git and clone the repo
 export TARG=${TRAVIS_BUILD_DIR}/target
 cd ${TARG}
+
+#
+# Setup git parameters
+#
 git config --global user.email "travis@travis-ci.org"
 git config --global user.name "travis-ci"
+git config --global github.user "mcqueary"
+git config --global github.token ${GITHUB_TOKEN}
+git config --global credential.helper cache
 
-git clone --quiet --branch=gh-pages https://mcqueary:${GITHUB_TOKEN}@github.com/nats-io/jnats.git gh-pages > /dev/null
+#
+# Clone gh-pages branch
+#
+git clone --quiet --branch=gh-pages https://github.com/nats-io/jnats.git gh-pages > /dev/null
 
-# Commit and Push the Changes
+# Copy javadoc, Commit and Push the Changes
 cd gh-pages
 git rm -rf .
 (cd ${TARG}/apidocs; tar cf - .) | tar xf -
