@@ -8,7 +8,7 @@ cd ${TARG}
 git config --global user.email "travis@travis-ci.org"
 git config --global user.name "travis-ci"
 
-git clone --quiet --branch=gh-pages https://`whoami`:${GITHUB_TOKEN}@github.com/nats-io/jnats.git gh-pages > /dev/null
+git clone --quiet --branch=gh-pages https://mcqueary:${GITHUB_TOKEN}@github.com/nats-io/jnats.git gh-pages > /dev/null
 
 # Commit and Push the Changes
 cd gh-pages
