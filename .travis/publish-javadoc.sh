@@ -2,18 +2,19 @@
 
 set -o errexit
 
-# Get to the Travis build directory, configure git and clone the repo
-export TARG=${TRAVIS_BUILD_DIR}/target
-cd ${TARG}
-
 #
 # Setup git parameters
 #
 git config --global user.email "travis@travis-ci.org"
 git config --global user.name "travis-ci"
-git config --global github.user "mcqueary"
-git config --global github.token ${GITHUB_TOKEN}
-git config --global credential.helper cache
+
+# Set git credentials for https clone and push
+git config credential.helper "store --file=.git/credentials"
+echo "https://${GH_TOKEN}:@github.com" > .git/credentials
+
+# Get to the Travis build directory, configure git and clone the repo
+export TARG=${TRAVIS_BUILD_DIR}/target
+cd ${TARG}
 
 #
 # Clone gh-pages branch
