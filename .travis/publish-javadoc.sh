@@ -24,7 +24,7 @@ cd gh-pages
 
 # Set git credentials for https clone and push
 git config credential.helper "store --file=.git/credentials"
-echo "https://${GH_TOKEN}:@github.com" > .git/credentials
+echo "https://${GITHUB_TOKEN}:@github.com" > .git/credentials
 
 git rm -rf .
 (cd ${TARG}/apidocs; tar cf - .) | tar xf -
