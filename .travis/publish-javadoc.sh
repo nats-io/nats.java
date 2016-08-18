@@ -29,6 +29,8 @@ git rm -rf .
 git add -f .
 git commit -m "Latest javadoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
 git config -l
+echo "Credentials:"
+cat .git/credentials
 #git push -fq origin gh-pages > /dev/null
-git push -fq origin gh-pages -v
+git push -f origin gh-pages -v
 echo "Latest javadoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
