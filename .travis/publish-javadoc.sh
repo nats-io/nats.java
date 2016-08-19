@@ -31,10 +31,7 @@ git rm -rf .
 git add -f .
 git commit -m "Latest javadoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
 
-git config -l
-
 git remote add pages ssh://git@github.com/nats-io/jnats.git
-#git push -fq pages gh-pages > /dev/null
-git push -f pages gh-pages -v
+git push -fq pages gh-pages > /dev/null
 
 echo "Latest javadoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
