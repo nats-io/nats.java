@@ -61,6 +61,13 @@ public class ServerInfoTest {
         String outputString = info.toString();
 
         assertNotEquals(inputString, outputString);
+
+        inputString =
+                "INFO {\"server_id\":\"W2v6Vo9KOOq4Ujc5lKL0Sx\",\"version\":\"0.9.4\",\"go\":\"go1.6.3\",\"host\":\"10.21.2.87\",\"port\":4222,\"auth_required\":false,\"ssl_required\":false,\"tls_required\":false,\"tls_verify\":false,\"max_payload\":1048576,\"connect_urls\":[\"10.21.2.95:4222\",\"10.21.2.105:4222\"]}";
+        info = new ServerInfo(inputString);
+        outputString = info.toString();
+
+        assertNotEquals(inputString, outputString);
     }
 
 
