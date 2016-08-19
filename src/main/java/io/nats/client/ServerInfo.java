@@ -31,6 +31,11 @@ class ServerInfo {
             // do nothing
         }
 
+        /* ignore connect_urls for now */
+        if (jsonString.contains("\"connect_urls\":")) {
+            jsonString = jsonString.replaceFirst(",\"connect_urls\":\\[.*\\]", "");
+        }
+
         String[] kvPairs = jsonString.split(",");
         for (String pair : kvPairs)
             addKVPair(pair);
