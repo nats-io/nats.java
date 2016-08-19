@@ -2,6 +2,10 @@
 
 set -o errexit
 
+eval "$(ssh-agent -s)" #start the ssh agent
+chmod 600 .travis/keyrings/deploy_key.pem # this key should have push access
+ssh-add .travis/keyrings/deploy_key.pem
+
 #
 # Setup git parameters
 #
@@ -22,20 +26,15 @@ git clone --quiet --branch=gh-pages https://github.com/nats-io/jnats.git gh-page
 # Copy javadoc, Commit and Push the Changes
 cd gh-pages
 
-# Set git credentials for https clone and push
-git config credential.helper "store --file=.git/credentials"
-echo "https://${GITHUB_TOKEN}:@github.com" > .git/credentials
-
-# Set URL back to ssh so the push will work
-git remote set-url origin ssh://git@github.com/nats-io/jnats.git
-
 git rm -rf .
 (cd ${TARG}/apidocs; tar cf - .) | tar xf -
 git add -f .
 git commit -m "Latest javadoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
+
 git config -l
-echo "Credentials:"
-cat .git/credentials
-#git push -fq origin gh-pages > /dev/null
-git push -f origin gh-pages -v
+
+git remote add pages ssh://git@github.com/nats-io/jnats.git
+#git push -fq pages gh-pages > /dev/null
+git push -f pages gh-pages -v
+
 echo "Latest javadoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
