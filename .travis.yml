@@ -2,6 +2,8 @@ language: java
 jdk:
 - oraclejdk8
 before_install:
+- openssl aes-256-cbc -K $encrypted_d472159ded8f_key -iv $encrypted_d472159ded8f_iv
+  -in .travis/keyrings/deploy_key.pem.enc -out .travis/keyrings/deploy_key.pem -d
 - echo "MAVEN_OPTS='-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1'" > ~/.mavenrc
 - export GOPATH=$HOME/gopath
 - eval "$(GIMME_GO_VERSION=1.6 gimme)"
