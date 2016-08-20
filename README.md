@@ -24,7 +24,7 @@ Add the following dependency to your project's `pom.xml`:
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.3.1</version>
+      <version>0.3.2</version>
     </dependency>
   </dependencies>
 ```
@@ -40,7 +40,7 @@ Add the following dependency to your project's `pom.xml`.
     <dependency>
       <groupId>io.nats</groupId>
       <artifactId>jnats</artifactId>
-      <version>0.4-SNAPSHOT</version>
+      <version>0.3.3-SNAPSHOT</version>
     </dependency>
   </dependencies>
 ```
