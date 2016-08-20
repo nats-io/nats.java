@@ -15,7 +15,7 @@ Documentation (javadoc) is [here](http://nats-io.github.io/jnats).
 
 #### Releases
 
-The current stable release is 0.3.1, available on Maven Central.
+The current stable release is 0.3.2, available on Maven Central.
 Add the following dependency to your project's `pom.xml`:
 
 ```xml
