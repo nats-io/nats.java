@@ -2,8 +2,7 @@
     and the accompanying materials are made available under the terms of the 
     MIT License (MIT) which accompanies this distribution, and is available at 
     http://opensource.org/licenses/MIT -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -14,7 +13,7 @@
 
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>0.5.1-SNAPSHOT</version>
+    <version>0.5.1</version>
     <packaging>bundle</packaging>
 
     <name>jnats</name>
@@ -39,7 +38,7 @@
         <url>https://github.com/nats-io/jnats</url>
         <connection>scm:git:https://github.com/nats-io/jnats.git</connection>
         <developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>jnats-0.5.1</tag>
     </scm>
     <issueManagement>
         <url>https://github.com/nats-io/jnats/issues/</url>
