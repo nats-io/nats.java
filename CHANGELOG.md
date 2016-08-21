@@ -1,10 +1,18 @@
 Change Log
 ==========
 
-## Version 0.5.1
-_2016-08-20_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.4.1...jnats-0.5.1)
- * Reverted to Java 1.7 compatibility to avoid Android incompatibility
+## Version 0.5.1 (DRAFT)
+_2016-08-20_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.5.0...jnats-0.5.1)
  * Fixed a problem with gnatsd 0.9.2 `connect_urls` breaking the client connect sequence. This field is now ignored.
+ * Retooled the way that releases are shipped from Travis CI, using the `deploy:` clause and new scripts
+
+## Version 0.3.2
+_2016-08-20_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.3.1...jnats-0.3.2)
+ * Fixed a problem parsing Long from String on Android.
+
+## Version 0.5.0
+_2016-08-10_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.4.1...jnats-0.5.0)
+ * Reverted to Java 1.7 compatibility to avoid Android incompatibility
  * Fixed an issue that was preventing TLS connections from reconnecting automatically.
  * Fixed an issue with asynchronous subscriptions not terminating their feeder thread.
  * Exposed pending limits APIs
@@ -13,7 +21,6 @@ _2016-08-20_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.4.1
  * Integrated Checkstyle
  * Integrated maven-bundle-plugin to provide OSGI compliant jnats bundle
  * Miscellaneous minor bug fixes and javadoc updates
- 
 ## Version 0.4.1
 _2016-04-03  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.4.0...jnats-0.4.1)
 
