@@ -23,14 +23,31 @@ _2016-08-10_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.4.1
  * Miscellaneous minor bug fixes and javadoc updates
 ## Version 0.4.1
 _2016-04-03  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.4.0...jnats-0.4.1)
+ * Removed a stray log trace statement in publish that was affecting performance.
 
 ## Version 0.4.0
 _2016-03-29_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.3.1...jnats-0.4.0)
+ * Built on JDK 8
+ * Added NUID (a java implementation of http://github.com/nats-io/nuid), an entropy-friendly UUID generator that operates ~40ns per op
+ * Connection#newInbox() now uses NUID to generate the unique portion of the inbox name
+ * Added support for pending byte/msg limits for subscriptions:
+ * Subscription#setPendingLimits(int msgs, int bytes)
+ * Made the size of the Connection reconnect (pending) buffer configurable with ConnectionFactory setters and getters
+ * Optimized parser performance
+ * Optimized parser handling of large message payloads
+ * ConnectionFactory will now construct a default URL by combining supplied host, port, user, and password if no URL is directly supplied.
+ * Fixed a couple of issues with misnamed properties
+ * Miscellaneous doc corrections/updates
 
 
 ## Version 0.3.1
-_2016-01-18  [GitHub Diff](https://github.com/nats-io/jnats/compare/v0.2.0-alpha...jnats-0.3.1)
+_2016-01-18
 
+_Initial public release of jnats, now available on Maven Central._
 
-## Version 0.2.0-alpha
-_2015-11-19_ 
+ * Added support for TLS v1.2
+ * Numerous performance improvements
+ * The DisconnectedEventHandler, ReconnectedEventHandler and ClosedEventHandler classes from the Alpha release have been renamed to DisconnectedCallback, ReconnectedCallback and ClosedCallback, respectively.
+ * Travis CI integration
+ * Coveralls.io support
+ * Increased test coverage
