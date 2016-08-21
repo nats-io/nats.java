@@ -1,8 +1,8 @@
 Change Log
 ==========
 
-## Version 0.5.1 (DRAFT)
-_2016-08-20_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.5.0...jnats-0.5.1)
+## Version 0.5.1
+_2016-08-21_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.5.0...jnats-0.5.1)
  * Fixed a problem with gnatsd 0.9.2 `connect_urls` breaking the client connect sequence. This field is now ignored.
  * Retooled the way that releases are shipped from Travis CI, using the `deploy:` clause and new scripts
 
