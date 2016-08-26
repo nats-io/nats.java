@@ -189,7 +189,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>${maven-surefire-plugin-version}</version>
                 <executions>
                     <!-- Ensures that both integration-test and verify goals 
                         of the Failsafe Maven plugin are executed. -->
