@@ -13,6 +13,6 @@ else
     echo "not on a tag -> keep snapshot version in pom.xml"
 fi
 
-mvn deploy --settings .travis/settings.xml -Pnats-release -Dmaven.test.skip=true -B
+mvn deploy --settings .travis/settings.xml -Pnats-release -Dskip.unit.tests=true -B
 
 ${TRAVIS_BUILD_DIR}/.travis/publish-javadoc.sh
