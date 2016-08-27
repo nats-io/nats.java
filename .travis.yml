@@ -11,9 +11,8 @@ before_install:
 install:
 #- sudo apt-get -qq update
 - sudo apt-get install -y gnupg2
-- mvn --settings .travis/settings.xml clean install -Dmaven.test.skip=true
 script:
-- mvn --settings .travis/settings.xml -U clean install dependency:purge-local-repository
+- mvn --settings .travis/settings.xml clean verify
 after_success:
 - mvn --settings .travis/settings.xml coveralls:report
 cache:
