@@ -12,6 +12,7 @@ install:
 #- sudo apt-get -qq update
 - go get github.com/nats-io/gnatsd
 - sudo apt-get install -y gnupg2
+- mvn --settings .travis/settings.xml clean install -Dmaven.test.skip=true
 script:
 - mvn --settings .travis/settings.xml -U clean install dependency:purge-local-repository
 after_success:
