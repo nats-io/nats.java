@@ -92,7 +92,7 @@
         <!-- Only unit tests are run by default. -->
         <skip.integration.tests>true</skip.integration.tests>
         <skip.unit.tests>false</skip.unit.tests>
-		<gnatsd.version>0.9.4</gnatsd.version>
+        <gnatsd.version>0.9.4</gnatsd.version>
     </properties>
 
     <build>
@@ -110,13 +110,15 @@
                                     src="https://github.com/nats-io/gnatsd/releases/download/v${gnatsd.version}/gnatsd-v${gnatsd.version}-linux-amd64.zip"
                                     dest="${project.build.directory}"
                                     skipexisting="true" />
-                                    quiet="true"
+                                quiet="true"
                                 <unzip
                                     src="${project.build.directory}/gnatsd-v${gnatsd.version}-linux-amd64.zip"
                                     dest="${project.build.directory}" />
                                 <move
                                     file="${project.build.directory}/gnatsd-v${gnatsd.version}-linux-amd64/gnatsd"
                                     tofile="${project.build.directory}/gnatsd" />
+                                <chmod perm="+x"
+                                    file="${project.build.directory}/gnatsd" />
                             </target>
                         </configuration>
                         <goals>
