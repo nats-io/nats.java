@@ -13,7 +13,7 @@ install:
 - go get github.com/nats-io/gnatsd
 - sudo apt-get install -y gnupg2
 script:
-- mvn --settings .travis/settings.xml clean verify -U
+- mvn --settings .travis/settings.xml -U clean install dependency:purge-local-repository
 after_success:
 - mvn --settings .travis/settings.xml coveralls:report
 cache:
