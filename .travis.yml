@@ -9,11 +9,11 @@ before_install:
 - eval "$(GIMME_GO_VERSION=1.6 gimme)"
 - export PATH=$PATH:$GOPATH/bin
 install:
-- sudo apt-get -qq update
+#- sudo apt-get -qq update
 - go get github.com/nats-io/gnatsd
-- sudo apt-get install -y gnupg
+- sudo apt-get install -y gnupg2
 script:
-- mvn --settings .travis/settings.xml clean verify
+- mvn --settings .travis/settings.xml clean verify -U
 after_success:
 - mvn --settings .travis/settings.xml coveralls:report
 cache:
