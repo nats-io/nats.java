@@ -4,13 +4,12 @@ jdk:
 before_install:
 - openssl aes-256-cbc -K $encrypted_d472159ded8f_key -iv $encrypted_d472159ded8f_iv
   -in .travis/keyrings/deploy_key.pem.enc -out .travis/keyrings/deploy_key.pem -d
+- wget https://github.com/nats-io/nats-streaming-server/releases/download/v0.2.2/nats-streaming-server-linux-amd64.zip -q
+- unzip nats-streaming-server-linux-amd64.zip
+- export PATH=$PATH:${TRAVIS_BUILD_DIR}/nats-streaming-server-linux-amd64
 - echo "MAVEN_OPTS='-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1'" > ~/.mavenrc
-- export GOPATH=$HOME/gopath
-- eval "$(GIMME_GO_VERSION=1.6 gimme)"
-- export PATH=$PATH:$GOPATH/bin
 install:
 #- sudo apt-get -qq update
-- go get github.com/nats-io/gnatsd
 - sudo apt-get install -y gnupg2
 - mvn --settings .travis/settings.xml clean install -Dmaven.test.skip=true
 script:
