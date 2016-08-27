@@ -4,12 +4,9 @@ jdk:
 before_install:
 - openssl aes-256-cbc -K $encrypted_d472159ded8f_key -iv $encrypted_d472159ded8f_iv
   -in .travis/keyrings/deploy_key.pem.enc -out .travis/keyrings/deploy_key.pem -d
-- wget https://github.com/nats-io/gnatsd/releases/download/v0.9.4/gnatsd-v0.9.4-linux-amd64.zip -q
-- unzip gnatsd-v0.9.4-linux-amd64.zip
-- export PATH=$PATH:${TRAVIS_BUILD_DIR}/gnatsd-v0.9.4-linux-amd64
+- export PATH=$PATH:${TRAVIS_BUILD_DIR}/target
 - echo "MAVEN_OPTS='-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1'" > ~/.mavenrc
 install:
-#- sudo apt-get -qq update
 - sudo apt-get install -y gnupg2
 script:
 - mvn --settings .travis/settings.xml clean verify

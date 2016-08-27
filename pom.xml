@@ -92,10 +92,39 @@
         <!-- Only unit tests are run by default. -->
         <skip.integration.tests>true</skip.integration.tests>
         <skip.unit.tests>false</skip.unit.tests>
+		<gnatsd.version>0.9.4</gnatsd.version>
     </properties>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare</id>
+                        <phase>initialize</phase>
+                        <configuration>
+                            <target>
+                                <get
+                                    src="https://github.com/nats-io/gnatsd/releases/download/v${gnatsd.version}/gnatsd-v${gnatsd.version}-linux-amd64.zip"
+                                    dest="${project.build.directory}"
+                                    skipexisting="true" />
+                                    quiet="true"
+                                <unzip
+                                    src="${project.build.directory}/gnatsd-v${gnatsd.version}-linux-amd64.zip"
+                                    dest="${project.build.directory}" />
+                                <move
+                                    file="${project.build.directory}/gnatsd-v${gnatsd.version}-linux-amd64/gnatsd"
+                                    tofile="${project.build.directory}/gnatsd" />
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <!-- This plugin takes care of packaging the artifact as 
                     an OSGi Bundle -->
