@@ -103,13 +103,9 @@
                 <executions>
                     <execution>
                         <id>prepare</id>
-                        <phase>initialize</phase>
+                        <phase>generate-test-resources</phase>
                         <configuration>
                             <target>
-                                <echo
-                                    message="os.name: ${os.name}" />
-                                <echo
-                                    message="os.family: ${os.family}" />
                                 <echo
                                     message="Downloading gnatsd-v${gnatsd.version} for ${nats.os}-${nats.arch} os.family: ${os.family}..." />
                                 <get
