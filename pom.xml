@@ -107,16 +107,16 @@
                         <configuration>
                             <target>
                                 <echo
-                                    message="Downloading gnatsd-v${gnatsd.version}..." />
+                                    message="Downloading gnatsd-v${gnatsd.version} for ${nats.arch}..." />
                                 <get
-                                    src="https://github.com/nats-io/gnatsd/releases/download/v${gnatsd.version}/gnatsd-v${gnatsd.version}-linux-amd64.zip"
+                                    src="https://github.com/nats-io/gnatsd/releases/download/v${gnatsd.version}/gnatsd-v${gnatsd.version}-${nats.os}-${nats.arch}.zip"
                                     dest="${project.build.directory}"
                                     skipexisting="true" />
                                 <unzip
-                                    src="${project.build.directory}/gnatsd-v${gnatsd.version}-linux-amd64.zip"
+                                    src="${project.build.directory}/gnatsd-v${gnatsd.version}-${nats.os}-${nats.arch}.zip"
                                     dest="${project.build.directory}" />
                                 <move
-                                    file="${project.build.directory}/gnatsd-v${gnatsd.version}-linux-amd64/gnatsd"
+                                    file="${project.build.directory}/gnatsd-v${gnatsd.version}-${nats.os}-${nats.arch}/gnatsd"
                                     tofile="${project.build.directory}/gnatsd" />
                                 <chmod perm="+x"
                                     file="${project.build.directory}/gnatsd" />
