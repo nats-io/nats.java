@@ -107,7 +107,11 @@
                         <configuration>
                             <target>
                                 <echo
-                                    message="Downloading gnatsd-v${gnatsd.version} for ${nats.arch}..." />
+                                    message="os.name: ${os.name}" />
+                                <echo
+                                    message="os.family: ${os.family}" />
+                                <echo
+                                    message="Downloading gnatsd-v${gnatsd.version} for ${nats.os}-${nats.arch} os.family: ${os.family}..." />
                                 <get
                                     src="https://github.com/nats-io/gnatsd/releases/download/v${gnatsd.version}/gnatsd-v${gnatsd.version}-${nats.os}-${nats.arch}.zip"
                                     dest="${project.build.directory}"
