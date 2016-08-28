@@ -106,11 +106,12 @@
                         <phase>initialize</phase>
                         <configuration>
                             <target>
+                                <echo
+                                    message="Downloading gnatsd-v${gnatsd.version}..." />
                                 <get
                                     src="https://github.com/nats-io/gnatsd/releases/download/v${gnatsd.version}/gnatsd-v${gnatsd.version}-linux-amd64.zip"
                                     dest="${project.build.directory}"
                                     skipexisting="true" />
-                                quiet="true"
                                 <unzip
                                     src="${project.build.directory}/gnatsd-v${gnatsd.version}-linux-amd64.zip"
                                     dest="${project.build.directory}" />

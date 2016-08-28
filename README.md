@@ -9,6 +9,7 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Javadoc](http://javadoc-badge.appspot.com/io.nats/jnats.svg?label=javadoc)](http://nats-io.github.io/jnats)
 
 [![Dependency Status](https://www.versioneye.com/user/projects/57c07fac968d640039516937/badge.svg?style=flat-square)](https://www.versioneye.com/user/projects/57c07fac968d640039516937)
+[![Reference Status](https://www.versioneye.com/java/io.nats:jnats/reference_badge.svg?style=flat-square)](https://www.versioneye.com/java/io.nats:jnats/references)
 
 ## Installation
 
