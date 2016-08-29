@@ -105,6 +105,16 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/nats_checksyle.xml</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-antrun-plugin</artifactId>
                 <configuration>
                 </configuration>
@@ -122,13 +132,12 @@
                                         filepath="${project.build.directory}"
                                         type="file" />
                                 </condition>
-                                <echo if:true="${server.installed}" 
+                                <echo if:true="${server.installed}"
                                     message="${server.exec.name} is already installed. Skipping download..." />
                                 <echo unless:true="${server.installed}"
                                     message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
                                 <get unless:true="${server.installed}"
-                                    src="${server.exec.pkg.url}"
-                                    dest="${project.build.directory}"
+                                    src="${server.exec.pkg.url}" dest="${project.build.directory}"
                                     skipexisting="true" />
                                 <unzip unless:true="${server.installed}"
                                     src="${project.build.directory}/${server.exec.pkg}.zip"
