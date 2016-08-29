@@ -122,13 +122,12 @@
                                         filepath="${project.build.directory}"
                                         type="file" />
                                 </condition>
-                                <echo if:true="${server.installed}" 
+                                <echo if:true="${server.installed}"
                                     message="${server.exec.name} is already installed. Skipping download..." />
                                 <echo unless:true="${server.installed}"
                                     message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
                                 <get unless:true="${server.installed}"
-                                    src="${server.exec.pkg.url}"
-                                    dest="${project.build.directory}"
+                                    src="${server.exec.pkg.url}" dest="${project.build.directory}"
                                     skipexisting="true" />
                                 <unzip unless:true="${server.installed}"
                                     src="${project.build.directory}/${server.exec.pkg}.zip"
@@ -279,6 +278,7 @@
                             <!-- Skips integration tests if the value of 
                                 skip.integration.tests property is true -->
                             <skipTests>${skip.integration.tests}</skipTests>
+                            <groups>io.nats.client.IntegrationTest</groups>
                         </configuration>
                     </execution>
                 </executions>
@@ -301,6 +301,24 @@
                     <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports> <coverageFile>${jacoco.ut.execution.data.file}</coverageFile> 
                     <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding> </configuration> 
                     </execution> </executions> -->
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-test-source</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/it/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

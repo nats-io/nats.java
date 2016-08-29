@@ -63,9 +63,9 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-@Category(UnitTest.class)
-public class ConnectionTest {
-    final Logger logger = LoggerFactory.getLogger(ConnectionTest.class);
+@Category(IntegrationTest.class)
+public class ITConnectionTest {
+    final Logger logger = LoggerFactory.getLogger(ITConnectionTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);

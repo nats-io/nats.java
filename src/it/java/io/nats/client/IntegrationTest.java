@@ -6,6 +6,6 @@
 
 package io.nats.client;
 
-public interface UnitTest {
+public interface IntegrationTest {
 
 }

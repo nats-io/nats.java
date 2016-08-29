@@ -34,20 +34,18 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
-@Category(UnitTest.class)
-public class TLSTest {
+@Category(IntegrationTest.class)
+public class ITTLSTest {
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     UnitTestUtilities utils = new UnitTestUtilities();
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
+    public static void setUpBeforeClass() throws Exception {}
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
+    public static void tearDownAfterClass() throws Exception {}
 
     @Before
     public void setUp() throws Exception {
@@ -55,8 +53,7 @@ public class TLSTest {
     }
 
     @After
-    public void tearDown() throws Exception {
-    }
+    public void tearDown() throws Exception {}
 
     @Test
     public void testTlsSuccessWithCert() throws Exception {
@@ -151,7 +148,8 @@ public class TLSTest {
             } finally {
                 srv.shutdown();
             }
-        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | KeyManagementException e1) {
+        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
+                | KeyManagementException e1) {
             // TODO Auto-generated catch block
             fail(e1.getMessage());
         }
@@ -249,7 +247,8 @@ public class TLSTest {
             } finally {
                 srv.shutdown();
             }
-        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | KeyManagementException e1) {
+        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
+                | KeyManagementException e1) {
             // TODO Auto-generated catch block
             fail(e1.getMessage());
         }
