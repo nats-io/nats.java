@@ -2,20 +2,19 @@
     and the accompanying materials are made available under the terms of the 
     MIT License (MIT) which accompanies this distribution, and is available at 
     http://opensource.org/licenses/MIT -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>io.nats</groupId>
         <artifactId>nats-parent</artifactId>
         <version>1.1</version>
-        <relativePath></relativePath>
+        <relativePath />
     </parent>
 
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>0.6.0-SNAPSHOT</version>
+    <version>0.5.2-SNAPSHOT</version>
     <packaging>bundle</packaging>
 
     <name>jnats</name>
@@ -46,7 +45,7 @@
         <url>https://github.com/nats-io/jnats</url>
         <connection>scm:git:https://github.com/nats-io/jnats.git</connection>
         <developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>0.5.2</tag>
     </scm>
     <issueManagement>
         <url>https://github.com/nats-io/jnats/issues/</url>
@@ -123,32 +122,16 @@
                         <id>prepare</id>
                         <phase>generate-test-resources</phase>
                         <configuration>
-                            <target name="copy-server-exec"
-                                unless:true="${server.installed}"
-                                xmlns:unless="ant:unless" xmlns:if="ant:if">
-                                <condition property="server.installed"
-                                    else="false">
-                                    <available file="${server.exec.name}"
-                                        filepath="${project.build.directory}"
-                                        type="file" />
+                            <target xmlns:unless="ant:unless" xmlns:if="ant:if" name="copy-server-exec" unless:true="${server.installed}">
+                                <condition property="server.installed" else="false">
+                                    <available file="${server.exec.name}" filepath="${project.build.directory}" type="file" />
                                 </condition>
-                                <echo if:true="${server.installed}"
-                                    message="${server.exec.name} is already installed. Skipping download..." />
-                                <echo unless:true="${server.installed}"
-                                    message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
-                                <get unless:true="${server.installed}"
-                                    src="${server.exec.pkg.url}" dest="${project.build.directory}"
-                                    skipexisting="true" />
-                                <unzip unless:true="${server.installed}"
-                                    src="${project.build.directory}/${server.exec.pkg}.zip"
-                                    dest="${project.build.directory}"
-                                    overwrite="false" />
-                                <move unless:true="${server.installed}"
-                                    file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}"
-                                    tofile="${project.build.directory}/${server.exec.name}"
-                                    overwrite="false" />
-                                <chmod perm="+x"
-                                    file="${project.build.directory}/${server.exec.name}" />
+                                <echo if:true="${server.installed}" message="${server.exec.name} is already installed. Skipping download..." />
+                                <echo unless:true="${server.installed}" message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
+                                <get unless:true="${server.installed}" src="${server.exec.pkg.url}" dest="${project.build.directory}" skipexisting="true" />
+                                <unzip unless:true="${server.installed}" src="${project.build.directory}/${server.exec.pkg}.zip" dest="${project.build.directory}" overwrite="false" />
+                                <move unless:true="${server.installed}" file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}" tofile="${project.build.directory}/${server.exec.name}" overwrite="false" />
+                                <chmod perm="+x" file="${project.build.directory}/${server.exec.name}" />
                             </target>
                         </configuration>
                         <goals>
