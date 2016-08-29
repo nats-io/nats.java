@@ -14,7 +14,7 @@
 
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>0.5.2-SNAPSHOT</version>
+    <version>0.5.2</version>
     <packaging>bundle</packaging>
 
     <name>jnats</name>
