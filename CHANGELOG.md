@@ -1,6 +1,10 @@
 Change Log
 ==========
 
+## Version 0.5.3
+_2016-08-29_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.5.2...jnats-0.5.3)
+ * Moved `nats_checkstyle.xml` out of `src` tree to avoid jar/bundle filtering 
+
 ## Version 0.5.2
 _2016-08-29_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.5.1...jnats-0.5.2)
  * Depends on stable nats-parent-1.1.pom
