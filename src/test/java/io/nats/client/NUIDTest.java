@@ -19,10 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
-@Category(UnitTest.class)
 public class NUIDTest {
     final Logger logger = LoggerFactory.getLogger(NUIDTest.class);
 
@@ -42,15 +39,25 @@ public class NUIDTest {
     public void tearDown() throws Exception {}
 
     @Test
-    public void testGlobalNUID() {
+    @Category(UnitTest.class)
+    public void testDigits() {
+        if (NUID.digits.length != NUID.base) {
+            fail("digits length does not match base modulo");
+        }
+    }
+
+    @Test
+    @Category(UnitTest.class)
+    public void testGlobalNUIDInit() {
         NUID nuid = NUID.getInstance();
         assertNotNull(nuid);
         assertNotNull("Expected prefix to be initialized", nuid.getPre());
         assertEquals(NUID.preLen, nuid.getPre().length);
-        assertNotEquals("Expected seq to be non-zero", nuid.getSeq());
+        assertNotEquals("Expected seq to be non-zero", 0, nuid.getSeq());
     }
 
     @Test
+    @Category(UnitTest.class)
     public void testNUIDRollover() {
         NUID gnuid = NUID.getInstance();
         gnuid.setSeq(NUID.maxSeq);
@@ -61,59 +68,16 @@ public class NUIDTest {
     }
 
     @Test
-    public void testNUIDLen() {
+    @Category(UnitTest.class)
+    public void testGUIDLen() {
         String nuid = new NUID().next();
+        System.err.println("NUID: " + nuid);
         assertEquals(String.format("Expected len of %d, got %d", NUID.totalLen, nuid.length()),
                 NUID.totalLen, nuid.length());
     }
 
     @Test
-    public void testNUIDSpeed() {
-        long count = 10000000;
-        NUID nuid = new NUID();
-
-        long start = System.nanoTime();
-        for (int i = 0; i < count; i++) {
-            nuid.next();
-        }
-        long elapsedNsec = System.nanoTime() - start;
-        logger.info("Average generation time for {} NUIDs was {}ns", count,
-                (double) elapsedNsec / count);
-
-    }
-
-    @Test
-    public void testGlobalNUIDSpeed() {
-        long count = 10000000;
-        NUID nuid = NUID.getInstance();
-
-        long start = System.nanoTime();
-        for (int i = 0; i < count; i++) {
-            nuid.next();
-        }
-        long elapsedNsec = System.nanoTime() - start;
-        logger.info("Average generation time for {} global NUIDs was {}ns", count,
-                (double) elapsedNsec / count);
-
-    }
-
-    @Test
-    public void testBasicUniqueness() {
-        int count = 10000000;
-        Map<String, Boolean> nuidMap = new HashMap<String, Boolean>(count);
-
-        for (int i = 0; i < count; i++) {
-            // String n = NUID.nextGlobal();
-            String nuid = new NUID().next();
-            if (nuidMap.get(nuid) != null) {
-                fail("Duplicate NUID found: " + nuid);
-            } else {
-                nuidMap.put(nuid, true);
-            }
-        }
-    }
-
-    @Test
+    @Category(UnitTest.class)
     public void testProperPrefix() {
         char min = (char) 255;
         char max = (char) 0;
@@ -140,6 +104,36 @@ public class NUIDTest {
                 }
             }
         }
+    }
 
+    @Test
+    @Category(BenchmarkTest.class)
+    public void benchmarkNUIDSpeed() {
+        long count = 10000000;
+        NUID nuid = new NUID();
+
+        long start = System.nanoTime();
+        for (int i = 0; i < count; i++) {
+            nuid.next();
+        }
+        long elapsedNsec = System.nanoTime() - start;
+        logger.info("Average generation time for {} NUIDs was {}ns", count,
+                (double) elapsedNsec / count);
+
+    }
+
+    @Test
+    @Category(BenchmarkTest.class)
+    public void benchmarkGlobalNUIDSpeed() {
+        long count = 10000000;
+        NUID nuid = NUID.getInstance();
+
+        long start = System.nanoTime();
+        for (int i = 0; i < count; i++) {
+            nuid.next();
+        }
+        long elapsedNsec = System.nanoTime() - start;
+        logger.info("Average generation time for {} global NUIDs was {}ns", count,
+                (double) elapsedNsec / count);
     }
 }
