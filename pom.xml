@@ -9,7 +9,7 @@
     <parent>
         <groupId>io.nats</groupId>
         <artifactId>nats-parent</artifactId>
-        <version>1.1</version>
+        <version>1.2-SNAPSHOT</version>
         <relativePath />
     </parent>
 
@@ -309,7 +309,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>${maven-checkstyle-plugin-version}</version>
                 <reportSets>
                     <reportSet>
                         <reports>
