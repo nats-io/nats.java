@@ -93,6 +93,9 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
                     logger.trace("msgFeeder entering delivery loop for subj: {} sid: {}", subject,
                             sid);
                     conn.deliverMsgs(mch);
+                    logger.debug("Leaving msgFeeder for subject: "
+                            + AsyncSubscriptionImpl.this.getSubject() + " sid: "
+                            + AsyncSubscriptionImpl.this.getSid());
                 } catch (Exception e) {
                     logger.error("Error on async subscription for subject {}",
                             AsyncSubscriptionImpl.this.getSubject());
@@ -104,7 +107,7 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
         if (!isStarted()) {
             executor = Executors.newSingleThreadExecutor(new NATSThreadFactory("msgfeeder"));
             executor.execute(msgFeeder);
-            logger.trace("Started msgFeeder for subject: " + this.getSubject() + " sid: "
+            logger.debug("Started msgFeeder for subject: " + this.getSubject() + " sid: "
                     + this.getSid());
         }
     }
