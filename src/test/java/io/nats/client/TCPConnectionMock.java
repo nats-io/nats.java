@@ -3,6 +3,7 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
@@ -38,14 +39,17 @@ import java.util.concurrent.locks.ReentrantLock;
 class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable {
     final Logger logger = LoggerFactory.getLogger(TCPConnectionMock.class);
 
-    final static Charset encoding = Charset.forName("UTF-8");
+    static final Charset encoding = Charset.forName("UTF-8");
 
     ExecutorService executor = null;
 
     volatile boolean shutdown = false;
 
-    public final static String defaultInfo =
-            "INFO {\"server_id\":\"a1c9cf0c66c3ea102c600200d441ad8e\",\"version\":\"0.7.2\",\"go\":\"go1.4.2\",\"host\":\"0.0.0.0\",\"port\":4222,\"auth_required\":false,\"ssl_required\":false,\"tls_required\":false,\"tls_verify\":false,\"max_payload\":1048576}\r\n";
+    public static final String defaultInfo =
+            "INFO {\"server_id\":\"a1c9cf0c66c3ea102c600200d441ad8e\",\"version\":\"0.7.2\",\"go\":"
+                    + "\"go1.4.2\",\"host\":\"0.0.0.0\",\"port\":4222,\"auth_required\":false,"
+                    + "\"ssl_required\":false,\"tls_required\":false,\"tls_verify\":false,"
+                    + "\"max_payload\":1048576}\r\n";
 
     ReentrantLock mu = new ReentrantLock();
     Socket client = null;
@@ -288,9 +292,9 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
         try {
             if (!noInfo) {
                 if (tlsRequired) {
-                    String s =
+                    String str =
                             defaultInfo.replace("\"tls_required\":false", "\"tls_required\":true");
-                    serverInfo = new ServerInfo(s);
+                    serverInfo = new ServerInfo(str);
                 }
                 bw.write(serverInfo.toString().getBytes());
                 bw.flush();
@@ -557,15 +561,24 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
         // TODO Auto-generated method stub
         try {
             logger.trace("bouncing");
-            in.close();
-            in = null;
-            writeStream.close();
-            writeStream = null;
+            if (in != null) {
+                in.close();
+                in = null;
+            }
+            if (writeStream != null) {
+                writeStream.close();
+                writeStream = null;
+            }
 
-            out.close();
-            out = null;
-            readStream.close();
-            readStream = null;
+            if (out != null) {
+                out.close();
+                out = null;
+            }
+
+            if (readStream != null) {
+                readStream.close();
+                readStream = null;
+            }
 
             if (br != null) {
                 br.close();
@@ -593,14 +606,14 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
             }
 
             shutdown();
-            executor.shutdownNow();
-            executor = null;
+
+            if (executor != null) {
+                executor.shutdownNow();
+                executor = null;
+            }
             shutdown = false;
             // close();
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-            }
+            UnitTestUtilities.sleep(100);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
