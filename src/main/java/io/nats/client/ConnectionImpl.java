@@ -172,8 +172,7 @@ class ConnectionImpl implements Connection {
     private Channel<Boolean> fch = new Channel<Boolean>(FLUSH_CHAN_SIZE);
     private List<Thread> threads = new ArrayList<Thread>();
 
-    ConnectionImpl() {
-    }
+    ConnectionImpl() {}
 
     ConnectionImpl(Options opts) {
         this(opts, null);
@@ -488,6 +487,8 @@ class ConnectionImpl implements Connection {
                 sub.closed = true;
                 // Mark connection closed in subscription
                 sub.connClosed = true;
+                // Terminate thread executor
+                sub.close();
                 sub.mu.unlock();
             }
             subs.clear();
@@ -1183,7 +1184,7 @@ class ConnectionImpl implements Connection {
     }
 
     protected Thread go(final Runnable task, final String name, final String group,
-                        final Phaser ph) {
+            final Phaser ph) {
         NATSThread.setDebug(true);
         NATSThread t = new NATSThread(task, name) {
             public void run() {
@@ -1261,7 +1262,7 @@ class ConnectionImpl implements Connection {
         private String version = ConnectionImpl.this.version;
 
         public ConnectInfo(boolean verbose, boolean pedantic, String username, String password,
-                           String token, boolean secure, String connectionName) {
+                String token, boolean secure, String connectionName) {
             this.verbose = new Boolean(verbose);
             this.pedantic = new Boolean(pedantic);
             this.user = username;
@@ -1401,12 +1402,11 @@ class ConnectionImpl implements Connection {
         }
 
         while (true) {
-            // logger.trace("Calling ch.get()...");
             msg = ch.get();
-            // logger.trace("ch.get() returned " + m);
 
             if (msg == null) {
                 // the channel has been closed, exit silently.
+                logger.debug("Channel closed, exiting msgFeeder loop");
                 return;
             }
 
@@ -1965,7 +1965,7 @@ class ConnectionImpl implements Connection {
     }
 
     // Used for handrolled itoa
-    static final byte[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    static final byte[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
     void _publish(byte[] subject, byte[] reply, byte[] data) throws IOException {
         int msgSize = (data != null) ? data.length : 0;
