@@ -17,48 +17,27 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 #### Releases
 
-The current stable release is 0.5.0, available on Maven Central.
-Add the following dependency to your project's `pom.xml`:
+Current stable release: [![Maven Central](https://img.shields.io/maven-central/v/io.nats/jnats.svg?maxAge=2592000)](https://img.shields.io/maven-central/v/io.nats/jnats)
+
+Snapshots are uploaded to the Sonatype OSSRH (OSS Repository Hosting) with each successful CI build. 
+If you don't already have your pom.xml configured for using Maven snapshots, you'll need to add the following repository to your pom.xml:
 
 ```xml
-  <dependencies>
-    ...
-    <dependency>
-      <groupId>io.nats</groupId>
-      <artifactId>jnats</artifactId>
-      <version>0.5.0</version>
-    </dependency>
-  </dependencies>
-```
-#### Snapshots
+<profiles>
+  <profile>
+     <id>allow-snapshots</id>
+        <activation><activeByDefault>true</activeByDefault></activation>
+     <repositories>
+       <repository>
+         <id>snapshots-repo</id>
+         <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+         <releases><enabled>false</enabled></releases>
+         <snapshots><enabled>true</enabled></snapshots>
+       </repository>
+     </repositories>
+   </profile>
+</profiles>
 
-Snapshots are regularly uploaded to the Sonatype OSSRH (OSS Repository Hosting) using
-the same Maven coordinates.
-Add the following dependency to your project's `pom.xml`.
-
-```xml
-  <dependencies>
-    ...
-    <dependency>
-      <groupId>io.nats</groupId>
-      <artifactId>jnats</artifactId>
-      <version>0.5.1-SNAPSHOT</version>
-    </dependency>
-  </dependencies>
-```
-If you don't already have your pom.xml configured for using Maven snapshots, you'll also need to add the following repository to your pom.xml.
-
-```xml
-<repositories>
-    ...
-    <repository>
-        <id>sonatype-snapshots</id>
-        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        <snapshots>
-            <enabled>true</enabled>
-        </snapshots>
-    </repository>
-</repositories>
 ```
 #### Building from source code (this repository)
 First, download and install the parent POM:
