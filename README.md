@@ -17,7 +17,7 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 #### Releases
 
-Current stable release: [![Maven Central](https://img.shields.io/maven-central/v/io.nats/jnats.svg?maxAge=2592000)](https://img.shields.io/maven-central/v/io.nats/jnats)
+Current stable release (click for pom info): [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
 
 Snapshots are uploaded to the Sonatype OSSRH (OSS Repository Hosting) with each successful CI build. 
 If you don't already have your pom.xml configured for using Maven snapshots, you'll need to add the following repository to your pom.xml:
@@ -50,16 +50,9 @@ mvn install
 Second, download the source code:
 ```
 git clone git@github.com:nats-io/jnats.git
+cd jnats
+mvn install
 ```
-
-To build the library, use [maven](https://maven.apache.org/). From the root directory of the project:
-
-```
-mvn package verify
-```
-The jar file will be built in the `target` directory. Then copy the jar file to your classpath and you're all set.
-
-NOTE: running the unit tests requires that `gnatsd` be installed on your system and available in your executable search path.
 
 ## Basic Usage
 
