@@ -17,48 +17,29 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 #### Releases
 
-The current stable release is 0.5.0, available on Maven Central.
-Add the following dependency to your project's `pom.xml`:
+Current stable release (click for pom info): [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
 
-```xml
-  <dependencies>
-    ...
-    <dependency>
-      <groupId>io.nats</groupId>
-      <artifactId>jnats</artifactId>
-      <version>0.5.0</version>
-    </dependency>
-  </dependencies>
-```
 #### Snapshots
 
-Snapshots are regularly uploaded to the Sonatype OSSRH (OSS Repository Hosting) using
-the same Maven coordinates.
-Add the following dependency to your project's `pom.xml`.
+Snapshot releases from the current `master` branch are uploaded to Sonatype OSSRH (OSS Repository Hosting) with each successful Travis CI build. 
+If you don't already have your pom.xml configured for using Maven snapshots, you'll need to add the following repository to your pom.xml:
 
 ```xml
-  <dependencies>
-    ...
-    <dependency>
-      <groupId>io.nats</groupId>
-      <artifactId>jnats</artifactId>
-      <version>0.5.1-SNAPSHOT</version>
-    </dependency>
-  </dependencies>
-```
-If you don't already have your pom.xml configured for using Maven snapshots, you'll also need to add the following repository to your pom.xml.
+<profiles>
+  <profile>
+     <id>allow-snapshots</id>
+        <activation><activeByDefault>true</activeByDefault></activation>
+     <repositories>
+       <repository>
+         <id>snapshots-repo</id>
+         <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+         <releases><enabled>false</enabled></releases>
+         <snapshots><enabled>true</enabled></snapshots>
+       </repository>
+     </repositories>
+   </profile>
+</profiles>
 
-```xml
-<repositories>
-    ...
-    <repository>
-        <id>sonatype-snapshots</id>
-        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        <snapshots>
-            <enabled>true</enabled>
-        </snapshots>
-    </repository>
-</repositories>
 ```
 #### Building from source code (this repository)
 First, download and install the parent POM:
@@ -68,19 +49,12 @@ cd nats-parent-pom
 mvn install
 ```
 
-Second, download the source code:
+Now clone, compile, and install in your local maven repository (or copy the artifacts from the `target/` directory to wherever you need them):
 ```
 git clone git@github.com:nats-io/jnats.git
+cd jnats
+mvn install
 ```
-
-To build the library, use [maven](https://maven.apache.org/). From the root directory of the project:
-
-```
-mvn package verify
-```
-The jar file will be built in the `target` directory. Then copy the jar file to your classpath and you're all set.
-
-NOTE: running the unit tests requires that `gnatsd` be installed on your system and available in your executable search path.
 
 ## Basic Usage
 
