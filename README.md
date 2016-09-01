@@ -6,7 +6,7 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 [![Build Status](https://travis-ci.org/nats-io/jnats.svg?branch=master)](http://travis-ci.org/nats-io/jnats)
 [![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/jnats?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
-[![Javadoc](http://javadoc-badge.appspot.com/io.nats/jnats.svg?label=javadoc)](http://nats-io.github.io/jnats)
+[![Javadoc](http://javadoc.io/badge/io.nats/java-nats-streaming.svg)](http://javadoc.io/doc/io.nats/java-nats-streaming)
 
 [![Dependency Status](https://www.versioneye.com/user/projects/57c07fac968d640039516937/badge.svg?style=flat-square)](https://www.versioneye.com/user/projects/57c07fac968d640039516937)
 [![Reference Status](https://www.versioneye.com/java/io.nats:jnats/reference_badge.svg?style=flat-square)](https://www.versioneye.com/java/io.nats:jnats/references)
