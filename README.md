@@ -19,7 +19,9 @@ A [Java](http://www.java.com) client for the [NATS messaging system](https://nat
 
 Current stable release (click for pom info): [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
 
-Snapshots are uploaded to the Sonatype OSSRH (OSS Repository Hosting) with each successful CI build. 
+#### Snapshots
+
+Snapshot releases from the current `master` branch are uploaded to Sonatype OSSRH (OSS Repository Hosting) with each successful Travis CI build. 
 If you don't already have your pom.xml configured for using Maven snapshots, you'll need to add the following repository to your pom.xml:
 
 ```xml
@@ -47,7 +49,7 @@ cd nats-parent-pom
 mvn install
 ```
 
-Second, download the source code:
+Now clone, compile, and install in your local maven repository (or copy the artifacts from the `target/` directory to wherever you need them):
 ```
 git clone git@github.com:nats-io/jnats.git
 cd jnats
