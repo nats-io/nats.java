@@ -7,31 +7,6 @@
 package io.nats.client;
 
 import static io.nats.client.Constants.NATS_SCHEME;
-import static io.nats.client.Constants.PROP_CLOSED_CB;
-import static io.nats.client.Constants.PROP_CONNECTION_NAME;
-import static io.nats.client.Constants.PROP_CONNECTION_TIMEOUT;
-import static io.nats.client.Constants.PROP_DISCONNECTED_CB;
-import static io.nats.client.Constants.PROP_EXCEPTION_HANDLER;
-import static io.nats.client.Constants.PROP_HOST;
-import static io.nats.client.Constants.PROP_MAX_PENDING_BYTES;
-import static io.nats.client.Constants.PROP_MAX_PENDING_MSGS;
-import static io.nats.client.Constants.PROP_MAX_PINGS;
-import static io.nats.client.Constants.PROP_MAX_RECONNECT;
-import static io.nats.client.Constants.PROP_NORANDOMIZE;
-import static io.nats.client.Constants.PROP_PASSWORD;
-import static io.nats.client.Constants.PROP_PEDANTIC;
-import static io.nats.client.Constants.PROP_PING_INTERVAL;
-import static io.nats.client.Constants.PROP_PORT;
-import static io.nats.client.Constants.PROP_RECONNECTED_CB;
-import static io.nats.client.Constants.PROP_RECONNECT_ALLOWED;
-import static io.nats.client.Constants.PROP_RECONNECT_BUF_SIZE;
-import static io.nats.client.Constants.PROP_RECONNECT_WAIT;
-import static io.nats.client.Constants.PROP_SECURE;
-import static io.nats.client.Constants.PROP_SERVERS;
-import static io.nats.client.Constants.PROP_TLS_DEBUG;
-import static io.nats.client.Constants.PROP_URL;
-import static io.nats.client.Constants.PROP_USERNAME;
-import static io.nats.client.Constants.PROP_VERBOSE;
 import static io.nats.client.Constants.TCP_SCHEME;
 import static io.nats.client.Constants.TLS_SCHEME;
 
@@ -52,64 +27,182 @@ import javax.net.ssl.SSLContext;
  * 
  */
 public class ConnectionFactory implements Cloneable {
+    // Property names
+    static final String PFX = "io.nats.client.";
+    /**
+     * This property is defined as String {@value #PROP_URL}.
+     */
+    public static final String PROP_URL = PFX + "url";
+    /**
+     * This property is defined as String {@value #PROP_HOST}.
+     */
+    public static final String PROP_HOST = PFX + "host";
+    /**
+     * This property is defined as String {@value #PROP_PORT}.
+     */
+    public static final String PROP_PORT = PFX + "port";
+    /**
+     * This property is defined as String {@value #PROP_USERNAME}.
+     */
+    public static final String PROP_USERNAME = PFX + "username";
+    /**
+     * This property is defined as String {@value #PROP_PASSWORD}.
+     */
+    public static final String PROP_PASSWORD = PFX + "password";
+    /**
+     * This property is defined as String {@value #PROP_SERVERS}.
+     */
+    public static final String PROP_SERVERS = PFX + "servers";
+    /**
+     * This property is defined as String {@value #PROP_NORANDOMIZE}.
+     */
+    public static final String PROP_NORANDOMIZE = PFX + "norandomize";
+    /**
+     * This property is defined as String {@value #PROP_CONNECTION_NAME}.
+     */
+    public static final String PROP_CONNECTION_NAME = PFX + "name";
+    /**
+     * This property is defined as String {@value #PROP_VERBOSE}.
+     */
+    public static final String PROP_VERBOSE = PFX + "verbose";
+    /**
+     * This property is defined as String {@value #PROP_PEDANTIC}.
+     */
+    public static final String PROP_PEDANTIC = PFX + "pedantic";
+    /**
+     * This property is defined as String {@value #PROP_SECURE}.
+     */
+    public static final String PROP_SECURE = PFX + "secure";
+    /**
+     * This property is defined as String {@value #PROP_TLS_DEBUG}.
+     */
+    public static final String PROP_TLS_DEBUG = PFX + "tls.debug";
+    /**
+     * This property is defined as String {@value #PROP_RECONNECT_ALLOWED}.
+     */
+    public static final String PROP_RECONNECT_ALLOWED = PFX + "reconnect.allowed";
+    /**
+     * This property is defined as String {@value #PROP_MAX_RECONNECT}.
+     */
+    public static final String PROP_MAX_RECONNECT = PFX + "reconnect.max";
+    /**
+     * This property is defined as String {@value #PROP_RECONNECT_WAIT}.
+     */
+    public static final String PROP_RECONNECT_WAIT = PFX + "reconnect.wait";
+    /**
+     * This property is defined as String {@value #PROP_RECONNECT_BUF_SIZE}.
+     */
+    public static final String PROP_RECONNECT_BUF_SIZE = PFX + "reconnect.buffer.size";
+    /**
+     * This property is defined as String {@value #PROP_CONNECTION_TIMEOUT}.
+     */
+    public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
+    /**
+     * This property is defined as String {@value #PROP_PING_INTERVAL}.
+     */
+    public static final String PROP_PING_INTERVAL = PFX + "pinginterval";
+    /**
+     * This property is defined as String {@value #PROP_MAX_PINGS}.
+     */
+    public static final String PROP_MAX_PINGS = PFX + "maxpings";
+    /**
+     * This property is defined as String {@value #PROP_EXCEPTION_HANDLER}.
+     */
+    public static final String PROP_EXCEPTION_HANDLER = PFX + "callback.exception";
+    /**
+     * This property is defined as String {@value #PROP_CLOSED_CB}.
+     */
+    public static final String PROP_CLOSED_CB = PFX + "callback.closed";
+    /**
+     * This property is defined as String {@value #PROP_DISCONNECTED_CB}.
+     */
+    public static final String PROP_DISCONNECTED_CB = PFX + "callback.disconnected";
+    /**
+     * This property is defined as String {@value #PROP_RECONNECTED_CB}.
+     */
+    public static final String PROP_RECONNECTED_CB = PFX + "callback.reconnected";
+    /**
+     * This property is defined as String {@value #PROP_MAX_PENDING_MSGS}.
+     */
+    public static final String PROP_MAX_PENDING_MSGS = PFX + "maxpending";
+    /**
+     * This property is defined as String {@value #PROP_MAX_PENDING_BYTES}.
+     */
+    public static final String PROP_MAX_PENDING_BYTES = PFX + "maxpending.bytes";
+
+
 
     /**
      * Default server host.
      * 
-     * <p> This property is defined as String {@value #DEFAULT_HOST}
+     * <p>This property is defined as String {@value #DEFAULT_HOST}
      */
     public static final String DEFAULT_HOST = "localhost";
     /**
-     * Default server port. <p> This property is defined as int {@value #DEFAULT_PORT}
+     * Default server port.
+     * 
+     * <p>This property is defined as int {@value #DEFAULT_PORT}
      */
     public static final int DEFAULT_PORT = 4222;
     /**
-     * Default server URL. <p> This property is defined as String {@value #DEFAULT_URL}
+     * Default server URL.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_URL}
      */
     public static final String DEFAULT_URL = "nats://" + DEFAULT_HOST + ":" + DEFAULT_PORT;
     /**
-     * Default SSL/TLS protocol version. <p> This property is defined as String
-     * {@value #DEFAULT_SSL_PROTOCOL}
+     * Default SSL/TLS protocol version.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_SSL_PROTOCOL}
      */
     static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
     /**
-     * Default maximum number of reconnect attempts. <p> This property is defined as String
-     * {@value #DEFAULT_MAX_RECONNECT}
+     * Default maximum number of reconnect attempts.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_MAX_RECONNECT}
      */
     public static final int DEFAULT_MAX_RECONNECT = 60;
     /**
-     * Default wait time before attempting reconnection to the same server. <p> This property is
-     * defined as String {@value #DEFAULT_RECONNECT_WAIT}
+     * Default wait time before attempting reconnection to the same server.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_RECONNECT_WAIT}
      */
     public static final int DEFAULT_RECONNECT_WAIT = 2 * 1000;
     /**
      * Default of pending message buffer that is used for buffering messages that are published
-     * during a disconnect/reconnect. <p> This property is defined as String
-     * {@value #DEFAULT_RECONNECT_BUF_SIZE}
+     * during a disconnect/reconnect.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_RECONNECT_BUF_SIZE}
      */
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
     /**
-     * Default connection timeout. <p> This property is defined as String {@value #DEFAULT_TIMEOUT}
+     * Default connection timeout.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_TIMEOUT}
      */
     public static final int DEFAULT_TIMEOUT = 2 * 1000;
     /**
-     * Default server ping interval. {@code <=0} means disabled. <p> This property is defined as
-     * String {@value #DEFAULT_PING_INTERVAL}
+     * Default server ping interval. {@code <=0} means disabled.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_PING_INTERVAL}
      */
     public static final int DEFAULT_PING_INTERVAL = 2 * 60000;
     /**
-     * Default maximum number of pings that have not received a response. <p> This property is
-     * defined as String {@value #DEFAULT_MAX_PINGS_OUT}
+     * Default maximum number of pings that have not received a response.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_MAX_PINGS_OUT}
      */
     public static final int DEFAULT_MAX_PINGS_OUT = 2;
     /**
-     * Default maximum pending/undelivered messages on a subscription. <p> This property is defined
-     * as String {@value #DEFAULT_MAX_PENDING_MSGS}
+     * Default maximum pending/undelivered messages on a subscription.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
      */
     public static final int DEFAULT_MAX_PENDING_MSGS = 65536;
     /**
-     * Default maximum pending/undelivered payload bytes on a subscription. <p> This property is
-     * defined as String {@value #DEFAULT_MAX_PENDING_BYTES}
+     * Default maximum pending/undelivered payload bytes on a subscription.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_MAX_PENDING_BYTES}
      */
     public static final int DEFAULT_MAX_PENDING_BYTES = 65536 * 1024;
 
@@ -338,9 +431,12 @@ public class ConnectionFactory implements Cloneable {
 
     /**
      * Constructs a connection factory from a list of NATS server URLs, using {@code url} as the
-     * primary address. <p> If {@code url} contains a single server address, that address will be
-     * first in the server list, even if {@link #isNoRandomize()} is {@code false}. <p> If
-     * {@code url} is a comma-delimited list of servers, then {@code servers} will be ignored.
+     * primary address.
+     * 
+     * <p>If {@code url} contains a single server address, that address will be first in the server
+     * list, even if {@link #isNoRandomize()} is {@code false}.
+     * 
+     * <p>If {@code url} is a comma-delimited list of servers, then {@code servers} will be ignored.
      * 
      * @param url the default server URL to set
      * @param servers the list of cluster server URL strings
@@ -578,8 +674,10 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
-     * Sets the default server URL string. <p> If {@code url} is a comma-delimited list, then
-     * {@link #setServers(String)} will be invoked without setting the default server URL string.
+     * Sets the default server URL string.
+     * 
+     * <p>If {@code url} is a comma-delimited list, then {@link #setServers(String)} will be invoked
+     * without setting the default server URL string.
      * 
      * @param url the URL to set
      */
@@ -723,9 +821,12 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
-     * Indicates whether server list randomization is disabled. <p> {@code true} means that the
-     * server list will be traversed in the order in which it was received <p> {@code false} means
-     * that the server list will be randomized before it is traversed
+     * Indicates whether server list randomization is disabled.
+     * 
+     * <p>{@code true} means that the server list will be traversed in the order in which it was
+     * received
+     * 
+     * <p>{@code false} means that the server list will be randomized before it is traversed
      * 
      * @return {@code true} if server list randomization is disabled, otherwise {@code false}
      */
@@ -761,8 +862,10 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
-     * Indicates whether {@code verbose} is set. <p> When {@code verbose==true}, the server will
-     * acknowledge each protocol line with {@code +OK or -ERR}
+     * Indicates whether {@code verbose} is set.
+     * 
+     * <p>When {@code verbose==true}, the server will acknowledge each protocol line with
+     * {@code +OK or -ERR}
      * 
      * @return whether {@code verbose} is set
      */
@@ -790,8 +893,9 @@ public class ConnectionFactory implements Cloneable {
     }
 
     /**
-     * Sets whether strict server-side protocol checking is enabled. <p> When {@code pedantic==true}
-     * , strict server-side protocol checking occurs.
+     * Sets whether strict server-side protocol checking is enabled.
+     * 
+     * <p>When {@code pedantic==true} , strict server-side protocol checking occurs.
      * 
      * @param pedantic whether or not this connection should require strict server-side protocol
      *        checking
