@@ -263,10 +263,11 @@ class ConnectionImpl implements Connection {
     }
 
 
-    // Create the server pool using the options given.
-    // We will place a Url option first, followed by any
-    // Srv Options. We will randomize the server pool unless
-    // the NoRandomize flag is set.
+    /*
+     * Create the server pool using the options given. We will place a Url option first, followed by
+     * any Srv Options. We will randomize the server pool (except Url) unless the NoRandomize flag
+     * is set.
+     */
     protected void setupServerPool() {
 
         URI url = opts.getUrl();
@@ -274,10 +275,6 @@ class ConnectionImpl implements Connection {
 
         srvPool = new ArrayList<Srv>();
         urls = new ConcurrentHashMap<String, URI>();
-        // First, add the supplied url, if not null or empty.
-        if (url != null) {
-            addUrlToPool(opts.getUrl());
-        }
 
         if (servers != null) {
             for (URI s : servers) {
@@ -288,6 +285,17 @@ class ConnectionImpl implements Connection {
         if (!opts.isNoRandomize()) {
             // Randomize the order
             Collections.shuffle(srvPool, new Random(System.nanoTime()));
+        }
+
+        /*
+         * Insert the supplied url, if not null or empty, at the beginning of the list. Normally, if
+         * this is set, then opts.servers should NOT be set, and vice versa. However, we always
+         * allowed both to be set before, so we'll continue to do so.
+         */
+
+        if (url != null) {
+            srvPool.add(0, new Srv(url));
+            urls.put(url.getAuthority(), url);
         }
 
         // If the pool is empty, add the default URL

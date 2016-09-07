@@ -29,8 +29,11 @@ import static org.mockito.Mockito.when;
 
 import io.nats.client.Constants.ConnState;
 
+import org.hamcrest.core.IsEqual;
+import org.hamcrest.core.IsNot;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -1026,6 +1029,69 @@ public class ConnectionTest {
         } catch (IOException | TimeoutException e) {
             fail("Connection failed");
         }
+    }
+
+    static String[] testServers = { "nats://localhost:1222", "nats://localhost:1223",
+            "nats://localhost:1224", "nats://localhost:1225", "nats://localhost:1226",
+            "nats://localhost:1227", "nats://localhost:1228" };
+
+    @Test
+    public void testServersRandomize() throws IOException, TimeoutException {
+        Options opts = new Options();
+        opts.setServers(testServers);
+        ConnectionImpl c = new ConnectionImpl(opts);
+        c.setupServerPool();
+        // build url string array from srvPool
+        int i = 0;
+        String[] clientServers = new String[c.getServerPool().size()];
+        for (ConnectionImpl.Srv s : c.getServerPool()) {
+            clientServers[i++] = s.url.toString();
+        }
+        // In theory this could happen..
+        Assert.assertThat(clientServers, IsNot.not(IsEqual.equalTo(testServers)));
+
+        // Now test that we do not randomize if proper flag is set.
+        opts = new Options();
+        opts.setServers(testServers);
+        opts.setNoRandomize(true);
+        c = new ConnectionImpl(opts);
+        c.setupServerPool();
+        // build url string array from srvPool
+        i = 0;
+        clientServers = new String[c.getServerPool().size()];
+        for (ConnectionImpl.Srv s : c.getServerPool()) {
+            clientServers[i++] = s.url.toString();
+        }
+        assertArrayEquals(testServers, clientServers);
+
+    }
+
+    @Test
+    public void testUrlIsFirst() throws IOException, TimeoutException {
+        /*
+         * Although the original intent was that if Opts.Url is set, Opts.Servers is not (and vice
+         * versa), the behavior is that Opts.Url is always first, even when randomization is
+         * enabled. So make sure that this is still the case.
+         */
+        Options opts = new Options();
+        opts.setUrl(ConnectionFactory.DEFAULT_URL);
+        opts.setServers(testServers);
+        ConnectionImpl c = new ConnectionImpl(opts);
+        c.setupServerPool();
+        // build url string array from srvPool
+        List<String> clientServerList = new ArrayList<String>();
+        for (ConnectionImpl.Srv s : c.getServerPool()) {
+            clientServerList.add(s.url.toString());
+        }
+
+        String[] clientServers = clientServerList.toArray(new String[clientServerList.size()]);
+        // In theory this could happen..
+        Assert.assertThat("serverPool list not randomized", clientServers,
+                IsNot.not(IsEqual.equalTo(testServers)));
+
+        assertEquals(
+                String.format("Options.Url should be first in the array, got %s", clientServers[0]),
+                ConnectionFactory.DEFAULT_URL, clientServers[0]);
     }
 
     @Test
