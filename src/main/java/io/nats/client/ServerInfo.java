@@ -6,76 +6,108 @@
 
 package io.nats.client;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.SerializedName;
+
+import java.util.Arrays;
 
 class ServerInfo {
+    @SerializedName("server_id")
     private String id;
-    private String host;
-    private int port;
+
+    @SerializedName("version")
     private String version;
+
+    @SerializedName("go")
     private String goVersion;
+
+    @SerializedName("host")
+    private String host;
+
+    @SerializedName("port")
+    private int port;
+
+    @SerializedName("auth_required")
     private boolean authRequired;
+
+    @SerializedName("ssl_required")
     private boolean sslRequired;
+
+    @SerializedName("tls_required")
     private boolean tlsRequired;
+
+    @SerializedName("tls_verify")
     private boolean tlsVerify;
+
+    @SerializedName("max_payload")
     private long maxPayload; // int64 in Go
 
-    private Map<String, String> parameters = new HashMap<String, String>();
+    @SerializedName("connect_urls")
+    private String[] connectUrls;
 
-    public ServerInfo(String jsonString) {
-        try {
-            jsonString = jsonString.substring(jsonString.indexOf('{') + 1);
-            jsonString = jsonString.substring(0, jsonString.lastIndexOf('}'));
-        } catch (IndexOutOfBoundsException iobe) {
-            // do nothing
-        }
+    private transient String jsonString = null;
+    static private transient Gson gson = new GsonBuilder().create();
 
-        /* ignore connect_urls for now */
-        if (jsonString.contains("\"connect_urls\":")) {
-            jsonString = jsonString.replaceFirst(",\"connect_urls\":\\[.*\\]", "");
-        }
+    protected ServerInfo(String id, String host, int port, String version, boolean authRequired,
+            boolean tlsRequired, int maxPayload, final String[] connectUrls) {
 
-        String[] kvPairs = jsonString.split(",");
-        for (String pair : kvPairs)
-            addKVPair(pair);
-
-
-        this.id = parameters.get("server_id");
-        this.host = parameters.get("host");
-        this.port = Integer.parseInt(parameters.get("port"));
-        this.version = parameters.get("version");
-        this.goVersion = parameters.get("go");
-        this.authRequired = Boolean.parseBoolean(parameters.get("auth_required"));
-        this.sslRequired = Boolean.parseBoolean(parameters.get("ssl_required"));
-        this.tlsRequired = Boolean.parseBoolean(parameters.get("tls_required"));
-        this.tlsVerify = Boolean.parseBoolean(parameters.get("tls_verify"));
-        this.maxPayload = Long.parseLong(parameters.get("max_payload"));
-
+        this.id = id;
+        this.host = host;
+        this.port = port;
+        this.version = version;
+        this.authRequired = authRequired;
+        this.tlsRequired = tlsRequired;
+        this.maxPayload = maxPayload;
+        this.connectUrls = connectUrls;
     }
 
-    private void addKVPair(String kvPair) {
-        String key;
-        String val;
+    // public ServerInfo(String infoString) {
+    //
+    // this.id = input.id;
+    // this.host = input.host;
+    // this.port = input.port;
+    // this.version = input.version;
+    // this.goVersion = input.goVersion;
+    // this.authRequired = input.authRequired;
+    // this.sslRequired = input.sslRequired;
+    // this.tlsRequired = input.tlsRequired;
+    // this.tlsVerify = input.tlsVerify;
+    // this.maxPayload = input.maxPayload;
+    // if (input.connectUrls != null) {
+    // this.connectUrls = Arrays.copyOf(input.connectUrls, input.connectUrls.length);
+    // }
+    // System.err.println("new ServerInfo: " + this.jsonString);
+    // }
 
-        kvPair = kvPair.trim();
-        String[] parts = kvPair.split(":", 2);
-        key = parts[0].trim();
-        val = parts[1].trim();
-
-        // trim the quotes
-        int lastQuotePos = key.lastIndexOf("\"");
-        key = key.substring(1, lastQuotePos);
-
-        // bools and numbers may not have quotes.
-        if (val.startsWith("\"")) {
-            lastQuotePos = val.lastIndexOf("\"");
-            val = val.substring(1, lastQuotePos);
+    protected ServerInfo(ServerInfo input) {
+        this.id = input.id;
+        this.version = input.version;
+        this.goVersion = input.goVersion;
+        this.host = input.host;
+        this.port = input.port;
+        this.authRequired = input.authRequired;
+        this.sslRequired = input.sslRequired;
+        this.tlsRequired = input.tlsRequired;
+        this.tlsVerify = input.tlsVerify;
+        this.maxPayload = input.maxPayload;
+        if (input.connectUrls != null) {
+            this.connectUrls = Arrays.copyOf(input.connectUrls, input.connectUrls.length);
         }
-        parameters.put(key, val);
+    }
+
+    protected static ServerInfo createFromWire(String infoString) {
+        ServerInfo rv = null;
+        String jsonString = infoString.replaceFirst("^INFO ", "").trim();
+        // logger.info("jsonString = \"" + jsonString + "\"");
+        // FIXME Infinite loop here
+        rv = gson.fromJson(jsonString, ServerInfo.class);
+        return rv;
     }
 
     /**
+     * Returns the server_id.
+     * 
      * @return the id
      */
     String getId() {
@@ -83,6 +115,8 @@ class ServerInfo {
     }
 
     /**
+     * Returns the host.
+     * 
      * @return the host
      */
     String getHost() {
@@ -90,6 +124,8 @@ class ServerInfo {
     }
 
     /**
+     * Returns the port.
+     * 
      * @return the port
      */
     int getPort() {
@@ -97,6 +133,8 @@ class ServerInfo {
     }
 
     /**
+     * Returns the NATS server version.
+     * 
      * @return the gnatsd server version
      */
     String getVersion() {
@@ -124,20 +162,16 @@ class ServerInfo {
         return maxPayload;
     }
 
-    /**
-     * @return the parameters
-     */
-    Map<String, String> getParameters() {
-        return parameters;
+    String[] getConnectUrls() {
+        return connectUrls;
     }
 
     public String toString() {
-        String rv = String.format(
-                "INFO {\"server_id\":\"%s\",\"version\":\"%s\",\"go\":\"%s\","
-                        + "\"host\":\"%s\",\"port\":%d,\"auth_required\":%b,\"ssl_required\":%b,"
-                        + "\"tls_required\":%b,\"tls_verify\":%b,\"max_payload\":%d}\r\n",
-                this.id, this.version, this.goVersion, this.host, this.port, this.authRequired,
-                this.tlsRequired, this.tlsRequired, this.tlsVerify, this.maxPayload);
+        String rv = null;
+        if (jsonString == null) {
+            jsonString = gson.toJson(this);
+        }
+        rv = String.format("INFO %s", jsonString);
         return rv;
     }
 }

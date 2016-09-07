@@ -6,13 +6,18 @@
 package io.nats.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import io.nats.client.ConnectionImpl.Control;
+import io.nats.client.ConnectionImpl.Srv;
 import io.nats.client.Parser.NatsOp;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -21,14 +26,20 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 @Category(UnitTest.class)
 public class ParserTest {
+    final Logger logger = LoggerFactory.getLogger(ParserTest.class);
+
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
@@ -108,6 +119,7 @@ public class ParserTest {
                 "MSG \tfoo 1 5\r\nHello\r\n",
                 // MSG_END default (not an error)
                 "MSG \tfoo 1 6\r\nHello2\r\t" };
+
         try (ConnectionImpl c =
                 new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
             parser = c.parser;
@@ -467,5 +479,228 @@ public class ParserTest {
 
         } // Connection
     } // testParserSplitMsg
+
+    @Test
+    public void testAsyncInfo() throws IOException, TimeoutException, ParseException {
+        try (ConnectionImpl c =
+                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+            c.parser.ps = c.parser.new ParseState();
+
+            assertEquals("Expected OP_START", NatsOp.OP_START, c.parser.ps.state);
+
+            byte[] info = "INFO {}\r\n".getBytes();
+            assertEquals("Expected OP_START", NatsOp.OP_START, c.parser.ps.state);
+
+            c.parser.parse(Arrays.copyOfRange(info, 0, 1), 1);
+            assertEquals(NatsOp.OP_I, c.parser.ps.state);
+
+            c.parser.parse(Arrays.copyOfRange(info, 1, 2), 1);
+            assertEquals(NatsOp.OP_IN, c.parser.ps.state);
+
+            c.parser.parse(Arrays.copyOfRange(info, 2, 3), 1);
+            assertEquals(NatsOp.OP_INF, c.parser.ps.state);
+
+            c.parser.parse(Arrays.copyOfRange(info, 3, 4), 1);
+            assertEquals(NatsOp.OP_INFO, c.parser.ps.state);
+
+            c.parser.parse(Arrays.copyOfRange(info, 4, 5), 1);
+            assertEquals(NatsOp.OP_INFO_SPC, c.parser.ps.state);
+
+            // System.err.println("info length = " + info.length);
+            // String str = new String(info, 5, info.length - 5);
+            // System.err.println("Substring = [" + str + "]");
+
+            c.parser.parse(Arrays.copyOfRange(info, 5, info.length), info.length - 5);
+            assertEquals(NatsOp.OP_START, c.parser.ps.state);
+
+            // All at once
+            c.parser.parse(info, info.length);
+            assertEquals(NatsOp.OP_START, c.parser.ps.state);
+
+            // Server pool needs to be setup
+            c.setupServerPool();
+
+            // Partials requiring argBuf
+            ServerInfo expectedServer = new ServerInfo("test", "localhost", 4222, "1.2.3", true,
+                    true, 2 * 1024 * 1024, new String[] { "localhost:5222", "localhost:6222" });
+            Gson gson = new GsonBuilder().create();
+            String jsonString = gson.toJson(expectedServer);
+            String infoString = String.format("INFO %s\r\n", jsonString);
+            // System.err.println(infoString);
+            info = infoString.getBytes();
+
+            assertEquals(NatsOp.OP_START, c.parser.ps.state);
+
+            c.parser.parse(info, 9);
+            assertEquals(NatsOp.INFO_ARG, c.parser.ps.state);
+            assertNotNull(c.parser.ps.argBuf);
+
+            c.parser.parse(Arrays.copyOfRange(info, 9, 11), 2);
+            assertEquals(NatsOp.INFO_ARG, c.parser.ps.state);
+            assertNotNull(c.parser.ps.argBuf);
+
+            c.parser.parse(Arrays.copyOfRange(info, 11, info.length), info.length - 11);
+            assertEquals(NatsOp.OP_START, c.parser.ps.state);
+            assertNull(c.parser.ps.argBuf);
+
+            // Comparing the string representation is good enough
+            assertEquals(expectedServer.toString(), c.getConnectedServerInfo().toString());
+
+            // Good INFOs
+            String[] good = { "INFO {}\r\n", "INFO  {}\r\n", "INFO {} \r\n",
+                    "INFO { \"server_id\": \"test\"  }   \r\n", "INFO {\"connect_urls\":[]}\r\n" };
+            for (String gi : good) {
+                c.parser.ps = c.parser.new ParseState();
+                try {
+                    c.parser.parse(gi.getBytes(), gi.getBytes().length);
+                } catch (ParseException e) {
+                    fail("Unexpected parse failure: " + e.getMessage());
+                    e.printStackTrace();
+                }
+                assertEquals(c.parser.ps.state, NatsOp.OP_START);
+            }
+
+            // Wrong INFOs
+            String[] wrong = { "IxNFO {}\r\n", "INxFO {}\r\n", "INFxO {}\r\n", "INFOx {}\r\n",
+                    "INFO{}\r\n", "INFO {}" };
+            for (String wi : wrong) {
+                c.parser.ps = c.parser.new ParseState();
+                boolean exThrown = false;
+                try {
+                    c.parser.parse(wi.getBytes(), wi.getBytes().length);
+                } catch (ParseException e) {
+                    exThrown = true;
+                }
+                if (!exThrown && (c.parser.ps.state == NatsOp.OP_START)) {
+                    fail("Should have failed: " + wi);
+                }
+            }
+            // Now test the decoding of "connect_urls"
+
+            // No randomize for now
+            c.opts.setNoRandomize(true);
+            // Reset the pool
+            c.setupServerPool();
+            // Reinitialize the parser
+            c.parser.ps = c.parser.new ParseState();
+            info = "INFO {\"connect_urls\":[\"localhost:5222\"]}\r\n".getBytes();
+            c.parser.parse(info);
+
+            // Pool now should contain localhost:4222 (the default URL) and localhost:5222
+            String[] srvList = { "localhost:4222", "localhost:5222" };
+            checkPool(c, Arrays.asList(srvList));
+
+            // Make sure that if client receives the same, it is not added again.
+            c.parser.parse(info, info.length);
+            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+
+            // Pool should still contain localhost:4222 (the default URL) and localhost:5222
+            checkPool(c, Arrays.asList(srvList));
+
+            // Receive a new URL
+            info = "INFO {\"connect_urls\":[\"localhost:6222\"]}\r\n".getBytes();
+            c.parser.parse(info);
+            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+
+            // Pool now should contain localhost:4222 (the default URL) localhost:5222 and
+            // localhost:6222
+            srvList = new String[] { "localhost:4222", "localhost:5222", "localhost:6222" };
+            checkPool(c, Arrays.asList(srvList));
+
+            // Receive more than 1 URL at once
+            info = "INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\"]}\r\n"
+                    .getBytes();
+            c.parser.parse(info);
+            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+
+            // Pool now should contain localhost:4222 (the default URL) localhost:5222,
+            // localhost:6222
+            // localhost:7222 and localhost:8222
+            srvList = new String[] { "localhost:4222", "localhost:5222", "localhost:6222",
+                    "localhost:7222", "localhost:8222" };
+            checkPool(c, Arrays.asList(srvList));
+
+            // Test with pool randomization now
+            c.getOptions().setNoRandomize(false);
+            c.setupServerPool();
+
+            info = "INFO {\"connect_urls\":[\"localhost:5222\"]}\r\n".getBytes();
+            c.parser.parse(info);
+            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+
+            // Pool now should contain localhost:4222 (the default URL) and localhost:5222
+            srvList = new String[] { "localhost:4222", "localhost:5222" };
+            checkPool(c, Arrays.asList(srvList));
+
+            // Make sure that if client receives the same, it is not added again.
+            c.parser.parse(info, info.length);
+            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+
+            // Pool should still contain localhost:4222 (the default URL) and localhost:5222
+            checkPool(c, Arrays.asList(srvList));
+
+            // Receive a new URL
+            info = "INFO {\"connect_urls\":[\"localhost:6222\"]}\r\n".getBytes();
+            c.parser.parse(info);
+            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+
+            // Pool now should contain localhost:4222 (the default URL) localhost:5222 and
+            // localhost:6222
+            srvList = new String[] { "localhost:4222", "localhost:5222", "localhost:6222" };
+            checkPool(c, Arrays.asList(srvList));
+
+            // Receive more than 1 URL at once
+            info = "INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\"]}\r\n"
+                    .getBytes();
+            c.parser.parse(info);
+            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+
+            // Pool now should contain localhost:4222 (the default URL) localhost:5222,
+            // localhost:6222
+            // localhost:7222 and localhost:8222
+            srvList = new String[] { "localhost:4222", "localhost:5222", "localhost:6222",
+                    "localhost:7222", "localhost:8222" };
+            checkPool(c, Arrays.asList(srvList));
+
+            // Finally, check that the pool should be randomized.
+            String[] allUrls = new String[] { "localhost:4222", "localhost:5222", "localhost:6222",
+                    "localhost:7222", "localhost:8222" };
+            int same = 0;
+            int i = 0;
+            for (Srv s : c.srvPool) {
+                if (s.url.getAuthority().equals(allUrls[i])) {
+                    same++;
+                }
+                i++;
+            }
+            assertNotEquals(same, allUrls.length);
+        }
+    }
+
+    void checkPool(ConnectionImpl c, List<String> urls) {
+        // Check booth pool and urls map
+        if (c.srvPool.size() != urls.size()) {
+            fail(String.format("Pool should have %d elements, has %d", urls.size(),
+                    c.srvPool.size()));
+        }
+
+        if (c.urls.size() != urls.size()) {
+            fail(String.format("Map should have %d elements, has %d", urls.size(), c.urls.size()));
+        }
+
+        for (int i = 0; i < urls.size(); i++) {
+            String url = urls.get(i);
+            if (c.getOptions().isNoRandomize()) {
+                if (!c.srvPool.get(i).url.getAuthority().equals(url)) {
+                    fail(String.format("Pool should have %s at index %d, has %s", url, i,
+                            c.srvPool.get(i).url.getAuthority()));
+                }
+            } else {
+                if (!c.urls.containsKey(url)) {
+                    fail(String.format("Pool should have %s", url));
+                }
+            }
+        }
+    }
 }
 

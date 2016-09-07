@@ -72,7 +72,6 @@ public class ProtocolTest {
             assertNotNull(br);
 
             String s = br.readLine().trim();
-
             assertEquals("INFO strings not equal.", TCPConnectionMock.defaultInfo.trim(), s);
 
             bw.write(defaultConnect.getBytes());
