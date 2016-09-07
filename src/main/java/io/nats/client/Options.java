@@ -19,6 +19,7 @@ class Options {
     private int port;
     private String username;
     private String password;
+    private String token;
     private List<URI> servers;
     private boolean noRandomize;
     private String connectionName;
@@ -135,6 +136,14 @@ class Options {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getToken() {
+        return this.token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public List<URI> getServers() {

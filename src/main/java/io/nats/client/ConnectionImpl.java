@@ -23,6 +23,10 @@ import static io.nats.client.Constants.TLS_SCHEME;
 
 import io.nats.client.Constants.ConnState;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.SerializedName;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,6 +114,21 @@ class ConnectionImpl implements Connection {
     public static final String UNSUB_PROTO = "UNSUB %d %s" + _CRLF_;
     public static final String OK_PROTO = _OK_OP_ + _CRLF_;
 
+    protected static enum ClientProto {
+        CLIENT_PROTO_ZERO(0), // CLIENT_PROTO_ZERO is the original client protocol from 2009.
+        CLIENT_PROTO_INFO(1); // clientProtoInfo signals a client can receive more then the original
+        // INFO block. This can be used to update clients on other cluster
+        // members, etc.
+        private final int value;
+
+        private ClientProto(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+    }
 
     private ConnectionImpl nc = null;
     protected final Lock mu = new ReentrantLock();
@@ -141,6 +160,7 @@ class ConnectionImpl implements Connection {
 
     protected Map<Long, SubscriptionImpl> subs = new ConcurrentHashMap<Long, SubscriptionImpl>();
     protected List<Srv> srvPool = null;
+    protected Map<String, URI> urls = null;
     private Exception lastEx = null;
     private ServerInfo info = null;
     // private Vector<Thread> socketWatchers = new Vector<Thread>();
@@ -243,34 +263,44 @@ class ConnectionImpl implements Connection {
     }
 
 
-    // Create the server pool using the options given.
-    // We will place a Url option first, followed by any
-    // Srv Options. We will randomize the server pool unless
-    // the NoRandomize flag is set.
+    /*
+     * Create the server pool using the options given. We will place a Url option first, followed by
+     * any Srv Options. We will randomize the server pool (except Url) unless the NoRandomize flag
+     * is set.
+     */
     protected void setupServerPool() {
 
         URI url = opts.getUrl();
         List<URI> servers = opts.getServers();
 
         srvPool = new ArrayList<Srv>();
-        // First, add the supplied url, if not null or empty.
-        if (url != null) {
-            srvPool.add(new Srv(url));
-        }
+        urls = new ConcurrentHashMap<String, URI>();
 
         if (servers != null) {
-            if (!opts.isNoRandomize()) {
-                // Randomize the order
-                Collections.shuffle(servers, new Random(System.nanoTime()));
-            }
-
             for (URI s : servers) {
-                srvPool.add(new Srv(s));
+                addUrlToPool(s);
             }
         }
 
+        if (!opts.isNoRandomize()) {
+            // Randomize the order
+            Collections.shuffle(srvPool, new Random(System.nanoTime()));
+        }
+
+        /*
+         * Insert the supplied url, if not null or empty, at the beginning of the list. Normally, if
+         * this is set, then opts.servers should NOT be set, and vice versa. However, we always
+         * allowed both to be set before, so we'll continue to do so.
+         */
+
+        if (url != null) {
+            srvPool.add(0, new Srv(url));
+            urls.put(url.getAuthority(), url);
+        }
+
+        // If the pool is empty, add the default URL
         if (srvPool.isEmpty()) {
-            srvPool.add(new Srv(URI.create(ConnectionFactory.DEFAULT_URL)));
+            addUrlToPool(ConnectionFactory.DEFAULT_URL);
         }
 
         /*
@@ -279,6 +309,19 @@ class ConnectionImpl implements Connection {
 
         // Return the first server in the list
         this.url = srvPool.get(0).url;
+    }
+
+    /* Add a string URL to the server pool */
+    void addUrlToPool(String srvUrl) {
+        URI uri = URI.create(srvUrl);
+        srvPool.add(new Srv(uri));
+        urls.put(uri.getAuthority(), uri);
+    }
+
+    /* Add a URL to the server pool */
+    void addUrlToPool(URI uri) {
+        srvPool.add(new Srv(uri));
+        urls.put(uri.getAuthority(), uri);
     }
 
     protected Srv currentServer() {
@@ -333,7 +376,9 @@ class ConnectionImpl implements Connection {
         Exception returnedErr = null;
         mu.lock();
         try {
-            for (Srv s : srvPool) {
+            for (int i = 0; i < srvPool.size(); i++) {
+                Srv s = srvPool.get(i);
+                // for (Srv s : srvPool) {
                 this.url = s.url;
 
                 try {
@@ -380,7 +425,9 @@ class ConnectionImpl implements Connection {
                     throw new Error("Unexpected error", returnedErr);
                 }
             }
-        } finally {
+        } finally
+
+        {
             mu.unlock();
         }
     }
@@ -506,6 +553,7 @@ class ConnectionImpl implements Connection {
                 }
                 if (opts.getClosedCallback() != null) {
                     cbexec.execute(new Runnable() {
+
                         public void run() {
                             opts.getClosedCallback().onClose(new ConnectionEvent(nc));
                             logger.trace("executed ClosedCB");
@@ -526,7 +574,9 @@ class ConnectionImpl implements Connection {
                     while (!cbexec.awaitTermination(5, TimeUnit.SECONDS)) {
                         logger.debug("Awaiting completion of threads.");
                     }
-                } catch (InterruptedException e) {
+                } catch (
+
+                InterruptedException e) {
                     logger.debug("Interrupted waiting to shutdown cbexec", e);
                 }
             }
@@ -638,14 +688,38 @@ class ConnectionImpl implements Connection {
 
     // processInfo is used to parse the info messages sent
     // from the server.
-    protected void processInfo(String info) {
-        if ((info == null) || info.isEmpty()) {
+    protected void processInfo(String infoString) {
+        if ((infoString == null) || infoString.isEmpty()) {
             return;
         }
 
-        this.info = new ServerInfo(info);
+        this.info = ServerInfo.createFromWire(infoString);
 
+        boolean updated = false;
+
+        if (info.getConnectUrls() != null) {
+            for (String s : info.getConnectUrls()) {
+                if (!urls.containsKey(s)) {
+                    this.addUrlToPool(String.format("nats://%s", s));
+                    updated = true;
+                }
+            }
+
+            if (updated && !opts.isNoRandomize()) {
+                Collections.shuffle(srvPool);
+            }
+        }
         return;
+    }
+
+    // processAsyncInfo does the same than processInfo, but is called
+    // from the parser. Calls processInfo under connection's lock
+    // protection.
+    void processAsyncInfo(String asyncInfoString) {
+        mu.lock();
+        // Ignore errors, we will simply not update the server pool...
+        processInfo(asyncInfoString);
+        mu.unlock();
     }
 
     // processOpError handles errors from reading or parsing the protocol.
@@ -895,6 +969,7 @@ class ConnectionImpl implements Connection {
                 // TODO This mirrors go, and so does not spawn a thread/task.
                 logger.trace("Spawning reconnectedCB from doReconnect()");
                 cbexec.execute(new Runnable() {
+
                     public void run() {
                         opts.getReconnectedCallback().onReconnect(new ConnectionEvent(nc));
 
@@ -910,7 +985,9 @@ class ConnectionImpl implements Connection {
             // the lock seems important
             try {
                 flush();
-            } catch (Exception e) {
+            } catch (
+
+            Exception e) {
                 /* NOOP */
             }
             logger.trace("doReconnect reconnected successfully!");
@@ -1033,13 +1110,6 @@ class ConnectionImpl implements Connection {
         status = ConnState.CONNECTED;
     }
 
-    // protected BufferedReader getBufferedReader() {
-    // BufferedReader breader = null;
-    // if (br != null)
-    // breader = new BufferedReader(new InputStreamReader(br));
-    // return breader;
-    // }
-
     // This function is only used during the initial connection process
     protected String readLine() throws IOException {
         BufferedReader breader = conn.getBufferedReader();
@@ -1093,12 +1163,18 @@ class ConnectionImpl implements Connection {
                         break;
                 }
             }
+        } else {
+            // Take from options (possibly all empty strings)
+            user = opts.getUsername();
+            pass = opts.getPassword();
+            token = opts.getToken();
         }
 
         ConnectInfo info = new ConnectInfo(opts.isVerbose(), opts.isPedantic(), user, pass, token,
-                opts.isSecure(), opts.getConnectionName());
+                opts.isSecure(), opts.getConnectionName(), LANG_STRING, version,
+                ClientProto.CLIENT_PROTO_INFO);
 
-        String result = String.format(CONN_PROTO, info.toJson());
+        String result = String.format(CONN_PROTO, info);
         return result;
     }
 
@@ -1251,47 +1327,55 @@ class ConnectionImpl implements Connection {
     }
 
     class ConnectInfo {
+        @SerializedName("verbose")
         private Boolean verbose;
+
+        @SerializedName("pedantic")
         private Boolean pedantic;
+
+        @SerializedName("user")
         private String user;
+
+        @SerializedName("pass")
         private String pass;
+
+        @SerializedName("auth_token")
         private String token;
-        private Boolean ssl;
+
+        @SerializedName("tls_required")
+        private Boolean tlsRequired;
+
+        @SerializedName("name")
         private String name;
+
+        @SerializedName("lang")
         private String lang = ConnectionImpl.LANG_STRING;
+
+        @SerializedName("version")
         private String version = ConnectionImpl.this.version;
 
+        @SerializedName("protocol")
+        private int protocol;
+
+        private transient Gson gson = new GsonBuilder().create();
+
         public ConnectInfo(boolean verbose, boolean pedantic, String username, String password,
-                String token, boolean secure, String connectionName) {
+                String token, boolean secure, String connectionName, String lang, String version,
+                ClientProto proto) {
             this.verbose = new Boolean(verbose);
             this.pedantic = new Boolean(pedantic);
             this.user = username;
             this.pass = password;
             this.token = token;
-            this.ssl = new Boolean(secure);
+            this.tlsRequired = new Boolean(secure);
             this.name = connectionName;
+            this.lang = lang;
+            this.version = version;
+            this.protocol = proto.getValue();
         }
 
-        public String toJson() {
-            StringBuilder sb = new StringBuilder(1024);
-
-            sb.append(String.format("{\"verbose\":%s,\"pedantic\":%s,", verbose.toString(),
-                    pedantic.toString()));
-            if (user != null) {
-                sb.append(String.format("\"user\":\"%s\",", user));
-                if (pass != null) {
-                    sb.append(String.format("\"pass\":\"%s\",", pass));
-                }
-            }
-            if (token != null) {
-                sb.append(String.format("\"auth_token\":\"%s\",", token));
-            }
-
-            sb.append(String.format(
-                    "\"ssl_required\":%s,\"name\":\"%s\",\"lang\":\"%s\",\"version\":\"%s\"}",
-                    ssl.toString(), (name != null) ? name : "", lang, version));
-
-            return sb.toString();
+        public String toString() {
+            return gson.toJson(this);
         }
     }
 
@@ -2382,5 +2466,4 @@ class ConnectionImpl implements Connection {
     protected TCPConnectionFactory getTcpConnectionFactory() {
         return this.tcf;
     }
-
 }

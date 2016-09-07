@@ -83,7 +83,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
     private BufferedInputStream bis = null;
     private BufferedOutputStream bos = null;
 
-    ServerInfo serverInfo = new ServerInfo(defaultInfo);
+    ServerInfo serverInfo = ServerInfo.createFromWire(defaultInfo);
+
     ClientConnectInfo connectInfo;
 
     private boolean sendNullPong;
@@ -294,9 +295,9 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
                 if (tlsRequired) {
                     String str =
                             defaultInfo.replace("\"tls_required\":false", "\"tls_required\":true");
-                    serverInfo = new ServerInfo(str);
+                    serverInfo = ServerInfo.createFromWire(str);
                 }
-                bw.write(serverInfo.toString().getBytes());
+                bw.write(String.format("%s\r\n", serverInfo.toString()).getBytes());
                 bw.flush();
                 logger.trace("=> {}", serverInfo.toString().trim());
             } else {
@@ -500,7 +501,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
     }
 
     public void setServerInfoString(String info) {
-        this.serverInfo = new ServerInfo(info);
+        this.serverInfo = ServerInfo.createFromWire(info);
     }
 
     @Override
