@@ -2,7 +2,15 @@ Change Log
 ==========
 
 ## Version 0.6.0 (SNAPSHOT)
-_2016-09-06_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.5.3...HEAD)
+_2016-09-07_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.5.3...master)
+
+ * Implemented asynchronous `INFO` messages, allowing the client to process `INFO` messages that may be received from the server after a connection is already established. These asynchronous `INFO` messages may update the client's list of servers in the connected cluster.
+ * Added proper JSON parsing via [google/gson](https://github.com/google/gson).
+ * `ConnectionImpl` is now `public`, to avoid some issues with reflection in Java and reflective languages such as Clojure. Described further in [#35](/../../pull/35) (special thanks to [@mccraigmccraig](https://github.com/mccraigmccraig)).
+ * [#58](/../../issues/#58) Updated `NUID` implementation to match [the Go version](nats-io/nuid) 
+ * [#48](/../../issues/#48) Fixed an NPE issue in `TCPConnectionMock` when calling `bounce()`
+ * [#26](/../../issues/#26) Fixed a problem with `AsyncSubscription` feeder thread not exiting correctly in all cases.
+ * Miscellaneous typo, style and other minor fixes.
 
 ## Version 0.5.3
 _2016-08-29_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.5.2...jnats-0.5.3)
@@ -55,7 +63,7 @@ _2016-03-29_  [GitHub Diff](https://github.com/nats-io/jnats/compare/jnats-0.3.1
 
 
 ## Version 0.3.1
-_2016-01-18
+_2016-01-18_
 
 _Initial public release of jnats, now available on Maven Central._
 
