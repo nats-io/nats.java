@@ -76,9 +76,8 @@ class TCPConnection implements AutoCloseable {
         mu.lock();
         try {
             client.setTcpNoDelay(false);
-            client.setReceiveBufferSize(ConnectionImpl.DEFAULT_BUF_SIZE);
-            client.setSendBufferSize(ConnectionImpl.DEFAULT_BUF_SIZE);
-
+            client.setReceiveBufferSize(2 * 1024 * 1024);
+            client.setSendBufferSize(2 * 1024 * 1024);
             writeStream = client.getOutputStream();
             readStream = client.getInputStream();
 

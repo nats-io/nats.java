@@ -30,7 +30,6 @@ import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -66,8 +65,6 @@ public class ConnectionImpl implements Connection {
 
     String version = null;
 
-    // final static int DEFAULT_SCRATCH_SIZE = 512;
-
     private static final String inboxPrefix = "_INBOX.";
 
     public ConnState status = ConnState.DISCONNECTED;
@@ -78,16 +75,10 @@ public class ConnectionImpl implements Connection {
     // Default language string for CONNECT message
     protected static final String LANG_STRING = "java";
 
-    // Scratch storage for assembling protocol headers
-    // protected static final int SCRATCH_SIZE = 512;
-
-    // The size of the bufio reader/writer on top of the socket.
-    // protected static final int DEFAULT_BUF_SIZE = 32768;
+    // The size of the read buffer in readLoop.
     protected static final int DEFAULT_BUF_SIZE = 65536;
+    // The size of the BufferedInputStream and BufferedOutputStream on top of the socket.
     protected static final int DEFAULT_STREAM_BUF_SIZE = 8192;
-
-    // The size of the bufio while we are reconnecting
-    protected static final int DEFAULT_PENDING_SIZE = 1024 * 1024;
 
     // The buffered size of the flush "kick" channel
     protected static final int FLUSH_CHAN_SIZE = 1024;
@@ -152,7 +143,7 @@ public class ConnectionImpl implements Connection {
     // private BufferedOutputStream bw = null;
     private OutputStream bw = null;
 
-    private BufferedInputStream br = null;
+    private InputStream br = null;
     private ByteArrayOutputStream pending = null;
 
     private ReentrantLock flusherLock = new ReentrantLock();
@@ -625,8 +616,8 @@ public class ConnectionImpl implements Connection {
     private void makeTLSConn() throws IOException {
         conn.setTlsDebug(opts.isTlsDebug());
         conn.makeTLS(opts.getSSLContext());
-        bw = conn.getBufferedOutputStream(DEFAULT_BUF_SIZE);
-        br = conn.getBufferedInputStream(DEFAULT_BUF_SIZE);
+        bw = conn.getBufferedOutputStream(DEFAULT_STREAM_BUF_SIZE);
+        br = conn.getBufferedInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
 
     protected void processExpectedInfo() throws IOException {
@@ -1449,7 +1440,8 @@ public class ConnectionImpl implements Connection {
             }
 
             try {
-                len = br.read(buffer, 0, DEFAULT_BUF_SIZE);
+                len = br.read(buffer);
+                // len = br.read(buffer, 0, DEFAULT_BUF_SIZE);
                 if (len == -1) {
                     throw new IOException(ERR_STALE_CONNECTION);
                 }
@@ -2394,7 +2386,7 @@ public class ConnectionImpl implements Connection {
         return bw;
     }
 
-    void setInputStream(BufferedInputStream in) {
+    void setInputStream(InputStream in) {
         mu.lock();
         try {
             this.br = in;
@@ -2403,7 +2395,7 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    BufferedInputStream getInputStream() {
+    InputStream getInputStream() {
         return br;
     }
 
