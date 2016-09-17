@@ -14,9 +14,6 @@ import java.util.List;
 
 /**
  * A utility class for collecting and calculating benchmark metrics.
- * 
- * @author larry
- *
  */
 public class Benchmark extends Sample {
     String name = null;
@@ -36,7 +33,12 @@ public class Benchmark extends Sample {
 
     /**
      * Initializes a Benchmark. After creating a bench call addSubSample/addPubSample. When done
-     * collecting samples, call endBenchmark
+     * collecting samples, call endBenchmark.
+     * 
+     * @param name a descriptive name for this test run
+     * @param runId a unique id for this test run (typically a guid)
+     * @param subCnt the number of subscribers
+     * @param pubCnt the number of publishers
      */
     public Benchmark(String name, String runId, int subCnt, int pubCnt) {
         this.name = name;

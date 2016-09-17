@@ -64,8 +64,9 @@ public class Sample {
     }
 
     /**
-     * @see Object#toString().
+     * {@inheritDoc}.
      */
+    @Override
     public String toString() {
         DecimalFormat formatter = new DecimalFormat("#,###");
         String rate = formatter.format(rate());
