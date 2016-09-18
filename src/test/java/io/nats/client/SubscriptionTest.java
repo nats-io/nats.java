@@ -63,15 +63,15 @@ public class SubscriptionTest {
     @Test
     public void testToString() {
         String expected1 =
-                "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=20, maxPendingBytes=67108864, valid=false}";
+                "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=20, "
+                        + "maxPendingBytes=67108864, valid=false}";
         String expected2 =
-                "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=65536, maxPendingBytes=67108864, valid=false}";
+                "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=65536, "
+                        + "maxPendingBytes=67108864, valid=false}";
         ConnectionImpl nc = null;
         Subscription s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
-        // System.err.println(s);
         assertEquals(expected1, s.toString());
         s = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
-        // System.err.println(s);
         assertEquals(expected2, s.toString());
     }
 
@@ -123,8 +123,8 @@ public class SubscriptionTest {
             long received = 0;
             int max = 10;
             boolean exThrown = false;
-            try (SyncSubscription s = c.subscribeSync("foo")) {
-                s.autoUnsubscribe(max);
+            try (SyncSubscription sub = c.subscribeSync("foo")) {
+                sub.autoUnsubscribe(max);
 
                 int total = 100;
                 for (int i = 0; i < total; i++) {
@@ -138,7 +138,7 @@ public class SubscriptionTest {
 
                 while (true) {
                     try {
-                        s.nextMessage(100);
+                        sub.nextMessage(100);
                         received++;
                     } catch (IOException e) {
                         assertEquals(ERR_MAX_MESSAGES, e.getMessage());
@@ -151,7 +151,7 @@ public class SubscriptionTest {
                 }
                 assertTrue("Should have thrown IOException", exThrown);
                 assertEquals(max, received);
-                assertFalse("Expected subscription to be invalid after hitting max", s.isValid());
+                assertFalse("Expected subscription to be invalid after hitting max", sub.isValid());
             }
         } catch (IOException | TimeoutException e2) {
             fail("Should have connected");
@@ -200,38 +200,28 @@ public class SubscriptionTest {
     public void testCloseSubRelease() {
         try (final Connection c = new ConnectionFactory().createConnection()) {
             try (SyncSubscription s = c.subscribeSync("foo")) {
-                long timeout = 50;
-                long t0 = System.nanoTime();
+                long start = System.nanoTime();
                 executor.execute(new Runnable() {
                     @Override
                     public void run() {
-                        try {
-                            Thread.sleep(1);
-                        } catch (InterruptedException e) {
-                        }
+                        sleep(5);
                         c.close();
-                        assertTrue(c.isClosed());
                     }
                 });
                 boolean exThrown = false;
                 try {
-                    try {
-                        Thread.sleep(5);
-                    } catch (InterruptedException e) {
-                    }
-                    s.nextMessage(timeout);
+                    sleep(5);
+                    s.nextMessage(50, TimeUnit.MILLISECONDS);
                 } catch (Exception e) {
-
                     exThrown = true;
                 } finally {
-                    assertTrue("Connection should be closed", c.isClosed());
                     assertTrue("Expected an error from nextMsg", exThrown);
                 }
+                long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
 
-                long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
                 String msg = String.format("Too much time has elapsed to release NextMsg: %dms",
                         elapsed);
-                assertTrue(msg, elapsed <= 50);
+                assertTrue(msg, elapsed <= 100);
             } catch (Exception e) {
                 fail("Subscription failed: " + e.getMessage());
             }
@@ -414,18 +404,18 @@ public class SubscriptionTest {
         try (Connection c = cf.createConnection()) {
             try (final AsyncSubscription s = c.subscribeAsync(subj, mcb)) {
                 c.setExceptionHandler(new ExceptionHandler() {
-                    public void onException(NATSException e) {
-
+                    public void onException(NATSException ex) {
                         // Suppress additional calls
                         if (aeCalled.get() == 1) {
                             return;
                         }
                         aeCalled.incrementAndGet();
 
-                        assertEquals("Did not receive proper subscription", s, e.getSubscription());
-                        assertTrue("Expected IOException, but got " + e,
-                                e.getCause() instanceof IOException);
-                        assertEquals(ERR_SLOW_CONSUMER, e.getCause().getMessage());
+                        assertEquals("Did not receive proper subscription", s,
+                                ex.getSubscription());
+                        assertTrue("Expected IOException, but got " + ex,
+                                ex.getCause() instanceof IOException);
+                        assertEquals(ERR_SLOW_CONSUMER, ex.getCause().getMessage());
 
                         bch.add(true);
 
@@ -440,7 +430,8 @@ public class SubscriptionTest {
                 try {
                     c.flush(5000);
                 } catch (Exception e) {
-                    /* NOOP */ }
+                    /* NOOP */
+                }
 
 
                 assertTrue("Failed to call async err handler", ch.get(5000));
@@ -582,7 +573,7 @@ public class SubscriptionTest {
                         try {
                             assertNotNull(pub.request("foo", "blah".getBytes(), 5000));
                         } catch (TimeoutException e) {
-                            fail("timeout " + i);
+                            fail(String.format("timed out after %d msgs", i + 1));
                             return;
                         }
                     } // for
