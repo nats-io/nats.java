@@ -361,7 +361,6 @@ public class NatsBench {
      * The main program executive.
      * 
      * @param args command line arguments
-     * @throws Exception if a problem occurs
      */
     public static void main(String[] args) {
         try {
