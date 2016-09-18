@@ -1,9 +1,7 @@
 /*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the MIT License (MIT)
- * which accompanies this distribution, and is available at
- * http://opensource.org/licenses/MIT
+ * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ * materials are made available under the terms of the MIT License (MIT) which accompanies this
+ * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
 
 package io.nats.examples;
@@ -24,8 +22,8 @@ public class Publisher {
     String payload;
 
     static final String usageString =
-            "\nUsage: java OldPublisher [options] <subject> <message>\n\nOptions:\n"
-                    + "    -s, --server   <url>            STAN server URL(s)\n";
+            "\nUsage: java Publisher [-s <server>] <subject> <message>\n\nOptions:\n"
+                    + "    -s <url>        NATS server URLs, separated by commas\n";
 
     Publisher(String[] args) throws IOException, TimeoutException {
         parseArgs(args);
