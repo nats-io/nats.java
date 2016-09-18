@@ -3,6 +3,7 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
@@ -62,17 +63,17 @@ public class SubscriptionTest {
 
     @Test
     public void testToString() {
-        String expected1 =
-                "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=20, "
-                        + "maxPendingBytes=67108864, valid=false}";
-        String expected2 =
-                "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=65536, "
-                        + "maxPendingBytes=67108864, valid=false}";
+        final String expected1 = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, "
+                + "maxPendingMsgs=20, maxPendingBytes=67108864, valid=false}";
+        final String expected2 = "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, "
+                + "maxPendingMsgs=65536, maxPendingBytes=67108864, valid=false}";
         ConnectionImpl nc = null;
-        Subscription s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
-        assertEquals(expected1, s.toString());
-        s = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
-        assertEquals(expected2, s.toString());
+        Subscription sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
+        assertEquals(expected1, sub.toString());
+        sub.close();
+        sub = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
+        assertEquals(expected2, sub.toString());
+        sub.close();
     }
 
     @Test
@@ -100,13 +101,9 @@ public class SubscriptionTest {
                     fail(e1.getMessage());
                 }
 
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                }
+                sleep(100);
 
                 assertEquals(max, received.get());
-
                 assertFalse("Expected subscription to be invalid after hitting max", s.isValid());
             }
         } catch (IOException | TimeoutException e) {
@@ -182,12 +179,10 @@ public class SubscriptionTest {
                 try {
                     c.flush();
                 } catch (Exception e1) {
+                    /* NOOP */
                 }
 
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                }
+                sleep(10);
                 assertFalse("Expected subscription to be invalid after hitting max", s.isValid());
                 assertEquals(max, received.get());
             }
@@ -465,8 +460,8 @@ public class SubscriptionTest {
                 try (AsyncSubscription start = c.subscribe("start", new MessageHandler() {
                     public void onMessage(Message msg) {
                         // System.err.println("Responder");
-                        String responseIB = c.newInbox();
-                        c.subscribe(responseIB, new MessageHandler() {
+                        String responseInbox = c.newInbox();
+                        c.subscribe(responseInbox, new MessageHandler() {
                             public void onMessage(Message msg) {
                                 // System.err.println("Internal subscriber.");
                                 sleep(100);
@@ -476,7 +471,7 @@ public class SubscriptionTest {
                         // System.err.println("starter subscribed");
                         sleep(100);
                         try {
-                            c.publish("helper", responseIB, "Help me!".getBytes());
+                            c.publish("helper", responseInbox, "Help me!".getBytes());
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
