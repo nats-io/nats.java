@@ -63,9 +63,9 @@ public class SubscriptionTest {
 
     @Test
     public void testToString() {
-        final String expected1 = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, "
+        String expected1 = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, "
                 + "maxPendingMsgs=20, maxPendingBytes=67108864, valid=false}";
-        final String expected2 = "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, "
+        String expected2 = "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, "
                 + "maxPendingMsgs=65536, maxPendingBytes=67108864, valid=false}";
         ConnectionImpl nc = null;
         Subscription sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
