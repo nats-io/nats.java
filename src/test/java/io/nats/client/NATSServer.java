@@ -8,12 +8,15 @@ package io.nats.client;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 class NATSServer implements Runnable, AutoCloseable {
     final static String GNATSD = "gnatsd";
+    final static String TEST_RESOURCE_DIR = "src/test/resources";
+
     // Enable this for additional server debugging info.
     boolean debug = false;
 
@@ -73,8 +76,7 @@ class NATSServer implements Runnable, AutoCloseable {
     }
 
     private String buildConfigFileName(String configFile) {
-        return new String("../src/test/resources/" + configFile);
-        // return configFile;
+        return Paths.get(TEST_RESOURCE_DIR, configFile).toAbsolutePath().toString();
     }
 
     public NATSServer(String configFile, boolean debug) {
@@ -85,11 +87,11 @@ class NATSServer implements Runnable, AutoCloseable {
     }
 
     private ProcessStartInfo createProcessStartInfo() {
-        psInfo = new ProcessStartInfo(GNATSD);
+        String path = Paths.get("target", "/", GNATSD).toAbsolutePath().toString();
+        psInfo = new ProcessStartInfo(path);
 
         if (debug) {
             psInfo.addArgument("-DV");
-            // psInfo.addArgument("-l gnatsd.log");
         }
 
         return psInfo;

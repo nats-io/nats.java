@@ -565,9 +565,7 @@ public class ConnectionImpl implements Connection {
                     while (!cbexec.awaitTermination(5, TimeUnit.SECONDS)) {
                         logger.debug("Awaiting completion of threads.");
                     }
-                } catch (
-
-                InterruptedException e) {
+                } catch (InterruptedException e) {
                     logger.debug("Interrupted waiting to shutdown cbexec", e);
                 }
             }
