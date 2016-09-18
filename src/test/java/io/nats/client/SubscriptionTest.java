@@ -62,17 +62,17 @@ public class SubscriptionTest {
 
     @Test
     public void testToString() {
-        String expected1 =
-                "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=20, "
-                        + "maxPendingBytes=67108864, valid=false}";
-        String expected2 =
-                "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, maxPendingMsgs=65536, "
-                        + "maxPendingBytes=67108864, valid=false}";
+        String expected1 = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, "
+                + "maxPendingMsgs=20, maxPendingBytes=67108864, valid=false}";
+        String expected2 = "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, "
+                + "maxPendingMsgs=65536, maxPendingBytes=67108864, valid=false}";
         ConnectionImpl nc = null;
-        Subscription s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
-        assertEquals(expected1, s.toString());
-        s = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
-        assertEquals(expected2, s.toString());
+        Subscription sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
+        assertEquals(expected1, sub.toString());
+        sub.close();
+        sub = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
+        assertEquals(expected2, sub.toString());
+        sub.close();
     }
 
     @Test
