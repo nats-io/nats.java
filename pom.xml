@@ -108,6 +108,16 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>org.eluder.coveralls</groupId>
+                <artifactId>coveralls-maven-plugin</artifactId>
+                <configuration>
+                    <sourceDirectories>
+                        <sourceDirectory>src/main/java</sourceDirectory>
+                        <sourceDirectory>examples</sourceDirectory>
+                    </sourceDirectories>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
                 <executions>
@@ -221,7 +231,8 @@
                             <!-- Sets the output directory for the code coverage 
                                 report. -->
                             <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
-                        </configuration>
+                            <!-- Exclude example sources -->
+                       </configuration>
                     </execution>
                     <!-- Prepares the property pointing to the JaCoCo runtime 
                         agent which is passed as VM argument when Maven the Failsafe plugin is executed. -->

@@ -4,7 +4,7 @@
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
 
-package io.nats.client.examples;
+package io.nats.examples;
 
 import java.io.IOException;
 import java.nio.charset.Charset;

@@ -1,4 +1,4 @@
-package io.nats.client.benchmark;
+package io.nats.benchmark;
 
 public class Utils {
 

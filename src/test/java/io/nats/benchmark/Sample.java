@@ -1,6 +1,6 @@
-package io.nats.client.benchmark;
+package io.nats.benchmark;
 
-import static io.nats.client.benchmark.Utils.humanBytes;
+import static io.nats.benchmark.Utils.humanBytes;
 
 import io.nats.client.Connection;
 import io.nats.client.Statistics;

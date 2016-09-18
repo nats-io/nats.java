@@ -4,7 +4,7 @@
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
 
-package io.nats.client.benchmark;
+package io.nats.benchmark;
 
 import io.nats.client.Channel;
 import io.nats.client.NUID;

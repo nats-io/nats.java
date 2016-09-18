@@ -6,7 +6,7 @@
  * http://opensource.org/licenses/MIT
  *******************************************************************************/
 
-package io.nats.client.examples;
+package io.nats.examples;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;

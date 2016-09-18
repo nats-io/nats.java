@@ -1,4 +1,4 @@
-package io.nats.client.benchmark;
+package io.nats.benchmark;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;

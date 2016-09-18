@@ -4,8 +4,10 @@
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
 
-package io.nats.client.examples;
+package io.nats.examples;
 
+import io.nats.benchmark.Benchmark;
+import io.nats.benchmark.Sample;
 import io.nats.client.AsyncSubscription;
 import io.nats.client.ClosedCallback;
 import io.nats.client.Connection;
@@ -17,8 +19,6 @@ import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NATSException;
 import io.nats.client.Subscription;
-import io.nats.client.benchmark.Benchmark;
-import io.nats.client.benchmark.Sample;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -5,4 +5,4 @@
  * @author larry
  *
  */
-package io.nats.client.benchmark;
+package io.nats.benchmark;

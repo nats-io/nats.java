@@ -13,4 +13,4 @@ export SLF4J_SIMPLE_LIB=$M2_REPO/org/slf4j/slf4j-simple/1.7.7/slf4j-simple-1.7.7
 
 export CLASSPATH=target/classes:$SLF4J_API_LIB:$SLF4J_SIMPLE_LIB
 
-java -cp $CLASSPATH io.nats.client.examples.Subscriber $*
+java -cp $CLASSPATH io.nats.examples.Benchmark $*
