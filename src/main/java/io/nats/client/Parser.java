@@ -222,13 +222,7 @@ final class Parser {
                     break;
                 case MSG_PAYLOAD:
                     boolean done = false;
-                    // System.err.printf("MSG_PAYLOAD: ps.ma.size = %d\n", ps.ma.size);
-                    // System.err.printf("ps.msgBuf.position=%d, i=%d, ps.as=%d, ps.ma.size=%d\n",
-                    // ps.msgBuf.position(), i, ps.as, ps.ma.size);
                     if (ps.msgBuf != null) {
-                        // System.err.printf("ps.msgBuf.position=%d, i=%d, ps.as=%d,
-                        // ps.ma.size=%d\n",
-                        // ps.msgBuf.position(), i, ps.as, ps.ma.size);
                         // Already have bytes in the buffer
                         if (ps.msgBuf.position() >= ps.ma.size) {
                             ps.msgBuf.flip();
@@ -262,8 +256,6 @@ final class Parser {
                             }
                         }
                     } else if (i - ps.as >= ps.ma.size) {
-                        // System.err.printf("i=%d, ps.as=%d, ps.ma.size=%d\n", i, ps.as,
-                        // ps.ma.size);
                         // If we are at or past the end of the payload, go ahead and process it, no
                         // buffering needed.
                         nc.processMsg(buf, ps.as, i - ps.as); // pass offset and length
