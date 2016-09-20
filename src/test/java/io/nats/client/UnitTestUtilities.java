@@ -19,17 +19,28 @@ public class UnitTestUtilities {
     static NATSServer defaultServer = null;
     Process authServerProcess = null;
 
+    public static synchronized NATSServer runDefaultServer() {
+        return runDefaultServer(false);
+    }
+
+    public static synchronized NATSServer runDefaultServer(boolean debug) {
+        NATSServer ns = new NATSServer(debug);
+        sleep(100, TimeUnit.MILLISECONDS);
+        return ns;
+    }
+
+    public static synchronized Connection newDefaultConnection()
+            throws IOException, TimeoutException {
+        return new ConnectionFactory().createConnection();
+    }
+
     public static synchronized void startDefaultServer() {
         startDefaultServer(false);
     }
 
     public static synchronized void startDefaultServer(boolean debug) {
         if (defaultServer == null) {
-            defaultServer = new NATSServer(debug);
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-            }
+            defaultServer = runDefaultServer(debug);
         }
     }
 
