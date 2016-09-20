@@ -1,4 +1,4 @@
-package io.nats.client.examples;
+package io.nats.examples;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
@@ -24,10 +24,11 @@ public class Subscriber {
     private String subject;
     private String qgroup;
 
-    static final String usageString = "\nUsage: java Subscriber <subject>\n\nOptions:\n"
-            + "    -s, --server   <url>            NATS server URL(default: "
-            + ConnectionFactory.DEFAULT_URL + ")\n"
-            + "    -q, --qgroup   <name>           Queue group\n";
+    static final String usageString =
+            "\nUsage: java Subscriber [-s <server>] [-q <group>] <subject>\n\nOptions:\n"
+                    + "    -s <url>            NATS server URLs, separated by commas (default: "
+                    + ConnectionFactory.DEFAULT_URL + ")\n"
+                    + "    -q <name>           Queue group\n";
 
     Subscriber(String[] args) {
         parseArgs(args);

@@ -15,28 +15,19 @@ public final class Constants {
     private Constants() {}
 
     /**
-     * @deprecated use {@link ConnectionFactory#DEFAULT_HOST} instead.
-     *             <p>
-     *             Default server host
-     *             <p>
+     * @deprecated use {@link ConnectionFactory#DEFAULT_HOST} instead. <p> Default server host <p>
      *             This property is defined as String {@value #DEFAULT_HOST}
      */
     @Deprecated
     public static final String DEFAULT_HOST = "localhost";
     /**
-     * @deprecated use {@link ConnectionFactory#DEFAULT_PORT} instead.
-     *             <p>
-     *             Default server port
-     *             <p>
+     * @deprecated use {@link ConnectionFactory#DEFAULT_PORT} instead. <p> Default server port <p>
      *             This property is defined as int {@value #DEFAULT_PORT}
      */
     @Deprecated
     public static final int DEFAULT_PORT = 4222;
     /**
-     * @deprecated use {@link ConnectionFactory#DEFAULT_URL} instead.
-     *             <p>
-     *             Default server URL
-     *             <p>
+     * @deprecated use {@link ConnectionFactory#DEFAULT_URL} instead. <p> Default server URL <p>
      *             This property is defined as String {@value #DEFAULT_URL}
      */
     @Deprecated
@@ -174,103 +165,103 @@ public final class Constants {
     // Property names
     static final String PFX = "io.nats.client.";
     /**
-     * This property is defined as String {@value #PROP_URL}.
+     * @deprecated use {@link ConnectionFactory#PROP_URL} instead.
      */
     public static final String PROP_URL = PFX + "url";
     /**
-     * This property is defined as String {@value #PROP_HOST}.
+     * @deprecated use {@link ConnectionFactory#PROP_HOST} instead.
      */
     public static final String PROP_HOST = PFX + "host";
     /**
-     * This property is defined as String {@value #PROP_PORT}.
+     * @deprecated use {@link ConnectionFactory#PROP_PORT}.
      */
     public static final String PROP_PORT = PFX + "port";
     /**
-     * This property is defined as String {@value #PROP_USERNAME}.
+     * @deprecated use {@link ConnectionFactory#PROP_USERNAME}.
      */
     public static final String PROP_USERNAME = PFX + "username";
     /**
-     * This property is defined as String {@value #PROP_PASSWORD}.
+     * @deprecated use {@link ConnectionFactory#PROP_PASSWORD}.
      */
     public static final String PROP_PASSWORD = PFX + "password";
     /**
-     * This property is defined as String {@value #PROP_SERVERS}.
+     * @deprecated use {@link ConnectionFactory#PROP_SERVERS}.
      */
     public static final String PROP_SERVERS = PFX + "servers";
     /**
-     * This property is defined as String {@value #PROP_NORANDOMIZE}.
+     * @deprecated use {@link ConnectionFactory#PROP_NORANDOMIZE}.
      */
     public static final String PROP_NORANDOMIZE = PFX + "norandomize";
     /**
-     * This property is defined as String {@value #PROP_CONNECTION_NAME}.
+     * @deprecated use {@link ConnectionFactory#PROP_CONNECTION_NAME}.
      */
     public static final String PROP_CONNECTION_NAME = PFX + "name";
     /**
-     * This property is defined as String {@value #PROP_VERBOSE}.
+     * @deprecated use {@link ConnectionFactory#PROP_VERBOSE}.
      */
     public static final String PROP_VERBOSE = PFX + "verbose";
     /**
-     * This property is defined as String {@value #PROP_PEDANTIC}.
+     * @deprecated use {@link ConnectionFactory#PROP_PEDANTIC}.
      */
     public static final String PROP_PEDANTIC = PFX + "pedantic";
     /**
-     * This property is defined as String {@value #PROP_SECURE}.
+     * @deprecated use {@link ConnectionFactory#PROP_SECURE}.
      */
     public static final String PROP_SECURE = PFX + "secure";
     /**
-     * This property is defined as String {@value #PROP_TLS_DEBUG}.
+     * @deprecated use {@link ConnectionFactory#PROP_TLS_DEBUG}.
      */
     public static final String PROP_TLS_DEBUG = PFX + "tls.debug";
     /**
-     * This property is defined as String {@value #PROP_RECONNECT_ALLOWED}.
+     * @deprecated use {@link ConnectionFactory#PROP_RECONNECT_ALLOWED}.
      */
     public static final String PROP_RECONNECT_ALLOWED = PFX + "reconnect.allowed";
     /**
-     * This property is defined as String {@value #PROP_MAX_RECONNECT}.
+     * @deprecated use {@link ConnectionFactory#PROP_MAX_RECONNECT}.
      */
     public static final String PROP_MAX_RECONNECT = PFX + "reconnect.max";
     /**
-     * This property is defined as String {@value #PROP_RECONNECT_WAIT}.
+     * @deprecated use {@link ConnectionFactory#PROP_RECONNECT_WAIT}.
      */
     public static final String PROP_RECONNECT_WAIT = PFX + "reconnect.wait";
     /**
-     * This property is defined as String {@value #PROP_RECONNECT_BUF_SIZE}.
+     * @deprecated use {@link ConnectionFactory#PROP_RECONNECT_BUF_SIZE}.
      */
     public static final String PROP_RECONNECT_BUF_SIZE = PFX + "reconnect.buffer.size";
     /**
-     * This property is defined as String {@value #PROP_CONNECTION_TIMEOUT}.
+     * @deprecated use {@link ConnectionFactory#PROP_CONNECTION_TIMEOUT}.
      */
     public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
     /**
-     * This property is defined as String {@value #PROP_PING_INTERVAL}.
+     * @deprecated use {@link ConnectionFactory#PROP_PING_INTERVAL}.
      */
     public static final String PROP_PING_INTERVAL = PFX + "pinginterval";
     /**
-     * This property is defined as String {@value #PROP_MAX_PINGS}.
+     * @deprecated use {@link ConnectionFactory#PROP_MAX_PINGS}.
      */
     public static final String PROP_MAX_PINGS = PFX + "maxpings";
     /**
-     * This property is defined as String {@value #PROP_EXCEPTION_HANDLER}.
+     * @deprecated use {@link ConnectionFactory#PROP_EXCEPTION_HANDLER}.
      */
     public static final String PROP_EXCEPTION_HANDLER = PFX + "callback.exception";
     /**
-     * This property is defined as String {@value #PROP_CLOSED_CB}.
+     * @deprecated use {@link ConnectionFactory#PROP_CLOSED_CB}.
      */
     public static final String PROP_CLOSED_CB = PFX + "callback.closed";
     /**
-     * This property is defined as String {@value #PROP_DISCONNECTED_CB}.
+     * @deprecated use {@link ConnectionFactory#PROP_DISCONNECTED_CB}.
      */
     public static final String PROP_DISCONNECTED_CB = PFX + "callback.disconnected";
     /**
-     * This property is defined as String {@value #PROP_RECONNECTED_CB}.
+     * @deprecated use {@link ConnectionFactory#PROP_RECONNECTED_CB}.
      */
     public static final String PROP_RECONNECTED_CB = PFX + "callback.reconnected";
     /**
-     * This property is defined as String {@value #PROP_MAX_PENDING_MSGS}.
+     * @deprecated use {@link ConnectionFactory#PROP_MAX_PENDING_MSGS}.
      */
     public static final String PROP_MAX_PENDING_MSGS = PFX + "maxpending";
     /**
-     * This property is defined as String {@value #PROP_MAX_PENDING_BYTES}.
+     * @deprecated use {@link ConnectionFactory#PROP_MAX_PENDING_BYTES}.
      */
     public static final String PROP_MAX_PENDING_BYTES = PFX + "maxpending.bytes";
 

@@ -3,7 +3,7 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
-package io.nats.client.examples;
+package io.nats.examples;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
