@@ -6,8 +6,6 @@
 
 package io.nats.client;
 
-import static io.nats.client.Constants.PROP_RECONNECT_ALLOWED;
-import static io.nats.client.Constants.PROP_URL;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static io.nats.client.UnitTestUtilities.waitTime;
 import static org.junit.Assert.assertEquals;
@@ -15,6 +13,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import io.nats.client.Constants.ConnState;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -34,8 +34,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-
-import io.nats.client.Constants.ConnState;
 
 @Category(UnitTest.class)
 public class ReconnectTest {
@@ -61,10 +59,10 @@ public class ReconnectTest {
     private static Properties getReconnectOptions() {
         Properties props = new Properties();
 
-        props.setProperty(PROP_URL, "nats://localhost:22222");
-        props.setProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(true));
-        props.setProperty(Constants.PROP_MAX_RECONNECT, Integer.toString(10));
-        props.setProperty(Constants.PROP_RECONNECT_WAIT, Integer.toString(100));
+        props.setProperty(ConnectionFactory.PROP_URL, "nats://localhost:22222");
+        props.setProperty(ConnectionFactory.PROP_RECONNECT_ALLOWED, Boolean.toString(true));
+        props.setProperty(ConnectionFactory.PROP_MAX_RECONNECT, Integer.toString(10));
+        props.setProperty(ConnectionFactory.PROP_RECONNECT_WAIT, Integer.toString(100));
 
         return props;
     }
@@ -252,7 +250,7 @@ public class ReconnectTest {
     }
 
     @Test
-    public void testExtendedReconnectFunctionality() {
+    public void testExtendedReconnectFunctionality() throws Exception {
         Properties opts = reconnectOptions;
         ConnectionFactory cf = new ConnectionFactory(opts);
 
@@ -272,29 +270,22 @@ public class ReconnectTest {
 
         final AtomicInteger received = new AtomicInteger(0);
 
-        MessageHandler mh = new MessageHandler() {
-            @Override
+        final MessageHandler mh = new MessageHandler() {
             public void onMessage(Message msg) {
                 received.incrementAndGet();
             }
         };
 
         byte[] payload = "bar".getBytes();
-        try (NATSServer ns = utils.createServerOnPort(22222)) {
+        try (NATSServer ns1 = utils.createServerOnPort(22222)) {
             try (Connection c = cf.createConnection()) {
                 c.subscribe("foo", mh);
-                AsyncSubscription sub = c.subscribe("foobar", mh);
-
-                received.set(0);
+                final Subscription foobarSub = c.subscribe("foobar", mh);
 
                 c.publish("foo", payload);
-                try {
-                    c.flush();
-                } catch (Exception e2) {
-                    fail(e2.getMessage());
-                }
+                c.flush();
 
-                ns.shutdown();
+                ns1.shutdown();
                 // server is stopped here.
 
                 // wait for disconnect
@@ -305,25 +296,20 @@ public class ReconnectTest {
                     fail("Did not receive a disconnect callback message");
                 }
 
-                // subscribe to bar while disconnected.
-                c.subscribe("bar", mh);
+                // sub while disconnected.
+                Subscription barSub = c.subscribe("bar", mh);
 
                 // Unsub foobar while disconnected
-                sub.unsubscribe();
+                foobarSub.unsubscribe();
 
                 c.publish("foo", payload);
                 c.publish("bar", payload);
 
-                // wait for reconnect
-                try (NATSServer ts1 = utils.createServerOnPort(22222)) {
+                try (NATSServer ns2 = utils.createServerOnPort(22222)) {
                     // server is restarted here...
-
-                    try {
-                        assertTrue("Did not receive a reconnect callback message",
-                                rch.get(2, TimeUnit.SECONDS));
-                    } catch (TimeoutException e) {
-                        fail("Did not receive a reconnect callback message: " + e.getMessage());
-                    }
+                    // wait for reconnect
+                    assertTrue("Did not receive a reconnect callback message",
+                            rch.get(2, TimeUnit.SECONDS));
 
                     c.publish("foobar", payload);
                     c.publish("foo", payload);
@@ -334,18 +320,13 @@ public class ReconnectTest {
                             ch.add(true);
                         }
                     });
-
-                    UnitTestUtilities.sleep(100);
+                    sleep(500, TimeUnit.MILLISECONDS);
                     c.publish("done", null);
 
-                    try {
-                        assertTrue("Did not receive a disconnect callback message",
-                                ch.get(5, TimeUnit.SECONDS));
-                    } catch (TimeoutException e) {
-                        fail("Did not receive our message: " + e.getMessage());
-                    }
+                    assertTrue("Did not receive our 'done' message", ch.get(5, TimeUnit.SECONDS));
 
-                    UnitTestUtilities.sleep(50);
+                    // Sleep a bit to guarantee scheduler runs and processes all subs
+                    sleep(50, TimeUnit.MILLISECONDS);
 
                     assertEquals(4, received.get());
 

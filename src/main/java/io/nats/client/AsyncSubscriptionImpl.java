@@ -44,7 +44,6 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
         } finally {
             mu.unlock();
         }
-
         // TODO Should this happen? And should it be handled differently?
         // the message handler has not been setup yet, drop the
         // message.
@@ -85,12 +84,12 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
         Runnable msgFeeder = new Runnable() {
             public void run() {
                 try {
-                    logger.trace("msgFeeder starting for subj: {} sid: {}", subject, sid);
+                    logger.debug("msgFeeder starting for subj: {} sid: {}", subject, sid);
                     if (conn == null || mch == null) {
                         logger.error("Exiting due to NULL connection or NULL message channel");
                         return;
                     }
-                    logger.trace("msgFeeder entering delivery loop for subj: {} sid: {}", subject,
+                    logger.debug("msgFeeder entering delivery loop for subj: {} sid: {}", subject,
                             sid);
                     conn.deliverMsgs(mch);
                     logger.debug("Leaving msgFeeder for subject: "
@@ -135,8 +134,6 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
         }
 
         enable();
-
-        conn.sendSubscriptionMessage(this);
     }
 
     @Override

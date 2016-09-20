@@ -30,7 +30,6 @@ import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -66,8 +65,6 @@ public class ConnectionImpl implements Connection {
 
     String version = null;
 
-    // final static int DEFAULT_SCRATCH_SIZE = 512;
-
     private static final String inboxPrefix = "_INBOX.";
 
     public ConnState status = ConnState.DISCONNECTED;
@@ -78,16 +75,10 @@ public class ConnectionImpl implements Connection {
     // Default language string for CONNECT message
     protected static final String LANG_STRING = "java";
 
-    // Scratch storage for assembling protocol headers
-    // protected static final int SCRATCH_SIZE = 512;
-
-    // The size of the bufio reader/writer on top of the socket.
-    // protected static final int DEFAULT_BUF_SIZE = 32768;
+    // The size of the read buffer in readLoop.
     protected static final int DEFAULT_BUF_SIZE = 65536;
-    protected static final int DEFAULT_STREAM_BUF_SIZE = 8192;
-
-    // The size of the bufio while we are reconnecting
-    protected static final int DEFAULT_PENDING_SIZE = 1024 * 1024;
+    // The size of the BufferedInputStream and BufferedOutputStream on top of the socket.
+    protected static final int DEFAULT_STREAM_BUF_SIZE = 65536;
 
     // The buffered size of the flush "kick" channel
     protected static final int FLUSH_CHAN_SIZE = 1024;
@@ -152,7 +143,7 @@ public class ConnectionImpl implements Connection {
     // private BufferedOutputStream bw = null;
     private OutputStream bw = null;
 
-    private BufferedInputStream br = null;
+    private InputStream br = null;
     private ByteArrayOutputStream pending = null;
 
     private ReentrantLock flusherLock = new ReentrantLock();
@@ -574,9 +565,7 @@ public class ConnectionImpl implements Connection {
                     while (!cbexec.awaitTermination(5, TimeUnit.SECONDS)) {
                         logger.debug("Awaiting completion of threads.");
                     }
-                } catch (
-
-                InterruptedException e) {
+                } catch (InterruptedException e) {
                     logger.debug("Interrupted waiting to shutdown cbexec", e);
                 }
             }
@@ -625,8 +614,8 @@ public class ConnectionImpl implements Connection {
     private void makeTLSConn() throws IOException {
         conn.setTlsDebug(opts.isTlsDebug());
         conn.makeTLS(opts.getSSLContext());
-        bw = conn.getBufferedOutputStream(DEFAULT_BUF_SIZE);
-        br = conn.getBufferedInputStream(DEFAULT_BUF_SIZE);
+        bw = conn.getBufferedOutputStream(DEFAULT_STREAM_BUF_SIZE);
+        br = conn.getBufferedInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
 
     protected void processExpectedInfo() throws IOException {
@@ -1449,7 +1438,8 @@ public class ConnectionImpl implements Connection {
             }
 
             try {
-                len = br.read(buffer, 0, DEFAULT_BUF_SIZE);
+                len = br.read(buffer);
+                // len = br.read(buffer, 0, DEFAULT_BUF_SIZE);
                 if (len == -1) {
                     throw new IOException(ERR_STALE_CONNECTION);
                 }
@@ -1493,7 +1483,6 @@ public class ConnectionImpl implements Connection {
                 logger.debug("Channel closed, exiting msgFeeder loop");
                 return;
             }
-
             // Note, this seems odd message having the sub process itself,
             // but this is good for performance.
             if (!msg.sub.processMsg(msg)) {
@@ -1512,10 +1501,6 @@ public class ConnectionImpl implements Connection {
     // their own channel. If the channel is full, the connection is
     // considered a slow subscriber.
     protected void processMsg(byte[] data, int offset, int length) {
-        // logger.trace("In ConnectionImpl.processMsg(), msg length = {}. msg bytes = [{}]", length,
-        // data);
-        // logger.trace("msg = [{}]", new String(data));
-
         boolean maxReached = false;
         SubscriptionImpl sub;
 
@@ -1534,7 +1519,6 @@ public class ConnectionImpl implements Connection {
                 maxReached = sub.tallyMessage(ps.ma.size);
                 if (!maxReached) {
                     Message msg = new Message(ps.ma, sub, data, offset, length);
-
                     sub.addMessage(msg);
                 } // maxreached == false
             } // lock s.mu
@@ -1687,6 +1671,14 @@ public class ConnectionImpl implements Connection {
         unsubscribe(sub, (long) max);
     }
 
+    protected void writeUnsubProto(SubscriptionImpl sub, long max) throws IOException {
+        String str = String.format(UNSUB_PROTO, sub.getSid(), max > 0 ? Long.toString(max) : "");
+        str = str.replaceAll(" +\r\n", "\r\n");
+        byte[] unsub = str.getBytes();
+        bw.write(unsub);
+        logger.trace("=> {}", str.trim());
+    }
+
     // unsubscribe performs the low level unsubscribe to the server.
     // Use SubscriptionImpl.unsubscribe()
     protected void unsubscribe(SubscriptionImpl sub, long max) throws IOException {
@@ -1696,27 +1688,23 @@ public class ConnectionImpl implements Connection {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
+            SubscriptionImpl s = subs.get(sub.getSid());
             // already unsubscribed
-            if (!subs.containsKey(sub.getSid())) {
+            if (s == null) {
                 return;
             }
 
             // If the autounsubscribe max is > 0, set that on the subscription
             if (max > 0) {
-                sub.setMax(max);
+                s.setMax(max);
             } else {
-                removeSub((SubscriptionImpl) sub);
+                removeSub(s);
             }
 
             // We will send all subscriptions when reconnecting
             // so that we can suppress here.
             if (!_isReconnecting()) {
-                String str =
-                        String.format(UNSUB_PROTO, sub.getSid(), max > 0 ? Long.toString(max) : "");
-                str = str.replaceAll(" +\r\n", "\r\n");
-                byte[] unsub = str.getBytes();
-                bw.write(unsub);
-                logger.trace("=> {}", str.trim());
+                writeUnsubProto(s, max);
             }
         } finally {
             kickFlusher();
@@ -1788,13 +1776,6 @@ public class ConnectionImpl implements Connection {
                 logger.debug("flusher loop interrupted", e);
             }
 
-            // try {
-            // if (!mu.tryLock(1, TimeUnit.MILLISECONDS)) {
-            // // System.err.println("FLUSHER CONTINUING");
-            // continue;
-            // }
-            // } catch (InterruptedException e1) {
-            // }
             mu.lock();
             try {
 
@@ -1884,7 +1865,7 @@ public class ConnectionImpl implements Connection {
     // resendSubscriptions will send our subscription state back to the
     // server. Used in reconnects
     protected void resendSubscriptions() {
-        long adjustedMax = 0;
+        long adjustedMax = 0L;
         for (Long key : subs.keySet()) {
             SubscriptionImpl sub = subs.get(key);
             if (sub instanceof AsyncSubscription) {
@@ -1917,7 +1898,8 @@ public class ConnectionImpl implements Connection {
             sendSubscriptionMessage(sub);
             if (adjustedMax > 0) {
                 try {
-                    unsubscribe(sub, adjustedMax);
+                    // cannot call unsubscribe here. Need to just send proto
+                    writeUnsubProto(sub, adjustedMax);
                 } catch (Exception e) {
                     /* NOOP */
                 }
@@ -1928,33 +1910,27 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public AsyncSubscription subscribe(String subject, MessageHandler cb) {
-        return (AsyncSubscription) subscribe(subject, null, cb);
+        return subscribeAsync(subject, null, cb);
     }
 
     public Subscription subscribe(String subj, String queue, MessageHandler cb) {
-        SubscriptionImpl sub = null;
         boolean async = (cb != null);
+        if (async) {
+            return subscribeAsync(subj, queue, cb);
+        }
+        Subscription sub = null;
         mu.lock();
         try {
             if (_isClosed()) {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
-            if (async) {
-                sub = new AsyncSubscriptionImpl(this, subj, queue, cb, opts.getMaxPendingMsgs(),
-                        opts.getMaxPendingBytes());
-            } else {
-                sub = new SyncSubscriptionImpl(this, subj, queue, opts.getMaxPendingMsgs(),
-                        opts.getMaxPendingBytes());
-            }
 
-            addSubscription(sub);
+            sub = new SyncSubscriptionImpl(this, subj, queue, opts.getMaxPendingMsgs(),
+                    opts.getMaxPendingBytes());
+            addSubscription((SubscriptionImpl) sub);
 
             if (!_isReconnecting()) {
-                if (async) {
-                    ((AsyncSubscriptionImpl) sub).start();
-                } else {
-                    sendSubscriptionMessage(sub);
-                }
+                sendSubscriptionMessage((SubscriptionImpl) sub);
             }
 
             kickFlusher();
@@ -1967,7 +1943,6 @@ public class ConnectionImpl implements Connection {
     @Override
     public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb) {
         AsyncSubscription sub = null;
-
         mu.lock();
         try {
             if (_isClosed()) {
@@ -1982,6 +1957,9 @@ public class ConnectionImpl implements Connection {
             if (cb != null) {
                 sub.setMessageHandler(cb);
                 sub.start();
+            }
+            if (!_isReconnecting()) {
+                sendSubscriptionMessage((SubscriptionImpl) sub);
             }
         } finally {
             mu.unlock();
@@ -2009,8 +1987,6 @@ public class ConnectionImpl implements Connection {
         sub.setSid(sidCounter.incrementAndGet());
         subs.put(sub.getSid(), sub);
         logger.trace("Successfully added subscription to {} [{}]", sub.getSubject(), sub.getSid());
-        // if (logger.isDebugEnabled())
-        // printSubs(this);
     }
 
     @Override
@@ -2118,15 +2094,11 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    // protected void writeBuffer(ByteBuffer buffer, OutputStream stream) throws IOException {
-    // WritableByteChannel channel = Channels.newChannel(stream);
-    // channel.write(buffer);
-    // }
-
     // Sends a protocol data message by queueing into the bufio writer
     // and kicking the flush go routine. These writes should be protected.
     // publish can throw a few different unchecked exceptions:
     // IllegalStateException, IllegalArgumentException, NullPointerException
+    @Override
     public void publish(String subject, String reply, byte[] data) throws IOException {
         if (subject == null) {
             throw new NullPointerException(ERR_BAD_SUBJECT);
@@ -2215,6 +2187,7 @@ public class ConnectionImpl implements Connection {
         try {
             // We will send these for all subs when we reconnect
             // so that we can suppress here.
+            logger.trace("Sending sub message for " + sub);
             if (!_isReconnecting()) {
                 String queue = sub.getQueue();
                 String subLine = String.format(SUB_PROTO, sub.getSubject(),
@@ -2394,7 +2367,7 @@ public class ConnectionImpl implements Connection {
         return bw;
     }
 
-    void setInputStream(BufferedInputStream in) {
+    void setInputStream(InputStream in) {
         mu.lock();
         try {
             this.br = in;
@@ -2403,7 +2376,7 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    BufferedInputStream getInputStream() {
+    InputStream getInputStream() {
         return br;
     }
 

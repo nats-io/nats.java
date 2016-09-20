@@ -3,6 +3,7 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
@@ -143,10 +144,6 @@ abstract class SubscriptionImpl implements Subscription {
     // the channel is full, true if the message was added
     // to the channel.
     boolean addMessage(Message m) {
-        // logger.trace("Entered addMessage({}, count={} max={}",
-        // m,
-        // mch.getCount(),
-        // max);
         // Subscription internal stats
         pMsgs++;
         if (pMsgs > pMsgsMax) {
@@ -168,13 +165,10 @@ abstract class SubscriptionImpl implements Subscription {
         if (mch != null) {
             if (mch.getCount() >= getMaxPendingMsgs()) {
                 handleSlowConsumer(m);
-                // logger.trace("MAXIMUM COUNT ({}) REACHED FOR SID: {}",
-                // max, getSid());
                 return false;
             } else {
                 sc = false;
                 mch.add(m);
-                // logger.trace("Added message to channel: " + m);
             }
         } // mch != null
         return true;
@@ -224,7 +218,7 @@ abstract class SubscriptionImpl implements Subscription {
     @Override
     public void close() {
         try {
-            logger.trace("Calling unsubscribe from AutoCloseable.close()");
+            logger.debug("Calling unsubscribe from AutoCloseable.close()");
             unsubscribe();
         } catch (Exception e) {
             // Just ignore. This is for AutoCloseable.

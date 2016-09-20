@@ -962,7 +962,7 @@ public class ConnectionTest {
 
             // Test with PING pending
             ByteArrayOutputStream baos =
-                    new ByteArrayOutputStream(ConnectionImpl.DEFAULT_PENDING_SIZE);
+                    new ByteArrayOutputStream(ConnectionFactory.DEFAULT_RECONNECT_BUF_SIZE);
             baos.write(c.pingProtoBytes, 0, c.pingProtoBytesLen);
             c.setPending(baos);
             c.setOutputStream(bw);

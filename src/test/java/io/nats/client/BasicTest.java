@@ -60,14 +60,10 @@ public class BasicTest {
     }
 
     @Before
-    public void setUp() throws Exception {
-        // utils.startDefaultServer();
-    }
+    public void setUp() throws Exception {}
 
     @After
-    public void tearDown() throws Exception {
-        // utils.stopDefaultServer();
-    }
+    public void tearDown() throws Exception {}
 
     @Test
     public void testConnectedServer() throws IOException, TimeoutException {
