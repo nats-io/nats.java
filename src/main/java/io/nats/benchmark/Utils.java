@@ -1,5 +1,8 @@
 package io.nats.benchmark;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Utils {
 
     public Utils() {}
@@ -37,19 +40,18 @@ public class Utils {
      * @param numClients the total number of clients
      * @return an array of message counts
      */
-    public static int[] msgsPerClient(int numMsgs, int numClients) {
-        int[] counts = null;
+    public static List<Integer> msgsPerClient(int numMsgs, int numClients) {
+        List<Integer> counts = new ArrayList<Integer>(numClients);
         if (numClients == 0 || numMsgs == 0) {
             return counts;
         }
-        counts = new int[numClients];
         int mc = numMsgs / numClients;
         for (int i = 0; i < numClients; i++) {
-            counts[i] = mc;
+            counts.add(mc);
         }
         int extra = numMsgs % numClients;
         for (int i = 0; i < extra; i++) {
-            counts[i]++;
+            counts.set(i, counts.get(i) + 1);
         }
         return counts;
     }

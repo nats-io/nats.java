@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Category(UnitTest.class)
 public class ReconnectTest {
-    final static Logger logger = LoggerFactory.getLogger(ReconnectTest.class);
+    static final Logger logger = LoggerFactory.getLogger(ReconnectTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);

@@ -15,6 +15,8 @@ public class Sample {
     long start;
     long end;
 
+    final static double BILLION = 1000000000.0;
+
     public Sample() {}
 
     /**
@@ -51,7 +53,7 @@ public class Sample {
      * @return throughput of bytes per second
      */
     public double throughput() {
-        return (double) msgBytes / (duration() / 1000000000.0);
+        return (double) msgBytes / (duration() / BILLION);
     }
 
     /**
@@ -60,7 +62,11 @@ public class Sample {
      * @return rate of messages in the job per second.
      */
     public long rate() {
-        return (long) ((double) jobMsgCnt / (duration() / 1000000000.0));
+        return (long) ((double) jobMsgCnt / (duration() / BILLION));
+    }
+
+    public double seconds() {
+        return (double) duration() / BILLION;
     }
 
     /**
