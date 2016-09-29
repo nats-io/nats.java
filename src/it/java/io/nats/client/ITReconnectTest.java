@@ -35,9 +35,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Category(UnitTest.class)
-public class ReconnectTest {
-    static final Logger logger = LoggerFactory.getLogger(ReconnectTest.class);
+@Category(IntegrationTest.class)
+public class ITReconnectTest {
+    static final Logger logger = LoggerFactory.getLogger(ITReconnectTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);

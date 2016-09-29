@@ -39,8 +39,8 @@ class TCPConnection implements AutoCloseable {
     /// more efficient for NATS?
     ///
     ReentrantLock mu = new ReentrantLock();
-    private SocketFactory factory = SocketFactory.getDefault();
-    private SSLContext sslContext;
+    protected SocketFactory factory = SocketFactory.getDefault();
+    protected SSLContext sslContext;
     Socket client = null;
     protected OutputStream writeStream = null;
     protected InputStream readStream = null;

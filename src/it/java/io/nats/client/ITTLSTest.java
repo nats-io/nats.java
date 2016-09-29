@@ -3,6 +3,7 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -77,15 +78,15 @@ public class ITTLSTest {
             assertNotNull(tmf);
             tmf.init(tks);
 
-            SSLContext c = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
-            assertNotNull(c);
-            c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+            SSLContext ctx = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+            assertNotNull(ctx);
+            ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
             ConnectionFactory cf = new ConnectionFactory();
             cf.setUrl("tls://localhost:1222");
             cf.setSecure(true);
             cf.setTlsDebug(true);
-            cf.setSSLContext(c);
+            cf.setSSLContext(ctx);
 
             try (Connection connection = cf.createConnection()) {
                 assertFalse(connection.isClosed());
@@ -135,10 +136,10 @@ public class ITTLSTest {
                 try (SyncSubscription s = c.subscribeSync(subj)) {
                     c.publish(subj, omsg);
                     c.flush();
-                    Message m = s.nextMessage();
-                    assertNotNull(m);
-                    assertEquals(subj, m.getSubject());
-                    assertArrayEquals(omsg, m.getData());
+                    Message msg = s.nextMessage();
+                    assertNotNull(msg);
+                    assertEquals(subj, msg.getSubject());
+                    assertArrayEquals(omsg, msg.getData());
                 } catch (Exception e) {
                     fail(e.getMessage());
                 }

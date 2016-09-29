@@ -7,6 +7,7 @@
 package io.nats.client;
 
 import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -15,6 +16,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -22,6 +25,11 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -29,8 +37,19 @@ import java.util.concurrent.TimeoutException;
 
 @Category(UnitTest.class)
 public class AsyncSubscriptionImplTest {
+    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    static final Logger logger = LoggerFactory.getLogger(AsyncSubscriptionImplTest.class);
+
+    static final LogVerifier verifier = new LogVerifier();
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
+
+    @Mock
+    public ConnectionImpl connMock;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {}
@@ -39,10 +58,16 @@ public class AsyncSubscriptionImplTest {
     public static void tearDownAfterClass() throws Exception {}
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+        verifier.setup();
+        MockitoAnnotations.initMocks(this);
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+        verifier.teardown();
+        setLogLevel(Level.INFO);
+    }
 
     @Test
     public void testClose() {
@@ -241,4 +266,47 @@ public class AsyncSubscriptionImplTest {
         conn.close();
         assertFalse(((AsyncSubscriptionImpl) sub).isStarted());
     }
+
+    @Test
+    public void testToString() {
+        String expected1 = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, "
+                + "maxPendingMsgs=20, maxPendingBytes=67108864, valid=false}";
+        String expected2 = "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, "
+                + "maxPendingMsgs=65536, maxPendingBytes=67108864, valid=false}";
+        ConnectionImpl nc = null;
+        Subscription sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
+        assertEquals(expected1, sub.toString());
+        sub.close();
+        sub = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
+        assertEquals(expected2, sub.toString());
+        sub.close();
+    }
+
+    @Test
+    public void testHandleSlowConsumer() {
+        MessageHandler mcb = new MessageHandler() {
+            public void onMessage(Message msg) {
+
+            }
+
+        };
+        AsyncSubscriptionImpl sub =
+                new AsyncSubscriptionImpl(connMock, "foo", "bar", mcb, 10000, 1000 * 10000);
+        Message msg = new Message("foo", "bar", "Hello World".getBytes());
+        sub.pBytes += msg.getData().length;
+        sub.pMsgs = 1;
+        sub.handleSlowConsumer(msg);
+        assertEquals(1, sub.dropped);
+        assertEquals(0, sub.pMsgs);
+        assertEquals(0, sub.pBytes);
+
+        msg.setData(null);
+        sub.pMsgs = 1;
+        sub.handleSlowConsumer(msg);
+        assertEquals(2, sub.getDropped());
+        assertEquals(0, sub.pMsgs);
+        assertEquals(0, sub.pBytes);
+
+    }
+
 }

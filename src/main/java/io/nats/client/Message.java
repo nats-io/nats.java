@@ -9,14 +9,18 @@
 
 package io.nats.client;
 
-import java.util.Arrays;
-
 import io.nats.client.Parser.MsgArg;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
 
 /**
  * A {@code Message} object is used to send a message containing a stream of uninterpreted bytes.
  */
 public class Message {
+    static final Logger logger = LoggerFactory.getLogger(Message.class);
     private byte[] subjectBytes;
     private String subjectString;
     // private ByteBuffer subject;
@@ -28,14 +32,9 @@ public class Message {
     protected SubscriptionImpl sub;
 
     /**
-     * 
+     * Message constructor.
      */
-    public Message() {
-        // this.subject = null;
-        // this.replyTo = null;
-        // this.data = null;
-        // this.sub = null;
-    }
+    public Message() {}
 
     /**
      * @param subject the subject this {@code Message} will be published to, or that it was received
@@ -61,24 +60,15 @@ public class Message {
         if (ma.size > 0) {
             data = new byte[ma.size];
             try {
-                System.arraycopy(buf, offset, data, 0, length);
+                sysArrayCopy(buf, offset, data, 0, length);
             } catch (ArrayIndexOutOfBoundsException e) {
-                System.err.printf("buf.length=%d, offset=%d, data.length=%d, length=%d\n, buf=[%s]",
+                logger.debug("nats: unexpected runtime error copying message body");
+                logger.debug("buf.length={}, offset={}, data.length={}, length={}\n, buf=[{}]",
                         buf.length, offset, data.length, length, new String(buf, offset, length));
                 e.printStackTrace();
             }
         }
     }
-
-    // protected Message(byte[] data, int length, byte[] subject, byte[] reply, SubscriptionImpl
-    // sub)
-    // {
-    // this.setSubject(subject);
-    // // make a deep copy of the bytes for this message.
-    // this.data = Arrays.copyOf(data, length);
-    // this.setReplyTo(reply);
-    // this.sub = sub;
-    // }
 
     protected Message(byte[] data, int length, String subject, String reply, SubscriptionImpl sub) {
         this.setSubject(subject);
@@ -89,7 +79,7 @@ public class Message {
     }
 
     /**
-     * Returns the message payload
+     * Returns the message payload.
      * 
      * @return the message payload
      */
@@ -98,7 +88,7 @@ public class Message {
     }
 
     /**
-     * Returns the message subject
+     * Returns the message subject.
      * 
      * @return the message subject
      */
@@ -114,17 +104,17 @@ public class Message {
     }
 
     /**
-     * Sets the subject of the message
+     * Sets the subject of the message.
      * 
      * @param subject the subject to set
      */
     public void setSubject(final String subject) {
-        String s = subject.trim();
-        if (s == null || s.isEmpty()) {
+        String subj = subject.trim();
+        if (subj == null || subj.isEmpty()) {
             throw new IllegalArgumentException("Subject cannot be null, empty, or whitespace.");
         }
-        this.subjectString = subject;
-        this.subjectBytes = subject.getBytes();
+        this.subjectString = subj;
+        this.subjectBytes = subj.getBytes();
     }
 
     void setSubject(byte[] subject, int length) {
@@ -132,7 +122,7 @@ public class Message {
     }
 
     /**
-     * Returns the reply subject
+     * Returns the reply subject.
      * 
      * @return the reply subject
      */
@@ -150,7 +140,7 @@ public class Message {
     }
 
     /**
-     * Sets the message reply subject
+     * Sets the message reply subject.
      * 
      * @param replyTo the message reply subject
      */
@@ -158,8 +148,8 @@ public class Message {
         if (replyTo == null) {
             this.replyToBytes = null;
         } else {
-            String r = replyTo.trim();
-            if (r.isEmpty()) {
+            String reply = replyTo.trim();
+            if (reply.isEmpty()) {
                 throw new IllegalArgumentException("Reply subject cannot be empty or whitespace.");
             }
             this.replyToString = replyTo;
@@ -176,7 +166,7 @@ public class Message {
     }
 
     /**
-     * Returns the {@code Subscription} object the message was received on
+     * Returns the {@code Subscription} object the message was received on.
      * 
      * @return the {@code Subscription} the message was received on
      */
@@ -185,7 +175,7 @@ public class Message {
     }
 
     /**
-     * Sets the message payload data
+     * Sets the message payload data.
      * 
      * @param data the data
      * @param offset the start offset in the data
@@ -196,12 +186,12 @@ public class Message {
             this.data = null;
         } else {
             this.data = new byte[length];
-            System.arraycopy(data, offset, this.data, 0, length);
+            sysArrayCopy(data, offset, this.data, 0, length);
         }
     }
 
     /**
-     * Sets the message payload data
+     * Sets the message payload data.
      * 
      * @param data the data
      */
@@ -213,6 +203,17 @@ public class Message {
         }
     }
 
+    static void sysArrayCopy(byte[] src, int srcPos, byte[] dest, int destPos, int length) {
+        if (length > src.length) {
+            throw new ArrayIndexOutOfBoundsException(
+                    "source buffer smaller than requested copy length");
+        } else if (length > dest.length) {
+            throw new ArrayIndexOutOfBoundsException(
+                    "destination buffer smaller than requested copy length");
+        }
+        System.arraycopy(src, srcPos, dest, destPos, length);
+    }
+
     /**
      * @see java.lang.Object#toString()
      * @return a string representation of the message
@@ -222,16 +223,16 @@ public class Message {
         int maxBytes = 32;
         int len = 0;
 
-        byte[] b = getData();
-        if (b != null) {
-            len = b.length;
+        byte[] buf = getData();
+        if (buf != null) {
+            len = buf.length;
         }
 
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("{Subject=%s;Reply=%s;Payload=<", getSubject(), getReplyTo()));
 
         for (int i = 0; i < maxBytes && i < len; i++) {
-            sb.append((char) b[i]);
+            sb.append((char) buf[i]);
         }
 
         int remainder = len - maxBytes;

@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.Charset;
@@ -35,6 +36,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable {
     final Logger logger = LoggerFactory.getLogger(TCPConnectionMock.class);
@@ -52,7 +57,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
                     + "\"max_payload\":1048576}\r\n";
 
     ReentrantLock mu = new ReentrantLock();
-    Socket client = null;
+    // Socket client = null;
     char[] buffer = new char[ConnectionImpl.DEFAULT_BUF_SIZE];
 
     // for the client
@@ -119,6 +124,8 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
         mu.lock();
         try {
             client = mock(Socket.class);
+            when(client.getInetAddress()).thenReturn(InetAddress.getByName(host));
+            when(client.getPort()).thenReturn(port);
             when(client.isConnected()).thenReturn(false);
             when(client.isClosed()).thenReturn(false);
 
@@ -351,7 +358,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
                 } else if (control.equalsIgnoreCase(PONG_PROTO.trim())) {
                 } else if (control.toUpperCase().startsWith("CONNECT")) {
                     logger.trace("Processing CONNECT");
-                    this.connectInfo = new ClientConnectInfo(control);
+                    this.connectInfo = ClientConnectInfo.createFromWire(control);
                     sendOK();
                 } else if (control.startsWith("UNSUB")) {
                     processUnsub(control);
@@ -434,17 +441,21 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
         }
 
         if (reply != null) {
-            out = String.format("MSG %s %d %s %d\r\n", subj, sid, reply, payload.length);
+            out = String.format("MSG %s %d %s %d\r\n", subj, sid, reply,
+                    payload != null ? payload.length : 0);
         } else {
             out = String.format("MSG %s %d %d\r\n", subj, sid, payload.length);
         }
         logger.trace(out);
         try {
             bw.write(out.getBytes());
-            bw.write(payload, 0, payload.length);
+            if (payload != null) {
+                bw.write(payload, 0, payload.length);
+            }
             bw.write(ConnectionImpl._CRLF_.getBytes());
             bw.flush();
-            logger.trace(String.format("=> %s\r\n", out + new String(payload)));
+            logger.trace(String.format("=> %s\r\n",
+                    out + (payload != null ? new String(payload) : "null")));
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -642,5 +653,42 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
      */
     public void setVerboseNoOK(boolean verboseNoOK) {
         this.verboseNoOK = verboseNoOK;
+    }
+
+    protected void makeTLS(SSLContext context) throws IOException {
+        this.sslContext = context;
+        // setSocketFactory(sslContext.getSocketFactory());
+        setSocketFactory(mock(SSLSocketFactory.class));
+        // SSLSocketFactory sslSf = (SSLSocketFactory) factory;
+        SSLSocketFactory sslSf = (SSLSocketFactory) factory;
+        // SSLSocket sslSocket = (SSLSocket) sslSf.createSocket(client,
+        // client.getInetAddress().getHostAddress(), client.getPort(), true);
+
+        SSLSocket sslSocket = mock(SSLSocket.class);
+
+        if (isTlsDebug()) {
+            sslSocket.addHandshakeCompletedListener(new HandshakeListener());
+        }
+
+        // this.setSocket(sslSocket);
+        sslSocket.startHandshake();
+        // this.bisr = null;
+        // this.readStream = new PipedInputStream(DEFAULT_BUF_SIZE);
+        // sslSocket.getInputStream();
+        // bis = null;
+        // this.writeStream = sslSocket.getOutputStream();
+        // bos = null;
+
+
+        readStream = new PipedInputStream(DEFAULT_BUF_SIZE);
+        out = new PipedOutputStream(readStream);
+        isr = null;
+
+        writeStream = new PipedOutputStream();
+        in = new PipedInputStream(writeStream, DEFAULT_BUF_SIZE);
+
+
+        bw = new BufferedOutputStream(out, DEFAULT_BUF_SIZE);
+
     }
 }

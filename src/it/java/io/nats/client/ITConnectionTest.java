@@ -7,12 +7,9 @@
 package io.nats.client;
 
 import static io.nats.client.Constants.ERR_CONNECTION_CLOSED;
-import static io.nats.client.Constants.ERR_CONNECTION_READ;
-import static io.nats.client.Constants.ERR_MAX_PAYLOAD;
 import static io.nats.client.Constants.ERR_NO_SERVERS;
 import static io.nats.client.Constants.ERR_STALE_CONNECTION;
-import static io.nats.client.Constants.ERR_TIMEOUT;
-import static io.nats.client.UnitTestUtilities.sleep;
+import static io.nats.client.UnitTestUtilities.bounceDefaultServer;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -47,16 +44,13 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -93,66 +87,6 @@ public class ITConnectionTest {
 
     @After
     public void tearDown() throws Exception {}
-
-    @Test
-    public void testGetHandlers() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            assertNull(c.getClosedCallback());
-            assertNull(c.getReconnectedCallback());
-            assertNull(c.getDisconnectedCallback());
-            assertNull(c.getExceptionHandler());
-        } catch (IOException | TimeoutException e) {
-            fail("Unexpected exception: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testFlushTimeoutFailure() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            TCPConnectionMock mock = (TCPConnectionMock) c.getTcpConnection();
-            mock.setNoPongs(true);
-            boolean exThrown = false;
-            try {
-                c.flush(500);
-            } catch (Exception e) {
-                assertTrue(e instanceof TimeoutException);
-                assertEquals(ERR_TIMEOUT, e.getMessage());
-                exThrown = true;
-            }
-            assertTrue("Should have thrown a timeout exception", exThrown);
-
-        } catch (IOException | TimeoutException e) {
-            fail("Unexpected exception: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testRemoveFlushEntry() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            ArrayList<Channel<Boolean>> pongs = new ArrayList<Channel<Boolean>>();
-            c.setPongs(pongs);
-            assertEquals(pongs, c.getPongs());
-            // Basic case
-            Channel<Boolean> testChan = new Channel<Boolean>();
-            testChan.add(true);
-            pongs.add(testChan);
-            assertTrue("Failed to find chan", c.removeFlushEntry(testChan));
-
-            Channel<Boolean> testChan2 = new Channel<Boolean>();
-            testChan2.add(false);
-            pongs.add(testChan);
-            assertFalse("Should not have found chan", c.removeFlushEntry(testChan2));
-
-            pongs.clear();
-            assertFalse("Should have returned false", c.removeFlushEntry(testChan));
-
-        } catch (IOException | TimeoutException e) {
-            fail("Unexpected exception: " + e.getMessage());
-        }
-    }
 
     // TODO finish this test
     // @Test
@@ -299,24 +233,6 @@ public class ITConnectionTest {
     }
 
     @Test
-    public void testPublishIoError() {
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            Message m = new Message();
-            m.setSubject("foo");
-            m.setData(null);
-            BufferedOutputStream bw = mock(BufferedOutputStream.class);
-            doThrow(new IOException("Mock OutputStream write exception")).when(bw)
-                    .write(any(byte[].class), any(int.class), any(int.class));
-            c.setOutputStream(bw);
-            c.publish(m);
-        } catch (IOException | TimeoutException e) {
-            fail("Unexpected exception: " + e.getMessage());
-
-        }
-    }
-
-    @Test
     public void testConnectionStatus() throws IOException, TimeoutException {
         try (Connection c = new ConnectionFactory().createConnection()) {
             assertEquals(ConnState.CONNECTED, c.getState());
@@ -399,7 +315,7 @@ public class ITConnectionTest {
             assertFalse(c.isClosed());
             disconnectLock.lock();
             try {
-                UnitTestUtilities.bounceDefaultServer(1000);
+                bounceDefaultServer(1000);
                 assertTrue(hasBeenDisconnected.await(10, TimeUnit.SECONDS));
             } catch (InterruptedException e) {
             } finally {
@@ -408,242 +324,11 @@ public class ITConnectionTest {
         }
     }
 
-    @Test
-    public void testClosedConnections() throws Exception {
-        Connection c = new ConnectionFactory().createConnection();
-        SyncSubscription s = c.subscribeSync("foo");
-
-        c.close();
-        assertTrue(c.isClosed());
-
-        // While we can annotate all the exceptions in the test framework,
-        // just do it manually.
-
-        boolean exThrown = false;
-
-        try {
-            c.publish("foo", null);
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        assertTrue(c.isClosed());
-        try {
-            c.publish(new Message("foo", null, null));
-        } catch (Exception e) {
-            exThrown = true;
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            c.subscribeAsync("foo");
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            c.subscribeSync("foo");
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            c.subscribeAsync("foo", "bar");
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            c.subscribeSync("foo", "bar");
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            c.request("foo", null);
-            assertTrue(c.isClosed());
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            s.nextMessage();
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            s.nextMessage(100);
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            s.unsubscribe();
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            s.autoUnsubscribe(1);
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-    }
-
     /// TODO NOT IMPLEMENTED:
     /// TestServerSecureConnections
     /// TestErrOnConnectAndDeadlock
     /// TestErrOnMaxPayloadLimit
-    @Test
-    public void testErrOnMaxPayloadLimit() {
-        long expectedMaxPayload = 10;
-        String serverInfo =
-                "INFO {\"server_id\":\"foobar\",\"version\":\"0.6.6\",\"go\":\"go1.5.1\",\"host\":\"%s\",\"port\":%d,\"auth_required\":false,\"ssl_required\":false,\"max_payload\":%d}\r\n";
 
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        String infoString = (String.format(serverInfo, "mockserver", 2222, expectedMaxPayload));
-        // System.err.println(infoString);
-        mcf.setServerInfoString(infoString);
-        ConnectionFactory cf = new ConnectionFactory();
-        try (Connection c = cf.createConnection(mcf)) {
-            // Make sure we parsed max payload correctly
-            assertEquals(c.getMaxPayload(), expectedMaxPayload);
-
-            // Check for correct exception
-            boolean exThrown = false;
-            try {
-                c.publish("hello", "hello world".getBytes());
-            } catch (IllegalArgumentException e) {
-                assertEquals(ERR_MAX_PAYLOAD, e.getMessage());
-                exThrown = true;
-            } finally {
-                assertTrue("Should have generated a IllegalArgumentException.", exThrown);
-            }
-
-            // Check for success on less than maxPayload
-
-        } catch (IOException | TimeoutException e) {
-            fail("Connection to mock server failed: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testGetPropertiesFailure() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            Properties props = c.getProperties("foobar.properties");
-            assertNull(props);
-
-            InputStream is = mock(InputStream.class);
-            doThrow(new IOException("Foo")).when(is).read(any(byte[].class));
-            doThrow(new IOException("Foo")).when(is).read(any(byte[].class), any(Integer.class),
-                    any(Integer.class));;
-            doThrow(new IOException("Foo")).when(is).read();
-
-            props = c.getProperties(is);
-            assertNull("getProperties() should have returned null", props);
-        } catch (IOException e) {
-            fail("Should not have thrown any exception");
-        } catch (TimeoutException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
-        }
-    }
-
-    @Test
-    public void testGetPropertiesSuccess() {
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            Properties props = c.getProperties("jnats.properties");
-            assertNotNull(props);
-            String version = props.getProperty("client.version");
-            assertNotNull(version);
-            // System.out.println("version: " + version);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testCreateConnFailure() {
-        boolean exThrown = false;
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        mcf.setOpenFailure(true);
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            fail("Should not have connected");
-        } catch (IOException | TimeoutException e) {
-            exThrown = true;
-            String name = e.getClass().getSimpleName();
-            assertTrue("Expected IOException, but got " + name, e instanceof IOException);
-            assertEquals(ERR_NO_SERVERS, e.getMessage());
-        }
-        assertTrue("Should have thrown exception.", exThrown);
-    }
 
     @Test
     public void testGetServerInfo() {
@@ -659,52 +344,6 @@ public class ITConnectionTest {
             assertEquals(1048576, info.getMaxPayload());
         } catch (IOException | TimeoutException e) {
             fail("Should not have thrown exception: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testFlushFailure() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        // mock.setBadWriter(true);
-        boolean exThrown = false;
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            assertFalse(c.isClosed());
-            c.close();
-            try {
-                c.flush(-1);
-            } catch (IllegalArgumentException e) {
-                exThrown = true;
-            } catch (Exception e) {
-                // TODO Auto-generated catch block
-                fail(e.getMessage());
-            }
-            assertTrue(exThrown);
-
-            exThrown = false;
-            try {
-                c.flush();
-            } catch (Exception e) {
-                assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                        e instanceof IllegalStateException);
-                assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-                exThrown = true;
-            }
-            assertTrue(exThrown);
-
-            exThrown = false;
-            try {
-                mcf.setNoPongs(true);
-                c.flush(5000);
-            } catch (Exception e) {
-                assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                        e instanceof IllegalStateException);
-                assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-                exThrown = true;
-            }
-            assertTrue(exThrown);
-
-        } catch (IOException | TimeoutException e) {
-            fail("Exception thrown");
         }
     }
 
@@ -823,54 +462,6 @@ public class ITConnectionTest {
     // }
 
     @Test
-    public void testDeliverMsgsConnClosed() {
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            Channel<Message> ch = new Channel<Message>();
-            Message m = new Message();
-            ch.add(m);
-            assertEquals(1, ch.getCount());
-            c.close();
-            c.deliverMsgs(ch);
-            assertEquals(1, ch.getCount());
-
-        } catch (IOException | TimeoutException e1) {
-            e1.printStackTrace();
-            fail(e1.getMessage());
-        }
-    }
-
-    @Test
-    public void testDeliverMsgsSubProcessFail() {
-        final String subj = "foo";
-        final String plString = "Hello there!";
-        final byte[] payload = plString.getBytes();
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-
-            final SyncSubscriptionImpl sub = mock(SyncSubscriptionImpl.class);
-            when(sub.getSid()).thenReturn(14L);
-            when(sub.processMsg(any(Message.class))).thenReturn(false);
-            when(sub.getLock()).thenReturn(mock(ReentrantLock.class));
-
-            @SuppressWarnings("unchecked")
-            Channel<Message> ch = (Channel<Message>) mock(Channel.class);
-            when(ch.get()).thenReturn(new Message(payload, payload.length, subj, null, sub))
-                    .thenReturn(null);
-
-            try {
-                c.deliverMsgs(ch);
-            } catch (Error e) {
-                fail(e.getMessage());
-            }
-
-        } catch (IOException | TimeoutException e1) {
-            e1.printStackTrace();
-            fail(e1.getMessage());
-        }
-    }
-
-    @Test
     public void testProcessPing() {
         try (ConnectionImpl c =
                 new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
@@ -921,55 +512,6 @@ public class ITConnectionTest {
             assertNull(c.getConnectedServerInfo());
         } catch (IOException | TimeoutException e) {
             fail("Connection failed");
-        }
-    }
-
-    @Test
-    public void testFlushReconnectPendingItems() {
-        final AtomicBoolean exThrown = new AtomicBoolean(false);
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            BufferedOutputStream bw = mock(BufferedOutputStream.class);
-            doThrow(new IOException("IOException from testFlushReconnectPendingItems")).when(bw)
-                    .flush();
-
-            doAnswer(new Answer<Void>() {
-                @Override
-                public Void answer(InvocationOnMock invocation) throws Throwable {
-                    exThrown.set(true);
-                    throw new IOException("Shouldn't have written empty pending");
-                }
-            }).when(bw).write(any(byte[].class), any(int.class), any(int.class));
-
-            assertNull(c.getPending());
-
-            // Test path when pending is empty
-            c.flushReconnectPendingItems();
-            assertFalse("Should not have thrown exception", exThrown.get());
-
-            exThrown.set(false);
-            doAnswer(new Answer<Void>() {
-                @Override
-                public Void answer(InvocationOnMock invocation) throws Throwable {
-                    Object[] args = invocation.getArguments();
-                    byte[] buf = (byte[]) args[0];
-                    assertArrayEquals(c.pingProtoBytes, buf);
-                    String s = new String(buf);
-                    exThrown.set(true);
-                    throw new IOException("testFlushReconnectPendingItems IOException");
-                }
-            }).when(bw).write(any(byte[].class), any(int.class), any(int.class));
-
-            // Test with PING pending
-            ByteArrayOutputStream baos =
-                    new ByteArrayOutputStream(ConnectionFactory.DEFAULT_RECONNECT_BUF_SIZE);
-            baos.write(c.pingProtoBytes, 0, c.pingProtoBytesLen);
-            c.setPending(baos);
-            c.setOutputStream(bw);
-            c.flushReconnectPendingItems();
-            assertTrue("Should have thrown exception", exThrown.get());
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
     }
 
@@ -1095,20 +637,6 @@ public class ITConnectionTest {
     }
 
     @Test
-    public void testSelectNextServer() throws Exception {
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            List<ConnectionImpl.Srv> pool = c.getServerPool();
-            pool.clear();
-            ConnectionImpl.Srv srv = c.selectNextServer();
-        } catch (IOException | TimeoutException e) {
-            assertTrue("Expected IOException, but got " + e.getClass().getSimpleName(),
-                    e instanceof IOException);
-            assertEquals(ERR_NO_SERVERS, e.getMessage());
-        }
-    }
-
-    @Test
     public void testPingTimer() {
         TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
         try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
@@ -1174,45 +702,6 @@ public class ITConnectionTest {
     }
 
     @Test
-    public void testResendSubscriptions() {
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            AsyncSubscriptionImpl sub =
-                    (AsyncSubscriptionImpl) c.subscribe("foo", new MessageHandler() {
-                        public void onMessage(Message msg) {
-                            System.err.println("got msg: " + msg);
-                        }
-                    });
-            sub.setMax(122);
-            assertEquals(122, sub.max);
-            sub.delivered.set(122);
-            assertEquals(122, sub.delivered.get());
-            logger.trace("TEST Sub = {}", sub);
-            c.resendSubscriptions();
-            c.getOutputStream().flush();
-            sleep(100);
-            String s = String.format("UNSUB %d", sub.getSid());
-            TCPConnectionMock mock = (TCPConnectionMock) c.getTcpConnection();
-            assertEquals(s, mock.getBuffer());
-
-            SyncSubscriptionImpl syncSub = (SyncSubscriptionImpl) c.subscribeSync("foo");
-            syncSub.setMax(10);
-            syncSub.delivered.set(8);
-            long adjustedMax = (syncSub.getMax() - syncSub.delivered.get());
-            assertEquals(2, adjustedMax);
-            c.resendSubscriptions();
-            c.getOutputStream().flush();
-            sleep(100);
-            s = String.format("UNSUB %d %d", syncSub.getSid(), adjustedMax);
-            assertEquals(s, mock.getBuffer());
-
-        } catch (IOException | TimeoutException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
-
-    @Test
     public void testReadLoopClosedConn() {
         // Tests to ensure that readLoop() breaks out if the connection is closed
         try (ConnectionImpl c =
@@ -1260,21 +749,6 @@ public class ITConnectionTest {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-    }
-
-    @Test
-    public void testProcessExpectedInfoReadOpFailure() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        mcf.setBadReader(true);
-        boolean exThrown = true;
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-
-        } catch (IOException | TimeoutException e) {
-            assertTrue(e instanceof IOException);
-            assertEquals(ERR_CONNECTION_READ, e.getMessage());
-            exThrown = true;
-        }
-        assertTrue("Should have thrown IOException", exThrown);
     }
 
     @Test

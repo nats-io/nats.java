@@ -34,6 +34,46 @@ public class UnitTestUtilities {
         return new ConnectionFactory().createConnection();
     }
 
+    public static synchronized Connection newDefaultConnection(TCPConnectionFactory tcf)
+            throws IOException, TimeoutException {
+        return new ConnectionFactory().createConnection(tcf);
+    }
+
+    public static synchronized Connection newDefaultConnection(TCPConnectionFactory tcf,
+            Options opts) throws IOException, TimeoutException {
+        ConnectionFactory cf = new ConnectionFactory();
+        ConnectionImpl conn = new ConnectionImpl(opts != null ? opts : cf.options(), tcf);
+        conn.connect();
+        return conn;
+    }
+
+    public static synchronized Connection newMockedConnection()
+            throws IOException, TimeoutException {
+        return newMockedConnection(null, null);
+    }
+
+    public static synchronized Connection newMockedConnection(TCPConnectionFactoryMock tcf)
+            throws IOException, TimeoutException {
+        return newMockedConnection(tcf, null);
+    }
+
+    public static synchronized Connection newMockedConnection(Options opts)
+            throws IOException, TimeoutException {
+        return newMockedConnection(null, opts);
+    }
+
+    public static synchronized Connection newMockedConnection(TCPConnectionFactoryMock tcf,
+            Options opts) throws IOException, TimeoutException {
+        TCPConnectionFactory tcpConnFactory = null;
+        if (tcf != null) {
+            tcpConnFactory = null;
+        } else {
+            tcpConnFactory = new TCPConnectionFactoryMock();
+        }
+        return newDefaultConnection(tcpConnFactory,
+                opts != null ? opts : new ConnectionFactory().options());
+    }
+
     public static synchronized void startDefaultServer() {
         startDefaultServer(false);
     }
@@ -197,5 +237,12 @@ public class UnitTestUtilities {
         } catch (TimeoutException e) {
         }
         return val;
+    }
+
+
+    public static synchronized void setLogLevel(ch.qos.logback.classic.Level level) {
+        ch.qos.logback.classic.Logger lbLog =
+                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("io.nats.client");
+        lbLog.setLevel(level);
     }
 }

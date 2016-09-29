@@ -130,7 +130,7 @@ public class ConnectionImpl implements Connection {
     protected Options opts = null;
 
     private TCPConnectionFactory tcf = null;
-    private TCPConnection conn = null;
+    TCPConnection conn = null;
 
     // Prepare protocol messages for efficiency
     ByteBuffer pubProtoBuf = null;
@@ -172,10 +172,10 @@ public class ConnectionImpl implements Connection {
     protected int crlfProtoBytesLen = 0;
 
     protected Statistics stats = null;
-    private ArrayList<Channel<Boolean>> pongs = null;
+    private ArrayList<Channel<Boolean>> pongs = new ArrayList<Channel<Boolean>>();
 
-    private ExecutorService cbexec =
-            Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
+
+    ExecutorService cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
     // private ExecutorService executor =
     // Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
     private ScheduledExecutorService ptmr = null;
@@ -224,7 +224,6 @@ public class ConnectionImpl implements Connection {
 
     private void setup() {
         subs.clear();
-        pongs = new ArrayList<Channel<Boolean>>();
     }
 
     protected Properties getProperties(InputStream inputStream) {
@@ -236,6 +235,7 @@ public class ConnectionImpl implements Connection {
                 rv.load(inputStream);
             }
         } catch (IOException e) {
+            logger.debug("nats: error loading properties from InputStream", e);
             rv = null;
         }
         return rv;
@@ -261,7 +261,7 @@ public class ConnectionImpl implements Connection {
      */
     protected void setupServerPool() {
 
-        URI url = opts.getUrl();
+        final URI url = opts.getUrl();
         List<URI> servers = opts.getServers();
 
         srvPool = new ArrayList<Srv>();
@@ -299,7 +299,7 @@ public class ConnectionImpl implements Connection {
          */
 
         // Return the first server in the list
-        this.url = srvPool.get(0).url;
+        this.setUrl(srvPool.get(0).url);
     }
 
     /* Add a string URL to the server pool */
@@ -318,7 +318,7 @@ public class ConnectionImpl implements Connection {
     protected Srv currentServer() {
         Srv rv = null;
         for (Srv s : srvPool) {
-            if (s.url.equals(this.url)) {
+            if (s.url.equals(this.getUrl())) {
                 rv = s;
                 break;
             }
@@ -351,7 +351,7 @@ public class ConnectionImpl implements Connection {
         }
 
         if (srvPool.isEmpty()) {
-            this.url = null;
+            this.setUrl(null);
             throw new IOException(ERR_NO_SERVERS);
         }
 
@@ -359,7 +359,6 @@ public class ConnectionImpl implements Connection {
     }
 
     protected void connect() throws IOException, TimeoutException {
-        // protected void connect() throws Exception {
         // Create actual socket connection
         // For first connect we walk all servers in the pool and try
         // to connect immediately.
@@ -370,12 +369,12 @@ public class ConnectionImpl implements Connection {
             for (int i = 0; i < srvPool.size(); i++) {
                 Srv s = srvPool.get(i);
                 // for (Srv s : srvPool) {
-                this.url = s.url;
+                this.setUrl(s.url);
 
                 try {
-                    logger.debug("Connecting to {}", this.url);
+                    logger.debug("Connecting to {}", this.getUrl());
                     createConn();
-                    logger.debug("Connected to {}", this.url);
+                    logger.debug("Connected to {}", this.getUrl());
                     this.setup();
                     try {
                         processConnectInit();
@@ -386,11 +385,11 @@ public class ConnectionImpl implements Connection {
                     } catch (IOException e) {
                         returnedErr = e;
                         // e.printStackTrace();
-                        logger.trace("{} Exception: {}", this.url, e.getMessage());
+                        logger.trace("{} Exception: {}", this.getUrl(), e.getMessage());
                         mu.unlock();
                         close(ConnState.DISCONNECTED, false);
                         mu.lock();
-                        this.url = null;
+                        this.setUrl(null);
                     }
                 } catch (IOException e) { // createConn failed
                     if (e instanceof SocketException) {
@@ -455,6 +454,10 @@ public class ConnectionImpl implements Connection {
         }
         bw = conn.getBufferedOutputStream(DEFAULT_STREAM_BUF_SIZE);
         br = conn.getBufferedInputStream(DEFAULT_STREAM_BUF_SIZE);
+    }
+
+    Channel<Boolean> createPongChannel(int size) {
+        return new Channel<Boolean>(size);
     }
 
     // This will clear any pending flush calls and release pending calls.
@@ -544,7 +547,6 @@ public class ConnectionImpl implements Connection {
                 }
                 if (opts.getClosedCallback() != null) {
                     cbexec.execute(new Runnable() {
-
                         public void run() {
                             opts.getClosedCallback().onClose(new ConnectionEvent(nc));
                             logger.trace("executed ClosedCB");
@@ -559,22 +561,22 @@ public class ConnectionImpl implements Connection {
                 conn.close();
             }
             mu.unlock();
-            if (doCBs) {
-                cbexec.shutdown();
-                try {
-                    while (!cbexec.awaitTermination(5, TimeUnit.SECONDS)) {
-                        logger.debug("Awaiting completion of threads.");
-                    }
-                } catch (InterruptedException e) {
-                    logger.debug("Interrupted waiting to shutdown cbexec", e);
-                }
-            }
-            logger.trace("close(state, doCBs): released lock and returning");
+            // if (doCBs) {
+            // cbexec.shutdown();
+            // try {
+            // while (!cbexec.awaitTermination(5, TimeUnit.SECONDS)) {
+            // logger.debug("Awaiting completion of threads.");
+            // }
+            // } catch (InterruptedException e) {
+            // logger.debug("Interrupted waiting to shutdown cbexec", e);
+            // }
+            // }
+            // logger.trace("close(state, doCBs): released lock and returning");
         }
     }
 
     protected void processConnectInit() throws IOException {
-        logger.trace("processConnectInit(): {}", this.url);
+        logger.trace("processConnectInit(): {}", this.getUrl());
 
         // Set our status to connecting.
         status = ConnState.CONNECTING;
@@ -605,13 +607,13 @@ public class ConnectionImpl implements Connection {
         }
 
         // Need to rewrap with bufio
-        if (opts.isSecure() || TLS_SCHEME.equals(this.url.getScheme())) {
+        if (opts.isSecure() || TLS_SCHEME.equals(this.getUrl().getScheme())) {
             makeTLSConn();
         }
     }
 
     // makeSecureConn will wrap an existing Conn using TLS
-    private void makeTLSConn() throws IOException {
+    void makeTLSConn() throws IOException {
         conn.setTlsDebug(opts.isTlsDebug());
         conn.makeTLS(opts.getSSLContext());
         bw = conn.getBufferedOutputStream(DEFAULT_STREAM_BUF_SIZE);
@@ -652,7 +654,7 @@ public class ConnectionImpl implements Connection {
     // messages. We use pings for the flush mechanism as well.
     protected void processPong() {
         logger.trace("Processing PONG");
-        Channel<Boolean> ch = new Channel<Boolean>(1);
+        Channel<Boolean> ch = createPongChannel(1);
         mu.lock();
         try {
             if (pongs.size() > 0) {
@@ -714,7 +716,7 @@ public class ConnectionImpl implements Connection {
     // processOpError handles errors from reading or parsing the protocol.
     // This is where disconnect/reconnect is initially handled.
     // The lock should not be held entering this function.
-    private void processOpError(Exception err) {
+    void processOpError(Exception err) {
         logger.trace("processOpError(e={}) state={} reconnectAllowed={} ", err.getClass().getName(),
                 status, opts.isReconnectAllowed());
         mu.lock();
@@ -745,7 +747,6 @@ public class ConnectionImpl implements Connection {
                 logger.trace("processOpError: redirecting output to pending buffer");
 
                 setPending(new ByteArrayOutputStream(opts.getReconnectBufSize()));
-                // setOutputStream(new BufferedOutputStream(getPending()));
                 setOutputStream(getPending());
 
                 logger.trace("\t\tspawning doReconnect() in state {}", status);
@@ -830,7 +831,7 @@ public class ConnectionImpl implements Connection {
 
     // Try to reconnect using the option parameters.
     // This function assumes we are allowed to reconnect.
-    private void doReconnect() {
+    void doReconnect() {
         logger.trace("doReconnect()");
         // We want to make sure we have the other watchers shutdown properly
         // here before we proceed past this point
@@ -866,7 +867,7 @@ public class ConnectionImpl implements Connection {
             Srv cur = null;
             try {
                 cur = selectNextServer();
-                this.url = cur.url;
+                this.setUrl(cur.url);
             } catch (IOException nse) {
                 logger.trace("doReconnect() calling setLastError({})", nse.getMessage());
                 setLastError(nse);
@@ -887,7 +888,7 @@ public class ConnectionImpl implements Connection {
 
             // Check if we have been closed first.
             if (isClosed()) {
-                logger.trace("Connection has been closed while in doReconnect()");
+                logger.debug("Connection has been closed while in doReconnect()");
                 break;
             }
 
@@ -920,7 +921,7 @@ public class ConnectionImpl implements Connection {
                 processConnectInit();
             } catch (IOException e) {
                 conn.teardown();
-                logger.trace("doReconnect: processConnectInit FAILED for {}", cur, e);
+                logger.warn("doReconnect: processConnectInit FAILED for {}", cur, e);
                 setLastError(e);
                 status = ConnState.RECONNECTING;
                 continue;
@@ -937,11 +938,12 @@ public class ConnectionImpl implements Connection {
 
             // Now send off and clear pending buffer
             flushReconnectPendingItems();
-
+            logger.debug("just called flushReconnectPendingItems");
             // Flush the buffer
             try {
-                bw.flush();
+                getOutputStream().flush();
             } catch (IOException e) {
+                logger.debug("Error flushing output stream");
                 setLastError(e);
                 status = ConnState.RECONNECTING;
                 continue;
@@ -970,14 +972,11 @@ public class ConnectionImpl implements Connection {
             // Release the lock here, we will return below
             mu.unlock();
 
-            // Make sure to flush everything (doing this inside or outside
-            // the lock seems important
+            // Make sure to flush everything
             try {
                 flush();
-            } catch (
-
-            Exception e) {
-                /* NOOP */
+            } catch (Exception e) {
+                logger.warn("Error flushing connection", e);
             }
             logger.trace("doReconnect reconnected successfully!");
             return;
@@ -1130,8 +1129,8 @@ public class ConnectionImpl implements Connection {
 
     // Generate a connect protocol message, issuing user/password if
     // applicable. The lock is assumed to be held upon entering.
-    private String connectProto() {
-        String userInfo = url.getUserInfo();
+    String connectProto() {
+        String userInfo = getUrl().getUserInfo();
         String user = null;
         String pass = null;
         String token = null;
@@ -1735,7 +1734,7 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    private boolean isFlusherDone() {
+    boolean isFlusherDone() {
         flusherLock.lock();
         try {
             return flusherDone;
@@ -1815,7 +1814,7 @@ public class ConnectionImpl implements Connection {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
-            ch = new Channel<Boolean>(1);
+            ch = createPongChannel(1);
             sendPing(ch);
         } finally {
             mu.unlock();
@@ -2001,7 +2000,7 @@ public class ConnectionImpl implements Connection {
 
     // Use low level primitives to build the protocol for the publish
     // message.
-    private void writePublishProto(ByteBuffer buffer, byte[] subject, byte[] reply, int msgSize) {
+    void writePublishProto(ByteBuffer buffer, byte[] subject, byte[] reply, int msgSize) {
         pubProtoBuf.put(subject, 0, subject.length);
         if (reply != null) {
             pubProtoBuf.put((byte) ' ');
@@ -2063,6 +2062,7 @@ public class ConnectionImpl implements Connection {
             } catch (BufferOverflowException e) {
                 // We can get here if we have very large subjects.
                 // Expand with some room to spare.
+                logger.warn("nats: reallocating publish buffer due to overflow");
                 int resizeAmount = Parser.MAX_CONTROL_LINE_SIZE + subject.length
                         + (reply != null ? reply.length : 0);
 
@@ -2197,7 +2197,7 @@ public class ConnectionImpl implements Connection {
                     // logger.trace("=> {}", s.trim() );
                     kickFlusher();
                 } catch (IOException e) {
-                    // e.printStackTrace();
+                    logger.warn("nats: I/O exception while sending subscription message");
                 }
             }
         } finally {
@@ -2272,8 +2272,7 @@ public class ConnectionImpl implements Connection {
             if (status != ConnState.CONNECTED) {
                 return null;
             }
-
-            return url.toString();
+            return getUrl().toString();
         } finally {
             mu.unlock();
         }
@@ -2438,5 +2437,19 @@ public class ConnectionImpl implements Connection {
 
     protected TCPConnectionFactory getTcpConnectionFactory() {
         return this.tcf;
+    }
+
+    /**
+     * @return the url
+     */
+    URI getUrl() {
+        return url;
+    }
+
+    /**
+     * @param url the url to set
+     */
+    void setUrl(URI url) {
+        this.url = url;
     }
 }

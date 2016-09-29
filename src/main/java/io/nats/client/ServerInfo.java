@@ -47,7 +47,7 @@ class ServerInfo {
     private String[] connectUrls;
 
     private transient String jsonString = null;
-    static private transient Gson gson = new GsonBuilder().create();
+    private static transient Gson gson = new GsonBuilder().create();
 
     protected ServerInfo(String id, String host, int port, String version, boolean authRequired,
             boolean tlsRequired, int maxPayload, final String[] connectUrls) {

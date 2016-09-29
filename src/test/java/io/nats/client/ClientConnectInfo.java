@@ -6,68 +6,57 @@
 
 package io.nats.client;
 
-import org.junit.experimental.categories.Category;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.SerializedName;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.junit.experimental.categories.Category;
 
 @Category(UnitTest.class)
 public class ClientConnectInfo {
 
-    public ClientConnectInfo() {
-        // TODO Auto-generated constructor stub
-    }
+    public ClientConnectInfo() {}
 
-    private Map<String, String> parameters = new HashMap<String, String>();
-
+    @SerializedName("verbose")
     private boolean verbose = false;
+
+    @SerializedName("pedantic")
     private boolean pedantic = false;
+
+    @SerializedName("user")
+    private String user = null;
+
+    @SerializedName("pass")
+    private String pass = null;
+
+    @SerializedName("auth_token")
+    private String token = null;
+
+    @SerializedName("ssl_required")
     private boolean sslRequired = false;
+
+    @SerializedName("tls_required")
+    private boolean tlsRequired = false;
+
+    @SerializedName("name")
     private String name = "";
-    private String language = "java";
+
+    @SerializedName("lang")
+    private String lang = "java";
+
+    @SerializedName("version")
     private String version;
 
-    public ClientConnectInfo(String jsonString) {
-        try {
-            jsonString = jsonString.substring(jsonString.indexOf('{') + 1);
-            jsonString = jsonString.substring(0, jsonString.lastIndexOf('}'));
-        } catch (IndexOutOfBoundsException iobe) {
-            // do nothing
-        }
+    @SerializedName("protocol")
+    private int protocol;
 
-        String[] kvPairs = jsonString.split(",");
-        for (String s : kvPairs)
-            addKVPair(s);
+    private static transient Gson gson = new GsonBuilder().create();
 
-
-        this.verbose = Boolean.parseBoolean(parameters.get("verbose"));
-        this.pedantic = Boolean.parseBoolean(parameters.get("pedantic"));
-        this.sslRequired = Boolean.parseBoolean(parameters.get("ssl_required"));
-        this.name = parameters.get("name");
-        this.language = parameters.get("lang");
-        this.version = parameters.get("version");
-
-    }
-
-    private void addKVPair(String kvPair) {
-        String key;
-        String val;
-
-        kvPair = kvPair.trim();
-        String[] parts = kvPair.split(":");
-        key = parts[0].trim();
-        val = parts[1].trim();
-
-        // trim the quotes
-        int lastQuotePos = key.lastIndexOf("\"");
-        key = key.substring(1, lastQuotePos);
-
-        // bools and numbers may not have quotes.
-        if (val.startsWith("\"")) {
-            lastQuotePos = val.lastIndexOf("\"");
-            val = val.substring(1, lastQuotePos);
-        }
-        parameters.put(key, val);
+    protected static ClientConnectInfo createFromWire(String connectString) {
+        ClientConnectInfo rv = null;
+        String jsonString = connectString.replaceFirst("^CONNECT ", "").trim();
+        rv = gson.fromJson(jsonString, ClientConnectInfo.class);
+        return rv;
     }
 
     /**
@@ -130,14 +119,14 @@ public class ClientConnectInfo {
      * @return the language
      */
     public String getLanguage() {
-        return language;
+        return lang;
     }
 
     /**
      * @param language the language to set
      */
     public void setLanguage(String language) {
-        this.language = language;
+        this.lang = language;
     }
 
     /**
@@ -155,12 +144,51 @@ public class ClientConnectInfo {
     }
 
     public String toString() {
-        String rv = String.format(
-                "CONNECT {\"verbose\":%b,\"pedantic\":%b,\"ssl_required\":%b,"
-                        + "\"name\":\"%s\",\"lang\":\"%s\",\"version\":\"%s\"}\r\n",
-                this.verbose, this.pedantic, this.sslRequired, this.name, this.language,
-                this.version);
+        // String rv = String.format(
+        // "CONNECT {\"verbose\":%b,\"pedantic\":%b,\"ssl_required\":%b,"
+        // + "\"name\":\"%s\",\"lang\":\"%s\",\"version\":\"%s\"}\r\n",
+        // this.verbose, this.pedantic, this.sslRequired, this.name, this.lang, this.version);
+        String rv = String.format("CONNECT %s", gson.toJson(this));
         return rv;
     }
 
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+    public String getPass() {
+        return pass;
+    }
+
+    public void setPass(String pass) {
+        this.pass = pass;
+    }
+
+    public String getLang() {
+        return lang;
+    }
+
+    public void setLang(String lang) {
+        this.lang = lang;
+    }
+
+    public int getProtocol() {
+        return protocol;
+    }
+
+    public void setProtocol(int protocol) {
+        this.protocol = protocol;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
+    }
 }

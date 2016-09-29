@@ -13,6 +13,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import io.nats.client.Constants.ConnState;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -36,11 +38,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import io.nats.client.Constants.ConnState;
-
-@Category(UnitTest.class)
-public class ClusterTest {
-    final static Logger logger = LoggerFactory.getLogger(ClusterTest.class);
+@Category(IntegrationTest.class)
+public class ITClusterTest {
+    static final Logger logger = LoggerFactory.getLogger(ITClusterTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -61,11 +61,11 @@ public class ClusterTest {
         // s.shutdown();
     }
 
-    final static String[] testServers = new String[] { "nats://localhost:1222",
+    static final String[] testServers = new String[] { "nats://localhost:1222",
             "nats://localhost:1223", "nats://localhost:1224", "nats://localhost:1225",
             "nats://localhost:1226", "nats://localhost:1227", "nats://localhost:1228" };
 
-    final static String[] testServersShortList =
+    static final String[] testServersShortList =
             new String[] { "nats://localhost:1222", "nats://localhost:1223" };
 
     UnitTestUtilities utils = new UnitTestUtilities();
@@ -290,9 +290,9 @@ public class ClusterTest {
 
                     List<NATSClient> tasks = new ArrayList<NATSClient>(numClients);
                     for (int i = 0; i < numClients; i++) {
-                        NATSClient r = new NATSClient(i);
-                        tasks.add(r);
-                        executor.submit(r);
+                        NATSClient task = new NATSClient(i);
+                        tasks.add(task);
+                        executor.submit(task);
                     }
 
                     Map<String, Integer> cs = new HashMap<String, Integer>();
@@ -508,10 +508,7 @@ public class ClusterTest {
         });
 
         try (NATSServer s1 = new NATSServer(1222)) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e1) {
-            }
+            sleep(100);
 
             try (Connection c = cf.createConnection()) {
                 assertNotNull(c.getDisconnectedCallback());

@@ -6,7 +6,6 @@
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBJECT;
 import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertArrayEquals;
@@ -41,8 +40,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Category(UnitTest.class)
-public class BasicTest {
+@Category(IntegrationTest.class)
+public class ITBasicTest {
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
@@ -707,30 +706,6 @@ public class BasicTest {
         assertEquals(s1.getInBytes(), s2.getInBytes());
         assertEquals(s1.getOutBytes(), s2.getOutBytes());
         assertEquals(s1.getReconnects(), s2.getReconnects());
-    }
-
-    @Test
-    public void testBadSubject() throws IOException, TimeoutException {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            boolean exThrown = false;
-            try {
-                c.publish("", null);
-            } catch (IllegalArgumentException e) {
-                assertEquals(ERR_BAD_SUBJECT, e.getMessage());
-                exThrown = true;
-            } finally {
-                assertTrue(exThrown);
-            }
-            exThrown = false;
-            try {
-                c.publish(null, "Hello".getBytes());
-            } catch (NullPointerException e) {
-                assertEquals(ERR_BAD_SUBJECT, e.getMessage());
-                exThrown = true;
-            } finally {
-                assertTrue(exThrown);
-            }
-        }
     }
 
     @Test
