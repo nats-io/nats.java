@@ -1446,14 +1446,12 @@ public class ConnectionImpl implements Connection {
         Message msg = null;
 
         mu.lock();
-        try {
-            // Slightly faster to do this directly vs call isClosed
-            if (_isClosed()) {
-                return;
-            }
-        } finally {
+        // Slightly faster to do this directly vs call isClosed
+        if (_isClosed()) {
             mu.unlock();
+            return;
         }
+        mu.unlock();
 
         while (true) {
             msg = ch.get();

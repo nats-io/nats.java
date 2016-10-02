@@ -1138,21 +1138,6 @@ public class ConnectionImplTest {
     }
 
     @Test
-    public void testDeliverMsgsExecutesFirstFinallyBlock() throws IOException, TimeoutException {
-        thrown.expect(NullPointerException.class);
-        thrown.expectMessage("test_isClosedFinallyBlock()");
-        @SuppressWarnings("unchecked")
-        final Channel<Message> ch = (Channel<Message>) mock(Channel.class);
-        try (ConnectionImpl conn = (ConnectionImpl) Mockito
-                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
-            doThrow(new NullPointerException("test_isClosedFinallyBlock()")).when(conn)._isClosed();
-            conn.deliverMsgs(ch);
-            verify(ch, times(0)).get();
-            verify(conn, times(1)).mu.unlock();
-        }
-    }
-
-    @Test
     public void testDeliverMsgsSubProcessFail() throws IOException, TimeoutException {
         final String subj = "foo";
         final String plString = "Hello there!";
