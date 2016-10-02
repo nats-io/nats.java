@@ -47,7 +47,7 @@ class ServerInfo {
     private String[] connectUrls;
 
     private transient String jsonString = null;
-    static private transient Gson gson = new GsonBuilder().create();
+    private static transient Gson gson = new GsonBuilder().create();
 
     protected ServerInfo(String id, String host, int port, String version, boolean authRequired,
             boolean tlsRequired, int maxPayload, final String[] connectUrls) {
@@ -61,24 +61,6 @@ class ServerInfo {
         this.maxPayload = maxPayload;
         this.connectUrls = connectUrls;
     }
-
-    // public ServerInfo(String infoString) {
-    //
-    // this.id = input.id;
-    // this.host = input.host;
-    // this.port = input.port;
-    // this.version = input.version;
-    // this.goVersion = input.goVersion;
-    // this.authRequired = input.authRequired;
-    // this.sslRequired = input.sslRequired;
-    // this.tlsRequired = input.tlsRequired;
-    // this.tlsVerify = input.tlsVerify;
-    // this.maxPayload = input.maxPayload;
-    // if (input.connectUrls != null) {
-    // this.connectUrls = Arrays.copyOf(input.connectUrls, input.connectUrls.length);
-    // }
-    // System.err.println("new ServerInfo: " + this.jsonString);
-    // }
 
     protected ServerInfo(ServerInfo input) {
         this.id = input.id;

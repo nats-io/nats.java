@@ -76,13 +76,29 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.4</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -107,33 +123,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.eluder.coveralls</groupId>
-                <artifactId>coveralls-maven-plugin</artifactId>
-                <configuration>
-                    <sourceDirectories>
-                        <sourceDirectory>src/main/java</sourceDirectory>
-                        <sourceDirectory>examples</sourceDirectory>
-                    </sourceDirectories>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>build-helper-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>add-source</goal>
-                        </goals>
-                        <configuration>
-                            <sources>
-                                <source>examples</source>
-                            </sources>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -153,7 +142,7 @@
                 <executions>
                     <execution>
                         <id>prepare</id>
-                        <phase>generate-test-resources</phase>
+                        <phase>pre-integration-test</phase>
                         <configuration>
                             <target xmlns:unless="ant:unless"
                                 xmlns:if="ant:if" name="copy-server-exec"
@@ -321,6 +310,7 @@
                             <!-- Skips integration tests if the value of 
                                 skip.integration.tests property is true -->
                             <skipTests>${skip.integration.tests}</skipTests>
+                            <groups>io.nats.client.IntegrationTest</groups>
                         </configuration>
                     </execution>
                 </executions>
@@ -329,6 +319,10 @@
                 <groupId>org.eluder.coveralls</groupId>
                 <artifactId>coveralls-maven-plugin</artifactId>
                 <configuration>
+                    <sourceDirectories>
+                        <sourceDirectory>src/main/java</sourceDirectory>
+                        <sourceDirectory>examples</sourceDirectory>
+                    </sourceDirectories>
                     <jacocoFile>${jacoco.ut.execution.data.file}</jacocoFile>
                     <jacocoReports>
                         <param>
@@ -343,6 +337,36 @@
                     <jacocoReports>${jacoco.ut.execution.data.file}</jacocoReports> <coverageFile>${jacoco.ut.execution.data.file}</coverageFile> 
                     <sourceEncoding>${project.reporting.sourceEncoding}</sourceEncoding> </configuration> 
                     </execution> </executions> -->
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>examples</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                
+                    <execution>
+                        <id>add-test-source</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/it/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>com.versioneye</groupId>

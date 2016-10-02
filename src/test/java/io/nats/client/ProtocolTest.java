@@ -3,14 +3,15 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
 import static io.nats.client.Constants.ERR_AUTHORIZATION;
-import static io.nats.client.Constants.ERR_CONNECTION_READ;
 import static io.nats.client.Constants.ERR_PROTOCOL;
 import static io.nats.client.Constants.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Constants.ERR_SECURE_CONN_WANTED;
+import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.waitTime;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -169,8 +170,7 @@ public class ProtocolTest {
     @Test
     public void testGetConnectedId() {
         final String expectedId = "a1c9cf0c66c3ea102c600200d441ad8e";
-        try (Connection c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+        try (Connection c = newMockedConnection()) {
             assertTrue(!c.isClosed());
             assertEquals("Wrong server ID", c.getConnectedServerId(), expectedId);
             c.close();
@@ -202,8 +202,7 @@ public class ProtocolTest {
 
     @Test
     public void testServerParseError() {
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             assertTrue(!c.isClosed());
             byte[] data = "Hello\r\n".getBytes();
             c.sendProto(data, data.length);
@@ -224,8 +223,7 @@ public class ProtocolTest {
         // + "\"version\":\"0.7.2\",\"go\":\"go1.4.2\",\"host\":\"0.0.0.0\",\"port\":4222,"
         // + "\"auth_required\":false,\"ssl_required\":false,\"max_payload\":1048576}\r\n";
 
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             assertTrue(!c.isClosed());
 
             String expected = TCPConnectionMock.defaultInfo;
@@ -319,18 +317,6 @@ public class ProtocolTest {
         } catch (IOException | TimeoutException e) {
             assertTrue(e instanceof IOException);
             assertEquals(ERR_AUTHORIZATION, e.getMessage());
-        }
-    }
-
-    @Test
-    public void testReadOpNull() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        mcf.setCloseStream(true);
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            fail("Shouldn't have connected.");
-        } catch (IOException | TimeoutException e) {
-            assertTrue(e instanceof IOException);
-            assertEquals(ERR_CONNECTION_READ, e.getMessage());
         }
     }
 

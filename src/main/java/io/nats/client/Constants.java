@@ -91,6 +91,11 @@ public final class Constants {
      */
     public static final String ERR_SLOW_CONSUMER = "nats: slow consumer, messages dropped";
     /**
+     * This error message is defined as String {@value #ERR_TCP_FLUSH_FAILED}.
+     */
+    public static final String ERR_TCP_FLUSH_FAILED =
+            "nats: i/o exception when flushing output stream";
+    /**
      * This error message is defined as String {@value #ERR_TIMEOUT}.
      */
     public static final String ERR_TIMEOUT = "nats: timeout";

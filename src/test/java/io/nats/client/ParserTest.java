@@ -3,8 +3,11 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
+import static io.nats.client.UnitTestUtilities.newMockedConnection;
+import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
@@ -16,6 +19,8 @@ import io.nats.client.ConnectionImpl.Control;
 import io.nats.client.ConnectionImpl.Srv;
 import io.nats.client.Parser.NatsOp;
 
+import ch.qos.logback.classic.Level;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -26,6 +31,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
+import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +45,13 @@ import java.util.concurrent.TimeoutException;
 
 @Category(UnitTest.class)
 public class ParserTest {
-    final Logger logger = LoggerFactory.getLogger(ParserTest.class);
+    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    static final Logger logger = LoggerFactory.getLogger(ParserTest.class);
+
+    static final LogVerifier verifier = new LogVerifier();
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -50,10 +63,16 @@ public class ParserTest {
     public static void tearDownAfterClass() throws Exception {}
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
+        verifier.setup();
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+        verifier.teardown();
+        setLogLevel(Level.INFO);
+    }
 
     @Test
     public void testParseControl() {
@@ -141,6 +160,11 @@ public class ParserTest {
             // TODO Auto-generated catch block
             fail(e1.getMessage());
         }
+    }
+
+    @Test
+    public void testParseLongWithLengthZero() {
+        assertEquals(-1, Parser.parseLong(null, 0));
     }
 
     // Tests OP_MINUS_ERR, OP_MINUS_ERR_SPC, MINUS_ERR_ARG
@@ -243,7 +267,7 @@ public class ParserTest {
     }
 
     @Test
-    public void testLargeArgs() {
+    public void testLargeArgs() throws IOException, TimeoutException {
         Parser parser = null;
         int payloadSize = 66000;
         char[] buf = new char[payloadSize];
@@ -255,8 +279,7 @@ public class ParserTest {
 
         String msg = String.format("MSG foo 1 %d\r\n", payloadSize);
         byte[] msgBytes = msg.getBytes();
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
 
             parser = c.parser;
             try (Subscription sub = c.subscribeSync("foo")) {
@@ -265,19 +288,13 @@ public class ParserTest {
                 } catch (Exception e) {
                     fail(e.getMessage());
                 }
-
             }
-        } // ConnectionImpl
-        catch (IOException | TimeoutException e1) {
-            fail(e1.getMessage());
         }
     }
 
     @Test
-    public void TestParserSplitMsg() {
-
-        try (ConnectionImpl nc =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+    public void testParserSplitMsg() throws IOException, TimeoutException {
+        try (ConnectionImpl nc = (ConnectionImpl) newMockedConnection()) {
             // nc.ps = &parseState{}
             byte[] buf = null;
 
@@ -472,13 +489,65 @@ public class ParserTest {
             assertNull("Buffers should be null now", nc.parser.ps.argBuf);
             assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
             assertEquals("Wrong state: ", nc.parser.ps.state, Parser.NatsOp.OP_START);
-        } catch (IOException | TimeoutException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            fail(e.getMessage());
-
-        } // Connection
+        }
     } // testParserSplitMsg
+
+    @Test
+    public void testProcessMsgArgsErrors() {
+        String tooFewArgsString = "foo bar";
+        byte[] args = tooFewArgsString.getBytes();
+
+        boolean exThrown = false;
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            c.parser.processMsgArgs(args, 0, args.length);
+        } catch (ParseException e) {
+            exThrown = true;
+            String msg = String.format("Wrong msg: [%s]\n", e.getMessage());
+            assertTrue(msg, e.getMessage().startsWith("nats: processMsgArgs bad number of args"));
+        } catch (IOException | TimeoutException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+            fail(e1.getMessage());
+        } finally {
+            assertTrue("Should have thrown ParseException", exThrown);
+        }
+
+        String badSizeString = "foo 1 -1";
+        args = badSizeString.getBytes();
+
+        exThrown = false;
+        try (ConnectionImpl c =
+                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+            c.parser.processMsgArgs(args, 0, args.length);
+        } catch (ParseException e) {
+            exThrown = true;
+            String msg = String.format("Wrong msg: [%s]\n", e.getMessage());
+            assertTrue(msg,
+                    e.getMessage().startsWith("nats: processMsgArgs bad or missing size: "));
+        } catch (IOException | TimeoutException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+            fail(e1.getMessage());
+        } finally {
+            assertTrue("Should have thrown ParseException", exThrown);
+        }
+    }
+
+    @Test
+    public void testProcessMsgArgsNegativeSize()
+            throws IOException, TimeoutException, ParseException {
+        thrown.expect(ParseException.class);
+        thrown.expectMessage("nats: processMsgArgs bad or missing size:");
+
+        String msg = String.format("MSG foo 1 -100\r\n");
+        byte[] msgBytes = msg.getBytes();
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            Parser parser = c.parser;
+            try (Subscription sub = c.subscribeSync("foo")) {
+                parser.parse(msgBytes, msgBytes.length);
+            }
+        }
+    }
 
     @Test
     public void testAsyncInfo() throws IOException, TimeoutException, ParseException {
@@ -677,30 +746,32 @@ public class ParserTest {
         }
     }
 
-    void checkPool(ConnectionImpl c, List<String> urls) {
+    void checkPool(ConnectionImpl conn, List<String> urls) {
         // Check booth pool and urls map
-        if (c.srvPool.size() != urls.size()) {
+        if (conn.srvPool.size() != urls.size()) {
             fail(String.format("Pool should have %d elements, has %d", urls.size(),
-                    c.srvPool.size()));
+                    conn.srvPool.size()));
         }
 
-        if (c.urls.size() != urls.size()) {
-            fail(String.format("Map should have %d elements, has %d", urls.size(), c.urls.size()));
+        if (conn.urls.size() != urls.size()) {
+            fail(String.format("Map should have %d elements, has %d", urls.size(),
+                    conn.urls.size()));
         }
 
         for (int i = 0; i < urls.size(); i++) {
             String url = urls.get(i);
-            if (c.getOptions().isNoRandomize()) {
-                if (!c.srvPool.get(i).url.getAuthority().equals(url)) {
+            if (conn.getOptions().isNoRandomize()) {
+                if (!conn.srvPool.get(i).url.getAuthority().equals(url)) {
                     fail(String.format("Pool should have %s at index %d, has %s", url, i,
-                            c.srvPool.get(i).url.getAuthority()));
+                            conn.srvPool.get(i).url.getAuthority()));
                 }
             } else {
-                if (!c.urls.containsKey(url)) {
+                if (!conn.urls.containsKey(url)) {
                     fail(String.format("Pool should have %s", url));
                 }
             }
         }
     }
+
 }
 

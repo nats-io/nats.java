@@ -104,8 +104,6 @@ abstract class SubscriptionImpl implements Subscription {
     public boolean tallyMessage(long length) {
         mu.lock();
         try {
-            // logger.trace("getMax()={}, msgs={}",
-            // max, msgs);
             if (max > 0 && msgs > max) {
                 return true;
             }
@@ -334,7 +332,12 @@ abstract class SubscriptionImpl implements Subscription {
         return max;
     }
 
-    Lock getLock() {
-        return this.mu;
+    void lock() {
+        mu.lock();
     }
+
+    void unlock() {
+        mu.unlock();
+    }
+
 }

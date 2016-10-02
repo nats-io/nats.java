@@ -3,6 +3,7 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -34,20 +35,18 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 
-@Category(UnitTest.class)
-public class TLSTest {
+@Category(IntegrationTest.class)
+public class ITTLSTest {
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     UnitTestUtilities utils = new UnitTestUtilities();
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
+    public static void setUpBeforeClass() throws Exception {}
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
+    public static void tearDownAfterClass() throws Exception {}
 
     @Before
     public void setUp() throws Exception {
@@ -55,8 +54,7 @@ public class TLSTest {
     }
 
     @After
-    public void tearDown() throws Exception {
-    }
+    public void tearDown() throws Exception {}
 
     @Test
     public void testTlsSuccessWithCert() throws Exception {
@@ -80,15 +78,15 @@ public class TLSTest {
             assertNotNull(tmf);
             tmf.init(tks);
 
-            SSLContext c = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
-            assertNotNull(c);
-            c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+            SSLContext ctx = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+            assertNotNull(ctx);
+            ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
             ConnectionFactory cf = new ConnectionFactory();
             cf.setUrl("tls://localhost:1222");
             cf.setSecure(true);
             cf.setTlsDebug(true);
-            cf.setSSLContext(c);
+            cf.setSSLContext(ctx);
 
             try (Connection connection = cf.createConnection()) {
                 assertFalse(connection.isClosed());
@@ -138,10 +136,10 @@ public class TLSTest {
                 try (SyncSubscription s = c.subscribeSync(subj)) {
                     c.publish(subj, omsg);
                     c.flush();
-                    Message m = s.nextMessage();
-                    assertNotNull(m);
-                    assertEquals(subj, m.getSubject());
-                    assertArrayEquals(omsg, m.getData());
+                    Message msg = s.nextMessage();
+                    assertNotNull(msg);
+                    assertEquals(subj, msg.getSubject());
+                    assertArrayEquals(omsg, msg.getData());
                 } catch (Exception e) {
                     fail(e.getMessage());
                 }
@@ -151,7 +149,8 @@ public class TLSTest {
             } finally {
                 srv.shutdown();
             }
-        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | KeyManagementException e1) {
+        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
+                | KeyManagementException e1) {
             // TODO Auto-generated catch block
             fail(e1.getMessage());
         }
@@ -249,7 +248,8 @@ public class TLSTest {
             } finally {
                 srv.shutdown();
             }
-        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | KeyManagementException e1) {
+        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
+                | KeyManagementException e1) {
             // TODO Auto-generated catch block
             fail(e1.getMessage());
         }

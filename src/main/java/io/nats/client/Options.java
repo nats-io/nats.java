@@ -76,7 +76,7 @@ class Options {
 
             String userInfo = url.getRawUserInfo();
             if (userInfo != null) {
-                String userPass[] = userInfo.split(":");
+                String[] userPass = userInfo.split(":");
                 if (userPass.length > 2) {
                     throw new IllegalArgumentException(
                             "Bad user info in NATS " + "URI: " + userInfo);

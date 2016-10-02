@@ -38,8 +38,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Category(UnitTest.class)
-public class SubscriptionTest {
-    final Logger logger = LoggerFactory.getLogger(SubscriptionTest.class);
+public class ITSubscriptionTest {
+    final Logger logger = LoggerFactory.getLogger(ITSubscriptionTest.class);
 
     ExecutorService executor =
             Executors.newCachedThreadPool(new NATSThreadFactory("nats-test-thread"));
@@ -58,21 +58,6 @@ public class SubscriptionTest {
 
     @After
     public void tearDown() throws Exception {}
-
-    @Test
-    public void testToString() {
-        String expected1 = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, "
-                + "maxPendingMsgs=20, maxPendingBytes=67108864, valid=false}";
-        String expected2 = "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, "
-                + "maxPendingMsgs=65536, maxPendingBytes=67108864, valid=false}";
-        ConnectionImpl nc = null;
-        Subscription sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
-        assertEquals(expected1, sub.toString());
-        sub.close();
-        sub = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
-        assertEquals(expected2, sub.toString());
-        sub.close();
-    }
 
     @Test
     public void testServerAutoUnsub() throws IOException, TimeoutException {
@@ -262,6 +247,16 @@ public class SubscriptionTest {
     }
 
     @Test
+    public void testAutoUnsubWithParallelNextMsgCalls() {
+        fail("not yet implemented");
+    }
+
+    @Test
+    public void TestAutoUnsubscribeFromCallback() {
+        fail("not yet implemented");
+    }
+
+    @Test
     public void testCloseSubRelease() throws IOException, TimeoutException {
         try (NATSServer srv = runDefaultServer()) {
             try (final Connection c = new ConnectionFactory().createConnection()) {
@@ -384,6 +379,11 @@ public class SubscriptionTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testSlowChanSubscriber() {
+        fail("not yet implemented");
     }
 
     @Test
@@ -512,6 +512,11 @@ public class SubscriptionTest {
     }
 
     @Test
+    public void testAsyncErrHandlerChanSubscription() {
+        fail("not yet implemented");
+    }
+
+    @Test
     public void testAsyncSubscriberStarvation() throws IOException, TimeoutException {
         final Channel<Boolean> ch = new Channel<Boolean>();
 
@@ -620,6 +625,77 @@ public class SubscriptionTest {
                 }
             } // Connection
         } // Server
+    }
+
+    @Test
+    public void testNextMsgCallOnAsyncSub() {
+        fail("not yet implemented");
+    }
+
+    @Test
+    public void testNextMsgCallOnClosedSub() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testChanSubscriber() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testChanQueueSubscriber() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testChanSubscriberPendingLimits() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testQueueChanQueueSubscriber() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testUnsubscribeChanOnSubscriber() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testCloseChanOnSubscriber() {
+        fail("not  yet implemented");
+    }
+
+
+    @Test
+    public void testAsyncSubscriptionPending() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testAsyncSubscriptionPendingDrain() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testSyncSubscriptionPendingDrain() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testSyncSubscriptionPending() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testSetPendingLimits() {
+        fail("not  yet implemented");
+    }
+
+    @Test
+    public void testSubscriptionTypes() {
+        fail("not  yet implemented");
     }
 
     @Test

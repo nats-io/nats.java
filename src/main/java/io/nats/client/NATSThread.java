@@ -13,9 +13,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * NATSThread.
- * <p/>
- * Custom thread base class
+ * NATSThread. <p/> Custom thread base class
  *
  * @author Brian Goetz and Tim Peierls
  */
@@ -70,7 +68,7 @@ class NATSThread extends Thread {
             }
             alive.decrementAndGet();
             if (debug) {
-                logger.debug("Exiting {}" + getName());
+                logger.debug("Exiting {}", getName());
             }
         }
     }
