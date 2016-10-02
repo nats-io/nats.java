@@ -236,7 +236,7 @@ public class ConnectionImpl implements Connection {
                 rv.load(inputStream);
             }
         } catch (IOException e) {
-            logger.debug("nats: error loading properties from InputStream", e);
+            logger.warn("nats: error loading properties from InputStream", e);
             rv = null;
         }
         return rv;

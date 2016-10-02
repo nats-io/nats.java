@@ -176,10 +176,8 @@ public class ConnectionImplTest {
         InputStream is = mock(InputStream.class);
         doThrow(new IOException("fake I/O exception")).when(is).read(any(byte[].class));
 
-        setLogLevel(ch.qos.logback.classic.Level.DEBUG);
         conn.getProperties(is);
-        verifier.verifyLogMsgEquals(Level.DEBUG, "nats: error loading properties from InputStream");
-        setLogLevel(ch.qos.logback.classic.Level.INFO);
+        verifier.verifyLogMsgEquals(Level.WARN, "nats: error loading properties from InputStream");
 
         Properties props = conn.getProperties((InputStream) null);
         assertNull(props);
