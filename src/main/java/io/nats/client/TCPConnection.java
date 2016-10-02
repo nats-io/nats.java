@@ -160,10 +160,22 @@ class TCPConnection implements AutoCloseable {
         this.factory = factory;
     }
 
+    protected SSLSocketFactory getSslSocketFactory() {
+        if (factory instanceof SSLSocketFactory) {
+            return (SSLSocketFactory) factory;
+        } else {
+            return null;
+        }
+    }
+
     protected void makeTLS(SSLContext context) throws IOException {
         this.sslContext = context;
         setSocketFactory(sslContext.getSocketFactory());
-        SSLSocketFactory sslSf = (SSLSocketFactory) factory;
+        makeTLS();
+    }
+
+    protected void makeTLS() throws IOException {
+        SSLSocketFactory sslSf = getSslSocketFactory();
         SSLSocket sslSocket = (SSLSocket) sslSf.createSocket(client,
                 client.getInetAddress().getHostAddress(), client.getPort(), true);
 
@@ -236,5 +248,13 @@ class TCPConnection implements AutoCloseable {
             }
         }
         teardown();
+    }
+
+    protected SSLContext getSslContext() {
+        return sslContext;
+    }
+
+    protected void setSslContext(SSLContext sslContext) {
+        this.sslContext = sslContext;
     }
 }

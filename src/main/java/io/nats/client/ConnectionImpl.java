@@ -18,6 +18,7 @@ import static io.nats.client.Constants.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Constants.ERR_SECURE_CONN_WANTED;
 import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
 import static io.nats.client.Constants.ERR_STALE_CONNECTION;
+import static io.nats.client.Constants.ERR_TCP_FLUSH_FAILED;
 import static io.nats.client.Constants.ERR_TIMEOUT;
 import static io.nats.client.Constants.TLS_SCHEME;
 
@@ -363,7 +364,7 @@ public class ConnectionImpl implements Connection {
         // For first connect we walk all servers in the pool and try
         // to connect immediately.
         // boolean connected = false;
-        Exception returnedErr = null;
+        IOException returnedErr = null;
         mu.lock();
         try {
             for (int i = 0; i < srvPool.size(); i++) {
@@ -407,17 +408,9 @@ public class ConnectionImpl implements Connection {
             }
 
             if (returnedErr != null) {
-                if (returnedErr instanceof IOException) {
-                    throw ((IOException) returnedErr);
-                } else if (returnedErr instanceof TimeoutException) {
-                    throw ((TimeoutException) returnedErr);
-                } else {
-                    throw new Error("Unexpected error", returnedErr);
-                }
+                throw (returnedErr);
             }
-        } finally
-
-        {
+        } finally {
             mu.unlock();
         }
     }
@@ -448,8 +441,8 @@ public class ConnectionImpl implements Connection {
             logger.trace("Flushing old outputstream to pending");
             try {
                 bw.flush();
-            } catch (Exception e) {
-                /* NOOP */
+            } catch (IOException e) {
+                logger.warn(ERR_TCP_FLUSH_FAILED);
             }
         }
         bw = conn.getBufferedOutputStream(DEFAULT_STREAM_BUF_SIZE);
@@ -522,7 +515,7 @@ public class ConnectionImpl implements Connection {
             // pending nextMsg() calls.
             for (Long key : subs.keySet()) {
                 SubscriptionImpl sub = subs.get(key);
-                sub.mu.lock();
+                sub.lock();
                 sub.closeChannel();
                 // Mark as invalid, for signaling to deliverMsgs
                 sub.closed = true;
@@ -530,7 +523,7 @@ public class ConnectionImpl implements Connection {
                 sub.connClosed = true;
                 // Terminate thread executor
                 sub.close();
-                sub.mu.unlock();
+                sub.unlock();
             }
             subs.clear();
 
@@ -588,7 +581,7 @@ public class ConnectionImpl implements Connection {
         sendConnect();
 
         // Reset the number of PINGs sent out
-        this.pout = 0;
+        this.setActualPingsOutstanding(0);
 
         // Start the readLoop and flusher threads
         spinUpSocketWatchers();
@@ -661,7 +654,7 @@ public class ConnectionImpl implements Connection {
                 ch = pongs.get(0);
                 pongs.remove(0);
             }
-            pout = 0;
+            setActualPingsOutstanding(0);
         } finally {
             mu.unlock();
         }
@@ -717,8 +710,6 @@ public class ConnectionImpl implements Connection {
     // This is where disconnect/reconnect is initially handled.
     // The lock should not be held entering this function.
     void processOpError(Exception err) {
-        logger.trace("processOpError(e={}) state={} reconnectAllowed={} ", err.getClass().getName(),
-                status, opts.isReconnectAllowed());
         mu.lock();
         try {
             if (isConnecting() || _isClosed() || _isReconnecting()) {
@@ -777,14 +768,12 @@ public class ConnectionImpl implements Connection {
     @Override
     public boolean isReconnecting() {
         mu.lock();
-        try {
-            return _isReconnecting();
-        } finally {
-            mu.unlock();
-        }
+        boolean rv = _isReconnecting();
+        mu.unlock();
+        return rv;
     }
 
-    private boolean _isReconnecting() {
+    boolean _isReconnecting() {
         return (status == ConnState.RECONNECTING);
     }
 
@@ -796,14 +785,12 @@ public class ConnectionImpl implements Connection {
     @Override
     public boolean isClosed() {
         mu.lock();
-        try {
-            return _isClosed();
-        } finally {
-            mu.unlock();
-        }
+        boolean rv = _isClosed();
+        mu.unlock();
+        return rv;
     }
 
-    private boolean _isClosed() {
+    boolean _isClosed() {
         return (status == ConnState.CLOSED);
     }
 
@@ -995,14 +982,11 @@ public class ConnectionImpl implements Connection {
         logger.trace("Completed close() from doReconnect()");
     }
 
-    private boolean isConnecting() {
+    boolean isConnecting() {
         mu.lock();
-        try {
-            return (status == ConnState.CONNECTING);
-        } finally {
-            mu.unlock();
-        }
-
+        boolean rv = (status == ConnState.CONNECTING);
+        mu.unlock();
+        return rv;
     }
 
     static String normalizeErr(String error) {
@@ -1410,12 +1394,9 @@ public class ConnectionImpl implements Connection {
         TCPConnection conn = null;
 
         mu.lock();
-        try {
-            parser = this.parser;
-            this.ps = parser.ps;
-        } finally {
-            mu.unlock();
-        }
+        parser = this.parser;
+        this.ps = parser.ps;
+        mu.unlock();
 
         // Stack based buffer.
         byte[] buffer = new byte[DEFAULT_BUF_SIZE];
@@ -1506,26 +1487,27 @@ public class ConnectionImpl implements Connection {
         mu.lock();
         try {
             stats.incrementInMsgs();
-            stats.incrementInBytes(parser.ps.ma.size);
+            stats.incrementInBytes(length);
 
             sub = subs.get(ps.ma.sid);
             if (sub == null) {
                 return;
             }
 
-            sub.mu.lock();
+            // Doing message create outside of the sub's lock to reduce contention.
+            // It's possible that we end-up not using the message, but that's ok.
+            Message msg = new Message(ps.ma, sub, data, offset, length);
+
+            sub.lock();
             try {
-                maxReached = sub.tallyMessage(ps.ma.size);
+                maxReached = sub.tallyMessage(length);
                 if (!maxReached) {
-                    Message msg = new Message(ps.ma, sub, data, offset, length);
                     sub.addMessage(msg);
                 } // maxreached == false
-            } // lock s.mu
-            finally {
-                sub.mu.unlock();
+            } finally {
+                sub.unlock();
             }
-        } // lock conn.mu
-        finally {
+        } finally {
             mu.unlock();
         }
         if (maxReached) {
@@ -1537,7 +1519,7 @@ public class ConnectionImpl implements Connection {
         subs.remove(sub.getSid());
         // logger.trace("Removed sid={} subj={}",
         // sub.getSid(), sub.getSubject());
-        sub.getLock().lock();
+        sub.lock();
         try {
             if (sub.getChannel() != null) {
                 sub.mch.close();
@@ -1550,7 +1532,7 @@ public class ConnectionImpl implements Connection {
             sub.setConnection(null);
             sub.closed = true;
         } finally {
-            sub.getLock().unlock();
+            sub.unlock();
         }
     }
 
@@ -1652,8 +1634,8 @@ public class ConnectionImpl implements Connection {
         }
 
         // Check for violation
-        pout++;
-        if (pout > opts.getMaxPingsOut()) {
+        setActualPingsOutstanding(getActualPingsOutstanding() + 1);
+        if (getActualPingsOutstanding() > opts.getMaxPingsOut()) {
             mu.unlock();
             processOpError(new IOException(ERR_STALE_CONNECTION));
             return;
@@ -1785,7 +1767,7 @@ public class ConnectionImpl implements Connection {
                 bw.flush();
                 stats.incrementFlushes();
             } catch (IOException e) {
-                logger.error("I/O eception encountered during flush", e);
+                logger.error("I/O exception encountered during flush", e);
             } finally {
                 mu.unlock();
             }
@@ -1871,7 +1853,7 @@ public class ConnectionImpl implements Connection {
                 ((AsyncSubscriptionImpl) sub).start(); // enableAsyncProcessing()
             }
             logger.trace("Resending subscriptions:");
-            sub.mu.lock();
+            sub.lock();
             try {
                 logger.trace("Sub = {}", sub);
                 if (sub.max > 0) {
@@ -1891,7 +1873,7 @@ public class ConnectionImpl implements Connection {
                     }
                 }
             } finally {
-                sub.mu.unlock();
+                sub.unlock();
             }
 
             sendSubscriptionMessage(sub);
@@ -2319,7 +2301,7 @@ public class ConnectionImpl implements Connection {
         return lastEx;
     }
 
-    private void setLastError(Exception err) {
+    void setLastError(Exception err) {
         this.lastEx = err;
     }
 
@@ -2334,14 +2316,6 @@ public class ConnectionImpl implements Connection {
     ByteArrayOutputStream getPending() {
         return this.pending;
     }
-
-    // static void printSubs(ConnectionImpl c) {
-    // c.logger.trace("SUBS:");
-    // for (long key : c.subs.keySet())
-    // {
-    // c.logger.trace("\tkey: " + key + " value: " + c.subs.get(key));
-    // }
-    // }
 
     protected void sleepMsec(long msec) {
         try {
@@ -2439,17 +2413,19 @@ public class ConnectionImpl implements Connection {
         return this.tcf;
     }
 
-    /**
-     * @return the url
-     */
     URI getUrl() {
         return url;
     }
 
-    /**
-     * @param url the url to set
-     */
     void setUrl(URI url) {
         this.url = url;
+    }
+
+    int getActualPingsOutstanding() {
+        return pout;
+    }
+
+    void setActualPingsOutstanding(int pout) {
+        this.pout = pout;
     }
 }

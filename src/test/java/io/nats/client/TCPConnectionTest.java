@@ -5,14 +5,20 @@
  *******************************************************************************/
 package io.nats.client;
 
+import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import io.nats.client.TCPConnection.HandshakeListener;
+
+import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -22,21 +28,37 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.Certificate;
 
 import javax.net.SocketFactory;
+import javax.net.ssl.HandshakeCompletedEvent;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 @Category(UnitTest.class)
 public class TCPConnectionTest {
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
+    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    static final Logger logger = LoggerFactory.getLogger(TCPConnectionTest.class);
+
+    static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
+
+    @Rule
+    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {}
@@ -45,10 +67,16 @@ public class TCPConnectionTest {
     public static void tearDownAfterClass() throws Exception {}
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
+        verifier.setup();
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+        verifier.teardown();
+        setLogLevel(Level.INFO);
+    }
 
     @Test
     public void testTCPConnection() {
@@ -95,6 +123,24 @@ public class TCPConnectionTest {
     }
 
     @Test
+    public void testMakeTls() throws IOException, NoSuchAlgorithmException {
+        try (TCPConnection conn = new TCPConnection()) {
+            SSLSocketFactory sslSf = mock(SSLSocketFactory.class);
+            conn.setSocketFactory(sslSf);
+            conn.setTlsDebug(true);
+            InetAddress addr = mock(InetAddress.class);
+            Socket sock = mock(SSLSocket.class);
+            when(sock.getInetAddress()).thenReturn(addr);
+            when(addr.getHostAddress()).thenReturn("127.0.0.1");
+
+            when(sslSf.createSocket(any(Socket.class), any(String.class), any(int.class),
+                    any(boolean.class))).thenReturn(sock);
+            conn.setSocket(sock);
+            conn.makeTLS();
+        }
+    }
+
+    @Test
     public void testTeardown() {
         TCPConnection conn = new TCPConnection();
         Socket sock = mock(Socket.class);
@@ -122,6 +168,24 @@ public class TCPConnectionTest {
         conn.close();
     }
 
+    @Test
+    public void testHandshakeListener() throws SSLPeerUnverifiedException {
+        try (TCPConnection conn = new TCPConnection()) {
+            final HandshakeListener hcb = conn.new HandshakeListener();
+            HandshakeCompletedEvent event = mock(HandshakeCompletedEvent.class);
+            Certificate[] certs = new Certificate[2];
+            certs[0] = mock(Certificate.class);
+            certs[1] = mock(Certificate.class);
+
+            SSLSession session = mock(SSLSession.class);
+            when(event.getSession()).thenReturn(session);
+            when(session.getPeerHost()).thenReturn("127.0.0.1");
+            when(session.getCipherSuite()).thenReturn("TEST_TEST");
+            when(session.getPeerCertificates()).thenReturn(certs);
+
+            hcb.handshakeCompleted(event);
+        }
+    }
     // @Test
     // public void testGetBufferedInputStreamReader() {
     // }

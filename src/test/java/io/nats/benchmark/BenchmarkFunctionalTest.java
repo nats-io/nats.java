@@ -79,6 +79,15 @@ public class BenchmarkFunctionalTest {
     }
 
     @Test
+    public void testHumanBytes() {
+        double bytes = 999;
+        assertEquals("999.00 B", Utils.humanBytes(bytes, true));
+
+        bytes = 2099;
+        assertEquals("2.10 kiB", Utils.humanBytes(bytes, true));
+    }
+
+    @Test
     public void testSeconds() {
         Sample stat = millionMessagesSecondSample(1);
         double seconds = TimeUnit.NANOSECONDS.toSeconds(stat.end - stat.start) * 1.0;

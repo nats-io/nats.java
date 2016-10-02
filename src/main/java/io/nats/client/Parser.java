@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 
-final class Parser {
+class Parser {
     final static Logger logger = LoggerFactory.getLogger(Parser.class);
 
     final static int MAX_CONTROL_LINE_SIZE = 1024;

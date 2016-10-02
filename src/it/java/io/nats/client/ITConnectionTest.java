@@ -47,10 +47,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -165,9 +164,7 @@ public class ITConnectionTest {
                             return -1;
                         }
                     });
-        } catch (
-
-        IOException e2) {
+        } catch (IOException e2) {
             // TODO Auto-generated catch block
             e2.printStackTrace();
         }
@@ -242,21 +239,18 @@ public class ITConnectionTest {
     }
 
     @Test
-    public void testConnClosedCB() {
-        final AtomicBoolean closed = new AtomicBoolean(false);
-
+    public void testConnClosedCB() throws IOException, TimeoutException, InterruptedException {
+        final CountDownLatch ccbLatch = new CountDownLatch(1);
         ConnectionFactory cf = new ConnectionFactory();
         cf.setClosedCallback(new ClosedCallback() {
             public void onClose(ConnectionEvent event) {
-                closed.set(true);
+                ccbLatch.countDown();
             }
         });
         try (Connection c = cf.createConnection()) {
             c.close();
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
-        assertTrue("Closed callback not triggered", closed.get());
+        assertTrue("Closed callback not triggered", ccbLatch.await(2, TimeUnit.SECONDS));
     }
 
     @Test
@@ -391,48 +385,6 @@ public class ITConnectionTest {
         }
     }
 
-    @Test
-    public void testProcessMsgArgsErrors() {
-        String tooFewArgsString = "foo bar";
-        byte[] args = tooFewArgsString.getBytes();
-
-        boolean exThrown = false;
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            c.parser.processMsgArgs(args, 0, args.length);
-        } catch (ParseException e) {
-            exThrown = true;
-            String msg = String.format("Wrong msg: [%s]\n", e.getMessage());
-            assertTrue(msg, e.getMessage().startsWith("nats: processMsgArgs bad number of args"));
-        } catch (IOException | TimeoutException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
-            fail(e1.getMessage());
-        } finally {
-            assertTrue("Should have thrown ParseException", exThrown);
-        }
-
-        String badSizeString = "foo 1 -1";
-        args = badSizeString.getBytes();
-
-        exThrown = false;
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            c.parser.processMsgArgs(args, 0, args.length);
-        } catch (ParseException e) {
-            exThrown = true;
-            String msg = String.format("Wrong msg: [%s]\n", e.getMessage());
-            assertTrue(msg,
-                    e.getMessage().startsWith("nats: processMsgArgs bad or missing size: "));
-        } catch (IOException | TimeoutException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
-            fail(e1.getMessage());
-        } finally {
-            assertTrue("Should have thrown ParseException", exThrown);
-        }
-    }
-
     // @Test
     // public void testDeliverMsgsChannelTimeout() {
     // try (TCPConnectionMock mock = new TCPConnectionMock()) {
@@ -510,31 +462,6 @@ public class ITConnectionTest {
             c.setConnectedServerInfo((ServerInfo) null);
             c.setConnectedServerInfo((String) null);
             assertNull(c.getConnectedServerInfo());
-        } catch (IOException | TimeoutException e) {
-            fail("Connection failed");
-        }
-    }
-
-    @Test
-    public void testProcessMsgMaxReached() {
-        final String subject = "foo";
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
-            Map<Long, SubscriptionImpl> subs = c.getSubs();
-            assertNotNull(subs);
-            c.setSubs(subs);
-            SyncSubscriptionImpl s = (SyncSubscriptionImpl) c.subscribeSync(subject);
-            Parser.MsgArg args = c.parser.new MsgArg();
-            args.sid = s.getSid();
-            args.subject.clear();
-            args.subject.put(subject.getBytes());
-            s.setMax(1);
-            c.ps.ma = args;
-            assertNotNull("Sub should have been present", c.getSubs().get(args.sid));
-            c.processMsg(null, 0, 0);
-            c.processMsg(null, 0, 0);
-            c.processMsg(null, 0, 0);
-            assertNull("Sub should have been removed", c.getSubs().get(args.sid));
         } catch (IOException | TimeoutException e) {
             fail("Connection failed");
         }

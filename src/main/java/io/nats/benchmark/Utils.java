@@ -5,8 +5,6 @@ import java.util.List;
 
 public class Utils {
 
-    public Utils() {}
-
     /**
      * humanBytes formats bytes as a human readable string.
      * 

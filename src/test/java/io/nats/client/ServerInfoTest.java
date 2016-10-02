@@ -4,7 +4,9 @@
 package io.nats.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -27,7 +29,16 @@ public class ServerInfoTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     static String testString =
-            "INFO {\"server_id\":\"s76hOxUCzhR2ngkcVYSPPV\",\"version\":\"0.9.4\",\"go\":\"go1.6.3\",\"host\":\"0.0.0.0\",\"port\":4222,\"auth_required\":true,\"ssl_required\":true,\"tls_required\":true,\"tls_verify\":false,\"max_payload\":1048576,\"connect_urls\":[\"10.0.1.3:4222\",\"[fe80::42:aff:fe00:103]:4222\"]}\r\n";
+            "INFO {\"server_id\":\"s76hOxUCzhR2ngkcVYSPPV\",\"version\":\"0.9.4\","
+                    + "\"go\":\"go1.6.3\",\"host\":\"0.0.0.0\",\"port\":4222,"
+                    + "\"auth_required\":true,\"ssl_required\":true,\"tls_required\":true,"
+                    + "\"tls_verify\":false,\"max_payload\":1048576,"
+                    + "\"connect_urls\":[\"10.0.1.3:4222\",\"[fe80::42:aff:fe00:103]:4222\"]}\r\n";
+    static String testStringNoConnectedUrls =
+            "INFO {\"server_id\":\"s76hOxUCzhR2ngkcVYSPPV\",\"version\":\"0.9.4\","
+                    + "\"go\":\"go1.6.3\",\"host\":\"0.0.0.0\",\"port\":4222,"
+                    + "\"auth_required\":true,\"ssl_required\":true,\"tls_required\":true,"
+                    + "\"tls_verify\":false,\"max_payload\":1048576}\r\n";
     static ServerInfo testInstance = ServerInfo.createFromWire(testString);
 
     @BeforeClass
@@ -42,13 +53,19 @@ public class ServerInfoTest {
     @After
     public void tearDown() throws Exception {}
 
-    // /**
-    // * Test method for {@link io.nats.client.ServerInfo#ServerInfo(java.lang.String)}.
-    // */
-    // @Test
-    // public void testServerInfo() {
-    // fail("Not yet implemented"); // TODO
-    // }
+    /**
+     * Test method for {@link io.nats.client.ServerInfo#ServerInfo(io.nats.client.ServerInfo)}.
+     */
+    @Test
+    public void testServerInfoCopyConstructor() {
+        ServerInfo s1 = ServerInfo.createFromWire(testString);
+        ServerInfo s2 = new ServerInfo(s1);
+        assertTrue(EqualsBuilder.reflectionEquals(s1, s2));
+
+        s1 = ServerInfo.createFromWire(testStringNoConnectedUrls);
+        s2 = new ServerInfo(s1);
+        assertTrue(EqualsBuilder.reflectionEquals(s1, s2));
+    }
 
     /**
      * Test method for {@link io.nats.client.ServerInfo#getId()}.

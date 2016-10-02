@@ -267,7 +267,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
      */
     @Override
     public boolean isConnected() {
-        return client.isConnected();
+        return client != null && client.isConnected();
     }
 
     /*
