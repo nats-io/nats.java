@@ -21,6 +21,7 @@ public interface AsyncSubscription extends Subscription {
      *         include reaching the subscription's autoUnsubscribe limit, calling
      *         {@link #unsubscribe()}, or closing the Connection.
      */
+    @Deprecated
     void start();
 
     /**

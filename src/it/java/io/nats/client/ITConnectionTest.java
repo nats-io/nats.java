@@ -181,7 +181,7 @@ public class ITConnectionTest {
         when(sub.getSubject()).thenReturn("foo");
         when(sub.getQueue()).thenReturn(null);
         when(sub.getSid()).thenReturn(1L);
-        when(sub.getMaxPendingMsgs()).thenReturn(100);
+        when(sub.getPendingMsgsMax()).thenReturn(100);
 
         final AtomicBoolean exThrown = new AtomicBoolean(false);
 
@@ -212,19 +212,6 @@ public class ITConnectionTest {
             assertFalse("Should not have thrown IOException", exThrown.get());
         } catch (IOException | TimeoutException e) {
             e.printStackTrace();
-            fail("Unexpected exception: " + e.getMessage());
-        }
-    }
-
-    @Test
-    public void testAsyncSubscribeSubjQueue() {
-        String subject = "foo";
-        String queue = "bar";
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            c.subscribeAsync(subject, queue);
-            c.subscribeSync(subject, queue);
-        } catch (IOException | TimeoutException e) {
             fail("Unexpected exception: " + e.getMessage());
         }
     }

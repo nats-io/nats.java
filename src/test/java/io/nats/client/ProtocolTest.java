@@ -11,8 +11,8 @@ import static io.nats.client.Constants.ERR_AUTHORIZATION;
 import static io.nats.client.Constants.ERR_PROTOCOL;
 import static io.nats.client.Constants.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Constants.ERR_SECURE_CONN_WANTED;
+import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
-import static io.nats.client.UnitTestUtilities.waitTime;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -35,7 +35,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 
 @Category(UnitTest.class)
@@ -147,10 +147,10 @@ public class ProtocolTest {
     @Test
     public void testProcessErrStaleConnection() {
         ConnectionFactory cf = new ConnectionFactory();
-        final Channel<Boolean> cch = new Channel<Boolean>();
+        final CountDownLatch ccbLatch = new CountDownLatch(1);
         cf.setClosedCallback(new ClosedCallback() {
             public void onClose(ConnectionEvent event) {
-                cch.add(true);
+                ccbLatch.countDown();
             }
         });
         cf.setReconnectAllowed(false);
@@ -160,7 +160,7 @@ public class ProtocolTest {
             error.flip();
             c.processErr(error);
             assertTrue(c.isClosed());
-            assertTrue("Closed callback should have fired", waitTime(cch, 5, TimeUnit.SECONDS));
+            assertTrue("Closed callback should have fired", await(ccbLatch));
         } catch (IOException | TimeoutException e) {
             // TODO Auto-generated catch block
             fail(e.getMessage());

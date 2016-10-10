@@ -6,13 +6,18 @@
 
 package io.nats.client;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code Channel} is a utility wrapper for {@link LinkedBlockingQueue}. Although its visibility is
@@ -31,7 +36,7 @@ public class Channel<T> {
     boolean closed = false;
 
     public Channel() {
-        q = new LinkedBlockingQueue<T>();
+        this(-1);
     }
 
     public Channel(LinkedBlockingQueue<T> queue) {
@@ -81,6 +86,45 @@ public class Channel<T> {
         }
         return item;
     }
+
+    public T getNew(long timeout, TimeUnit unit) throws TimeoutException {
+        // System.err.printf("get called with timeout=%d, unit=%s\n", timeout, unit);
+        T item = null;
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Future<T> future = executor.submit(new Callable<T>() {
+            public T call() throws Exception {
+                // do operations you want
+                T theItem = null;
+                while (!Channel.this.isClosed() && theItem == null) {
+                    theItem = q.poll();
+                }
+                return theItem;
+            }
+        });
+        try {
+            if (timeout < 0) {
+                item = future.get();
+                // System.err.println("future.get() Returning " + item);
+            } else {
+                // System.err.printf("Calling future.get(%d, TimeUnit.%s)\n", timeout, unit);
+                item = future.get(timeout, unit);
+                // System.err.printf("future.get(%d, TimeUnit.%s) returning %v\n", timeout, unit,
+                // item);
+            }
+        } catch (TimeoutException e) {
+            // System.err.printf("get(%d, TimeUnit.%s) timed out\n", timeout, unit);
+            future.cancel(true);
+            throw new TimeoutException("Channel timed out waiting for items");
+            // throw e;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        executor.shutdownNow();
+        return item;
+    }
+
 
     public T poll() {
         return q.poll();

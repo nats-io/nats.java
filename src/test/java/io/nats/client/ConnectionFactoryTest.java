@@ -12,8 +12,6 @@ import static io.nats.client.Constants.PROP_CONNECTION_TIMEOUT;
 import static io.nats.client.Constants.PROP_DISCONNECTED_CB;
 import static io.nats.client.Constants.PROP_EXCEPTION_HANDLER;
 import static io.nats.client.Constants.PROP_HOST;
-import static io.nats.client.Constants.PROP_MAX_PENDING_BYTES;
-import static io.nats.client.Constants.PROP_MAX_PENDING_MSGS;
 import static io.nats.client.Constants.PROP_MAX_PINGS;
 import static io.nats.client.Constants.PROP_MAX_RECONNECT;
 import static io.nats.client.Constants.PROP_NORANDOMIZE;
@@ -103,8 +101,6 @@ public class ConnectionFactoryTest
     final static int pingInterval = 5000;
     final static int maxPings = 4;
     final static Boolean tlsDebug = true;
-    final static int maxPendingMsgs = 4400;
-    final static long maxPendingBytes = maxPendingMsgs * 1024;
 
     @Test
     public void testConnectionFactoryProperties() {
@@ -137,9 +133,6 @@ public class ConnectionFactoryTest
         props.setProperty(PROP_CLOSED_CB, ccb.getClass().getName());
         props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
         props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
-        props.setProperty(PROP_MAX_PENDING_MSGS, Integer.toString(maxPendingMsgs));
-        props.setProperty(PROP_MAX_PENDING_BYTES, Long.toString(maxPendingBytes));
-
 
         ConnectionFactory cf = new ConnectionFactory(props);
         assertEquals(hostname, cf.getHost());
@@ -167,42 +160,6 @@ public class ConnectionFactoryTest
         assertEquals(ccb.getClass().getName(), cf.getClosedCallback().getClass().getName());
         assertEquals(dcb.getClass().getName(), cf.getDisconnectedCallback().getClass().getName());
         assertEquals(rcb.getClass().getName(), cf.getReconnectedCallback().getClass().getName());
-        assertEquals(maxPendingMsgs, cf.getMaxPendingMsgs());
-        assertEquals(maxPendingBytes, cf.getMaxPendingBytes());
-
-        // cf.setSecure(false);
-        // TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        // try (ConnectionImpl ci = cf.createConnection(mcf)) {
-        // assertFalse(ci.isClosed());
-        //
-        // assertEquals(hostname, ci.opts.getHost());
-        // assertEquals(password, ci.opts.getPassword());
-        // List<URI> s3 = ci.opts.getServers();
-        // assertEquals(s1, s3);
-        // assertEquals(noRandomize, ci.opts.isNoRandomize());
-        // assertEquals(name, ci.opts.getConnectionName());
-        // assertEquals(verbose, ci.opts.isVerbose());
-        // assertEquals(pedantic, ci.opts.isPedantic());
-        // // Setting to default just to ensure we can connect
-        // assertEquals(false, ci.opts.isSecure());
-        // assertEquals(reconnectAllowed, ci.opts.isReconnectAllowed());
-        // assertEquals(maxReconnect, ci.opts.getMaxReconnect());
-        // assertEquals(reconnectWait, ci.opts.getReconnectWait());
-        // assertEquals(reconnectBufSize, ci.opts.getReconnectBufSize());
-        // assertEquals(timeout, ci.opts.getConnectionTimeout());
-        // assertEquals(pingInterval, ci.opts.getPingInterval());
-        // assertEquals(maxPings, ci.opts.getMaxPingsOut());
-        // assertEquals(eh.getClass().getName(),
-        // ci.opts.getExceptionHandler().getClass().getName());
-        // assertEquals(ccb.getClass().getName(),
-        // ci.opts.getClosedCallback().getClass().getName());
-        // assertEquals(dcb.getClass().getName(),
-        // ci.opts.getDisconnectedCallback().getClass().getName());
-        // assertEquals(rcb.getClass().getName(),
-        // ci.opts.getReconnectedCallback().getClass().getName());
-        // } catch (IOException | TimeoutException e) {
-        // fail(e.getMessage());
-        // }
     }
 
     @Test
@@ -424,7 +381,6 @@ public class ConnectionFactoryTest
             // TODO Auto-generated catch block
             e1.printStackTrace();
         }
-        cf.setMaxPendingMsgs(49);
         cf.setTlsDebug(true);
 
         ConnectionFactory cf2 = null;
@@ -452,7 +408,6 @@ public class ConnectionFactoryTest
         assertEquals(cf.getDisconnectedCallback(), cf2.getDisconnectedCallback());
         assertEquals(cf.getReconnectedCallback(), cf2.getReconnectedCallback());
         assertEquals(cf.getUrlString(), cf2.getUrlString());
-        assertEquals(cf.getMaxPendingMsgs(), cf2.getMaxPendingMsgs());
         assertEquals(cf.isTlsDebug(), cf2.isTlsDebug());
     }
 

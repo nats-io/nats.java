@@ -3,6 +3,7 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import java.io.BufferedReader;
@@ -11,6 +12,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -19,51 +21,49 @@ public class UnitTestUtilities {
     static NATSServer defaultServer = null;
     Process authServerProcess = null;
 
-    public static synchronized NATSServer runDefaultServer() {
+    static synchronized NATSServer runDefaultServer() {
         return runDefaultServer(false);
     }
 
-    public static synchronized NATSServer runDefaultServer(boolean debug) {
+    static synchronized NATSServer runDefaultServer(boolean debug) {
         NATSServer ns = new NATSServer(debug);
         sleep(100, TimeUnit.MILLISECONDS);
         return ns;
     }
 
-    public static synchronized Connection newDefaultConnection()
-            throws IOException, TimeoutException {
+    static synchronized Connection newDefaultConnection() throws IOException, TimeoutException {
         return new ConnectionFactory().createConnection();
     }
 
-    public static synchronized Connection newDefaultConnection(TCPConnectionFactory tcf)
+    static synchronized Connection newDefaultConnection(TCPConnectionFactory tcf)
             throws IOException, TimeoutException {
         return new ConnectionFactory().createConnection(tcf);
     }
 
-    public static synchronized Connection newDefaultConnection(TCPConnectionFactory tcf,
-            Options opts) throws IOException, TimeoutException {
+    static synchronized Connection newDefaultConnection(TCPConnectionFactory tcf, Options opts)
+            throws IOException, TimeoutException {
         ConnectionFactory cf = new ConnectionFactory();
         ConnectionImpl conn = new ConnectionImpl(opts != null ? opts : cf.options(), tcf);
         conn.connect();
         return conn;
     }
 
-    public static synchronized Connection newMockedConnection()
-            throws IOException, TimeoutException {
+    static synchronized Connection newMockedConnection() throws IOException, TimeoutException {
         return newMockedConnection(null, null);
     }
 
-    public static synchronized Connection newMockedConnection(TCPConnectionFactoryMock tcf)
+    static synchronized Connection newMockedConnection(TCPConnectionFactoryMock tcf)
             throws IOException, TimeoutException {
         return newMockedConnection(tcf, null);
     }
 
-    public static synchronized Connection newMockedConnection(Options opts)
+    static synchronized Connection newMockedConnection(Options opts)
             throws IOException, TimeoutException {
         return newMockedConnection(null, opts);
     }
 
-    public static synchronized Connection newMockedConnection(TCPConnectionFactoryMock tcf,
-            Options opts) throws IOException, TimeoutException {
+    static synchronized Connection newMockedConnection(TCPConnectionFactoryMock tcf, Options opts)
+            throws IOException, TimeoutException {
         TCPConnectionFactory tcpConnFactory = null;
         if (tcf != null) {
             tcpConnFactory = null;
@@ -74,30 +74,26 @@ public class UnitTestUtilities {
                 opts != null ? opts : new ConnectionFactory().options());
     }
 
-    public static synchronized void startDefaultServer() {
+    static synchronized void startDefaultServer() {
         startDefaultServer(false);
     }
 
-    public static synchronized void startDefaultServer(boolean debug) {
+    static synchronized void startDefaultServer(boolean debug) {
         if (defaultServer == null) {
             defaultServer = runDefaultServer(debug);
         }
     }
 
-    public static synchronized void stopDefaultServer() {
+    static synchronized void stopDefaultServer() {
         if (defaultServer != null) {
             defaultServer.shutdown();
             defaultServer = null;
         }
     }
 
-    public static synchronized void bounceDefaultServer(int delayMillis) {
+    static synchronized void bounceDefaultServer(int delayMillis) {
         stopDefaultServer();
-        try {
-            Thread.sleep(delayMillis);
-        } catch (InterruptedException e) {
-            // NOOP
-        }
+        sleep(delayMillis);
         startDefaultServer();
     }
 
@@ -105,30 +101,27 @@ public class UnitTestUtilities {
         authServerProcess = Runtime.getRuntime().exec("gnatsd -config auth.conf");
     }
 
-    NATSServer createServerOnPort(int p) {
-        return createServerOnPort(p, false);
+    static NATSServer runServerOnPort(int p) {
+        return runServerOnPort(p, false);
     }
 
-    NATSServer createServerOnPort(int p, boolean debug) {
+    static NATSServer runServerOnPort(int p, boolean debug) {
         NATSServer n = new NATSServer(p, debug);
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-        }
+        sleep(500);
         return n;
     }
 
-    NATSServer createServerWithConfig(String configFile) {
-        return createServerWithConfig(configFile, false);
+    static NATSServer runServerWithConfig(String configFile) {
+        return runServerWithConfig(configFile, false);
     }
 
-    NATSServer createServerWithConfig(String configFile, boolean debug) {
+    static NATSServer runServerWithConfig(String configFile, boolean debug) {
         NATSServer n = new NATSServer(configFile, debug);
         sleep(500);
         return n;
     }
 
-    public static String getCommandOutput(String command) {
+    static String getCommandOutput(String command) {
         String output = null; // the string to return
 
         Process process = null;
@@ -223,24 +216,25 @@ public class UnitTestUtilities {
         try {
             unit.sleep(duration);
         } catch (InterruptedException e) {
+            /* NOOP */
         }
     }
 
-    static boolean wait(Channel<Boolean> ch) {
-        return waitTime(ch, 5, TimeUnit.SECONDS);
+    static boolean await(CountDownLatch latch) {
+        return await(latch, 5, TimeUnit.SECONDS);
     }
 
-    static boolean waitTime(Channel<Boolean> ch, long timeout, TimeUnit unit) {
+    static boolean await(CountDownLatch latch, long timeout, TimeUnit unit) {
         boolean val = false;
         try {
-            val = ch.get(timeout, unit);
-        } catch (TimeoutException e) {
+            val = latch.await(timeout, unit);
+        } catch (InterruptedException e) {
         }
         return val;
     }
 
 
-    public static synchronized void setLogLevel(ch.qos.logback.classic.Level level) {
+    static synchronized void setLogLevel(ch.qos.logback.classic.Level level) {
         ch.qos.logback.classic.Logger lbLog =
                 (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("io.nats.client");
         lbLog.setLevel(level);

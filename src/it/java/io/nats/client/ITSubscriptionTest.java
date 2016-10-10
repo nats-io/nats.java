@@ -9,6 +9,8 @@ package io.nats.client;
 import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.Constants.ERR_MAX_MESSAGES;
 import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
+import static io.nats.client.UnitTestUtilities.await;
+import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
@@ -24,6 +26,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,13 +36,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-@Category(UnitTest.class)
+@Category(IntegrationTest.class)
 public class ITSubscriptionTest {
-    final Logger logger = LoggerFactory.getLogger(ITSubscriptionTest.class);
+    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    static final Logger logger = LoggerFactory.getLogger(ITSubscriptionTest.class);
+
+    static final LogVerifier verifier = new LogVerifier();
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     ExecutorService executor =
             Executors.newCachedThreadPool(new NATSThreadFactory("nats-test-thread"));
@@ -219,7 +227,6 @@ public class ITSubscriptionTest {
                     // and wait to reconnect
                     assertTrue("Failed to get the reconnect cb", latch.await(5, TimeUnit.SECONDS));
                     assertTrue("Subscription should still be valid", sub.isValid());
-                    assertTrue(sub.isStarted());
 
                     // Ensure we only received 5 messages on our sub up to this point
                     assertEquals(total, nc.getStats().getInMsgs());
@@ -247,32 +254,189 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testAutoUnsubWithParallelNextMsgCalls() {
-        fail("not yet implemented");
+    public void testAutoUnsubWithParallelNextMsgCalls() throws Exception {
+        final CountDownLatch rcbLatch = new CountDownLatch(1);
+        final ExecutorService service = Executors.newCachedThreadPool();
+        try (NATSServer srv = runDefaultServer()) {
+            ConnectionFactory cf = new ConnectionFactory();
+            cf.setReconnectWait(50);
+            try (final Connection nc = cf.createConnection()) {
+                nc.setReconnectedCallback(new ReconnectedCallback() {
+                    public void onReconnect(ConnectionEvent event) {
+                        rcbLatch.countDown();
+                    }
+                });
+                final int numRoutines = 3;
+                final int max = 100;
+                final int total = max * 2;
+                final AtomicLong received = new AtomicLong(0);
+
+                final CountDownLatch waitGroup = new CountDownLatch(numRoutines);
+                final SyncSubscription sub = nc.subscribeSync("foo");
+                sub.autoUnsubscribe(max);
+                nc.flush();
+
+                for (int i = 0; i < numRoutines; i++) {
+                    service.submit(new Runnable() {
+                        public void run() {
+                            while (received.get() < max) {
+                                try {
+                                    // The first to reach the max delivered will cause the
+                                    // subscription to be removed, which will kick out all
+                                    // other calls to NextMsg. So don't be afraid of the long
+                                    // timeout.
+                                    sub.nextMessage(3, TimeUnit.SECONDS);
+                                    received.incrementAndGet();
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    // e.getMessage();
+                                    break;
+                                }
+                            }
+                            waitGroup.countDown();
+                        }
+                    });
+                }
+
+                byte[] msg = "Hello".getBytes();
+                for (int i = 0; i < max / 2; i++) {
+                    nc.publish("foo", msg);
+                }
+                nc.flush();
+
+                System.err.println("Received before shutdown == " + received.get());
+
+                srv.shutdown();
+                try (NATSServer srv2 = runDefaultServer()) {
+                    // Make sure we got the reconnected cb
+                    System.err.println("Awaiting reconnect");
+                    await(rcbLatch, 5, TimeUnit.SECONDS);
+                    System.err.println("Reconnected");
+                    for (int i = 0; i < total; i++) {
+                        nc.publish("foo", msg);
+                    }
+                    nc.flush();
+
+                    waitGroup.await();
+                    assertEquals("Wrong number of msgs received: ", max, received.get());
+                }
+            }
+        }
+        service.shutdownNow();
     }
 
     @Test
-    public void TestAutoUnsubscribeFromCallback() {
-        fail("not yet implemented");
+    public void testAutoUnsubscribeFromCallback() throws Exception {
+        try (NATSServer srv = runDefaultServer()) {
+            try (final Connection nc = newDefaultConnection()) {
+                try (SyncSubscription s = nc.subscribeSync("foo")) {
+                    int max = 10;
+                    final long resetUnsubMark = (long) max / 2;
+                    final long limit = 100L;
+                    final AtomicLong received = new AtomicLong(0);
+                    byte[] msg = "Hello".getBytes();
+
+                    // Auto-unsubscribe within the callback with a value lower
+                    // than what was already received.
+
+                    Subscription sub = nc.subscribe("foo", new MessageHandler() {
+                        public void onMessage(Message msg) {
+                            long rcvd = received.incrementAndGet();
+                            if (rcvd == resetUnsubMark) {
+                                try {
+                                    msg.getSubscription().autoUnsubscribe((int) rcvd - 1);
+                                    nc.flush();
+                                } catch (Exception e) {
+                                    /* NOOP */
+                                }
+                            }
+                            if (rcvd == limit) {
+                                // Something went wrong... fail now
+                                fail("Got more messages than expected");
+                            }
+                            try {
+                                nc.publish("foo", msg.getData());
+                            } catch (IOException e) {
+                                /* NOOP */
+                            }
+                        }
+                    });
+                    sub.autoUnsubscribe((int) max);
+                    nc.flush();
+
+                    // Trigger the first message, the other are sent from the callback.
+                    nc.publish("foo", msg);
+                    sleep(100, TimeUnit.MILLISECONDS);
+
+                    long rcvd = received.get();
+                    assertEquals(String.format(
+                            "Wrong number of received messages. Original max was %d reset to %d, actual received: %d",
+                            max, resetUnsubMark, rcvd), resetUnsubMark, rcvd);
+
+                    // Now check with AutoUnsubscribe with higher value than original
+                    received.set(0);
+                    final long newMax = (long) 2 * max;
+
+                    sub = nc.subscribe("foo", new MessageHandler() {
+                        public void onMessage(Message msg) {
+                            long rcvd = received.incrementAndGet();
+                            if (rcvd == resetUnsubMark) {
+                                try {
+                                    msg.getSubscription().autoUnsubscribe((int) newMax);
+                                    nc.flush();
+                                } catch (Exception e) {
+                                    /* NOOP */
+                                }
+                            }
+                            if (rcvd == limit) {
+                                // Something went wrong... fail now
+                                fail("Got more messages than expected");
+                            }
+                            try {
+                                nc.publish("foo", msg.getData());
+                            } catch (IOException e) {
+                                /* NOOP */
+                            }
+                        }
+                    });
+                    sub.autoUnsubscribe((int) max);
+                    nc.flush();
+
+                    // Trigger the first message, the other are sent from the callback.
+                    nc.publish("foo", msg);
+                    nc.flush();
+
+                    sleep(100, TimeUnit.MILLISECONDS);
+
+                    rcvd = received.get();
+                    assertEquals(
+                            String.format(
+                                    "Wrong number of received messages. Original max was %d reset to %d, "
+                                            + "actual received: %d",
+                                    max, newMax, rcvd),
+                            newMax, rcvd);
+                }
+            }
+        }
     }
 
     @Test
     public void testCloseSubRelease() throws IOException, TimeoutException {
         try (NATSServer srv = runDefaultServer()) {
-            try (final Connection c = new ConnectionFactory().createConnection()) {
-                try (SyncSubscription s = c.subscribeSync("foo")) {
+            try (final Connection nc = new ConnectionFactory().createConnection()) {
+                try (SyncSubscription sub = nc.subscribeSync("foo")) {
                     long start = System.nanoTime();
-                    executor.execute(new Runnable() {
-                        @Override
+                    executor.submit(new Runnable() {
                         public void run() {
                             sleep(5);
-                            c.close();
+                            nc.close();
                         }
                     });
                     boolean exThrown = false;
                     try {
-                        sleep(5);
-                        s.nextMessage(50, TimeUnit.MILLISECONDS);
+                        sleep(100);
+                        assertTrue(nc.isClosed());
+                        sub.nextMessage(50, TimeUnit.MILLISECONDS);
                     } catch (Exception e) {
                         exThrown = true;
                     } finally {
@@ -282,9 +446,7 @@ public class ITSubscriptionTest {
 
                     String msg = String.format("Too much time has elapsed to release NextMsg: %dms",
                             elapsed);
-                    assertTrue(msg, elapsed <= 100);
-                } catch (Exception e) {
-                    fail("Subscription failed: " + e.getMessage());
+                    assertTrue(msg, elapsed <= 200);
                 }
             }
         }
@@ -342,55 +504,35 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testSlowSubscriber() throws IOException, TimeoutException {
-        ConnectionFactory cf = new ConnectionFactory();
-        cf.setMaxPendingMsgs(100);
-        final AtomicBoolean exThrown = new AtomicBoolean(false);
-        try (NATSServer srv = runDefaultServer()) {
-            try (Connection c = cf.createConnection()) {
-                try (SyncSubscription s = c.subscribeSync("foo")) {
-                    s.setMaxPendingMsgs(100);
-                    s.setMaxPendingBytes(1024);
+    public void testSlowSubscriber() throws Exception {
+        thrown.expect(IOException.class);
+        thrown.expectMessage(ERR_SLOW_CONSUMER);
 
-                    for (int i = 0; i < (s.getMaxPendingMsgs() + 100); i++) {
-                        c.publish("foo", "Hello".getBytes());
+        try (NATSServer srv = runDefaultServer()) {
+            try (Connection nc = newDefaultConnection()) {
+                try (SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribeSync("foo")) {
+                    sub.setPendingLimits(100, 1024);
+
+                    for (int i = 0; i < 200; i++) {
+                        nc.publish("foo", "Hello".getBytes());
                     }
 
                     int timeout = 5000;
                     long t0 = System.nanoTime();
-                    try {
-                        c.flush(timeout);
-                    } catch (Exception e) {
-                        fail(e.getMessage());
-                    }
+                    nc.flush(timeout);
                     long elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
                     assertFalse(String.format("Flush did not return before timeout: %d >= %d",
                             elapsed, timeout), elapsed >= timeout);
-                    exThrown.set(false);
-                    try {
-                        s.nextMessage(200);
-                    } catch (IOException e) {
-                        assertTrue(e instanceof IOException);
-                        assertEquals(ERR_SLOW_CONSUMER, e.getMessage());
-                        exThrown.set(true);
-                    } finally {
-                        assertTrue("nextMsg should have thrown an exception", exThrown.get());
-                    }
+                    sub.nextMessage(200);
                 }
             }
         }
     }
 
     @Test
-    public void testSlowChanSubscriber() {
-        fail("not yet implemented");
-    }
-
-    @Test
     public void testSlowAsyncSubscriber() throws IOException, TimeoutException {
         ConnectionFactory cf = new ConnectionFactory();
-        final Channel<Boolean> bch = new Channel<Boolean>();
-
+        final CountDownLatch mcbLatch = new CountDownLatch(1);
         try (NATSServer srv = runDefaultServer()) {
 
             try (final Connection c = cf.createConnection()) {
@@ -399,24 +541,27 @@ public class ITSubscriptionTest {
                 try (final AsyncSubscriptionImpl s =
                         (AsyncSubscriptionImpl) c.subscribeAsync("foo", new MessageHandler() {
                             public void onMessage(Message msg) {
-                                bch.get();
+                                try {
+                                    mcbLatch.await();
+                                } catch (InterruptedException e) {
+                                    /* NOOP */
+                                }
                             }
                         })) {
 
-                    int pml = s.getMaxPendingMsgs();
-                    assertEquals(ConnectionFactory.DEFAULT_MAX_PENDING_MSGS, pml);
-                    long pbl = s.getMaxPendingBytes();
-                    assertEquals(ConnectionFactory.DEFAULT_MAX_PENDING_BYTES, pbl);
+                    int pml = s.getPendingMsgsLimit();
+                    assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, pml);
+                    int pbl = s.getPendingBytesLimit();
+                    assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, pbl);
 
                     // Set new limits
                     pml = 100;
                     pbl = 1024 * 1024;
 
-                    s.setMaxPendingMsgs(pml);
-                    s.setMaxPendingBytes(pbl);
+                    s.setPendingLimits(pml, pbl);
 
-                    assertEquals(pml, s.getMaxPendingMsgs());
-                    assertEquals(pbl, s.getMaxPendingBytes());
+                    assertEquals(pml, s.getPendingMsgsLimit());
+                    assertEquals(pbl, s.getPendingBytesLimit());
 
                     for (int i = 0; i < (pml + 100); i++) {
                         c.publish("foo", "Hello".getBytes());
@@ -440,85 +585,95 @@ public class ITSubscriptionTest {
                     assertTrue(c.getLastException() instanceof IOException);
                     assertEquals(Constants.ERR_SLOW_CONSUMER, c.getLastException().getMessage());
 
-                    bch.add(true);
-                    // System.err.printf("Delivered was %d, maxPendingMsgs was %d\n",
-                    // s.delivered.get(),
-                    // cf.getMaxPendingMsgs());
+                    mcbLatch.countDown();
                 }
             }
         }
     }
 
     @Test
-    public void testAsyncErrHandler() throws IOException, TimeoutException {
-        final String subj = "async_test";
-        final AtomicInteger aeCalled = new AtomicInteger(0);
+    public void testAsyncErrHandler() throws Exception {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
 
-        ConnectionFactory cf = new ConnectionFactory();
-        cf.setMaxPendingMsgs(10);
-
-        final Channel<Boolean> ch = new Channel<Boolean>(1);
-        final Channel<Boolean> bch = new Channel<Boolean>(1);
-
-        final MessageHandler mcb = new MessageHandler() {
-            @Override
-            public void onMessage(Message msg) {
-                if (aeCalled.get() == 1) {
-                    return;
-                }
-                bch.get();
-            }
-        };
         try (NATSServer srv = runDefaultServer()) {
+            try (Connection nc = newDefaultConnection()) {
+                final String subj = "async_test";
+                final CountDownLatch blocker = new CountDownLatch(1);
 
-            try (Connection c = cf.createConnection()) {
-                try (final AsyncSubscription s = c.subscribeAsync(subj, mcb)) {
-                    c.setExceptionHandler(new ExceptionHandler() {
+                try (Subscription sub = nc.subscribe(subj, new MessageHandler() {
+                    public void onMessage(Message msg) {
+                        try {
+                            blocker.await();
+                        } catch (InterruptedException e) {
+                            /* NOOP */
+                        }
+                    }
+                })) {
+                    final int limit = 10;
+                    final int toSend = 100;
+
+                    // Limit internal subchan length to trip condition easier
+                    sub.setPendingLimits(limit, 1024);
+
+                    final CountDownLatch testLatch = new CountDownLatch(1);
+                    final AtomicInteger aeCalled = new AtomicInteger(0);
+
+                    nc.setExceptionHandler(new ExceptionHandler() {
                         public void onException(NATSException ex) {
-                            // Suppress additional calls
-                            if (aeCalled.get() == 1) {
-                                return;
-                            }
                             aeCalled.incrementAndGet();
 
-                            assertEquals("Did not receive proper subscription", s,
+                            assertEquals("Did not receive proper subscription", sub,
                                     ex.getSubscription());
                             assertTrue("Expected IOException, but got " + ex,
                                     ex.getCause() instanceof IOException);
                             assertEquals(ERR_SLOW_CONSUMER, ex.getCause().getMessage());
 
-                            bch.add(true);
-
-                            ch.add(true);
-
+                            // Suppress additional calls
+                            if (aeCalled.get() == 1) {
+                                // release the test
+                                testLatch.countDown();
+                            }
                         }
                     });
 
-                    for (int i = 0; i < (cf.getMaxPendingMsgs() + 10); i++) {
-                        c.publish(subj, "Hello World!".getBytes());
+                    byte[] msg = "Hello World!".getBytes();
+                    // First one trips the wait in subscription callback
+                    nc.publish(subj, msg);
+                    nc.flush();
+                    for (int i = 0; i < toSend; i++) {
+                        nc.publish(subj, msg);
                     }
-                    try {
-                        c.flush(5000);
-                    } catch (Exception e) {
-                        /* NOOP */
-                    }
+                    nc.flush();
 
+                    assertTrue("Failed to call async err handler", await(testLatch));
 
-                    assertTrue("Failed to call async err handler", ch.get(5000));
+                    // assertEquals("Wrong #delivered msgs;", limit, sub.getDelivered());
+                    // assertEquals("Wrong max pending msgs;", limit, sub.getMaxPendingMsgs());
 
+                    // Make sure dropped stats is correct
+                    int dropped = toSend - limit;
+                    assertEquals(String.format("Expected dropped to be %d, but was actually %d\n",
+                            dropped, sub.getDropped()), dropped, sub.getDropped());
+                    int ae = aeCalled.get();
+                    assertEquals(
+                            String.format("Expected err handler to be called once, got %d\n", ae),
+                            1, ae);
+
+                    // release the sub
+                    blocker.countDown();
+
+                    sub.unsubscribe();
+                    sub.getDropped();
                 } // AsyncSubscription
             } // Connection
         } // Server
     }
 
     @Test
-    public void testAsyncErrHandlerChanSubscription() {
-        fail("not yet implemented");
-    }
-
-    @Test
-    public void testAsyncSubscriberStarvation() throws IOException, TimeoutException {
-        final Channel<Boolean> ch = new Channel<Boolean>();
+    public void testAsyncSubscriberStarvation()
+            throws IOException, TimeoutException, InterruptedException {
+        final CountDownLatch latch = new CountDownLatch(1);
 
         try (NATSServer srv = runDefaultServer()) {
             try (final Connection c = new ConnectionFactory().createConnection()) {
@@ -544,7 +699,7 @@ public class ITSubscriptionTest {
                                 public void onMessage(Message msg) {
                                     // System.err.println("Internal subscriber.");
                                     sleep(100);
-                                    ch.add(true);
+                                    latch.countDown();
                                 }
                             });
                             // System.err.println("starter subscribed");
@@ -560,7 +715,7 @@ public class ITSubscriptionTest {
                         c.publish("start", "Begin".getBytes());
                         // System.err.println("Started");
                         assertTrue("Was stalled inside of callback waiting on another callback",
-                                ch.get(5000));
+                                await(latch));
                     } // Start
                 } // Helper
             }
@@ -568,143 +723,446 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testAsyncSubscribersOnClose() throws IOException, TimeoutException {
-        // Tests if the subscriber sub channel gets
-        // cleared on a close.
+    public void testAsyncSubscribersOnClose() throws Exception {
         final AtomicInteger callbacks = new AtomicInteger(0);
         int toSend = 10;
-        final Channel<Boolean> ch = new Channel<Boolean>(toSend);
-
+        final CountDownLatch mcbLatch = new CountDownLatch(toSend);
         MessageHandler mh = new MessageHandler() {
             public void onMessage(Message msg) {
                 callbacks.getAndIncrement();
-                ch.get();
+                try {
+                    mcbLatch.await();
+                } catch (InterruptedException e) {
+                    /* NOOP */
+                }
             }
         };
 
         try (NATSServer srv = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory().createConnection()) {
-                try (AsyncSubscription s = c.subscribe("foo", mh)) {
+            try (Connection nc = newDefaultConnection()) {
+                try (AsyncSubscription sub = nc.subscribe("foo", mh)) {
                     for (int i = 0; i < toSend; i++) {
-                        c.publish("foo", "Hello World!".getBytes());
+                        nc.publish("foo", "Hello World!".getBytes());
                     }
-                    try {
-                        c.flush();
-                    } catch (Exception e) {
-                        fail("Flush failure: " + e.getMessage());
-                    }
+                    nc.flush();
                     sleep(10);
-
-                    /*
-                     * Since callbacks for a given sub are invoked sequentially in the same thread,
-                     * only one message has been dequeued from the subscription's message channel
-                     * and delivered to the MessageHandler callback at this point. The callback is
-                     * waiting on a boolean signal channel before proceeding.
-                     * 
-                     * Closing the connection will remove and close the subsriptions on that
-                     * connection, which will clear our subscription's message channel of any queued
-                     * message. Therefore, no matter how many times we signal ch below, only that
-                     * one message will be processed.
-                     */
-
-                    c.close();
-
-                    assertEquals(0, s.getQueuedMessageCount());
+                    nc.close();
 
                     // Release callbacks
-                    for (int i = 0; i < toSend; i++) {
-                        ch.add(true);
+                    for (int i = 1; i < toSend; i++) {
+                        mcbLatch.countDown();
                     }
 
-                    sleep(10);
-
-                    assertEquals(
-                            String.format("Expected only one callback, received %d callbacks\n",
-                                    callbacks.get()),
-                            1, callbacks.get());
+                    // Wait for some time.
+                    sleep(10, TimeUnit.MILLISECONDS);
+                    int seen = callbacks.get();
+                    assertEquals(String.format(
+                            "Expected only one callback, received %d callbacks\n", seen), 1, seen);
                 }
             } // Connection
         } // Server
     }
 
     @Test
-    public void testNextMsgCallOnAsyncSub() {
-        fail("not yet implemented");
+    public void testNextMsgCallOnClosedSub() throws IOException, TimeoutException {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
+        try (NATSServer srv = runDefaultServer()) {
+            try (Connection nc = newDefaultConnection()) {
+                try (SyncSubscription sub = nc.subscribeSync("foo")) {
+                    sub.unsubscribe();
+                    sub.nextMessage(1, TimeUnit.SECONDS);
+                }
+            }
+        }
     }
 
     @Test
-    public void testNextMsgCallOnClosedSub() {
-        fail("not  yet implemented");
+    public void testAsyncSubscriptionPending() throws Exception {
+        try (NATSServer srv = runDefaultServer()) {
+            try (final Connection nc = newDefaultConnection()) {
+                // Send some messages to ourselves.
+                int total = 100;
+                byte[] msg = "0123456789".getBytes();
+
+                final CountDownLatch latch = new CountDownLatch(1);
+                final CountDownLatch blockLatch = new CountDownLatch(1);
+                try (Subscription sub = nc.subscribe("foo", new MessageHandler() {
+                    public void onMessage(Message msg) {
+                        latch.countDown();
+                        await(blockLatch, 60, TimeUnit.SECONDS);
+                    }
+                })) {
+                    for (int i = 0; i < total; i++) {
+                        nc.publish("foo", msg);
+                    }
+                    nc.flush();
+
+                    // Wait for a message to be received, so checks are safe
+                    assertTrue("No message received", await(latch));
+
+                    // Test old way
+                    int queued = sub.getQueuedMessageCount();
+                    assertTrue(
+                            String.format("Expected %d or %d, got %d\n", total, total - 1, queued),
+                            (queued == total) || (queued == total - 1));
+
+                    // new way, we ensure the same and check bytes
+                    int pm = sub.getPendingMsgs();
+                    assertTrue(String.format("Expected msgs to be %d or %d, got %d\n", total - 1,
+                            total, pm), pm == total || pm == total - 1);
+
+                    int pb = sub.getPendingBytes();
+                    int mlen = msg.length;
+                    long totalSize = total * mlen;
+
+                    assertTrue(String.format("Expected bytes to be %d or %d, got %d\n", total - 1,
+                            total, pb), pb == total * mlen || pb == (total - 1) * mlen);
+
+                    // Make sure max has been set. Since we block after the first message is
+                    // received, MaxPending should be >= total - 1 and <= total
+                    int mpm = sub.getPendingMsgsMax();
+                    long mpb = sub.getPendingBytesMax();
+
+                    assertTrue(String.format("Expected max msgs (%d) to be between %d and %d\n",
+                            mpm, total - 1, total), mpm == total - 1 || mpm == total);
+
+                    assertTrue(
+                            String.format("Expected max bytes (%d) to be between %d and %d\n", mpb,
+                                    totalSize - mlen, totalSize),
+                            mpb == totalSize || mpb == totalSize - mlen);
+
+                    // Check that clear works.
+                    sub.clearMaxPending();
+
+                    mpm = sub.getPendingMsgsMax();
+                    mpb = sub.getPendingBytesMax();
+
+                    assertEquals(
+                            String.format("Expected max msgs to be 0 vs %d after clearing\n", mpm),
+                            0, mpm);
+                    assertEquals(
+                            String.format("Expected max bytes to be 0 vs %d after clearing\n", mpb),
+                            0, mpb);
+
+                    blockLatch.countDown();
+                    sub.unsubscribe();
+
+                    // These calls should fail once the subscription is closed.
+                    boolean exThrown = false;
+                    try {
+                        sub.getPendingMsgs();
+                    } catch (IllegalStateException e) {
+                        exThrown = true;
+                    } finally {
+                        assertTrue("Should have thrown exception", exThrown);
+                    }
+
+                    exThrown = false;
+                    try {
+                        sub.getPendingBytes();
+                    } catch (IllegalStateException e) {
+                        exThrown = true;
+                    } finally {
+                        assertTrue("Should have thrown exception", exThrown);
+                    }
+
+                    exThrown = false;
+                    try {
+                        sub.getPendingMsgsMax();
+                    } catch (IllegalStateException e) {
+                        exThrown = true;
+                    } finally {
+                        assertTrue("Should have thrown exception", exThrown);
+                    }
+
+                    exThrown = false;
+                    try {
+                        sub.getPendingBytesMax();
+                    } catch (IllegalStateException e) {
+                        exThrown = true;
+                    } finally {
+                        assertTrue("Should have thrown exception", exThrown);
+                    }
+
+                    exThrown = false;
+                    try {
+                        sub.clearMaxPending();
+                    } catch (IllegalStateException e) {
+                        exThrown = true;
+                    } finally {
+                        assertTrue("Should have thrown exception", exThrown);
+                    }
+
+                }
+            }
+        }
     }
 
     @Test
-    public void testChanSubscriber() {
-        fail("not  yet implemented");
+    public void testAsyncSubscriptionPendingDrain() throws Exception {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
+
+        try (NATSServer srv = runDefaultServer()) {
+            try (final Connection nc = newDefaultConnection()) {
+                // Send some messages to ourselves.
+                int total = 100;
+                byte[] msg = "0123456789".getBytes();
+
+                Subscription sub = nc.subscribe("foo", new MessageHandler() {
+                    public void onMessage(Message msg) {}
+                });
+                for (int i = 0; i < total; i++) {
+                    nc.publish("foo", msg);
+                }
+                nc.flush();
+
+                // Wait for all delivered
+                while (sub.getDelivered() < total) {
+                    sleep(10, TimeUnit.MILLISECONDS);
+                }
+                assertEquals(
+                        String.format("Expected 0 pending msgs, got %d\n", sub.getPendingMsgs()), 0,
+                        sub.getPendingMsgs());
+                assertEquals(
+                        String.format("Expected 0 pending bytes, got %d\n", sub.getPendingBytes()),
+                        0, sub.getPendingBytes());
+
+                sub.unsubscribe();
+                // Should throw exception
+                sub.getDelivered();
+            }
+        }
     }
 
     @Test
-    public void testChanQueueSubscriber() {
-        fail("not  yet implemented");
+    public void testSyncSubscriptionPendingDrain() throws Exception {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
+
+        try (NATSServer srv = runDefaultServer()) {
+            try (final Connection nc = newDefaultConnection()) {
+                // Send some messages to ourselves.
+                int total = 100;
+                byte[] msg = "0123456789".getBytes();
+
+                try (SyncSubscription sub = nc.subscribeSync("foo")) {
+                    for (int i = 0; i < total; i++) {
+                        nc.publish("foo", msg);
+                    }
+                    nc.flush();
+
+                    // Wait for all delivered
+                    while (sub.getDelivered() < total) {
+                        sub.nextMessage(10, TimeUnit.MILLISECONDS);
+                    }
+                    assertEquals(String.format("Expected 0 pending msgs, got %d\n",
+                            sub.getPendingMsgs()), 0, sub.getPendingMsgs());
+                    assertEquals(String.format("Expected 0 pending bytes, got %d\n",
+                            sub.getPendingBytes()), 0, sub.getPendingBytes());
+
+                    sub.unsubscribe();
+
+                    // Should throw exception
+                    sub.getDelivered();
+                }
+            }
+        }
     }
 
     @Test
-    public void testChanSubscriberPendingLimits() {
-        fail("not  yet implemented");
+    public void testSyncSubscriptionPending() throws Exception {
+        try (NATSServer srv = runDefaultServer()) {
+            try (final Connection nc = newDefaultConnection()) {
+                // Send some messages to ourselves.
+                int total = 100;
+                byte[] msg = "0123456789".getBytes();
+
+                try (SyncSubscription sub = nc.subscribeSync("foo")) {
+                    for (int i = 0; i < total; i++) {
+                        nc.publish("foo", msg);
+                    }
+                    nc.flush();
+
+                    // Test old way
+                    int queued = sub.getQueuedMessageCount();
+                    assertTrue(
+                            String.format("Expected %d or %d, got %d\n", total, total - 1, queued),
+                            (queued == total) || (queued == total - 1));
+
+                    // new way, we ensure the same and check bytes
+                    int msgs = sub.getPendingMsgs();
+
+                    assertEquals(total, msgs);
+
+                    int bytes = sub.getPendingBytes();
+                    int mlen = msg.length;
+                    assertEquals(total * mlen, bytes);
+
+                    // Now drain some down and make sure pending is correct
+                    for (int i = 0; i < total - 1; i++) {
+                        sub.nextMessage(10, TimeUnit.MILLISECONDS);
+                    }
+
+                    msgs = sub.getPendingMsgs();
+                    bytes = sub.getPendingBytes();
+
+                    assertEquals(1, msgs);
+                    assertEquals(mlen, bytes);
+                }
+            }
+        }
+    }
+
+    void send(Connection nc, String subject, byte[] payload, int count) throws Exception {
+        for (int i = 0; i < count; i++) {
+            nc.publish(subject, payload);
+        }
+        nc.flush();
+    }
+
+    void checkPending(Subscription sub, int limitCount, int limitBytes, int expectedCount,
+            int expectedBytes, int payloadLen) throws Exception {
+        int lc = sub.getPendingMsgsLimit();
+        int lb = sub.getPendingBytesLimit();
+        String errMsg =
+                String.format("Unexpected limits, expected %d msgs %d bytes, got %d msgs %d bytes",
+                        limitCount, limitBytes, lc, lb);
+        assertTrue(errMsg, lc == limitCount && lb == limitBytes);
+        int msgs = sub.getPendingMsgs();
+        int bytes = sub.getPendingBytes();
+
+        errMsg = String.format("Unexpected counts, expected %d msgs %d bytes, got %d msgs %d bytes",
+                expectedCount, expectedBytes, msgs, bytes);
+        assertTrue(errMsg, msgs == expectedCount || msgs == expectedCount - 1);
+        assertTrue(errMsg, bytes == expectedBytes || bytes == expectedBytes - payloadLen);
+    }
+
+    class MyCb implements MessageHandler {
+        final CountDownLatch recvLatch;
+        final CountDownLatch blockLatch;
+
+        MyCb(CountDownLatch recvLatch, CountDownLatch blockLatch) {
+            this.recvLatch = recvLatch;
+            this.blockLatch = blockLatch;
+        }
+
+        @Override
+        public void onMessage(Message msg) {
+            recvLatch.countDown();
+            await(blockLatch, 60, TimeUnit.SECONDS);
+            try {
+                msg.getSubscription().unsubscribe();
+            } catch (IOException e) {
+                /* NOOP */
+            }
+        }
+
     }
 
     @Test
-    public void testQueueChanQueueSubscriber() {
-        fail("not  yet implemented");
-    }
+    public void testSetPendingLimits() throws Exception {
+        try (NATSServer srv = runDefaultServer()) {
+            try (final Connection nc = newDefaultConnection()) {
+                final byte[] payload = "hello".getBytes();
+                final int payloadLen = payload.length;
+                final int toSend = 100;
 
-    @Test
-    public void testUnsubscribeChanOnSubscriber() {
-        fail("not  yet implemented");
-    }
+                CountDownLatch recv = new CountDownLatch(1);
+                CountDownLatch block = new CountDownLatch(1);
 
-    @Test
-    public void testCloseChanOnSubscriber() {
-        fail("not  yet implemented");
-    }
+                int expectedBytes;
+                int expectedCount;
+                String subj = "foo";
+                try (Subscription sub = nc.subscribe(subj, new MyCb(recv, block))) {
+                    // Check we apply limit only for size
+                    int limitCount = -1;
+                    int limitBytes = (toSend / 2) * payload.length;
+                    sub.setPendingLimits(limitCount, limitBytes);
 
+                    // send messages
+                    send(nc, subj, payload, toSend);
+                    // Wait for message to be received
+                    assertTrue("Did not get our message", await(recv));
+                    recv = new CountDownLatch(1);
 
-    @Test
-    public void testAsyncSubscriptionPending() {
-        fail("not  yet implemented");
-    }
+                    expectedBytes = limitBytes;
+                    expectedCount = limitBytes / payload.length;
+                    this.checkPending(sub, limitCount, limitBytes, expectedCount, expectedBytes,
+                            payload.length);
 
-    @Test
-    public void testAsyncSubscriptionPendingDrain() {
-        fail("not  yet implemented");
-    }
+                    // Release callback
+                    block.countDown();
+                    block = new CountDownLatch(1);
 
-    @Test
-    public void testSyncSubscriptionPendingDrain() {
-        fail("not  yet implemented");
-    }
+                    subj = "bar";
+                    try (Subscription sub2 = nc.subscribe(subj, new MyCb(recv, block))) {
+                        limitCount = toSend / 4;
+                        limitBytes = -1;
+                        sub2.setPendingLimits(limitCount, limitBytes);
 
-    @Test
-    public void testSyncSubscriptionPending() {
-        fail("not  yet implemented");
-    }
+                        // Send messages
+                        send(nc, subj, payload, toSend);
+                        // Wait for message to be received
+                        assertTrue("Did not get our message", await(recv));
+                        recv = new CountDownLatch(1);
 
-    @Test
-    public void testSetPendingLimits() {
-        fail("not  yet implemented");
-    }
+                        expectedCount = limitCount;
+                        expectedBytes = limitCount * payload.length;
+                        checkPending(sub2, limitCount, limitBytes, expectedCount, expectedBytes,
+                                payload.length);
 
-    @Test
-    public void testSubscriptionTypes() {
-        fail("not  yet implemented");
+                        // Release callback
+                        block.countDown();
+                        block = new CountDownLatch(1);
+
+                        subj = "baz";
+                        try (Subscription sub3 = nc.subscribe(subj, new MyCb(recv, block))) {
+                            limitCount = -1;
+                            limitBytes = (toSend / 2) * payload.length;
+                            sub3.setPendingLimits(limitCount, limitBytes);
+
+                            // Send messages
+                            send(nc, subj, payload, toSend);
+                            expectedBytes = limitBytes;
+                            expectedCount = limitBytes / payload.length;
+                            checkPending(sub3, limitCount, limitBytes, expectedCount, expectedBytes,
+                                    payload.length);
+                            sub3.unsubscribe();
+                            nc.flush();
+
+                            subj = "baz";
+                            try (Subscription sub4 = nc.subscribe(subj, new MyCb(recv, block))) {
+                                limitCount = -1;
+                                limitBytes = (toSend / 2) * payload.length;
+                                sub4.setPendingLimits(limitCount, limitBytes);
+
+                                // Send messages
+                                send(nc, subj, payload, toSend);
+                                expectedBytes = limitBytes;
+                                expectedCount = limitBytes / payload.length;
+                                checkPending(sub4, limitCount, limitBytes, expectedCount,
+                                        expectedBytes, payload.length);
+                                sub4.unsubscribe();
+                                nc.flush();
+                            }
+
+                        }
+
+                    }
+                }
+
+            }
+        }
     }
 
     @Test
     public void testManyRequests() throws Exception {
         final int numRequests = 1000;
         try (NATSServer srv = runDefaultServer()) {
-            ConnectionFactory cf = new ConnectionFactory(ConnectionFactory.DEFAULT_URL);
-            try (final Connection conn = cf.createConnection()) {
-                try (final Connection pub = cf.createConnection()) {
+            try (final Connection conn = newDefaultConnection()) {
+                try (final Connection pub = newDefaultConnection()) {
                     try (Subscription sub = conn.subscribe("foo", "bar", new MessageHandler() {
                         public void onMessage(Message message) {
                             try {

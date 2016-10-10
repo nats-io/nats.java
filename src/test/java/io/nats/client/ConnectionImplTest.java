@@ -56,12 +56,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.SocketException;
 import java.net.URI;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
@@ -69,6 +71,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
 
 import javax.net.ssl.SSLContext;
 
@@ -126,6 +129,7 @@ public class ConnectionImplTest {
      */
     @Before
     public void setUp() throws Exception {
+        Locale.setDefault(new Locale("en", "US"));
         MockitoAnnotations.initMocks(this);
         verifier.setup();
     }
@@ -274,6 +278,18 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testFlushReconnectPendingNull() throws IOException, TimeoutException {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            c.setPending(null);
+            c.setOutputStream(bwMock);
+            assertNull(c.getPending());
+
+            // Test pending flush with null pending returns without exception
+            c.flushReconnectPendingItems();
+        }
+    }
+
+    @Test
     public void testReadLoopExitsIfConnClosed() throws IOException, TimeoutException {
         Parser parserMock = mock(Parser.class);
         try (ConnectionImpl c =
@@ -382,14 +398,14 @@ public class ConnectionImplTest {
             final AtomicInteger rcbCount = new AtomicInteger(0);
             c.setDisconnectedCallback(new DisconnectedCallback() {
                 public void onDisconnect(ConnectionEvent event) {
-                    dcbLatch.countDown();
                     dcbCount.incrementAndGet();
+                    dcbLatch.countDown();
                 }
             });
             c.setReconnectedCallback(new ReconnectedCallback() {
                 public void onReconnect(ConnectionEvent event) {
-                    rcbLatch.countDown();
                     rcbCount.incrementAndGet();
+                    rcbLatch.countDown();
                 }
             });
 
@@ -466,9 +482,12 @@ public class ConnectionImplTest {
     @Test
     public void testDoReconnectNoServers()
             throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+        try (ConnectionImpl c = (ConnectionImpl) Mockito
+                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
             c.opts.setReconnectAllowed(true);
             c.opts.setReconnectWait(1);
+            c.setOutputStream(bwMock);
+            c.setPending(pendingMock);
             doThrow(new IOException(ERR_NO_SERVERS)).when(c).selectNextServer();
             c.doReconnect();
             assertTrue(c.getLastException() instanceof IOException);
@@ -479,9 +498,13 @@ public class ConnectionImplTest {
     @Test
     public void testDoReconnectCreateConnFailed()
             throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+        try (ConnectionImpl c = (ConnectionImpl) Mockito
+                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
             c.opts.setReconnectAllowed(true);
             c.opts.setReconnectWait(1);
+            c.opts.setMaxReconnect(1);
+            c.setOutputStream(bwMock);
+            c.setPending(pendingMock);
             doThrow(new IOException(ERR_NO_SERVERS)).when(c).createConn();
             c.doReconnect();
             assertTrue(c.getLastException() instanceof IOException);
@@ -492,14 +515,19 @@ public class ConnectionImplTest {
     @Test
     public void testDoReconnectProcessConnInitFailed()
             throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+        try (ConnectionImpl c = (ConnectionImpl) Mockito
+                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
+            c.setTcpConnectionFactory(new TCPConnectionFactoryMock());
             c.opts.setReconnectAllowed(true);
             c.opts.setReconnectWait(1);
             c.opts.setMaxReconnect(1);
+            c.setOutputStream(bwMock);
+            c.setPending(pendingMock);
 
             doThrow(new IOException(ERR_PROTOCOL + ", INFO not received")).when(c)
                     .processExpectedInfo();
             c.doReconnect();
+            verify(c, times(1)).processConnectInit();
             verifier.verifyLogMsgMatches(Level.WARN, "doReconnect: processConnectInit FAILED.+$");
         }
     }
@@ -507,11 +535,13 @@ public class ConnectionImplTest {
     @Test
     public void testDoReconnectConnClosed()
             throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+        try (ConnectionImpl c = (ConnectionImpl) Mockito
+                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
             c.opts.setReconnectAllowed(true);
             c.opts.setReconnectWait(1);
             c.opts.setMaxReconnect(1);
-
+            c.setOutputStream(bwMock);
+            c.setPending(pendingMock);
             when(c.isClosed()).thenReturn(true);
             c.doReconnect();
             assertEquals(ERR_NO_SERVERS, c.getLastException().getMessage());
@@ -534,9 +564,23 @@ public class ConnectionImplTest {
                     rcbLatch.countDown();
                 }
             });
-            c.doReconnect();
+            TCPConnectionMock connMock = (TCPConnectionMock) c.getTcpConnection();
+            connMock.bounce();
+            // c.doReconnect();
             assertTrue(rcbLatch.await(5, TimeUnit.SECONDS));
             assertEquals(1, rcbCount.get());
+        }
+    }
+
+    @Test
+    public void testProcessInfoNullOrEmptyReturnsEarly() throws IOException, TimeoutException {
+        try (ConnectionImpl nc = (ConnectionImpl) Mockito
+                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
+            nc.setOutputStream(bwMock);
+            nc.processInfo(null);
+            verify(nc, times(0)).addUrlToPool(any(String.class));
+            nc.processInfo("");
+            verify(nc, times(0)).addUrlToPool(any(String.class));
         }
     }
 
@@ -645,8 +689,8 @@ public class ConnectionImplTest {
                     });
             sub.setMax(122);
             assertEquals(122, sub.max);
-            sub.delivered.set(122);
-            assertEquals(122, sub.delivered.get());
+            sub.delivered = 122;
+            assertEquals(122, sub.getDelivered());
             c.resendSubscriptions();
             c.getOutputStream().flush();
             sleep(100);
@@ -656,8 +700,8 @@ public class ConnectionImplTest {
 
             SyncSubscriptionImpl syncSub = (SyncSubscriptionImpl) c.subscribeSync("foo");
             syncSub.setMax(10);
-            syncSub.delivered.set(8);
-            long adjustedMax = (syncSub.getMax() - syncSub.delivered.get());
+            syncSub.delivered = 8;
+            long adjustedMax = (syncSub.getMax() - syncSub.getDelivered());
             assertEquals(2, adjustedMax);
             c.resendSubscriptions();
             c.getOutputStream().flush();
@@ -774,6 +818,21 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testConnectThrowsConnectionRefused() throws IOException, TimeoutException {
+        thrown.expect(IOException.class);
+        thrown.expectMessage(ERR_NO_SERVERS);
+        try (ConnectionImpl c =
+                (ConnectionImpl) spy(new ConnectionImpl(new ConnectionFactory().options()))) {
+            doThrow(new SocketException("Connection refused")).when(c).createConn();
+            c.connect();
+            // When createConn() throws "connection refused", setup() should not be called
+            verify(c, times(0)).setup();
+            // When createConn() throws "connection refused", setLastError(null) should happen
+            verify(c, times(1)).setLastError(eq((Exception) null));
+        }
+    }
+
+    @Test
     public void testCreateConnCurrentSrvNull() throws IOException {
         thrown.expect(IOException.class);
         thrown.expectMessage(ERR_NO_SERVERS);
@@ -834,11 +893,11 @@ public class ConnectionImplTest {
 
     @Test
     public void testClosedConnections() throws IOException, TimeoutException {
-        Connection c = newMockedConnection();
-        SyncSubscription s = c.subscribeSync("foo");
+        Connection nc = newMockedConnection();
+        SyncSubscription sub = nc.subscribeSync("foo");
 
-        c.close();
-        assertTrue(c.isClosed());
+        nc.close();
+        assertTrue(nc.isClosed());
 
         // While we can annotate all the exceptions in the test framework,
         // just do it manually.
@@ -846,7 +905,7 @@ public class ConnectionImplTest {
         boolean exThrown = false;
 
         try {
-            c.publish("foo", null);
+            nc.publish("foo", null);
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -857,9 +916,9 @@ public class ConnectionImplTest {
         }
 
         exThrown = false;
-        assertTrue(c.isClosed());
+        assertTrue(nc.isClosed());
         try {
-            c.publish(new Message("foo", null, null));
+            nc.publish(new Message("foo", null, null));
         } catch (Exception e) {
             exThrown = true;
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
@@ -871,19 +930,7 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            c.subscribeAsync("foo");
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
-            c.subscribeSync("foo");
+            nc.subscribeSync("foo");
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -895,7 +942,7 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            c.subscribeAsync("foo", "bar");
+            nc.subscribeAsync("foo", "bar");
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -907,7 +954,7 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            c.subscribeSync("foo", "bar");
+            nc.subscribeSync("foo", "bar");
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -919,8 +966,8 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            c.request("foo", null);
-            assertTrue(c.isClosed());
+            nc.request("foo", null);
+            assertTrue(nc.isClosed());
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -932,7 +979,7 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            s.nextMessage();
+            sub.nextMessage();
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -944,7 +991,7 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            s.nextMessage(100);
+            sub.nextMessage(100);
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -956,7 +1003,7 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            s.unsubscribe();
+            sub.unsubscribe();
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -968,7 +1015,7 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            s.autoUnsubscribe(1);
+            sub.autoUnsubscribe(1);
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
                     e instanceof IllegalStateException);
@@ -1100,86 +1147,120 @@ public class ConnectionImplTest {
         }
     }
 
+    // @Test
+    // public void testDeliverMsgsSuccess() throws IOException, TimeoutException {
+    // final String subj = "foo";
+    // final byte[] payload = "Hello there!".getBytes();
+    // try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+    // final SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
+    // final Message msg = new Message(payload, payload.length, subj, null, sub);
+    // when(sub.getSid()).thenReturn(14L);
+    // when(sub.processMsg(eq(msg))).thenReturn(true);
+    // @SuppressWarnings("unchecked")
+    // Channel<Message> ch = (Channel<Message>) mock(Channel.class);
+    // when(ch.get()).thenReturn(msg).thenReturn(null);
+    //
+    // c.deliverMsgs(ch);
+    // // verify the msg was processed
+    // verify(sub, times(1)).processMsg(msg);
+    //
+    // // verify the sub was not removed
+    // verify(c, times(0)).removeSub(eq(sub));
+    // }
+    // }
+
     @Test
-    public void testDeliverMsgsSuccess() throws IOException, TimeoutException {
+    public void testWaitForMsgsSuccess()
+            throws IOException, TimeoutException, InterruptedException {
         final String subj = "foo";
         final byte[] payload = "Hello there!".getBytes();
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-            final SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
+        try (ConnectionImpl nc = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+            final AsyncSubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
             final Message msg = new Message(payload, payload.length, subj, null, sub);
             when(sub.getSid()).thenReturn(14L);
-            when(sub.processMsg(eq(msg))).thenReturn(true);
             @SuppressWarnings("unchecked")
             Channel<Message> ch = (Channel<Message>) mock(Channel.class);
+            when(ch.getCount()).thenReturn(1);
             when(ch.get()).thenReturn(msg).thenReturn(null);
+            sub.mch = ch;
 
-            c.deliverMsgs(ch);
+            MessageHandler mcbMock = mock(MessageHandler.class);
+            sub.msgHandler = mcbMock;
+
+            Condition pCondMock = mock(Condition.class);
+            sub.pCond = pCondMock;
+
+            sub.max = 1;
+
+            // c.deliverMsgs(ch);
+            nc.waitForMsgs(sub);
             // verify the msg was processed
-            verify(sub, times(1)).processMsg(msg);
+            verify(mcbMock, times(1)).onMessage(msg);
 
-            // verify the sub was not removed
-            verify(c, times(0)).removeSub(eq(sub));
-        }
-    }
-
-    @Test
-    public void testDeliverMsgsConnClosed() throws IOException, TimeoutException {
-        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
-            Channel<Message> ch = new Channel<Message>();
-            Message msg = new Message();
-            ch.add(msg);
-            assertEquals(1, ch.getCount());
-            c.close();
-            c.deliverMsgs(ch);
-            assertEquals(1, ch.getCount());
-        }
-    }
-
-    @Test
-    public void testDeliverMsgsSubProcessFail() throws IOException, TimeoutException {
-        final String subj = "foo";
-        final String plString = "Hello there!";
-        final byte[] payload = plString.getBytes();
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-            final SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
-            when(sub.getSid()).thenReturn(14L);
-            when(sub.processMsg(any(Message.class))).thenReturn(false);
-
-            @SuppressWarnings("unchecked")
-            Channel<Message> ch = (Channel<Message>) mock(Channel.class);
-            when(ch.get()).thenReturn(new Message(payload, payload.length, subj, null, sub))
-                    .thenReturn(null);
-
-            c.deliverMsgs(ch);
             // verify the sub was removed
-            verify(c, times(1)).removeSub(eq(sub));
+            verify(nc, times(1)).removeSub(eq(sub));
         }
     }
 
-    @Test
-    public void testDeliverMsgsExecutesSecondFinallyBlock() throws IOException, TimeoutException {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage("testDeliverMsgsSubProcessFail()");
-        final String subj = "foo";
-        final String plString = "Hello there!";
-        final byte[] payload = plString.getBytes();
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-            final SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
-            when(sub.getSid()).thenReturn(14L);
-            when(sub.processMsg(any(Message.class))).thenReturn(false);
-
-            @SuppressWarnings("unchecked")
-            Channel<Message> ch = (Channel<Message>) mock(Channel.class);
-            when(ch.get()).thenReturn(new Message(payload, payload.length, subj, null, sub))
-                    .thenReturn(null);
-
-            doThrow(new IllegalStateException("testDeliverMsgsSubProcessFail()")).when(c)
-                    .removeSub(eq(sub));
-            c.deliverMsgs(ch);
-            // verify the sub was removed
-            verify(c, times(1)).removeSub(eq(sub));
-        }
-    }
+    // @Test
+    // public void testDeliverMsgsConnClosed() throws IOException, TimeoutException {
+    // try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+    // Channel<Message> ch = new Channel<Message>();
+    // Message msg = new Message();
+    // ch.add(msg);
+    // assertEquals(1, ch.getCount());
+    // c.close();
+    // c.deliverMsgs(ch);
+    // assertEquals(1, ch.getCount());
+    // }
+    // }
+    //
+    // @Test
+    // public void testDeliverMsgsSubProcessFail() throws IOException, TimeoutException {
+    // final String subj = "foo";
+    // final String plString = "Hello there!";
+    // final byte[] payload = plString.getBytes();
+    // try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+    // final SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
+    // when(sub.getSid()).thenReturn(14L);
+    // when(sub.processMsg(any(Message.class))).thenReturn(false);
+    //
+    // @SuppressWarnings("unchecked")
+    // Channel<Message> ch = (Channel<Message>) mock(Channel.class);
+    // when(ch.get()).thenReturn(new Message(payload, payload.length, subj, null, sub))
+    // .thenReturn(null);
+    //
+    // c.deliverMsgs(ch);
+    // // verify the sub was removed
+    // verify(c, times(1)).removeSub(eq(sub));
+    // }
+    // }
+    //
+    // @Test
+    // public void testDeliverMsgsExecutesSecondFinallyBlock() throws IOException, TimeoutException
+    // {
+    // thrown.expect(IllegalStateException.class);
+    // thrown.expectMessage("testDeliverMsgsSubProcessFail()");
+    // final String subj = "foo";
+    // final String plString = "Hello there!";
+    // final byte[] payload = plString.getBytes();
+    // try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+    // final SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
+    // when(sub.getSid()).thenReturn(14L);
+    // when(sub.processMsg(any(Message.class))).thenReturn(false);
+    //
+    // @SuppressWarnings("unchecked")
+    // Channel<Message> ch = (Channel<Message>) mock(Channel.class);
+    // when(ch.get()).thenReturn(new Message(payload, payload.length, subj, null, sub))
+    // .thenReturn(null);
+    //
+    // doThrow(new IllegalStateException("testDeliverMsgsSubProcessFail()")).when(c)
+    // .removeSub(eq(sub));
+    // c.deliverMsgs(ch);
+    // // verify the sub was removed
+    // verify(c, times(1)).removeSub(eq(sub));
+    // }
+    // }
 
     @Test
     public void testProcessExpectedInfoReadOpFailure() throws IOException, TimeoutException {
@@ -1194,59 +1275,61 @@ public class ConnectionImplTest {
         }
     }
 
-    @Test
-    public void testProcessMsg() throws IOException, TimeoutException {
-        final byte[] data = "Hello, World!".getBytes();
-        final int offset = 0;
-        final int length = data.length;
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-            SubscriptionImpl sub = (SubscriptionImpl) Mockito.spy(c.subscribe("foo", null));
-            c.ps.ma.sid = sub.getSid();
-            when(subsMock.get(any(long.class))).thenReturn(sub);
-            c.setSubs(subsMock);
-            when(sub.tallyMessage(eq(length))).thenReturn(false);
-            c.processMsg(data, offset, length);
+    // @Test
+    // public void testProcessMsg() throws IOException, TimeoutException {
+    // final byte[] data = "Hello, World!".getBytes();
+    // final int offset = 0;
+    // final int length = data.length;
+    // try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+    // SubscriptionImpl sub = (SubscriptionImpl) Mockito.spy(c.subscribe("foo", null));
+    // c.ps.ma.sid = sub.getSid();
+    // when(subsMock.get(any(long.class))).thenReturn(sub);
+    // c.setSubs(subsMock);
+    // when(sub.tallyMessage(eq(length))).thenReturn(false);
+    // c.ps.ma.size = length;
+    // c.processMsg(data, offset, length);
+    //
+    // // InMsgs should be incremented by 1
+    // assertEquals(1, c.getStats().getInMsgs());
+    // // InBytes should be incremented by length
+    // assertEquals(length, c.getStats().getInBytes());
+    // // sub.addMessage(msg) should have been called exactly once
+    // verify(sub, times(1)).addMessage(any(Message.class));
+    // // c.removeSub should NOT have been called
+    // verify(c, times(0)).removeSub(eq(sub));
+    // }
+    // }
 
-            // InMsgs should be incremented by 1
-            assertEquals(1, c.getStats().getInMsgs());
-            // InBytes should be incremented by length
-            assertEquals(length, c.getStats().getInBytes());
-            // sub.addMessage(msg) should have been called exactly once
-            verify(sub, times(1)).addMessage(any(Message.class));
-            // c.removeSub should NOT have been called
-            verify(c, times(0)).removeSub(eq(sub));
-        }
-    }
-
-    @Test
-    public void testProcessMsgMaxReached() throws IOException, TimeoutException {
-        final byte[] data = "Hello, World!".getBytes();
-        final int offset = 0;
-        final int length = data.length;
-        final long sid = 4L;
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-            SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
-            when(sub.getSid()).thenReturn(sid);
-            c.ps.ma.sid = sid;
-            when(subsMock.get(eq(sid))).thenReturn(sub);
-            assertEquals(sub, subsMock.get(sid));
-            c.setSubs(subsMock);
-            when(sub.tallyMessage(eq((long) length))).thenReturn(true);
-            c.processMsg(data, offset, length);
-
-            verify(sub, times(1)).tallyMessage(length);
-
-            // InMsgs should be incremented by 1, even if the sub stats don't increase
-            assertEquals(1, c.getStats().getInMsgs());
-            // InBytes should be incremented by length, even if the sub stats don't increase
-            assertEquals(length, c.getStats().getInBytes());
-            // sub.addMessage(msg) should have been called exactly once
-            verify(sub, times(0)).addMessage(any(Message.class));
-            // c.removeSub should have been called
-            verify(c, times(1)).removeSub(eq(sub));
-        }
-
-    }
+    // @Test
+    // public void testProcessMsgMaxReached() throws IOException, TimeoutException {
+    // final byte[] data = "Hello, World!".getBytes();
+    // final int offset = 0;
+    // final int length = data.length;
+    // final long sid = 4L;
+    // try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+    // SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
+    // when(sub.getSid()).thenReturn(sid);
+    // c.ps.ma.sid = sid;
+    // c.ps.ma.size = length;
+    // when(subsMock.get(eq(sid))).thenReturn(sub);
+    // assertEquals(sub, subsMock.get(sid));
+    // c.setSubs(subsMock);
+    // when(sub.tallyMessage(eq((long) length))).thenReturn(true);
+    // c.processMsg(data, offset, length);
+    //
+    // verify(sub, times(1)).tallyMessage(length);
+    //
+    // // InMsgs should be incremented by 1, even if the sub stats don't increase
+    // assertEquals(1, c.getStats().getInMsgs());
+    // // InBytes should be incremented by length, even if the sub stats don't increase
+    // assertEquals(length, c.getStats().getInBytes());
+    // // sub.addMessage(msg) should have been called exactly once
+    // verify(sub, times(0)).addMessage(any(Message.class));
+    // // c.removeSub should have been called
+    // verify(c, times(1)).removeSub(eq(sub));
+    // }
+    //
+    // }
 
     @Test
     public void testProcessSlowConsumer()
@@ -1264,9 +1347,12 @@ public class ConnectionImplTest {
                 }
             });
             SubscriptionImpl sub = (SubscriptionImpl) c.subscribe("foo", new MessageHandler() {
-                @Override
                 public void onMessage(Message msg) { /* NOOP */ }
             });
+
+            assertTrue(sub.mu.tryLock(1, TimeUnit.SECONDS));
+            sub.mu.unlock();
+
             c.processSlowConsumer(sub);
             ecbLatch.await(2, TimeUnit.SECONDS);
             assertEquals(1, ecbCount.get());
@@ -1275,6 +1361,9 @@ public class ConnectionImplTest {
             // Now go a second time, making sure the handler wasn't invoked again
             c.processSlowConsumer(sub);
             assertEquals(1, ecbCount.get());
+
+            sub.close();
+            c.close();
         }
     }
 
@@ -1517,4 +1606,10 @@ public class ConnectionImplTest {
         }
     }
 
+    @Test
+    public void testArabicLocaleConnection() throws IOException, TimeoutException {
+        Locale.setDefault(new Locale("ar"));
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
+        }
+    }
 }

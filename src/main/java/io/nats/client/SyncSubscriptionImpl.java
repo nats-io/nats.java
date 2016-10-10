@@ -17,8 +17,12 @@ import java.util.concurrent.TimeoutException;
 
 class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
 
+    protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
+        super(nc, subj, queue, DEFAULT_MAX_PENDING_MSGS, DEFAULT_MAX_PENDING_BYTES);
+    }
+
     protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, int maxMsgs,
-            long maxBytes) {
+            int maxBytes) {
         super(nc, subj, queue, maxMsgs, maxBytes);
     }
 
@@ -40,18 +44,13 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
     @Override
     public Message nextMessage(long timeout, TimeUnit unit) throws IOException, TimeoutException {
-        Message msg = null;
-        final ConnectionImpl localConn;
-        final Channel<Message> localChannel;
-        final long localMax;
-
         mu.lock();
         if (connClosed) {
             mu.unlock();
             throw new IllegalStateException(ERR_CONNECTION_CLOSED);
         }
         if (mch == null) {
-            if ((this.max > 0) && (delivered.get() >= this.max)) {
+            if ((this.max > 0) && (delivered >= this.max)) {
                 mu.unlock();
                 throw new IOException(ERR_MAX_MESSAGES);
             } else if (closed) {
@@ -64,14 +63,19 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
             mu.unlock();
             throw new IOException(ERR_SLOW_CONSUMER);
         }
-        localConn = (ConnectionImpl) this.getConnection();
-        localChannel = mch;
-        localMax = max;
+
+        // snapshot
+        final ConnectionImpl localConn = (ConnectionImpl) this.getConnection();
+        final Channel<Message> localChannel = mch;
+        final long localMax = max;
+        boolean chanClosed = localChannel.isClosed();
         mu.unlock();
+        Message msg = null;
 
         if (timeout >= 0) {
             try {
-                logger.trace("Calling Channel.get({}, {}) for {}", timeout, unit, this.subject);
+                // logger.trace("Calling Channel.get({}, {}) for {}", timeout, unit,
+                // this.subject);
                 msg = localChannel.get(timeout, unit);
             } catch (TimeoutException e) {
                 throw e;
@@ -81,18 +85,26 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
         }
 
         if (msg != null) {
-            long d = delivered.incrementAndGet();
-            // Remove subscription if we have reached max.
-            if (d == localMax) {
-                localConn.mu.lock();
-                localConn.removeSub(this);
-                localConn.mu.unlock();
-            }
-            if ((localMax > 0) && (d > localMax)) {
-                throw new IOException(ERR_MAX_MESSAGES);
+            // Update some stats
+            mu.lock();
+            this.delivered++;
+            long delivered = this.delivered;
+            pMsgs--;
+            pBytes -= (msg.getData() != null ? msg.getData().length : 0);
+            mu.unlock();
+
+            if (localMax > 0) {
+                if (delivered > localMax) {
+                    throw new IOException(ERR_MAX_MESSAGES);
+                }
+                // Remove subscription if we have reached max.
+                if (delivered == localMax) {
+                    localConn.mu.lock();
+                    localConn.removeSub(this);
+                    localConn.mu.unlock();
+                }
             }
         }
         return msg;
-
     }
 }

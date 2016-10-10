@@ -12,9 +12,12 @@ package io.nats.client;
  *
  */
 public class ConnectionEvent {
-    Connection nc;
+    final Connection nc;
 
     protected ConnectionEvent(Connection conn) {
+        if (conn == null) {
+            throw new IllegalArgumentException("nats: connection cannot be null");
+        }
         this.nc = conn;
     }
 

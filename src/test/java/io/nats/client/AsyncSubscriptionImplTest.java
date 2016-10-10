@@ -9,7 +9,6 @@ package io.nats.client;
 import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doThrow;
@@ -32,8 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Category(UnitTest.class)
 public class AsyncSubscriptionImplTest {
@@ -75,63 +72,63 @@ public class AsyncSubscriptionImplTest {
         // Make sure the connection opts aren't null
         when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
 
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0)) {
+        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             assertEquals(nc, s.getConnection());
         }
     }
 
-    @Test
-    public void testProcessMsg() {
-        MessageHandler mcb = new MessageHandler() {
-            @Override
-            public void onMessage(Message msg) {}
-        };
-
-        Message m = new Message("foo", "bar", "Hello".getBytes());
-
-        // test for when the conn is null
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", mcb, 20, 0)) {
-            assertFalse("s.processMsg should have returned false", s.processMsg(m));
-        }
-
-        ConnectionImpl nc = mock(ConnectionImpl.class);
-
-        // test for when the mcb is null
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0)) {
-            assertTrue("s.processMsg should have returned true", s.processMsg(m));
-        }
-
-        // test for > max
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50, 0)) {
-            // setting this protected var deliberately for testing purposes
-            s.max = 2;
-            assertEquals(2, s.max);
-            assertTrue("s.processMsg should have returned true", s.processMsg(m));
-            assertEquals(1, s.delivered.get());
-            when(nc.isClosed()).thenReturn(true);
-            assertTrue("s.processMsg should have returned true", s.processMsg(m));
-            assertFalse("s.processMsg should have returned false", s.processMsg(m));
-        }
-        when(nc.isClosed()).thenReturn(false);
-        // test for unsubscribe IOException
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50, 0)) {
-            s.setMaxPendingMsgs(1);
-            try {
-                doThrow(new IOException("fake unsubscribe exception")).when(nc).unsubscribe(s, 0);
-            } catch (IOException e) {
-                fail("Mockito doThrow shouldn't have thrown an exception");
-            }
-            assertTrue("s.processMsg should have returned true", s.processMsg(m));
-        } catch (IllegalStateException e) {
-            fail("Shouldn't have thrown an exception");
-        }
-
-    }
+    // @Test
+    // public void testProcessMsg() {
+    // MessageHandler mcb = new MessageHandler() {
+    // @Override
+    // public void onMessage(Message msg) {}
+    // };
+    //
+    // Message m = new Message("foo", "bar", "Hello".getBytes());
+    //
+    // // test for when the conn is null
+    // try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", mcb, 20, 0)) {
+    // assertFalse("s.processMsg should have returned false", s.processMsg(m));
+    // }
+    //
+    // ConnectionImpl nc = mock(ConnectionImpl.class);
+    //
+    // // test for when the mcb is null
+    // try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0)) {
+    // assertTrue("s.processMsg should have returned true", s.processMsg(m));
+    // }
+    //
+    // // test for > max
+    // try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50, 0)) {
+    // // setting this protected var deliberately for testing purposes
+    // s.max = 2;
+    // assertEquals(2, s.max);
+    // assertTrue("s.processMsg should have returned true", s.processMsg(m));
+    // assertEquals(1, s.delivered.get());
+    // when(nc.isClosed()).thenReturn(true);
+    // assertTrue("s.processMsg should have returned true", s.processMsg(m));
+    // assertFalse("s.processMsg should have returned false", s.processMsg(m));
+    // }
+    // when(nc.isClosed()).thenReturn(false);
+    // // test for unsubscribe IOException
+    // try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb, 50, 0)) {
+    // s.setMaxPendingMsgs(1);
+    // try {
+    // doThrow(new IOException("fake unsubscribe exception")).when(nc).unsubscribe(s, 0);
+    // } catch (IOException e) {
+    // fail("Mockito doThrow shouldn't have thrown an exception");
+    // }
+    // assertTrue("s.processMsg should have returned true", s.processMsg(m));
+    // } catch (IllegalStateException e) {
+    // fail("Shouldn't have thrown an exception");
+    // }
+    //
+    // }
 
     @Test
     public void testUnsubscribeConnectionNull() {
         boolean exThrown = false;
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", null, 20, 0)) {
+        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
             s.unsubscribe();
         } catch (IllegalStateException | IOException e) {
             assertTrue("Exception should have been IllegalStateException",
@@ -152,8 +149,7 @@ public class AsyncSubscriptionImplTest {
             when(nc.isClosed()).thenReturn(true);
 
             boolean exThrown = false;
-            try (AsyncSubscriptionImpl s =
-                    new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0)) {
+            try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
                 doThrow(IllegalStateException.class).when(nc).unsubscribe(s, 0);
                 s.unsubscribe();
                 fail("Should have thrown IllegalStateException");
@@ -172,30 +168,6 @@ public class AsyncSubscriptionImplTest {
     // fail("Not yet implemented"); // TODO
     // }
     //
-    @Test
-    public void testEnable() {
-        ConnectionImpl nc = mock(ConnectionImpl.class);
-        // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0)) {
-            s.enable();
-            assertTrue(s.isStarted());
-        }
-    }
-
-    @Test
-    public void testDisable() {
-        ConnectionImpl nc = mock(ConnectionImpl.class);
-        // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
-
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0)) {
-            s.enable();
-            assertTrue("s.enable() failed", s.isStarted());
-            s.disable();
-            assertFalse("s.disable() failed", s.isStarted());
-        }
-    }
 
     @Test
     public void testSetMessageHandler() {
@@ -204,7 +176,7 @@ public class AsyncSubscriptionImplTest {
         // Make sure the connection opts aren't null
         when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
 
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0)) {
+        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             assertTrue(s.isValid());
             s.setMessageHandler(new MessageHandler() {
                 @Override
@@ -214,71 +186,13 @@ public class AsyncSubscriptionImplTest {
     }
 
     @Test
-    public void testStart() {
-        ConnectionImpl nc = mock(ConnectionImpl.class);
-        // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
-
-        boolean exThrown = false;
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0)) {
-            s.start();
-            s.start();
-            assertTrue(s.isStarted());
-            s.disable();
-            assertFalse(s.isStarted());
-            try {
-                s.setConnection(null);
-                s.start();
-            } catch (IllegalStateException e) {
-                assertEquals(ERR_BAD_SUBSCRIPTION, e.getMessage());
-                exThrown = true;
-            } finally {
-                assertTrue("Should have thrown IllegalStateException", exThrown);
-            }
-        }
-    }
-
-    @Test
-    public void msgFeederThreadExitOnUnsubscribe() throws IOException {
-        ConnectionImpl nc = mock(ConnectionImpl.class);
-        // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
-
-        AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
-        sub.start();
-        UnitTestUtilities.sleep(1, TimeUnit.SECONDS);
-        sub.unsubscribe();
-        assertFalse(sub.isStarted());
-        sub.close();
-    }
-
-    @Test
-    public void msgFeederThreadExitOnConnectionClose() throws IOException, TimeoutException {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        Connection conn = new ConnectionFactory().createConnection(mcf);
-        Subscription sub = conn.subscribe("foo", new MessageHandler() {
-            @Override
-            public void onMessage(Message msg) {
-                System.out.println("Got: " + msg);
-            }
-        });
-        assertTrue(((AsyncSubscriptionImpl) sub).isStarted());
-        conn.close();
-        assertFalse(((AsyncSubscriptionImpl) sub).isStarted());
-    }
-
-    @Test
     public void testToString() {
-        String expected1 = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, queued=0, "
-                + "maxPendingMsgs=20, maxPendingBytes=67108864, valid=false}";
-        String expected2 = "{subject=foo, queue=null, sid=0, max=0, delivered=0, queued=0, "
-                + "maxPendingMsgs=65536, maxPendingBytes=67108864, valid=false}";
-        ConnectionImpl nc = null;
-        Subscription sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null, 20, 0);
-        assertEquals(expected1, sub.toString());
-        sub.close();
-        sub = new AsyncSubscriptionImpl(nc, "foo", null, null, -1, -1);
-        assertEquals(expected2, sub.toString());
+        String expected = "{subject=foo, queue=bar, sid=0, max=0, delivered=0, "
+                + "pendingMsgsLimit=65536, pendingBytesLimit=67108864, maxPendingMsgs=0, "
+                + "maxPendingBytes=0, valid=true}";
+        AsyncSubscriptionImpl sub =
+                new AsyncSubscriptionImpl(mock(ConnectionImpl.class), "foo", "bar", null);
+        assertEquals(expected, sub.toString());
         sub.close();
     }
 
@@ -290,8 +204,7 @@ public class AsyncSubscriptionImplTest {
             }
 
         };
-        AsyncSubscriptionImpl sub =
-                new AsyncSubscriptionImpl(connMock, "foo", "bar", mcb, 10000, 1000 * 10000);
+        AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(connMock, "foo", "bar", mcb);
         Message msg = new Message("foo", "bar", "Hello World".getBytes());
         sub.pBytes += msg.getData().length;
         sub.pMsgs = 1;

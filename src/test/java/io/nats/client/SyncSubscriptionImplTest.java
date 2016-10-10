@@ -12,7 +12,6 @@ import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -73,33 +72,35 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testSyncSubscriptionImplConnectionImplStringStringInt() {
+    public void testSyncSubscriptionImplConnectionImplStringString() {
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
-            s.autoUnsubscribe(max);
+        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue)) {
             assertEquals(nc, s.getConnection());
             assertEquals(subj, s.getSubject());
             assertEquals(queue, s.getQueue());
-            assertEquals(max, s.getMaxPendingMsgs());
-        } catch (IOException e) {
-            fail(e.getMessage());
+            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
+            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
         }
     }
 
     @Test
-    public void testProcessMsg() {
+    public void testSyncSubscriptionImplConnectionImplStringStringIntInt() {
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
+        int msgLimit = 20;
+        int byteLimit = -1;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        Message msg = mock(Message.class);
-        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
-            assertTrue(s.processMsg(msg));
+        try (SyncSubscriptionImpl s =
+                new SyncSubscriptionImpl(nc, subj, queue, msgLimit, byteLimit)) {
+            assertEquals(nc, s.getConnection());
+            assertEquals(subj, s.getSubject());
+            assertEquals(queue, s.getQueue());
+            assertEquals(msgLimit, s.getPendingMsgsLimit());
+            assertEquals(byteLimit, s.getPendingBytesLimit());
         }
     }
 
@@ -107,11 +108,10 @@ public class SyncSubscriptionImplTest {
     public void testNextMessage() throws IOException {
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
 
         final Message msgMock = mock(Message.class);
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue)) {
             s.setChannel(mchMock);
             when(mchMock.get()).thenReturn(msgMock);
             Message msg = s.nextMessage();
@@ -123,12 +123,11 @@ public class SyncSubscriptionImplTest {
     public void testNextMessageTimeoutSuccess() throws TimeoutException, IOException {
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
         long timeout = 1000;
         final Message msgMock = mock(Message.class);
 
         final ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
             when(mchMock.get(eq(timeout), eq(TimeUnit.MILLISECONDS))).thenReturn(msgMock);
             sub.setChannel(mchMock);
 
@@ -142,11 +141,10 @@ public class SyncSubscriptionImplTest {
     public void testNextMessageTimesOut() throws TimeoutException, IOException {
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
         int timeout = 100;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue)) {
             s.nextMessage(timeout);
         }
     }
@@ -157,13 +155,12 @@ public class SyncSubscriptionImplTest {
         thrown.expectMessage(Constants.ERR_MAX_MESSAGES);
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
         int timeout = 100;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
             sub.setMax(40);
-            sub.delivered.set(41);
+            sub.delivered = 41;
             sub.setChannel(null);
             sub.nextMessage(timeout);
         }
@@ -175,11 +172,10 @@ public class SyncSubscriptionImplTest {
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
         int timeout = 100;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
             sub.setChannel(null);
             sub.closed = true;
             Message msg = sub.nextMessage(timeout);
@@ -192,35 +188,34 @@ public class SyncSubscriptionImplTest {
         thrown.expectMessage(ERR_SLOW_CONSUMER);
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
         int timeout = 100;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
             sub.setMax(40);
-            sub.delivered.set(41);
+            sub.delivered = 41;
             sub.setSlowConsumer(true);
             Message msg = sub.nextMessage(timeout);
         }
     }
 
     @Test
-    public void testSetMaxPendingBytes() {
+    public void testSetPendingBytesLimit() {
         String subj = "foo";
         String queue = "bar";
         int max = 20;
-        long maxBytes = 4000000L;
+        int maxBytes = 4000000;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
-            sub.setMaxPendingBytes(maxBytes);
-            assertEquals(sub.pBytesLimit, maxBytes);
+        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, -1)) {
+            sub.setPendingBytesLimit(maxBytes);
+            assertEquals(maxBytes, sub.pBytesLimit);
         }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 2100)) {
             maxBytes = -400;
-            sub.setMaxPendingBytes(maxBytes);
-            assertEquals(sub.pBytesLimit, ConnectionFactory.DEFAULT_MAX_PENDING_BYTES);
+            sub.setPendingBytesLimit(maxBytes);
+            assertEquals(sub.pBytesLimit, -400);
         }
 
     }
@@ -229,15 +224,37 @@ public class SyncSubscriptionImplTest {
     public void testSetPendingLimits() {
         String subj = "foo";
         String queue = "bar";
-        int max = 20;
-        int maxBytes = 4000000;
+        int maxMsgsDefaultLimit = 20;
+        int maxBytesDefaultLimit = 50;
         int maxMsgs = 4;
+        int maxBytes = 4000000;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue,
+                maxMsgsDefaultLimit, maxBytesDefaultLimit)) {
+            assertEquals(maxMsgsDefaultLimit, sub.getPendingMsgsLimit());
+            assertEquals(maxBytesDefaultLimit, sub.getPendingBytesLimit());
             sub.setPendingLimits(maxMsgs, maxBytes);
-            assertEquals(sub.pMsgsLimit, maxMsgs);
-            assertEquals(sub.pBytesLimit, maxBytes);
+            assertEquals(maxMsgs, sub.getPendingMsgsLimit());
+            assertEquals(maxBytes, sub.getPendingBytesLimit());
+
+            boolean exThrown = false;
+            try {
+                sub.setPendingLimits(0, 1);
+            } catch (IllegalArgumentException e) {
+                exThrown = true;
+            } finally {
+                assertTrue("Setting limit with 0 should fail", exThrown);
+            }
+
+            exThrown = false;
+            try {
+                sub.setPendingLimits(1, 0);
+            } catch (IllegalArgumentException e) {
+                exThrown = true;
+            } finally {
+                assertTrue("Setting limit with 0 should fail", exThrown);
+            }
         }
     }
 
@@ -248,11 +265,9 @@ public class SyncSubscriptionImplTest {
         String subj = "foo";
         String queue = "bar";
         int max = 20;
-        int maxBytes = 4000000;
-        int maxMsgs = 4;
 
         ConnectionImpl nc = null;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue, max, 0)) {
+        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
             sub.autoUnsubscribe(1);
         }
 
