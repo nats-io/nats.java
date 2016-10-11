@@ -4,12 +4,17 @@ Change Log
 ## Version 0.6.0 (SNAPSHOT)
 _2016-09-07_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.5.3...master)
 
- * Implemented asynchronous `INFO` messages, allowing the client to process `INFO` messages that may be received from the server after a connection is already established. These asynchronous `INFO` messages may update the client's list of servers in the connected cluster.
+ * Implemented asynchronous handling of `INFO` messages, allowing the client to process `INFO` messages that may be received from the server after a connection is already established. These asynchronous `INFO` messages may update the client's list of servers in the connected cluster.
  * Added proper JSON parsing via [google/gson](https://github.com/google/gson).
+ * Cleaned up some threading oddities in `ConnectionImpl`
+ * Moved async subscription threading mechanics into the `Connection`, similar to the Go client.
+ * Fixed a number of inconsistencies in how subscription pending limits were handled.
+ * Removed subscription pending limits from `ConnectionFactory`. These should be set on the Subscription using `Subscription#setPendingLimits()`.
  * `ConnectionImpl` is now `public`, to avoid some issues with reflection in Java and reflective languages such as Clojure. Described further in [#35](/../../pull/35) (special thanks to [@mccraigmccraig](https://github.com/mccraigmccraig)).
  * [#58](/../../issues/#58) Updated `NUID` implementation to match [the Go version](nats-io/nuid) 
- * [#48](/../../issues/#48) Fixed an NPE issue in `TCPConnectionMock` when calling `bounce()`
+ * [#48](/../../issues/#48) Fixed an NPE issue in `TCPConnectionMock` when calling `bounce()` (affects tests only).
  * [#26](/../../issues/#26) Fixed a problem with `AsyncSubscription` feeder thread not exiting correctly in all cases.
+ * Updated integration tests to more closely reflect similar Go tests. 
  * Miscellaneous typo, style and other minor fixes.
 
 ## Version 0.5.3
