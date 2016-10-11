@@ -288,8 +288,7 @@ public class ITSubscriptionTest {
                                     sub.nextMessage(3, TimeUnit.SECONDS);
                                     received.incrementAndGet();
                                 } catch (Exception e) {
-                                    e.printStackTrace();
-                                    // e.getMessage();
+                                    System.err.println(e.getMessage());
                                     break;
                                 }
                             }
@@ -304,14 +303,10 @@ public class ITSubscriptionTest {
                 }
                 nc.flush();
 
-                System.err.println("Received before shutdown == " + received.get());
-
                 srv.shutdown();
                 try (NATSServer srv2 = runDefaultServer()) {
                     // Make sure we got the reconnected cb
-                    System.err.println("Awaiting reconnect");
                     await(rcbLatch, 5, TimeUnit.SECONDS);
-                    System.err.println("Reconnected");
                     for (int i = 0; i < total; i++) {
                         nc.publish("foo", msg);
                     }

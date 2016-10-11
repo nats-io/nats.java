@@ -298,11 +298,16 @@ public class ITBasicTest {
 
             // Drain the messages.
             try {
-                s1.nextMessage(1, TimeUnit.SECONDS);
+                s1.nextMessage(250, TimeUnit.MILLISECONDS);
                 assertEquals(0, s1.getQueuedMessageCount());
-                s2.nextMessage(1, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                /* NOOP */
+            }
+
+            try {
+                s2.nextMessage(250, TimeUnit.MILLISECONDS);
                 assertEquals(0, s2.getQueuedMessageCount());
-            } catch (TimeoutException te) {
+            } catch (TimeoutException e) {
                 /* NOOP */
             }
 
@@ -312,16 +317,20 @@ public class ITBasicTest {
             }
             c.flush();
 
+            SyncSubscriptionImpl si1 = (SyncSubscriptionImpl) s1;
+            SyncSubscriptionImpl si2 = (SyncSubscriptionImpl) s2;
+            assertEquals(total, si1.getChannel().getCount() + si2.getChannel().getCount());
+
             final int variance = (int) (total * 0.15);
             r1 = s1.getQueuedMessageCount();
             r2 = s2.getQueuedMessageCount();
-            assertEquals("Incorrect number of messages: ", total, r1 + r2);
+            assertEquals("Incorrect total number of messages: ", total, r1 + r2);
 
             double expected = total / 2;
             int d1 = (int) Math.abs((expected - r1));
             int d2 = (int) Math.abs((expected - r2));
             if (d1 > variance || d2 > variance) {
-                fail(String.format("Too much variance in totals: %d, %d > %d", r1, r2, variance));
+                fail(String.format("Too much variance in totals: %d, %d > %d", d1, d2, variance));
             }
         }
     }

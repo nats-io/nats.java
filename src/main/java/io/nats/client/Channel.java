@@ -10,11 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -87,43 +82,41 @@ public class Channel<T> {
         return item;
     }
 
-    public T getNew(long timeout, TimeUnit unit) throws TimeoutException {
-        // System.err.printf("get called with timeout=%d, unit=%s\n", timeout, unit);
-        T item = null;
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future<T> future = executor.submit(new Callable<T>() {
-            public T call() throws Exception {
-                // do operations you want
-                T theItem = null;
-                while (!Channel.this.isClosed() && theItem == null) {
-                    theItem = q.poll();
-                }
-                return theItem;
-            }
-        });
-        try {
-            if (timeout < 0) {
-                item = future.get();
-                // System.err.println("future.get() Returning " + item);
-            } else {
-                // System.err.printf("Calling future.get(%d, TimeUnit.%s)\n", timeout, unit);
-                item = future.get(timeout, unit);
-                // System.err.printf("future.get(%d, TimeUnit.%s) returning %v\n", timeout, unit,
-                // item);
-            }
-        } catch (TimeoutException e) {
-            // System.err.printf("get(%d, TimeUnit.%s) timed out\n", timeout, unit);
-            future.cancel(true);
-            throw new TimeoutException("Channel timed out waiting for items");
-            // throw e;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
-        executor.shutdownNow();
-        return item;
-    }
+    // public T getNew(long timeout, TimeUnit unit) throws TimeoutException {
+    // // System.err.printf("get called with timeout=%d, unit=%s\n", timeout, unit);
+    // T item = null;
+    // ExecutorService executor = Executors.newSingleThreadExecutor();
+    // Future<T> future = executor.submit(new Callable<T>() {
+    // public T call() throws Exception {
+    // // do operations you want
+    // T theItem = null;
+    // while (theItem == null) {
+    // if (isClosed()) {
+    // break;
+    // }
+    // theItem = q.poll();
+    // }
+    // return theItem;
+    // }
+    // });
+    // try {
+    // if (timeout < 0) {
+    // item = future.get();
+    // } else {
+    // item = future.get(timeout, unit);
+    // }
+    // } catch (TimeoutException e) {
+    // future.cancel(true);
+    // throw new TimeoutException("Channel timed out waiting for items");
+    // // throw e;
+    // } catch (InterruptedException e) {
+    // e.printStackTrace();
+    // } catch (ExecutionException e) {
+    // e.printStackTrace();
+    // }
+    // executor.shutdownNow();
+    // return item;
+    // }
 
 
     public T poll() {
@@ -134,29 +127,30 @@ public class Channel<T> {
     public boolean add(T item) {
         // offer(T e) is used here simply to eliminate exceptions. add returns false only
         // if adding the item would have exceeded the capacity of a bounded queue.
+        if (isClosed()) {
+            return false;
+        }
         return q.offer(item);
     }
 
     public boolean add(T item, long timeout, TimeUnit unit) throws InterruptedException {
+        if (isClosed()) {
+            return false;
+        }
         return q.offer(item, timeout, unit);
     }
 
-    public void put(T item) throws InterruptedException {
-        q.put(item);
-    }
-
-    public synchronized void close() {
+    public void close() {
         // logger.trace("Channel.close(), clearing queue");
         closed = true;
         q.clear();
     }
 
-    public synchronized boolean isClosed() {
+    public boolean isClosed() {
         return closed;
     }
 
     public int getCount() {
         return q.size();
     }
-
 }

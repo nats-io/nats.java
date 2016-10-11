@@ -10,7 +10,6 @@
 package io.nats.client;
 
 import java.io.IOException;
-import java.util.concurrent.locks.Condition;
 
 /*
  * This is the implementation of the AsyncSubscription interface.
@@ -19,18 +18,11 @@ import java.util.concurrent.locks.Condition;
 class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscription {
 
     MessageHandler msgHandler;
-    Condition pCond;
 
     protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue,
             MessageHandler cb) {
-        this(nc, subj, queue, cb, DEFAULT_MAX_PENDING_MSGS, DEFAULT_MAX_PENDING_BYTES);
-    }
-
-    protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, MessageHandler cb,
-            int maxMsgs, int maxBytes) {
-        super(nc, subj, queue, maxMsgs, maxBytes);
+        super(nc, subj, queue);
         this.msgHandler = cb;
-        pCond = mu.newCondition();
     }
 
     @Override

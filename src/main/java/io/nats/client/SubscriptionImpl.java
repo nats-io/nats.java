@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -60,6 +61,7 @@ abstract class SubscriptionImpl implements Subscription {
 
     ConnectionImpl conn = null;
     Channel<Message> mch;
+    Condition pCond;
 
     // Pending stats, async subscriptions, high-speed etc.
     int pMsgs;
@@ -82,6 +84,7 @@ abstract class SubscriptionImpl implements Subscription {
         setPendingMsgsLimit(pendingMsgsLimit);
         setPendingBytesLimit(pendingBytesLimit);
         this.mch = new Channel<Message>();
+        pCond = mu.newCondition();
     }
 
     void closeChannel() {
@@ -115,15 +118,6 @@ abstract class SubscriptionImpl implements Subscription {
         this.mch = ch;
     }
 
-    protected void handleSlowConsumer(Message msg) {
-        dropped++;
-        conn.processSlowConsumer(this);
-        pMsgs--;
-        if (msg.getData() != null) {
-            pBytes -= msg.getData().length;
-        }
-    }
-
     public boolean isValid() {
         mu.lock();
         boolean valid = (conn != null);
@@ -135,11 +129,8 @@ abstract class SubscriptionImpl implements Subscription {
     public void unsubscribe() throws IOException {
         ConnectionImpl c;
         mu.lock();
-        try {
-            c = this.conn;
-        } finally {
-            mu.unlock();
-        }
+        c = this.conn;
+        mu.unlock();
         if (c == null) {
             throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
         }
@@ -363,11 +354,7 @@ abstract class SubscriptionImpl implements Subscription {
 
     @Override
     public int getQueuedMessageCount() {
-        if (this.mch != null) {
-            return this.mch.getCount();
-        } else {
-            return 0;
-        }
+        return getPendingMsgs();
     }
 
     public String toString() {

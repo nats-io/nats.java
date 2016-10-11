@@ -18,12 +18,7 @@ import java.util.concurrent.TimeoutException;
 class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
 
     protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
-        super(nc, subj, queue, DEFAULT_MAX_PENDING_MSGS, DEFAULT_MAX_PENDING_BYTES);
-    }
-
-    protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue, int maxMsgs,
-            int maxBytes) {
-        super(nc, subj, queue, maxMsgs, maxBytes);
+        super(nc, subj, queue);
     }
 
     @Override
@@ -100,8 +95,11 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
                 // Remove subscription if we have reached max.
                 if (delivered == localMax) {
                     localConn.mu.lock();
-                    localConn.removeSub(this);
-                    localConn.mu.unlock();
+                    try {
+                        localConn.removeSub(this);
+                    } finally {
+                        localConn.mu.unlock();
+                    }
                 }
             }
         }

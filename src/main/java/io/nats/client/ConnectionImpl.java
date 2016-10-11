@@ -1568,27 +1568,22 @@ public class ConnectionImpl implements Connection {
                 // Check for a Slow Consumer
                 if ((sub.pMsgsLimit > 0 && sub.pMsgs > sub.pMsgsLimit)
                         || (sub.pBytesLimit > 0 && sub.pBytes > sub.pBytesLimit)) {
-                    /* handle slow consumer */
-                    slowConsumer = true;
-                    sub.dropped++;
-                    processSlowConsumer(sub);
-                    // Undo stats from above
-                    sub.pMsgs--;
-                    sub.pBytes -= msg.getData().length;
+                    handleSlowConsumer(sub, msg);
+                    return;
                 } else {
                     // We use mch for everything, unlike Go client
                     if (sub.getChannel() != null) {
-                        sub.getChannel().add(msg);
-                        if (sub instanceof AsyncSubscriptionImpl) {
-                            ((AsyncSubscriptionImpl) sub).pCond.signal();
+                        if (sub.getChannel().add(msg)) {
+                            sub.pCond.signal();
+                        } else {
+                            handleSlowConsumer(sub, msg);
+                            return;
                         }
                     }
                 }
 
-                if (!slowConsumer) {
-                    // Clear Slow Consumer status
-                    sub.setSlowConsumer(false);
-                }
+                // Clear Slow Consumer status
+                sub.setSlowConsumer(false);
             } finally {
                 sub.unlock();
             }
@@ -1596,6 +1591,17 @@ public class ConnectionImpl implements Connection {
             mu.unlock();
         }
     }
+
+    // Assumes you already have the lock
+    protected void handleSlowConsumer(SubscriptionImpl sub, Message msg) {
+        sub.dropped++;
+        processSlowConsumer(sub);
+        sub.pMsgs--;
+        if (msg.getData() != null) {
+            sub.pBytes -= msg.getData().length;
+        }
+    }
+
 
     void removeSub(SubscriptionImpl sub) {
         subs.remove(sub.getSid());
@@ -1883,7 +1889,6 @@ public class ConnectionImpl implements Connection {
         Channel<Boolean> ch = null;
         mu.lock();
         try {
-            logger.trace("flush(int timeout) acquired lock");
             if (_isClosed()) {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
@@ -1894,8 +1899,6 @@ public class ConnectionImpl implements Connection {
             mu.unlock();
         }
 
-        logger.trace("flush(int timeout): prior to polling PONG channel");
-
         Boolean rv = null;
         boolean timedOut = false;
         while (!timedOut && !ch.isClosed() && (rv == null)) {
@@ -1903,7 +1906,6 @@ public class ConnectionImpl implements Connection {
             timedOut = (elapsed >= timeout);
             rv = ch.poll();
         }
-        logger.trace("flush(int timeout): after polling PONG channel");
 
         if (timedOut) {
             err = new TimeoutException(ERR_TIMEOUT);
@@ -1916,12 +1918,9 @@ public class ConnectionImpl implements Connection {
         }
 
         if (err != null) {
-            logger.trace("flush(int timeout): before removeFlushEntry");
             this.removeFlushEntry(ch);
-            logger.trace("flush(int timeout): before throw");
             throw err;
         }
-        logger.trace("flush(int timeout): returning without error");
     }
 
 
@@ -1929,10 +1928,8 @@ public class ConnectionImpl implements Connection {
     /// receives the internal reply.
     @Override
     public void flush() throws Exception {
-        logger.trace("FLUSH");
         // 60 second default.
         flush(60000);
-        logger.trace("FLUSHED!");
     }
 
     // resendSubscriptions will send our subscription state back to the

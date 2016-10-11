@@ -1612,4 +1612,34 @@ public class ConnectionImplTest {
         try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
         }
     }
+
+    @Test
+    public void testHandleSlowConsumer() throws IOException, TimeoutException {
+        MessageHandler mcb = new MessageHandler() {
+            public void onMessage(Message msg) {
+
+            }
+
+        };
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
+            AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", mcb);
+            Message msg = new Message("foo", "bar", "Hello World".getBytes());
+            sub.pBytes += msg.getData().length;
+            sub.pMsgs = 1;
+            nc.handleSlowConsumer(sub, msg);
+            assertEquals(1, sub.dropped);
+            assertEquals(0, sub.pMsgs);
+            assertEquals(0, sub.pBytes);
+
+            msg.setData(null);
+            sub.pMsgs = 1;
+            nc.handleSlowConsumer(sub, msg);
+            assertEquals(2, sub.getDropped());
+            assertEquals(0, sub.pMsgs);
+            assertEquals(0, sub.pBytes);
+        }
+
+    }
+
+
 }
