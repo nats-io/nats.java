@@ -8,11 +8,13 @@ package io.nats.client;
 
 import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
+import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -136,6 +138,27 @@ public class SyncSubscriptionImplTest {
             Message msg = sub.nextMessage(timeout, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
             verify(mchMock, times(1)).get(eq(timeout), eq(TimeUnit.MILLISECONDS));
+        }
+    }
+
+    @Test
+    public void testNextMessageAutoUnsubscribeMax() throws TimeoutException, IOException {
+        String subj = "foo";
+        String queue = "bar";
+        long timeout = 1000;
+        final Message msgMock = mock(Message.class);
+
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
+            try (SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribe(subj, queue)) {
+                sub.setMax(1);
+                when(mchMock.get(eq(timeout), eq(TimeUnit.MILLISECONDS))).thenReturn(msgMock);
+                sub.setChannel(mchMock);
+
+                Message msg = sub.nextMessage(timeout, TimeUnit.MILLISECONDS);
+                assertNotNull(msg);
+                verify(mchMock, times(1)).get(eq(timeout), eq(TimeUnit.MILLISECONDS));
+                verify(nc, times(1)).removeSub(sub);
+            }
         }
     }
 

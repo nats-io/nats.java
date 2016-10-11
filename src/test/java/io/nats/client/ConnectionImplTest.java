@@ -4,6 +4,7 @@
 
 package io.nats.client;
 
+import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
 import static io.nats.client.Constants.ERR_BAD_SUBJECT;
 import static io.nats.client.Constants.ERR_BAD_TIMEOUT;
 import static io.nats.client.Constants.ERR_CONNECTION_CLOSED;
@@ -12,6 +13,7 @@ import static io.nats.client.Constants.ERR_MAX_PAYLOAD;
 import static io.nats.client.Constants.ERR_NO_SERVERS;
 import static io.nats.client.Constants.ERR_PROTOCOL;
 import static io.nats.client.Constants.ERR_TIMEOUT;
+import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
@@ -90,6 +92,15 @@ public class ConnectionImplTest {
 
     @Mock
     private Channel<Boolean> fchMock;
+
+    @Mock
+    private Channel<Message> mchMock;
+
+    @Mock
+    private MessageHandler mcbMock;
+
+    @Mock
+    private Message msgMock;
 
     @Mock
     private Channel<Boolean> pongsMock;
@@ -942,18 +953,6 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
-            nc.subscribeAsync("foo", "bar");
-        } catch (Exception e) {
-            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Didn't throw an exception", exThrown);
-        }
-
-        exThrown = false;
-        try {
             nc.subscribeSync("foo", "bar");
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
@@ -1262,6 +1261,102 @@ public class ConnectionImplTest {
     // }
     // }
 
+
+    @Test
+    public void testProcessErr() throws IOException, TimeoutException {
+        String err = "this is a test";
+        // byte[] argBufBase = new byte[DEFAULT_BUF_SIZE];
+        ByteBuffer errorStream = ByteBuffer.wrap(err.getBytes());
+
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            assertTrue(!c.isClosed());
+            c.processErr(errorStream);
+            assertTrue(c.isClosed());
+            NATSException ex = (NATSException) c.getLastException();
+            assertNotNull(ex);
+            String msg = ex.getMessage();
+            assertNotNull(msg);
+            assertEquals("nats: " + err, msg);
+            Connection exConn = ex.getConnection();
+            assertNotNull(exConn);
+            assertEquals(c, exConn);
+        }
+    }
+
+    @Test
+    public void testProcessErrStaleConnection() {
+        ConnectionFactory cf = new ConnectionFactory();
+        final CountDownLatch ccbLatch = new CountDownLatch(1);
+        cf.setClosedCallback(new ClosedCallback() {
+            public void onClose(ConnectionEvent event) {
+                ccbLatch.countDown();
+            }
+        });
+        cf.setReconnectAllowed(false);
+        try (ConnectionImpl c = cf.createConnection(new TCPConnectionFactoryMock())) {
+            ByteBuffer error = ByteBuffer.allocate(DEFAULT_BUF_SIZE);
+            error.put(ConnectionImpl.STALE_CONNECTION.getBytes());
+            error.flip();
+            c.processErr(error);
+            assertTrue(c.isClosed());
+            assertTrue("Closed callback should have fired", await(ccbLatch));
+        } catch (IOException | TimeoutException e) {
+            // TODO Auto-generated catch block
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testProcessErrPermissionsViolation() throws IOException, TimeoutException {
+        ConnectionFactory cf = new ConnectionFactory();
+        final CountDownLatch ccbLatch = new CountDownLatch(1);
+        cf.setClosedCallback(new ClosedCallback() {
+            public void onClose(ConnectionEvent event) {
+                ccbLatch.countDown();
+            }
+        });
+        cf.setReconnectAllowed(false);
+        try (ConnectionImpl c = spy(cf.createConnection(new TCPConnectionFactoryMock()))) {
+            ByteBuffer error = ByteBuffer.allocate(DEFAULT_BUF_SIZE);
+            String err = Constants.PERMISSIONS_ERR + " foobar";
+            error.put(err.getBytes());
+            error.flip();
+            c.processErr(error);
+
+            // Verify we identified and processed it
+            verify(c, times(1)).processPermissionsViolation(err);
+        }
+    }
+
+    @Test
+    public void testProcessPermissionsViolation() throws IOException, TimeoutException {
+        final CountDownLatch ehLatch = new CountDownLatch(1);
+        final String errorString = "some error";
+        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection())) {
+            c.setExceptionHandler(new ExceptionHandler() {
+                @Override
+                public void onException(NATSException e) {
+                    assertEquals(c, e.getConnection());
+                    Exception lastEx = c.getLastException();
+                    assertNotNull(lastEx);
+                    assertNotNull(e.getCause());
+                    // Our cause should be the same as the last exception registered on the
+                    // connection
+                    assertEquals(lastEx, e.getCause());
+
+                    assertNotNull(e.getCause().getMessage());
+                    assertEquals("nats: " + errorString, e.getCause().getMessage());
+                    ehLatch.countDown();
+                }
+            });
+
+            c.processPermissionsViolation(errorString);
+
+            // Verify we identified and processed it
+            verify(c, times(1)).processPermissionsViolation(errorString);
+        }
+    }
+
     @Test
     public void testProcessExpectedInfoReadOpFailure() throws IOException, TimeoutException {
         try (ConnectionImpl conn = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
@@ -1275,61 +1370,101 @@ public class ConnectionImplTest {
         }
     }
 
-    // @Test
-    // public void testProcessMsg() throws IOException, TimeoutException {
-    // final byte[] data = "Hello, World!".getBytes();
-    // final int offset = 0;
-    // final int length = data.length;
-    // try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-    // SubscriptionImpl sub = (SubscriptionImpl) Mockito.spy(c.subscribe("foo", null));
-    // c.ps.ma.sid = sub.getSid();
-    // when(subsMock.get(any(long.class))).thenReturn(sub);
-    // c.setSubs(subsMock);
-    // when(sub.tallyMessage(eq(length))).thenReturn(false);
-    // c.ps.ma.size = length;
-    // c.processMsg(data, offset, length);
-    //
-    // // InMsgs should be incremented by 1
-    // assertEquals(1, c.getStats().getInMsgs());
-    // // InBytes should be incremented by length
-    // assertEquals(length, c.getStats().getInBytes());
-    // // sub.addMessage(msg) should have been called exactly once
-    // verify(sub, times(1)).addMessage(any(Message.class));
-    // // c.removeSub should NOT have been called
-    // verify(c, times(0)).removeSub(eq(sub));
-    // }
-    // }
+    @Test
+    public void testProcessMsg() throws IOException, TimeoutException {
+        final byte[] data = "Hello, World!".getBytes();
+        final int offset = 0;
+        final int length = data.length;
+        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
 
-    // @Test
-    // public void testProcessMsgMaxReached() throws IOException, TimeoutException {
-    // final byte[] data = "Hello, World!".getBytes();
-    // final int offset = 0;
-    // final int length = data.length;
-    // final long sid = 4L;
-    // try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-    // SubscriptionImpl sub = mock(AsyncSubscriptionImpl.class);
-    // when(sub.getSid()).thenReturn(sid);
-    // c.ps.ma.sid = sid;
-    // c.ps.ma.size = length;
-    // when(subsMock.get(eq(sid))).thenReturn(sub);
-    // assertEquals(sub, subsMock.get(sid));
-    // c.setSubs(subsMock);
-    // when(sub.tallyMessage(eq((long) length))).thenReturn(true);
-    // c.processMsg(data, offset, length);
-    //
-    // verify(sub, times(1)).tallyMessage(length);
-    //
-    // // InMsgs should be incremented by 1, even if the sub stats don't increase
-    // assertEquals(1, c.getStats().getInMsgs());
-    // // InBytes should be incremented by length, even if the sub stats don't increase
-    // assertEquals(length, c.getStats().getInBytes());
-    // // sub.addMessage(msg) should have been called exactly once
-    // verify(sub, times(0)).addMessage(any(Message.class));
-    // // c.removeSub should have been called
-    // verify(c, times(1)).removeSub(eq(sub));
-    // }
-    //
-    // }
+            SubscriptionImpl sub = (SubscriptionImpl) Mockito.spy(c.subscribe("foo", mcbMock));
+            c.ps.ma.sid = sub.getSid();
+            when(subsMock.get(any(long.class))).thenReturn(sub);
+            c.setSubs(subsMock);
+            sub.setChannel(mchMock);
+
+            c.ps.ma.size = length;
+            c.processMsg(data, offset, length);
+
+            // InMsgs should be incremented by 1
+            assertEquals(1, c.getStats().getInMsgs());
+            // InBytes should be incremented by length
+            assertEquals(length, c.getStats().getInBytes());
+            // sub.addMessage(msg) should have been called exactly once
+            verify(mchMock, times(1)).add(any(Message.class));
+            // c.removeSub should NOT have been called
+            verify(c, times(0)).removeSub(eq(sub));
+        }
+    }
+
+    @Test
+    public void testProcessMsgMaxReached() throws IOException, TimeoutException {
+        final byte[] data = "Hello, World!".getBytes();
+        final int offset = 0;
+        final int length = data.length;
+        final long sid = 4L;
+        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+            SubscriptionImpl sub = spy(new AsyncSubscriptionImpl(c, "foo", "bar", mcbMock));
+            when(sub.getSid()).thenReturn(sid);
+            c.ps.ma.sid = sid;
+            c.ps.ma.size = length;
+            when(subsMock.get(eq(sid))).thenReturn(sub);
+            assertEquals(sub, subsMock.get(sid));
+            c.setSubs(subsMock);
+
+            sub.setPendingLimits(1, 1024);
+            sub.pMsgs = 1;
+
+            assertEquals(1, sub.getPendingMsgsLimit());
+            assertEquals(1, sub.pMsgs);
+
+            c.processMsg(data, offset, length);
+
+            // InMsgs should be incremented by 1, even if the sub stats don't increase
+            assertEquals(1, c.getStats().getInMsgs());
+            // InBytes should be incremented by length, even if the sub stats don't increase
+            assertEquals(length, c.getStats().getInBytes());
+            // handleSlowConsumer should have been called once
+            verify(c, times(1)).handleSlowConsumer(eq(sub), any(Message.class));
+            // sub.addMessage(msg) should not have been called
+            verify(mchMock, times(0)).add(any(Message.class));
+            // sub.setSlowConsumer(false) should NOT have been called
+            verify(sub, times(0)).setSlowConsumer(eq(false));
+        }
+    }
+
+    public void testProcessMsgSubChannelAddFails() throws IOException, TimeoutException {
+        final byte[] data = "Hello, World!".getBytes();
+        final int offset = 0;
+        final int length = data.length;
+        final long sid = 4L;
+        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+            SubscriptionImpl sub = spy(new AsyncSubscriptionImpl(c, "foo", "bar", mcbMock));
+            when(sub.getSid()).thenReturn(sid);
+            c.ps.ma.sid = sid;
+            c.ps.ma.size = length;
+            when(subsMock.get(eq(sid))).thenReturn(sub);
+            assertEquals(sub, subsMock.get(sid));
+            c.setSubs(subsMock);
+
+            when(mchMock.add(any(Message.class))).thenReturn(false);
+            when(sub.getChannel()).thenReturn(mchMock);
+
+            c.processMsg(data, offset, length);
+
+            // InMsgs should be incremented by 1, even if the sub stats don't increase
+            assertEquals(1, c.getStats().getInMsgs());
+            // InBytes should be incremented by length, even if the sub stats don't increase
+            assertEquals(length, c.getStats().getInBytes());
+            // handleSlowConsumer should have been called once
+            verify(c, times(1)).handleSlowConsumer(eq(sub), any(Message.class));
+            // sub.addMessage(msg) should not have been called
+            verify(mchMock, times(0)).add(any(Message.class));
+            // sub.setSlowConsumer(false) should have been called
+            verify(sub, times(1)).setSlowConsumer(eq(false));
+        }
+
+    }
 
     @Test
     public void testProcessSlowConsumer()

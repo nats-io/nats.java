@@ -342,7 +342,7 @@ public class ITBasicTest {
 
         final CountDownLatch latch = new CountDownLatch(1);
         try (Connection c = new ConnectionFactory().createConnection()) {
-            try (AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                 @Override
                 public void onMessage(Message msg) {
                     assertEquals(replyExpected, msg.getReplyTo());
@@ -392,7 +392,7 @@ public class ITBasicTest {
         ConnectionFactory cf = new ConnectionFactory();
         cf.setReconnectAllowed(false);
         try (Connection c = cf.createConnection()) {
-            try (final AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+            try (final AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                 @Override
                 public void onMessage(Message m) {
                     count.incrementAndGet();
@@ -481,7 +481,7 @@ public class ITBasicTest {
         final byte[] response = "I will help you.".getBytes();
         try (final Connection c = new ConnectionFactory().createConnection()) {
             UnitTestUtilities.sleep(100);
-            try (AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                 public void onMessage(Message m) {
                     try {
                         c.publish(m.getReplyTo(), response);
@@ -519,7 +519,7 @@ public class ITBasicTest {
         final byte[] response = "I will help you.".getBytes();
 
         try (final Connection c = new ConnectionFactory().createConnection()) {
-            try (AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                 public void onMessage(Message m) {
                     try {
                         c.publish(m.getReplyTo(), response);
@@ -543,7 +543,7 @@ public class ITBasicTest {
     public void testFlushInHandler() throws InterruptedException, IOException, TimeoutException {
         final CountDownLatch mcbLatch = new CountDownLatch(1);
         try (Connection c = new ConnectionFactory().createConnection()) {
-            try (AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                 @Override
                 public void onMessage(Message msg) {
                     try {
@@ -722,7 +722,7 @@ public class ITBasicTest {
             omsg[msgSize - 1] = (byte) 'Z';
 
             final CountDownLatch latch = new CountDownLatch(1);
-            AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+            AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                 @Override
                 public void onMessage(Message msg) {
                     assertTrue("Response isn't valid.", compare(omsg, msg.getData()));
@@ -751,7 +751,7 @@ public class ITBasicTest {
             final CountDownLatch mhLatch = new CountDownLatch(0);
             final AtomicInteger received = new AtomicInteger();
             final int count = 1000;
-            try (AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                 public void onMessage(Message msg) {
                     received.incrementAndGet();
                     if (received.get() == count) {
@@ -786,7 +786,7 @@ public class ITBasicTest {
             final String reply = new String(replyBytes);
 
             final CountDownLatch latch = new CountDownLatch(1);
-            try (AsyncSubscription s = c.subscribeAsync(subject, new MessageHandler() {
+            try (AsyncSubscription s = c.subscribe(subject, new MessageHandler() {
                 @Override
                 public void onMessage(Message msg) {
                     assertEquals(subject.length(), msg.getSubject().length());
@@ -838,13 +838,13 @@ public class ITBasicTest {
                 }
             };
 
-            try (AsyncSubscription s = c.subscribeAsync("foo", h)) {
+            try (AsyncSubscription s = c.subscribe("foo", h)) {
                 c.publish("foo", null);
                 c.flush();
                 Thread.sleep(100);
             }
 
-            try (AsyncSubscription s = c.subscribeAsync("foo", "bar", h)) {
+            try (AsyncSubscription s = c.subscribe("foo", "bar", h)) {
                 c.publish("foo", null);
                 c.flush();
                 Thread.sleep(100);

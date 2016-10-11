@@ -966,9 +966,7 @@ public class ConnectionImpl implements Connection {
             // Make sure to flush everything
             try {
                 flush();
-            } catch (
-
-            Exception e) {
+            } catch (Exception e) {
                 logger.warn("Error flushing connection", e);
             }
             logger.trace("doReconnect reconnected successfully!");
@@ -2034,28 +2032,35 @@ public class ConnectionImpl implements Connection {
     }
 
     @Override
+    public SyncSubscription subscribe(String subject) {
+        return subscribeSync(subject, null);
+    }
+
+    @Override
+    public SyncSubscription subscribe(String subject, String queue) {
+        return subscribeSync(subject, queue);
+    }
+
+    @Override
     public AsyncSubscription subscribe(String subject, MessageHandler cb) {
-        return subscribeAsync(subject, null, cb);
+        return (AsyncSubscriptionImpl) subscribe(subject, null, cb);
     }
 
     @Override
-    public Subscription subscribe(String subj, String queue, MessageHandler cb) {
-        return subscribe(subj, queue, cb, null);
+    public AsyncSubscription subscribe(String subj, String queue, MessageHandler cb) {
+        return (AsyncSubscriptionImpl) subscribe(subj, queue, cb, null);
     }
 
     @Override
+    @Deprecated
     public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb) {
         return (AsyncSubscriptionImpl) subscribe(subject, queue, cb, null);
     }
 
     @Override
-    public AsyncSubscription subscribeAsync(String subj, String queue) {
-        return subscribeAsync(subj, queue, null);
-    }
-
-    @Override
+    @Deprecated
     public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) {
-        return subscribeAsync(subj, null, cb);
+        return (AsyncSubscriptionImpl) subscribe(subj, null, cb);
     }
 
     private void addSubscription(SubscriptionImpl sub) {

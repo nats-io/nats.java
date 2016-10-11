@@ -3,11 +3,13 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -28,12 +30,14 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
@@ -60,6 +64,12 @@ public class TCPConnectionTest {
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
+    @Mock
+    private InputStream readStreamMock;
+
+    @Mock
+    private OutputStream writeStreamMock;
+
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {}
 
@@ -78,10 +88,34 @@ public class TCPConnectionTest {
         setLogLevel(Level.INFO);
     }
 
+    @SuppressWarnings("resource")
     @Test
-    public void testTCPConnection() {
-        try (TCPConnection conn = new TCPConnection()) {
+    public void testTcpConnection() {
+        new TCPConnection();
+    }
 
+    @Test
+    public void testGetBufferedInputStream() {
+        try (TCPConnection t = new TCPConnection()) {
+            t.readStream = readStreamMock;
+            assertNotNull(t.getBufferedInputStream(16384));
+        }
+    }
+
+    @Test
+    public void testGetBufferedOutputStream() {
+        try (TCPConnection t = new TCPConnection()) {
+            t.writeStream = writeStreamMock;
+            assertNotNull(t.getBufferedOutputStream(16384));
+        }
+    }
+
+    @Test
+    public void testGetBufferedReader() {
+        try (TCPConnection t = new TCPConnection()) {
+            t.readStream = readStreamMock;
+            assertNotNull(t.getBufferedInputStream(16384));
+            assertNotNull(t.getBufferedReader());
         }
     }
 
