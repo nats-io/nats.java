@@ -6,15 +6,41 @@
 
 package io.nats.client;
 
+import io.nats.client.Constants.ConnState;
+
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
-
-import io.nats.client.Constants.ConnState;
 
 /**
  * AbstractConnection is the base interface for all Connection variants.
  */
 interface AbstractConnection extends AutoCloseable {
+
+    /**
+     * Creates a {@link SyncSubscription} with interest in a given subject. In order to receive
+     * messages, call one of the available {@link SyncSubscription#nextMessage()}.
+     * 
+     * @param subject the subject of interest
+     * @return the {@link SyncSubscription}
+     * @throws IllegalArgumentException if the subject name contains illegal characters.
+     * @throws NullPointerException if the subject name is null
+     * @throws IllegalStateException if the connection is closed
+     */
+    public SyncSubscription subscribe(String subject);
+
+    /**
+     * Creates a {@link SyncSubscription} with interest in a given subject. All subscribers with the
+     * same queue name will form the queue group and only one member of the group will be selected
+     * to receive any given message.
+     *
+     * @param subject the subject of interest
+     * @param queue the queue group
+     * @return the {@code SyncSubscription}
+     * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
+     * @throws NullPointerException if the subject name is null
+     * @throws IllegalStateException if the connection is closed
+     */
+    public SyncSubscription subscribe(String subject, String queue);
 
     /**
      * Creates a {@code AsyncSubscription} with interest in a given subject, assign the callback,
@@ -41,20 +67,7 @@ interface AbstractConnection extends AutoCloseable {
      *        {@code Subscription}
      * @return {@code Subscription}
      */
-    public Subscription subscribe(String subject, String queue, MessageHandler cb);
-
-    /**
-     * Creates a {@code AsyncSubscription} with interest in a given subject. In order to receive
-     * messages, a {@code MessageHandler} must be registered, and {@link AsyncSubscription#start()}
-     * must be called.
-     * 
-     * @param subject the subject of interest
-     * @return the {@code AsyncSubscription}
-     * @throws IllegalArgumentException if the subject name contains illegal characters.
-     * @throws NullPointerException if the subject name is null
-     * @throws IllegalStateException if the connection is closed
-     */
-    public AsyncSubscription subscribeAsync(String subject);
+    public AsyncSubscription subscribe(String subject, String queue, MessageHandler cb);
 
     /**
      * Creates a {@code AsyncSubscription} with interest in a given subject, assign the callback,
@@ -67,23 +80,10 @@ interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException if the subject name is null
      * @throws IllegalStateException if the connection is closed
+     * @deprecated As of release 0.6, use {@link subscribe(String subject, MessageHandler cb)}
+     *             instead
      */
     public AsyncSubscription subscribeAsync(String subject, MessageHandler cb);
-
-    /**
-     * Creates an asynchronous queue subscriber on a given subject of interest. All subscribers with
-     * the same queue name will form the queue group and only one member of the group will be
-     * selected to receive any given message. In order to receive messages, a {@code MessageHandler}
-     * must be registered, and {@link AsyncSubscription#start()} must be called.
-     *
-     * @param subject the subject of interest
-     * @param queue the name of the queue group
-     * @return the {@code Subscription}
-     * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
-     * @throws NullPointerException if the subject name is null
-     * @throws IllegalStateException if the connection is closed
-     */
-    public AsyncSubscription subscribeAsync(String subject, String queue);
 
     /**
      * Create an {@code AsyncSubscription} with interest in a given subject, assign the message
@@ -96,6 +96,8 @@ interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException if the subject name is null
      * @throws IllegalStateException if the connection is closed
+     * @deprecated As of release 0.6, use {@link subscribe(String subject, String queue,
+     *             MessageHandler cb)} instead
      */
     public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb);
 
@@ -136,18 +138,14 @@ interface AbstractConnection extends AutoCloseable {
     /**
      * Closes the connection, also closing all subscriptions on this connection.
      * 
-     * <p>
-     * When {@code close()} is called, the following things happen, in order:
-     * <ol>
-     * <li>The Connection is flushed, and any other pending flushes previously requested by the user
-     * are immediately cleared.
-     * <li>Message delivery to all active subscriptions is terminated immediately, without regard to
-     * any messages that may have been delivered to the client's connection, but not to the relevant
-     * subscription(s). Any such undelivered messages are discarded immediately.
-     * <li>The DisconnectedCallback, if registered, is invoked.
-     * <li>The ClosedCallback, if registered, is invoked.
-     * <li>The TCP/IP socket connection to the NATS server is gracefully closed.
-     * </ol>
+     * <p>When {@code close()} is called, the following things happen, in order: <ol> <li>The
+     * Connection is flushed, and any other pending flushes previously requested by the user are
+     * immediately cleared. <li>Message delivery to all active subscriptions is terminated
+     * immediately, without regard to any messages that may have been delivered to the client's
+     * connection, but not to the relevant subscription(s). Any such undelivered messages are
+     * discarded immediately. <li>The DisconnectedCallback, if registered, is invoked. <li>The
+     * ClosedCallback, if registered, is invoked. <li>The TCP/IP socket connection to the NATS
+     * server is gracefully closed. </ol>
      * 
      * @see java.lang.AutoCloseable#close()
      */

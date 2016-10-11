@@ -12,13 +12,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 abstract class SubscriptionImpl implements Subscription {
 
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    /**
+     * Default maximum pending/undelivered messages on a subscription.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
+     */
+    static final int DEFAULT_MAX_PENDING_MSGS = 65536;
+    /**
+     * Default maximum pending/undelivered payload bytes on a subscription.
+     * 
+     * <p>This property is defined as String {@value #DEFAULT_MAX_PENDING_BYTES}
+     */
+    static final int DEFAULT_MAX_PENDING_BYTES = 65536 * 1024;
 
     final Lock mu = new ReentrantLock();
 
@@ -35,7 +48,7 @@ abstract class SubscriptionImpl implements Subscription {
 
     // Number of messages delivered on this subscription
     long msgs;
-    AtomicLong delivered = new AtomicLong(); // uint64
+    long delivered; // uint64
     long bytes; // uint64
     // int pendingMax; // uint64 in Go, int here due to underlying data structure
     long max; // AutoUnsubscribe max
@@ -48,6 +61,7 @@ abstract class SubscriptionImpl implements Subscription {
 
     ConnectionImpl conn = null;
     Channel<Message> mch;
+    Condition pCond;
 
     // Pending stats, async subscriptions, high-speed etc.
     int pMsgs;
@@ -55,19 +69,22 @@ abstract class SubscriptionImpl implements Subscription {
     int pMsgsMax; // highest number of pending msgs
     int pBytesMax; // highest number of pending bytes
     int pMsgsLimit = 65536;
-    long pBytesLimit = pMsgsLimit * 1024;
+    int pBytesLimit = pMsgsLimit * 1024;
     int dropped;
 
-    SubscriptionImpl(ConnectionImpl conn, String subject, String queue, int maxPendingMsgs,
-            long maxPendingBytes) {
+    SubscriptionImpl(ConnectionImpl conn, String subject, String queue) {
+        this(conn, subject, queue, DEFAULT_MAX_PENDING_MSGS, DEFAULT_MAX_PENDING_BYTES);
+    }
+
+    SubscriptionImpl(ConnectionImpl conn, String subject, String queue, int pendingMsgsLimit,
+            int pendingBytesLimit) {
         this.conn = conn;
         this.subject = subject;
         this.queue = queue;
-        // if (conn != null) {
-        // this.pendingMax = conn.getOptions().getMaxPendingMsgs();
-        // }
-        this.setMaxPendingMsgs(maxPendingMsgs);
+        setPendingMsgsLimit(pendingMsgsLimit);
+        setPendingBytesLimit(pendingBytesLimit);
         this.mch = new Channel<Message>();
+        pCond = mu.newCondition();
     }
 
     void closeChannel() {
@@ -101,95 +118,19 @@ abstract class SubscriptionImpl implements Subscription {
         this.mch = ch;
     }
 
-    public boolean tallyMessage(long length) {
-        mu.lock();
-        try {
-            if (max > 0 && msgs > max) {
-                return true;
-            }
-
-            this.msgs++;
-            this.bytes += bytes;
-
-        } finally {
-            mu.unlock();
-        }
-
-        return false;
-
-    }
-
-    protected void handleSlowConsumer(Message msg) {
-        dropped++;
-        conn.processSlowConsumer(this);
-        pMsgs--;
-        if (msg.getData() != null) {
-            pBytes -= msg.getData().length;
-        }
-    }
-
-    protected long tallyDeliveredMessage(Message msg) {
-        delivered.incrementAndGet();
-        if (msg.getData() != null) {
-            pBytes -= msg.getData().length;
-        }
-        pMsgs--;
-
-        return delivered.get();
-    }
-
-    // returns false if the message could not be added because
-    // the channel is full, true if the message was added
-    // to the channel.
-    boolean addMessage(Message m) {
-        // Subscription internal stats
-        pMsgs++;
-        if (pMsgs > pMsgsMax) {
-            pMsgsMax = pMsgs;
-        }
-        if (m.getData() != null) {
-            pBytes += m.getData().length;
-        }
-        if (pBytes > pBytesMax) {
-            pBytesMax = pBytes;
-        }
-
-        // Check for a Slow Consumer
-        if (pMsgs > pMsgsLimit || pBytes > pBytesLimit) {
-            handleSlowConsumer(m);
-            return false;
-        }
-
-        if (mch != null) {
-            if (mch.getCount() >= getMaxPendingMsgs()) {
-                handleSlowConsumer(m);
-                return false;
-            } else {
-                sc = false;
-                mch.add(m);
-            }
-        } // mch != null
-        return true;
-    }
-
     public boolean isValid() {
         mu.lock();
-        try {
-            return (conn != null);
-        } finally {
-            mu.unlock();
-        }
+        boolean valid = (conn != null);
+        mu.unlock();
+        return valid;
     }
 
     @Override
     public void unsubscribe() throws IOException {
         ConnectionImpl c;
         mu.lock();
-        try {
-            c = this.conn;
-        } finally {
-            mu.unlock();
-        }
+        c = this.conn;
+        mu.unlock();
         if (c == null) {
             throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
         }
@@ -235,57 +176,110 @@ abstract class SubscriptionImpl implements Subscription {
 
     @Override
     public int getDropped() {
-        return dropped;
+        int rv = 0;
+        mu.lock();
+        try {
+            if (conn == null) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+            rv = dropped;
+        } finally {
+            mu.unlock();
+        }
+        return rv;
     }
 
-    /**
-     * @return the maxPendingMsgs
-     */
     @Override
-    public int getMaxPendingMsgs() {
-        return this.pMsgsLimit;
+    public int getPendingMsgsMax() {
+        int rv = 0;
+        mu.lock();
+        try {
+            if (conn == null) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+            rv = this.pMsgsMax;
+        } finally {
+            mu.unlock();
+        }
+
+        return rv;
     }
 
-    /**
-     * @return the maxPendingBytes
-     */
     @Override
-    public long getMaxPendingBytes() {
-        return this.pBytesLimit;
+    public long getPendingBytesMax() {
+        int rv = 0;
+        mu.lock();
+        try {
+            if (conn == null) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+            rv = this.pBytesMax;
+        } finally {
+            mu.unlock();
+        }
+
+        return rv;
     }
 
-    /**
-     * @param msgs the max pending message limit to set
-     * @param bytes the max pending bytes limit to set
-     */
     @Override
     public void setPendingLimits(int msgs, int bytes) {
-        setMaxPendingMsgs(msgs);
-        setMaxPendingBytes(bytes);
+        setPendingMsgsLimit(msgs);
+        setPendingBytesLimit(bytes);
     }
 
-    /**
-     * @param pending the pending to set
-     */
-    @Override
-    public void setMaxPendingMsgs(int pending) {
-        pMsgsLimit = pending;
-        if (pending <= 0) {
-            pMsgsLimit = ConnectionFactory.DEFAULT_MAX_PENDING_MSGS;
+    void setPendingMsgsLimit(int pendingMsgsLimit) {
+        mu.lock();
+        try {
+            pMsgsLimit = pendingMsgsLimit;
+            if (pendingMsgsLimit == 0) {
+                throw new IllegalArgumentException("nats: pending message limit cannot be zero");
+            }
+        } finally {
+            mu.unlock();
         }
     }
 
-    /**
-     * @param pending the pending to set
-     */
-    @Override
-    public void setMaxPendingBytes(long pending) {
-        this.pBytesLimit = pending;
-        if (pending <= 0) {
-            pBytesLimit = ConnectionFactory.DEFAULT_MAX_PENDING_BYTES;
+    void setPendingBytesLimit(int pendingBytesLimit) {
+        mu.lock();
+        try {
+            pBytesLimit = pendingBytesLimit;
+            if (pendingBytesLimit == 0) {
+                throw new IllegalArgumentException("nats: pending message limit cannot be zero");
+            }
+        } finally {
+            mu.unlock();
         }
     }
 
+    void setPendingMsgsMax(int max) {
+        mu.lock();
+        try {
+            if (conn == null) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+            pMsgsMax = (max <= 0) ? 0 : max;
+        } finally {
+            mu.unlock();
+        }
+    }
+
+    void setPendingBytesMax(int max) {
+        mu.lock();
+        try {
+            if (conn == null) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+            pBytesMax = (max <= 0) ? 0 : max;
+        } finally {
+            mu.unlock();
+        }
+    }
+
+    @Override
+    public void clearMaxPending() {
+        setPendingMsgsMax(0);
+        setPendingBytesMax(0);
+    }
 
     protected Connection getConnection() {
         return (Connection) this.conn;
@@ -295,21 +289,82 @@ abstract class SubscriptionImpl implements Subscription {
         this.conn = conn;
     }
 
-    public int getQueuedMessageCount() {
-        if (this.mch != null) {
-            return this.mch.getCount();
-        } else {
-            return 0;
+    @Override
+    public long getDelivered() {
+        long rv = 0L;
+        mu.lock();
+        try {
+            if (conn == null) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+            rv = delivered;
+        } finally {
+            mu.unlock();
         }
+        return rv;
+    }
+
+    @Override
+    public int getPendingBytes() {
+        int rv = 0;
+        mu.lock();
+        try {
+            if (conn == null) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+            rv = pBytes;
+        } finally {
+            mu.unlock();
+        }
+        return rv;
+    }
+
+    @Override
+    public int getPendingBytesLimit() {
+        int rv = 0;
+        mu.lock();
+        rv = pBytesLimit;
+        mu.unlock();
+        return rv;
+    }
+
+    @Override
+    public int getPendingMsgs() {
+        int rv = 0;
+        mu.lock();
+        try {
+            if (conn == null) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+            rv = pMsgs;
+        } finally {
+            mu.unlock();
+        }
+        return rv;
+    }
+
+    @Override
+    public int getPendingMsgsLimit() {
+        int rv = 0;
+        mu.lock();
+        rv = pMsgsLimit;
+        mu.unlock();
+        return rv;
+    }
+
+    @Override
+    public int getQueuedMessageCount() {
+        return getPendingMsgs();
     }
 
     public String toString() {
-        String s = String.format(
-                "{subject=%s, queue=%s, sid=%d, max=%d, delivered=%d, queued=%d, maxPendingMsgs=%d, maxPendingBytes=%d, valid=%b}",
+        String str = String.format(
+                "{subject=%s, queue=%s, sid=%d, max=%d, delivered=%d, pendingMsgsLimit=%d, "
+                        + "pendingBytesLimit=%d, maxPendingMsgs=%d, maxPendingBytes=%d, valid=%b}",
                 getSubject(), getQueue() == null ? "null" : getQueue(), getSid(), getMax(),
-                delivered.get(), getQueuedMessageCount(), getMaxPendingMsgs(), getMaxPendingBytes(),
-                isValid());
-        return s;
+                delivered, getPendingMsgsLimit(), getPendingBytesLimit(), getPendingMsgsMax(),
+                getPendingBytesMax(), isValid());
+        return str;
     }
 
     protected void setSlowConsumer(boolean sc) {
@@ -318,10 +373,6 @@ abstract class SubscriptionImpl implements Subscription {
 
     protected boolean isSlowConsumer() {
         return this.sc;
-    }
-
-    protected boolean processMsg(Message msg) {
-        return true;
     }
 
     protected void setMax(long max) {
@@ -340,4 +391,15 @@ abstract class SubscriptionImpl implements Subscription {
         mu.unlock();
     }
 
+    void printStats() {
+        System.err.println("delivered: " + delivered);
+        System.err.println("dropped: " + dropped);
+        System.err.println("pMsgs: " + pMsgs);
+        System.err.println("pMsgsLimit: " + pMsgsLimit);
+        System.err.println("pMsgsMax: " + pMsgsMax);
+        System.err.println("pBytes: " + pBytes);
+        System.err.println("pBytesLimit: " + pBytesLimit);
+        System.err.println("pBytesMax: " + pBytesMax);
+        System.err.println();
+    }
 }

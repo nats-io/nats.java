@@ -63,9 +63,12 @@ public final class Constants {
     }
 
     // Error messages
-    // For detection and proper handling of a Stale Connection
+    // STALE_CONNECTION is for detection and proper handling of a stale connections
     static final String STALE_CONNECTION = "stale connection";
-    // Common messages with Go
+    // PERMISSIONS_ERR is for when nats server subject authorization has failed.
+    static final String PERMISSIONS_ERR = "permissions violation";
+
+    // Common messages
     /**
      * This error message is defined as String {@value #ERR_CONNECTION_CLOSED}.
      */
@@ -148,6 +151,10 @@ public final class Constants {
      * This error message is defined as String {@value #ERR_STALE_CONNECTION}.
      */
     public static final String ERR_STALE_CONNECTION = "nats: " + STALE_CONNECTION;
+    /**
+     * This error message is defined as String {@value #ERR_PERMISSIONS_VIOLATION}.
+     */
+    public static final String ERR_PERMISSIONS_VIOLATION = "nats: " + PERMISSIONS_ERR;
 
     // jnats specific
     /**
@@ -261,14 +268,6 @@ public final class Constants {
      * @deprecated use {@link ConnectionFactory#PROP_RECONNECTED_CB}.
      */
     public static final String PROP_RECONNECTED_CB = PFX + "callback.reconnected";
-    /**
-     * @deprecated use {@link ConnectionFactory#PROP_MAX_PENDING_MSGS}.
-     */
-    public static final String PROP_MAX_PENDING_MSGS = PFX + "maxpending";
-    /**
-     * @deprecated use {@link ConnectionFactory#PROP_MAX_PENDING_BYTES}.
-     */
-    public static final String PROP_MAX_PENDING_BYTES = PFX + "maxpending.bytes";
 
     // Server error strings
     protected static final String SERVER_ERR_PARSER = "'Parser Error'";

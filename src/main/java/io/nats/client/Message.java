@@ -50,6 +50,9 @@ public class Message {
     // this(data, length, ma.subject, ma.reply, sub);
     // }
 
+    /*
+     * Note that this constructor may throw ArrayIndexOutOfBoundsException
+     */
     protected Message(MsgArg ma, SubscriptionImpl sub, byte[] buf, int offset, int length) {
         this.setSubject(ma.subject.array(), ma.subject.limit());
         if (ma.reply.limit() > 0) {
@@ -57,16 +60,16 @@ public class Message {
         }
         this.sub = sub;
         // make a deep copy of the bytes for this message.
-        if (ma.size > 0) {
-            data = new byte[ma.size];
-            try {
-                sysArrayCopy(buf, offset, data, 0, length);
-            } catch (ArrayIndexOutOfBoundsException e) {
-                logger.debug("nats: unexpected runtime error copying message body");
-                logger.debug("buf.length={}, offset={}, data.length={}, length={}\n, buf=[{}]",
-                        buf.length, offset, data.length, length, new String(buf, offset, length));
-                e.printStackTrace();
+        if (length > 0) {
+            if (length > buf.length) {
+                throw new IllegalArgumentException(
+                        "nats: source buffer smaller than requested copy length");
+            } else if (length > ma.size) {
+                throw new IllegalArgumentException(
+                        "nats: requested copy length larger than ma.size");
             }
+            data = new byte[length];
+            System.arraycopy(buf, offset, data, 0, length);
         }
     }
 
@@ -147,6 +150,7 @@ public class Message {
     public void setReplyTo(String replyTo) {
         if (replyTo == null) {
             this.replyToBytes = null;
+            this.replyToString = null;
         } else {
             String reply = replyTo.trim();
             if (reply.isEmpty()) {
@@ -160,6 +164,7 @@ public class Message {
     void setReplyTo(byte[] replyTo, int length) {
         if (replyTo == null) {
             this.replyToBytes = null;
+            this.replyToString = null;
         } else {
             this.replyToBytes = Arrays.copyOf(replyTo, length);
         }
@@ -185,8 +190,12 @@ public class Message {
         if (data == null) {
             this.data = null;
         } else {
+            if (length > data.length) {
+                throw new IllegalArgumentException(
+                        "nats: source buffer smaller than requested copy length");
+            }
             this.data = new byte[length];
-            sysArrayCopy(data, offset, this.data, 0, length);
+            System.arraycopy(data, offset, this.data, 0, length);
         }
     }
 
@@ -201,17 +210,6 @@ public class Message {
         } else {
             setData(null, 0, 0);
         }
-    }
-
-    static void sysArrayCopy(byte[] src, int srcPos, byte[] dest, int destPos, int length) {
-        if (length > src.length) {
-            throw new ArrayIndexOutOfBoundsException(
-                    "source buffer smaller than requested copy length");
-        } else if (length > dest.length) {
-            throw new ArrayIndexOutOfBoundsException(
-                    "destination buffer smaller than requested copy length");
-        }
-        System.arraycopy(src, srcPos, dest, destPos, length);
     }
 
     /**

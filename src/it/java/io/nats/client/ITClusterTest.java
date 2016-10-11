@@ -6,6 +6,9 @@
 
 package io.nats.client;
 
+import static io.nats.client.UnitTestUtilities.await;
+import static io.nats.client.UnitTestUtilities.runServerOnPort;
+import static io.nats.client.UnitTestUtilities.runServerWithConfig;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -30,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +82,7 @@ public class ITClusterTest {
         cf.setServers(testServers);
 
         // Make sure we can connect to first server if running
-        try (NATSServer ns = utils.createServerOnPort(1222)) {
+        try (NATSServer ns = runServerOnPort(1222)) {
             try (Connection c = cf.createConnection()) {
                 assertTrue(String.format("%s != %s", testServers[0], c.getConnectedUrl()),
                         testServers[0].equals(c.getConnectedUrl()));
@@ -90,7 +94,7 @@ public class ITClusterTest {
         }
 
         // make sure we can connect to a non-first server.
-        try (NATSServer ns = utils.createServerOnPort(1227)) {
+        try (NATSServer ns = runServerOnPort(1227)) {
             try (Connection c = cf.createConnection()) {
                 assertTrue(testServers[5] + " != " + c.getConnectedUrl(),
                         testServers[5].equals(c.getConnectedUrl()));
@@ -111,8 +115,8 @@ public class ITClusterTest {
         cf.setServers(plainServers);
         cf.setConnectionTimeout(5000);
 
-        try (NATSServer as1 = utils.createServerWithConfig("auth_1222.conf")) {
-            try (NATSServer as2 = utils.createServerWithConfig("auth_1224.conf")) {
+        try (NATSServer as1 = runServerWithConfig("auth_1222.conf")) {
+            try (NATSServer as2 = runServerWithConfig("auth_1224.conf")) {
                 boolean exThrown = false;
                 try (Connection c = cf.createConnection()) {
                     fail("Expect Auth failure, got no error");
@@ -149,8 +153,8 @@ public class ITClusterTest {
 
     @Test
     public void testBasicClusterReconnect() {
-        try (NATSServer s1 = utils.createServerOnPort(1222)) {
-            try (NATSServer s2 = utils.createServerOnPort(1224)) {
+        try (NATSServer s1 = runServerOnPort(1222)) {
+            try (NATSServer s2 = runServerOnPort(1224)) {
 
                 final AtomicLong disconTimestamp = new AtomicLong(0L);
                 final AtomicLong reconElapsed = new AtomicLong(0L);
@@ -159,26 +163,26 @@ public class ITClusterTest {
                 cf.setReconnectWait(1000);
                 cf.setNoRandomize(true);
 
-                final Channel<Boolean> dch = new Channel<Boolean>();
+                final CountDownLatch dcLatch = new CountDownLatch(1);
                 cf.setDisconnectedCallback(new DisconnectedCallback() {
                     public void onDisconnect(ConnectionEvent event) {
                         logger.trace("onDisconnect()");
                         disconTimestamp.set(System.nanoTime());
                         // Suppress any additional calls
                         event.getConnection().setDisconnectedCallback(null);
-                        dch.add(true);
+                        dcLatch.countDown();
                         logger.trace("signaled disconnect");
                     }
 
                 });
 
-                final Channel<Boolean> rch = new Channel<Boolean>();
+                final CountDownLatch rcLatch = new CountDownLatch(1);
                 cf.setReconnectedCallback(new ReconnectedCallback() {
                     public void onReconnect(ConnectionEvent event) {
                         logger.trace("onReconnect()");
                         reconElapsed.set(TimeUnit.NANOSECONDS
                                 .toMillis(System.nanoTime() - disconTimestamp.get()));
-                        rch.add(true);
+                        rcLatch.countDown();
                         logger.trace("signaled reconnect");
                     }
                 });
@@ -189,21 +193,15 @@ public class ITClusterTest {
                     s1.shutdown();
 
                     // wait for disconnect
-                    try {
-                        logger.trace("\n\nWaiting for disconnect signal\n\n");
-                        assertTrue("Did not receive a disconnect callback message",
-                                dch.get(2, TimeUnit.SECONDS));
-                    } catch (TimeoutException e) {
-                        fail("Did not receive a disconnect callback message: " + e.getMessage());
-                    }
+                    logger.trace("\n\nWaiting for disconnect signal\n\n");
+                    assertTrue("Did not receive a disconnect callback message",
+                            await(dcLatch, 2, TimeUnit.SECONDS));
+
                     sleep(3, TimeUnit.SECONDS);
-                    try {
-                        logger.trace("\n\nWaiting for reconnect signal\n\n");
-                        assertTrue("Did not receive a reconnect callback message: ",
-                                rch.get(2, TimeUnit.SECONDS));
-                    } catch (TimeoutException e) {
-                        fail("Did not receive a reconnect callback message: " + e.getMessage());
-                    }
+
+                    logger.trace("\n\nWaiting for reconnect signal\n\n");
+                    assertTrue("Did not receive a reconnect callback message: ",
+                            await(rcLatch, 2, TimeUnit.SECONDS));
 
                     assertTrue(c.getConnectedUrl().equals(testServers[2]));
 
@@ -230,9 +228,9 @@ public class ITClusterTest {
         final Channel<String> rch = new Channel<String>();
         final Channel<Integer> dch = new Channel<Integer>();
         final AtomicBoolean shutdown = new AtomicBoolean(false);
-        try (NATSServer s1 = utils.createServerOnPort(1222)) {
-            try (NATSServer s2 = utils.createServerOnPort(1224)) {
-                try (NATSServer s3 = utils.createServerOnPort(1226)) {
+        try (NATSServer s1 = runServerOnPort(1222)) {
+            try (NATSServer s2 = runServerOnPort(1224)) {
+                try (NATSServer s3 = runServerOnPort(1226)) {
 
                     final class NATSClient implements Runnable {
                         ConnectionFactory cf = new ConnectionFactory();
@@ -382,16 +380,16 @@ public class ITClusterTest {
 
     @Test
     public void testProperReconnectDelay() throws Exception {
-        try (NATSServer s1 = utils.createServerOnPort(1222)) {
+        try (NATSServer s1 = runServerOnPort(1222)) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setServers(testServers);
             cf.setNoRandomize(true);
 
-            final Channel<Boolean> dch = new Channel<Boolean>();
+            final CountDownLatch latch = new CountDownLatch(1);
             cf.setDisconnectedCallback(new DisconnectedCallback() {
                 public void onDisconnect(ConnectionEvent event) {
                     event.getConnection().setDisconnectedCallback(null);
-                    dch.add(true);
+                    latch.countDown();
                 }
             });
 
@@ -408,7 +406,7 @@ public class ITClusterTest {
                 s1.shutdown();
                 // wait for disconnect
                 assertTrue("Did not receive a disconnect callback message",
-                        dch.get(2, TimeUnit.SECONDS));
+                        await(latch, 2, TimeUnit.SECONDS));
 
                 // Wait, want to make sure we don't spin on reconnect to non-existent servers.
                 sleep(1, TimeUnit.SECONDS);
@@ -429,43 +427,33 @@ public class ITClusterTest {
         cf.setMaxReconnect(5);
         cf.setReconnectWait(25); // millis
 
-        final Channel<Boolean> dch = new Channel<Boolean>();
-        final AtomicBoolean dcbCalled = new AtomicBoolean(false);
+        final CountDownLatch dcLatch = new CountDownLatch(1);
         cf.setDisconnectedCallback(new DisconnectedCallback() {
             public void onDisconnect(ConnectionEvent event) {
-                dcbCalled.set(true);
-                dch.add(true);
+                dcLatch.countDown();
             }
         });
 
         final AtomicBoolean closedCbCalled = new AtomicBoolean(false);
-        final Channel<Boolean> cch = new Channel<Boolean>();
+        final CountDownLatch ccLatch = new CountDownLatch(1);
         cf.setClosedCallback(new ClosedCallback() {
             public void onClose(ConnectionEvent event) {
                 closedCbCalled.set(true);
-                cch.add(true);
+                ccLatch.countDown();
             }
         });
 
-        try (NATSServer s1 = utils.createServerOnPort(1222)) {
+        try (NATSServer s1 = runServerOnPort(1222)) {
             try (Connection c = cf.createConnection()) {
                 s1.shutdown();
 
                 // wait for disconnect
-                try {
-                    assertTrue("Did not receive a disconnect callback message",
-                            dch.get(2, TimeUnit.SECONDS));
-                } catch (TimeoutException e) {
-                    fail("Did not receive a disconnect callback message");
-                }
+                assertTrue("Did not receive a disconnect callback message",
+                        await(dcLatch, 2, TimeUnit.SECONDS));
 
                 // Wait for ClosedCB
-                try {
-                    assertTrue("Did not receive a closed callback message",
-                            cch.get(2, TimeUnit.SECONDS));
-                } catch (TimeoutException e) {
-                    fail("Did not receive a closed callback message");
-                }
+                assertTrue("Did not receive a closed callback message",
+                        await(ccLatch, 2, TimeUnit.SECONDS));
 
                 // Make sure we are not still reconnecting.
                 assertTrue("Closed CB was not triggered, should have been.", closedCbCalled.get());
@@ -480,6 +468,67 @@ public class ITClusterTest {
     }
 
     @Test
+    public void testProperFalloutAfterMaxAttemptsWithAuthMismatch() {
+        final String[] myServers = { "nats://localhost:1222", "nats://localhost:4443" };
+
+        ConnectionFactory cf = new ConnectionFactory();
+        cf.setServers(myServers);
+        cf.setNoRandomize(true);
+        cf.setMaxReconnect(5);
+        cf.setReconnectWait(25); // millis
+
+        final CountDownLatch dcLatch = new CountDownLatch(1);
+        cf.setDisconnectedCallback(new DisconnectedCallback() {
+            public void onDisconnect(ConnectionEvent event) {
+                dcLatch.countDown();
+            }
+        });
+
+        final AtomicBoolean closedCbCalled = new AtomicBoolean(false);
+        final CountDownLatch ccLatch = new CountDownLatch(1);
+        cf.setClosedCallback(new ClosedCallback() {
+            public void onClose(ConnectionEvent event) {
+                closedCbCalled.set(true);
+                ccLatch.countDown();
+            }
+        });
+
+        try (NATSServer s1 = runServerOnPort(1222)) {
+            try (NATSServer s2 = runServerWithConfig("tlsverify.conf")) {
+                try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
+                    s1.shutdown();
+
+                    // wait for disconnect
+                    assertTrue("Did not receive a disconnect callback message",
+                            await(dcLatch, 5, TimeUnit.SECONDS));
+
+                    // Wait for ClosedCB
+                    assertTrue("Did not receive a closed callback message",
+                            await(ccLatch, 5, TimeUnit.SECONDS));
+
+                    // Make sure we are not still reconnecting.
+                    assertTrue("Closed CB was not triggered, should have been.",
+                            closedCbCalled.get());
+
+                    // Make sure we have not exceeded MaxReconnect
+                    assertEquals("Wrong number of reconnects", nc.opts.getMaxReconnect(),
+                            nc.getStats().getReconnects());
+
+                    // Make sure we are not still reconnecting
+                    assertTrue("Closed CB was not triggered, should have been.",
+                            closedCbCalled.get());
+
+                    // Expect connection to be closed...
+                    assertTrue("Wrong status: " + nc.getState(), nc.isClosed());
+                } catch (IOException | TimeoutException e1) {
+                    // TODO Auto-generated catch block
+                    e1.printStackTrace();
+                }
+            }
+        }
+    }
+
+    @Test
     public void testTimeoutOnNoServers() {
         final ConnectionFactory cf = new ConnectionFactory();
         cf.setServers(testServers);
@@ -489,21 +538,18 @@ public class ITClusterTest {
         cf.setMaxReconnect(10);
         cf.setReconnectWait(100);
 
-        final AtomicBoolean dcbCalled = new AtomicBoolean(false);
-
-        final Channel<Boolean> dch = new Channel<Boolean>();
+        final CountDownLatch dcLatch = new CountDownLatch(1);
         cf.setDisconnectedCallback(new DisconnectedCallback() {
             public void onDisconnect(ConnectionEvent ev) {
                 ev.getConnection().setDisconnectedCallback(null);
-                dcbCalled.set(true);
-                dch.add(true);
+                dcLatch.countDown();
             }
         });
 
-        final Channel<Boolean> cch = new Channel<Boolean>();
+        final CountDownLatch ccLatch = new CountDownLatch(1);
         cf.setClosedCallback(new ClosedCallback() {
             public void onClose(ConnectionEvent ev) {
-                cch.add(true);
+                ccLatch.countDown();
             }
         });
 
@@ -518,13 +564,13 @@ public class ITClusterTest {
                 // }
                 // wait for disconnect
                 assertTrue("Did not receive a disconnect callback message",
-                        dch.get(2, TimeUnit.SECONDS));
+                        await(dcLatch, 2, TimeUnit.SECONDS));
 
                 long t0 = System.nanoTime();
 
                 // Wait for ClosedCB
-                assertTrue("Did not receive a closed callback message",
-                        cch.get(2, TimeUnit.SECONDS));
+                assertTrue("Did not receive a closed callback signal",
+                        await(ccLatch, 2, TimeUnit.SECONDS));
 
                 long elapsedMsec = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
 
@@ -541,11 +587,11 @@ public class ITClusterTest {
         }
     }
 
-    // TODO this test, as written in Go, makes no sense
-    // @Test
+    @Test
     public void testPingReconnect() throws Exception {
-        int RECONNECTS = 4;
-        try (NATSServer s1 = utils.createServerOnPort(1222)) {
+        // TODO this test, as written in Go, makes no sense
+        final int reconnects = 4;
+        try (NATSServer s1 = runServerOnPort(1222)) {
 
             ConnectionFactory cf = new ConnectionFactory();
 
@@ -556,14 +602,15 @@ public class ITClusterTest {
             cf.setMaxPingsOut(-1);
             cf.setConnectionTimeout(1000);
 
-            final Channel<Long> rch = new Channel<Long>(RECONNECTS);
-            final Channel<Long> dch = new Channel<Long>(RECONNECTS);
+            final CountDownLatch wg = new CountDownLatch(1);
+            final Channel<Long> rch = new Channel<Long>(reconnects);
+            final Channel<Long> dch = new Channel<Long>(reconnects);
 
             cf.setDisconnectedCallback(new DisconnectedCallback() {
                 public void onDisconnect(ConnectionEvent event) {
-                    dch.add(System.nanoTime());
-                    System.err.println(
-                            "onDisconnect(), disconnected from " + event.nc.getConnectedUrl());
+                    if (dch.getCount() < reconnects) {
+                        dch.add(System.nanoTime());
+                    }
                 }
             });
 
@@ -571,24 +618,22 @@ public class ITClusterTest {
                 @Override
                 public void onReconnect(ConnectionEvent event) {
                     rch.add(System.nanoTime());
-                    System.err.println("onReconnect()");
+                    if (rch.getCount() == reconnects) {
+                        wg.countDown();
+                    }
                 }
             });
 
             try (ConnectionImpl c = (ConnectionImpl) cf.createConnection()) {
-                assertFalse(c.isClosed());
-
+                wg.await();
                 s1.shutdown();
 
-                while (dch.getCount() == 0) {
-                    Thread.sleep(5);
+                while (rch.getCount() < reconnects) {
+                    sleep(10);
                 }
-                System.err.println("Proceeding");
-                for (int i = 0; i < RECONNECTS - 1; i++) {
-                    System.err.println("dch.get...");
+                for (int i = 0; i < reconnects - 1; i++) {
                     Long disconnectedAt = dch.get(5, TimeUnit.SECONDS);
                     assertNotNull(disconnectedAt);
-                    System.err.println("rch.get...");
                     long reconnectedAt = rch.get(1, TimeUnit.SECONDS);
                     assertNotNull(reconnectedAt);
                     long pingCycle = TimeUnit.NANOSECONDS.toMillis(disconnectedAt - reconnectedAt);

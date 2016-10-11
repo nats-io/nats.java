@@ -36,8 +36,6 @@ class Options {
     private ExceptionHandler exceptionHandler;
     private SSLContext sslContext;
     private boolean tlsDebug;
-    private int maxPendingMsgs;
-    private long maxPendingBytes;
     protected DisconnectedCallback disconnectedCB;
     protected ClosedCallback closedCB;
     protected ReconnectedCallback reconnectedCB;
@@ -45,22 +43,6 @@ class Options {
 
     // private List<X509Certificate> certificates =
     // new ArrayList<X509Certificate>();
-
-    public int getMaxPendingMsgs() {
-        return maxPendingMsgs;
-    }
-
-    public void setMaxPendingMsgs(int max) {
-        this.maxPendingMsgs = max;
-    }
-
-    public long getMaxPendingBytes() {
-        return maxPendingBytes;
-    }
-
-    public void setMaxPendingBytes(long max) {
-        this.maxPendingBytes = max;
-    }
 
     public URI getUrl() {
         return url;

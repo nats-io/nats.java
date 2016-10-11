@@ -7,6 +7,7 @@
 package io.nats.client;
 
 import static io.nats.client.Constants.ERR_BAD_SUBJECT;
+import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.Constants.ERR_BAD_TIMEOUT;
 import static io.nats.client.Constants.ERR_CONNECTION_CLOSED;
 import static io.nats.client.Constants.ERR_CONNECTION_READ;
@@ -20,6 +21,7 @@ import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
 import static io.nats.client.Constants.ERR_STALE_CONNECTION;
 import static io.nats.client.Constants.ERR_TCP_FLUSH_FAILED;
 import static io.nats.client.Constants.ERR_TIMEOUT;
+import static io.nats.client.Constants.PERMISSIONS_ERR;
 import static io.nats.client.Constants.TLS_SCHEME;
 
 import io.nats.client.Constants.ConnState;
@@ -51,9 +53,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Phaser;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -177,12 +179,13 @@ public class ConnectionImpl implements Connection {
 
 
     ExecutorService cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
-    // private ExecutorService executor =
-    // Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
+    private ExecutorService exec =
+            Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
     private ScheduledExecutorService ptmr = null;
-    private Phaser phaser = new Phaser();
+    private static final int NUM_WATCHER_THREADS = 2;
+    private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
+    private CountDownLatch socketWatchersDoneLatch = null;
     private Channel<Boolean> fch = new Channel<Boolean>(FLUSH_CHAN_SIZE);
-    private List<Thread> threads = new ArrayList<Thread>();
 
     ConnectionImpl() {}
 
@@ -223,7 +226,7 @@ public class ConnectionImpl implements Connection {
         setupServerPool();
     }
 
-    private void setup() {
+    void setup() {
         subs.clear();
     }
 
@@ -540,10 +543,12 @@ public class ConnectionImpl implements Connection {
                 }
                 if (opts.getClosedCallback() != null) {
                     cbexec.execute(new Runnable() {
+
                         public void run() {
                             opts.getClosedCallback().onClose(new ConnectionEvent(nc));
                             logger.trace("executed ClosedCB");
                         }
+
                     });
                 }
             }
@@ -741,12 +746,13 @@ public class ConnectionImpl implements Connection {
                 setOutputStream(getPending());
 
                 logger.trace("\t\tspawning doReconnect() in state {}", status);
-                threads.add(go(new Runnable() {
+                exec.submit(new Runnable() {
                     public void run() {
                         Thread.currentThread().setName("reconnect");
                         doReconnect();
                     }
-                }, "reconnect", "phaser", phaser));
+                });
+
                 logger.trace("\t\tspawned doReconnect() in state {}", status);
                 return;
             } else {
@@ -839,12 +845,10 @@ public class ConnectionImpl implements Connection {
 
         // Perform appropriate callback if needed for a disconnect
         if (opts.getDisconnectedCallback() != null) {
-            // TODO This mirrors go, and so does not spawn a thread/task.
             logger.trace("Spawning disconnectCB from doReconnect()");
             cbexec.execute(new Runnable() {
                 public void run() {
                     opts.getDisconnectedCallback().onDisconnect(new ConnectionEvent(nc));
-
                 }
             });
             logger.trace("Spawned disconnectCB from doReconnect()");
@@ -1012,20 +1016,14 @@ public class ConnectionImpl implements Connection {
 
         if (STALE_CONNECTION.equalsIgnoreCase(err)) {
             processOpError(new IOException(ERR_STALE_CONNECTION));
+        } else if (err.startsWith(PERMISSIONS_ERR)) {
+            processPermissionsViolation(err);
         } else {
             ex = new NATSException("nats: " + err);
             ex.setConnection(this);
-
             mu.lock();
-            try {
-                setLastError(ex);
-                // if (status != ConnState.CONNECTING)
-                // {
-                // doCBs = true;
-                // }
-            } finally {
-                mu.unlock();
-            }
+            setLastError(ex);
+            mu.unlock();
             close();
         }
     }
@@ -1170,102 +1168,98 @@ public class ConnectionImpl implements Connection {
         setFlusherDone(true);
         kickFlusher();
 
-        phaser.register();
-        int numParties = phaser.getRegisteredParties();
-        logger.trace("Num registered parties: {}", numParties);
-        while (!phaser.isTerminated()) {
-            // phaser.arriveAndAwaitAdvance();
-            phaser.arriveAndDeregister();
+        if (socketWatchersDoneLatch != null) {
+            try {
+                socketWatchersDoneLatch.await();
+            } catch (InterruptedException e) {
+                logger.warn("nats: interrupted waiting for threads to exit");
+                // e.printStackTrace();
+            }
         }
-        logger.trace("Done waiting: Num registered parties: {}", phaser.getRegisteredParties());
-    }
-
-    void runTasks(List<Runnable> tasks) {
-        final Phaser phaser = new Phaser(1); // "1" to register self
-        // create and start threads
-        for (final Runnable task : tasks) {
-            phaser.register();
-            new Thread() {
-                public void run() {
-                    phaser.arriveAndAwaitAdvance(); // await all creation
-                    task.run();
-                    phaser.arriveAndDeregister();
-                }
-            }.start();
-        }
-
-        // allow threads to start and deregister self
-        phaser.arriveAndDeregister();
+        logger.trace("waitForExits complete");
     }
 
     protected void spinUpSocketWatchers() {
         logger.trace("Spinning up threads");
         // Make sure everything has exited.
-        if (phaser.getPhase() != 0) {
-            waitForExits();
-        }
-        List<Runnable> tasks = new ArrayList<Runnable>();
+        waitForExits();
 
-        tasks.add(new Runnable() {
+        socketWatchersDoneLatch = new CountDownLatch(NUM_WATCHER_THREADS);
+        socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
+
+        exec.submit(new Runnable() {
             public void run() {
                 logger.trace("READLOOP STARTING");
                 Thread.currentThread().setName("readloop");
+                socketWatchersStartLatch.countDown();
+                try {
+                    socketWatchersStartLatch.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 readLoop();
+                socketWatchersDoneLatch.countDown();
                 logger.trace("READLOOP EXITING");
             }
         });
 
-        tasks.add(new Runnable() {
+        exec.submit(new Runnable() {
             public void run() {
                 logger.trace("FLUSHER STARTING");
                 Thread.currentThread().setName("flusher");
+                socketWatchersStartLatch.countDown();
+                try {
+                    socketWatchersStartLatch.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 flusher();
+                socketWatchersDoneLatch.countDown();
                 logger.trace("FLUSHER EXITING");
             }
         });
 
-        runTasks(tasks);
-
+        socketWatchersStartLatch.countDown();
 
         resetPingTimer();
 
     }
 
-    protected Thread go(final Runnable task, final String name, final String group,
-            final Phaser ph) {
-        NATSThread.setDebug(true);
-        NATSThread t = new NATSThread(task, name) {
-            public void run() {
-                if (ph != null) {
-                    ph.register();
-                    logger.trace("{} registered in group {}. # registered for phase {} = {}", name,
-                            group, ph.getPhase(), ph.getRegisteredParties());
-                    logger.trace(name + " starting");
-                    ph.arriveAndAwaitAdvance(); // await all creation
-                } else {
-                    logger.trace("Untracked thread " + name + " starting.");
-                }
-
-                task.run();
-
-                if (ph != null) {
-                    int oldPhase = ph.getPhase();
-                    logger.trace(name + " arrive and deregister for phase {}", ph.getPhase());
-                    logger.trace(
-                            "{} (group {}) ending phase {}: Registered = {}, Arrived = {}, Unarrived={}",
-                            name, group, oldPhase, ph.getRegisteredParties(),
-                            ph.getArrivedParties(), ph.getUnarrivedParties());
-                    int phase = ph.arriveAndDeregister();
-                    logger.trace(name + " deregistered going into phase {}", phase);
-                } else {
-                    logger.trace("Untracked thread " + name + " completed.");
-                }
-            }
-        };
-        t.start();
-        NATSThread.setDebug(false);
-        return t;
-    }
+    // protected Thread go(final Runnable task, final String name, final String group,
+    // final Phaser ph) {
+    // NATSThread.setDebug(true);
+    // NATSThread t = new NATSThread(task, name) {
+    // public void run() {
+    // if (ph != null) {
+    // ph.register();
+    // logger.trace("{} registered in group {}. # registered for phase {} = {}", name,
+    // group, ph.getPhase(), ph.getRegisteredParties());
+    // logger.trace(name + " starting");
+    // ph.arriveAndAwaitAdvance(); // await all creation
+    // } else {
+    // logger.trace("Untracked thread " + name + " starting.");
+    // }
+    //
+    // task.run();
+    //
+    // if (ph != null) {
+    // int oldPhase = ph.getPhase();
+    // logger.trace(name + " arrive and deregister for phase {}", ph.getPhase());
+    // logger.trace(
+    // "{} (group {}) ending phase {}: Registered = {}, Arrived = {}, Unarrived={}",
+    // name, group, oldPhase, ph.getRegisteredParties(),
+    // ph.getArrivedParties(), ph.getUnarrivedParties());
+    // int phase = ph.arriveAndDeregister();
+    // logger.trace(name + " deregistered going into phase {}", phase);
+    // } else {
+    // logger.trace("Untracked thread " + name + " completed.");
+    // }
+    // }
+    // };
+    // t.start();
+    // NATSThread.setDebug(false);
+    // return t;
+    // }
 
     protected class Control {
         String op = null;
@@ -1438,49 +1432,111 @@ public class ConnectionImpl implements Connection {
         mu.unlock();
     }
 
-    // deliverMsgs waits on the delivery channel shared with readLoop and processMsg.
-    // It is used to deliver messages to asynchronous subscribers.
-    // This function is the run() method of the AsyncSubscription's msgFeeder thread.
-    protected void deliverMsgs(Channel<Message> ch) {
-        // logger.trace("In deliverMsgs");
-        Message msg = null;
-
-        mu.lock();
-        // Slightly faster to do this directly vs call isClosed
-        if (_isClosed()) {
-            mu.unlock();
-            return;
-        }
-        mu.unlock();
+    /**
+     * waitForMsgs waits on the conditional shared with readLoop and processMsg. It is used to
+     * deliver messages to asynchronous subscribers.
+     * 
+     * @param sub the asynchronous subscriber
+     * @throws InterruptedException if the thread is interrupted
+     */
+    protected void waitForMsgs(AsyncSubscriptionImpl sub) throws InterruptedException {
+        boolean closed;
+        long delivered = 0L;
+        long max;
+        Message msg;
+        MessageHandler mcb;
 
         while (true) {
-            msg = ch.get();
-
-            if (msg == null) {
-                // the channel has been closed, exit silently.
-                logger.debug("Channel closed, exiting msgFeeder loop");
-                return;
+            sub.lock();
+            try {
+                while (sub.mch.getCount() == 0 && !sub.closed) {
+                    sub.pCond.await();
+                }
+                msg = sub.mch.get();
+                if (msg != null) {
+                    sub.pMsgs--;
+                    sub.pBytes -= (msg.getData() == null ? 0 : msg.getData().length);
+                }
+                mcb = sub.msgHandler;
+                max = sub.max;
+                closed = sub.closed;
+                if (!sub.closed) {
+                    sub.delivered++;
+                    delivered = sub.delivered;
+                }
+            } finally {
+                sub.unlock();
             }
-            // Note, this seems odd message having the sub process itself,
-            // but this is good for performance.
-            if (!msg.sub.processMsg(msg)) {
+
+            if (closed) {
+                break;
+            }
+
+            // Deliver the message.
+            if (msg != null && (max <= 0 || delivered <= max)) {
+                mcb.onMessage(msg);
+            }
+            // If we have hit the max for delivered msgs, remove sub.
+            if (max > 0 && delivered >= max) {
                 mu.lock();
                 try {
-                    removeSub(msg.sub);
+                    removeSub(sub);
                 } finally {
                     mu.unlock();
                 }
+                break;
             }
         }
     }
 
-    // processMsg is called by parse and will place the msg on the
-    // appropriate channel for processing. All subscribers have their
-    // their own channel. If the channel is full, the connection is
-    // considered a slow subscriber.
+    // deliverMsgs waits on the delivery channel shared with readLoop and processMsg.
+    // It is used to deliver messages to asynchronous subscribers.
+    // This function is the run() method of the AsyncSubscription's msgFeeder thread.
+    // protected void deliverMsgs(Channel<Message> ch) {
+    // // logger.trace("In deliverMsgs");
+    // Message msg = null;
+    //
+    // mu.lock();
+    // // Slightly faster to do this directly vs call isClosed
+    // if (_isClosed()) {
+    // mu.unlock();
+    // return;
+    // }
+    // mu.unlock();
+    //
+    // while (true) {
+    // msg = ch.get();
+    //
+    // if (msg == null) {
+    // // the channel has been closed, exit silently.
+    // logger.debug("Channel closed, exiting msgFeeder loop");
+    // return;
+    // }
+    // // Note, this seems odd message having the sub process itself,
+    // // but this is good for performance.
+    // if (!msg.sub.processMsg(msg)) {
+    // mu.lock();
+    // try {
+    // removeSub(msg.sub);
+    // } finally {
+    // mu.unlock();
+    // }
+    // }
+    // }
+    // }
+
+    /**
+     * processMsg is called by parse and will place the msg on the appropriate channel/pending queue
+     * for processing. If the channel is full, or the pending queue is over the pending limits, the
+     * connection is considered a slow consumer.
+     * 
+     * @param data the buffer containing the message body
+     * @param offset the offset within this buffer of the beginning of the message body
+     * @param length the length of the message body
+     */
     protected void processMsg(byte[] data, int offset, int length) {
-        boolean maxReached = false;
         SubscriptionImpl sub;
+        boolean slowConsumer = false;
 
         mu.lock();
         try {
@@ -1493,25 +1549,57 @@ public class ConnectionImpl implements Connection {
             }
 
             // Doing message create outside of the sub's lock to reduce contention.
-            // It's possible that we end-up not using the message, but that's ok.
+            // It's possible that we end up not using the message, but that's ok.
             Message msg = new Message(ps.ma, sub, data, offset, length);
 
             sub.lock();
             try {
-                maxReached = sub.tallyMessage(length);
-                if (!maxReached) {
-                    sub.addMessage(msg);
-                } // maxreached == false
+                sub.pMsgs++;
+                if (sub.pMsgs > sub.pMsgsMax) {
+                    sub.pMsgsMax = sub.pMsgs;
+                }
+                sub.pBytes += (msg.getData() == null ? 0 : msg.getData().length);
+                if (sub.pBytes > sub.pBytesMax) {
+                    sub.pBytesMax = sub.pBytes;
+                }
+
+                // Check for a Slow Consumer
+                if ((sub.pMsgsLimit > 0 && sub.pMsgs > sub.pMsgsLimit)
+                        || (sub.pBytesLimit > 0 && sub.pBytes > sub.pBytesLimit)) {
+                    handleSlowConsumer(sub, msg);
+                    return;
+                } else {
+                    // We use mch for everything, unlike Go client
+                    if (sub.getChannel() != null) {
+                        if (sub.getChannel().add(msg)) {
+                            sub.pCond.signal();
+                        } else {
+                            handleSlowConsumer(sub, msg);
+                            return;
+                        }
+                    }
+                }
+
+                // Clear Slow Consumer status
+                sub.setSlowConsumer(false);
             } finally {
                 sub.unlock();
             }
         } finally {
             mu.unlock();
         }
-        if (maxReached) {
-            removeSub(sub);
+    }
+
+    // Assumes you already have the lock
+    protected void handleSlowConsumer(SubscriptionImpl sub, Message msg) {
+        sub.dropped++;
+        processSlowConsumer(sub);
+        sub.pMsgs--;
+        if (msg.getData() != null) {
+            sub.pBytes -= msg.getData().length;
         }
     }
+
 
     void removeSub(SubscriptionImpl sub) {
         subs.remove(sub.getSid());
@@ -1537,13 +1625,9 @@ public class ConnectionImpl implements Connection {
     // processSlowConsumer will set SlowConsumer state and fire the
     // async error handler if registered.
     void processSlowConsumer(SubscriptionImpl sub) {
-        // logger.trace("processSlowConsumer() subj={}",
-        // s.getSubject()
-        // );
         final IOException ex = new IOException(ERR_SLOW_CONSUMER);
         final NATSException nex = new NATSException(ex, this, sub);
         setLastError(ex);
-
         if (opts.getExceptionHandler() != null && !sub.isSlowConsumer()) {
             cbexec.execute(new Runnable() {
                 public void run() {
@@ -1552,6 +1636,20 @@ public class ConnectionImpl implements Connection {
             });
         }
         sub.setSlowConsumer(true);
+    }
+
+    void processPermissionsViolation(String err) {
+        final IOException serverEx = new IOException("nats: " + err);
+        final NATSException nex = new NATSException(serverEx);
+        nex.setConnection(this);
+        setLastError(serverEx);
+        if (opts.getExceptionHandler() != null) {
+            cbexec.execute(new Runnable() {
+                public void run() {
+                    opts.getExceptionHandler().onException(nex);
+                }
+            });
+        }
     }
 
     // FIXME: This is a hack
@@ -1789,7 +1887,6 @@ public class ConnectionImpl implements Connection {
         Channel<Boolean> ch = null;
         mu.lock();
         try {
-            logger.trace("flush(int timeout) acquired lock");
             if (_isClosed()) {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
@@ -1800,8 +1897,6 @@ public class ConnectionImpl implements Connection {
             mu.unlock();
         }
 
-        logger.trace("flush(int timeout): prior to polling PONG channel");
-
         Boolean rv = null;
         boolean timedOut = false;
         while (!timedOut && !ch.isClosed() && (rv == null)) {
@@ -1809,7 +1904,6 @@ public class ConnectionImpl implements Connection {
             timedOut = (elapsed >= timeout);
             rv = ch.poll();
         }
-        logger.trace("flush(int timeout): after polling PONG channel");
 
         if (timedOut) {
             err = new TimeoutException(ERR_TIMEOUT);
@@ -1822,12 +1916,9 @@ public class ConnectionImpl implements Connection {
         }
 
         if (err != null) {
-            logger.trace("flush(int timeout): before removeFlushEntry");
             this.removeFlushEntry(ch);
-            logger.trace("flush(int timeout): before throw");
             throw err;
         }
-        logger.trace("flush(int timeout): returning without error");
     }
 
 
@@ -1835,10 +1926,8 @@ public class ConnectionImpl implements Connection {
     /// receives the internal reply.
     @Override
     public void flush() throws Exception {
-        logger.trace("FLUSH");
         // 60 second default.
         flush(60000);
-        logger.trace("FLUSHED!");
     }
 
     // resendSubscriptions will send our subscription state back to the
@@ -1855,8 +1944,8 @@ public class ConnectionImpl implements Connection {
             try {
                 logger.trace("Sub = {}", sub);
                 if (sub.max > 0) {
-                    if (sub.delivered.get() < sub.max) {
-                        adjustedMax = sub.max - sub.delivered.get();
+                    if (sub.delivered < sub.max) {
+                        adjustedMax = sub.max - sub.delivered;
                     }
                     // adjustedMax could be 0 here if the number of delivered msgs
                     // reached the max, if so unsubscribe.
@@ -1887,79 +1976,91 @@ public class ConnectionImpl implements Connection {
         // bw.flush();
     }
 
+    /**
+     * subscribe is the internal subscribe function that indicates interest in a subject.
+     * 
+     * @param subj the subject
+     * @param queue an optional subscription queue
+     * @param cb async callback
+     * @param ch channel
+     * @return the Subscription object
+     */
+    SubscriptionImpl subscribe(String subject, String queue, MessageHandler cb,
+            Channel<Message> ch) {
+        final SubscriptionImpl sub;
+        mu.lock();
+        try {
+            // Check for some error conditions.
+            if (_isClosed()) {
+                throw new IllegalStateException(ERR_CONNECTION_CLOSED);
+            }
+
+            if (cb == null && ch == null) {
+                throw new IllegalArgumentException(ERR_BAD_SUBSCRIPTION);
+            }
+        } finally {
+            kickFlusher();
+            mu.unlock();
+        }
+
+        // Create subscription with pending limits
+        if (cb != null) {
+            sub = new AsyncSubscriptionImpl(this, subject, queue, cb);
+            // If we have an async callback, start up a sub specific Runnable to deliver the
+            // messages
+            exec.submit(new Runnable() {
+                public void run() {
+                    try {
+                        waitForMsgs((AsyncSubscriptionImpl) sub);
+                    } catch (InterruptedException e) {
+                        logger.warn("Interrupted");
+                    }
+                }
+            });
+        } else {
+            sub = new SyncSubscriptionImpl(this, subject, queue);
+            sub.setChannel(ch);
+        }
+
+        // Sets sid and adds to subs map
+        addSubscription(sub);
+
+        // Send SUB proto
+        sendSubscriptionMessage(sub);
+
+        return sub;
+    }
+
+    @Override
+    public SyncSubscription subscribe(String subject) {
+        return subscribeSync(subject, null);
+    }
+
+    @Override
+    public SyncSubscription subscribe(String subject, String queue) {
+        return subscribeSync(subject, queue);
+    }
+
     @Override
     public AsyncSubscription subscribe(String subject, MessageHandler cb) {
-        return subscribeAsync(subject, null, cb);
-    }
-
-    public Subscription subscribe(String subj, String queue, MessageHandler cb) {
-        boolean async = (cb != null);
-        if (async) {
-            return subscribeAsync(subj, queue, cb);
-        }
-        Subscription sub = null;
-        mu.lock();
-        try {
-            if (_isClosed()) {
-                throw new IllegalStateException(ERR_CONNECTION_CLOSED);
-            }
-
-            sub = new SyncSubscriptionImpl(this, subj, queue, opts.getMaxPendingMsgs(),
-                    opts.getMaxPendingBytes());
-            addSubscription((SubscriptionImpl) sub);
-
-            if (!_isReconnecting()) {
-                sendSubscriptionMessage((SubscriptionImpl) sub);
-            }
-
-            kickFlusher();
-        } finally {
-            mu.unlock();
-        }
-        return sub;
+        return (AsyncSubscriptionImpl) subscribe(subject, null, cb);
     }
 
     @Override
+    public AsyncSubscription subscribe(String subj, String queue, MessageHandler cb) {
+        return (AsyncSubscriptionImpl) subscribe(subj, queue, cb, null);
+    }
+
+    @Override
+    @Deprecated
     public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb) {
-        AsyncSubscription sub = null;
-        mu.lock();
-        try {
-            if (_isClosed()) {
-                throw new IllegalStateException(ERR_CONNECTION_CLOSED);
-            }
-
-            sub = new AsyncSubscriptionImpl(this, subject, queue, null, opts.getMaxPendingMsgs(),
-                    opts.getMaxPendingBytes());
-
-            addSubscription((SubscriptionImpl) sub);
-
-            if (cb != null) {
-                sub.setMessageHandler(cb);
-                sub.start();
-            }
-            if (!_isReconnecting()) {
-                sendSubscriptionMessage((SubscriptionImpl) sub);
-            }
-        } finally {
-            mu.unlock();
-        }
-
-        return sub;
+        return (AsyncSubscriptionImpl) subscribe(subject, queue, cb, null);
     }
 
     @Override
-    public AsyncSubscription subscribeAsync(String subj, String queue) {
-        return subscribeAsync(subj, queue, null);
-    }
-
-    @Override
+    @Deprecated
     public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) {
-        return subscribeAsync(subj, null, cb);
-    }
-
-    @Override
-    public AsyncSubscription subscribeAsync(String subj) {
-        return subscribeAsync(subj, null, null);
+        return (AsyncSubscriptionImpl) subscribe(subj, null, cb);
     }
 
     private void addSubscription(SubscriptionImpl sub) {
@@ -1970,12 +2071,14 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public SyncSubscription subscribeSync(String subject, String queue) {
-        return (SyncSubscription) subscribe(subject, queue, (MessageHandler) null);
+        return (SyncSubscription) subscribe(subject, queue, (MessageHandler) null,
+                new Channel<Message>());
     }
 
     @Override
     public SyncSubscription subscribeSync(String subject) {
-        return (SyncSubscription) subscribe(subject, null, (MessageHandler) null);
+        return (SyncSubscription) subscribe(subject, null, (MessageHandler) null,
+                new Channel<Message>());
     }
 
     // Use low level primitives to build the protocol for the publish
@@ -2167,7 +2270,6 @@ public class ConnectionImpl implements Connection {
         try {
             // We will send these for all subs when we reconnect
             // so that we can suppress here.
-            logger.trace("Sending sub message for " + sub);
             if (!_isReconnecting()) {
                 String queue = sub.getQueue();
                 String subLine = String.format(SUB_PROTO, sub.getSubject(),

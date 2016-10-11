@@ -13,10 +13,10 @@ import java.nio.ByteBuffer;
 import java.text.ParseException;
 
 class Parser {
-    final static Logger logger = LoggerFactory.getLogger(Parser.class);
+    static final Logger logger = LoggerFactory.getLogger(Parser.class);
 
-    final static int MAX_CONTROL_LINE_SIZE = 1024;
-    final static int MAX_MSG_ARGS = 4;
+    static final int MAX_CONTROL_LINE_SIZE = 1024;
+    static final int MAX_MSG_ARGS = 4;
 
     private ConnectionImpl nc;
 
@@ -62,8 +62,8 @@ class Parser {
 
     ParseState ps = new ParseState();
 
-    final static int ascii_0 = 48;
-    final static int ascii_9 = 57;
+    static final int ascii_0 = 48;
+    static final int ascii_9 = 57;
 
     static enum NatsOp {
         OP_START, OP_PLUS, OP_PLUS_O, OP_PLUS_OK, OP_MINUS, OP_MINUS_E, OP_MINUS_ER, OP_MINUS_ERR, OP_MINUS_ERR_SPC, MINUS_ERR_ARG, OP_M, OP_MS, OP_MSG, OP_MSG_SPC, MSG_ARG, MSG_PAYLOAD, MSG_END, OP_P, OP_PI, OP_PIN, OP_PING, OP_PO, OP_PON, OP_PONG, OP_I, OP_IN, OP_INF, OP_INFO, OP_INFO_SPC, INFO_ARG

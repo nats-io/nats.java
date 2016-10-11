@@ -64,46 +64,76 @@ public interface Subscription extends AutoCloseable {
      * 
      * @return the number of delivered messages.
      */
+    long getDelivered();
+
+    /**
+     * Returns the number of messages delivered to, but not processed, by this Subscription.
+     * 
+     * @deprecated use getPending instead
+     * @return the number of delivered messages.
+     */
+    @Deprecated
     int getQueuedMessageCount();
 
     /**
-     * Returns the maximum number of pending messages for this subscription.
+     * Returns the current number of pending messages for this subscription.
      * 
-     * @return the maximum number of pending messages for this subscription
+     * @return the current number of pending messages for this subscription
      */
-    int getMaxPendingMsgs();
+    int getPendingMsgs();
 
     /**
-     * Returns the maximum number of pending bytes for this subscription.
+     * Returns the current number of pending bytes for this subscription.
      * 
-     * @return the maximum number of pending bytes for this subscription
+     * @return the current number of pending bytes for this subscription
      */
-    long getMaxPendingBytes();
+    int getPendingBytes();
 
     /**
-     * Sets the maximum number of unprocessed messages that can be left pending on this subscription
-     * before a slow consumer exception is thrown.
+     * Returns the maximum number of pending messages seen for this subscription.
      * 
-     * @param pending the maximum number of pending messages
+     * @return the maximum number of pending messages seen for this subscription
      */
-    void setMaxPendingMsgs(int pending);
+    int getPendingMsgsMax();
 
     /**
-     * Sets the maximum number of unprocessed message bytes that can be left pending on this
-     * subscription before a slow consumer exception is thrown.
+     * Returns the maximum number of pending bytes seen for this subscription.
      * 
-     * @param pending the maximum number of pending bytes
+     * @return the maximum number of pending bytes seen for this subscription
      */
-    void setMaxPendingBytes(long pending);
+    long getPendingBytesMax();
 
     /**
-     * Sets the the maximum number of unprocessed messages and bytes that can be left pending on
-     * this subscription before messages are dropped and a slow consumer exception is thrown.
+     * Sets the maximum number of unprocessed messages and bytes that can be left pending on this
+     * subscription before messages are dropped and a slow consumer exception is thrown.
      * 
      * @param msgs the maximum number of pending messages
      * @param bytes the maximum number of pending bytes
      */
     void setPendingLimits(int msgs, int bytes);
+
+    /**
+     * Returns the maximum number of unprocessed messages that can be left pending on this
+     * subscription before messages are dropped and a slow consumer exception is thrown.
+     * 
+     * @return the maximum number of unprocessed messages that can be left pending on this
+     *         subscription before messages are dropped and a slow consumer exception is thrown.
+     */
+    int getPendingMsgsLimit();
+
+    /**
+     * Returns the maximum number of unprocessed message bytes that can be left pending on this
+     * subscription before messages are dropped and a slow consumer exception is thrown.
+     * 
+     * @return the maximum number of unprocessed message bytes that can be left pending on this
+     *         subscription before messages are dropped and a slow consumer exception is thrown.
+     */
+    int getPendingBytesLimit();
+
+    /**
+     * Clears the the maximum number of unprocessed messages and bytes for this subscription.
+     */
+    void clearMaxPending();
 
     /**
      * Returns the number of messages that this subscription has dropped due to "slow consumer"

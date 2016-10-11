@@ -6,13 +6,11 @@
 
 package io.nats.client;
 
-import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
 import static io.nats.client.Constants.ERR_AUTHORIZATION;
 import static io.nats.client.Constants.ERR_PROTOCOL;
 import static io.nats.client.Constants.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Constants.ERR_SECURE_CONN_WANTED;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
-import static io.nats.client.UnitTestUtilities.waitTime;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -34,8 +32,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Category(UnitTest.class)
@@ -114,21 +110,6 @@ public class ProtocolTest {
     }
 
     @Test
-    public void testProcessErr() {
-        byte[] argBufBase = new byte[DEFAULT_BUF_SIZE];
-        ByteBuffer argBufStream = ByteBuffer.wrap(argBufBase);
-
-        ConnectionFactory cf = new ConnectionFactory();
-        try (ConnectionImpl c = cf.createConnection(new TCPConnectionFactoryMock())) {
-            assertTrue(!c.isClosed());
-            c.processErr(argBufStream);
-            assertTrue(c.isClosed());
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
     public void testVerbose() {
         ConnectionFactory cf = new ConnectionFactory();
         cf.setVerbose(true);
@@ -140,29 +121,6 @@ public class ProtocolTest {
             c.close();
             assertTrue(c.isClosed());
         } catch (Exception e) {
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testProcessErrStaleConnection() {
-        ConnectionFactory cf = new ConnectionFactory();
-        final Channel<Boolean> cch = new Channel<Boolean>();
-        cf.setClosedCallback(new ClosedCallback() {
-            public void onClose(ConnectionEvent event) {
-                cch.add(true);
-            }
-        });
-        cf.setReconnectAllowed(false);
-        try (ConnectionImpl c = cf.createConnection(new TCPConnectionFactoryMock())) {
-            ByteBuffer error = ByteBuffer.allocate(DEFAULT_BUF_SIZE);
-            error.put(ConnectionImpl.STALE_CONNECTION.getBytes());
-            error.flip();
-            c.processErr(error);
-            assertTrue(c.isClosed());
-            assertTrue("Closed callback should have fired", waitTime(cch, 5, TimeUnit.SECONDS));
-        } catch (IOException | TimeoutException e) {
-            // TODO Auto-generated catch block
             fail(e.getMessage());
         }
     }

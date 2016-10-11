@@ -11,6 +11,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,14 +27,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 @Category(BenchmarkTest.class)
 public class BenchTest {
@@ -170,9 +170,10 @@ public class BenchTest {
                     int sent = i + 1;
                     int backlog = sent - rec;
 
-                    System.err.printf("sent=%d, received=%d, backlog=%d, ratio=%.2f, sleepInt=%d\n",
-                            sent, rec, backlog, (double) backlog / cf.getMaxPendingMsgs(),
-                            sleepTime);
+                    // System.err.printf("sent=%d, received=%d, backlog=%d, ratio=%.2f,
+                    // sleepInt=%d\n",
+                    // sent, rec, backlog, (double) backlog / cf.getMaxPendingMsgs(),
+                    // sleepTime);
 
                     // sleepTime += 100;
                     sleep(sleepTime);

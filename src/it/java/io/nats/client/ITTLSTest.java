@@ -6,6 +6,8 @@
 
 package io.nats.client;
 
+import static io.nats.client.UnitTestUtilities.await;
+import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -28,6 +30,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -60,7 +63,7 @@ public class ITTLSTest {
     public void testTlsSuccessWithCert() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        try (NATSServer srv = utils.createServerWithConfig("tls_1222_verify.conf")) {
+        try (NATSServer srv = utils.runServerWithConfig("tls_1222_verify.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
@@ -106,7 +109,7 @@ public class ITTLSTest {
     public void testTlsSuccessSecureConnect() {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        try (NATSServer srv = utils.createServerWithConfig("tls_1222.conf")) {
+        try (NATSServer srv = utils.runServerWithConfig("tls_1222.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final char[] trustPassPhrase = "password".toCharArray();
@@ -160,10 +163,10 @@ public class ITTLSTest {
     public void testTlsSuccessSecureReconnect() {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        final Channel<Boolean> dch = new Channel<Boolean>();
-        final Channel<Boolean> rch = new Channel<Boolean>();
+        final CountDownLatch dcLatch = new CountDownLatch(1);
+        final CountDownLatch rcLatch = new CountDownLatch(1);
 
-        try (NATSServer srv = utils.createServerWithConfig("tls_1222.conf")) {
+        try (NATSServer srv = utils.runServerWithConfig("tls_1222.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final char[] trustPassPhrase = "password".toCharArray();
@@ -189,13 +192,13 @@ public class ITTLSTest {
 
             cf.setDisconnectedCallback(new DisconnectedCallback() {
                 public void onDisconnect(ConnectionEvent event) {
-                    dch.add(true);
+                    dcLatch.countDown();
                 }
             });
 
             cf.setReconnectedCallback(new ReconnectedCallback() {
                 public void onReconnect(ConnectionEvent event) {
-                    rch.add(true);
+                    rcLatch.countDown();
                 }
             });
 
@@ -206,28 +209,18 @@ public class ITTLSTest {
 
                 // We should wait to get the disconnected callback to ensure
                 // that we are in the process of reconnecting.
-                try {
-                    assertTrue("DisconnectedCB should have been triggered.",
-                            dch.get(5, TimeUnit.SECONDS));
-                    assertEquals("dch should be empty", 0, dch.getCount());
-                } catch (TimeoutException e) {
-                    fail("DisconnectedCB triggered incorrectly. " + e.getMessage());
-                }
+                assertTrue("DisconnectedCB should have been triggered.", await(dcLatch));
 
                 assertTrue("Expected to be in a reconnecting state", c.isReconnecting());
 
                 assertEquals(Constants.ConnState.RECONNECTING, c.getState());
 
                 // Wait until we get the reconnect callback
-                try (NATSServer srv2 = utils.createServerWithConfig("tls_1222.conf")) {
-                    UnitTestUtilities.sleep(2000);
+                try (NATSServer srv2 = utils.runServerWithConfig("tls_1222.conf")) {
+                    sleep(2000);
 
-                    try {
-                        assertTrue("ReconnectedCB callback wasn't triggered.",
-                                rch.get(3, TimeUnit.SECONDS));
-                    } catch (TimeoutException e) {
-                        fail("ReconnectedCB callback wasn't triggered. " + e.getMessage());
-                    }
+                    assertTrue("ReconnectedCB callback wasn't triggered.",
+                            await(rcLatch, 3, TimeUnit.SECONDS));
 
                     assertFalse("isReconnecting returned true after the client was reconnected.",
                             c.isReconnecting());

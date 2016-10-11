@@ -6,13 +6,13 @@
 
 package io.nats.client;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code Channel} is a utility wrapper for {@link LinkedBlockingQueue}. Although its visibility is
@@ -31,7 +31,7 @@ public class Channel<T> {
     boolean closed = false;
 
     public Channel() {
-        q = new LinkedBlockingQueue<T>();
+        this(-1);
     }
 
     public Channel(LinkedBlockingQueue<T> queue) {
@@ -82,6 +82,43 @@ public class Channel<T> {
         return item;
     }
 
+    // public T getNew(long timeout, TimeUnit unit) throws TimeoutException {
+    // // System.err.printf("get called with timeout=%d, unit=%s\n", timeout, unit);
+    // T item = null;
+    // ExecutorService executor = Executors.newSingleThreadExecutor();
+    // Future<T> future = executor.submit(new Callable<T>() {
+    // public T call() throws Exception {
+    // // do operations you want
+    // T theItem = null;
+    // while (theItem == null) {
+    // if (isClosed()) {
+    // break;
+    // }
+    // theItem = q.poll();
+    // }
+    // return theItem;
+    // }
+    // });
+    // try {
+    // if (timeout < 0) {
+    // item = future.get();
+    // } else {
+    // item = future.get(timeout, unit);
+    // }
+    // } catch (TimeoutException e) {
+    // future.cancel(true);
+    // throw new TimeoutException("Channel timed out waiting for items");
+    // // throw e;
+    // } catch (InterruptedException e) {
+    // e.printStackTrace();
+    // } catch (ExecutionException e) {
+    // e.printStackTrace();
+    // }
+    // executor.shutdownNow();
+    // return item;
+    // }
+
+
     public T poll() {
         return q.poll();
     }
@@ -90,29 +127,30 @@ public class Channel<T> {
     public boolean add(T item) {
         // offer(T e) is used here simply to eliminate exceptions. add returns false only
         // if adding the item would have exceeded the capacity of a bounded queue.
+        if (isClosed()) {
+            return false;
+        }
         return q.offer(item);
     }
 
     public boolean add(T item, long timeout, TimeUnit unit) throws InterruptedException {
+        if (isClosed()) {
+            return false;
+        }
         return q.offer(item, timeout, unit);
     }
 
-    public void put(T item) throws InterruptedException {
-        q.put(item);
-    }
-
-    public synchronized void close() {
+    public void close() {
         // logger.trace("Channel.close(), clearing queue");
         closed = true;
         q.clear();
     }
 
-    public synchronized boolean isClosed() {
+    public boolean isClosed() {
         return closed;
     }
 
     public int getCount() {
         return q.size();
     }
-
 }
