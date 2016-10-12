@@ -19,7 +19,7 @@ import java.util.concurrent.TimeoutException;
  * currently {@code public}, it is not considered an official part of the NATS API and may be
  * deprecated at any time.
  */
-public class Channel<T> {
+class Channel<T> {
 
     static final Logger logger = LoggerFactory.getLogger(Channel.class);
     /**

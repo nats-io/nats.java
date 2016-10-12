@@ -6,11 +6,12 @@
 
 package io.nats.benchmark;
 
-import io.nats.client.Channel;
 import io.nats.client.NUID;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A utility class for collecting and calculating benchmark metrics.
@@ -20,8 +21,8 @@ public class Benchmark extends Sample {
     String runId = null;
     SampleGroup pubs = new SampleGroup();
     SampleGroup subs = new SampleGroup();
-    Channel<Sample> pubChannel = new Channel<Sample>();
-    Channel<Sample> subChannel;
+    BlockingQueue<Sample> pubChannel = new LinkedBlockingQueue<Sample>();
+    BlockingQueue<Sample> subChannel;
 
     public Benchmark() {
         // TODO Auto-generated constructor stub
@@ -43,8 +44,8 @@ public class Benchmark extends Sample {
     public Benchmark(String name, String runId, int subCnt, int pubCnt) {
         this.name = name;
         this.runId = runId;
-        this.subChannel = new Channel<Sample>(subCnt);
-        this.pubChannel = new Channel<Sample>(pubCnt);
+        this.subChannel = new LinkedBlockingQueue<Sample>(subCnt);
+        this.pubChannel = new LinkedBlockingQueue<Sample>(pubCnt);
     }
 
     public void addPubSample(Sample sample) {
@@ -59,11 +60,11 @@ public class Benchmark extends Sample {
      * Closes this benchmark and calculates totals and times.
      */
     public void close() {
-        while (subChannel.getCount() > 0) {
-            subs.addSample(subChannel.get());
+        while (subChannel.size() > 0) {
+            subs.addSample(subChannel.poll());
         }
-        while (pubChannel.getCount() > 0) {
-            pubs.addSample(pubChannel.get());
+        while (pubChannel.size() > 0) {
+            pubs.addSample(pubChannel.poll());
         }
 
         if (subs.hasSamples()) {
