@@ -19,7 +19,7 @@ import java.util.concurrent.TimeoutException;
  * currently {@code public}, it is not considered an official part of the NATS API and may be
  * deprecated at any time.
  */
-public class Channel<T> {
+class Channel<T> {
 
     static final Logger logger = LoggerFactory.getLogger(Channel.class);
     /**
@@ -30,15 +30,15 @@ public class Channel<T> {
     T defaultVal = null;
     boolean closed = false;
 
-    public Channel() {
+    Channel() {
         this(-1);
     }
 
-    public Channel(LinkedBlockingQueue<T> queue) {
+    Channel(LinkedBlockingQueue<T> queue) {
         q = queue;
     }
 
-    public Channel(int capacity) {
+    Channel(int capacity) {
         if (capacity <= 0) {
             q = new LinkedBlockingQueue<T>();
         } else {
@@ -46,11 +46,11 @@ public class Channel<T> {
         }
     }
 
-    public Channel(Collection<T> collection) {
+    Channel(Collection<T> collection) {
         q = new LinkedBlockingQueue<T>(collection);
     }
 
-    public T get() {
+    T get() {
         T result = defaultVal;
         try {
             result = get(-1, TimeUnit.MILLISECONDS);
@@ -61,11 +61,11 @@ public class Channel<T> {
         return result;
     }
 
-    public synchronized T get(long timeout) throws TimeoutException {
+    synchronized T get(long timeout) throws TimeoutException {
         return (get(timeout, TimeUnit.MILLISECONDS));
     }
 
-    public T get(long timeout, TimeUnit unit) throws TimeoutException {
+    T get(long timeout, TimeUnit unit) throws TimeoutException {
         T item = defaultVal;
 
         try {
@@ -82,7 +82,7 @@ public class Channel<T> {
         return item;
     }
 
-    // public T getNew(long timeout, TimeUnit unit) throws TimeoutException {
+    // T getNew(long timeout, TimeUnit unit) throws TimeoutException {
     // // System.err.printf("get called with timeout=%d, unit=%s\n", timeout, unit);
     // T item = null;
     // ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -119,12 +119,12 @@ public class Channel<T> {
     // }
 
 
-    public T poll() {
+    T poll() {
         return q.poll();
     }
 
     // Will throw NullPointerException if you try to insert a null item
-    public boolean add(T item) {
+    boolean add(T item) {
         // offer(T e) is used here simply to eliminate exceptions. add returns false only
         // if adding the item would have exceeded the capacity of a bounded queue.
         if (isClosed()) {
@@ -133,24 +133,24 @@ public class Channel<T> {
         return q.offer(item);
     }
 
-    public boolean add(T item, long timeout, TimeUnit unit) throws InterruptedException {
+    boolean add(T item, long timeout, TimeUnit unit) throws InterruptedException {
         if (isClosed()) {
             return false;
         }
         return q.offer(item, timeout, unit);
     }
 
-    public void close() {
+    void close() {
         // logger.trace("Channel.close(), clearing queue");
         closed = true;
         q.clear();
     }
 
-    public boolean isClosed() {
+    boolean isClosed() {
         return closed;
     }
 
-    public int getCount() {
+    int getCount() {
         return q.size();
     }
 }
