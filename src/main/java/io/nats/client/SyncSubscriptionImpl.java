@@ -82,7 +82,7 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
                 break;
             }
         } catch (InterruptedException e) {
-            logger.warn("nextMessage({}, {}) interrupted...", timeout, unit);
+            logger.debug("nextMessage({}, {}) interrupted...", timeout, unit);
             Thread.currentThread().interrupt();
         }
 

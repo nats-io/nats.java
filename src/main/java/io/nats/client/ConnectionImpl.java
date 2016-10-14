@@ -1227,7 +1227,7 @@ public class ConnectionImpl implements Connection {
                 try {
                     socketWatchersStartLatch.await();
                 } catch (InterruptedException e) {
-                    logger.warn("Interrupted while waiting for threads to spin up");
+                    logger.debug("Interrupted while waiting for threads to spin up");
                     Thread.currentThread().interrupt();
                 }
                 readLoop();
@@ -1244,7 +1244,7 @@ public class ConnectionImpl implements Connection {
                 try {
                     socketWatchersStartLatch.await();
                 } catch (InterruptedException e) {
-                    logger.warn("Interrupted while waiting for start latch");
+                    logger.debug("Interrupted while waiting for start latch");
                     Thread.currentThread().interrupt();
                 }
                 flusher();
