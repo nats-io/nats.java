@@ -52,10 +52,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -175,17 +177,16 @@ public class ConnectionImpl implements Connection {
     protected int crlfProtoBytesLen = 0;
 
     protected Statistics stats = null;
-    private ArrayList<Channel<Boolean>> pongs = new ArrayList<Channel<Boolean>>();
+    private ArrayList<BlockingQueue<Boolean>> pongs;
 
 
-    ExecutorService cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
-    private ExecutorService exec =
-            Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
+    ExecutorService cbexec;
+    ExecutorService exec;
     private ScheduledExecutorService ptmr = null;
     private static final int NUM_WATCHER_THREADS = 2;
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;
-    private Channel<Boolean> fch = new Channel<Boolean>(FLUSH_CHAN_SIZE);
+    private BlockingQueue<Boolean> fch = new LinkedBlockingQueue<Boolean>(FLUSH_CHAN_SIZE);
 
     ConnectionImpl() {}
 
@@ -227,6 +228,9 @@ public class ConnectionImpl implements Connection {
     }
 
     void setup() {
+        cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
+        exec = Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
+        pongs = createPongs();
         subs.clear();
     }
 
@@ -371,9 +375,8 @@ public class ConnectionImpl implements Connection {
         mu.lock();
         try {
             for (int i = 0; i < srvPool.size(); i++) {
-                Srv s = srvPool.get(i);
-                // for (Srv s : srvPool) {
-                this.setUrl(s.url);
+                Srv srv = srvPool.get(i);
+                this.setUrl(srv.url);
 
                 try {
                     logger.debug("Connecting to {}", this.getUrl());
@@ -382,8 +385,8 @@ public class ConnectionImpl implements Connection {
                     this.setup();
                     try {
                         processConnectInit();
-                        logger.trace("connect() Resetting reconnects for {}", s);
-                        s.reconnects = 0;
+                        logger.trace("connect() Resetting reconnects for {}", srv);
+                        srv.reconnects = 0;
                         returnedErr = null;
                         break;
                     } catch (IOException e) {
@@ -452,22 +455,31 @@ public class ConnectionImpl implements Connection {
         br = conn.getBufferedInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
 
-    Channel<Boolean> createPongChannel(int size) {
-        return new Channel<Boolean>(size);
+    BlockingQueue<Boolean> createPongChannel(int size) {
+        BlockingQueue<Boolean> rv = null;
+        int theSize = size;
+        if (theSize <= 0) {
+            theSize = 1;
+        }
+        return new LinkedBlockingQueue<Boolean>(theSize);
     }
 
     // This will clear any pending flush calls and release pending calls.
     // Lock is assumed to be held by the caller.
-    private void clearPendingFlushCalls() {
-        logger.trace("clearPendingFlushCalls()");
+    void clearPendingFlushCalls() {
         // Clear any queued pongs, e.g. pending flush calls.
-        for (Channel<Boolean> ch : pongs) {
+        if (pongs == null) {
+            return;
+        }
+        for (BlockingQueue<Boolean> ch : pongs) {
             if (ch != null) {
-                ch.close();
-                logger.trace("Cleared PONG");
+                ch.clear();
+                // Signal other waiting threads that we're done
+                ch.add(false);
             }
         }
         pongs.clear();
+        pongs = null;
     }
 
     @Override
@@ -480,7 +492,7 @@ public class ConnectionImpl implements Connection {
     // will be triggered. The lock should not be held entering this
     // function. This function will handle the locking manually.
     private void close(ConnState closeState, boolean doCBs) {
-        logger.trace("close({}, {})", closeState, String.valueOf(doCBs));
+        logger.debug("close({}, {})", closeState, String.valueOf(doCBs));
         final ConnectionImpl nc = this;
 
         mu.lock();
@@ -499,6 +511,9 @@ public class ConnectionImpl implements Connection {
         try {
             // Clear any queued pongs, e.g. pending flush calls.
             clearPendingFlushCalls();
+
+            // Interrupt any blocking operations
+            // Thread.currentThread().interrupt();
 
             if (ptmr != null) {
                 ptmr.shutdownNow();
@@ -558,18 +573,11 @@ public class ConnectionImpl implements Connection {
             if (conn != null) {
                 conn.close();
             }
+
             mu.unlock();
-            // if (doCBs) {
-            // cbexec.shutdown();
-            // try {
-            // while (!cbexec.awaitTermination(5, TimeUnit.SECONDS)) {
-            // logger.debug("Awaiting completion of threads.");
-            // }
-            // } catch (InterruptedException e) {
-            // logger.debug("Interrupted waiting to shutdown cbexec", e);
-            // }
-            // }
-            // logger.trace("close(state, doCBs): released lock and returning");
+            if (exec != null) {
+                exec.shutdownNow();
+            }
         }
     }
 
@@ -652,7 +660,7 @@ public class ConnectionImpl implements Connection {
     // messages. We use pings for the flush mechanism as well.
     protected void processPong() {
         logger.trace("Processing PONG");
-        Channel<Boolean> ch = createPongChannel(1);
+        BlockingQueue<Boolean> ch = createPongChannel(1);
         mu.lock();
         try {
             if (pongs.size() > 0) {
@@ -664,13 +672,18 @@ public class ConnectionImpl implements Connection {
             mu.unlock();
         }
         if (ch != null) {
-            ch.add(true);
+            try {
+                ch.put(true);
+            } catch (InterruptedException e) {
+                logger.warn("processPong interrupted");
+                Thread.currentThread().interrupt();
+            }
         }
         logger.trace("Processed PONG");
     }
 
     // processOK is a placeholder for processing OK messages.
-    protected void processOK() {
+    protected void processOk() {
         // NOOP;
         return;
     }
@@ -1173,7 +1186,7 @@ public class ConnectionImpl implements Connection {
                 socketWatchersDoneLatch.await();
             } catch (InterruptedException e) {
                 logger.warn("nats: interrupted waiting for threads to exit");
-                // e.printStackTrace();
+                Thread.currentThread().interrupt();
             }
         }
         logger.trace("waitForExits complete");
@@ -1187,7 +1200,7 @@ public class ConnectionImpl implements Connection {
         socketWatchersDoneLatch = new CountDownLatch(NUM_WATCHER_THREADS);
         socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
 
-        exec.submit(new Runnable() {
+        exec.execute(new Runnable() {
             public void run() {
                 logger.trace("READLOOP STARTING");
                 Thread.currentThread().setName("readloop");
@@ -1195,7 +1208,8 @@ public class ConnectionImpl implements Connection {
                 try {
                     socketWatchersStartLatch.await();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    logger.warn("Interrupted while waiting for threads to spin up");
+                    Thread.currentThread().interrupt();
                 }
                 readLoop();
                 socketWatchersDoneLatch.countDown();
@@ -1203,7 +1217,7 @@ public class ConnectionImpl implements Connection {
             }
         });
 
-        exec.submit(new Runnable() {
+        exec.execute(new Runnable() {
             public void run() {
                 logger.trace("FLUSHER STARTING");
                 Thread.currentThread().setName("flusher");
@@ -1211,7 +1225,8 @@ public class ConnectionImpl implements Connection {
                 try {
                     socketWatchersStartLatch.await();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    logger.warn("Interrupted while waiting for start latch");
+                    Thread.currentThread().interrupt();
                 }
                 flusher();
                 socketWatchersDoneLatch.countDown();
@@ -1445,22 +1460,25 @@ public class ConnectionImpl implements Connection {
         long max;
         Message msg;
         MessageHandler mcb;
+        BlockingQueue<Message> mch;
 
         while (true) {
             sub.lock();
             try {
-                while (sub.mch.getCount() == 0 && !sub.closed) {
+                mch = sub.getChannel();
+                while (mch.size() == 0 && !sub.isClosed()) {
                     sub.pCond.await();
                 }
-                msg = sub.mch.get();
+                msg = mch.poll();
                 if (msg != null) {
                     sub.pMsgs--;
                     sub.pBytes -= (msg.getData() == null ? 0 : msg.getData().length);
                 }
+
                 mcb = sub.msgHandler;
                 max = sub.max;
-                closed = sub.closed;
-                if (!sub.closed) {
+                closed = sub.isClosed();
+                if (!closed) {
                     sub.delivered++;
                     delivered = sub.delivered;
                 }
@@ -1471,7 +1489,6 @@ public class ConnectionImpl implements Connection {
             if (closed) {
                 break;
             }
-
             // Deliver the message.
             if (msg != null && (max <= 0 || delivered <= max)) {
                 mcb.onMessage(msg);
@@ -1608,7 +1625,7 @@ public class ConnectionImpl implements Connection {
         sub.lock();
         try {
             if (sub.getChannel() != null) {
-                sub.mch.close();
+                sub.mch.clear();
                 sub.mch = null;
                 // logger.trace("Closed sid={} subj={}", sub.getSid(),
                 // sub.getSubject());
@@ -1656,18 +1673,16 @@ public class ConnectionImpl implements Connection {
     // removeFlushEntry is needed when we need to discard queued up responses
     // for our pings as part of a flush call. This happens when we have a flush
     // call outstanding and we call close.
-    protected boolean removeFlushEntry(Channel<Boolean> ch) {
-        logger.trace("removeFlushEntry: trying to acquire lock");
+    protected boolean removeFlushEntry(BlockingQueue<Boolean> ch) {
         mu.lock();
-        logger.trace("removeFlushEntry: acquired lock");
         try {
-            if (pongs.isEmpty()) {
+            if (pongs == null) {
                 return false;
             }
 
-            for (Channel<Boolean> c : pongs) {
+            for (BlockingQueue<Boolean> c : pongs) {
                 if (c == ch) {
-                    c.close();
+                    c.clear();
                     pongs.remove(c);
                     return true;
                 }
@@ -1676,12 +1691,15 @@ public class ConnectionImpl implements Connection {
             return false;
         } finally {
             mu.unlock();
-            logger.trace("removeFlushEntry: released lock");
         }
     }
 
     // The lock must be held entering this function.
-    protected void sendPing(Channel<Boolean> ch) {
+    protected void sendPing(BlockingQueue<Boolean> ch) {
+        if (pongs == null) {
+            pongs = createPongs();
+        }
+
         if (ch != null) {
             pongs.add(ch);
         }
@@ -1692,8 +1710,11 @@ public class ConnectionImpl implements Connection {
             bw.flush();
         } catch (IOException e) {
             setLastError(e);
-            // logger.error("Could not send PING", e);
         }
+    }
+
+    ArrayList<BlockingQueue<Boolean>> createPongs() {
+        return new ArrayList<BlockingQueue<Boolean>>();
     }
 
     protected void resetPingTimer() {
@@ -1789,15 +1810,15 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-
     protected void kickFlusher() {
         if (bw != null) {
-            if (fch.getCount() == 0) {
-                fch.add(true);
+            if (fch.size() == 0) {
+                if (!fch.offer(true)) {
+                    logger.warn("Unable to add to flusher channel");
+                }
             }
         }
     }
-
 
     private void setFlusherDone(boolean value) {
         flusherLock.lock();
@@ -1825,7 +1846,7 @@ public class ConnectionImpl implements Connection {
     protected void flusher() {
         OutputStream bw = null;
         TCPConnection conn = null;
-        Channel<Boolean> fch = null;
+        BlockingQueue<Boolean> fch = null;
 
         setFlusherDone(false);
 
@@ -1842,15 +1863,21 @@ public class ConnectionImpl implements Connection {
 
         while (!isFlusherDone()) {
             // Wait to be triggered
-            if (!fch.get()) {
-                return;
+            try {
+                if (!fch.take()) {
+                    return;
+                }
+            } catch (InterruptedException e1) {
+                logger.debug("Interrupted while waiting on flush channel");
+                Thread.currentThread().interrupt();
+                break;
             }
 
             // Be reasonable about how often we flush
             try {
                 Thread.sleep(1);
             } catch (InterruptedException e) {
-                logger.debug("flusher loop interrupted", e);
+                Thread.currentThread().interrupt();
             }
 
             mu.lock();
@@ -1882,9 +1909,7 @@ public class ConnectionImpl implements Connection {
             throw new IllegalArgumentException(ERR_BAD_TIMEOUT);
         }
 
-        long t0 = System.nanoTime();
-        long elapsed = 0L;
-        Channel<Boolean> ch = null;
+        BlockingQueue<Boolean> ch = null;
         mu.lock();
         try {
             if (_isClosed()) {
@@ -1898,21 +1923,22 @@ public class ConnectionImpl implements Connection {
         }
 
         Boolean rv = null;
-        boolean timedOut = false;
-        while (!timedOut && !ch.isClosed() && (rv == null)) {
-            elapsed = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
-            timedOut = (elapsed >= timeout);
-            rv = ch.poll();
-        }
-
-        if (timedOut) {
-            err = new TimeoutException(ERR_TIMEOUT);
-        }
-
-        if (rv != null && !rv) {
-            err = new IllegalStateException(ERR_CONNECTION_CLOSED);
-        } else {
-            ch.close();
+        while (!(Thread.currentThread().isInterrupted())) {
+            try {
+                rv = ch.poll(timeout, TimeUnit.MILLISECONDS);
+                if (rv == null) {
+                    err = new TimeoutException(ERR_TIMEOUT);
+                } else if (rv == true) {
+                    ch.clear();
+                } else {
+                    err = new IllegalStateException(ERR_CONNECTION_CLOSED);
+                }
+                break;
+            } catch (InterruptedException e) {
+                // Set interrupted flag.
+                logger.debug("flush was interrupted while waiting for PONG", e);
+                Thread.currentThread().interrupt();
+            }
         }
 
         if (err != null) {
@@ -1986,7 +2012,7 @@ public class ConnectionImpl implements Connection {
      * @return the Subscription object
      */
     SubscriptionImpl subscribe(String subject, String queue, MessageHandler cb,
-            Channel<Message> ch) {
+            BlockingQueue<Message> ch) {
         final SubscriptionImpl sub;
         mu.lock();
         try {
@@ -2013,7 +2039,8 @@ public class ConnectionImpl implements Connection {
                     try {
                         waitForMsgs((AsyncSubscriptionImpl) sub);
                     } catch (InterruptedException e) {
-                        logger.warn("Interrupted");
+                        logger.warn("Interrupted in waitForMsgs");
+                        Thread.currentThread().interrupt();
                     }
                 }
             });
@@ -2072,13 +2099,13 @@ public class ConnectionImpl implements Connection {
     @Override
     public SyncSubscription subscribeSync(String subject, String queue) {
         return (SyncSubscription) subscribe(subject, queue, (MessageHandler) null,
-                new Channel<Message>());
+                new LinkedBlockingQueue<Message>());
     }
 
     @Override
     public SyncSubscription subscribeSync(String subject) {
         return (SyncSubscription) subscribe(subject, null, (MessageHandler) null,
-                new Channel<Message>());
+                new LinkedBlockingQueue<Message>());
     }
 
     // Use low level primitives to build the protocol for the publish
@@ -2423,7 +2450,7 @@ public class ConnectionImpl implements Connection {
             Thread.sleep(msec);
             logger.trace("Slept    for {} ms", msec);
         } catch (InterruptedException e) {
-            // NOOP
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -2454,11 +2481,11 @@ public class ConnectionImpl implements Connection {
     }
 
 
-    protected ArrayList<Channel<Boolean>> getPongs() {
+    protected ArrayList<BlockingQueue<Boolean>> getPongs() {
         return pongs;
     }
 
-    protected void setPongs(ArrayList<Channel<Boolean>> pongs) {
+    protected void setPongs(ArrayList<BlockingQueue<Boolean>> pongs) {
         this.pongs = pongs;
     }
 
@@ -2489,11 +2516,11 @@ public class ConnectionImpl implements Connection {
         return rv;
     }
 
-    protected void setFlushChannel(Channel<Boolean> fch) {
+    protected void setFlushChannel(BlockingQueue<Boolean> fch) {
         this.fch = fch;
     }
 
-    protected Channel<Boolean> getFlushChannel() {
+    protected BlockingQueue<Boolean> getFlushChannel() {
         return fch;
     }
 

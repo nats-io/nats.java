@@ -19,6 +19,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import ch.qos.logback.classic.Level;
 
@@ -29,10 +32,14 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
+import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -47,10 +54,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Category(IntegrationTest.class)
 public class ITBasicTest {
+    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    static final Logger logger = LoggerFactory.getLogger(ITBasicTest.class);
+
+    static final LogVerifier verifier = new LogVerifier();
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
-    ExecutorService executor = Executors.newFixedThreadPool(5);
+    ExecutorService executor = Executors.newCachedThreadPool();
     UnitTestUtilities utils = new UnitTestUtilities();
 
     @BeforeClass
@@ -65,11 +80,18 @@ public class ITBasicTest {
 
     @Before
     public void setUp() throws Exception {
-        setLogLevel(Level.INFO);
+        MockitoAnnotations.initMocks(this);
+        verifier.setup();
     }
 
+    /**
+     * @throws java.lang.Exception if a problem occurs
+     */
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+        verifier.teardown();
+        setLogLevel(Level.INFO);
+    }
 
     @Test
     public void testConnectedServer() throws IOException, TimeoutException {
@@ -319,7 +341,7 @@ public class ITBasicTest {
 
             SyncSubscriptionImpl si1 = (SyncSubscriptionImpl) s1;
             SyncSubscriptionImpl si2 = (SyncSubscriptionImpl) s2;
-            assertEquals(total, si1.getChannel().getCount() + si2.getChannel().getCount());
+            assertEquals(total, si1.getChannel().size() + si2.getChannel().size());
 
             final int variance = (int) (total * 0.15);
             r1 = s1.getQueuedMessageCount();
@@ -422,8 +444,9 @@ public class ITBasicTest {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testDoubleUnsubscribe() {
+    @Test
+    public void testDoubleUnsubscribe() throws IOException, TimeoutException {
+        thrown.expect(IllegalStateException.class);
         try (Connection c = new ConnectionFactory().createConnection()) {
             try (SyncSubscription s = c.subscribeSync("foo")) {
                 s.unsubscribe();
@@ -433,8 +456,6 @@ public class ITBasicTest {
                     throw e;
                 }
             }
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
     }
 
@@ -562,25 +583,34 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testReleaseFlush() {
-        try (final Connection c = new ConnectionFactory().createConnection()) {
-            byte[] data = "Hello".getBytes(Charset.forName("UTF-8"));
+    public void testReleaseFlush() throws Exception {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage(Constants.ERR_CONNECTION_CLOSED);
+
+        ConnectionFactory cf = new ConnectionFactory();
+        cf.setReconnectAllowed(false);
+        try (final ConnectionImpl nc = (ConnectionImpl) spy(cf.createConnection())) {
             for (int i = 0; i < 1000; i++) {
-                c.publish("foo", data);
+                nc.publish("foo", "Hello".getBytes());
             }
 
+            final int timeout = 5000;
+
+            // Shunt the flush ping
+            OutputStream bwMock = mock(OutputStream.class);
+            nc.setOutputStream(bwMock);
+
+            final CountDownLatch latch = new CountDownLatch(1);
             executor.execute(new Runnable() {
                 public void run() {
-                    c.close();
-                    assertTrue(c.isClosed());
+                    await(latch);
+                    sleep(100, TimeUnit.MILLISECONDS);
+                    nc.close();
+                    verify(nc, times(1)).clearPendingFlushCalls();
                 }
             });
-            try {
-                c.flush();
-            } catch (Exception e) {
-            }
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+            latch.countDown();
+            nc.flush(timeout);
         }
     }
 
@@ -748,7 +778,7 @@ public class ITBasicTest {
     @Test
     public void testSendAndRecv() throws Exception {
         try (Connection c = new ConnectionFactory().createConnection()) {
-            final CountDownLatch mhLatch = new CountDownLatch(0);
+            final CountDownLatch mhLatch = new CountDownLatch(1);
             final AtomicInteger received = new AtomicInteger();
             final int count = 1000;
             try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {

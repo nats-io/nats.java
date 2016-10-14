@@ -12,6 +12,7 @@ import static io.nats.client.Constants.ERR_MAX_MESSAGES;
 import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
 
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -61,22 +62,24 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
         // snapshot
         final ConnectionImpl localConn = (ConnectionImpl) this.getConnection();
-        final Channel<Message> localChannel = mch;
+        final BlockingQueue<Message> localChannel = mch;
         final long localMax = max;
-        boolean chanClosed = localChannel.isClosed();
+        // boolean chanClosed = localChannel.isClosed();
         mu.unlock();
         Message msg = null;
 
-        if (timeout >= 0) {
-            try {
-                // logger.trace("Calling Channel.get({}, {}) for {}", timeout, unit,
-                // this.subject);
-                msg = localChannel.get(timeout, unit);
-            } catch (TimeoutException e) {
-                throw e;
+        try {
+            if (timeout >= 0) {
+                msg = localChannel.poll(timeout, unit);
+                if (msg == null) {
+                    throw new TimeoutException("Timed out waiting for message");
+                }
+            } else {
+                msg = localChannel.take();
             }
-        } else {
-            msg = localChannel.get();
+        } catch (InterruptedException e) {
+            logger.warn("Interrupted");
+            Thread.currentThread().interrupt();
         }
 
         if (msg != null) {

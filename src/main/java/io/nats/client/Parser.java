@@ -307,7 +307,7 @@ class Parser {
                 case OP_PLUS_OK:
                     switch (b) {
                         case '\n':
-                            nc.processOK();
+                            nc.processOk();
                             ps.drop = 0;
                             ps.state = NatsOp.OP_START;
                             break;

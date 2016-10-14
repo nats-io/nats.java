@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
 
 @Category(UnitTest.class)
 public class SubscriptionImplTest {
@@ -55,7 +56,7 @@ public class SubscriptionImplTest {
     private ConnectionImpl connMock;
 
     @Mock
-    private Channel<Message> mchMock;
+    private BlockingQueue<Message> mchMock;
 
     @Mock
     private MessageHandler mcbMock;
@@ -158,7 +159,7 @@ public class SubscriptionImplTest {
             assertNotNull(sub.getChannel());
             sub.closeChannel();
             assertNull(sub.getChannel());
-            verify(mchMock, times(1)).close();
+            verify(mchMock, times(1)).clear();
         }
 
         try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
@@ -168,7 +169,7 @@ public class SubscriptionImplTest {
         }
 
         try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-            doThrow(new NullPointerException("testing")).when(mchMock).close();
+            doThrow(new NullPointerException("testing")).when(mchMock).clear();
             sub.setChannel(mchMock);
             assertNotNull(sub.getChannel());
             sub.closeChannel();
@@ -354,7 +355,7 @@ public class SubscriptionImplTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        when(mchMock.getCount()).thenReturn(count);
+        when(mchMock.size()).thenReturn(count);
         try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
             sub.pMsgs = count;
             assertEquals(count, sub.getQueuedMessageCount());
