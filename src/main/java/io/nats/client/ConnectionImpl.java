@@ -186,7 +186,7 @@ public class ConnectionImpl implements Connection {
     private static final int NUM_WATCHER_THREADS = 2;
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;
-    private BlockingQueue<Boolean> fch = new LinkedBlockingQueue<Boolean>(FLUSH_CHAN_SIZE);
+    private BlockingQueue<Boolean> fch;
 
     ConnectionImpl() {}
 
@@ -230,6 +230,7 @@ public class ConnectionImpl implements Connection {
     void setup() {
         cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
         exec = Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
+        fch = createBooleanChannel(FLUSH_CHAN_SIZE);
         pongs = createPongs();
         subs.clear();
     }
@@ -455,8 +456,24 @@ public class ConnectionImpl implements Connection {
         br = conn.getBufferedInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
 
-    BlockingQueue<Boolean> createPongChannel(int size) {
-        BlockingQueue<Boolean> rv = null;
+
+    BlockingQueue<Message> createMsgChannel() {
+        return new LinkedBlockingQueue<Message>();
+    }
+
+    BlockingQueue<Message> createMsgChannel(int size) {
+        int theSize = size;
+        if (theSize <= 0) {
+            theSize = 1;
+        }
+        return new LinkedBlockingQueue<Message>(theSize);
+    }
+
+    BlockingQueue<Boolean> createBooleanChannel() {
+        return new LinkedBlockingQueue<Boolean>();
+    }
+
+    BlockingQueue<Boolean> createBooleanChannel(int size) {
         int theSize = size;
         if (theSize <= 0) {
             theSize = 1;
@@ -522,7 +539,9 @@ public class ConnectionImpl implements Connection {
             // Go ahead and make sure we have flushed the outbound
             if (conn != null) {
                 try {
-                    bw.flush();
+                    if (bw != null) {
+                        bw.flush();
+                    }
                 } catch (IOException e) {
                     /* NOOP */
                 }
@@ -539,7 +558,7 @@ public class ConnectionImpl implements Connection {
                 sub.closed = true;
                 // Mark connection closed in subscription
                 sub.connClosed = true;
-                // Terminate thread executor
+                // Terminate thread exec
                 sub.close();
                 sub.unlock();
             }
@@ -660,7 +679,7 @@ public class ConnectionImpl implements Connection {
     // messages. We use pings for the flush mechanism as well.
     protected void processPong() {
         logger.trace("Processing PONG");
-        BlockingQueue<Boolean> ch = createPongChannel(1);
+        BlockingQueue<Boolean> ch = createBooleanChannel(1);
         mu.lock();
         try {
             if (pongs.size() > 0) {
@@ -1553,7 +1572,6 @@ public class ConnectionImpl implements Connection {
      */
     protected void processMsg(byte[] data, int offset, int length) {
         SubscriptionImpl sub;
-        boolean slowConsumer = false;
 
         mu.lock();
         try {
@@ -1617,18 +1635,13 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-
     void removeSub(SubscriptionImpl sub) {
         subs.remove(sub.getSid());
-        // logger.trace("Removed sid={} subj={}",
-        // sub.getSid(), sub.getSubject());
         sub.lock();
         try {
             if (sub.getChannel() != null) {
                 sub.mch.clear();
                 sub.mch = null;
-                // logger.trace("Closed sid={} subj={}", sub.getSid(),
-                // sub.getSubject());
             }
 
             // Mark as invalid
@@ -1812,9 +1825,11 @@ public class ConnectionImpl implements Connection {
 
     protected void kickFlusher() {
         if (bw != null) {
-            if (fch.size() == 0) {
-                if (!fch.offer(true)) {
-                    logger.warn("Unable to add to flusher channel");
+            if (fch != null) {
+                if (fch.size() == 0) {
+                    if (!fch.offer(true)) {
+                        logger.warn("Unable to add to flusher channel");
+                    }
                 }
             }
         }
@@ -1916,7 +1931,7 @@ public class ConnectionImpl implements Connection {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
-            ch = createPongChannel(1);
+            ch = createBooleanChannel(1);
             sendPing(ch);
         } finally {
             mu.unlock();
@@ -2039,7 +2054,7 @@ public class ConnectionImpl implements Connection {
                     try {
                         waitForMsgs((AsyncSubscriptionImpl) sub);
                     } catch (InterruptedException e) {
-                        logger.warn("Interrupted in waitForMsgs");
+                        logger.debug("Interrupted in waitForMsgs");
                         Thread.currentThread().interrupt();
                     }
                 }
@@ -2099,13 +2114,13 @@ public class ConnectionImpl implements Connection {
     @Override
     public SyncSubscription subscribeSync(String subject, String queue) {
         return (SyncSubscription) subscribe(subject, queue, (MessageHandler) null,
-                new LinkedBlockingQueue<Message>());
+                createMsgChannel());
     }
 
     @Override
     public SyncSubscription subscribeSync(String subject) {
         return (SyncSubscription) subscribe(subject, null, (MessageHandler) null,
-                new LinkedBlockingQueue<Message>());
+                createMsgChannel());
     }
 
     // Use low level primitives to build the protocol for the publish

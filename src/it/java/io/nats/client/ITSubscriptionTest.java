@@ -49,8 +49,7 @@ public class ITSubscriptionTest {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
-    ExecutorService executor =
-            Executors.newCachedThreadPool(new NATSThreadFactory("nats-test-thread"));
+    ExecutorService exec;
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -62,10 +61,16 @@ public class ITSubscriptionTest {
     public static void tearDownAfterClass() throws Exception {}
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+        exec = Executors.newCachedThreadPool(new NATSThreadFactory("nats-test-thread"));
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+        if (!exec.isShutdown()) {
+            exec.shutdownNow();
+        }
+    }
 
     @Test
     public void testServerAutoUnsub() throws IOException, TimeoutException {
@@ -256,7 +261,6 @@ public class ITSubscriptionTest {
     @Test
     public void testAutoUnsubWithParallelNextMsgCalls() throws Exception {
         final CountDownLatch rcbLatch = new CountDownLatch(1);
-        final ExecutorService service = Executors.newCachedThreadPool();
         try (NATSServer srv = runDefaultServer()) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setReconnectWait(50);
@@ -271,28 +275,29 @@ public class ITSubscriptionTest {
                 final int total = max * 2;
                 final AtomicLong received = new AtomicLong(0);
 
-                final CountDownLatch waitGroup = new CountDownLatch(numRoutines);
                 final SyncSubscription sub = nc.subscribeSync("foo");
                 sub.autoUnsubscribe(max);
                 nc.flush();
 
                 for (int i = 0; i < numRoutines; i++) {
-                    service.submit(new Runnable() {
+                    exec.submit(new Runnable() {
                         public void run() {
-                            while (received.get() < max) {
+                            while (received.get() < max
+                                    && !Thread.currentThread().isInterrupted()) {
+                                // The first to reach the max delivered will cause the
+                                // subscription to be removed, which will kick out all
+                                // other calls to NextMsg. So don't be afraid of the long
+                                // timeout.
+                                Message msg;
                                 try {
-                                    // The first to reach the max delivered will cause the
-                                    // subscription to be removed, which will kick out all
-                                    // other calls to NextMsg. So don't be afraid of the long
-                                    // timeout.
-                                    sub.nextMessage(3, TimeUnit.SECONDS);
+                                    msg = sub.nextMessage(3, TimeUnit.SECONDS);
+                                    assertNotNull(msg);
                                     received.incrementAndGet();
-                                } catch (Exception e) {
-                                    System.err.println(e.getMessage());
+                                } catch (IOException | TimeoutException e) {
+                                    e.printStackTrace();
                                     break;
                                 }
                             }
-                            waitGroup.countDown();
                         }
                     });
                 }
@@ -304,20 +309,29 @@ public class ITSubscriptionTest {
                 nc.flush();
 
                 srv.shutdown();
+
                 try (NATSServer srv2 = runDefaultServer()) {
                     // Make sure we got the reconnected cb
-                    await(rcbLatch, 5, TimeUnit.SECONDS);
+                    assertTrue("Failed to get reconnected cb",
+                            await(rcbLatch, 10, TimeUnit.SECONDS));
+
                     for (int i = 0; i < total; i++) {
                         nc.publish("foo", msg);
                     }
                     nc.flush();
 
-                    waitGroup.await();
+                    while (received.get() < max) {
+                        sleep(1);
+                    }
+
+                    if (!exec.isShutdown()) {
+                        exec.shutdownNow();
+                    }
+
                     assertEquals("Wrong number of msgs received: ", max, received.get());
                 }
             }
         }
-        service.shutdownNow();
     }
 
     @Test
@@ -421,7 +435,7 @@ public class ITSubscriptionTest {
             try (final Connection nc = new ConnectionFactory().createConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
                     long start = System.nanoTime();
-                    executor.submit(new Runnable() {
+                    exec.submit(new Runnable() {
                         public void run() {
                             sleep(5);
                             nc.close();

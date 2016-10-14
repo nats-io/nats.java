@@ -35,11 +35,13 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
     @Override
     public Message nextMessage(long timeout) throws IOException, TimeoutException {
+        // TODO This should throw InterruptedException
         return nextMessage(timeout, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public Message nextMessage(long timeout, TimeUnit unit) throws IOException, TimeoutException {
+        // TODO This should throw InterruptedException
         mu.lock();
         if (connClosed) {
             mu.unlock();
@@ -67,18 +69,20 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
         // boolean chanClosed = localChannel.isClosed();
         mu.unlock();
         Message msg = null;
-
         try {
-            if (timeout >= 0) {
-                msg = localChannel.poll(timeout, unit);
-                if (msg == null) {
-                    throw new TimeoutException("Timed out waiting for message");
+            while (!Thread.currentThread().isInterrupted()) {
+                if (timeout > 0) {
+                    msg = localChannel.poll(timeout, unit);
+                    if (msg == null) {
+                        throw new TimeoutException("Timed out waiting for message");
+                    }
+                } else {
+                    msg = localChannel.take();
                 }
-            } else {
-                msg = localChannel.take();
+                break;
             }
         } catch (InterruptedException e) {
-            logger.warn("Interrupted");
+            logger.warn("nextMessage({}, {}) interrupted...", timeout, unit);
             Thread.currentThread().interrupt();
         }
 

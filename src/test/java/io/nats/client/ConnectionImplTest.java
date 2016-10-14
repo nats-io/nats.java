@@ -202,7 +202,8 @@ public class ConnectionImplTest {
 
     @Test
     public void testIsReconnecting() throws IOException, TimeoutException {
-        try (ConnectionImpl conn = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+        Options opts = new ConnectionFactory().options();
+        try (ConnectionImpl conn = (ConnectionImpl) new ConnectionImpl(opts)) {
             assertFalse(conn.isReconnecting());
             conn.status = ConnState.RECONNECTING;
             assertTrue(conn.isReconnecting());
@@ -691,7 +692,6 @@ public class ConnectionImplTest {
 
     @Test
     public void testPublishWithReply() throws IOException, TimeoutException {
-        setLogLevel(Level.TRACE);
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
             c.publish("foo", "bar", null);
             verify(c, times(1))._publish(eq("foo".getBytes()), eq("bar".getBytes()),
@@ -1150,7 +1150,7 @@ public class ConnectionImplTest {
         @SuppressWarnings("unchecked")
         BlockingQueue<Boolean> ch = (BlockingQueue<Boolean>) mock(BlockingQueue.class);
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-            when(c.createPongChannel(1)).thenReturn(ch);
+            when(c.createBooleanChannel(1)).thenReturn(ch);
             when(ch.poll(500, TimeUnit.MILLISECONDS)).thenReturn(false);
             c.flush(500);
         }
