@@ -1259,42 +1259,6 @@ public class ConnectionImpl implements Connection {
 
     }
 
-    // protected Thread go(final Runnable task, final String name, final String group,
-    // final Phaser ph) {
-    // NATSThread.setDebug(true);
-    // NATSThread t = new NATSThread(task, name) {
-    // public void run() {
-    // if (ph != null) {
-    // ph.register();
-    // logger.trace("{} registered in group {}. # registered for phase {} = {}", name,
-    // group, ph.getPhase(), ph.getRegisteredParties());
-    // logger.trace(name + " starting");
-    // ph.arriveAndAwaitAdvance(); // await all creation
-    // } else {
-    // logger.trace("Untracked thread " + name + " starting.");
-    // }
-    //
-    // task.run();
-    //
-    // if (ph != null) {
-    // int oldPhase = ph.getPhase();
-    // logger.trace(name + " arrive and deregister for phase {}", ph.getPhase());
-    // logger.trace(
-    // "{} (group {}) ending phase {}: Registered = {}, Arrived = {}, Unarrived={}",
-    // name, group, oldPhase, ph.getRegisteredParties(),
-    // ph.getArrivedParties(), ph.getUnarrivedParties());
-    // int phase = ph.arriveAndDeregister();
-    // logger.trace(name + " deregistered going into phase {}", phase);
-    // } else {
-    // logger.trace("Untracked thread " + name + " completed.");
-    // }
-    // }
-    // };
-    // t.start();
-    // NATSThread.setDebug(false);
-    // return t;
-    // }
-
     protected class Control {
         String op = null;
         String args = null;
@@ -1524,42 +1488,6 @@ public class ConnectionImpl implements Connection {
             }
         }
     }
-
-    // deliverMsgs waits on the delivery channel shared with readLoop and processMsg.
-    // It is used to deliver messages to asynchronous subscribers.
-    // This function is the run() method of the AsyncSubscription's msgFeeder thread.
-    // protected void deliverMsgs(Channel<Message> ch) {
-    // // logger.trace("In deliverMsgs");
-    // Message msg = null;
-    //
-    // mu.lock();
-    // // Slightly faster to do this directly vs call isClosed
-    // if (_isClosed()) {
-    // mu.unlock();
-    // return;
-    // }
-    // mu.unlock();
-    //
-    // while (true) {
-    // msg = ch.get();
-    //
-    // if (msg == null) {
-    // // the channel has been closed, exit silently.
-    // logger.debug("Channel closed, exiting msgFeeder loop");
-    // return;
-    // }
-    // // Note, this seems odd message having the sub process itself,
-    // // but this is good for performance.
-    // if (!msg.sub.processMsg(msg)) {
-    // mu.lock();
-    // try {
-    // removeSub(msg.sub);
-    // } finally {
-    // mu.unlock();
-    // }
-    // }
-    // }
-    // }
 
     /**
      * processMsg is called by parse and will place the msg on the appropriate channel/pending queue
