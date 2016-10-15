@@ -6,6 +6,19 @@
 
 package io.nats.client;
 
+import static io.nats.client.ConnectionImpl.PONG_PROTO;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +59,82 @@ public class UnitTestUtilities {
         ConnectionImpl conn = new ConnectionImpl(opts != null ? opts : cf.options(), tcf);
         conn.connect();
         return conn;
+    }
+
+    protected static io.nats.client.Connection setupMockNatsConnection()
+            throws IOException, TimeoutException {
+        return setupMockNatsConnection(null);
+    }
+
+    protected static io.nats.client.Connection setupMockNatsConnection(Options opts)
+            throws IOException, TimeoutException {
+        if (opts == null) {
+            opts = new ConnectionFactory().options();
+        }
+        final ConnectionImpl nc = spy(new ConnectionImpl(opts));
+
+        // Set up mock TCPConnection
+        final TCPConnection tcpConnMock = mock(TCPConnection.class);
+        final BufferedReader bufferedReaderMock = mock(BufferedReader.class);
+        final BufferedInputStream brMock = mock(BufferedInputStream.class);
+        final BufferedOutputStream bwMock = mock(BufferedOutputStream.class);
+
+        // isConnected
+        when(tcpConnMock.isConnected()).thenReturn(true);
+        // getBufferedReader
+
+        TCPConnectionFactory tcfMock = mock(TCPConnectionFactory.class);
+        when(tcfMock.createConnection()).thenReturn(tcpConnMock);
+        nc.setTcpConnectionFactory(tcfMock);
+
+        doAnswer(new Answer<Void>() {
+            @Override
+            public Void answer(InvocationOnMock invocation) throws Throwable {
+                // when(br.readLine()).thenReturn("PONG");
+                Object[] args = invocation.getArguments();
+
+                // Setup bufferedReaderMock
+                when(tcpConnMock.getBufferedReader()).thenReturn(bufferedReaderMock);
+
+                // Setup br
+                when(tcpConnMock.getBufferedInputStream(anyInt())).thenReturn(brMock);
+
+                // Setup br
+                when(tcpConnMock.getBufferedOutputStream(anyInt())).thenReturn(bwMock);
+
+                // First lines are always INFO and then PONG
+                when(bufferedReaderMock.readLine()).thenReturn(TCPConnectionMock.defaultInfo,
+                        PONG_PROTO.trim());
+
+                // Additional pings
+                doAnswer(new Answer<Void>() {
+                    @Override
+                    public Void answer(InvocationOnMock invocation) throws Throwable {
+                        when(brMock.read(any(byte[].class))).thenReturn(nc.pongProtoBytesLen);
+                        return null;
+                    }
+                }).when(bwMock).write(nc.pingProtoBytes, 0, nc.pingProtoBytesLen);
+
+                nc.setInputStream(brMock);
+                nc.setOutputStream(bwMock);
+
+                doAnswer(new Answer<Void>() {
+                    @Override
+                    public Void answer(InvocationOnMock invocation) throws Throwable {
+                        when(tcpConnMock.isConnected()).thenReturn(false);
+                        return null;
+                    }
+                }).when(tcpConnMock).close();
+                return null;
+            }
+        }).when(tcpConnMock).open(any(String.class), anyInt(), anyInt());
+
+        when(nc.newInbox())
+                .thenReturn(String.format("_INBOX.%s", io.nats.client.NUID.nextGlobal()));
+
+        nc.connect();
+
+        return nc;
     }
 
     static synchronized Connection newMockedConnection() throws IOException, TimeoutException {

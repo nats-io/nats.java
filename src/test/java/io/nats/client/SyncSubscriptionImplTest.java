@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -55,7 +56,7 @@ public class SyncSubscriptionImplTest {
     private ConnectionImpl connMock;
 
     @Mock
-    private Channel<Message> mchMock;
+    private BlockingQueue<Message> mchMock;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {}
@@ -109,7 +110,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessage() throws IOException {
+    public void testNextMessage() throws IOException, InterruptedException {
         String subj = "foo";
         String queue = "bar";
 
@@ -117,14 +118,15 @@ public class SyncSubscriptionImplTest {
         ConnectionImpl nc = mock(ConnectionImpl.class);
         try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue)) {
             s.setChannel(mchMock);
-            when(mchMock.get()).thenReturn(msgMock);
+            when(mchMock.take()).thenReturn(msgMock);
             Message msg = s.nextMessage();
             assertEquals(msgMock, msg);
         }
     }
 
     @Test
-    public void testNextMessageTimeoutSuccess() throws TimeoutException, IOException {
+    public void testNextMessageTimeoutSuccess()
+            throws TimeoutException, IOException, InterruptedException {
         String subj = "foo";
         String queue = "bar";
         long timeout = 1000;
@@ -132,17 +134,18 @@ public class SyncSubscriptionImplTest {
 
         final ConnectionImpl nc = mock(ConnectionImpl.class);
         try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            when(mchMock.get(eq(timeout), eq(TimeUnit.MILLISECONDS))).thenReturn(msgMock);
+            when(mchMock.poll(eq(timeout), eq(TimeUnit.MILLISECONDS))).thenReturn(msgMock);
             sub.setChannel(mchMock);
 
             Message msg = sub.nextMessage(timeout, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
-            verify(mchMock, times(1)).get(eq(timeout), eq(TimeUnit.MILLISECONDS));
+            verify(mchMock, times(1)).poll(eq(timeout), eq(TimeUnit.MILLISECONDS));
         }
     }
 
     @Test
-    public void testNextMessageAutoUnsubscribeMax() throws TimeoutException, IOException {
+    public void testNextMessageAutoUnsubscribeMax()
+            throws TimeoutException, IOException, InterruptedException {
         String subj = "foo";
         String queue = "bar";
         long timeout = 1000;
@@ -151,12 +154,12 @@ public class SyncSubscriptionImplTest {
         try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
             try (SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribe(subj, queue)) {
                 sub.setMax(1);
-                when(mchMock.get(eq(timeout), eq(TimeUnit.MILLISECONDS))).thenReturn(msgMock);
+                when(mchMock.poll(eq(timeout), eq(TimeUnit.MILLISECONDS))).thenReturn(msgMock);
                 sub.setChannel(mchMock);
 
                 Message msg = sub.nextMessage(timeout, TimeUnit.MILLISECONDS);
                 assertNotNull(msg);
-                verify(mchMock, times(1)).get(eq(timeout), eq(TimeUnit.MILLISECONDS));
+                verify(mchMock, times(1)).poll(eq(timeout), eq(TimeUnit.MILLISECONDS));
                 verify(nc, times(1)).removeSub(sub);
             }
         }

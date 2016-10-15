@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -60,7 +62,7 @@ abstract class SubscriptionImpl implements Subscription {
     boolean sc;
 
     ConnectionImpl conn = null;
-    Channel<Message> mch;
+    BlockingQueue<Message> mch;
     Condition pCond;
 
     // Pending stats, async subscriptions, high-speed etc.
@@ -83,7 +85,7 @@ abstract class SubscriptionImpl implements Subscription {
         this.queue = queue;
         setPendingMsgsLimit(pendingMsgsLimit);
         setPendingBytesLimit(pendingBytesLimit);
-        this.mch = new Channel<Message>();
+        this.mch = new LinkedBlockingQueue<Message>();
         pCond = mu.newCondition();
     }
 
@@ -91,7 +93,7 @@ abstract class SubscriptionImpl implements Subscription {
         mu.lock();
         try {
             if (mch != null) {
-                mch.close();
+                mch.clear();
                 mch = null;
             }
         } finally {
@@ -110,12 +112,17 @@ abstract class SubscriptionImpl implements Subscription {
         return queue;
     }
 
-    public Channel<Message> getChannel() {
+    public BlockingQueue<Message> getChannel() {
         return this.mch;
     }
 
-    public void setChannel(Channel<Message> ch) {
+    public void setChannel(BlockingQueue<Message> ch) {
         this.mch = ch;
+    }
+
+    boolean isClosed() {
+        // Internal only and assumes lock is held
+        return closed;
     }
 
     public boolean isValid() {

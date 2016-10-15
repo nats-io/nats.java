@@ -9,7 +9,10 @@ package io.nats.client;
 import static io.nats.client.Constants.ERR_CONNECTION_CLOSED;
 import static io.nats.client.Constants.ERR_NO_SERVERS;
 import static io.nats.client.Constants.ERR_STALE_CONNECTION;
+import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.bounceDefaultServer;
+import static io.nats.client.UnitTestUtilities.startDefaultServer;
+import static io.nats.client.UnitTestUtilities.stopDefaultServer;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -49,15 +52,14 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 @Category(IntegrationTest.class)
 public class ITConnectionTest {
@@ -71,13 +73,13 @@ public class ITConnectionTest {
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
-        UnitTestUtilities.startDefaultServer();
+        startDefaultServer(false);
         Thread.sleep(500);
     }
 
     @AfterClass
     public static void tearDownAfterClass() throws Exception {
-        UnitTestUtilities.stopDefaultServer();
+        stopDefaultServer();
         Thread.sleep(500);
     }
 
@@ -164,7 +166,9 @@ public class ITConnectionTest {
                             return -1;
                         }
                     });
-        } catch (IOException e2) {
+        } catch (
+
+        IOException e2) {
             // TODO Auto-generated catch block
             e2.printStackTrace();
         }
@@ -275,33 +279,20 @@ public class ITConnectionTest {
 
     @Test
     public void testServerStopDisconnectedHandler() throws IOException, TimeoutException {
-        final Lock disconnectLock = new ReentrantLock();
-        final Condition hasBeenDisconnected = disconnectLock.newCondition();
-
+        final CountDownLatch latch = new CountDownLatch(1);
         ConnectionFactory cf = new ConnectionFactory();
         cf.setReconnectAllowed(false);
         cf.setDisconnectedCallback(new DisconnectedCallback() {
             @Override
             public void onDisconnect(ConnectionEvent event) {
-                disconnectLock.lock();
-                try {
-                    hasBeenDisconnected.signal();
-                } finally {
-                    disconnectLock.unlock();
-                }
+                latch.countDown();
             }
         });
 
         try (Connection c = cf.createConnection()) {
             assertFalse(c.isClosed());
-            disconnectLock.lock();
-            try {
-                bounceDefaultServer(1000);
-                assertTrue(hasBeenDisconnected.await(10, TimeUnit.SECONDS));
-            } catch (InterruptedException e) {
-            } finally {
-                disconnectLock.unlock();
-            }
+            bounceDefaultServer(1000);
+            assertTrue("dcb not triggered", await(latch));
         }
     }
 
@@ -434,7 +425,7 @@ public class ITConnectionTest {
             doThrow(new IOException("Mock OutputStream write exception")).when(bw)
                     .write(any(int.class));
             c.setOutputStream(bw);
-            c.sendPing(new Channel<Boolean>());
+            c.sendPing(new LinkedBlockingQueue<Boolean>());
             assertTrue(c.getLastException() instanceof IOException);
             assertEquals("Mock OutputStream write exception", c.getLastException().getMessage());
         } catch (IOException | TimeoutException e) {
@@ -642,7 +633,7 @@ public class ITConnectionTest {
             doThrow(new IOException("Should not have flushed")).when(bw).flush();
             c.close();
             c.setOutputStream(bw);
-            Channel<Boolean> fch = c.getFlushChannel();
+            BlockingQueue<Boolean> fch = c.getFlushChannel();
             fch.add(false);
             c.setFlushChannel(fch);
             c.flusher();

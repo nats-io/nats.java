@@ -6,6 +6,7 @@
 
 package io.nats.client;
 
+import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -22,8 +23,11 @@ import org.junit.experimental.categories.Category;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -95,7 +99,7 @@ public class BenchTest {
     }
 
     // @Test
-    public void testPubSubSpeed() {
+    public void testPubSubSpeed() throws InterruptedException {
         final int count = 10000000;
         final int MAX_BACKLOG = 32000;
         // final int count = 2000;
@@ -104,9 +108,9 @@ public class BenchTest {
         final byte[] payload = "test".getBytes();
         long elapsed = 0L;
 
-        final Channel<Boolean> ch = new Channel<Boolean>();
-        final Channel<Boolean> ready = new Channel<Boolean>();
-        final Channel<Long> slow = new Channel<Long>();
+        final CountDownLatch ch = new CountDownLatch(1);
+        final CountDownLatch ready = new CountDownLatch(1);
+        final BlockingQueue<Long> slow = new LinkedBlockingQueue<Long>();
 
         final AtomicInteger received = new AtomicInteger(0);
 
@@ -129,15 +133,15 @@ public class BenchTest {
                         public void onMessage(Message msg) {
                             int numReceived = received.incrementAndGet();
                             if (numReceived >= count) {
-                                ch.add(true);
+                                ch.countDown();
                             }
                         }
                     });
-                    ready.add(true);
+                    ready.countDown();
                     while (received.get() < count) {
                         if (sub.getQueuedMessageCount() > 8192) {
                             System.err.printf("queued=%d\n", sub.getQueuedMessageCount());
-                            if (slow.getCount() == 0) {
+                            if (slow.size() == 0) {
                                 slow.add((long) sub.getQueuedMessageCount());
                             }
                             sleep(1);
@@ -159,7 +163,7 @@ public class BenchTest {
             long t0 = System.nanoTime();
             long numSleeps = 0L;
 
-            ready.get();
+            ready.await();
             int sleepTime = 100;
 
             for (int i = 0; i < count; i++) {
@@ -183,14 +187,9 @@ public class BenchTest {
             System.err.println("numSleeps=" + numSleeps);
 
             // Make sure they are all processed
-            try {
-                String s = String.format("Timed out waiting for messages, received %d/%d",
-                        received.get(), count);
-                assertTrue(s, ch.get(30, TimeUnit.SECONDS));
-            } catch (TimeoutException e) {
-                fail(String.format("Timed out waiting for delivery completion, received %d/%d",
-                        received.get(), count));
-            }
+            String str = String.format("Timed out waiting for delivery completion, received %d/%d",
+                    received.get(), count);
+            assertTrue(str, await(ch, 30, TimeUnit.SECONDS));
             assertEquals(count, received.get());
             try {
                 subscriber.join();

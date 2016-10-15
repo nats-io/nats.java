@@ -43,9 +43,6 @@ public class AsyncSubscriptionImplTest {
     public ConnectionImpl connMock;
 
     @Mock
-    public Channel<Message> mchMock;
-
-    @Mock
     public MessageHandler mcbMock;
 
     @BeforeClass
