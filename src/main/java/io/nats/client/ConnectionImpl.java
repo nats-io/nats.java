@@ -593,10 +593,10 @@ public class ConnectionImpl implements Connection {
                 conn.close();
             }
 
+            // if (exec != null) {
+            // exec.shutdownNow();
+            // }
             mu.unlock();
-            if (exec != null) {
-                exec.shutdownNow();
-            }
         }
     }
 

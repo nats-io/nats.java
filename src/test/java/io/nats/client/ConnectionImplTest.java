@@ -16,7 +16,6 @@ import static io.nats.client.Constants.ERR_TIMEOUT;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
-import static io.nats.client.UnitTestUtilities.setupMockNatsConnection;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1038,7 +1037,7 @@ public class ConnectionImplTest {
     @Test
     public void testCloseNullTcpConn() throws IOException, TimeoutException, InterruptedException {
         // Null TCP connection and null disconnected callback
-        try (ConnectionImpl conn = (ConnectionImpl) setupMockNatsConnection()) {
+        try (ConnectionImpl conn = (ConnectionImpl) newMockedConnection()) {
             conn.setTcpConnection(null);
             conn.setOutputStream(bwMock);
             assertNull(conn.getDisconnectedCallback());
@@ -1049,7 +1048,7 @@ public class ConnectionImplTest {
         }
 
         // Null TCP connection and valid disconnected callback
-        try (ConnectionImpl conn = (ConnectionImpl) setupMockNatsConnection()) {
+        try (ConnectionImpl conn = (ConnectionImpl) newMockedConnection()) {
             final AtomicInteger dcbCount = new AtomicInteger(0);
             conn.setDisconnectedCallback(new DisconnectedCallback() {
                 public void onDisconnect(ConnectionEvent event) {
@@ -1067,7 +1066,7 @@ public class ConnectionImplTest {
         }
 
         // Test for valid TCP connection and valid disconnected callback
-        try (ConnectionImpl conn = (ConnectionImpl) setupMockNatsConnection()) {
+        try (ConnectionImpl conn = (ConnectionImpl) newMockedConnection()) {
             final CountDownLatch dcbLatch = new CountDownLatch(1);
             conn.setDisconnectedCallback(new DisconnectedCallback() {
                 public void onDisconnect(ConnectionEvent event) {
