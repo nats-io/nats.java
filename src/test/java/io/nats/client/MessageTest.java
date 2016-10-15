@@ -121,13 +121,6 @@ public class MessageTest {
         assertEquals(new String(subj), msg.getSubject());
         assertArrayEquals(reply, msg.getReplyToBytes());
         assertEquals(new String(reply), msg.getReplyTo());
-
-        // Now test for an exception
-        // PowerMockito.mockStatic(Message.class);
-        // createPartialMock(Message.class, "sysArrayCopy");
-        // PowerMockito.doThrow(new ArrayIndexOutOfBoundsException()).when(Message.class);
-        // Message.sysArrayCopy(any(byte[].class), anyInt(), any(byte[].class), anyInt(), anyInt());
-        // Message msg2 = new Message(ma, sub, payload, 0, ma.size);
     }
 
     @Test
