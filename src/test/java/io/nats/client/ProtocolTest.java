@@ -14,11 +14,8 @@ import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import io.nats.client.Constants.ConnState;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -26,7 +23,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,14 +33,22 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.concurrent.TimeoutException;
 
-@Category(UnitTest.class)
+// @Category(UnitTest.class)
 public class ProtocolTest {
+    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    static final Logger logger = LoggerFactory.getLogger(ProtocolTest.class);
+
+    static final LogVerifier verifier = new LogVerifier();
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
-    final static String defaultConnect =
-            "CONNECT {\"verbose\":false,\"pedantic\":false,\"ssl_required\":false,\"name\":\"\",\"lang\":\"java\",\"version\":\"0.3.0-SNAPSHOT\"}\r\n";
+    static final String defaultConnect =
+            "CONNECT {\"verbose\":false,\"pedantic\":false,\"ssl_required\":false,"
+                    + "\"name\":\"\",\"lang\":\"java\",\"version\":\"0.3.0-SNAPSHOT\"}\r\n";
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {}
@@ -56,7 +63,7 @@ public class ProtocolTest {
     public void tearDown() throws Exception {}
 
     @Test
-    public void testMockServerIO() {
+    public void testMockServerIo() {
         try (TCPConnectionMock conn = new TCPConnectionMock()) {
             conn.open("localhost", 2222, 200);
             assertTrue(conn.isConnected());
@@ -68,8 +75,8 @@ public class ProtocolTest {
                     conn.getBufferedInputStream(ConnectionImpl.DEFAULT_STREAM_BUF_SIZE)));
             assertNotNull(br);
 
-            String s = br.readLine().trim();
-            assertEquals("INFO strings not equal.", TCPConnectionMock.defaultInfo.trim(), s);
+            String str = br.readLine().trim();
+            assertEquals("INFO strings not equal.", TCPConnectionMock.defaultInfo.trim(), str);
 
             bw.write(defaultConnect.getBytes());
         } catch (Exception e1) {
@@ -79,13 +86,12 @@ public class ProtocolTest {
 
     @Test
     public void testMockServerConnection() {
-        ConnectionFactory cf = new ConnectionFactory();
-        try (Connection c = cf.createConnection(new TCPConnectionFactoryMock())) {
+        try (Connection c = newMockedConnection()) {
             assertTrue(!c.isClosed());
 
             try (SyncSubscription sub = c.subscribeSync("foo")) {
                 c.publish("foo", "Hello".getBytes());
-                Message m = sub.nextMessage();
+                sub.nextMessage();
             } catch (Exception e) {
                 fail(e.getMessage());
             }
@@ -95,28 +101,14 @@ public class ProtocolTest {
     }
 
     @Test
-    public void testPingTimer() {
-        ConnectionFactory cf = new ConnectionFactory();
-        cf.setPingInterval(500);
-        try (Connection c = cf.createConnection(new TCPConnectionFactoryMock())) {
-            assertTrue(!c.isClosed());
-            try {
-                Thread.sleep(1500);
-            } catch (InterruptedException e) {
-            }
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
     public void testVerbose() {
+        // TODO fix this?
         ConnectionFactory cf = new ConnectionFactory();
         cf.setVerbose(true);
         try (ConnectionImpl c = cf.createConnection(new TCPConnectionFactoryMock())) {
             // try (ConnectionImpl c = cf.createConnection()) {
             assertTrue(!c.isClosed());
-            SyncSubscription s = c.subscribeSync("foo");
+            SyncSubscription sub = c.subscribeSync("foo");
             c.flush();
             c.close();
             assertTrue(c.isClosed());
@@ -126,35 +118,17 @@ public class ProtocolTest {
     }
 
     @Test
-    public void testGetConnectedId() {
-        final String expectedId = "a1c9cf0c66c3ea102c600200d441ad8e";
-        try (Connection c = newMockedConnection()) {
-            assertTrue(!c.isClosed());
-            assertEquals("Wrong server ID", c.getConnectedServerId(), expectedId);
-            c.close();
-            assertNull("Should have returned NULL", c.getConnectedServerId());
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testServerToClientPingPong() {
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-        }
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
+    public void testServerToClientPingPong() throws IOException, TimeoutException {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             assertFalse(c.isClosed());
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
-                /* NOOP */ }
+                logger.warn("Interrupted", e);
+            }
             TCPConnectionMock mock = (TCPConnectionMock) c.getTcpConnection();
+            // TODO mock this with Mockito instead
             mock.sendPing();
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
     }
 
@@ -174,88 +148,9 @@ public class ProtocolTest {
         }
     }
 
-    // @Test
-    public void testServerInfo() {
-        // final String expectedInfo = "INFO
-        // {\"server_id\":\"a1c9cf0c66c3ea102c600200d441ad8e\","
-        // + "\"version\":\"0.7.2\",\"go\":\"go1.4.2\",\"host\":\"0.0.0.0\",\"port\":4222,"
-        // + "\"auth_required\":false,\"ssl_required\":false,\"max_payload\":1048576}\r\n";
-
-        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
-            assertTrue(!c.isClosed());
-
-            String expected = TCPConnectionMock.defaultInfo;
-            ServerInfo info = c.getConnectedServerInfo();
-
-            assertEquals("Wrong server INFO", expected, info);
-
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testSendConnectEx() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        ConnectionFactory cf = new ConnectionFactory();
-        mcf.setBadWriter(true);
-        ConnectionImpl c = null;
-        try {
-            c = cf.createConnection(mcf);
-            if (c.getState().equals(ConnState.CONNECTED))
-                fail("Shouldn't have connected.");
-        } catch (IOException | TimeoutException e) {
-            assertTrue(e instanceof IOException);
-            assertEquals("Mock write I/O error", e.getMessage());
-        }
-        // TCPConnectionMock mock = (TCPConnectionMock) c.getTcpConnection();
-        // mock.bounce();
-
-        mcf.setBadWriter(false);
-        mcf.setVerboseNoOK(true);
-        cf.setVerbose(true);
-        try {
-            c = cf.createConnection(mcf);
-            if (c.getState().equals(ConnState.CONNECTED))
-                fail("Shouldn't have connected.");
-        } catch (IOException | TimeoutException e) {
-            assertTrue(e instanceof IOException);
-            String expected = String.format("nats: expected '%s', got '%s'", ConnectionImpl._OK_OP_,
-                    "+WRONGPROTO");
-            assertEquals(expected, e.getMessage());
-        }
-    }
-
-    // @Test
-    // public void testReadOpException() {
-    // try (TCPConnectionMock mock = new TCPConnectionMock())
-    // {
-    // mock.setBadReader(true);
-    // try (ConnectionImpl c = new ConnectionFactory().createConnection(mock)) {
-    // fail("Shouldn't have connected.");
-    // } catch (IOException | TimeoutException e) {
-    // String name = e.getClass().getName();
-    // assertTrue("Got " + name + " instead of IOException",
-    // e instanceof IOException);
-    // assertEquals(ERR_CONNECTION_READ, e.getMessage());
-    // }
-    // }
-    // }
-
-    @Test
-    public void testConnectNullPong() {
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
-        mcf.setSendNullPong(true);
-        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
-            fail("Shouldn't have connected.");
-        } catch (IOException | TimeoutException e) {
-            assertTrue(e instanceof IOException);
-            assertTrue("Unexpected text: " + e.getMessage(), e.getMessage().startsWith("nats: "));
-        }
-    }
-
     @Test
     public void testErrOpConnectionEx() {
+        // TODO do this with normal mock
         TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
         mcf.setSendGenericError(true);
         try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
@@ -268,6 +163,7 @@ public class ProtocolTest {
 
     @Test
     public void testErrOpAuthorization() {
+        // TODO do this with normal mock
         TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
         mcf.setSendAuthorizationError(true);
         try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
@@ -280,6 +176,7 @@ public class ProtocolTest {
 
     @Test
     public void testNoInfoSent() {
+        // TODO do this with normal mock
         TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
         mcf.setNoInfo(true);
         try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
@@ -292,6 +189,7 @@ public class ProtocolTest {
 
     @Test
     public void testTlsMismatchServer() {
+        // TODO do this with normal mock
         TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
         mcf.setTlsRequired(true);
         try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
@@ -305,6 +203,7 @@ public class ProtocolTest {
 
     @Test
     public void testTlsMismatchClient() {
+        // TODO do this with normal mock
         ConnectionFactory cf = new ConnectionFactory("tls://localhost:4222");
         cf.setSecure(true);
         try (ConnectionImpl c = cf.createConnection(new TCPConnectionFactoryMock())) {

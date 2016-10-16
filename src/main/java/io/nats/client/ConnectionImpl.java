@@ -440,7 +440,7 @@ public class ConnectionImpl implements Connection {
             conn.open(srv.url.getHost(), srv.url.getPort(), opts.getConnectionTimeout());
             logger.trace("Opened {}", srv.url);
         } catch (IOException e) {
-            logger.trace("Couldn't establish connection to {}: {}", srv.url, e.getMessage());
+            logger.debug("Couldn't establish connection to {}: {}", srv.url, e.getMessage());
             throw (e);
         }
 
@@ -1663,6 +1663,7 @@ public class ConnectionImpl implements Connection {
         try {
             Runnable pingRunnable = new Runnable() {
                 public void run() {
+                    System.err.println("Running processPingTimer");
                     processPingTimer();
                 }
             };
@@ -2178,7 +2179,8 @@ public class ConnectionImpl implements Connection {
         _publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
     }
 
-    private Message _request(String subject, byte[] data, long timeout, TimeUnit unit)
+    @Override
+    public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
             throws TimeoutException, IOException {
         String inbox = newInbox();
         Message msg = null;
@@ -2198,20 +2200,8 @@ public class ConnectionImpl implements Connection {
     }
 
     @Override
-    public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
-            throws TimeoutException, IOException {
-        // logger.trace("In request({},{},{})", subject,
-        // data==null?"null":new String(data), timeout);
-        if (timeout <= 0) {
-            throw new IllegalArgumentException("Timeout must be greater that 0.");
-        }
-
-        return _request(subject, data, timeout, unit);
-    }
-
-    @Override
     public Message request(String subject, byte[] data) throws IOException, TimeoutException {
-        return _request(subject, data, -1, TimeUnit.MILLISECONDS);
+        return request(subject, data, -1, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -2497,5 +2487,13 @@ public class ConnectionImpl implements Connection {
 
     void setActualPingsOutstanding(int pout) {
         this.pout = pout;
+    }
+
+    ScheduledExecutorService getPingTimer() {
+        return ptmr;
+    }
+
+    void setPingTimer(ScheduledExecutorService ptmr) {
+        this.ptmr = ptmr;
     }
 }

@@ -61,12 +61,11 @@ public class UnitTestUtilities {
         return conn;
     }
 
-    protected static io.nats.client.Connection setupMockNatsConnection()
-            throws IOException, TimeoutException {
-        return setupMockNatsConnection(null);
+    protected static Connection newNewMockedConnection() throws IOException, TimeoutException {
+        return newNewMockedConnection(null);
     }
 
-    protected static io.nats.client.Connection setupMockNatsConnection(Options opts)
+    protected static io.nats.client.Connection newNewMockedConnection(Options opts)
             throws IOException, TimeoutException {
         if (opts == null) {
             opts = new ConnectionFactory().options();
