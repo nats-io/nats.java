@@ -61,12 +61,11 @@ public class UnitTestUtilities {
         return conn;
     }
 
-    protected static io.nats.client.Connection setupMockNatsConnection()
-            throws IOException, TimeoutException {
-        return setupMockNatsConnection(null);
+    protected static Connection newNewMockedConnection() throws IOException, TimeoutException {
+        return newNewMockedConnection(null);
     }
 
-    protected static io.nats.client.Connection setupMockNatsConnection(Options opts)
+    protected static io.nats.client.Connection newNewMockedConnection(Options opts)
             throws IOException, TimeoutException {
         if (opts == null) {
             opts = new ConnectionFactory().options();
@@ -322,10 +321,13 @@ public class UnitTestUtilities {
         return val;
     }
 
-
     static synchronized void setLogLevel(ch.qos.logback.classic.Level level) {
         ch.qos.logback.classic.Logger lbLog =
                 (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("io.nats.client");
         lbLog.setLevel(level);
+    }
+
+    static void processServerConfigFile(String configFile) {
+
     }
 }

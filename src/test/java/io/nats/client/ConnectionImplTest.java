@@ -1,6 +1,8 @@
-/**
- * 
- */
+/*******************************************************************************
+ * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ * materials are made available under the terms of the MIT License (MIT) which accompanies this
+ * distribution, and is available at http://opensource.org/licenses/MIT
+ *******************************************************************************/
 
 package io.nats.client;
 
@@ -10,11 +12,16 @@ import static io.nats.client.Constants.ERR_BAD_TIMEOUT;
 import static io.nats.client.Constants.ERR_CONNECTION_CLOSED;
 import static io.nats.client.Constants.ERR_CONNECTION_READ;
 import static io.nats.client.Constants.ERR_MAX_PAYLOAD;
+import static io.nats.client.Constants.ERR_NO_INFO_RECEIVED;
 import static io.nats.client.Constants.ERR_NO_SERVERS;
 import static io.nats.client.Constants.ERR_PROTOCOL;
+import static io.nats.client.Constants.ERR_SECURE_CONN_REQUIRED;
+import static io.nats.client.Constants.ERR_SECURE_CONN_WANTED;
+import static io.nats.client.Constants.ERR_STALE_CONNECTION;
 import static io.nats.client.Constants.ERR_TIMEOUT;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
+import static io.nats.client.UnitTestUtilities.newNewMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
@@ -25,6 +32,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -67,6 +75,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -585,6 +594,44 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testProcessAsyncInfo() throws IOException, TimeoutException {
+        ServerInfo info = ServerInfo.createFromWire(TCPConnectionMock.defaultAsyncInfo);
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            c.processAsyncInfo(TCPConnectionMock.defaultAsyncInfo.trim());
+            assertEquals(info, c.getConnectedServerInfo());
+        }
+    }
+
+    @Test
+    public void testProcessAsyncInfoFinallyBlock() throws IOException, TimeoutException {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage("test message");
+        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection())) {
+            doThrow(new IllegalStateException("test message")).when(c)
+                    .processInfo(eq(TCPConnectionMock.defaultAsyncInfo.trim()));
+            c.processAsyncInfo(TCPConnectionMock.defaultAsyncInfo.trim());
+        }
+    }
+
+    @Test
+    public void testProcessInfo() throws IOException, TimeoutException {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            ServerInfo info = ServerInfo.createFromWire(TCPConnectionMock.defaultInfo);
+            c.processInfo(TCPConnectionMock.defaultInfo.trim());
+            assertEquals(info, c.getConnectedServerInfo());
+        }
+    }
+
+    @Test
+    public void testProcessInfoWithConnectUrls() throws IOException, TimeoutException {
+        ServerInfo info = ServerInfo.createFromWire(TCPConnectionMock.defaultAsyncInfo);
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            c.processInfo(TCPConnectionMock.defaultAsyncInfo.trim());
+            assertEquals(info, c.getConnectedServerInfo());
+        }
+    }
+
+    @Test
     public void testProcessInfoNullOrEmptyReturnsEarly() throws IOException, TimeoutException {
         try (ConnectionImpl nc = (ConnectionImpl) Mockito
                 .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
@@ -684,7 +731,7 @@ public class ConnectionImplTest {
     @Test
     public void testNewMockConn() throws IOException, TimeoutException {
         Options opts = new ConnectionFactory().options();
-        try (Connection nc = UnitTestUtilities.setupMockNatsConnection(opts)) {
+        try (Connection nc = UnitTestUtilities.newNewMockedConnection(opts)) {
             assertFalse(nc.isClosed());
         }
     }
@@ -760,6 +807,30 @@ public class ConnectionImplTest {
 
             // Check for success on less than maxPayload
 
+        }
+    }
+
+    @Test
+    public void testGetConnectedServerId() {
+        final String expectedId = "a1c9cf0c66c3ea102c600200d441ad8e";
+        try (Connection c = newMockedConnection()) {
+            assertTrue(!c.isClosed());
+            assertEquals("Wrong server ID", c.getConnectedServerId(), expectedId);
+            c.close();
+            assertNull("Should have returned NULL", c.getConnectedServerId());
+        } catch (IOException | TimeoutException e) {
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testGetConnectedServerInfo() throws IOException, TimeoutException {
+        try (Connection nc = newMockedConnection()) {
+            assertTrue(!nc.isClosed());
+            String expected = TCPConnectionMock.defaultInfo;
+            ServerInfo actual = nc.getConnectedServerInfo();
+            assertEquals("Wrong server INFO.", expected, actual.toString());
+            assertTrue(actual.equals(ServerInfo.createFromWire(expected)));
         }
     }
 
@@ -853,6 +924,15 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testConnectVerbose() throws IOException, TimeoutException {
+        Options opts = new ConnectionFactory().options();
+        opts.setVerbose(true);
+        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection(opts))) {
+            // Should work
+        }
+    }
+
+    @Test
     public void testCreateConnCurrentSrvNull() throws IOException {
         thrown.expect(IOException.class);
         thrown.expectMessage(ERR_NO_SERVERS);
@@ -879,18 +959,19 @@ public class ConnectionImplTest {
         }
     }
 
-    // @Test
-    // public void testCreateConnFailure() {
-    // boolean exThrown = false;
-    // try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
-    // fail("Should not have connected");
-    // } catch (IOException | TimeoutException e) {
-    // exThrown = true;
-    // String name = e.getClass().getSimpleName();
-    // assertTrue("Expected IOException, but got " + name, e instanceof IOException);
-    // assertEquals(ERR_NO_SERVERS, e.getMessage());
-    // }
-    // }
+    @Test
+    public void testCreateConnFailure() throws IOException, TimeoutException {
+        thrown.expect(IOException.class);
+        thrown.expectMessage(ERR_NO_SERVERS);
+
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newNewMockedConnection())) {
+            TCPConnection tcpConn = nc.getTcpConnection();
+            doThrow(new IOException(ERR_NO_SERVERS)).when(tcpConn).open(anyString(), anyInt(),
+                    anyInt());
+            nc.createConn();
+            verifier.verifyLogMsgMatches(Level.DEBUG, "Couldn't establish connection to .+$");
+        }
+    }
 
     @Test
     public void testClosedCallback() throws IOException, TimeoutException, InterruptedException {
@@ -1082,36 +1163,6 @@ public class ConnectionImplTest {
         }
     }
 
-    // @Test
-    // public void testCloseAwaitingCallbackExecShutdown()
-    // throws IOException, TimeoutException, InterruptedException {
-    // ConnectionImpl conn = (ConnectionImpl) newMockedConnection();
-    // conn.cbexec = cbExecMock;
-    // when(cbExecMock.awaitTermination(any(long.class), any(TimeUnit.class))).thenReturn(false)
-    // .thenReturn(true);
-    // setLogLevel(Level.DEBUG);
-    //
-    // conn.close();
-    //
-    // verifier.verifyLogMsgEquals(Level.DEBUG, "Awaiting completion of threads.");
-    // setLogLevel(Level.INFO);
-    // }
-
-    // @Test
-    // public void testCloseCallbackExecTermInterrupted()
-    // throws IOException, TimeoutException, InterruptedException {
-    // ConnectionImpl conn = (ConnectionImpl) newMockedConnection();
-    // conn.cbexec = cbExecMock;
-    // doThrow(new InterruptedException("test interrupt")).when(cbExecMock)
-    // .awaitTermination(any(long.class), any(TimeUnit.class));
-    //
-    // setLogLevel(Level.DEBUG);
-    // conn.close();
-    //
-    // verifier.verifyLogMsgMatches(Level.DEBUG, "Interrupted waiting to shutdown cbexec.*$");
-    // setLogLevel(Level.INFO);
-    // }
-
     @Test
     public void testFlushBadTimeout() throws Exception {
         thrown.expect(IllegalArgumentException.class);
@@ -1156,6 +1207,22 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testFlushPollInterrupted() throws Exception {
+        @SuppressWarnings("unchecked")
+        BlockingQueue<Boolean> ch = (BlockingQueue<Boolean>) mock(BlockingQueue.class);
+        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
+            when(c.createBooleanChannel(1)).thenReturn(ch);
+            doThrow(new InterruptedException()).when(ch).poll(500, TimeUnit.MILLISECONDS);
+            setLogLevel(Level.DEBUG);
+            c.flush(500);
+            assertTrue(Thread.interrupted());
+            verifier.verifyLogMsgEquals(Level.DEBUG,
+                    "flush was interrupted while waiting for PONG");
+        }
+    }
+
+
+    @Test
     public void testWaitForMsgsSuccess()
             throws IOException, TimeoutException, InterruptedException {
         final String subj = "foo";
@@ -1178,8 +1245,8 @@ public class ConnectionImplTest {
             when(mchMock.poll()).thenReturn(msg).thenReturn(null);
             when(sub.getChannel()).thenReturn(mchMock);
 
-            Condition pCondMock = mock(Condition.class);
-            sub.pCond = pCondMock;
+            Condition pendingCondMock = mock(Condition.class);
+            sub.pCond = pendingCondMock;
 
             sub.max = 1; // To make sure the message is removed after one
 
@@ -1215,8 +1282,26 @@ public class ConnectionImplTest {
         }
     }
 
+    // @Test
+    // public void testServerParseError() {
+    // try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+    // assertTrue(!c.isClosed());
+    // byte[] data = "Hello\r\n".getBytes();
+    // c.sendProto(data, data.length);
+    // try {
+    // Thread.sleep(100);
+    // } catch (InterruptedException e) {
+    // /* NOOP */ }
+    // assertTrue(c.isClosed());
+    // } catch (IOException | TimeoutException e) {
+    // fail(e.getMessage());
+    // }
+    // }
+    //
+
+
     @Test
-    public void testProcessErrStaleConnection() {
+    public void testProcessErrStaleConnection() throws IOException, TimeoutException {
         ConnectionFactory cf = new ConnectionFactory();
         final CountDownLatch ccbLatch = new CountDownLatch(1);
         cf.setClosedCallback(new ClosedCallback() {
@@ -1232,9 +1317,6 @@ public class ConnectionImplTest {
             c.processErr(error);
             assertTrue(c.isClosed());
             assertTrue("Closed callback should have fired", await(ccbLatch));
-        } catch (IOException | TimeoutException e) {
-            // TODO Auto-generated catch block
-            fail(e.getMessage());
         }
     }
 
@@ -1290,6 +1372,20 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testProcessExpectedInfoThrowsErrNoInfoReceived()
+            throws IOException, TimeoutException {
+        thrown.expect(IOException.class);
+        thrown.expectMessage(ERR_NO_INFO_RECEIVED);
+
+        // TODO do this with normal mock
+        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
+        mcf.setNoInfo(true);
+        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
+            fail("Shouldn't have connected.");
+        }
+    }
+
+    @Test
     public void testProcessExpectedInfoReadOpFailure() throws IOException, TimeoutException {
         try (ConnectionImpl conn = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
             TCPConnection connMock = mock(TCPConnection.class);
@@ -1310,10 +1406,12 @@ public class ConnectionImplTest {
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
 
             SubscriptionImpl sub = (SubscriptionImpl) Mockito.spy(c.subscribe("foo", mcbMock));
-            c.ps.ma.sid = sub.getSid();
+            c.ps.ma.sid = 44L;
             when(subsMock.get(any(long.class))).thenReturn(sub);
+            when(mchMock.add(any(Message.class))).thenReturn(true);
             c.setSubs(subsMock);
             sub.setChannel(mchMock);
+            sub.pCond = mock(Condition.class);
 
             c.ps.ma.size = length;
             c.processMsg(data, offset, length);
@@ -1324,6 +1422,10 @@ public class ConnectionImplTest {
             assertEquals(length, c.getStats().getInBytes());
             // sub.addMessage(msg) should have been called exactly once
             verify(mchMock, times(1)).add(any(Message.class));
+            // condition should have been signaled
+            verify(sub.pCond, times(1)).signal();
+            // sub.setSlowConsumer(false) should have been called
+            verify(sub, times(1)).setSlowConsumer(eq(false));
             // c.removeSub should NOT have been called
             verify(c, times(0)).removeSub(eq(sub));
         }
@@ -1365,6 +1467,7 @@ public class ConnectionImplTest {
         }
     }
 
+    @Test
     public void testProcessMsgSubChannelAddFails() throws IOException, TimeoutException {
         final byte[] data = "Hello, World!".getBytes();
         final int offset = 0;
@@ -1382,18 +1485,20 @@ public class ConnectionImplTest {
             when(mchMock.add(any(Message.class))).thenReturn(false);
             when(sub.getChannel()).thenReturn(mchMock);
 
+            sub.pCond = mock(Condition.class);
+
             c.processMsg(data, offset, length);
 
             // InMsgs should be incremented by 1, even if the sub stats don't increase
             assertEquals(1, c.getStats().getInMsgs());
             // InBytes should be incremented by length, even if the sub stats don't increase
             assertEquals(length, c.getStats().getInBytes());
-            // handleSlowConsumer should have been called once
+            // handleSlowConsumer should have been called zero times
             verify(c, times(1)).handleSlowConsumer(eq(sub), any(Message.class));
-            // sub.addMessage(msg) should not have been called
-            verify(mchMock, times(0)).add(any(Message.class));
-            // sub.setSlowConsumer(false) should have been called
-            verify(sub, times(1)).setSlowConsumer(eq(false));
+            // sub.addMessage(msg) should have been called
+            verify(mchMock, times(1)).add(any(Message.class));
+            // the condition should not have been signaled
+            verify(sub.pCond, times(0)).signal();
         }
 
     }
@@ -1538,6 +1643,25 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testFlusherChannelTakeInterrupted()
+            throws IOException, TimeoutException, InterruptedException {
+        try (ConnectionImpl c = (ConnectionImpl) Mockito
+                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
+            c.setFlushChannel(fchMock);
+            c.setOutputStream(bwMock);
+            TCPConnection tconn = mock(TCPConnection.class);
+            when(tconn.isConnected()).thenReturn(true);
+            c.setTcpConnection(tconn);
+            c.status = ConnState.CONNECTED;
+            doThrow(new InterruptedException("test")).when(fchMock).take();
+            c.flusher();
+            assertTrue(Thread.interrupted());
+            verify(bwMock, times(0)).flush();
+        }
+    }
+
+
+    @Test
     public void testFlusherFlushError() throws IOException, TimeoutException, InterruptedException {
         try (ConnectionImpl c = (ConnectionImpl) Mockito
                 .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
@@ -1557,10 +1681,21 @@ public class ConnectionImplTest {
     }
 
     @Test
-    public void testRequest() throws IOException, TimeoutException {
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("Timeout must be greater that 0.");
+    public void testGetServerInfo() throws IOException, TimeoutException {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            assertTrue(!c.isClosed());
+            ServerInfo info = c.getConnectedServerInfo();
+            assertEquals("0.0.0.0", info.getHost());
+            assertEquals("0.7.2", info.getVersion());
+            assertEquals(4222, info.getPort());
+            assertFalse(info.isAuthRequired());
+            assertFalse(info.isTlsRequired());
+            assertEquals(1048576, info.getMaxPayload());
+        }
+    }
 
+    @Test
+    public void testRequest() throws IOException, TimeoutException {
         SyncSubscription mockSub = mock(SyncSubscription.class);
         Message replyMsg = new Message();
         replyMsg.setData("answer".getBytes());
@@ -1577,12 +1712,66 @@ public class ConnectionImplTest {
 
             msg = c.request("foo", null, 500);
             assertEquals(replyMsg, msg);
+        }
+    }
 
-            // test for invalid
-            msg = c.request("foo", null, -1);
-            assertEquals(replyMsg, msg);
+    @Test
+    public void testSendConnectFailsWhenPongIsNull() {
+        // TODO do this with normal mock
+        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
+        mcf.setSendNullPong(true);
+        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
+            fail("Shouldn't have connected.");
+        } catch (IOException | TimeoutException e) {
+            assertTrue(e instanceof IOException);
+            assertTrue("Unexpected text: " + e.getMessage(), e.getMessage().startsWith("nats: "));
+        }
+    }
 
 
+    @Test
+    public void testSendConnectThrowsExceptionWhenPingResponseIsntPong() {
+        // TODO do this a different way
+        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
+        ConnectionFactory cf = new ConnectionFactory();
+        mcf.setBadWriter(true);
+        ConnectionImpl nc = null;
+        try {
+            nc = cf.createConnection(mcf);
+            if (nc.getState().equals(ConnState.CONNECTED)) {
+                fail("Shouldn't have connected.");
+            }
+        } catch (IOException | TimeoutException e) {
+            assertTrue(e instanceof IOException);
+            assertEquals("Mock write I/O error", e.getMessage());
+        }
+        // TCPConnectionMock mock = (TCPConnectionMock) c.getTcpConnection();
+        // mock.bounce();
+
+        mcf.setBadWriter(false);
+        mcf.setVerboseNoOK(true);
+        cf.setVerbose(true);
+        try {
+            nc = cf.createConnection(mcf);
+            if (nc.getState().equals(ConnState.CONNECTED)) {
+                fail("Shouldn't have connected.");
+            }
+        } catch (IOException | TimeoutException e) {
+            assertTrue(e instanceof IOException);
+            String expected = String.format("nats: expected '%s', got '%s'", ConnectionImpl._OK_OP_,
+                    "+WRONGPROTO");
+            assertEquals(expected, e.getMessage());
+        }
+    }
+
+    @Test
+    public void testSendPingError() throws IOException, TimeoutException {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            doThrow(new IOException("Mock OutputStream write exception")).when(bwMock).flush();
+            c.setOutputStream(bwMock);
+            c.sendPing(new LinkedBlockingQueue<Boolean>());
+            assertTrue(c.getLastException() instanceof IOException);
+            assertEquals("Mock OutputStream write exception", c.getLastException().getMessage());
         }
     }
 
@@ -1639,17 +1828,125 @@ public class ConnectionImplTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Test
-    public void testProcessPingTimerPingsOutExceeded() throws IOException, TimeoutException {
-        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
-            nc.opts.setMaxPingsOut(4);
-            nc.setActualPingsOutstanding(5);
-            nc.processPingTimer();
-            verify(nc, times(1)).processOpError(any(IOException.class));
-            verify(nc, times(0)).sendPing(any(BlockingQueue.class));
+    public void testNormalizeErr() {
+        final String errString = "-ERR 'Authorization Violation'";
+        ByteBuffer error = ByteBuffer.allocate(1024);
+        error.put(errString.getBytes());
+        error.flip();
+
+        String str = ConnectionImpl.normalizeErr(error);
+        assertEquals("authorization violation", str);
+    }
+
+    @Test
+    public void testPingTimerTask() throws IOException, TimeoutException {
+        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection())) {
+            assertTrue(c.getActualPingsOutstanding() + 1 < c.opts.getMaxPingsOut());
+            SynchronousExecutorService sexec = new SynchronousExecutorService();
+            sexec.submit(c.new PingTimerTask());
+            verify(c, times(1)).sendPing(null);
         }
     }
+
+    @Test
+    public void testPingTimerTaskFailsFastIfNotConnected() throws IOException, TimeoutException {
+        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection())) {
+            c.status = ConnState.DISCONNECTED;
+            SynchronousExecutorService sexec = new SynchronousExecutorService();
+            sexec.submit(c.new PingTimerTask());
+            verify(c, times(0)).sendPing(null);
+            c.status = ConnState.CONNECTED;
+        }
+    }
+
+    @Test
+    public void testResetPingTimer() throws IOException, TimeoutException {
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
+            Timer ptmrMock = mock(Timer.class);
+            when(nc.createPingTimer()).thenReturn(ptmrMock);
+
+            // Test for ptmr already exists
+            nc.setPingTimer(ptmrMock);
+            nc.resetPingTimer();
+            // verify old was cancelled
+            verify(ptmrMock, times(1)).cancel();
+            // verify new was created
+            verify(nc, times(1)).createPingTimer();
+            assertEquals(ptmrMock, nc.getPingTimer());
+
+            // Test for ping interval <= 0
+            nc.setPingTimer(null);
+            nc.opts.setPingInterval(0L);
+            nc.resetPingTimer();
+            // Verify that no ping timer was created, since ping interval was 0
+            assertNull(nc.getPingTimer());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testPingTimerTaskMaxPingsOutExceeded() throws IOException, TimeoutException {
+        Options opts = new ConnectionFactory().options();
+        opts.setReconnectAllowed(false);
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection(opts))) {
+            nc.opts.setMaxPingsOut(4);
+            nc.setActualPingsOutstanding(5);
+            SynchronousExecutorService sexec = new SynchronousExecutorService();
+            sexec.execute(nc.new PingTimerTask());
+            verify(nc, times(1)).processOpError(any(IOException.class));
+            verify(nc, times(0)).sendPing(any(BlockingQueue.class));
+            assertTrue(nc.getLastException() instanceof IOException);
+            assertEquals(ERR_STALE_CONNECTION, nc.getLastException().getMessage());
+            assertTrue(nc.isClosed());
+        }
+    }
+
+    @Test
+    public void testTlsMismatchClient() {
+        // TODO do this with normal mock
+        Options opts = new ConnectionFactory("tls://localhost:4222").options();
+        opts.setSecure(true);
+        try (Connection c = (Connection) newMockedConnection(opts)) {
+            fail("Shouldn't have connected.");
+        } catch (IOException | TimeoutException e) {
+            assertTrue(e instanceof IOException);
+            assertNotNull(e.getMessage());
+            assertEquals(ERR_SECURE_CONN_WANTED, e.getMessage());
+        }
+    }
+
+    @Test
+    public void testTlsMismatchServer() {
+        // TODO do this with normal mock
+        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
+        mcf.setTlsRequired(true);
+        try (ConnectionImpl c = new ConnectionFactory().createConnection(mcf)) {
+            fail("Shouldn't have connected.");
+        } catch (IOException | TimeoutException e) {
+            assertTrue(e instanceof IOException);
+            assertNotNull(e.getMessage());
+            assertEquals(ERR_SECURE_CONN_REQUIRED, e.getMessage());
+        }
+    }
+
+    @Test
+    public void testUnsubscribe() throws IOException, TimeoutException {
+        thrown.expect(IllegalStateException.class);
+        thrown.expectMessage(ERR_CONNECTION_CLOSED);
+
+        try (ConnectionImpl nc = (ConnectionImpl) newMockedConnection()) {
+            SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribeSync("foo");
+            long sid = sub.getSid();
+            assertNotNull("Sub should have been present", nc.getSubs().get(sid));
+            sub.unsubscribe();
+            assertNull("Sub should have been removed", nc.getSubs().get(sid));
+            nc.close();
+            assertTrue(nc.isClosed());
+            nc.unsubscribe(sub, 0);
+        }
+    }
+
 
     @Test
     public void testUnsubscribeAlreadyUnsubscribed() throws IOException, TimeoutException {
@@ -1704,5 +2001,11 @@ public class ConnectionImplTest {
 
     }
 
+    @Test
+    public void testIsConnected() throws IOException, TimeoutException {
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
+            assertTrue(nc.isConnected());
+        }
+    }
 
 }

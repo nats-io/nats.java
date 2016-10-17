@@ -156,4 +156,30 @@ class ServerInfo {
         rv = String.format("INFO %s", jsonString);
         return rv;
     }
+
+    public static boolean compare(String str1, String str2) {
+        return (str1 == null ? str2 == null : str1.equals(str2));
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+
+        if (!(obj instanceof ServerInfo)) {
+            return false;
+        }
+
+        ServerInfo other = (ServerInfo) obj;
+
+        return (Boolean.compare(authRequired, other.authRequired) == 0
+                && Arrays.equals(connectUrls, other.connectUrls)
+                && compare(goVersion, other.goVersion) && compare(host, other.host)
+                && compare(id, other.id) && Long.compare(maxPayload, other.maxPayload) == 0
+                && Integer.compare(port, other.port) == 0
+                && Boolean.compare(sslRequired, other.sslRequired) == 0
+                && Boolean.compare(tlsRequired, other.tlsRequired) == 0
+                && compare(version, other.version));
+    }
 }

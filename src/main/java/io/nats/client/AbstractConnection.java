@@ -163,6 +163,13 @@ interface AbstractConnection extends AutoCloseable {
      * 
      * @return whether or not the connection is currently reconnecting
      */
+    boolean isConnected();
+
+    /**
+     * Indicates whether the connection is currently reconnecting.
+     * 
+     * @return whether or not the connection is currently reconnecting
+     */
     boolean isReconnecting();
 
     /**

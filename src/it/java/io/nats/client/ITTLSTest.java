@@ -7,6 +7,7 @@
 package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.await;
+import static io.nats.client.UnitTestUtilities.runServerWithConfig;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -109,7 +110,7 @@ public class ITTLSTest {
     public void testTlsSuccessSecureConnect() {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        try (NATSServer srv = utils.runServerWithConfig("tls_1222.conf")) {
+        try (NATSServer srv = runServerWithConfig("tls_1222.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final char[] trustPassPhrase = "password".toCharArray();
@@ -166,7 +167,7 @@ public class ITTLSTest {
         final CountDownLatch dcLatch = new CountDownLatch(1);
         final CountDownLatch rcLatch = new CountDownLatch(1);
 
-        try (NATSServer srv = utils.runServerWithConfig("tls_1222.conf")) {
+        try (NATSServer srv = runServerWithConfig("tls_1222.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final char[] trustPassPhrase = "password".toCharArray();
@@ -216,7 +217,7 @@ public class ITTLSTest {
                 assertEquals(Constants.ConnState.RECONNECTING, c.getState());
 
                 // Wait until we get the reconnect callback
-                try (NATSServer srv2 = utils.runServerWithConfig("tls_1222.conf")) {
+                try (NATSServer srv2 = runServerWithConfig("tls_1222.conf")) {
                     sleep(2000);
 
                     assertTrue("ReconnectedCB callback wasn't triggered.",

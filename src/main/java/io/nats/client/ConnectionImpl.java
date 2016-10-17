@@ -12,8 +12,8 @@ import static io.nats.client.Constants.ERR_BAD_TIMEOUT;
 import static io.nats.client.Constants.ERR_CONNECTION_CLOSED;
 import static io.nats.client.Constants.ERR_CONNECTION_READ;
 import static io.nats.client.Constants.ERR_MAX_PAYLOAD;
+import static io.nats.client.Constants.ERR_NO_INFO_RECEIVED;
 import static io.nats.client.Constants.ERR_NO_SERVERS;
-import static io.nats.client.Constants.ERR_PROTOCOL;
 import static io.nats.client.Constants.ERR_RECONNECT_BUF_EXCEEDED;
 import static io.nats.client.Constants.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Constants.ERR_SECURE_CONN_WANTED;
@@ -52,13 +52,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -182,7 +183,7 @@ public class ConnectionImpl implements Connection {
 
     ExecutorService cbexec;
     ExecutorService exec;
-    private ScheduledExecutorService ptmr = null;
+    private Timer ptmr = null;
     private static final int NUM_WATCHER_THREADS = 2;
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;
@@ -440,7 +441,7 @@ public class ConnectionImpl implements Connection {
             conn.open(srv.url.getHost(), srv.url.getPort(), opts.getConnectionTimeout());
             logger.trace("Opened {}", srv.url);
         } catch (IOException e) {
-            logger.trace("Couldn't establish connection to {}: {}", srv.url, e.getMessage());
+            logger.debug("Couldn't establish connection to {}: {}", srv.url, e.getMessage());
             throw (e);
         }
 
@@ -533,7 +534,7 @@ public class ConnectionImpl implements Connection {
             // Thread.currentThread().interrupt();
 
             if (ptmr != null) {
-                ptmr.shutdownNow();
+                ptmr.cancel();
             }
 
             // Go ahead and make sure we have flushed the outbound
@@ -649,19 +650,22 @@ public class ConnectionImpl implements Connection {
         Control control;
 
         try {
+            // Read the protocol
             control = readOp();
         } catch (IOException e) {
             processOpError(e);
             return;
         }
 
+        // The nats protocol should send INFO first always.
         if (!control.op.equals(_INFO_OP_)) {
-            throw new IOException(ERR_PROTOCOL + ", INFO not received");
+            throw new IOException(ERR_NO_INFO_RECEIVED);
         }
 
+        // Parse the protocol
         processInfo(control.args);
-        checkForSecure();
 
+        checkForSecure();
     }
 
     // processPing will send an immediate pong protocol response to the
@@ -738,9 +742,12 @@ public class ConnectionImpl implements Connection {
     // protection.
     void processAsyncInfo(String asyncInfoString) {
         mu.lock();
-        // Ignore errors, we will simply not update the server pool...
-        processInfo(asyncInfoString);
-        mu.unlock();
+        try {
+            // Ignore errors, we will simply not update the server pool...
+            processInfo(asyncInfoString);
+        } finally {
+            mu.unlock();
+        }
     }
 
     // processOpError handles errors from reading or parsing the protocol.
@@ -758,7 +765,7 @@ public class ConnectionImpl implements Connection {
                 status = ConnState.RECONNECTING;
 
                 if (ptmr != null) {
-                    ptmr.shutdownNow();
+                    ptmr.cancel();
                 }
 
                 if (this.conn != null) {
@@ -815,8 +822,16 @@ public class ConnectionImpl implements Connection {
         return (status == ConnState.RECONNECTING);
     }
 
-    // Test if Conn is connected or connecting.
-    private boolean isConnected() {
+    @Override
+    public boolean isConnected() {
+        mu.lock();
+        boolean rv = _isConnected();
+        mu.unlock();
+        return rv;
+    }
+
+    private boolean _isConnected() {
+        // Test if Conn is connected or connecting.
         return (status == ConnState.CONNECTING || status == ConnState.CONNECTED);
     }
 
@@ -905,8 +920,14 @@ public class ConnectionImpl implements Connection {
             if (elapsedMillis < opts.getReconnectWait()) {
                 long sleepTime = opts.getReconnectWait() - elapsedMillis;
                 mu.unlock();
-                sleepMsec((int) sleepTime);
-                mu.lock();
+                try {
+                    sleepMsec((int) sleepTime);
+                } catch (InterruptedException e) {
+                    logger.debug("Interrupted while in doReconnect()");
+                    break;
+                } finally {
+                    mu.lock();
+                }
             }
 
             // Check if we have been closed first.
@@ -998,7 +1019,9 @@ public class ConnectionImpl implements Connection {
             // Make sure to flush everything
             try {
                 flush();
-            } catch (Exception e) {
+            } catch (
+
+            Exception e) {
                 logger.warn("Error flushing connection", e);
             }
             logger.trace("doReconnect reconnected successfully!");
@@ -1256,44 +1279,7 @@ public class ConnectionImpl implements Connection {
         socketWatchersStartLatch.countDown();
 
         resetPingTimer();
-
     }
-
-    // protected Thread go(final Runnable task, final String name, final String group,
-    // final Phaser ph) {
-    // NATSThread.setDebug(true);
-    // NATSThread t = new NATSThread(task, name) {
-    // public void run() {
-    // if (ph != null) {
-    // ph.register();
-    // logger.trace("{} registered in group {}. # registered for phase {} = {}", name,
-    // group, ph.getPhase(), ph.getRegisteredParties());
-    // logger.trace(name + " starting");
-    // ph.arriveAndAwaitAdvance(); // await all creation
-    // } else {
-    // logger.trace("Untracked thread " + name + " starting.");
-    // }
-    //
-    // task.run();
-    //
-    // if (ph != null) {
-    // int oldPhase = ph.getPhase();
-    // logger.trace(name + " arrive and deregister for phase {}", ph.getPhase());
-    // logger.trace(
-    // "{} (group {}) ending phase {}: Registered = {}, Arrived = {}, Unarrived={}",
-    // name, group, oldPhase, ph.getRegisteredParties(),
-    // ph.getArrivedParties(), ph.getUnarrivedParties());
-    // int phase = ph.arriveAndDeregister();
-    // logger.trace(name + " deregistered going into phase {}", phase);
-    // } else {
-    // logger.trace("Untracked thread " + name + " completed.");
-    // }
-    // }
-    // };
-    // t.start();
-    // NATSThread.setDebug(false);
-    // return t;
-    // }
 
     protected class Control {
         String op = null;
@@ -1525,42 +1511,6 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    // deliverMsgs waits on the delivery channel shared with readLoop and processMsg.
-    // It is used to deliver messages to asynchronous subscribers.
-    // This function is the run() method of the AsyncSubscription's msgFeeder thread.
-    // protected void deliverMsgs(Channel<Message> ch) {
-    // // logger.trace("In deliverMsgs");
-    // Message msg = null;
-    //
-    // mu.lock();
-    // // Slightly faster to do this directly vs call isClosed
-    // if (_isClosed()) {
-    // mu.unlock();
-    // return;
-    // }
-    // mu.unlock();
-    //
-    // while (true) {
-    // msg = ch.get();
-    //
-    // if (msg == null) {
-    // // the channel has been closed, exit silently.
-    // logger.debug("Channel closed, exiting msgFeeder loop");
-    // return;
-    // }
-    // // Note, this seems odd message having the sub process itself,
-    // // but this is good for performance.
-    // if (!msg.sub.processMsg(msg)) {
-    // mu.lock();
-    // try {
-    // removeSub(msg.sub);
-    // } finally {
-    // mu.unlock();
-    // }
-    // }
-    // }
-    // }
-
     /**
      * processMsg is called by parse and will place the msg on the appropriate channel/pending queue
      * for processing. If the channel is full, or the pending queue is over the pending limits, the
@@ -1608,15 +1558,14 @@ public class ConnectionImpl implements Connection {
                     if (sub.getChannel() != null) {
                         if (sub.getChannel().add(msg)) {
                             sub.pCond.signal();
+                            // Clear Slow Consumer status
+                            sub.setSlowConsumer(false);
                         } else {
                             handleSlowConsumer(sub, msg);
                             return;
                         }
                     }
                 }
-
-                // Clear Slow Consumer status
-                sub.setSlowConsumer(false);
             } finally {
                 sub.unlock();
             }
@@ -1730,52 +1679,51 @@ public class ConnectionImpl implements Connection {
         return new ArrayList<BlockingQueue<Boolean>>();
     }
 
-    protected void resetPingTimer() {
-        mu.lock();
-        try {
-            Runnable pingRunnable = new Runnable() {
-                public void run() {
-                    processPingTimer();
-                }
-            };
-
-            if (opts.getPingInterval() > 0) {
-                if (ptmr != null) {
-                    ptmr.shutdownNow();
-                }
-
-                ptmr = Executors.newSingleThreadScheduledExecutor(new NATSThreadFactory("pinger"));
-                ptmr.scheduleAtFixedRate(pingRunnable, opts.getPingInterval(),
-                        opts.getPingInterval(), TimeUnit.MILLISECONDS);
+    // This will fire periodically and send a client origin
+    // ping to the server. Will also check that we have received
+    // responses from the server.
+    class PingTimerTask extends TimerTask {
+        public void run() {
+            mu.lock();
+            if (status != ConnState.CONNECTED) {
+                mu.unlock();
+                return;
             }
-        } finally {
+
+            // Check for violation
+            setActualPingsOutstanding(getActualPingsOutstanding() + 1);
+            if (getActualPingsOutstanding() > opts.getMaxPingsOut()) {
+                mu.unlock();
+                processOpError(new IOException(ERR_STALE_CONNECTION));
+                return;
+            }
+
+            sendPing(null);
+
             mu.unlock();
         }
     }
 
-    // This will fire periodically and send a client origin
-    // ping to the server. Will also check that we have received
-    // responses from the server.
-    protected void processPingTimer() {
+    Timer createPingTimer() {
+        PingTimerTask pinger = new PingTimerTask();
+        Timer timer = new Timer("pingtimer");
+        timer.scheduleAtFixedRate(pinger, opts.getPingInterval(), opts.getPingInterval());
+        return timer;
+    }
+
+    protected void resetPingTimer() {
         mu.lock();
-        if (status != ConnState.CONNECTED) {
+        try {
+            if (ptmr != null) {
+                ptmr.cancel();
+            }
+
+            if (opts.getPingInterval() > 0) {
+                ptmr = createPingTimer();
+            }
+        } finally {
             mu.unlock();
-            return;
         }
-
-        // Check for violation
-        setActualPingsOutstanding(getActualPingsOutstanding() + 1);
-        if (getActualPingsOutstanding() > opts.getMaxPingsOut()) {
-            mu.unlock();
-            processOpError(new IOException(ERR_STALE_CONNECTION));
-            return;
-        }
-
-        logger.trace("Sending PING after {} seconds.",
-                TimeUnit.MILLISECONDS.toSeconds(opts.getPingInterval()));
-        sendPing(null);
-
-        mu.unlock();
     }
 
     protected void unsubscribe(SubscriptionImpl sub, int max) throws IOException {
@@ -1859,47 +1807,42 @@ public class ConnectionImpl implements Connection {
 
     // This is the loop of the flusher thread
     protected void flusher() {
-        OutputStream bw = null;
-        TCPConnection conn = null;
-        BlockingQueue<Boolean> fch = null;
+        // OutputStream bw = null;
+        // TCPConnection conn = null;
+        // final BlockingQueue<Boolean> fch = null;
 
         setFlusherDone(false);
 
         // snapshot the bw and conn since they can change from underneath of us.
         mu.lock();
-        bw = this.bw;
-        conn = this.conn;
-        fch = this.fch;
+        final OutputStream bw = this.bw;
+        final TCPConnection conn = this.conn;
+        final BlockingQueue<Boolean> fch = this.fch;
         mu.unlock();
 
         if (conn == null || bw == null || !conn.isConnected()) {
             return;
         }
 
-        while (!isFlusherDone()) {
+        while (!isFlusherDone() && !Thread.currentThread().isInterrupted()) {
             // Wait to be triggered
             try {
                 if (!fch.take()) {
                     return;
                 }
+                // Be reasonable about how often we flush
+                sleepMsec(1);
             } catch (InterruptedException e1) {
                 logger.debug("Interrupted while waiting on flush channel");
                 Thread.currentThread().interrupt();
                 break;
             }
 
-            // Be reasonable about how often we flush
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-
             mu.lock();
             try {
 
                 // Check to see if we should bail out.
-                if (!isConnected() || isConnecting() || bw != this.bw || conn != this.conn) {
+                if (!_isConnected() || isConnecting() || bw != this.bw || conn != this.conn) {
                     return;
                 }
                 bw.flush();
@@ -2250,7 +2193,8 @@ public class ConnectionImpl implements Connection {
         _publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
     }
 
-    private Message _request(String subject, byte[] data, long timeout, TimeUnit unit)
+    @Override
+    public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
             throws TimeoutException, IOException {
         String inbox = newInbox();
         Message msg = null;
@@ -2270,20 +2214,8 @@ public class ConnectionImpl implements Connection {
     }
 
     @Override
-    public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
-            throws TimeoutException, IOException {
-        // logger.trace("In request({},{},{})", subject,
-        // data==null?"null":new String(data), timeout);
-        if (timeout <= 0) {
-            throw new IllegalArgumentException("Timeout must be greater that 0.");
-        }
-
-        return _request(subject, data, timeout, unit);
-    }
-
-    @Override
     public Message request(String subject, byte[] data) throws IOException, TimeoutException {
-        return _request(subject, data, -1, TimeUnit.MILLISECONDS);
+        return request(subject, data, -1, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -2459,14 +2391,8 @@ public class ConnectionImpl implements Connection {
         return this.pending;
     }
 
-    protected void sleepMsec(long msec) {
-        try {
-            logger.trace("Sleeping for {} ms", msec);
-            Thread.sleep(msec);
-            logger.trace("Slept    for {} ms", msec);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+    protected void sleepMsec(long msec) throws InterruptedException {
+        Thread.sleep(msec);
     }
 
     void setOutputStream(OutputStream out) {
@@ -2569,5 +2495,13 @@ public class ConnectionImpl implements Connection {
 
     void setActualPingsOutstanding(int pout) {
         this.pout = pout;
+    }
+
+    Timer getPingTimer() {
+        return ptmr;
+    }
+
+    void setPingTimer(Timer ptmr) {
+        this.ptmr = ptmr;
     }
 }
