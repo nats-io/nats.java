@@ -321,10 +321,13 @@ public class UnitTestUtilities {
         return val;
     }
 
-
     static synchronized void setLogLevel(ch.qos.logback.classic.Level level) {
         ch.qos.logback.classic.Logger lbLog =
                 (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("io.nats.client");
         lbLog.setLevel(level);
+    }
+
+    static void processServerConfigFile(String configFile) {
+
     }
 }

@@ -56,6 +56,12 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
                     + "\"ssl_required\":false,\"tls_required\":false,\"tls_verify\":false,"
                     + "\"max_payload\":1048576}";
 
+    public static final String defaultAsyncInfo =
+            "INFO {\"server_id\":\"a1c9cf0c66c3ea102c600200d441ad8e\",\"version\":\"0.7.2\",\"go\":"
+                    + "\"go1.4.2\",\"host\":\"0.0.0.0\",\"port\":4222,\"auth_required\":false,"
+                    + "\"ssl_required\":false,\"tls_required\":false,\"tls_verify\":false,"
+                    + "\"connect_urls\":[\"localhost:5222\"]," + "\"max_payload\":1048576}";
+
     ReentrantLock mu = new ReentrantLock();
     // Socket client = null;
     char[] buffer = new char[ConnectionImpl.DEFAULT_BUF_SIZE];

@@ -469,15 +469,6 @@ public class ITBasicTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testRequestTimeoutNegative() {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            c.request("foo", "help".getBytes(), -50);
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
-        }
-    }
-
     @Test(expected = IOException.class)
     public void testRequestThrowsIOEx() throws Exception {
         try (ConnectionImpl c = (ConnectionImpl) new ConnectionFactory().createConnection()) {
