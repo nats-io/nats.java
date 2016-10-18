@@ -61,7 +61,7 @@ class NATSThread extends Thread {
             super.run();
         } catch (InterruptedException e) {
             // TODO Auto-generated catch block
-            logger.trace("Interrupted: ", e);
+            logger.debug("Interrupted: ", e);
         } finally {
             if (this.doneSignal != null) {
                 this.doneSignal.countDown();

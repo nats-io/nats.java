@@ -17,7 +17,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -37,7 +36,6 @@ import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -97,24 +95,22 @@ public class ITBasicTest {
     public void testConnectedServer() throws IOException, TimeoutException {
 
         try (ConnectionImpl c = (ConnectionImpl) new ConnectionFactory().createConnection()) {
-            String u = null;
-            String srv = null;
-            String badUrl = String.format("Unexpected connected URL of %s\n", u);
 
-            u = c.getConnectedUrl();
-            assertNotNull(badUrl, u);
-            assertEquals(badUrl, ConnectionFactory.DEFAULT_URL, u);
+            String url = c.getConnectedUrl();
+            String badUrl = String.format("Unexpected connected URL of %s\n", url);
+            assertNotNull(badUrl, url);
+            assertEquals(badUrl, ConnectionFactory.DEFAULT_URL, url);
 
             assertNotNull(c.currentServer().toString());
             assertTrue(c.currentServer().toString().contains(ConnectionFactory.DEFAULT_URL));
 
-            srv = c.getConnectedServerId();
+            String srv = c.getConnectedServerId();
             assertNotNull("Expected a connected server id", srv);
 
             c.close();
-            u = c.getConnectedUrl();
+            url = c.getConnectedUrl();
             srv = c.getConnectedServerId();
-            assertNull(u);
+            assertNull(url);
             assertNull(srv);
         }
 
@@ -242,7 +238,7 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testSyncSubscribe() {
+    public void testSyncSubscribe() throws IOException, TimeoutException {
         final byte[] omsg = "Hello World".getBytes();
         int timeoutMsec = 1000;
 
@@ -250,41 +246,31 @@ public class ITBasicTest {
             try (SyncSubscription s = c.subscribeSync("foo")) {
                 try {
                     Thread.sleep(100);
+                    c.publish("foo", omsg);
+                    Message msg = s.nextMessage(timeoutMsec);
+                    assertArrayEquals("Messages are not equal.", omsg, msg.getData());
                 } catch (InterruptedException e) {
-                }
-                c.publish("foo", omsg);
-                try {
-                    Message m = s.nextMessage(timeoutMsec);
-                    assertArrayEquals("Messages are not equal.", omsg, m.getData());
-                } catch (IOException | TimeoutException e) {
-                    fail("nextMessage(timeout) failed: " + e.getMessage());
+                    /* swallow */
                 }
             }
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testPubSubWithReply() {
+    public void testPubSubWithReply() throws Exception {
         try (Connection c = new ConnectionFactory().createConnection()) {
             try (SyncSubscription s = c.subscribeSync("foo")) {
                 final byte[] omsg = "Hello World".getBytes();
                 c.publish("foo", "reply", omsg);
-                try {
-                    c.flush();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                c.flush();
                 try {
                     Thread.sleep(100);
+                    Message msg = s.nextMessage(10000);
+                    assertArrayEquals("Message received does not match: ", omsg, msg.getData());
                 } catch (InterruptedException e) {
+                    /* swallow */
                 }
-                Message m = s.nextMessage(10000);
-                assertArrayEquals("Message received does not match: ", omsg, m.getData());
             }
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
     }
 
@@ -358,9 +344,8 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testReplyArg() {
+    public void testReplyArg() throws IOException, TimeoutException {
         final String replyExpected = "bar";
-        final String ts;
 
         final CountDownLatch latch = new CountDownLatch(1);
         try (Connection c = new ConnectionFactory().createConnection()) {
@@ -371,15 +356,10 @@ public class ITBasicTest {
                     latch.countDown();
                 }
             })) {
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException e) {
-                }
+                sleep(200);
                 c.publish("foo", "bar", (byte[]) null);
                 assertTrue("Message not received.", await(latch));
             }
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
     }
 
@@ -432,7 +412,7 @@ public class ITBasicTest {
                 for (int i = 0; i < max; i++) {
                     c.publish("foo", null, (byte[]) null);
                 }
-                Thread.sleep(100);
+                sleep(100);
                 c.flush();
 
                 if (s.isValid()) {
@@ -469,57 +449,41 @@ public class ITBasicTest {
         }
     }
 
-    @Test(expected = IOException.class)
-    public void testRequestThrowsIOEx() throws Exception {
-        try (ConnectionImpl c = (ConnectionImpl) new ConnectionFactory().createConnection()) {
-            String str = String.format(ConnectionImpl.UNSUB_PROTO, 1, 1);
-            byte[] unsub = str.getBytes();
-
-            BufferedOutputStream bw = mock(BufferedOutputStream.class);
-            doThrow(new IOException("Mock OutputStream write exception")).when(bw).write(unsub);
-            c.setOutputStream(bw);
-
-            c.request("foo", "help".getBytes());
-
-        } catch (IOException | TimeoutException e) {
-            assertTrue("Wrong exception thrown", e instanceof IOException);
-            assertEquals("Mock OutputStream write exception", e.getMessage());
-            throw e;
-        }
-    }
-
     @Test
     public void testRequest() {
+        setLogLevel(Level.DEBUG);
         final byte[] response = "I will help you.".getBytes();
         try (final Connection c = new ConnectionFactory().createConnection()) {
-            UnitTestUtilities.sleep(100);
+            sleep(100);
             try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
-                public void onMessage(Message m) {
+                public void onMessage(Message msg) {
                     try {
-                        c.publish(m.getReplyTo(), response);
+                        c.publish(msg.getReplyTo(), response);
+                        System.err.println("Published reply to " + msg.getReplyTo());
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
             })) {
-                UnitTestUtilities.sleep(100);
+                sleep(100);
                 final byte[] request = "help".getBytes();
-                Message m = null;
+                Message msg = null;
                 try {
-                    m = c.request("foo", request, 5000);
+                    msg = c.request("foo", request, 5, TimeUnit.SECONDS);
+                    assertNotNull(msg);
+                    assertArrayEquals("Received invalid response", response, msg.getData());
                 } catch (Exception e) {
                     fail("Request failed: " + e.getMessage());
                 }
-                assertNotNull(m);
-                assertArrayEquals("Received invalid response", response, m.getData());
 
-                m = null;
+                msg = null;
                 try {
-                    m = c.request("foo", request);
+                    msg = c.request("foo", request);
+                    assertNotNull("Response message shouldn't be null", msg);
+                    assertArrayEquals("Response isn't valid.", response, msg.getData());
                 } catch (Exception e) {
                     fail("Request failed: " + e.getMessage());
                 }
-                assertArrayEquals("Response isn't valid.", response, m.getData());
             }
         } catch (IOException | TimeoutException e) {
             fail(e.getMessage());
@@ -847,32 +811,6 @@ public class ITBasicTest {
             counter.incrementAndGet();
         }
 
-    }
-
-    @Test
-    public void testAsyncSubHandlerAPI() throws Exception {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            final AtomicInteger received = new AtomicInteger();
-            MessageHandler h = new MessageHandler() {
-                public void onMessage(Message msg) {
-                    received.incrementAndGet();
-                }
-            };
-
-            try (AsyncSubscription s = c.subscribe("foo", h)) {
-                c.publish("foo", null);
-                c.flush();
-                Thread.sleep(100);
-            }
-
-            try (AsyncSubscription s = c.subscribe("foo", "bar", h)) {
-                c.publish("foo", null);
-                c.flush();
-                Thread.sleep(100);
-            }
-
-            assertEquals(2, received.get());
-        }
     }
 
     @Test
