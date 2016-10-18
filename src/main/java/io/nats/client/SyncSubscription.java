@@ -30,9 +30,11 @@ public interface SyncSubscription extends Subscription {
      * @throws IllegalStateException if the {@code Subscription} has been removed (unsubscribed)
      * @throws IOException if the {@code Subscription}'s has been unsubscribed due to reaching its
      *         autoUnsubscribe limit.
+     * @throws InterruptedException if the operation is interrupted, e.g. because the subscription
+     *         was closed
      * @see Subscription#autoUnsubscribe(int)
      */
-    Message nextMessage() throws IOException;
+    Message nextMessage() throws IOException, InterruptedException;
 
     /**
      * Receive the next {@code Message} that arrives for this {@code Subscription} within the
@@ -41,6 +43,8 @@ public interface SyncSubscription extends Subscription {
      * @param timeout the timeout value (in milliseconds)
      * @return the next message produced for this subscription, or return null if timeout expires
      * @throws IOException if an I/O error prevents message delivery
+     * @throws InterruptedException if the operation is interrupted, e.g. because the subscription
+     *         was closed
      * @throws TimeoutException if the timeout expires before a message becomes available
      * @throws IllegalStateException if the {@code Subscription} has been removed (unsubscribed)
      * @throws IOException if the {@code Subscription}'s has been unsubscribed due to reaching its
@@ -48,7 +52,7 @@ public interface SyncSubscription extends Subscription {
      * @see #nextMessage(long, TimeUnit)
      * @see Subscription#autoUnsubscribe(int)
      */
-    Message nextMessage(long timeout) throws IOException, TimeoutException;
+    Message nextMessage(long timeout) throws IOException, TimeoutException, InterruptedException;
 
     /**
      * Receive the next {@code Message} that arrives for this {@code Subscription} within the
@@ -57,6 +61,8 @@ public interface SyncSubscription extends Subscription {
      * @param timeout how long to wait before giving up, in units of {@code unit}
      * @param unit the timeout value
      * @return the next message produced for this subscription, or return null if timeout expires
+     * @throws InterruptedException if the operation is interrupted, e.g. because the subscription
+     *         was closed
      * @throws IOException if an I/O error prevents message delivery
      * @throws TimeoutException if the timeout expires before a message becomes available
      * @throws IllegalStateException if the {@code Subscription} has been removed (unsubscribed)
@@ -64,5 +70,6 @@ public interface SyncSubscription extends Subscription {
      *         autoUnsubscribe limit.
      * @see Subscription#autoUnsubscribe(int)
      */
-    Message nextMessage(long timeout, TimeUnit unit) throws IOException, TimeoutException;
+    Message nextMessage(long timeout, TimeUnit unit)
+            throws IOException, TimeoutException, InterruptedException;
 }

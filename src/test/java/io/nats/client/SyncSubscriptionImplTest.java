@@ -9,10 +9,11 @@ package io.nats.client;
 import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
+import static io.nats.client.UnitTestUtilities.newNewMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
+import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -36,8 +37,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.Condition;
 
 @Category(UnitTest.class)
 public class SyncSubscriptionImplTest {
@@ -58,6 +62,11 @@ public class SyncSubscriptionImplTest {
     @Mock
     private BlockingQueue<Message> mchMock;
 
+    @Mock
+    private Message msgMock;
+
+    private ExecutorService exec;
+
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {}
 
@@ -66,12 +75,14 @@ public class SyncSubscriptionImplTest {
 
     @Before
     public void setUp() throws Exception {
+        exec = Executors.newCachedThreadPool();
         MockitoAnnotations.initMocks(this);
         verifier.setup();
     }
 
     @After
     public void tearDown() throws Exception {
+        exec.shutdownNow();
         verifier.teardown();
         setLogLevel(Level.INFO);
     }
@@ -114,7 +125,6 @@ public class SyncSubscriptionImplTest {
         String subj = "foo";
         String queue = "bar";
 
-        final Message msgMock = mock(Message.class);
         ConnectionImpl nc = mock(ConnectionImpl.class);
         try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue)) {
             s.setChannel(mchMock);
@@ -130,16 +140,16 @@ public class SyncSubscriptionImplTest {
         String subj = "foo";
         String queue = "bar";
         long timeout = 1000;
-        final Message msgMock = mock(Message.class);
 
         final ConnectionImpl nc = mock(ConnectionImpl.class);
         try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            when(mchMock.poll(eq(timeout), eq(TimeUnit.MILLISECONDS))).thenReturn(msgMock);
+            when(mchMock.poll(timeout, TimeUnit.MILLISECONDS)).thenReturn(msgMock);
             sub.setChannel(mchMock);
+            sub.pCond = mock(Condition.class);
 
             Message msg = sub.nextMessage(timeout, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
-            verify(mchMock, times(1)).poll(eq(timeout), eq(TimeUnit.MILLISECONDS));
+            verify(mchMock, times(1)).poll(timeout, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -149,24 +159,24 @@ public class SyncSubscriptionImplTest {
         String subj = "foo";
         String queue = "bar";
         long timeout = 1000;
-        final Message msgMock = mock(Message.class);
 
-        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newNewMockedConnection())) {
             try (SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribe(subj, queue)) {
                 sub.setMax(1);
-                when(mchMock.poll(eq(timeout), eq(TimeUnit.MILLISECONDS))).thenReturn(msgMock);
+                when(mchMock.poll(timeout, TimeUnit.MILLISECONDS)).thenReturn(msgMock);
                 sub.setChannel(mchMock);
 
                 Message msg = sub.nextMessage(timeout, TimeUnit.MILLISECONDS);
-                assertNotNull(msg);
-                verify(mchMock, times(1)).poll(eq(timeout), eq(TimeUnit.MILLISECONDS));
+                assertEquals(msgMock, msg);
+                verify(mchMock, times(1)).poll(timeout, TimeUnit.MILLISECONDS);
                 verify(nc, times(1)).removeSub(sub);
             }
         }
     }
 
     @Test(expected = TimeoutException.class)
-    public void testNextMessageTimesOut() throws TimeoutException, IOException {
+    public void testNextMessageTimesOut()
+            throws TimeoutException, IOException, InterruptedException {
         String subj = "foo";
         String queue = "bar";
         int timeout = 100;
@@ -178,7 +188,8 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessageMaxMessages() throws TimeoutException, IOException {
+    public void testNextMessageMaxMessages()
+            throws TimeoutException, IOException, InterruptedException {
         thrown.expect(IOException.class);
         thrown.expectMessage(Constants.ERR_MAX_MESSAGES);
         String subj = "foo";
@@ -194,8 +205,33 @@ public class SyncSubscriptionImplTest {
         }
     }
 
+    @Test(timeout = 3000)
+    public void testNextMessageInterrupted()
+            throws TimeoutException, IOException, InterruptedException {
+        thrown.expect(InterruptedException.class);
+        String subj = "foo";
+        int timeout = 30000;
+
+        try (Connection nc = newMockedConnection()) {
+            try (final SyncSubscription sub = nc.subscribe(subj)) {
+                exec.execute(new Runnable() {
+                    public void run() {
+                        sleep(500);
+                        sub.close();
+                    }
+                });
+                try {
+                    sub.nextMessage(timeout);
+                } catch (InterruptedException e) {
+                    throw (e);
+                }
+            }
+        }
+    }
+
     @Test
-    public void testNextMessageSubClosed() throws TimeoutException, IOException {
+    public void testNextMessageSubClosed()
+            throws TimeoutException, IOException, InterruptedException {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
         String subj = "foo";
@@ -211,7 +247,8 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessageSlowConsumer() throws TimeoutException, IOException {
+    public void testNextMessageSlowConsumer()
+            throws TimeoutException, IOException, InterruptedException {
         thrown.expect(IOException.class);
         thrown.expectMessage(ERR_SLOW_CONSUMER);
         String subj = "foo";

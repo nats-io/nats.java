@@ -594,9 +594,9 @@ public class ConnectionImpl implements Connection {
                 conn.close();
             }
 
-            // if (exec != null) {
-            // exec.shutdownNow();
-            // }
+            if (exec != null) {
+                exec.shutdownNow();
+            }
             mu.unlock();
         }
     }
@@ -686,7 +686,7 @@ public class ConnectionImpl implements Connection {
         BlockingQueue<Boolean> ch = createBooleanChannel(1);
         mu.lock();
         try {
-            if (pongs.size() > 0) {
+            if (pongs != null && pongs.size() > 0) {
                 ch = pongs.get(0);
                 pongs.remove(0);
             }
@@ -698,7 +698,7 @@ public class ConnectionImpl implements Connection {
             try {
                 ch.put(true);
             } catch (InterruptedException e) {
-                logger.warn("processPong interrupted");
+                logger.warn("processPong interrupted", e);
                 Thread.currentThread().interrupt();
             }
         }
@@ -1249,11 +1249,11 @@ public class ConnectionImpl implements Connection {
                 socketWatchersStartLatch.countDown();
                 try {
                     socketWatchersStartLatch.await();
+                    readLoop();
                 } catch (InterruptedException e) {
                     logger.debug("Interrupted while waiting for threads to spin up");
-                    Thread.currentThread().interrupt();
+                    // Thread.currentThread().interrupt();
                 }
-                readLoop();
                 socketWatchersDoneLatch.countDown();
                 logger.trace("READLOOP EXITING");
             }
@@ -1266,11 +1266,11 @@ public class ConnectionImpl implements Connection {
                 socketWatchersStartLatch.countDown();
                 try {
                     socketWatchersStartLatch.await();
+                    flusher();
                 } catch (InterruptedException e) {
                     logger.debug("Interrupted while waiting for start latch");
-                    Thread.currentThread().interrupt();
+                    // Thread.currentThread().interrupt();
                 }
-                flusher();
                 socketWatchersDoneLatch.countDown();
                 logger.trace("FLUSHER EXITING");
             }
@@ -1439,7 +1439,7 @@ public class ConnectionImpl implements Connection {
                 }
                 parser.parse(buffer, len);
             } catch (IOException | ParseException e) {
-                logger.trace("Exception in readLoop(): ConnState was {}", status, e);
+                logger.debug("Exception in readloop(): '{}' (state: {})", e.getMessage(), status);
                 if (status != ConnState.CLOSED) {
                     processOpError(e);
                 }
@@ -2198,13 +2198,22 @@ public class ConnectionImpl implements Connection {
             throws TimeoutException, IOException {
         String inbox = newInbox();
         Message msg = null;
-        SyncSubscription sub = subscribeSync(inbox, null);
-        sub.autoUnsubscribe(1);
-        publish(subject, inbox, data);
-        msg = sub.nextMessage(timeout, unit);
-        sub.close();
+        if (Thread.currentThread().isInterrupted()) {
+            Thread.interrupted();
+        }
+        try (SyncSubscription sub = subscribeSync(inbox, null)) {
+            sub.autoUnsubscribe(1);
+            publish(subject, inbox, data);
+            try {
+                msg = sub.nextMessage(timeout, unit);
+            } catch (InterruptedException e) {
+                // There is nothing a caller can do with this, so swallow it.
+                logger.debug("request() interrupted (and cleared)", e);
+                Thread.interrupted();
+            }
 
-        return msg;
+            return msg;
+        }
     }
 
     @Override

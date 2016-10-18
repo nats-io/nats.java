@@ -10,20 +10,37 @@ import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.Constants.ERR_CONNECTION_CLOSED;
 import static io.nats.client.Constants.ERR_MAX_MESSAGES;
 import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
+import static io.nats.client.Constants.ERR_TIMEOUT;
 
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
+    private Map<Long, Thread> threads = new ConcurrentHashMap<Long, Thread>();
 
     protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
         super(nc, subj, queue);
     }
 
     @Override
-    public Message nextMessage() throws IOException {
+    public void close() {
+        super.close();
+        mu.lock();
+        logger.debug("In SyncSubscriptionImpl#close()");
+
+        for (long key : threads.keySet()) {
+            if (key != Thread.currentThread().getId()) {
+                threads.get(key).interrupt();
+            }
+        }
+        mu.unlock();
+    }
+
+    @Override
+    public Message nextMessage() throws IOException, InterruptedException {
         Message msg = null;
         try {
             msg = nextMessage(-1);
@@ -34,14 +51,14 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
     }
 
     @Override
-    public Message nextMessage(long timeout) throws IOException, TimeoutException {
-        // TODO This should throw InterruptedException
+    public Message nextMessage(long timeout)
+            throws IOException, TimeoutException, InterruptedException {
         return nextMessage(timeout, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public Message nextMessage(long timeout, TimeUnit unit) throws IOException, TimeoutException {
-        // TODO This should throw InterruptedException
+    public Message nextMessage(long timeout, TimeUnit unit)
+            throws IOException, TimeoutException, InterruptedException {
         mu.lock();
         if (connClosed) {
             mu.unlock();
@@ -64,26 +81,20 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
         // snapshot
         final ConnectionImpl localConn = (ConnectionImpl) this.getConnection();
-        final BlockingQueue<Message> localChannel = mch;
+        // final BlockingQueue<Message> localChannel = mch;
         final long localMax = max;
         // boolean chanClosed = localChannel.isClosed();
         mu.unlock();
         Message msg = null;
-        try {
-            while (!Thread.currentThread().isInterrupted()) {
-                if (timeout > 0) {
-                    msg = localChannel.poll(timeout, unit);
-                    if (msg == null) {
-                        throw new TimeoutException("Timed out waiting for message");
-                    }
-                } else {
-                    msg = localChannel.take();
-                }
-                break;
+        // Wait until a message is available
+        threads.put(Thread.currentThread().getId(), Thread.currentThread());
+        if (timeout >= 0) {
+            msg = mch.poll(timeout, unit);
+            if (msg == null) {
+                throw new TimeoutException(ERR_TIMEOUT);
             }
-        } catch (InterruptedException e) {
-            logger.debug("nextMessage({}, {}) interrupted...", timeout, unit);
-            Thread.currentThread().interrupt();
+        } else {
+            msg = mch.take();
         }
 
         if (msg != null) {

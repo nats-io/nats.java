@@ -12,12 +12,15 @@ import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
+import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+
+import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -62,11 +65,15 @@ public class ITSubscriptionTest {
 
     @Before
     public void setUp() throws Exception {
+        // if (Thread.interrupted()) {
+        // Thread.interrupted();
+        // }
         exec = Executors.newCachedThreadPool(new NATSThreadFactory("nats-test-thread"));
     }
 
     @After
     public void tearDown() throws Exception {
+        setLogLevel(Level.INFO);
         if (!exec.isShutdown()) {
             exec.shutdownNow();
         }
@@ -279,32 +286,39 @@ public class ITSubscriptionTest {
                 sub.autoUnsubscribe(max);
                 nc.flush();
 
+                final CountDownLatch wg = new CountDownLatch(numRoutines);
                 for (int i = 0; i < numRoutines; i++) {
-                    exec.submit(new Runnable() {
+                    exec.execute(new Runnable() {
                         public void run() {
-                            while (received.get() < max
-                                    && !Thread.currentThread().isInterrupted()) {
+                            long t0 = 0L;
+                            long elapsed = 0L;
+                            while (true) {
                                 // The first to reach the max delivered will cause the
                                 // subscription to be removed, which will kick out all
                                 // other calls to NextMsg. So don't be afraid of the long
                                 // timeout.
                                 Message msg;
                                 try {
+                                    t0 = System.nanoTime();
                                     msg = sub.nextMessage(3, TimeUnit.SECONDS);
                                     assertNotNull(msg);
-                                    received.incrementAndGet();
-                                } catch (IOException | TimeoutException e) {
-                                    e.printStackTrace();
+                                    if (received.incrementAndGet() >= max) {
+                                        break;
+                                    }
+                                } catch (IOException | TimeoutException | InterruptedException e) {
+                                    elapsed = System.nanoTime() - t0;
+                                    logger.debug("Thread {} interrupted: '{}'",
+                                            Thread.currentThread().getId(), e.getMessage());
                                     break;
                                 }
                             }
+                            wg.countDown();
                         }
                     });
                 }
 
-                byte[] msg = "Hello".getBytes();
                 for (int i = 0; i < max / 2; i++) {
-                    nc.publish("foo", msg);
+                    nc.publish("foo", String.format("Hello %d", i).getBytes());
                 }
                 nc.flush();
 
@@ -316,18 +330,19 @@ public class ITSubscriptionTest {
                             await(rcbLatch, 10, TimeUnit.SECONDS));
 
                     for (int i = 0; i < total; i++) {
-                        nc.publish("foo", msg);
+                        nc.publish("foo", String.format("Hello %d", i).getBytes());
                     }
                     nc.flush();
+
 
                     while (received.get() < max) {
                         sleep(1);
                     }
 
-                    if (!exec.isShutdown()) {
-                        exec.shutdownNow();
-                    }
+                    exec.shutdownNow();
 
+                    assertTrue("Subscriber threads should have completed",
+                            wg.await(5, TimeUnit.SECONDS));
                     assertEquals("Wrong number of msgs received: ", max, received.get());
                 }
             }
@@ -543,12 +558,10 @@ public class ITSubscriptionTest {
         ConnectionFactory cf = new ConnectionFactory();
         final CountDownLatch mcbLatch = new CountDownLatch(1);
         try (NATSServer srv = runDefaultServer()) {
-
             try (final Connection c = cf.createConnection()) {
-
                 c.setExceptionHandler(null);
                 try (final AsyncSubscriptionImpl s =
-                        (AsyncSubscriptionImpl) c.subscribeAsync("foo", new MessageHandler() {
+                        (AsyncSubscriptionImpl) c.subscribe("foo", new MessageHandler() {
                             public void onMessage(Message msg) {
                                 try {
                                     mcbLatch.await();
@@ -773,7 +786,8 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testNextMsgCallOnClosedSub() throws IOException, TimeoutException {
+    public void testNextMsgCallOnClosedSub()
+            throws IOException, TimeoutException, InterruptedException {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
         try (NATSServer srv = runDefaultServer()) {

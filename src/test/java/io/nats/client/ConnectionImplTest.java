@@ -133,6 +133,9 @@ public class ConnectionImplTest {
     @Mock
     private Map<Long, SubscriptionImpl> subsMock;
 
+    @Mock
+    private SyncSubscriptionImpl syncSubMock;
+
     /**
      * @throws java.lang.Exception if a problem occurs
      */
@@ -1164,6 +1167,24 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testExhaustedSrvPool() throws IOException, TimeoutException {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            List<ConnectionImpl.Srv> pool = new ArrayList<ConnectionImpl.Srv>();
+            c.setServerPool(pool);
+            boolean exThrown = false;
+            try {
+                assertNull(c.currentServer());
+                c.createConn();
+            } catch (IOException e) {
+                assertEquals(ERR_NO_SERVERS, e.getMessage());
+                exThrown = true;
+            }
+            assertTrue("Should have thrown exception.", exThrown);
+        }
+    }
+
+
+    @Test
     public void testFlushBadTimeout() throws Exception {
         thrown.expect(IllegalArgumentException.class);
         thrown.expectMessage(ERR_BAD_TIMEOUT);
@@ -1695,7 +1716,7 @@ public class ConnectionImplTest {
     }
 
     @Test
-    public void testRequest() throws IOException, TimeoutException {
+    public void testRequest() throws IOException, TimeoutException, InterruptedException {
         SyncSubscription mockSub = mock(SyncSubscription.class);
         Message replyMsg = new Message();
         replyMsg.setData("answer".getBytes());
@@ -1712,6 +1733,21 @@ public class ConnectionImplTest {
 
             msg = c.request("foo", null, 500);
             assertEquals(replyMsg, msg);
+        }
+    }
+
+    @Test
+    public void testRequestErrors() throws IOException, TimeoutException, InterruptedException {
+        final String errMsg = "testRequestErrors()";
+        thrown.expect(IOException.class);
+        thrown.expectMessage(errMsg);
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
+            when(nc.subscribeSync("foo", null)).thenReturn(syncSubMock);
+            doThrow(new IOException(errMsg)).when(nc).publish(anyString(), anyString(),
+                    any(byte[].class));
+
+            nc.request("foo", "help".getBytes());
+            verify(syncSubMock, times(0)).nextMessage(-1, TimeUnit.MILLISECONDS);
         }
     }
 

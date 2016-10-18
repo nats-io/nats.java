@@ -6,7 +6,6 @@ public class TCPConnectionFactoryMock extends TCPConnectionFactory {
     private String infoString;
     private boolean openFailure;
     private boolean noPongs;
-    private boolean throwTimeoutException;
     private boolean badReader;
     private boolean badWriter;
     private boolean verboseNoOK;
@@ -27,7 +26,6 @@ public class TCPConnectionFactoryMock extends TCPConnectionFactory {
             m.setServerInfoString(infoString);
         m.setOpenFailure(openFailure);
         m.setNoPongs(noPongs);
-        m.setThrowTimeoutException(throwTimeoutException);
         m.setBadReader(badReader);
         m.setBadWriter(badWriter);
         m.setVerboseNoOK(verboseNoOK);
@@ -50,11 +48,6 @@ public class TCPConnectionFactoryMock extends TCPConnectionFactory {
 
     public void setNoPongs(boolean b) {
         this.noPongs = b;
-    }
-
-    public void setThrowTimeoutException(boolean b) {
-        this.throwTimeoutException = b;
-
     }
 
     public void setBadReader(boolean b) {
