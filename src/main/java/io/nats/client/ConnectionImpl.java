@@ -2094,7 +2094,9 @@ public class ConnectionImpl implements Connection {
     // Used for handrolled itoa
     static final byte[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
-    void _publish(byte[] subject, byte[] reply, byte[] data) throws IOException {
+    // The internal publish operation sends a protocol data message by queueing into the buffered
+    // OutputStream and kicking the flush go routine. These writes should be protected.
+    void publish(byte[] subject, byte[] reply, byte[] data) throws IOException {
         int msgSize = (data != null) ? data.length : 0;
         mu.lock();
         try {
@@ -2109,7 +2111,6 @@ public class ConnectionImpl implements Connection {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
-            // TODO implement reconnect buffer size option
             // Check if we are reconnecting, and if so check if
             // we have exceeded our reconnect outbound buffer limits.
             if (_isReconnecting()) {
@@ -2162,8 +2163,6 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    // Sends a protocol data message by queueing into the bufio writer
-    // and kicking the flush go routine. These writes should be protected.
     // publish can throw a few different unchecked exceptions:
     // IllegalStateException, IllegalArgumentException, NullPointerException
     @Override
@@ -2180,7 +2179,7 @@ public class ConnectionImpl implements Connection {
         if (reply != null) {
             replyBytes = reply.getBytes();
         }
-        _publish(subjBytes, replyBytes, data);
+        publish(subjBytes, replyBytes, data);
     } // publish
 
     @Override
@@ -2190,7 +2189,7 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public void publish(Message msg) throws IOException {
-        _publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
+        publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
     }
 
     @Override

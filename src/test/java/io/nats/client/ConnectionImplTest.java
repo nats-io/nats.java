@@ -743,7 +743,7 @@ public class ConnectionImplTest {
     public void testPublishWithReply() throws IOException, TimeoutException {
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
             c.publish("foo", "bar", null);
-            verify(c, times(1))._publish(eq("foo".getBytes()), eq("bar".getBytes()),
+            verify(c, times(1)).publish(eq("foo".getBytes()), eq("bar".getBytes()),
                     eq((byte[]) null));
         }
     }

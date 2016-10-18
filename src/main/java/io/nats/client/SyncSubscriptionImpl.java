@@ -59,6 +59,8 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
     @Override
     public Message nextMessage(long timeout, TimeUnit unit)
             throws IOException, TimeoutException, InterruptedException {
+        // TODO this call should just return null vs. throwing TimeoutException. TimeoutException
+        // was here due to historical implementation tradeoffs that no longer apply.
         mu.lock();
         if (connClosed) {
             mu.unlock();
