@@ -1,8 +1,15 @@
 Change Log
 ==========
 
-## Version 0.6.0 (SNAPSHOT)
-_2016-09-07_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.5.3...master)
+## Version 0.7.0-SNAPSHOT
+_2016-10-18_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.6.0...master)
+
+ * BREAKING CHANGE: `SyncSubscription#nextMessage()` and its variants now throw `InterruptedException` if the underlying `poll`/`take` operation is interrupted. 
+ * Fixed interrupt handling.
+ * Removed `Channel` implementation in favor of directly using `BlockingQueue`.
+
+## Version 0.6.0
+_2016-10-11_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.5.3...0.6.0)
 
  * Implemented asynchronous handling of `INFO` messages, allowing the client to process `INFO` messages that may be received from the server after a connection is already established. These asynchronous `INFO` messages may update the client's list of servers in the connected cluster.
  * Added proper JSON parsing via [google/gson](https://github.com/google/gson).
