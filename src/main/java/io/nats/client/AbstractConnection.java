@@ -80,8 +80,7 @@ interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException if the subject name is null
      * @throws IllegalStateException if the connection is closed
-     * @deprecated As of release 0.6, use {@link subscribe(String subject, MessageHandler cb)}
-     *             instead
+     * @deprecated As of release 0.6, use {@link #subscribe(String, MessageHandler)} instead
      */
     public AsyncSubscription subscribeAsync(String subject, MessageHandler cb);
 
@@ -96,8 +95,7 @@ interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException if the subject name is null
      * @throws IllegalStateException if the connection is closed
-     * @deprecated As of release 0.6, use {@link subscribe(String subject, String queue,
-     *             MessageHandler cb)} instead
+     * @deprecated As of release 0.6, use {@link #subscribe(String, String, MessageHandler)} instead
      */
     public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb);
 
