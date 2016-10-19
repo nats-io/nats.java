@@ -33,6 +33,7 @@ import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -188,6 +189,10 @@ public class ConnectionImpl implements Connection {
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;
     private BlockingQueue<Boolean> fch;
+
+    // The number of msec the flusher will wait between flushes
+    protected int minFlushInterval = 1;
+
 
     ConnectionImpl() {}
 
@@ -785,13 +790,19 @@ public class ConnectionImpl implements Connection {
                 setOutputStream(getPending());
 
                 logger.trace("\t\tspawning doReconnect() in state {}", status);
+
+                if (exec.isShutdown()) {
+                    exec = Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
+                }
                 exec.submit(new Runnable() {
                     public void run() {
                         Thread.currentThread().setName("reconnect");
                         doReconnect();
                     }
                 });
-
+                if (cbexec.isShutdown()) {
+                    cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
+                }
                 logger.trace("\t\tspawned doReconnect() in state {}", status);
                 return;
             } else {
@@ -1004,10 +1015,8 @@ public class ConnectionImpl implements Connection {
                 // TODO This mirrors go, and so does not spawn a thread/task.
                 logger.trace("Spawning reconnectedCB from doReconnect()");
                 cbexec.execute(new Runnable() {
-
                     public void run() {
                         opts.getReconnectedCallback().onReconnect(new ConnectionEvent(nc));
-
                     }
                 });
                 logger.trace("Spawned reconnectedCB from doReconnect()");
@@ -1042,10 +1051,7 @@ public class ConnectionImpl implements Connection {
     }
 
     boolean isConnecting() {
-        mu.lock();
-        boolean rv = (status == ConnState.CONNECTING);
-        mu.unlock();
-        return rv;
+        return (status == ConnState.CONNECTING);
     }
 
     static String normalizeErr(String error) {
@@ -1218,9 +1224,7 @@ public class ConnectionImpl implements Connection {
     // waitForExits will wait for all socket watcher threads to
     // complete before proceeding.
     private void waitForExits() {
-        logger.trace("waitForExits()");
         // Kick old flusher forcefully.
-        setFlusherDone(true);
         kickFlusher();
 
         if (socketWatchersDoneLatch != null) {
@@ -1231,7 +1235,6 @@ public class ConnectionImpl implements Connection {
                 Thread.currentThread().interrupt();
             }
         }
-        logger.trace("waitForExits complete");
     }
 
     protected void spinUpSocketWatchers() {
@@ -1774,65 +1777,32 @@ public class ConnectionImpl implements Connection {
     protected void kickFlusher() {
         if (bw != null) {
             if (fch != null) {
-                if (fch.size() == 0) {
-                    if (!fch.offer(true)) {
-                        logger.warn("Unable to add to flusher channel");
-                    }
-                }
+                fch.offer(true);
             }
-        }
-    }
-
-    private void setFlusherDone(boolean value) {
-        flusherLock.lock();
-        try {
-            flusherDone = value;
-
-            if (flusherDone) {
-                kickFlusher();
-            }
-        } finally {
-            flusherLock.unlock();
-        }
-    }
-
-    boolean isFlusherDone() {
-        flusherLock.lock();
-        try {
-            return flusherDone;
-        } finally {
-            flusherLock.unlock();
         }
     }
 
     // This is the loop of the flusher thread
     protected void flusher() {
-        // OutputStream bw = null;
-        // TCPConnection conn = null;
-        // final BlockingQueue<Boolean> fch = null;
-
-        setFlusherDone(false);
-
         // snapshot the bw and conn since they can change from underneath of us.
         mu.lock();
-        final OutputStream bw = this.bw;
+        final BufferedOutputStream bw = (BufferedOutputStream) this.bw;
         final TCPConnection conn = this.conn;
         final BlockingQueue<Boolean> fch = this.fch;
         mu.unlock();
 
-        if (conn == null || bw == null || !conn.isConnected()) {
+        if (conn == null || bw == null) {
             return;
         }
-
-        while (!isFlusherDone() && !Thread.currentThread().isInterrupted()) {
+        // long lastFlushTime = 0L;
+        while (!Thread.currentThread().isInterrupted()) {
             // Wait to be triggered
             try {
-                if (!fch.take()) {
-                    return;
-                }
+                fch.take();
                 // Be reasonable about how often we flush
-                sleepMsec(1);
-            } catch (InterruptedException e1) {
+                Thread.sleep(0, 1);
+            } catch (Exception e1) {
+                // } catch (InterruptedException e1) {
                 logger.debug("Interrupted while waiting on flush channel");
                 Thread.currentThread().interrupt();
                 break;
@@ -1840,7 +1810,6 @@ public class ConnectionImpl implements Connection {
 
             mu.lock();
             try {
-
                 // Check to see if we should bail out.
                 if (!_isConnected() || isConnecting() || bw != this.bw || conn != this.conn) {
                     return;
@@ -1848,7 +1817,8 @@ public class ConnectionImpl implements Connection {
                 bw.flush();
                 stats.incrementFlushes();
             } catch (IOException e) {
-                logger.error("I/O exception encountered during flush", e);
+                logger.debug("I/O exception encountered during flush");
+                this.setLastError(e);
             } finally {
                 mu.unlock();
             }
@@ -2094,7 +2064,9 @@ public class ConnectionImpl implements Connection {
     // Used for handrolled itoa
     static final byte[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
-    void _publish(byte[] subject, byte[] reply, byte[] data) throws IOException {
+    // The internal publish operation sends a protocol data message by queueing into the buffered
+    // OutputStream and kicking the flush go routine. These writes should be protected.
+    void publish(byte[] subject, byte[] reply, byte[] data) throws IOException {
         int msgSize = (data != null) ? data.length : 0;
         mu.lock();
         try {
@@ -2109,7 +2081,6 @@ public class ConnectionImpl implements Connection {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
-            // TODO implement reconnect buffer size option
             // Check if we are reconnecting, and if so check if
             // we have exceeded our reconnect outbound buffer limits.
             if (_isReconnecting()) {
@@ -2162,8 +2133,6 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    // Sends a protocol data message by queueing into the bufio writer
-    // and kicking the flush go routine. These writes should be protected.
     // publish can throw a few different unchecked exceptions:
     // IllegalStateException, IllegalArgumentException, NullPointerException
     @Override
@@ -2180,7 +2149,7 @@ public class ConnectionImpl implements Connection {
         if (reply != null) {
             replyBytes = reply.getBytes();
         }
-        _publish(subjBytes, replyBytes, data);
+        publish(subjBytes, replyBytes, data);
     } // publish
 
     @Override
@@ -2190,7 +2159,7 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public void publish(Message msg) throws IOException {
-        _publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
+        publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
     }
 
     @Override

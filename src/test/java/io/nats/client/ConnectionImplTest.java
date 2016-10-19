@@ -743,7 +743,7 @@ public class ConnectionImplTest {
     public void testPublishWithReply() throws IOException, TimeoutException {
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
             c.publish("foo", "bar", null);
-            verify(c, times(1))._publish(eq("foo".getBytes()), eq("bar".getBytes()),
+            verify(c, times(1)).publish(eq("foo".getBytes()), eq("bar".getBytes()),
                     eq((byte[]) null));
         }
     }
@@ -1619,47 +1619,6 @@ public class ConnectionImplTest {
             c.setOutputStream(null);
             c.flusher();
             verify(fchMock, times(0)).take();
-
-            c.setTcpConnection(tconn);
-            c.setOutputStream(bwMock);
-            when(tconn.isConnected()).thenReturn(false);
-            c.flusher();
-            verify(fchMock, times(0)).take();
-
-        }
-    }
-
-    @Test
-    public void testFlusherIsDone() throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito
-                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
-            c.setFlushChannel(fchMock);
-            c.setOutputStream(bwMock);
-            TCPConnection tconn = mock(TCPConnection.class);
-            when(tconn.isConnected()).thenReturn(true);
-            c.setTcpConnection(tconn);
-            c.status = ConnState.CONNECTED;
-            when(fchMock.take()).thenReturn(false);
-            when(c.isFlusherDone()).thenReturn(true);
-            c.flusher();
-            verify(fchMock, times(0)).take();
-        }
-    }
-
-    @Test
-    public void testFlusherChannelGetFalse()
-            throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito
-                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
-            c.setFlushChannel(fchMock);
-            c.setOutputStream(bwMock);
-            TCPConnection tconn = mock(TCPConnection.class);
-            when(tconn.isConnected()).thenReturn(true);
-            c.setTcpConnection(tconn);
-            c.status = ConnState.CONNECTED;
-            when(fchMock.take()).thenReturn(false);
-            c.flusher();
-            verify(bwMock, times(0)).flush();
         }
     }
 
@@ -1681,25 +1640,25 @@ public class ConnectionImplTest {
         }
     }
 
-
-    @Test
-    public void testFlusherFlushError() throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito
-                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
-            c.setFlushChannel(fchMock);
-            when(fchMock.take()).thenReturn(true).thenReturn(false);
-            c.setOutputStream(bwMock);
-            doThrow(new IOException("flush error")).when(bwMock).flush();
-
-            TCPConnection tconn = mock(TCPConnection.class);
-            when(tconn.isConnected()).thenReturn(true);
-            c.setTcpConnection(tconn);
-            c.status = ConnState.CONNECTED;
-            c.flusher();
-            verifier.verifyLogMsgEquals(Level.ERROR, "I/O exception encountered during flush");
-
-        }
-    }
+    // @Test
+    // public void testFlusherFlushError() throws IOException, TimeoutException,
+    // InterruptedException {
+    // try (ConnectionImpl c = (ConnectionImpl) Mockito
+    // .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
+    // c.setFlushChannel(fchMock);
+    // when(fchMock.take()).thenReturn(true).thenReturn(false);
+    // c.setOutputStream(bwMock);
+    // doThrow(new IOException("flush error")).when(bwMock).flush();
+    //
+    // TCPConnection tconn = mock(TCPConnection.class);
+    // when(tconn.isConnected()).thenReturn(true);
+    // c.setTcpConnection(tconn);
+    // c.status = ConnState.CONNECTED;
+    // c.flusher();
+    // verifier.verifyLogMsgEquals(Level.ERROR, "I/O exception encountered during flush");
+    //
+    // }
+    // }
 
     @Test
     public void testGetServerInfo() throws IOException, TimeoutException {
