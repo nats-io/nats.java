@@ -1,8 +1,8 @@
 Change Log
 ==========
 
-## Version 0.7.0-SNAPSHOT
-_2016-10-18_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.6.0...master)
+## Version 0.7.0
+_2016-10-19_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.6.0...0.7.0)
 
  * BREAKING CHANGE: `SyncSubscription#nextMessage()` and its variants now throw `InterruptedException` if the underlying `poll`/`take` operation is interrupted. 
  * Fixed interrupt handling.
