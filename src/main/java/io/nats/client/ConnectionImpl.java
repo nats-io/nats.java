@@ -33,7 +33,6 @@ import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -1786,7 +1785,7 @@ public class ConnectionImpl implements Connection {
     protected void flusher() {
         // snapshot the bw and conn since they can change from underneath of us.
         mu.lock();
-        final BufferedOutputStream bw = (BufferedOutputStream) this.bw;
+        final OutputStream bw = this.bw;
         final TCPConnection conn = this.conn;
         final BlockingQueue<Boolean> fch = this.fch;
         mu.unlock();
