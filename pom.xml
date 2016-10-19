@@ -14,7 +14,7 @@
 
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>0.7.0-SNAPSHOT</version>
+    <version>0.7.0</version>
     <packaging>bundle</packaging>
 
     <name>jnats</name>
@@ -45,7 +45,7 @@
         <url>https://github.com/nats-io/jnats</url>
         <connection>scm:git:https://github.com/nats-io/jnats.git</connection>
         <developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
-        <tag>0.5.2</tag>
+        <tag>0.7.0</tag>
     </scm>
     <issueManagement>
         <url>https://github.com/nats-io/jnats/issues/</url>
