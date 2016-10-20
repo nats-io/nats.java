@@ -1676,14 +1676,17 @@ public class ConnectionImplTest {
 
     @Test
     public void testRequest() throws IOException, TimeoutException, InterruptedException {
-        SyncSubscription mockSub = mock(SyncSubscription.class);
+        final String inbox = "_INBOX.DEADBEEF";
+        SyncSubscriptionImpl mockSub = mock(SyncSubscriptionImpl.class);
         Message replyMsg = new Message();
         replyMsg.setData("answer".getBytes());
-        replyMsg.setSubject("_INBOX.DEADBEEF");
+        replyMsg.setSubject(inbox);
         when(mockSub.nextMessage(any(long.class), any(TimeUnit.class))).thenReturn(replyMsg);
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-            when(c.newInbox()).thenReturn("_INBOX.DEADBEEF");
-            when(c.subscribeSync(any(String.class), eq((String) null))).thenReturn(mockSub);
+            when(c.newInbox()).thenReturn(inbox);
+            when(c.createMsgChannel(anyInt())).thenReturn(mchMock);
+            when(c.subscribe(inbox, (String) null, (MessageHandler) null, mchMock))
+                    .thenReturn(mockSub);
             Message msg = c.request("foo", null);
             assertEquals(replyMsg, msg);
 
@@ -1776,12 +1779,7 @@ public class ConnectionImplTest {
             SubscriptionImpl mockSub = mock(SubscriptionImpl.class);
             when(mockSub.getQueue()).thenReturn("foo");
             when(mockSub.getSid()).thenReturn(55L);
-
-            // Make sure sub isn't sent if reconnecting
-            c.status = ConnState.RECONNECTING;
             c.setOutputStream(bwMock);
-            c.sendSubscriptionMessage(mockSub);
-            verify(bwMock, times(0)).write(any(byte[].class));
 
             // Ensure bw write error is logged
             c.status = ConnState.CONNECTED;
