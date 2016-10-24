@@ -52,14 +52,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
-import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -76,7 +78,8 @@ public class ConnectionImpl implements Connection {
     public ConnState status = ConnState.DISCONNECTED;
 
     protected static final String STALE_CONNECTION = "Stale Connection";
-    protected static final String THREAD_POOL = "natsthreadpool";
+    protected static final String NATS_POOL = "jnats-pool";
+    protected static final String SUB_POOL = "jnats-sub-pool";
 
     // Default language string for CONNECT message
     protected static final String LANG_STRING = "java";
@@ -87,7 +90,12 @@ public class ConnectionImpl implements Connection {
     protected static final int DEFAULT_STREAM_BUF_SIZE = 65536;
 
     // The buffered size of the flush "kick" channel
-    protected static final int FLUSH_CHAN_SIZE = 1024;
+    protected static final int FLUSH_CHAN_SIZE = 1;
+
+    // The number of msec the flusher will wait between flushes
+    protected long flushTimerInterval = 1;
+    protected TimeUnit flushTimerUnit = TimeUnit.MICROSECONDS;
+
 
     public static final String _CRLF_ = "\r\n";
     public static final String _EMPTY_ = "";
@@ -146,21 +154,16 @@ public class ConnectionImpl implements Connection {
     // interlinked read/writes (supported by the underlying network
     // stream, but not the BufferedStream).
 
-    // private BufferedOutputStream bw = null;
     private OutputStream bw = null;
 
     private InputStream br = null;
     private ByteArrayOutputStream pending = null;
-
-    private ReentrantLock flusherLock = new ReentrantLock();
-    private boolean flusherDone = false;
 
     protected Map<Long, SubscriptionImpl> subs = new ConcurrentHashMap<Long, SubscriptionImpl>();
     protected List<Srv> srvPool = null;
     protected Map<String, URI> urls = null;
     private Exception lastEx = null;
     private ServerInfo info = null;
-    // private Vector<Thread> socketWatchers = new Vector<Thread>();
     private int pout;
 
     protected Parser parser = new Parser(this);
@@ -183,15 +186,15 @@ public class ConnectionImpl implements Connection {
 
     ExecutorService cbexec;
     ExecutorService exec;
-    private Timer ptmr = null;
+    ExecutorService subexec;
+    ScheduledExecutorService scheduler;
+    private ScheduledFuture<?> ftmr = null;
+    private ScheduledFuture<?> ptmr = null;
+    private List<Future<?>> tasks = new ArrayList<Future<?>>();
     private static final int NUM_WATCHER_THREADS = 2;
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;
     private BlockingQueue<Boolean> fch;
-
-    // The number of msec the flusher will wait between flushes
-    protected int minFlushInterval = 1;
-
 
     ConnectionImpl() {}
 
@@ -233,9 +236,11 @@ public class ConnectionImpl implements Connection {
     }
 
     void setup() {
-        cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
-        exec = Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
-        fch = createBooleanChannel(FLUSH_CHAN_SIZE);
+        scheduler = Executors.newScheduledThreadPool(2);
+        cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory("cbexec"));
+        exec = Executors.newCachedThreadPool(new NATSThreadFactory(NATS_POOL));
+        subexec = Executors.newCachedThreadPool(new NATSThreadFactory(SUB_POOL));
+        fch = createFlushChannel();
         pongs = createPongs();
         subs.clear();
     }
@@ -457,13 +462,13 @@ public class ConnectionImpl implements Connection {
                 logger.warn(ERR_TCP_FLUSH_FAILED);
             }
         }
-        bw = conn.getBufferedOutputStream(DEFAULT_STREAM_BUF_SIZE);
-        br = conn.getBufferedInputStream(DEFAULT_STREAM_BUF_SIZE);
+        bw = conn.getOutputStream(DEFAULT_STREAM_BUF_SIZE);
+        br = conn.getInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
 
 
     BlockingQueue<Message> createMsgChannel() {
-        return new LinkedBlockingQueue<Message>();
+        return createMsgChannel(Integer.MAX_VALUE);
     }
 
     BlockingQueue<Message> createMsgChannel(int size) {
@@ -484,6 +489,11 @@ public class ConnectionImpl implements Connection {
             theSize = 1;
         }
         return new LinkedBlockingQueue<Boolean>(theSize);
+    }
+
+    BlockingQueue<Boolean> createFlushChannel() {
+        return new LinkedBlockingQueue<Boolean>(FLUSH_CHAN_SIZE);
+        // return new SynchronousQueue<Boolean>();
     }
 
     // This will clear any pending flush calls and release pending calls.
@@ -518,16 +528,18 @@ public class ConnectionImpl implements Connection {
         final ConnectionImpl nc = this;
 
         mu.lock();
-        if (_isClosed()) {
-            this.status = closeState;
-            mu.unlock();
-            return;
-        }
-        this.status = ConnState.CLOSED;
+        try {
+            if (_isClosed()) {
+                this.status = closeState;
+                return;
+            }
+            this.status = ConnState.CLOSED;
 
-        // Kick the Flusher routines so they fall out.
-        kickFlusher();
-        mu.unlock();
+            // Kick the Flusher routine so it falls out.
+            kickFlusher();
+        } finally {
+            mu.unlock();
+        }
 
         mu.lock();
         try {
@@ -538,7 +550,11 @@ public class ConnectionImpl implements Connection {
             // Thread.currentThread().interrupt();
 
             if (ptmr != null) {
-                ptmr.cancel();
+                ptmr.cancel(true);
+            }
+
+            if (ftmr != null) {
+                ftmr.cancel(true);
             }
 
             // Go ahead and make sure we have flushed the outbound
@@ -555,17 +571,22 @@ public class ConnectionImpl implements Connection {
             logger.trace("Closing subscriptions");
             // Close sync subscriber channels and release any
             // pending nextMsg() calls.
-            for (Long key : subs.keySet()) {
-                SubscriptionImpl sub = subs.get(key);
+            for (Map.Entry<Long, SubscriptionImpl> entry : subs.entrySet()) {
+                SubscriptionImpl sub = entry.getValue();
+                // for (Long key : subs.keySet()) {
+                // SubscriptionImpl sub = subs.get(key);
                 sub.lock();
-                sub.closeChannel();
-                // Mark as invalid, for signaling to deliverMsgs
-                sub.closed = true;
-                // Mark connection closed in subscription
-                sub.connClosed = true;
-                // Terminate thread exec
-                sub.close();
-                sub.unlock();
+                try {
+                    sub.closeChannel();
+                    // Mark as invalid, for signaling to deliverMsgs
+                    sub.closed = true;
+                    // Mark connection closed in subscription
+                    sub.connClosed = true;
+                    // Terminate thread exec
+                    sub.close();
+                } finally {
+                    sub.unlock();
+                }
             }
             subs.clear();
 
@@ -593,7 +614,7 @@ public class ConnectionImpl implements Connection {
             }
 
             this.status = closeState;
-        } finally {
+
             if (conn != null) {
                 conn.close();
             }
@@ -601,6 +622,10 @@ public class ConnectionImpl implements Connection {
             if (exec != null) {
                 exec.shutdownNow();
             }
+            if (subexec != null) {
+                subexec.shutdownNow();
+            }
+        } finally {
             mu.unlock();
         }
     }
@@ -646,8 +671,8 @@ public class ConnectionImpl implements Connection {
     void makeTLSConn() throws IOException {
         conn.setTlsDebug(opts.isTlsDebug());
         conn.makeTLS(opts.getSSLContext());
-        bw = conn.getBufferedOutputStream(DEFAULT_STREAM_BUF_SIZE);
-        br = conn.getBufferedInputStream(DEFAULT_STREAM_BUF_SIZE);
+        bw = conn.getOutputStream(DEFAULT_STREAM_BUF_SIZE);
+        br = conn.getInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
 
     protected void processExpectedInfo() throws IOException {
@@ -769,7 +794,11 @@ public class ConnectionImpl implements Connection {
                 status = ConnState.RECONNECTING;
 
                 if (ptmr != null) {
-                    ptmr.cancel();
+                    ptmr.cancel(true);
+                }
+
+                if (ftmr != null) {
+                    ftmr.cancel(true);
                 }
 
                 if (this.conn != null) {
@@ -791,7 +820,7 @@ public class ConnectionImpl implements Connection {
                 logger.trace("\t\tspawning doReconnect() in state {}", status);
 
                 if (exec.isShutdown()) {
-                    exec = Executors.newCachedThreadPool(new NATSThreadFactory(THREAD_POOL));
+                    exec = Executors.newCachedThreadPool(new NATSThreadFactory(NATS_POOL));
                 }
                 exec.submit(new Runnable() {
                     public void run() {
@@ -800,7 +829,7 @@ public class ConnectionImpl implements Connection {
                     }
                 });
                 if (cbexec.isShutdown()) {
-                    cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(THREAD_POOL));
+                    cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(NATS_POOL));
                 }
                 logger.trace("\t\tspawned doReconnect() in state {}", status);
                 return;
@@ -823,9 +852,11 @@ public class ConnectionImpl implements Connection {
     @Override
     public boolean isReconnecting() {
         mu.lock();
-        boolean rv = _isReconnecting();
-        mu.unlock();
-        return rv;
+        try {
+            return _isReconnecting();
+        } finally {
+            mu.unlock();
+        }
     }
 
     boolean _isReconnecting() {
@@ -835,9 +866,11 @@ public class ConnectionImpl implements Connection {
     @Override
     public boolean isConnected() {
         mu.lock();
-        boolean rv = _isConnected();
-        mu.unlock();
-        return rv;
+        try {
+            return _isConnected();
+        } finally {
+            mu.unlock();
+        }
     }
 
     private boolean _isConnected() {
@@ -848,9 +881,11 @@ public class ConnectionImpl implements Connection {
     @Override
     public boolean isClosed() {
         mu.lock();
-        boolean rv = _isClosed();
-        mu.unlock();
-        return rv;
+        try {
+            return _isClosed();
+        } finally {
+            mu.unlock();
+        }
     }
 
     boolean _isClosed() {
@@ -893,157 +928,160 @@ public class ConnectionImpl implements Connection {
 
         // Hold the lock manually and release where needed below.
         mu.lock();
+        try {
+            // Clear any queued pongs, e.g. pending flush calls.
+            nc.clearPendingFlushCalls();
 
-        // Clear any queued pongs, e.g. pending flush calls.
-        nc.clearPendingFlushCalls();
+            // Clear any errors.
+            setLastError(null);
 
-        // Clear any errors.
-        setLastError(null);
-
-        // Perform appropriate callback if needed for a disconnect
-        if (opts.getDisconnectedCallback() != null) {
-            logger.trace("Spawning disconnectCB from doReconnect()");
-            cbexec.execute(new Runnable() {
-                public void run() {
-                    opts.getDisconnectedCallback().onDisconnect(new ConnectionEvent(nc));
-                }
-            });
-            logger.trace("Spawned disconnectCB from doReconnect()");
-        }
-
-        while (!srvPool.isEmpty()) {
-            Srv cur = null;
-            try {
-                cur = selectNextServer();
-                this.setUrl(cur.url);
-            } catch (IOException nse) {
-                logger.trace("doReconnect() calling setLastError({})", nse.getMessage());
-                setLastError(nse);
-                break;
+            // Perform appropriate callback if needed for a disconnect
+            if (opts.getDisconnectedCallback() != null) {
+                logger.trace("Spawning disconnectCB from doReconnect()");
+                cbexec.execute(new Runnable() {
+                    public void run() {
+                        opts.getDisconnectedCallback().onDisconnect(new ConnectionEvent(nc));
+                    }
+                });
+                logger.trace("Spawned disconnectCB from doReconnect()");
             }
 
-            // Sleep appropriate amount of time before the
-            // connection attempt if connecting to same server
-            // we just got disconnected from.
+            while (!srvPool.isEmpty()) {
+                Srv cur = null;
+                try {
+                    cur = selectNextServer();
+                    this.setUrl(cur.url);
+                } catch (IOException nse) {
+                    logger.trace("doReconnect() calling setLastError({})", nse.getMessage());
+                    setLastError(nse);
+                    break;
+                }
 
-            long elapsedMillis = cur.timeSinceLastAttempt();
-            if (elapsedMillis < opts.getReconnectWait()) {
-                long sleepTime = opts.getReconnectWait() - elapsedMillis;
+                // Sleep appropriate amount of time before the
+                // connection attempt if connecting to same server
+                // we just got disconnected from.
+
+                long elapsedMillis = cur.timeSinceLastAttempt();
+                if (elapsedMillis < opts.getReconnectWait()) {
+                    long sleepTime = opts.getReconnectWait() - elapsedMillis;
+                    mu.unlock();
+                    try {
+                        sleepInterval((int) sleepTime, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException e) {
+                        logger.debug("Interrupted while in doReconnect()");
+                        break;
+                    } finally {
+                        mu.lock();
+                    }
+                }
+
+                // Check if we have been closed first.
+                if (isClosed()) {
+                    logger.debug("Connection has been closed while in doReconnect()");
+                    break;
+                }
+
+                // Mark that we tried a reconnect
+                cur.reconnects++;
+
+                logger.trace("doReconnect() incremented cur.reconnects: {}", cur);
+                logger.trace("doReconnect: trying createConn() for {}", cur);
+
+                // try to create a new connection
+                try {
+                    conn.teardown();
+                    createConn();
+                    logger.trace("doReconnect: createConn() successful for {}", cur);
+                } catch (Exception e) {
+                    conn.teardown();
+                    logger.trace("doReconnect: createConn() failed for {}", cur);
+                    logger.trace("createConn failed", e);
+                    // not yet connected, retry and hold
+                    // the lock.
+                    setLastError(null);
+                    continue;
+                }
+
+                // We are reconnected.
+                stats.incrementReconnects();
+
+                // Process connect logic
+                try {
+                    processConnectInit();
+                } catch (IOException e) {
+                    conn.teardown();
+                    logger.warn("doReconnect: processConnectInit FAILED for {}", cur, e);
+                    setLastError(e);
+                    status = ConnState.RECONNECTING;
+                    continue;
+                }
+
+                logger.trace("Successful reconnect; Resetting reconnects for {}", cur);
+
+                // Clear out server stats for the server we connected to..
+                // cur.didConnect = true;
+                cur.reconnects = 0;
+
+                // Send existing subscription state
+                resendSubscriptions();
+
+                // Now send off and clear pending buffer
+                flushReconnectPendingItems();
+                logger.debug("just called flushReconnectPendingItems");
+                // Flush the buffer
+                try {
+                    getOutputStream().flush();
+                } catch (IOException e) {
+                    logger.debug("Error flushing output stream");
+                    setLastError(e);
+                    status = ConnState.RECONNECTING;
+                    continue;
+                }
+
+                // Done with the pending buffer
+                setPending(null);
+
+                // This is where we are truly connected.
+                status = ConnState.CONNECTED;
+
+                // Queue up the reconnect callback.
+                if (opts.getReconnectedCallback() != null) {
+                    logger.trace("Spawning reconnectedCB from doReconnect()");
+                    cbexec.execute(new Runnable() {
+
+                        public void run() {
+                            opts.getReconnectedCallback().onReconnect(new ConnectionEvent(nc));
+                        }
+                    });
+                    logger.trace("Spawned reconnectedCB from doReconnect()");
+                }
+
+                // Release the lock here, we will return below
                 mu.unlock();
                 try {
-                    sleepMsec((int) sleepTime);
-                } catch (InterruptedException e) {
-                    logger.debug("Interrupted while in doReconnect()");
-                    break;
+                    // Make sure to flush everything
+                    flush();
+                } catch (
+
+                Exception e) {
+                    logger.warn("Error flushing connection", e);
                 } finally {
                     mu.lock();
                 }
+                logger.trace("doReconnect reconnected successfully!");
+                return;
+            } // while
+
+            logger.trace("Reconnect FAILED");
+
+            // Call into close.. We have no servers left.
+            if (getLastException() == null) {
+                setLastError(new IOException(ERR_NO_SERVERS));
             }
-
-            // Check if we have been closed first.
-            if (isClosed()) {
-                logger.debug("Connection has been closed while in doReconnect()");
-                break;
-            }
-
-            // Mark that we tried a reconnect
-            cur.reconnects++;
-
-            logger.trace("doReconnect() incremented cur.reconnects: {}", cur);
-            logger.trace("doReconnect: trying createConn() for {}", cur);
-
-            // try to create a new connection
-            try {
-                conn.teardown();
-                createConn();
-                logger.trace("doReconnect: createConn() successful for {}", cur);
-            } catch (Exception e) {
-                conn.teardown();
-                logger.trace("doReconnect: createConn() failed for {}", cur);
-                logger.trace("createConn failed", e);
-                // not yet connected, retry and hold
-                // the lock.
-                setLastError(null);
-                continue;
-            }
-
-            // We are reconnected.
-            stats.incrementReconnects();
-
-            // Process connect logic
-            try {
-                processConnectInit();
-            } catch (IOException e) {
-                conn.teardown();
-                logger.warn("doReconnect: processConnectInit FAILED for {}", cur, e);
-                setLastError(e);
-                status = ConnState.RECONNECTING;
-                continue;
-            }
-
-            logger.trace("Successful reconnect; Resetting reconnects for {}", cur);
-
-            // Clear out server stats for the server we connected to..
-            // cur.didConnect = true;
-            cur.reconnects = 0;
-
-            // Send existing subscription state
-            resendSubscriptions();
-
-            // Now send off and clear pending buffer
-            flushReconnectPendingItems();
-            logger.debug("just called flushReconnectPendingItems");
-            // Flush the buffer
-            try {
-                getOutputStream().flush();
-            } catch (IOException e) {
-                logger.debug("Error flushing output stream");
-                setLastError(e);
-                status = ConnState.RECONNECTING;
-                continue;
-            }
-
-            // Done with the pending buffer
-            setPending(null);
-
-            // This is where we are truly connected.
-            status = ConnState.CONNECTED;
-
-            // Queue up the reconnect callback.
-            if (opts.getReconnectedCallback() != null) {
-                // TODO This mirrors go, and so does not spawn a thread/task.
-                logger.trace("Spawning reconnectedCB from doReconnect()");
-                cbexec.execute(new Runnable() {
-                    public void run() {
-                        opts.getReconnectedCallback().onReconnect(new ConnectionEvent(nc));
-                    }
-                });
-                logger.trace("Spawned reconnectedCB from doReconnect()");
-            }
-
-            // Release the lock here, we will return below
+        } finally {
             mu.unlock();
-
-            // Make sure to flush everything
-            try {
-                flush();
-            } catch (
-
-            Exception e) {
-                logger.warn("Error flushing connection", e);
-            }
-            logger.trace("doReconnect reconnected successfully!");
-            return;
-        } // while
-
-        logger.trace("Reconnect FAILED");
-
-        // Call into close.. We have no servers left.
-        if (getLastException() == null) {
-            setLastError(new IOException(ERR_NO_SERVERS));
         }
 
-        mu.unlock();
         logger.trace("Calling   close() from doReconnect()");
         close();
         logger.trace("Completed close() from doReconnect()");
@@ -1082,8 +1120,11 @@ public class ConnectionImpl implements Connection {
             ex = new NATSException("nats: " + err);
             ex.setConnection(this);
             mu.lock();
-            setLastError(ex);
-            mu.unlock();
+            try {
+                setLastError(ex);
+            } finally {
+                mu.unlock();
+            }
             close();
         }
     }
@@ -1244,39 +1285,41 @@ public class ConnectionImpl implements Connection {
         socketWatchersDoneLatch = new CountDownLatch(NUM_WATCHER_THREADS);
         socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
 
-        exec.execute(new Runnable() {
+        Future<?> task = exec.submit(new Runnable() {
             public void run() {
-                logger.trace("READLOOP STARTING");
+                logger.debug("readloop starting...");
                 Thread.currentThread().setName("readloop");
                 socketWatchersStartLatch.countDown();
                 try {
                     socketWatchersStartLatch.await();
                     readLoop();
                 } catch (InterruptedException e) {
-                    logger.debug("Interrupted while waiting for threads to spin up");
-                    // Thread.currentThread().interrupt();
+                    logger.debug("Interrupted", e);
                 }
                 socketWatchersDoneLatch.countDown();
-                logger.trace("READLOOP EXITING");
+                logger.debug("readloop exiting");
             }
         });
+        tasks.add(task);
 
-        exec.execute(new Runnable() {
+        task = exec.submit(new Runnable() {
             public void run() {
-                logger.trace("FLUSHER STARTING");
+                logger.debug("flusher starting...");
                 Thread.currentThread().setName("flusher");
                 socketWatchersStartLatch.countDown();
                 try {
                     socketWatchersStartLatch.await();
                     flusher();
                 } catch (InterruptedException e) {
-                    logger.debug("Interrupted while waiting for start latch");
-                    // Thread.currentThread().interrupt();
+                    logger.debug("Interrupted", e);
                 }
                 socketWatchersDoneLatch.countDown();
-                logger.trace("FLUSHER EXITING");
+                logger.debug("flusher exiting");
             }
         });
+        tasks.add(task);
+        // resetFlushTimer();
+        // socketWatchersDoneLatch.countDown();
 
         socketWatchersStartLatch.countDown();
 
@@ -1706,18 +1749,18 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    Timer createPingTimer() {
+    ScheduledFuture<?> createPingTimer() {
         PingTimerTask pinger = new PingTimerTask();
-        Timer timer = new Timer("pingtimer");
-        timer.scheduleAtFixedRate(pinger, opts.getPingInterval(), opts.getPingInterval());
-        return timer;
+        ScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(pinger, opts.getPingInterval(),
+                opts.getPingInterval(), TimeUnit.MILLISECONDS);
+        return future;
     }
 
     protected void resetPingTimer() {
         mu.lock();
         try {
             if (ptmr != null) {
-                ptmr.cancel();
+                ptmr.cancel(true);
             }
 
             if (opts.getPingInterval() > 0) {
@@ -1728,8 +1771,57 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    protected void unsubscribe(SubscriptionImpl sub, int max) throws IOException {
-        unsubscribe(sub, (long) max);
+    class FlushTimerTask extends TimerTask {
+        public void run() {
+            flushSocket();
+        }
+    }
+
+    ScheduledFuture<?> createFlushTimer() {
+        String unitString = "";
+        switch (flushTimerUnit) {
+            case NANOSECONDS:
+                unitString = "nsec";
+                break;
+            case MICROSECONDS:
+                unitString = "usec";
+                break;
+            case MILLISECONDS:
+                unitString = "msec";
+                break;
+            case SECONDS:
+                unitString = "sec";
+                break;
+            default:
+        }
+
+        logger.trace("flusher started with interval {}{}", flushTimerInterval, unitString);
+        FlushTimerTask flusher = new FlushTimerTask();
+        ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(flusher, getFlushTimerInterval(),
+                getFlushTimerInterval(), flushTimerUnit);
+        return future;
+    }
+
+    protected void resetFlushTimer() {
+        mu.lock();
+        try {
+            if (ftmr != null) {
+                ftmr.cancel(true);
+                logger.trace("flusher cancelled");
+            }
+
+            if (fch != null) {
+                fch.clear();
+            } else {
+                fch = createFlushChannel();
+            }
+            if (getFlushTimerInterval() > 0) {
+                ftmr = createFlushTimer();
+                logger.trace("flusher created");
+            }
+        } finally {
+            mu.unlock();
+        }
     }
 
     protected void writeUnsubProto(SubscriptionImpl sub, long max) throws IOException {
@@ -1738,6 +1830,10 @@ public class ConnectionImpl implements Connection {
         byte[] unsub = str.getBytes();
         bw.write(unsub);
         logger.trace("=> {}", str.trim());
+    }
+
+    protected void unsubscribe(SubscriptionImpl sub, int max) throws IOException {
+        unsubscribe(sub, (long) max);
     }
 
     // unsubscribe performs the low level unsubscribe to the server.
@@ -1767,8 +1863,9 @@ public class ConnectionImpl implements Connection {
             if (!_isReconnecting()) {
                 writeUnsubProto(s, max);
             }
-        } finally {
+
             kickFlusher();
+        } finally {
             mu.unlock();
         }
     }
@@ -1781,8 +1878,49 @@ public class ConnectionImpl implements Connection {
         }
     }
 
+    // Experimental per-iteration
+    protected void flushSocket() {
+        final OutputStream bw;
+        final TCPConnection conn;
+        final BlockingQueue<Boolean> fch;
+
+        // snapshot the bw and conn since they can change from underneath of us.
+        mu.lock();
+        try {
+            bw = this.bw;
+            conn = this.conn;
+            fch = this.fch;
+        } finally {
+            mu.unlock();
+        }
+
+        if (conn == null || bw == null) {
+            return;
+        }
+
+        // Return if no work to do
+        if (fch.poll() == null) {
+            return;
+        }
+
+        mu.lock();
+        try {
+            // Check to see if we should bail out.
+            if (!_isConnected() || isConnecting() || bw != this.bw || conn != this.conn) {
+                return;
+            }
+            bw.flush();
+            stats.incrementFlushes();
+        } catch (IOException e) {
+            logger.debug("I/O exception encountered during flush");
+            this.setLastError(e);
+        } finally {
+            mu.unlock();
+        }
+    }
+
     // This is the loop of the flusher thread
-    protected void flusher() {
+    protected void flusher() throws InterruptedException {
         // snapshot the bw and conn since they can change from underneath of us.
         mu.lock();
         final OutputStream bw = this.bw;
@@ -1793,22 +1931,11 @@ public class ConnectionImpl implements Connection {
         if (conn == null || bw == null) {
             return;
         }
-        // long lastFlushTime = 0L;
-        while (!Thread.currentThread().isInterrupted()) {
-            // Wait to be triggered
-            try {
-                fch.take();
-                // Be reasonable about how often we flush
-                Thread.sleep(0, 1);
-            } catch (Exception e1) {
-                // } catch (InterruptedException e1) {
-                logger.debug("Interrupted while waiting on flush channel");
-                Thread.currentThread().interrupt();
-                break;
-            }
-
+        logger.trace("entering flusher loop...");
+        while (fch.take()) {
             mu.lock();
             try {
+                // logger.info("Flushing output stream...");
                 // Check to see if we should bail out.
                 if (!_isConnected() || isConnecting() || bw != this.bw || conn != this.conn) {
                     return;
@@ -1821,6 +1948,7 @@ public class ConnectionImpl implements Connection {
             } finally {
                 mu.unlock();
             }
+            sleepInterval(flushTimerInterval, flushTimerUnit);
         }
     }
 
@@ -1922,11 +2050,10 @@ public class ConnectionImpl implements Connection {
                     // cannot call unsubscribe here. Need to just send proto
                     writeUnsubProto(sub, adjustedMax);
                 } catch (Exception e) {
-                    /* NOOP */
+                    logger.debug("nats: exception while writing UNSUB proto");
                 }
             }
         }
-        // bw.flush();
     }
 
     /**
@@ -1951,38 +2078,41 @@ public class ConnectionImpl implements Connection {
             if (cb == null && ch == null) {
                 throw new IllegalArgumentException(ERR_BAD_SUBSCRIPTION);
             }
-        } finally {
+
+            if (cb != null) {
+                sub = new AsyncSubscriptionImpl(this, subject, queue, cb);
+                // If we have an async callback, start up a sub specific Runnable to deliver the
+                // messages
+                logger.debug("Starting subscription for subject '{}'", subject);
+                subexec.submit(new Runnable() {
+                    public void run() {
+                        try {
+                            waitForMsgs((AsyncSubscriptionImpl) sub);
+                        } catch (InterruptedException e) {
+                            logger.debug("Interrupted in waitForMsgs");
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                });
+            } else {
+                sub = new SyncSubscriptionImpl(this, subject, queue);
+                sub.setChannel(ch);
+            }
+
+            // Sets sid and adds to subs map
+            addSubscription(sub);
+
+            // Send SUB proto
+            if (!_isReconnecting()) {
+                sendSubscriptionMessage(sub);
+            }
+
             kickFlusher();
+
+            return sub;
+        } finally {
             mu.unlock();
         }
-
-        // Create subscription with pending limits
-        if (cb != null) {
-            sub = new AsyncSubscriptionImpl(this, subject, queue, cb);
-            // If we have an async callback, start up a sub specific Runnable to deliver the
-            // messages
-            exec.submit(new Runnable() {
-                public void run() {
-                    try {
-                        waitForMsgs((AsyncSubscriptionImpl) sub);
-                    } catch (InterruptedException e) {
-                        logger.debug("Interrupted in waitForMsgs");
-                        Thread.currentThread().interrupt();
-                    }
-                }
-            });
-        } else {
-            sub = new SyncSubscriptionImpl(this, subject, queue);
-            sub.setChannel(ch);
-        }
-
-        // Sets sid and adds to subs map
-        addSubscription(sub);
-
-        // Send SUB proto
-        sendSubscriptionMessage(sub);
-
-        return sub;
     }
 
     @Override
@@ -2065,7 +2195,7 @@ public class ConnectionImpl implements Connection {
 
     // The internal publish operation sends a protocol data message by queueing into the buffered
     // OutputStream and kicking the flush go routine. These writes should be protected.
-    void publish(byte[] subject, byte[] reply, byte[] data) throws IOException {
+    void publish(byte[] subject, byte[] reply, byte[] data, boolean forceFlush) throws IOException {
         int msgSize = (data != null) ? data.length : 0;
         mu.lock();
         try {
@@ -2123,10 +2253,18 @@ public class ConnectionImpl implements Connection {
                 return;
             }
 
-            kickFlusher();
-
             stats.incrementOutMsgs();
             stats.incrementOutBytes(msgSize);
+
+            if (forceFlush) {
+                bw.flush();
+                stats.incrementFlushes();
+            } else {
+                // Opportunistic flush
+                if (fch.isEmpty()) {
+                    kickFlusher();
+                }
+            }
         } finally {
             mu.unlock();
         }
@@ -2135,7 +2273,8 @@ public class ConnectionImpl implements Connection {
     // publish can throw a few different unchecked exceptions:
     // IllegalStateException, IllegalArgumentException, NullPointerException
     @Override
-    public void publish(String subject, String reply, byte[] data) throws IOException {
+    public void publish(String subject, String reply, byte[] data, boolean flush)
+            throws IOException {
         if (subject == null) {
             throw new NullPointerException(ERR_BAD_SUBJECT);
         }
@@ -2148,28 +2287,35 @@ public class ConnectionImpl implements Connection {
         if (reply != null) {
             replyBytes = reply.getBytes();
         }
-        publish(subjBytes, replyBytes, data);
+        publish(subjBytes, replyBytes, data, flush);
+    } // publish
+
+    @Override
+    public void publish(String subject, String reply, byte[] data) throws IOException {
+        publish(subject, reply, data, false);
     } // publish
 
     @Override
     public void publish(String subject, byte[] data) throws IOException {
-        publish(subject, null, data);
+        publish(subject, (String) null, data);
     }
 
     @Override
     public void publish(Message msg) throws IOException {
-        publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData());
+        publish(msg.getSubjectBytes(), msg.getReplyToBytes(), msg.getData(), false);
     }
 
     @Override
     public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
             throws TimeoutException, IOException {
         String inbox = newInbox();
+        BlockingQueue<Message> ch = createMsgChannel(8);
+
         Message msg = null;
         if (Thread.currentThread().isInterrupted()) {
             Thread.interrupted();
         }
-        try (SyncSubscription sub = subscribeSync(inbox, null)) {
+        try (SyncSubscription sub = (SyncSubscription) subscribe(inbox, null, null, ch)) {
             sub.autoUnsubscribe(1);
             publish(subject, inbox, data);
             try {
@@ -2216,25 +2362,18 @@ public class ConnectionImpl implements Connection {
         return info.getMaxPayload();
     }
 
+    // Assumes already have the lock
     protected void sendSubscriptionMessage(SubscriptionImpl sub) {
-        mu.lock();
+        // We will send these for all subs when we reconnect
+        // so that we can suppress here.
+        String queue = sub.getQueue();
+        String subLine = String.format(SUB_PROTO, sub.getSubject(),
+                (queue != null && !queue.isEmpty()) ? " " + queue : "", sub.getSid());
         try {
-            // We will send these for all subs when we reconnect
-            // so that we can suppress here.
-            if (!_isReconnecting()) {
-                String queue = sub.getQueue();
-                String subLine = String.format(SUB_PROTO, sub.getSubject(),
-                        (queue != null && !queue.isEmpty()) ? " " + queue : "", sub.getSid());
-                try {
-                    bw.write(Utilities.stringToBytesASCII(subLine));
-                    // logger.trace("=> {}", s.trim() );
-                    kickFlusher();
-                } catch (IOException e) {
-                    logger.warn("nats: I/O exception while sending subscription message");
-                }
-            }
-        } finally {
-            mu.unlock();
+            bw.write(subLine.getBytes());
+            // logger.trace("=> {}", s.trim() );
+        } catch (IOException e) {
+            logger.warn("nats: I/O exception while sending subscription message");
         }
     }
 
@@ -2368,8 +2507,8 @@ public class ConnectionImpl implements Connection {
         return this.pending;
     }
 
-    protected void sleepMsec(long msec) throws InterruptedException {
-        Thread.sleep(msec);
+    protected void sleepInterval(long timeout, TimeUnit unit) throws InterruptedException {
+        unit.sleep(timeout);
     }
 
     void setOutputStream(OutputStream out) {
@@ -2474,11 +2613,32 @@ public class ConnectionImpl implements Connection {
         this.pout = pout;
     }
 
-    Timer getPingTimer() {
+    ScheduledFuture<?> getPingTimer() {
         return ptmr;
     }
 
-    void setPingTimer(Timer ptmr) {
+    void setPingTimer(ScheduledFuture<?> ptmr) {
         this.ptmr = ptmr;
     }
+
+    public long getFlushTimerInterval() {
+        return flushTimerInterval;
+    }
+
+    public long getFlushTimerInterval(TimeUnit unit) {
+        return unit.convert(flushTimerInterval, flushTimerUnit);
+    }
+
+    public void setFlushTimerInterval(long msec) {
+        // assumes supplied value is msec
+        this.flushTimerInterval = TimeUnit.MILLISECONDS.toNanos(msec);
+        resetFlushTimer();
+    }
+
+    public void setFlushTimerInterval(int duration, TimeUnit unit) {
+        this.flushTimerInterval = duration;
+        this.flushTimerUnit = unit;
+        resetFlushTimer();
+    }
+
 }

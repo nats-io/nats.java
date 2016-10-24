@@ -34,6 +34,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -75,11 +76,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Timer;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -712,7 +713,7 @@ public class ConnectionImplTest {
         try (Connection c = newMockedConnection()) {
             boolean exThrown = false;
             try {
-                c.publish("", null);
+                c.publish("", (byte[]) null);
             } catch (IllegalArgumentException e) {
                 assertEquals(ERR_BAD_SUBJECT, e.getMessage());
                 exThrown = true;
@@ -744,7 +745,7 @@ public class ConnectionImplTest {
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
             c.publish("foo", "bar", null);
             verify(c, times(1)).publish(eq("foo".getBytes()), eq("bar".getBytes()),
-                    eq((byte[]) null));
+                    eq((byte[]) null), any(boolean.class));
         }
     }
 
@@ -1599,46 +1600,46 @@ public class ConnectionImplTest {
         }
     }
 
-    @Test
-    public void testFlusherPreconditions()
-            throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito
-                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
-            c.setFlushChannel(fchMock);
-            c.setOutputStream(bwMock);
-            TCPConnection tconn = mock(TCPConnection.class);
-            when(tconn.isConnected()).thenReturn(true);
-            c.setTcpConnection(tconn);
-            c.status = ConnState.CONNECTED;
-
-            c.conn = null;
-            c.flusher();
-            verify(fchMock, times(0)).take();
-
-            c.setTcpConnection(tconn);
-            c.setOutputStream(null);
-            c.flusher();
-            verify(fchMock, times(0)).take();
-        }
-    }
-
-    @Test
-    public void testFlusherChannelTakeInterrupted()
-            throws IOException, TimeoutException, InterruptedException {
-        try (ConnectionImpl c = (ConnectionImpl) Mockito
-                .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
-            c.setFlushChannel(fchMock);
-            c.setOutputStream(bwMock);
-            TCPConnection tconn = mock(TCPConnection.class);
-            when(tconn.isConnected()).thenReturn(true);
-            c.setTcpConnection(tconn);
-            c.status = ConnState.CONNECTED;
-            doThrow(new InterruptedException("test")).when(fchMock).take();
-            c.flusher();
-            assertTrue(Thread.interrupted());
-            verify(bwMock, times(0)).flush();
-        }
-    }
+    // @Test
+    // public void testFlusherPreconditions()
+    // throws IOException, TimeoutException, InterruptedException {
+    // try (ConnectionImpl c = (ConnectionImpl) Mockito
+    // .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
+    // c.setFlushChannel(fchMock);
+    // c.setOutputStream(bwMock);
+    // TCPConnection tconn = mock(TCPConnection.class);
+    // when(tconn.isConnected()).thenReturn(true);
+    // c.setTcpConnection(tconn);
+    // c.status = ConnState.CONNECTED;
+    //
+    // c.conn = null;
+    // c.flusher();
+    // verify(fchMock, times(0)).take();
+    //
+    // c.setTcpConnection(tconn);
+    // c.setOutputStream(null);
+    // c.flusher();
+    // verify(fchMock, times(0)).take();
+    // }
+    // }
+    //
+    // @Test
+    // public void testFlusherChannelTakeInterrupted()
+    // throws IOException, TimeoutException, InterruptedException {
+    // try (ConnectionImpl c = (ConnectionImpl) Mockito
+    // .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
+    // c.setFlushChannel(fchMock);
+    // c.setOutputStream(bwMock);
+    // TCPConnection tconn = mock(TCPConnection.class);
+    // when(tconn.isConnected()).thenReturn(true);
+    // c.setTcpConnection(tconn);
+    // c.status = ConnState.CONNECTED;
+    // doThrow(new InterruptedException("test")).when(fchMock).take();
+    // c.flusher();
+    // assertTrue(Thread.interrupted());
+    // verify(bwMock, times(0)).flush();
+    // }
+    // }
 
     // @Test
     // public void testFlusherFlushError() throws IOException, TimeoutException,
@@ -1682,12 +1683,14 @@ public class ConnectionImplTest {
         replyMsg.setData("answer".getBytes());
         replyMsg.setSubject(inbox);
         when(mockSub.nextMessage(any(long.class), any(TimeUnit.class))).thenReturn(replyMsg);
-        try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
-            when(c.newInbox()).thenReturn(inbox);
-            when(c.createMsgChannel(anyInt())).thenReturn(mchMock);
-            when(c.subscribe(inbox, (String) null, (MessageHandler) null, mchMock))
-                    .thenReturn(mockSub);
+        try (ConnectionImpl c = (ConnectionImpl) newNewMockedConnection()) {
+            doReturn(inbox).when(c).newInbox();
+            doReturn(mchMock).when(c).createMsgChannel(anyInt());
+            doReturn(syncSubMock).when(c).subscribe(inbox, (String) null, (MessageHandler) null,
+                    mchMock);
+            doReturn(replyMsg).when(syncSubMock).nextMessage(any(int.class), any(TimeUnit.class));
             Message msg = c.request("foo", null);
+            verify(syncSubMock, times(1)).nextMessage(-1, TimeUnit.MILLISECONDS);
             assertEquals(replyMsg, msg);
 
             msg = c.request("foo", null, 1, TimeUnit.SECONDS);
@@ -1856,14 +1859,14 @@ public class ConnectionImplTest {
     @Test
     public void testResetPingTimer() throws IOException, TimeoutException {
         try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
-            Timer ptmrMock = mock(Timer.class);
+            ScheduledFuture ptmrMock = mock(ScheduledFuture.class);
             when(nc.createPingTimer()).thenReturn(ptmrMock);
 
             // Test for ptmr already exists
             nc.setPingTimer(ptmrMock);
             nc.resetPingTimer();
             // verify old was cancelled
-            verify(ptmrMock, times(1)).cancel();
+            verify(ptmrMock, times(1)).cancel(true);
             // verify new was created
             verify(nc, times(1)).createPingTimer();
             assertEquals(ptmrMock, nc.getPingTimer());

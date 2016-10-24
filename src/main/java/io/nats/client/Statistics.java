@@ -3,8 +3,11 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
+import java.text.NumberFormat;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 // Tracks various stats received and sent on this connection,
@@ -43,11 +46,18 @@ public class Statistics implements Cloneable {
         this.flushes.set(0L);
     }
 
+    /**
+     * {@inheritDoc}.
+     */
     public String toString() {
         return String.format(
-                "{in: msgs=%d, bytes=%d, out: msgs=%d, bytes=%d, reconnects: %d, flushes: %d}",
-                inMsgs.get(), inBytes.get(), outMsgs.get(), outBytes.get(), reconnects.get(),
-                flushes.get());
+                "{in: msgs=%s bytes=%s out: msgs=%s bytes=%s, reconnects: %s flushes: %s}",
+                NumberFormat.getNumberInstance(Locale.US).format(inMsgs.get()),
+                NumberFormat.getNumberInstance(Locale.US).format(inBytes.get()),
+                NumberFormat.getNumberInstance(Locale.US).format(outMsgs.get()),
+                NumberFormat.getNumberInstance(Locale.US).format(outBytes.get()),
+                NumberFormat.getNumberInstance(Locale.US).format(reconnects.get()),
+                NumberFormat.getNumberInstance(Locale.US).format(flushes.get()));
     }
 
     /**

@@ -96,10 +96,10 @@ public class UnitTestUtilities {
                 when(tcpConnMock.getBufferedReader()).thenReturn(bufferedReaderMock);
 
                 // Setup br
-                when(tcpConnMock.getBufferedInputStream(anyInt())).thenReturn(brMock);
+                when(tcpConnMock.getInputStream(anyInt())).thenReturn(brMock);
 
                 // Setup br
-                when(tcpConnMock.getBufferedOutputStream(anyInt())).thenReturn(bwMock);
+                when(tcpConnMock.getOutputStream(anyInt())).thenReturn(bwMock);
 
                 // First lines are always INFO and then PONG
                 when(bufferedReaderMock.readLine()).thenReturn(TCPConnectionMock.defaultInfo,

@@ -45,6 +45,20 @@ public interface Connection extends AbstractConnection {
     public void publish(String subject, String reply, byte[] data) throws IOException;
 
     /**
+     * Publishes the payload specified by {@code data} to the subject specified by {@code subject},
+     * with an optional reply subject. If {@code reply} is {@code null}, the behavior is identical
+     * to {@link #publish(String, byte[])}. if {@code flush} is {@code true}, a flush of the
+     * Connection's output stream will be forced.
+     * 
+     * @param subject the subject to publish the message to
+     * @param reply the subject to which subscribers should send responses
+     * @param data the message payload
+     * @param flush whether to force a flush of the output stream
+     * @throws IOException if an I/O error is encountered
+     */
+    void publish(String subject, String reply, byte[] data, boolean flush) throws IOException;
+
+    /**
      * Publishes a request message to the specified subject, waiting up to {@code timeout} msec for
      * a response.
      * 
@@ -72,4 +86,5 @@ public interface Connection extends AbstractConnection {
 
     Message request(String subject, byte[] data, long timeout, TimeUnit unit)
             throws TimeoutException, IOException;
+
 }

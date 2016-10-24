@@ -237,7 +237,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
      * @see io.nats.client.TCPConnection#getReadBufferedStream(int)
      */
     @Override
-    public BufferedInputStream getBufferedInputStream(int size) {
+    public BufferedInputStream getInputStream(int size) {
         bis = new BufferedInputStream(readStream, size);
         return bis;
     }
@@ -248,7 +248,7 @@ class TCPConnectionMock extends TCPConnection implements Runnable, AutoCloseable
      * @see io.nats.client.TCPConnection#getWriteBufferedStream(int)
      */
     @Override
-    public BufferedOutputStream getBufferedOutputStream(int size) {
+    public BufferedOutputStream getOutputStream(int size) {
         // return new BufferedOutputStream(writeStream, size);
         if (badWriter) {
             bos = mock(BufferedOutputStream.class);

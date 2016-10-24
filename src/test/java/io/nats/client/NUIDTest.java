@@ -98,8 +98,8 @@ public class NUIDTest {
                 if (nuid.pre[j] < min || nuid.pre[j] > max) {
                     String msg = String.format(
                             "Iter %d. Valid range for bytes prefix: [%d..%d]\n"
-                                    + "Incorrect prefix at pos %d: %v (%s)",
-                            i, min, max, j, nuid.pre, new String(nuid.pre));
+                                    + "Incorrect prefix at pos %d: %s",
+                            i, (int) min, (int) max, j, new String(nuid.pre));
                     fail(msg);
                 }
             }

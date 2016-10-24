@@ -98,7 +98,7 @@ public class TCPConnectionTest {
     public void testGetBufferedInputStream() {
         try (TCPConnection t = new TCPConnection()) {
             t.readStream = readStreamMock;
-            assertNotNull(t.getBufferedInputStream(16384));
+            assertNotNull(t.getInputStream(16384));
         }
     }
 
@@ -106,7 +106,7 @@ public class TCPConnectionTest {
     public void testGetBufferedOutputStream() {
         try (TCPConnection t = new TCPConnection()) {
             t.writeStream = writeStreamMock;
-            assertNotNull(t.getBufferedOutputStream(16384));
+            assertNotNull(t.getOutputStream(16384));
         }
     }
 
@@ -114,7 +114,7 @@ public class TCPConnectionTest {
     public void testGetBufferedReader() {
         try (TCPConnection t = new TCPConnection()) {
             t.readStream = readStreamMock;
-            assertNotNull(t.getBufferedInputStream(16384));
+            assertNotNull(t.getInputStream(16384));
             assertNotNull(t.getBufferedReader());
         }
     }
@@ -123,8 +123,7 @@ public class TCPConnectionTest {
     public void testOpen() throws IOException {
         try (TCPConnection conn = new TCPConnection()) {
             Socket sock = mock(Socket.class);
-            doThrow(new SocketException("Error setting TCPNoDelay")).when(sock)
-                    .setTcpNoDelay(false);
+            doThrow(new SocketException("Error getting OutputStream")).when(sock).getOutputStream();
             conn.setSocket(sock);
             conn.open();
         } catch (SocketException e) {
