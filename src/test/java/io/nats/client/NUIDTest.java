@@ -77,7 +77,7 @@ public class NUIDTest {
     }
 
     @Test
-    @Category(UnitTest.class)
+    @Category(BenchmarkTest.class)
     public void testProperPrefix() {
         char min = (char) 255;
         char max = (char) 0;
