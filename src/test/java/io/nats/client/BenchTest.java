@@ -137,7 +137,7 @@ public class BenchTest {
                 }
                 published.incrementAndGet();
             } catch (IOException e) {
-                System.err.printf("Oops, got an exception on msg %d: %s\n", i, e.getMessage());
+                logger.error("Oops, got an exception on msg {}: {}", i, e.getMessage());
                 break;
             }
         }
@@ -240,7 +240,7 @@ public class BenchTest {
             bw.flush();
             if (reader.ready()) {
                 String response = reader.readLine();
-                System.err.println(response);
+                logger.error(response);
             }
             String payload = "";
             String control = String.format("PUB foo %d\r\n%s\r\n", payload.length(), payload);
@@ -296,8 +296,6 @@ public class BenchTest {
         final SynchronousQueue<String> ch = new SynchronousQueue<String>();
         final ConnectionFactory cf = new ConnectionFactory();
         try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
-            // nc.setFlushTimerInterval(1, TimeUnit.NANOSECONDS);
-            System.err.println("Requestor connected");
             final Subscription sub = nc.subscribe(reqSubject, new MessageHandler() {
                 public void onMessage(final Message msg) {
                     service.submit(new Runnable() {
@@ -313,19 +311,18 @@ public class BenchTest {
             });
             final long t0 = System.nanoTime();
             for (int i = 0; i < count; i++) {
-                nc.publish(reqSubject, null, null);
-                // nc.getOutputStream().flush();
+                nc.publish(reqSubject, null, null, true);
                 ch.take();
             }
             final long elapsed = System.nanoTime() - t0;
-            System.out.println("Stats (requestor):\n=======");
-            printStats(nc);
+            logger.info("requestor connection stats: {}", nc.getStats());
+            logger.info("elapsed time: {}sec",
+                    String.format("%.2f", (double) elapsed / 1000000000));
+            logger.info("req-rep average round trip: {}ms",
+                    String.format("%.2f", (double) TimeUnit.NANOSECONDS.toMillis(elapsed) / count));
+            logger.info("req/sec: {}", String.format("%.2f",
+                    (double) count / TimeUnit.NANOSECONDS.toSeconds(elapsed)));
             sub.close();
-            System.err.printf("elapsed time: %.2fsec\n", (double) elapsed / 1000000000);
-            System.err.printf("req-rep average round trip: %.2fms\n",
-                    (double) TimeUnit.NANOSECONDS.toMillis(elapsed) / count);
-            System.err.printf("req/sec: %.2f\n",
-                    (double) count / TimeUnit.NANOSECONDS.toSeconds(elapsed));
         } catch (IOException | TimeoutException e) {
             e.printStackTrace();
         }
@@ -386,7 +383,7 @@ public class BenchTest {
             } else {
                 fail("Test not long enough to produce meaningful stats.");
             }
-            printStats(c);
+            logger.info("publisher connection stats: {}", c.getStats());
         } catch (Exception e) {
             fail(e.getMessage());
         }
@@ -412,9 +409,9 @@ public class BenchTest {
 
         cf.setExceptionHandler(new ExceptionHandler() {
             public void onException(NATSException e) {
-                System.err.println("Error: " + e.getMessage());
+                logger.error("Error: {}", e.getMessage());
                 Subscription sub = e.getSubscription();
-                System.err.printf("Queued = %d\n", sub.getQueuedMessageCount());
+                logger.error("Queued = {}", sub.getQueuedMessageCount());
                 e.printStackTrace();
                 // fail(e.getMessage());
             }
@@ -434,7 +431,7 @@ public class BenchTest {
                     ready.countDown();
                     while (received.get() < count) {
                         if (sub.getQueuedMessageCount() > 8192) {
-                            System.err.printf("queued=%d\n", sub.getQueuedMessageCount());
+                            logger.error("queued={}", sub.getQueuedMessageCount());
                             if (slow.size() == 0) {
                                 slow.add((long) sub.getQueuedMessageCount());
                             }
@@ -442,7 +439,7 @@ public class BenchTest {
                         }
                     }
                     System.out.println("nc1 (subscriber):\n=======");
-                    printStats(nc1);
+                    logger.info("subscriber connection stats: {}", nc1.getStats());
                 } catch (IOException | TimeoutException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
@@ -504,7 +501,7 @@ public class BenchTest {
                 fail("Test not long enough to produce meaningful stats.");
             }
             System.out.println("nc2 (publisher):\n=======");
-            printStats(nc2);
+            logger.info("publisher connection stats: {}", nc2.getStats());
 
         } catch (IOException | TimeoutException e) {
             // TODO Auto-generated catch block
@@ -514,6 +511,7 @@ public class BenchTest {
     }
 
     // @Test
+    // @Category(BenchmarkTest.class)
     public void testManyConnections() throws Exception {
         try (NATSServer s = new NATSServer()) {
             ConnectionFactory cf = new ConnectionFactory();
@@ -530,14 +528,4 @@ public class BenchTest {
         }
     }
 
-    private void printStats(Connection conn) {
-        Statistics stats = conn.getStats();
-        System.out.println("Statistics:  ");
-        System.out.printf("   Outgoing Payload Bytes: %s\n",
-                NumberFormat.getNumberInstance(Locale.US).format(stats.getOutBytes()));
-        System.out.printf("   Outgoing Messages: %s\n",
-                NumberFormat.getNumberInstance(Locale.US).format(stats.getOutMsgs()));
-        System.out.printf("   Flushes: %s\n",
-                NumberFormat.getNumberInstance(Locale.US).format(stats.getFlushes()));
-    }
 }

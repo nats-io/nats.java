@@ -223,7 +223,7 @@ public class NatsBench {
                 }
                 nc.flush();
                 bench.addPubSample(new Sample(numMsgs, size, start, System.nanoTime(), nc));
-                System.err.println(nc.getStats());
+                log.info("NATS connection statistics: {}", nc.getStats());
             }
         }
     }
