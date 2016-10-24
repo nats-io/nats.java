@@ -18,7 +18,9 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.NumberFormat;
 import java.util.Arrays;
+import java.util.Locale;
 
 public class NUIDTest {
     final Logger logger = LoggerFactory.getLogger(NUIDTest.class);
@@ -116,7 +118,8 @@ public class NUIDTest {
             nuid.next();
         }
         long elapsedNsec = System.nanoTime() - start;
-        logger.info("Average generation time for {} NUIDs was {}ns", count,
+        logger.info("Average generation time for {} NUIDs was {}ns",
+                NumberFormat.getNumberInstance(Locale.US).format(count),
                 (double) elapsedNsec / count);
 
     }
@@ -132,7 +135,8 @@ public class NUIDTest {
             nuid.next();
         }
         long elapsedNsec = System.nanoTime() - start;
-        logger.info("Average generation time for {} global NUIDs was {}ns", count,
+        logger.info("Average generation time for {} global NUIDs was {}ns",
+                NumberFormat.getNumberInstance(Locale.US).format(count),
                 (double) elapsedNsec / count);
     }
 }
