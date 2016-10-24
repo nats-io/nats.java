@@ -18,11 +18,15 @@ import io.nats.client.ExceptionHandler;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NATSException;
+import io.nats.client.NUID;
 import io.nats.client.Subscription;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Phaser;
@@ -85,11 +90,27 @@ public class NatsBench {
             return;
         }
         parseArgs(args);
-        cf = new ConnectionFactory(urls);
-        cf.setSecure(secure);
-        cf.setReconnectAllowed(false);
+    }
 
-        bench = new Benchmark("NATS", numSubs, numPubs);
+    /**
+     * Properties-based constructor for NatsBench.
+     * 
+     * @param properties configuration properties
+     */
+    public NatsBench(Properties properties) {
+        urls = properties.getProperty("natsbench.servers", urls);
+        secure = Boolean
+                .parseBoolean(properties.getProperty("natsbench.secure", Boolean.toString(secure)));
+        numMsgs = Integer
+                .parseInt(properties.getProperty("natsbench.msg.count", Integer.toString(numMsgs)));
+        size = Integer
+                .parseInt(properties.getProperty("natsbench.msg.size", Integer.toString(numSubs)));
+        numPubs = Integer
+                .parseInt(properties.getProperty("natsbench.pubs", Integer.toString(numPubs)));
+        numSubs = Integer
+                .parseInt(properties.getProperty("natsbench.subs", Integer.toString(numSubs)));
+        csvFileName = properties.getProperty("natsbench.csv.filename", null);
+        subject = properties.getProperty("natsbench.subject", NUID.nextGlobal());
     }
 
     class Worker implements Runnable {
@@ -171,7 +192,6 @@ public class NatsBench {
         }
     }
 
-
     class PubWorker extends Worker {
         PubWorker(Phaser phaser, int numMsgs, int size) {
             super(phaser, numMsgs, size);
@@ -203,6 +223,7 @@ public class NatsBench {
                 }
                 nc.flush();
                 bench.addPubSample(new Sample(numMsgs, size, start, System.nanoTime(), nc));
+                log.info("NATS connection statistics: {}", nc.getStats());
             }
         }
     }
@@ -219,6 +240,12 @@ public class NatsBench {
         installShutdownHook();
 
         phaser.register();
+
+        cf = new ConnectionFactory(urls);
+        cf.setSecure(secure);
+        cf.setReconnectAllowed(false);
+
+        bench = new Benchmark("NATS", numSubs, numPubs);
 
         // Run Subscribers first
         for (int i = 0; i < numSubs; i++) {
@@ -274,16 +301,11 @@ public class NatsBench {
         System.exit(-1);
     }
 
-    long backlog() {
-        return sent.get() - received.get();
-    }
-
     private void parseArgs(String[] args) {
         List<String> argList = new ArrayList<String>(Arrays.asList(args));
 
         subject = argList.get(argList.size() - 1);
         argList.remove(argList.size() - 1);
-
 
         // Anything left is flags + args
         Iterator<String> it = argList.iterator();
@@ -357,16 +379,32 @@ public class NatsBench {
         }
     }
 
+    private static Properties loadProperties(String configPath) {
+        try {
+            InputStream is = new FileInputStream(configPath);
+            Properties prop = new Properties();
+            prop.load(is);
+            return prop;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /**
      * The main program executive.
      * 
      * @param args command line arguments
      */
     public static void main(String[] args) {
+        Properties properties = null;
         try {
-            new NatsBench(args).run();
+            if (args.length == 1 && args[0].endsWith(".properties")) {
+                properties = loadProperties(args[0]);
+                new NatsBench(properties).run();
+            } else {
+                new NatsBench(args).run();
+            }
         } catch (Exception e) {
-
             e.printStackTrace();
             System.exit(-1);
         }

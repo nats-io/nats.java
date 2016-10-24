@@ -18,7 +18,9 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.NumberFormat;
 import java.util.Arrays;
+import java.util.Locale;
 
 public class NUIDTest {
     final Logger logger = LoggerFactory.getLogger(NUIDTest.class);
@@ -71,13 +73,12 @@ public class NUIDTest {
     @Category(UnitTest.class)
     public void testGUIDLen() {
         String nuid = new NUID().next();
-        System.err.println("NUID: " + nuid);
         assertEquals(String.format("Expected len of %d, got %d", NUID.totalLen, nuid.length()),
                 NUID.totalLen, nuid.length());
     }
 
-    @Test
-    @Category(UnitTest.class)
+    @Test(timeout = 5000)
+    @Category(BenchmarkTest.class)
     public void testProperPrefix() {
         char min = (char) 255;
         char max = (char) 0;
@@ -98,8 +99,8 @@ public class NUIDTest {
                 if (nuid.pre[j] < min || nuid.pre[j] > max) {
                     String msg = String.format(
                             "Iter %d. Valid range for bytes prefix: [%d..%d]\n"
-                                    + "Incorrect prefix at pos %d: %v (%s)",
-                            i, min, max, j, nuid.pre, new String(nuid.pre));
+                                    + "Incorrect prefix at pos %d: %s",
+                            i, (int) min, (int) max, j, new String(nuid.pre));
                     fail(msg);
                 }
             }
@@ -117,7 +118,8 @@ public class NUIDTest {
             nuid.next();
         }
         long elapsedNsec = System.nanoTime() - start;
-        logger.info("Average generation time for {} NUIDs was {}ns", count,
+        logger.info("Average generation time for {} NUIDs was {}ns",
+                NumberFormat.getNumberInstance(Locale.US).format(count),
                 (double) elapsedNsec / count);
 
     }
@@ -133,7 +135,8 @@ public class NUIDTest {
             nuid.next();
         }
         long elapsedNsec = System.nanoTime() - start;
-        logger.info("Average generation time for {} global NUIDs was {}ns", count,
+        logger.info("Average generation time for {} global NUIDs was {}ns",
+                NumberFormat.getNumberInstance(Locale.US).format(count),
                 (double) elapsedNsec / count);
     }
 }

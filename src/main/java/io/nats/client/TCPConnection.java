@@ -61,7 +61,14 @@ class TCPConnection implements AutoCloseable {
 
             this.addr = new InetSocketAddress(host, port);
             client = factory.createSocket();
+            client.setTcpNoDelay(true);
+            client.setReceiveBufferSize(2 * 1024 * 1024);
+            client.setSendBufferSize(2 * 1024 * 1024);
             client.connect(addr, timeout);
+
+            logger.debug("socket tcp_nodelay: {}", client.getTcpNoDelay());
+            logger.debug("socket recv buf size: {}", client.getReceiveBufferSize());
+            logger.debug("socket send buf size: {}", client.getSendBufferSize());
 
             open();
 
@@ -75,9 +82,6 @@ class TCPConnection implements AutoCloseable {
     public void open() throws IOException {
         mu.lock();
         try {
-            client.setTcpNoDelay(false);
-            client.setReceiveBufferSize(2 * 1024 * 1024);
-            client.setSendBufferSize(2 * 1024 * 1024);
             writeStream = client.getOutputStream();
             readStream = client.getInputStream();
 
@@ -121,18 +125,25 @@ class TCPConnection implements AutoCloseable {
         return new BufferedReader(new InputStreamReader(bis));
     }
 
-    public BufferedInputStream getBufferedInputStream(int size) {
+    public InputStream getInputStream(int size) {
         if (bis == null) {
             bis = new BufferedInputStream(readStream, size);
         }
         return bis;
     }
 
-    public BufferedOutputStream getBufferedOutputStream(int size) {
+    public OutputStream getOutputStream(int size) {
         if (bos == null) {
             bos = new BufferedOutputStream(writeStream, size);
         }
         return bos;
+    }
+
+    public OutputStream getOutputStream() {
+        // if (bos == null) {
+        // bos = new BufferedOutputStream(writeStream, size);
+        // }
+        return writeStream;
     }
 
     public boolean isConnected() {

@@ -10,7 +10,7 @@ import java.util.Random;
 
 public class NUID {
 
-    final static Logger logger = LoggerFactory.getLogger(NUID.class);
+    static final Logger logger = LoggerFactory.getLogger(NUID.class);
 
     /*
      * NUID needs to be very fast to generate and truly unique, all while being entropy pool
@@ -41,33 +41,29 @@ public class NUID {
 
 
     // Global NUID
-    public static NUID globalNUID = new NUID();
+    public static final NUID globalNUID = new NUID();
     private static Object lock = new Object();
 
     static NUID getInstance() {
-        if (globalNUID == null) {
-            globalNUID = new NUID();
-        }
         return globalNUID;
     }
 
     public NUID() {
         // Generate a cryto random int, 0 <= val < max to seed pseudorandom
         long seed = 0L;
-        if (srand == null) {
-            try {
-                srand = SecureRandom.getInstance("SHA1PRNG");
-                seed = bytesToLong(srand.generateSeed(8)); // seed with 8 bytes (64 bits)
-            } catch (NoSuchAlgorithmException e) {
-                logger.error("nats: nuid algorithm not found", e);
-            }
-
-            if (seed != 0L) {
-                prand = new Random(seed);
-            } else {
-                prand = new Random();
-            }
+        try {
+            srand = SecureRandom.getInstance("SHA1PRNG");
+            seed = bytesToLong(srand.generateSeed(8)); // seed with 8 bytes (64 bits)
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("nats: nuid algorithm not found", e);
         }
+
+        if (seed != 0L) {
+            prand = new Random(seed);
+        } else {
+            prand = new Random();
+        }
+
         seq = nextLong(prand, maxSeq);
         inc = minInc + nextLong(prand, maxInc - minInc);
         pre = new char[preLen];

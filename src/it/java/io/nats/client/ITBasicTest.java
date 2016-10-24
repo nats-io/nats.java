@@ -451,7 +451,6 @@ public class ITBasicTest {
 
     @Test
     public void testRequest() {
-        setLogLevel(Level.DEBUG);
         final byte[] response = "I will help you.".getBytes();
         try (final Connection c = new ConnectionFactory().createConnection()) {
             sleep(100);

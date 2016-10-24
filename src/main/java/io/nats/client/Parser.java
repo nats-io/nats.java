@@ -33,11 +33,27 @@ class Parser {
         int size;
 
         public String toString() {
+            String subjectString = "null";
+            String replyString = "null";
+            byte[] subjectArray = null;
+            byte[] replyArray = null;
 
+            if (subject != null) {
+                subjectArray = subject.array();
+                if (subjectArray != null) {
+                    subjectString = new String(subjectArray, 0, subject.limit());
+                }
+            }
+
+            if (reply != null) {
+                replyArray = reply.array();
+                if (replyArray != null) {
+                    replyString = new String(replyArray, 0, reply.limit());
+                }
+            }
             return String.format("{subject=%s(len=%d), reply=%s(len=%d), sid=%d, size=%d}",
-                    new String(subject.array(), 0, subject.limit()), subject.limit(),
-                    reply == null ? "null" : new String(reply.array(), 0, reply.limit()),
-                    reply.limit(), sid, size);
+                    subjectString, subjectString.length(), replyString, replyString.length(), sid,
+                    size);
         }
     }
 
@@ -226,7 +242,7 @@ class Parser {
                         // Already have bytes in the buffer
                         if (ps.msgBuf.position() >= ps.ma.size) {
                             ps.msgBuf.flip();
-                            nc.processMsg(ps.msgBuf.array(), 0, ps.msgBuf.limit());
+                            submitMsg(ps.msgBuf.array(), 0, ps.msgBuf.limit());
                             done = true;
                         } else {
                             // copy as much as we can to the buffer and skip ahead.
@@ -258,7 +274,7 @@ class Parser {
                     } else if (i - ps.as >= ps.ma.size) {
                         // If we are at or past the end of the payload, go ahead and process it, no
                         // buffering needed.
-                        nc.processMsg(buf, ps.as, i - ps.as); // pass offset and length
+                        submitMsg(buf, ps.as, i - ps.as); // pass offset and length
                         done = true;
                     }
 
@@ -737,19 +753,23 @@ class Parser {
 
     // parseInt64 expects decimal positive numbers. We
     // return -1 to signal error
-    static long parseLong(byte[] d, int length) {
+    static long parseLong(byte[] data, int length) {
         long n = 0;
         if (length == 0) {
             return -1;
         }
         byte dec;
         for (int i = 0; i < length; i++) {
-            dec = d[i];
+            dec = data[i];
             if (dec < ascii_0 || dec > ascii_9) {
                 return -1;
             }
             n = (n * 10) + dec - ascii_0;
         }
         return n;
+    }
+
+    private void submitMsg(final byte[] data, final int offset, final int length) {
+        nc.processMsg(data, offset, length);
     }
 }
