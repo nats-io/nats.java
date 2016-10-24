@@ -71,13 +71,12 @@ public class NUIDTest {
     @Category(UnitTest.class)
     public void testGUIDLen() {
         String nuid = new NUID().next();
-        System.err.println("NUID: " + nuid);
         assertEquals(String.format("Expected len of %d, got %d", NUID.totalLen, nuid.length()),
                 NUID.totalLen, nuid.length());
     }
 
-    @Test
-    @Category(BenchmarkTest.class)
+    @Test(timeout = 5000)
+    @Category(UnitTest.class)
     public void testProperPrefix() {
         char min = (char) 255;
         char max = (char) 0;
