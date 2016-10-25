@@ -3,7 +3,13 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.examples;
+
+import io.nats.client.Connection;
+import io.nats.client.ConnectionFactory;
+import io.nats.client.Message;
+import io.nats.client.Statistics;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -11,11 +17,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import io.nats.client.Connection;
-import io.nats.client.ConnectionFactory;
-import io.nats.client.Message;
-import io.nats.client.Statistics;
 
 public class Requestor {
     Map<String, String> parsedArgs = new HashMap<String, String>();
@@ -28,6 +29,9 @@ public class Requestor {
     long end;
     long elapsed;
 
+    /**
+     * Runs the example.
+     */
     public void run(String[] args) {
         parseArgs(args);
         banner();

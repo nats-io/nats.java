@@ -14,6 +14,7 @@ import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -73,6 +74,11 @@ public class SyncSubscriptionImplTest {
     @AfterClass
     public static void tearDownAfterClass() throws Exception {}
 
+    /**
+     * Per-test-case setup.
+     * 
+     * @throws Exception if something goes wrong
+     */
     @Before
     public void setUp() throws Exception {
         exec = Executors.newCachedThreadPool();
@@ -80,6 +86,11 @@ public class SyncSubscriptionImplTest {
         verifier.setup();
     }
 
+    /**
+     * Per-test-case cleanup.
+     * 
+     * @throws Exception if something goes wrong
+     */
     @After
     public void tearDown() throws Exception {
         exec.shutdownNow();
@@ -149,7 +160,8 @@ public class SyncSubscriptionImplTest {
 
             Message msg = sub.nextMessage(timeout, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
-            verify(mchMock, times(1)).poll(timeout, TimeUnit.MILLISECONDS);
+            Message foo = verify(mchMock, times(1)).poll(timeout, TimeUnit.MILLISECONDS);
+            assertNull(foo);
         }
     }
 

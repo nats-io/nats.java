@@ -459,7 +459,7 @@ public class ConnectionFactory implements Cloneable {
     }
 
     // For unit test/mock purposes only.
-    ConnectionImpl createConnection(TCPConnectionFactory tcf) throws IOException, TimeoutException {
+    ConnectionImpl createConnection(TcpConnectionFactory tcf) throws IOException, TimeoutException {
         ConnectionImpl conn = null;
         Options options = options();
 
@@ -522,7 +522,7 @@ public class ConnectionFactory implements Cloneable {
         result.setClosedCallback(closedCallback);
         result.setDisconnectedCallback(disconnectedCallback);
         result.setReconnectedCallback(reconnectedCallback);
-        result.setSSLContext(sslContext);
+        result.setSslContext(sslContext);
         return result;
     }
 

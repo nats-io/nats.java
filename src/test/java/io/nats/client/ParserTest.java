@@ -140,7 +140,7 @@ public class ParserTest {
                 "MSG \tfoo 1 6\r\nHello2\r\t" };
 
         try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
             parser = c.parser;
             try (Subscription sub = c.subscribeSync("foo")) {
                 for (String s : goodLines) {
@@ -172,7 +172,7 @@ public class ParserTest {
     public void testMinusErrDoesNotThrow() {
         Parser parser;
         try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
             parser = c.parser;
             String s = String.format("-ERR %s\r\n", Constants.SERVER_ERR_AUTH_VIOLATION);
             try {
@@ -240,7 +240,7 @@ public class ParserTest {
                 "Z\r\n" };
 
         try (ConnectionImpl nc =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
 
             parser = nc.parser;
             boolean exThrown = false;
@@ -320,9 +320,6 @@ public class ParserTest {
 
             nc.parser.ps = nc.parser.new ParseState();
 
-            int expectedCount = 1;
-            int expectedSize = 3;
-
             assertEquals(0, nc.getStats().getInMsgs());
             assertEquals(0, nc.getStats().getInBytes());
 
@@ -356,6 +353,10 @@ public class ParserTest {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
             }
+
+            int expectedCount = 1;
+            int expectedSize = 3;
+
             assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
             assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
             assertNull("Buffers should be null now", nc.parser.ps.argBuf);
@@ -517,7 +518,7 @@ public class ParserTest {
 
         exThrown = false;
         try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
             c.parser.processMsgArgs(args, 0, args.length);
         } catch (ParseException e) {
             exThrown = true;
@@ -552,7 +553,7 @@ public class ParserTest {
     @Test
     public void testAsyncInfo() throws IOException, TimeoutException, ParseException {
         try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TCPConnectionFactoryMock())) {
+                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
             c.parser.ps = c.parser.new ParseState();
 
             assertEquals("Expected OP_START", NatsOp.OP_START, c.parser.ps.state);

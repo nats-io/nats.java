@@ -6,10 +6,8 @@
 
 package io.nats.client;
 
-import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
-import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -42,19 +40,13 @@ import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.text.NumberFormat;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.SocketFactory;
@@ -79,13 +71,23 @@ public class NatsBenchTest {
     @AfterClass
     public static void tearDownAfterClass() throws Exception {}
 
+    /**
+     * Per-test-case setup.
+     * 
+     * @throws Exception if something goes wrong.
+     */
     @Before
     public void setUp() throws Exception {
-        service = Executors.newCachedThreadPool(new NATSThreadFactory("natsbench"));
+        service = Executors.newCachedThreadPool(new NatsThreadFactory("natsbench"));
         MockitoAnnotations.initMocks(this);
         verifier.setup();
     }
 
+    /**
+     * Per-test-case cleanup.
+     * 
+     * @throws Exception if something goes wrong.
+     */
     @After
     public void tearDown() throws Exception {
         service.shutdownNow();
@@ -256,7 +258,7 @@ public class NatsBenchTest {
 
                 final int count = 3 * 1000 * 1000;
 
-                long t0 = System.nanoTime();
+                final long t0 = System.nanoTime();
                 for (int i = 0; i < count; i++) {
                     service.execute(new Runnable() {
                         public void run() {
@@ -398,131 +400,16 @@ public class NatsBenchTest {
     }
 
     // @Test
-    public void testPubSubSpeed() throws Exception {
-        final int count = 10000000;
-        final int MAX_BACKLOG = 32000;
-        // final int count = 2000;
-        final String url = ConnectionFactory.DEFAULT_URL;
-        final String subject = "foo";
-        final byte[] payload = "test".getBytes();
-        long elapsed = 0L;
-
-        final CountDownLatch ch = new CountDownLatch(1);
-        final CountDownLatch ready = new CountDownLatch(1);
-        final BlockingQueue<Long> slow = new LinkedBlockingQueue<Long>();
-
-        final AtomicInteger received = new AtomicInteger(0);
-
-        final ConnectionFactory cf = new ConnectionFactory(url);
-
-        cf.setExceptionHandler(new ExceptionHandler() {
-            public void onException(NATSException e) {
-                logger.error("Error: {}", e.getMessage());
-                Subscription sub = e.getSubscription();
-                logger.error("Queued = {}", sub.getQueuedMessageCount());
-                e.printStackTrace();
-                // fail(e.getMessage());
-            }
-        });
-
-        Runnable r = new Runnable() {
-            public void run() {
-                try (Connection nc1 = cf.createConnection()) {
-                    Subscription sub = nc1.subscribe(subject, new MessageHandler() {
-                        public void onMessage(Message msg) {
-                            int numReceived = received.incrementAndGet();
-                            if (numReceived >= count) {
-                                ch.countDown();
-                            }
-                        }
-                    });
-                    ready.countDown();
-                    while (received.get() < count) {
-                        if (sub.getQueuedMessageCount() > 8192) {
-                            logger.error("queued={}", sub.getQueuedMessageCount());
-                            if (slow.size() == 0) {
-                                slow.add((long) sub.getQueuedMessageCount());
-                            }
-                            sleep(1);
-                        }
-                    }
-                    System.out.println("nc1 (subscriber):\n=======");
-                    logger.info("subscriber connection stats: {}", nc1.getStats());
-                } catch (IOException | TimeoutException e) {
-                    fail(e.getMessage());
-                }
-            }
-        };
-
-        Thread subscriber = new Thread(r);
-        subscriber.start();
-
-        try (final Connection nc2 = cf.createConnection()) {
-            final long t0 = System.nanoTime();
-            long numSleeps = 0L;
-
-            ready.await();
-            int sleepTime = 100;
-
-            for (int i = 0; i < count; i++) {
-                nc2.publish(subject, payload);
-                // Don't overrun ourselves and be a slow consumer, server will cut us off
-                if ((i - received.get()) > MAX_BACKLOG) {
-                    int rec = received.get();
-                    int sent = i + 1;
-                    int backlog = sent - rec;
-
-                    // System.err.printf("sent=%d, received=%d, backlog=%d, ratio=%.2f,
-                    // sleepInt=%d\n",
-                    // sent, rec, backlog, (double) backlog / cf.getMaxPendingMsgs(),
-                    // sleepTime);
-
-                    // sleepTime += 100;
-                    sleep(sleepTime);
-                    numSleeps++;
-                }
-            }
-            System.err.println("numSleeps=" + numSleeps);
-
-            // Make sure they are all processed
-            String str = String.format("Timed out waiting for delivery completion, received %d/%d",
-                    received.get(), count);
-            assertTrue(str, await(ch, 30, TimeUnit.SECONDS));
-            assertEquals(count, received.get());
-            try {
-                subscriber.join();
-            } catch (InterruptedException e1) {
-                // TODO Auto-generated catch block
-                e1.printStackTrace();
-            }
-
-            long t1 = System.nanoTime();
-
-            elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
-            System.out.println("Elapsed time is " + elapsed + " seconds");
-
-            System.out.printf("Pub/Sub %d msgs in %d seconds ", count, elapsed);
-            if (elapsed > 0) {
-                System.out.printf("(%d msgs/second).\n", (int) (count / elapsed));
-            } else {
-                fail("Test not long enough to produce meaningful stats.");
-            }
-            System.out.println("nc2 (publisher):\n=======");
-            logger.info("publisher connection stats: {}", nc2.getStats());
-        }
-    }
-
-    // @Test
     // @Category(PerfTest.class)
-    public void testManyConnections() throws Exception {
-        try (NatsServer s = new NatsServer()) {
-            ConnectionFactory cf = new ConnectionFactory();
-            List<Connection> conns = new ArrayList<Connection>();
-            for (int i = 0; i < 10000; i++) {
-                Connection conn = cf.createConnection();
-                conns.add(conn);
-                System.err.printf("Created %d connections\n", i);
-            }
-        }
-    }
+    // public void testManyConnections() throws Exception {
+    // try (NatsServer s = new NatsServer()) {
+    // ConnectionFactory cf = new ConnectionFactory();
+    // List<Connection> conns = new ArrayList<Connection>();
+    // for (int i = 0; i < 10000; i++) {
+    // Connection conn = cf.createConnection();
+    // conns.add(conn);
+    // System.err.printf("Created %d connections\n", i);
+    // }
+    // }
+    // }
 }

@@ -3,32 +3,33 @@
  * materials are made available under the terms of the MIT License (MIT) which accompanies this
  * distribution, and is available at http://opensource.org/licenses/MIT
  *******************************************************************************/
+
 package io.nats.client;
 
 import static io.nats.client.ConnectionFactory.DEFAULT_SSL_PROTOCOL;
-import static io.nats.client.Constants.PROP_CLOSED_CB;
-import static io.nats.client.Constants.PROP_CONNECTION_NAME;
-import static io.nats.client.Constants.PROP_CONNECTION_TIMEOUT;
-import static io.nats.client.Constants.PROP_DISCONNECTED_CB;
-import static io.nats.client.Constants.PROP_EXCEPTION_HANDLER;
-import static io.nats.client.Constants.PROP_HOST;
-import static io.nats.client.Constants.PROP_MAX_PINGS;
-import static io.nats.client.Constants.PROP_MAX_RECONNECT;
-import static io.nats.client.Constants.PROP_NORANDOMIZE;
-import static io.nats.client.Constants.PROP_PASSWORD;
-import static io.nats.client.Constants.PROP_PEDANTIC;
-import static io.nats.client.Constants.PROP_PING_INTERVAL;
-import static io.nats.client.Constants.PROP_PORT;
-import static io.nats.client.Constants.PROP_RECONNECTED_CB;
-import static io.nats.client.Constants.PROP_RECONNECT_ALLOWED;
-import static io.nats.client.Constants.PROP_RECONNECT_BUF_SIZE;
-import static io.nats.client.Constants.PROP_RECONNECT_WAIT;
-import static io.nats.client.Constants.PROP_SECURE;
-import static io.nats.client.Constants.PROP_SERVERS;
-import static io.nats.client.Constants.PROP_TLS_DEBUG;
-import static io.nats.client.Constants.PROP_URL;
-import static io.nats.client.Constants.PROP_USERNAME;
-import static io.nats.client.Constants.PROP_VERBOSE;
+import static io.nats.client.ConnectionFactory.PROP_CLOSED_CB;
+import static io.nats.client.ConnectionFactory.PROP_CONNECTION_NAME;
+import static io.nats.client.ConnectionFactory.PROP_CONNECTION_TIMEOUT;
+import static io.nats.client.ConnectionFactory.PROP_DISCONNECTED_CB;
+import static io.nats.client.ConnectionFactory.PROP_EXCEPTION_HANDLER;
+import static io.nats.client.ConnectionFactory.PROP_HOST;
+import static io.nats.client.ConnectionFactory.PROP_MAX_PINGS;
+import static io.nats.client.ConnectionFactory.PROP_MAX_RECONNECT;
+import static io.nats.client.ConnectionFactory.PROP_NORANDOMIZE;
+import static io.nats.client.ConnectionFactory.PROP_PASSWORD;
+import static io.nats.client.ConnectionFactory.PROP_PEDANTIC;
+import static io.nats.client.ConnectionFactory.PROP_PING_INTERVAL;
+import static io.nats.client.ConnectionFactory.PROP_PORT;
+import static io.nats.client.ConnectionFactory.PROP_RECONNECTED_CB;
+import static io.nats.client.ConnectionFactory.PROP_RECONNECT_ALLOWED;
+import static io.nats.client.ConnectionFactory.PROP_RECONNECT_BUF_SIZE;
+import static io.nats.client.ConnectionFactory.PROP_RECONNECT_WAIT;
+import static io.nats.client.ConnectionFactory.PROP_SECURE;
+import static io.nats.client.ConnectionFactory.PROP_SERVERS;
+import static io.nats.client.ConnectionFactory.PROP_TLS_DEBUG;
+import static io.nats.client.ConnectionFactory.PROP_URL;
+import static io.nats.client.ConnectionFactory.PROP_USERNAME;
+import static io.nats.client.ConnectionFactory.PROP_VERBOSE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -38,6 +39,8 @@ import static org.junit.Assert.fail;
 
 import io.nats.client.Constants.ConnState;
 
+import ch.qos.logback.classic.Logger;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -45,6 +48,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -59,6 +64,14 @@ import javax.net.ssl.SSLContext;
 @Category(UnitTest.class)
 public class ConnectionFactoryTest
         implements ExceptionHandler, ClosedCallback, DisconnectedCallback, ReconnectedCallback {
+    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+    static final Logger logger = (Logger) LoggerFactory.getLogger(ConnectionFactoryTest.class);
+
+    static final LogVerifier verifier = new LogVerifier();
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
@@ -77,30 +90,30 @@ public class ConnectionFactoryTest
     @Test(expected = IllegalArgumentException.class)
     public void testConnectionFactoryNullProperties() {
         Properties nullProps = null;
-        ConnectionFactory cf = new ConnectionFactory(nullProps);
+        new ConnectionFactory(nullProps);
     }
 
-    final static String url = "nats://foobar:4122";
-    final static String hostname = "foobar2";
-    final static int port = 2323;
-    final static String username = "larry";
-    final static String password = "password";
-    final static String servers = "nats://cluster-host-1:5151 , nats://cluster-host-2:5252";
-    final static String[] serverArray = servers.split(",\\s+");
+    static final String url = "nats://foobar:4122";
+    static final String hostname = "foobar2";
+    static final int port = 2323;
+    static final String username = "larry";
+    static final String password = "password";
+    static final String servers = "nats://cluster-host-1:5151 , nats://cluster-host-2:5252";
+    static final String[] serverArray = servers.split(",\\s+");
     static List<URI> sList = null;
-    final static Boolean noRandomize = true;
-    final static String name = "my_connection";
-    final static Boolean verbose = true;
-    final static Boolean pedantic = true;
-    final static Boolean secure = true;
-    final static Boolean reconnectAllowed = false;
-    final static int maxReconnect = 14;
-    final static int reconnectWait = 100;
-    final static int reconnectBufSize = 12 * 1024 * 1024;
-    final static int timeout = 2000;
-    final static int pingInterval = 5000;
-    final static int maxPings = 4;
-    final static Boolean tlsDebug = true;
+    static final Boolean noRandomize = true;
+    static final String name = "my_connection";
+    static final Boolean verbose = true;
+    static final Boolean pedantic = true;
+    static final Boolean secure = true;
+    static final Boolean reconnectAllowed = false;
+    static final int maxReconnect = 14;
+    static final int reconnectWait = 100;
+    static final int reconnectBufSize = 12 * 1024 * 1024;
+    static final int timeout = 2000;
+    static final int pingInterval = 5000;
+    static final int maxPings = 4;
+    static final Boolean tlsDebug = true;
 
     @Test
     public void testConnectionFactoryProperties() {
@@ -168,7 +181,7 @@ public class ConnectionFactoryTest
         props.setProperty(PROP_SERVERS, "");
         boolean exThrown = false;
         try {
-            ConnectionFactory cf = new ConnectionFactory(props);
+            new ConnectionFactory(props);
         } catch (IllegalArgumentException e) {
             exThrown = true;
         } finally {
@@ -180,15 +193,13 @@ public class ConnectionFactoryTest
     public void testConnectionFactoryBadCallbackProps() {
         String[] propNames = { PROP_EXCEPTION_HANDLER, PROP_CLOSED_CB, PROP_DISCONNECTED_CB,
                 PROP_RECONNECTED_CB };
-
-
         for (String p : propNames) {
             Properties props = new Properties();
             props.setProperty(p, "foo.bar.baz");
 
             boolean exThrown = false;
             try {
-                ConnectionFactory cf = new ConnectionFactory(props);
+                new ConnectionFactory(props);
             } catch (IllegalArgumentException e) {
                 exThrown = true;
             } finally {
@@ -210,17 +221,13 @@ public class ConnectionFactoryTest
     @Test(expected = IllegalArgumentException.class)
     public void testConnectionFactoryString() {
         final String theUrl = "localhost:1234";
-        IOException e;
         ConnectionFactory cf = new ConnectionFactory(theUrl);
         assertNotNull(cf);
-
         assertFalse(theUrl.equals(cf.getUrlString()));
-
-        ConnectionFactory cf2 = new ConnectionFactory("nota:wellformed/uri");
-        fail("Should have thrown exception");
+        new ConnectionFactory("nota:wellformed/uri");
     }
 
-    public static List<URI> serverArrayToList(String[] sarray) {
+    static List<URI> serverArrayToList(String[] sarray) {
         List<URI> rv = new ArrayList<URI>();
         for (String s : serverArray) {
             rv.add(URI.create(s.trim()));
@@ -247,7 +254,7 @@ public class ConnectionFactoryTest
         ArrayList<URI> s1 = new ArrayList<URI>(10);
         ArrayList<URI> s2 = new ArrayList<URI>(10);
 
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
+        TcpConnectionFactoryMock mcf = new TcpConnectionFactoryMock();
         for (String s : servers) {
             s1.add(URI.create(s));
             s2.add(URI.create(s));
@@ -279,7 +286,7 @@ public class ConnectionFactoryTest
         }
         assertEquals(s1, connServerPool);
 
-        TCPConnectionMock mock = (TCPConnectionMock) c.getTcpConnection();
+        TcpConnectionMock mock = (TcpConnectionMock) c.getTcpConnection();
         mock.bounce();
 
         // test url, null
@@ -444,7 +451,7 @@ public class ConnectionFactoryTest
         String urlString = String.format("nats://%s@natshost:2222", secret);
 
         try {
-            ConnectionFactory cf = new ConnectionFactory(urlString);
+            new ConnectionFactory(urlString);
         } catch (Exception e) {
             fail(e.getMessage());
         }
@@ -463,9 +470,9 @@ public class ConnectionFactoryTest
 
     @Test
     public void testSetUriBadUserInfo() {
-        String urlString = "nats://foo:bar:baz@natshost:2222";
-        String urlString2 = "nats://foo:@natshost:2222";
-        String urlString3 = "nats://:pass@natshost:2222";
+        final String urlString = "nats://foo:bar:baz@natshost:2222";
+        final String urlString2 = "nats://foo:@natshost:2222";
+        final String urlString3 = "nats://:pass@natshost:2222";
         ConnectionFactory cf = new ConnectionFactory();
 
         boolean exThrown = false;
@@ -574,7 +581,7 @@ public class ConnectionFactoryTest
     // }
     //
     @Test
-    public void testSetServersListOfURI() {
+    public void testSetServersListOfUri() {
         String[] servers = { "nats://localhost:1234", "nats://localhost:5678" };
         List<URI> s1 = new ArrayList<URI>();
 
@@ -597,7 +604,7 @@ public class ConnectionFactoryTest
 
         assertNull(cf.getUrlString());
 
-        TCPConnectionFactoryMock mcf = new TCPConnectionFactoryMock();
+        TcpConnectionFactoryMock mcf = new TcpConnectionFactoryMock();
         for (String s : servers) {
             s1.add(URI.create(s));
         }
@@ -715,7 +722,7 @@ public class ConnectionFactoryTest
 
     @Test
     public void testIsTlsDebug() {
-        TCPConnectionFactoryMock mock = new TCPConnectionFactoryMock();
+        TcpConnectionFactoryMock mock = new TcpConnectionFactoryMock();
         ConnectionFactory cf = new ConnectionFactory();
         cf.setTlsDebug(true);
         assertTrue(cf.isTlsDebug());
@@ -841,15 +848,15 @@ public class ConnectionFactoryTest
 
     @SuppressWarnings("deprecation")
     @Test
-    public void testGetSSLContext() {
+    public void testGetSslContext() {
         ConnectionFactory cf = new ConnectionFactory();
         try {
-            SSLContext c = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
-            cf.setSSLContext(c);
-            assertEquals(c, cf.getSSLContext());
+            SSLContext ctx = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
+            cf.setSSLContext(ctx);
+            assertEquals(ctx, cf.getSSLContext());
             assertEquals(cf.getSSLContext(), cf.getSslContext());
-            cf.setSslContext(c);
-            assertEquals(c, cf.getSSLContext());
+            cf.setSslContext(ctx);
+            assertEquals(ctx, cf.getSSLContext());
             assertEquals(cf.getSSLContext(), cf.getSslContext());
         } catch (NoSuchAlgorithmException e) {
             fail(e.getMessage());
@@ -857,12 +864,12 @@ public class ConnectionFactoryTest
     }
 
     @Test
-    public void testSetSSLContext() {
+    public void testSetSslContext() {
         ConnectionFactory cf = new ConnectionFactory();
         try {
-            SSLContext c = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
-            cf.setSSLContext(c);
-            assertEquals(c, cf.getSSLContext());
+            SSLContext ctx = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
+            cf.setSSLContext(ctx);
+            assertEquals(ctx, cf.getSSLContext());
         } catch (NoSuchAlgorithmException e) {
             fail(e.getMessage());
         }
@@ -893,37 +900,37 @@ public class ConnectionFactoryTest
     }
 
     @Test
-    public void testConstructURI() {
-        final String HOST = "foobar";
-        final int PORT = 7272;
-        final String USER = "derek";
-        final String PASS = "derek";
-        final String expectedURL =
-                String.format("nats://%s:%d", HOST, ConnectionFactory.DEFAULT_PORT);
-        final String expectedURL1 = String.format("nats://%s:%d", HOST, PORT);
-        final String expectedURL2 = String.format("nats://%s@%s:%d", USER, HOST, PORT);
-        final String expectedURL3 = String.format("nats://%s:%s@%s:%d", USER, PASS, HOST, PORT);
+    public void testConstructUri() {
+        final String host = "foobar";
+        final int port = 7272;
+        final String user = "derek";
+        final String pass = "derek";
+        final String expectedUrl =
+                String.format("nats://%s:%d", host, ConnectionFactory.DEFAULT_PORT);
+        final String expectedUrl1 = String.format("nats://%s:%d", host, port);
+        final String expectedUrl2 = String.format("nats://%s@%s:%d", user, host, port);
+        final String expectedUrl3 = String.format("nats://%s:%s@%s:%d", user, pass, host, port);
 
         ConnectionFactory cf = new ConnectionFactory();
-        cf.setHost(HOST);
-        assertEquals(HOST, cf.getHost());
+        cf.setHost(host);
+        assertEquals(host, cf.getHost());
         assertEquals(-1, cf.getPort());
-        assertEquals(expectedURL, cf.constructURI().toString());
+        assertEquals(expectedUrl, cf.constructURI().toString());
 
-        cf.setPort(PORT);
-        assertEquals(PORT, cf.getPort());
+        cf.setPort(port);
+        assertEquals(port, cf.getPort());
         assertNull(cf.getUrlString());
-        assertEquals(expectedURL1, cf.constructURI().toString());
+        assertEquals(expectedUrl1, cf.constructURI().toString());
 
         assertNull(cf.getUsername());
         assertNull(cf.getPassword());
-        cf.setUsername(USER);
-        assertEquals(USER, cf.getUsername());
-        assertEquals(expectedURL2, cf.constructURI().toString());
+        cf.setUsername(user);
+        assertEquals(user, cf.getUsername());
+        assertEquals(expectedUrl2, cf.constructURI().toString());
 
-        cf.setPassword(PASS);
-        assertEquals(PASS, cf.getPassword());
-        assertEquals(expectedURL3, cf.constructURI().toString());
+        cf.setPassword(pass);
+        assertEquals(pass, cf.getPassword());
+        assertEquals(expectedUrl3, cf.constructURI().toString());
 
     }
 

@@ -36,7 +36,7 @@ class Utilities {
      * @param str the string to copy
      *
      */
-    public static int stringToBytesASCII(byte[] buffer, int offset, String str) {
+    public static int stringToBytesAscii(byte[] buffer, int offset, String str) {
         int length = str.length();
         int end = offset + length;
         for (int i = 0; i < length; i++) {

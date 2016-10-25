@@ -71,7 +71,7 @@ public class OptionsTest {
 
     @Test
     public void testSetUrlString() {
-        String urlString = "nats://localhost:1234";
+        final String urlString = "nats://localhost:1234";
         Options opts = new Options();
         assertEquals(null, opts.getUrl());
 

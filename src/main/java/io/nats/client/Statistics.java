@@ -38,6 +38,9 @@ public class Statistics implements Cloneable {
         return super.clone();
     }
 
+    /**
+     * Clears the statistics.
+     */
     public void clear() {
         this.inBytes.set(0L);
         this.inMsgs.set(0L);

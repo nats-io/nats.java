@@ -217,7 +217,7 @@ public class ITClusterTest {
     public void testHotSpotReconnect() throws InterruptedException {
         int numClients = 100;
         ExecutorService executor = Executors.newFixedThreadPool(numClients,
-                new NATSThreadFactory("testhotspotreconnect"));
+                new NatsThreadFactory("testhotspotreconnect"));
 
         final BlockingQueue<String> rch = new LinkedBlockingQueue<String>();
         final BlockingQueue<Integer> dch = new LinkedBlockingQueue<Integer>();

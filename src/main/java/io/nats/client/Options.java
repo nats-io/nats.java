@@ -36,10 +36,10 @@ class Options {
     private ExceptionHandler exceptionHandler;
     private SSLContext sslContext;
     private boolean tlsDebug;
-    protected DisconnectedCallback disconnectedCB;
-    protected ClosedCallback closedCB;
-    protected ReconnectedCallback reconnectedCB;
-    protected ExceptionHandler asyncErrorCB;
+    protected DisconnectedCallback disconnectedCb;
+    protected ClosedCallback closedCb;
+    protected ReconnectedCallback reconnectedCb;
+    protected ExceptionHandler asyncErrorCb;
 
     // private List<X509Certificate> certificates =
     // new ArrayList<X509Certificate>();
@@ -269,27 +269,27 @@ class Options {
     }
 
     public ClosedCallback getClosedCallback() {
-        return closedCB;
+        return closedCb;
     }
 
     public void setClosedCallback(ClosedCallback cb) {
-        this.closedCB = cb;
+        this.closedCb = cb;
     }
 
     public ReconnectedCallback getReconnectedCallback() {
-        return reconnectedCB;
+        return reconnectedCb;
     }
 
     public void setReconnectedCallback(ReconnectedCallback cb) {
-        this.reconnectedCB = cb;
+        this.reconnectedCb = cb;
     }
 
     public DisconnectedCallback getDisconnectedCallback() {
-        return disconnectedCB;
+        return disconnectedCb;
     }
 
     public void setDisconnectedCallback(DisconnectedCallback cb) {
-        this.disconnectedCB = cb;
+        this.disconnectedCb = cb;
     }
 
     // public void addCertificate(X509Certificate cert) {
@@ -311,11 +311,11 @@ class Options {
     // addCertificate(cert.getBytes(Charset.forName("UTF-8")));
     // }
 
-    public SSLContext getSSLContext() {
+    public SSLContext getSslContext() {
         return sslContext;
     }
 
-    public void setSSLContext(SSLContext sslContext) {
+    public void setSslContext(SSLContext sslContext) {
         this.sslContext = sslContext;
         if (sslContext != null) {
             setSecure(true);

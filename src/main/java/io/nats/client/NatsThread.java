@@ -13,24 +13,24 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * NATSThread. <p/> Custom thread base class
+ * NatsThread. <p/> Custom thread base class
  *
  * @author Brian Goetz and Tim Peierls
  */
-class NATSThread extends Thread {
-    public static final String DEFAULT_NAME = "NATSThread";
+class NatsThread extends Thread {
+    public static final String DEFAULT_NAME = "NatsThread";
     private static volatile boolean debugLifecycle = false;
     private static final AtomicInteger created = new AtomicInteger();
     private static final AtomicInteger alive = new AtomicInteger();
     private CountDownLatch startSignal = null;
     private CountDownLatch doneSignal = null;
-    private final Logger logger = LoggerFactory.getLogger(NATSThread.class);
+    private final Logger logger = LoggerFactory.getLogger(NatsThread.class);
 
-    public NATSThread(Runnable r) {
+    public NatsThread(Runnable r) {
         this(r, DEFAULT_NAME);
     }
 
-    public NATSThread(Runnable runnable, String name) {
+    public NatsThread(Runnable runnable, String name) {
         super(runnable, name + "-" + created.incrementAndGet());
         setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             public void uncaughtException(Thread t, Throwable e) {
@@ -39,7 +39,7 @@ class NATSThread extends Thread {
         });
     }
 
-    public NATSThread(Runnable r, String poolName, CountDownLatch startSignal,
+    public NatsThread(Runnable r, String poolName, CountDownLatch startSignal,
             CountDownLatch doneSignal) {
         super(r, poolName);
         this.startSignal = startSignal;

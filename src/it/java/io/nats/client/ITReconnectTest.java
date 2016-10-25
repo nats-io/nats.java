@@ -394,11 +394,11 @@ public class ITReconnectTest {
         results.clear();
     }
 
-    public void sendAndCheckMsgs(Connection c, String subj, int numToSend) {
+    void sendAndCheckMsgs(Connection conn, String subj, int numToSend) {
         int numSent = 0;
         for (int i = 0; i < numToSend; i++) {
             try {
-                c.publish(subj, Integer.toString(i).getBytes());
+                conn.publish(subj, Integer.toString(i).getBytes());
             } catch (IllegalStateException | IOException e) {
                 fail(e.getMessage());
             }
@@ -406,7 +406,7 @@ public class ITReconnectTest {
         }
         // Wait for processing
         try {
-            c.flush();
+            conn.flush();
         } catch (Exception e) {
             fail(e.getMessage());
         }
@@ -479,7 +479,7 @@ public class ITReconnectTest {
 
                 // Wait until we get the reconnect callback
                 try (NatsServer ts2 = runServerOnPort(22222)) {
-                    assertTrue("reconnectedCB callback wasn't triggered.",
+                    assertTrue("reconnectedCb callback wasn't triggered.",
                             await(rcLatch, 3, TimeUnit.SECONDS));
 
                     assertFalse("isReconnecting returned true after the client was reconnected.",

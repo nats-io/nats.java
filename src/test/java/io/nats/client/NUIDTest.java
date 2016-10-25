@@ -1,6 +1,7 @@
 /**
  * 
  */
+
 package io.nats.client;
 
 import static org.junit.Assert.assertEquals;

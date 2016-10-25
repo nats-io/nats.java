@@ -28,6 +28,13 @@ public class NATSException extends Exception {
         super(string, ex);
     }
 
+    /**
+     * General-purpose NATS exception for asynchronous events.
+     * 
+     * @param ex the asynchronous exception
+     * @param nc the NATS connection on which the event occurred (if applicable)
+     * @param sub the {@code Subscription} on which the event occurred (if applicable)
+     */
     public NATSException(Throwable ex, Connection nc, Subscription sub) {
         super(ex);
         this.setConnection(nc);

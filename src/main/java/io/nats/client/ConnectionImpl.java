@@ -143,8 +143,8 @@ public class ConnectionImpl implements Connection {
     private URI url = null;
     protected Options opts = null;
 
-    private TCPConnectionFactory tcf = null;
-    TCPConnection conn = null;
+    private TcpConnectionFactory tcf = null;
+    TcpConnection conn = null;
 
     // Prepare protocol messages for efficiency
     ByteBuffer pubProtoBuf = null;
@@ -202,7 +202,7 @@ public class ConnectionImpl implements Connection {
         this(opts, null);
     }
 
-    ConnectionImpl(Options opts, TCPConnectionFactory connFac) {
+    ConnectionImpl(Options opts, TcpConnectionFactory connFac) {
         Properties props = this.getProperties(Constants.PROP_PROPERTIES_FILENAME);
         version = props.getProperty(Constants.PROP_CLIENT_VERSION);
 
@@ -213,7 +213,7 @@ public class ConnectionImpl implements Connection {
         if (connFac != null) {
             tcf = connFac;
         } else {
-            tcf = new TCPConnectionFactory();
+            tcf = new TcpConnectionFactory();
         }
         setTcpConnection(tcf.createConnection());
 
@@ -237,9 +237,9 @@ public class ConnectionImpl implements Connection {
 
     void setup() {
         scheduler = Executors.newScheduledThreadPool(2);
-        cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory("cbexec"));
-        exec = Executors.newCachedThreadPool(new NATSThreadFactory(NATS_POOL));
-        subexec = Executors.newCachedThreadPool(new NATSThreadFactory(SUB_POOL));
+        cbexec = Executors.newSingleThreadExecutor(new NatsThreadFactory("cbexec"));
+        exec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_POOL));
+        subexec = Executors.newCachedThreadPool(new NatsThreadFactory(SUB_POOL));
         fch = createFlushChannel();
         pongs = createPongs();
         subs.clear();
@@ -670,7 +670,7 @@ public class ConnectionImpl implements Connection {
     // makeSecureConn will wrap an existing Conn using TLS
     void makeTLSConn() throws IOException {
         conn.setTlsDebug(opts.isTlsDebug());
-        conn.makeTLS(opts.getSSLContext());
+        conn.makeTLS(opts.getSslContext());
         bw = conn.getOutputStream(DEFAULT_STREAM_BUF_SIZE);
         br = conn.getInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
@@ -820,7 +820,7 @@ public class ConnectionImpl implements Connection {
                 logger.trace("\t\tspawning doReconnect() in state {}", status);
 
                 if (exec.isShutdown()) {
-                    exec = Executors.newCachedThreadPool(new NATSThreadFactory(NATS_POOL));
+                    exec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_POOL));
                 }
                 exec.submit(new Runnable() {
                     public void run() {
@@ -829,7 +829,7 @@ public class ConnectionImpl implements Connection {
                     }
                 });
                 if (cbexec.isShutdown()) {
-                    cbexec = Executors.newSingleThreadExecutor(new NATSThreadFactory(NATS_POOL));
+                    cbexec = Executors.newSingleThreadExecutor(new NatsThreadFactory(NATS_POOL));
                 }
                 logger.trace("\t\tspawned doReconnect() in state {}", status);
                 return;
@@ -1046,14 +1046,14 @@ public class ConnectionImpl implements Connection {
 
                 // Queue up the reconnect callback.
                 if (opts.getReconnectedCallback() != null) {
-                    logger.trace("Spawning reconnectedCB from doReconnect()");
+                    logger.trace("Spawning reconnectedCb from doReconnect()");
                     cbexec.execute(new Runnable() {
 
                         public void run() {
                             opts.getReconnectedCallback().onReconnect(new ConnectionEvent(nc));
                         }
                     });
-                    logger.trace("Spawned reconnectedCB from doReconnect()");
+                    logger.trace("Spawned reconnectedCb from doReconnect()");
                 }
 
                 // Release the lock here, we will return below
@@ -1254,7 +1254,7 @@ public class ConnectionImpl implements Connection {
         // life and just create a BufferedReader to read the incoming
         // info string.
         //
-        // Do not close the BufferedReader; let TCPConnection manage it.
+        // Do not close the BufferedReader; let TcpConnection manage it.
         String str = readLine();
         Control control = new Control(str);
         logger.trace("readOp returning: " + control);
@@ -1450,7 +1450,7 @@ public class ConnectionImpl implements Connection {
         int len;
         boolean sb;
         // stack copy
-        TCPConnection conn = null;
+        TcpConnection conn = null;
 
         mu.lock();
         parser = this.parser;
@@ -1777,52 +1777,52 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    ScheduledFuture<?> createFlushTimer() {
-        String unitString = "";
-        switch (flushTimerUnit) {
-            case NANOSECONDS:
-                unitString = "nsec";
-                break;
-            case MICROSECONDS:
-                unitString = "usec";
-                break;
-            case MILLISECONDS:
-                unitString = "msec";
-                break;
-            case SECONDS:
-                unitString = "sec";
-                break;
-            default:
-        }
+    // ScheduledFuture<?> createFlushTimer() {
+    // String unitString = "";
+    // switch (flushTimerUnit) {
+    // case NANOSECONDS:
+    // unitString = "nsec";
+    // break;
+    // case MICROSECONDS:
+    // unitString = "usec";
+    // break;
+    // case MILLISECONDS:
+    // unitString = "msec";
+    // break;
+    // case SECONDS:
+    // unitString = "sec";
+    // break;
+    // default:
+    // }
+    //
+    // logger.trace("flusher started with interval {}{}", flushTimerInterval, unitString);
+    // FlushTimerTask flusher = new FlushTimerTask();
+    // ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(flusher, getFlushTimerInterval(),
+    // getFlushTimerInterval(), flushTimerUnit);
+    // return future;
+    // }
 
-        logger.trace("flusher started with interval {}{}", flushTimerInterval, unitString);
-        FlushTimerTask flusher = new FlushTimerTask();
-        ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(flusher, getFlushTimerInterval(),
-                getFlushTimerInterval(), flushTimerUnit);
-        return future;
-    }
-
-    protected void resetFlushTimer() {
-        mu.lock();
-        try {
-            if (ftmr != null) {
-                ftmr.cancel(true);
-                logger.trace("flusher cancelled");
-            }
-
-            if (fch != null) {
-                fch.clear();
-            } else {
-                fch = createFlushChannel();
-            }
-            if (getFlushTimerInterval() > 0) {
-                ftmr = createFlushTimer();
-                logger.trace("flusher created");
-            }
-        } finally {
-            mu.unlock();
-        }
-    }
+    // protected void resetFlushTimer() {
+    // mu.lock();
+    // try {
+    // if (ftmr != null) {
+    // ftmr.cancel(true);
+    // logger.trace("flusher cancelled");
+    // }
+    //
+    // if (fch != null) {
+    // fch.clear();
+    // } else {
+    // fch = createFlushChannel();
+    // }
+    // if (getFlushTimerInterval() > 0) {
+    // ftmr = createFlushTimer();
+    // logger.trace("flusher created");
+    // }
+    // } finally {
+    // mu.unlock();
+    // }
+    // }
 
     protected void writeUnsubProto(SubscriptionImpl sub, long max) throws IOException {
         String str = String.format(UNSUB_PROTO, sub.getSid(), max > 0 ? Long.toString(max) : "");
@@ -1881,7 +1881,7 @@ public class ConnectionImpl implements Connection {
     // Experimental per-iteration
     protected void flushSocket() {
         final OutputStream bw;
-        final TCPConnection conn;
+        final TcpConnection conn;
         final BlockingQueue<Boolean> fch;
 
         // snapshot the bw and conn since they can change from underneath of us.
@@ -1924,7 +1924,7 @@ public class ConnectionImpl implements Connection {
         // snapshot the bw and conn since they can change from underneath of us.
         mu.lock();
         final OutputStream bw = this.bw;
-        final TCPConnection conn = this.conn;
+        final TcpConnection conn = this.conn;
         final BlockingQueue<Boolean> fch = this.fch;
         mu.unlock();
 
@@ -2581,19 +2581,19 @@ public class ConnectionImpl implements Connection {
         return fch;
     }
 
-    protected void setTcpConnection(TCPConnection conn) {
+    protected void setTcpConnection(TcpConnection conn) {
         this.conn = conn;
     }
 
-    protected TCPConnection getTcpConnection() {
+    protected TcpConnection getTcpConnection() {
         return this.conn;
     }
 
-    protected void setTcpConnectionFactory(TCPConnectionFactory factory) {
+    protected void setTcpConnectionFactory(TcpConnectionFactory factory) {
         this.tcf = factory;
     }
 
-    protected TCPConnectionFactory getTcpConnectionFactory() {
+    protected TcpConnectionFactory getTcpConnectionFactory() {
         return this.tcf;
     }
 
@@ -2621,24 +2621,24 @@ public class ConnectionImpl implements Connection {
         this.ptmr = ptmr;
     }
 
-    public long getFlushTimerInterval() {
-        return flushTimerInterval;
-    }
-
-    public long getFlushTimerInterval(TimeUnit unit) {
-        return unit.convert(flushTimerInterval, flushTimerUnit);
-    }
-
-    public void setFlushTimerInterval(long msec) {
-        // assumes supplied value is msec
-        this.flushTimerInterval = TimeUnit.MILLISECONDS.toNanos(msec);
-        resetFlushTimer();
-    }
-
-    public void setFlushTimerInterval(int duration, TimeUnit unit) {
-        this.flushTimerInterval = duration;
-        this.flushTimerUnit = unit;
-        resetFlushTimer();
-    }
+    // public long getFlushTimerInterval() {
+    // return flushTimerInterval;
+    // }
+    //
+    // public long getFlushTimerInterval(TimeUnit unit) {
+    // return unit.convert(flushTimerInterval, flushTimerUnit);
+    // }
+    //
+    // public void setFlushTimerInterval(long msec) {
+    // // assumes supplied value is msec
+    // this.flushTimerInterval = TimeUnit.MILLISECONDS.toNanos(msec);
+    // resetFlushTimer();
+    // }
+    //
+    // public void setFlushTimerInterval(int duration, TimeUnit unit) {
+    // this.flushTimerInterval = duration;
+    // this.flushTimerUnit = unit;
+    // resetFlushTimer();
+    // }
 
 }

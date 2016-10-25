@@ -63,14 +63,24 @@ public class ITSubscriptionTest {
     @AfterClass
     public static void tearDownAfterClass() throws Exception {}
 
+    /**
+     * Per-test-case setup.
+     * 
+     * @throws Exception if something goes wrong
+     */
     @Before
     public void setUp() throws Exception {
         // if (Thread.interrupted()) {
         // Thread.interrupted();
         // }
-        exec = Executors.newCachedThreadPool(new NATSThreadFactory("nats-test-thread"));
+        exec = Executors.newCachedThreadPool(new NatsThreadFactory("nats-test-thread"));
     }
 
+    /**
+     * Per-test-case cleanup.
+     * 
+     * @throws Exception if something goes wrong
+     */
     @After
     public void tearDown() throws Exception {
         setLogLevel(Level.INFO);

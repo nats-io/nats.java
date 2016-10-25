@@ -13,7 +13,7 @@ import com.google.gson.annotations.SerializedName;
 import org.junit.experimental.categories.Category;
 
 @Category(UnitTest.class)
-public class ClientConnectInfo {
+class ClientConnectInfo {
 
     public ClientConnectInfo() {}
 
@@ -59,95 +59,56 @@ public class ClientConnectInfo {
         return rv;
     }
 
-    /**
-     * @return the verbose
-     */
-    public boolean isVerbose() {
+    boolean isVerbose() {
         return verbose;
     }
 
-    /**
-     * @param verbose the verbose to set
-     */
-    public void setVerbose(boolean verbose) {
+    void setVerbose(boolean verbose) {
         this.verbose = verbose;
     }
 
-    /**
-     * @return the pedantic
-     */
-    public boolean isPedantic() {
+    boolean isPedantic() {
         return pedantic;
     }
 
-    /**
-     * @param pedantic the pedantic to set
-     */
-    public void setPedantic(boolean pedantic) {
+    void setPedantic(boolean pedantic) {
         this.pedantic = pedantic;
     }
 
-    /**
-     * @return the sslRequired
-     */
-    public boolean isSslRequired() {
+    boolean isSslRequired() {
         return sslRequired;
     }
 
-    /**
-     * @param sslRequired the sslRequired to set
-     */
-    public void setSslRequired(boolean sslRequired) {
+    void setSslRequired(boolean sslRequired) {
         this.sslRequired = sslRequired;
     }
 
-    /**
-     * @return the name
-     */
-    public String getName() {
+    String getName() {
         return name;
     }
 
-    /**
-     * @param name the name to set
-     */
-    public void setName(String name) {
+    void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * @return the language
-     */
-    public String getLanguage() {
+    String getLanguage() {
         return lang;
     }
 
-    /**
-     * @param language the language to set
-     */
-    public void setLanguage(String language) {
+
+    void setLanguage(String language) {
         this.lang = language;
     }
 
-    /**
-     * @return the version
-     */
-    public String getVersion() {
+    String getVersion() {
         return version;
     }
 
-    /**
-     * @param version the version to set
-     */
-    public void setVersion(String version) {
+    void setVersion(String version) {
         this.version = version;
     }
 
     public String toString() {
-        // String rv = String.format(
-        // "CONNECT {\"verbose\":%b,\"pedantic\":%b,\"ssl_required\":%b,"
-        // + "\"name\":\"%s\",\"lang\":\"%s\",\"version\":\"%s\"}\r\n",
-        // this.verbose, this.pedantic, this.sslRequired, this.name, this.lang, this.version);
         String rv = String.format("CONNECT %s", gson.toJson(this));
         return rv;
     }

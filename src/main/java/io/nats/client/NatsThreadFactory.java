@@ -10,20 +10,20 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 
 /**
- * NATSThreadFactory <p/> Custom thread factory.
+ * NatsThreadFactory <p/> Custom thread factory.
  *
  * @author Brian Goetz and Tim Peierls
  */
-class NATSThreadFactory implements ThreadFactory {
+class NatsThreadFactory implements ThreadFactory {
     private final String poolName;
     private CountDownLatch startSignal;
     private CountDownLatch doneSignal;
 
-    public NATSThreadFactory(String poolName) {
+    public NatsThreadFactory(String poolName) {
         this(poolName, null, null);
     }
 
-    public NATSThreadFactory(String poolName, CountDownLatch startSignal,
+    public NatsThreadFactory(String poolName, CountDownLatch startSignal,
             CountDownLatch doneSignal) {
         this.poolName = poolName;
         this.startSignal = startSignal;
@@ -32,7 +32,7 @@ class NATSThreadFactory implements ThreadFactory {
 
     public Thread newThread(Runnable runnable, CountDownLatch startSignal,
             CountDownLatch doneSignal) {
-        return new NATSThread(runnable, poolName, startSignal, doneSignal);
+        return new NatsThread(runnable, poolName, startSignal, doneSignal);
     }
 
     @Override
