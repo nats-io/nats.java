@@ -321,6 +321,7 @@ public class ConnectionFactory implements Cloneable {
             } catch (Exception e) {
                 throw new IllegalArgumentException(e);
             } finally {
+                /* NOOP */
             }
             this.setExceptionHandler((ExceptionHandler) instance);
         }

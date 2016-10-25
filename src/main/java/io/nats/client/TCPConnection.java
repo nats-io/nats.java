@@ -256,6 +256,7 @@ class TCPConnection implements AutoCloseable {
             try {
                 client.close();
             } catch (IOException e) {
+                /* NOOP */
             }
         }
         teardown();

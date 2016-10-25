@@ -64,7 +64,7 @@ public class ITTLSTest {
     public void testTlsSuccessWithCert() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        try (NATSServer srv = utils.runServerWithConfig("tls_1222_verify.conf")) {
+        try (NatsServer srv = utils.runServerWithConfig("tls_1222_verify.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
@@ -110,7 +110,7 @@ public class ITTLSTest {
     public void testTlsSuccessSecureConnect() {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        try (NATSServer srv = runServerWithConfig("tls_1222.conf")) {
+        try (NatsServer srv = runServerWithConfig("tls_1222.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final char[] trustPassPhrase = "password".toCharArray();
@@ -167,7 +167,7 @@ public class ITTLSTest {
         final CountDownLatch dcLatch = new CountDownLatch(1);
         final CountDownLatch rcLatch = new CountDownLatch(1);
 
-        try (NATSServer srv = runServerWithConfig("tls_1222.conf")) {
+        try (NatsServer srv = runServerWithConfig("tls_1222.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final char[] trustPassPhrase = "password".toCharArray();
@@ -217,7 +217,7 @@ public class ITTLSTest {
                 assertEquals(Constants.ConnState.RECONNECTING, c.getState());
 
                 // Wait until we get the reconnect callback
-                try (NATSServer srv2 = runServerWithConfig("tls_1222.conf")) {
+                try (NatsServer srv2 = runServerWithConfig("tls_1222.conf")) {
                     sleep(2000);
 
                     assertTrue("ReconnectedCB callback wasn't triggered.",

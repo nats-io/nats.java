@@ -81,7 +81,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testServerAutoUnsub() throws IOException, TimeoutException {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection c = new ConnectionFactory().createConnection()) {
                 assertFalse(c.isClosed());
                 final AtomicLong received = new AtomicLong(0L);
@@ -117,7 +117,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testClientSyncAutoUnsub() {
-        try (NATSServer s = runDefaultServer()) {
+        try (NatsServer s = runDefaultServer()) {
             try (Connection c = new ConnectionFactory().createConnection()) {
                 assertFalse(c.isClosed());
 
@@ -171,7 +171,7 @@ public class ITSubscriptionTest {
             }
         };
 
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection c = new ConnectionFactory().createConnection()) {
                 assertFalse(c.isClosed());
 
@@ -200,7 +200,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testAutoUnsubAndReconnect() throws Exception {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             sleep(500);
             final CountDownLatch latch = new CountDownLatch(1);
             final AtomicInteger received = new AtomicInteger(0);
@@ -235,7 +235,7 @@ public class ITSubscriptionTest {
                 // Restart the server
                 srv.shutdown();
 
-                try (NATSServer srv2 = runDefaultServer()) {
+                try (NatsServer srv2 = runDefaultServer()) {
                     // and wait to reconnect
                     assertTrue("Failed to get the reconnect cb", latch.await(5, TimeUnit.SECONDS));
                     assertTrue("Subscription should still be valid", sub.isValid());
@@ -268,7 +268,7 @@ public class ITSubscriptionTest {
     @Test
     public void testAutoUnsubWithParallelNextMsgCalls() throws Exception {
         final CountDownLatch rcbLatch = new CountDownLatch(1);
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setReconnectWait(50);
             try (final Connection nc = cf.createConnection()) {
@@ -324,7 +324,7 @@ public class ITSubscriptionTest {
 
                 srv.shutdown();
 
-                try (NATSServer srv2 = runDefaultServer()) {
+                try (NatsServer srv2 = runDefaultServer()) {
                     // Make sure we got the reconnected cb
                     assertTrue("Failed to get reconnected cb",
                             await(rcbLatch, 10, TimeUnit.SECONDS));
@@ -351,7 +351,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testAutoUnsubscribeFromCallback() throws Exception {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection nc = newDefaultConnection()) {
                 try (SyncSubscription s = nc.subscribeSync("foo")) {
                     int max = 10;
@@ -393,9 +393,12 @@ public class ITSubscriptionTest {
                     sleep(100, TimeUnit.MILLISECONDS);
 
                     long rcvd = received.get();
-                    assertEquals(String.format(
-                            "Wrong number of received messages. Original max was %d reset to %d, actual received: %d",
-                            max, resetUnsubMark, rcvd), resetUnsubMark, rcvd);
+                    assertEquals(
+                            String.format(
+                                    "Wrong number of received messages. Original max was %d reset "
+                                            + "to %d, actual received: %d",
+                                    max, resetUnsubMark, rcvd),
+                            resetUnsubMark, rcvd);
 
                     // Now check with AutoUnsubscribe with higher value than original
                     received.set(0);
@@ -435,8 +438,8 @@ public class ITSubscriptionTest {
                     rcvd = received.get();
                     assertEquals(
                             String.format(
-                                    "Wrong number of received messages. Original max was %d reset to %d, "
-                                            + "actual received: %d",
+                                    "Wrong number of received messages. Original max was %d reset "
+                                            + "to %d, actual received: %d",
                                     max, newMax, rcvd),
                             newMax, rcvd);
                 }
@@ -446,7 +449,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testCloseSubRelease() throws IOException, TimeoutException {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection nc = new ConnectionFactory().createConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
                     long start = System.nanoTime();
@@ -478,7 +481,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testIsValidSubscriber() throws IOException, TimeoutException {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
 
             try (final Connection nc = new ConnectionFactory().createConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
@@ -532,7 +535,7 @@ public class ITSubscriptionTest {
         thrown.expect(IOException.class);
         thrown.expectMessage(ERR_SLOW_CONSUMER);
 
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 try (SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribeSync("foo")) {
                     sub.setPendingLimits(100, 1024);
@@ -557,7 +560,7 @@ public class ITSubscriptionTest {
     public void testSlowAsyncSubscriber() throws IOException, TimeoutException {
         ConnectionFactory cf = new ConnectionFactory();
         final CountDownLatch mcbLatch = new CountDownLatch(1);
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection c = cf.createConnection()) {
                 c.setExceptionHandler(null);
                 try (final AsyncSubscriptionImpl s =
@@ -618,7 +621,7 @@ public class ITSubscriptionTest {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
 
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 final String subj = "async_test";
                 final CountDownLatch blocker = new CountDownLatch(1);
@@ -697,7 +700,7 @@ public class ITSubscriptionTest {
             throws IOException, TimeoutException, InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
 
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection c = new ConnectionFactory().createConnection()) {
                 // Helper
                 try (AsyncSubscription helper = c.subscribe("helper", new MessageHandler() {
@@ -760,7 +763,7 @@ public class ITSubscriptionTest {
             }
         };
 
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 try (AsyncSubscription sub = nc.subscribe("foo", mh)) {
                     for (int i = 0; i < toSend; i++) {
@@ -790,7 +793,7 @@ public class ITSubscriptionTest {
             throws IOException, TimeoutException, InterruptedException {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
                     sub.unsubscribe();
@@ -802,7 +805,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testAsyncSubscriptionPending() throws Exception {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection nc = newDefaultConnection()) {
                 // Send some messages to ourselves.
                 int total = 100;
@@ -927,7 +930,7 @@ public class ITSubscriptionTest {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
 
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection nc = newDefaultConnection()) {
                 // Send some messages to ourselves.
                 int total = 100;
@@ -964,7 +967,7 @@ public class ITSubscriptionTest {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
 
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection nc = newDefaultConnection()) {
                 // Send some messages to ourselves.
                 int total = 100;
@@ -996,7 +999,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testSyncSubscriptionPending() throws Exception {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection nc = newDefaultConnection()) {
                 // Send some messages to ourselves.
                 int total = 100;
@@ -1086,7 +1089,7 @@ public class ITSubscriptionTest {
 
     @Test
     public void testSetPendingLimits() throws Exception {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection nc = newDefaultConnection()) {
                 final byte[] payload = "hello".getBytes();
                 final int payloadLen = payload.length;
@@ -1183,7 +1186,7 @@ public class ITSubscriptionTest {
     @Test
     public void testManyRequests() throws Exception {
         final int numRequests = 1000;
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (final Connection conn = newDefaultConnection()) {
                 try (final Connection pub = newDefaultConnection()) {
                     try (Subscription sub = conn.subscribe("foo", "bar", new MessageHandler() {

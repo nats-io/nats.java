@@ -7,6 +7,7 @@
 package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.await;
+import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
@@ -58,11 +59,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.SocketFactory;
 
-@Category(BenchmarkTest.class)
-public class BenchTest {
+@Category(PerfTest.class)
+public class NatsBenchTest {
     ExecutorService service;
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(BenchTest.class);
+    static final Logger logger = LoggerFactory.getLogger(NatsBenchTest.class);
 
     static final LogVerifier verifier = new LogVerifier();
 
@@ -94,109 +95,54 @@ public class BenchTest {
 
     @Test
     public void testSocketWriteSpeedNIO() throws IOException {
-        final AtomicLong published = new AtomicLong(0);
-        final InetSocketAddress hostAddress = new InetSocketAddress("localhost", 4222);
-        final SocketChannel channel = SocketChannel.open(hostAddress);
-        final ByteBuffer controlBuf = ByteBuffer.allocate(Parser.MAX_CONTROL_LINE_SIZE);
-        final ByteBuffer sendBuf = ByteBuffer.allocate(8192);
+        try (NatsServer srv = runDefaultServer()) {
+            final AtomicLong published = new AtomicLong(0);
+            final InetSocketAddress hostAddress = new InetSocketAddress("localhost", 4222);
+            final SocketChannel channel = SocketChannel.open(hostAddress);
+            final ByteBuffer controlBuf = ByteBuffer.allocate(Parser.MAX_CONTROL_LINE_SIZE);
+            final ByteBuffer sendBuf = ByteBuffer.allocate(8192);
 
-        channel.configureBlocking(false);
-        channel.socket().setSendBufferSize(8 * 1024 * 1024);
-        channel.socket().setReceiveBufferSize(8 * 1024 * 1024);
-        channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
-
-        // Read and verify INFO
-
-        int bytesRead = channel.read(controlBuf);
-        // System.err.printf("Read %d bytes:\n", bytesRead);
-        String infoString = new String(controlBuf.array()).trim();
-        // System.err.println(infoString);
-        assertTrue(infoString.matches("INFO \\{.+"));
-
-        // Send CONNECT
-        sendBuf.put("CONNECT {\"verbose\":false}\r\n".getBytes());
-        sendBuf.flip();
-        while (sendBuf.hasRemaining()) {
-            channel.write(sendBuf);
-        }
-
-        String payload = "";
-        String control = String.format("PUB foo %d\r\n%s\r\n", payload.length(), payload);
-        byte[] buf = control.getBytes();
-
-        int count = 2 * 1000 * 1000;
-
-        long t0 = System.nanoTime();
-        for (int i = 0; i < count; i++) {
-            try {
-                sendBuf.clear();
-                sendBuf.put(buf);
-                sendBuf.flip();
-                while (sendBuf.hasRemaining()) {
-                    channel.write(sendBuf);
-                }
-                published.incrementAndGet();
-            } catch (IOException e) {
-                logger.error("Oops, got an exception on msg {}: {}", i, e.getMessage());
-                break;
-            }
-        }
-        long elapsed = System.nanoTime() - t0;
-        long msgPerSec = published.get() / TimeUnit.NANOSECONDS.toSeconds(elapsed);
-        long bytesPerSec = (published.get() * buf.length) / TimeUnit.NANOSECONDS.toSeconds(elapsed);
-        String secString = String.format("%.2f", (double) elapsed / 1000000000.0);
-        logger.info("Published {} msgs in {} sec (rate: {} msg/sec, {} bytes/sec)",
-                NumberFormat.getNumberInstance(Locale.US).format(published.get()), secString,
-                NumberFormat.getNumberInstance(Locale.US).format(msgPerSec),
-                NumberFormat.getNumberInstance(Locale.US).format(bytesPerSec));
-        channel.close();
-    }
-
-    @Test
-    public void testSocketWriteSpeed() {
-        InetSocketAddress hostAddress = new InetSocketAddress("localhost", 4222);
-        SocketFactory factory = SocketFactory.getDefault();
-        final AtomicLong published = new AtomicLong(0);
-        try (Socket client = factory.createSocket()) {
-            client.setTcpNoDelay(true);
-            client.setReceiveBufferSize(2 * 1024 * 1024);
-            client.setSendBufferSize(2 * 1024 * 1024);
-            client.connect(hostAddress, 2000);
-
-            OutputStream writeStream = client.getOutputStream();
-            InputStream readStream = client.getInputStream();
-            BufferedOutputStream bw = new BufferedOutputStream(writeStream, 65536);
-            BufferedReader reader = new BufferedReader(new InputStreamReader(readStream));
+            channel.configureBlocking(false);
+            channel.socket().setSendBufferSize(8 * 1024 * 1024);
+            channel.socket().setReceiveBufferSize(8 * 1024 * 1024);
+            channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 
             // Read and verify INFO
-            String infoString = reader.readLine();
+
+            int bytesRead = channel.read(controlBuf);
+            // System.err.printf("Read %d bytes:\n", bytesRead);
+            String infoString = new String(controlBuf.array()).trim();
             // System.err.println(infoString);
             assertTrue(infoString.matches("INFO \\{.+"));
 
             // Send CONNECT
-            bw.write("CONNECT {\"verbose\":false}\r\n".getBytes());
-            bw.flush();
-            if (reader.ready()) {
-                String info = reader.readLine();
-                // System.err.println(info);
+            sendBuf.put("CONNECT {\"verbose\":false}\r\n".getBytes());
+            sendBuf.flip();
+            while (sendBuf.hasRemaining()) {
+                channel.write(sendBuf);
             }
+
             String payload = "";
             String control = String.format("PUB foo %d\r\n%s\r\n", payload.length(), payload);
             byte[] buf = control.getBytes();
 
-            int count = 50 * 1000 * 1000;
+            int count = 2 * 1000 * 1000;
 
             long t0 = System.nanoTime();
             for (int i = 0; i < count; i++) {
                 try {
-                    bw.write(buf, 0, buf.length);
+                    sendBuf.clear();
+                    sendBuf.put(buf);
+                    sendBuf.flip();
+                    while (sendBuf.hasRemaining()) {
+                        channel.write(sendBuf);
+                    }
                     published.incrementAndGet();
-                } catch (Exception e) {
-                    System.err.printf("Oops, got an exception on msg %d: %s\n", i, e.getMessage());
+                } catch (IOException e) {
+                    logger.error("Oops, got an exception on msg {}: {}", i, e.getMessage());
                     break;
                 }
             }
-            bw.flush();
             long elapsed = System.nanoTime() - t0;
             long msgPerSec = published.get() / TimeUnit.NANOSECONDS.toSeconds(elapsed);
             long bytesPerSec =
@@ -206,10 +152,71 @@ public class BenchTest {
                     NumberFormat.getNumberInstance(Locale.US).format(published.get()), secString,
                     NumberFormat.getNumberInstance(Locale.US).format(msgPerSec),
                     NumberFormat.getNumberInstance(Locale.US).format(bytesPerSec));
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            fail(e.getMessage());
+            channel.close();
+        }
+    }
+
+    @Test
+    public void testSocketWriteSpeed() {
+        InetSocketAddress hostAddress = new InetSocketAddress("localhost", 4222);
+        SocketFactory factory = SocketFactory.getDefault();
+        final AtomicLong published = new AtomicLong(0);
+        try (NatsServer srv = runDefaultServer()) {
+            try (Socket client = factory.createSocket()) {
+                client.setTcpNoDelay(true);
+                client.setReceiveBufferSize(2 * 1024 * 1024);
+                client.setSendBufferSize(2 * 1024 * 1024);
+                client.connect(hostAddress, 2000);
+
+                OutputStream writeStream = client.getOutputStream();
+                InputStream readStream = client.getInputStream();
+                BufferedOutputStream bw = new BufferedOutputStream(writeStream, 65536);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(readStream));
+
+                // Read and verify INFO
+                String infoString = reader.readLine();
+                // System.err.println(infoString);
+                assertTrue(infoString.matches("INFO \\{.+"));
+
+                // Send CONNECT
+                bw.write("CONNECT {\"verbose\":false}\r\n".getBytes());
+                bw.flush();
+                if (reader.ready()) {
+                    String info = reader.readLine();
+                    // System.err.println(info);
+                }
+                String payload = "";
+                String control = String.format("PUB foo %d\r\n%s\r\n", payload.length(), payload);
+                byte[] buf = control.getBytes();
+
+                int count = 50 * 1000 * 1000;
+
+                long t0 = System.nanoTime();
+                for (int i = 0; i < count; i++) {
+                    try {
+                        bw.write(buf, 0, buf.length);
+                        published.incrementAndGet();
+                    } catch (Exception e) {
+                        System.err.printf("Oops, got an exception on msg %d: %s\n", i,
+                                e.getMessage());
+                        break;
+                    }
+                }
+                bw.flush();
+                long elapsed = System.nanoTime() - t0;
+                long msgPerSec = published.get() / TimeUnit.NANOSECONDS.toSeconds(elapsed);
+                long bytesPerSec =
+                        (published.get() * buf.length) / TimeUnit.NANOSECONDS.toSeconds(elapsed);
+                String secString = String.format("%.2f", (double) elapsed / 1000000000.0);
+                logger.info("Published {} msgs in {} sec (rate: {} msg/sec, {} bytes/sec)",
+                        NumberFormat.getNumberInstance(Locale.US).format(published.get()),
+                        secString, NumberFormat.getNumberInstance(Locale.US).format(msgPerSec),
+                        NumberFormat.getNumberInstance(Locale.US).format(bytesPerSec));
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                fail(e.getMessage());
+            }
         }
     }
 
@@ -219,59 +226,61 @@ public class BenchTest {
         final CountDownLatch done = new CountDownLatch(1);
         InetSocketAddress hostAddress = new InetSocketAddress("localhost", 4222);
         SocketFactory factory = SocketFactory.getDefault();
-        try (Socket client = factory.createSocket()) {
-            client.setTcpNoDelay(true);
-            client.setReceiveBufferSize(2 * 1024 * 1024);
-            client.setSendBufferSize(2 * 1024 * 1024);
-            client.connect(hostAddress, 2000);
+        try (NatsServer srv = runDefaultServer()) {
+            try (Socket client = factory.createSocket()) {
+                client.setTcpNoDelay(true);
+                client.setReceiveBufferSize(2 * 1024 * 1024);
+                client.setSendBufferSize(2 * 1024 * 1024);
+                client.connect(hostAddress, 2000);
 
-            final OutputStream writeStream = client.getOutputStream();
-            final InputStream readStream = client.getInputStream();
-            final BufferedOutputStream bw = new BufferedOutputStream(writeStream, 65536);
-            final BufferedReader reader = new BufferedReader(new InputStreamReader(readStream));
+                final OutputStream writeStream = client.getOutputStream();
+                final InputStream readStream = client.getInputStream();
+                final BufferedOutputStream bw = new BufferedOutputStream(writeStream, 65536);
+                final BufferedReader reader = new BufferedReader(new InputStreamReader(readStream));
 
-            // Read and verify INFO
-            String infoString = reader.readLine();
-            // System.err.println(infoString);
-            assertTrue(infoString.matches("INFO \\{.+"));
+                // Read and verify INFO
+                String infoString = reader.readLine();
+                // System.err.println(infoString);
+                assertTrue(infoString.matches("INFO \\{.+"));
 
-            // Send CONNECT
-            bw.write("CONNECT {\"verbose\":false}\r\n".getBytes());
-            bw.flush();
-            if (reader.ready()) {
-                String response = reader.readLine();
-                logger.error(response);
-            }
-            String payload = "";
-            String control = String.format("PUB foo %d\r\n%s\r\n", payload.length(), payload);
-            final byte[] buf = control.getBytes();
+                // Send CONNECT
+                bw.write("CONNECT {\"verbose\":false}\r\n".getBytes());
+                bw.flush();
+                if (reader.ready()) {
+                    String response = reader.readLine();
+                    logger.error(response);
+                }
+                String payload = "";
+                String control = String.format("PUB foo %d\r\n%s\r\n", payload.length(), payload);
+                final byte[] buf = control.getBytes();
 
-            final int count = 3 * 1000 * 1000;
+                final int count = 3 * 1000 * 1000;
 
-            long t0 = System.nanoTime();
-            for (int i = 0; i < count; i++) {
-                service.execute(new Runnable() {
-                    public void run() {
-                        try {
-                            bw.write(buf, 0, buf.length);
-                            if (published.incrementAndGet() >= count) {
-                                done.countDown();
+                long t0 = System.nanoTime();
+                for (int i = 0; i < count; i++) {
+                    service.execute(new Runnable() {
+                        public void run() {
+                            try {
+                                bw.write(buf, 0, buf.length);
+                                if (published.incrementAndGet() >= count) {
+                                    done.countDown();
+                                }
+                            } catch (Exception e) {
+                                System.err.printf("Oops, got an exception on msg %d: %s\n",
+                                        published.get(), e.getMessage());
                             }
-                        } catch (Exception e) {
-                            System.err.printf("Oops, got an exception on msg %d: %s\n",
-                                    published.get(), e.getMessage());
                         }
-                    }
-                });
+                    });
+                }
+                done.await();
+                bw.flush();
+                long t1 = System.nanoTime();
+                logger.info(perfString(t0, t1, published.get(), published.get() * buf.length));
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+                fail(e.getMessage());
             }
-            done.await();
-            bw.flush();
-            long t1 = System.nanoTime();
-            logger.info(perfString(t0, t1, published.get(), published.get() * buf.length));
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -295,102 +304,101 @@ public class BenchTest {
 
         final SynchronousQueue<String> ch = new SynchronousQueue<String>();
         final ConnectionFactory cf = new ConnectionFactory();
-        try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
-            final Subscription sub = nc.subscribe(reqSubject, new MessageHandler() {
-                public void onMessage(final Message msg) {
-                    service.submit(new Runnable() {
-                        public void run() {
-                            try {
-                                ch.put("");
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
+
+        try (NatsServer srv = runDefaultServer()) {
+            try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
+                final Subscription sub = nc.subscribe(reqSubject, new MessageHandler() {
+                    public void onMessage(final Message msg) {
+                        service.submit(new Runnable() {
+                            public void run() {
+                                try {
+                                    ch.put("");
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
+                });
+                final long t0 = System.nanoTime();
+                for (int i = 0; i < count; i++) {
+                    nc.publish(reqSubject, null, null, true);
+                    ch.take();
                 }
-            });
-            final long t0 = System.nanoTime();
-            for (int i = 0; i < count; i++) {
-                nc.publish(reqSubject, null, null, true);
-                ch.take();
+                final long elapsed = System.nanoTime() - t0;
+                logger.info("requestor connection stats: {}", nc.getStats());
+                logger.info("elapsed time: {}sec",
+                        String.format("%.2f", (double) elapsed / 1000000000));
+                logger.info("req-rep average round trip: {}ms", String.format("%.2f",
+                        (double) TimeUnit.NANOSECONDS.toMillis(elapsed) / count));
+                logger.info("req/sec: {}", String.format("%.2f",
+                        (double) count / TimeUnit.NANOSECONDS.toSeconds(elapsed)));
+                sub.close();
             }
-            final long elapsed = System.nanoTime() - t0;
-            logger.info("requestor connection stats: {}", nc.getStats());
-            logger.info("elapsed time: {}sec",
-                    String.format("%.2f", (double) elapsed / 1000000000));
-            logger.info("req-rep average round trip: {}ms",
-                    String.format("%.2f", (double) TimeUnit.NANOSECONDS.toMillis(elapsed) / count));
-            logger.info("req/sec: {}", String.format("%.2f",
-                    (double) count / TimeUnit.NANOSECONDS.toSeconds(elapsed)));
-            sub.close();
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
         }
     }
 
     @Test
     public void testNatsBench() throws Exception {
-        Properties props = new Properties();
-        props.setProperty("natsbench.servers", "nats://localhost:4222");
-        props.setProperty("natsbench.secure", "false");
-        props.setProperty("natsbench.msg.count", "100000000");
-        props.setProperty("natsbench.msg.size", "0");
-        props.setProperty("natsbench.secure", "false");
-        props.setProperty("natsbench.pubs", "1");
-        props.setProperty("natsbench.subs", "0");
-        props.setProperty("natsbench.subject", "foo");
+        try (NatsServer srv = runDefaultServer()) {
+            Properties props = new Properties();
+            props.setProperty("bench.nats.servers", "nats://localhost:4222");
+            props.setProperty("bench.nats.secure", "false");
+            props.setProperty("bench.nats.msg.count", "100000000");
+            props.setProperty("bench.nats.msg.size", "0");
+            props.setProperty("bench.nats.secure", "false");
+            props.setProperty("bench.nats.pubs", "1");
+            props.setProperty("bench.nats.subs", "0");
+            props.setProperty("bench.nats.subject", "foo");
 
-        try {
             new NatsBench(props).run();
-        } catch (Exception e) {
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testPubSpeed() {
+    public void testPubSpeed() throws Exception {
         int count = 100 * 1000 * 1000;
         String url = ConnectionFactory.DEFAULT_URL;
         final String subject = "foo";
         final byte[] payload = null;
         long elapsed = 0L;
 
-        try (Connection c = new ConnectionFactory(url).createConnection()) {
-            final Message msg = new Message(subject, null, payload);
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory(url).createConnection()) {
+                final Message msg = new Message(subject, null, payload);
 
-            final long t0 = System.nanoTime();
+                final long t0 = System.nanoTime();
 
-            for (int i = 0; i < count; i++) {
-                c.publish(subject, payload);
-                // c.publish(msg);
+                for (int i = 0; i < count; i++) {
+                    c.publish(subject, payload);
+                    // c.publish(msg);
+                }
+
+                assertEquals(count, c.getStats().getOutMsgs());
+
+                // Make sure they are all processed
+                c.flush();
+
+                long t1 = System.nanoTime();
+
+                elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
+                System.out.println("Elapsed time is " + elapsed + " seconds");
+
+                System.out.printf("Published %s msgs in %d seconds ",
+                        NumberFormat.getNumberInstance(Locale.US).format(count), elapsed);
+                if (elapsed > 0) {
+                    System.out.printf("(%s msgs/second).\n", NumberFormat
+                            .getNumberInstance(Locale.US).format((int) (count / elapsed)));
+                } else {
+                    fail("Test not long enough to produce meaningful stats.");
+                }
+                logger.info("publisher connection stats: {}", c.getStats());
             }
-
-            assertEquals(count, c.getStats().getOutMsgs());
-
-            // Make sure they are all processed
-            c.flush();
-
-            long t1 = System.nanoTime();
-
-            elapsed = TimeUnit.NANOSECONDS.toSeconds(t1 - t0);
-            System.out.println("Elapsed time is " + elapsed + " seconds");
-
-            System.out.printf("Published %s msgs in %d seconds ",
-                    NumberFormat.getNumberInstance(Locale.US).format(count), elapsed);
-            if (elapsed > 0) {
-                System.out.printf("(%s msgs/second).\n",
-                        NumberFormat.getNumberInstance(Locale.US).format((int) (count / elapsed)));
-            } else {
-                fail("Test not long enough to produce meaningful stats.");
-            }
-            logger.info("publisher connection stats: {}", c.getStats());
-        } catch (Exception e) {
-            fail(e.getMessage());
         }
     }
 
     // @Test
-    public void testPubSubSpeed() throws InterruptedException {
+    public void testPubSubSpeed() throws Exception {
         final int count = 10000000;
         final int MAX_BACKLOG = 32000;
         // final int count = 2000;
@@ -441,8 +449,7 @@ public class BenchTest {
                     System.out.println("nc1 (subscriber):\n=======");
                     logger.info("subscriber connection stats: {}", nc1.getStats());
                 } catch (IOException | TimeoutException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    fail(e.getMessage());
                 }
             }
         };
@@ -451,7 +458,7 @@ public class BenchTest {
         subscriber.start();
 
         try (final Connection nc2 = cf.createConnection()) {
-            long t0 = System.nanoTime();
+            final long t0 = System.nanoTime();
             long numSleeps = 0L;
 
             ready.await();
@@ -502,18 +509,13 @@ public class BenchTest {
             }
             System.out.println("nc2 (publisher):\n=======");
             logger.info("publisher connection stats: {}", nc2.getStats());
-
-        } catch (IOException | TimeoutException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     // @Test
-    // @Category(BenchmarkTest.class)
+    // @Category(PerfTest.class)
     public void testManyConnections() throws Exception {
-        try (NATSServer s = new NATSServer()) {
+        try (NatsServer s = new NatsServer()) {
             ConnectionFactory cf = new ConnectionFactory();
             List<Connection> conns = new ArrayList<Connection>();
             for (int i = 0; i < 10000; i++) {
@@ -521,11 +523,6 @@ public class BenchTest {
                 conns.add(conn);
                 System.err.printf("Created %d connections\n", i);
             }
-        } catch (IOException | TimeoutException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            throw e;
         }
     }
-
 }

@@ -78,7 +78,7 @@ public class NUIDTest {
     }
 
     @Test(timeout = 5000)
-    @Category(BenchmarkTest.class)
+    @Category(PerfTest.class)
     public void testProperPrefix() {
         char min = (char) 255;
         char max = (char) 0;
@@ -108,7 +108,7 @@ public class NUIDTest {
     }
 
     @Test
-    @Category(BenchmarkTest.class)
+    @Category(PerfTest.class)
     public void benchmarkNUIDSpeed() {
         long count = 10000000;
         NUID nuid = new NUID();
@@ -125,7 +125,7 @@ public class NUIDTest {
     }
 
     @Test
-    @Category(BenchmarkTest.class)
+    @Category(PerfTest.class)
     public void benchmarkGlobalNUIDSpeed() {
         long count = 10000000;
         NUID nuid = NUID.getInstance();

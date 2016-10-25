@@ -31,15 +31,15 @@ import java.util.concurrent.TimeoutException;
 
 public class UnitTestUtilities {
     // final Object mu = new Object();
-    static NATSServer defaultServer = null;
+    static NatsServer defaultServer = null;
     Process authServerProcess = null;
 
-    static synchronized NATSServer runDefaultServer() {
+    static synchronized NatsServer runDefaultServer() {
         return runDefaultServer(false);
     }
 
-    static synchronized NATSServer runDefaultServer(boolean debug) {
-        NATSServer ns = new NATSServer(debug);
+    static synchronized NatsServer runDefaultServer(boolean debug) {
+        NatsServer ns = new NatsServer(debug);
         sleep(100, TimeUnit.MILLISECONDS);
         return ns;
     }
@@ -189,22 +189,22 @@ public class UnitTestUtilities {
         authServerProcess = Runtime.getRuntime().exec("gnatsd -config auth.conf");
     }
 
-    static NATSServer runServerOnPort(int p) {
+    static NatsServer runServerOnPort(int p) {
         return runServerOnPort(p, false);
     }
 
-    static NATSServer runServerOnPort(int p, boolean debug) {
-        NATSServer n = new NATSServer(p, debug);
+    static NatsServer runServerOnPort(int p, boolean debug) {
+        NatsServer n = new NatsServer(p, debug);
         sleep(500);
         return n;
     }
 
-    static NATSServer runServerWithConfig(String configFile) {
+    static NatsServer runServerWithConfig(String configFile) {
         return runServerWithConfig(configFile, false);
     }
 
-    static NATSServer runServerWithConfig(String configFile, boolean debug) {
-        NATSServer n = new NATSServer(configFile, debug);
+    static NatsServer runServerWithConfig(String configFile, boolean debug) {
+        NatsServer n = new NatsServer(configFile, debug);
         sleep(500);
         return n;
     }
