@@ -48,6 +48,9 @@ public class NUID {
         return globalNUID;
     }
 
+    /**
+     * The default NUID constructor.
+     */
     public NUID() {
         // Generate a cryto random int, 0 <= val < max to seed pseudorandom
         long seed = 0L;

@@ -18,7 +18,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.nats.client.TCPConnection.HandshakeListener;
+import io.nats.client.TcpConnection.HandshakeListener;
 
 import ch.qos.logback.classic.Level;
 
@@ -52,9 +52,9 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 @Category(UnitTest.class)
-public class TCPConnectionTest {
+public class TcpConnectionTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(TCPConnectionTest.class);
+    static final Logger logger = LoggerFactory.getLogger(TcpConnectionTest.class);
 
     static final LogVerifier verifier = new LogVerifier();
 
@@ -91,12 +91,12 @@ public class TCPConnectionTest {
     @SuppressWarnings("resource")
     @Test
     public void testTcpConnection() {
-        new TCPConnection();
+        new TcpConnection();
     }
 
     @Test
     public void testGetBufferedInputStream() {
-        try (TCPConnection t = new TCPConnection()) {
+        try (TcpConnection t = new TcpConnection()) {
             t.readStream = readStreamMock;
             assertNotNull(t.getInputStream(16384));
         }
@@ -104,7 +104,7 @@ public class TCPConnectionTest {
 
     @Test
     public void testGetBufferedOutputStream() {
-        try (TCPConnection t = new TCPConnection()) {
+        try (TcpConnection t = new TcpConnection()) {
             t.writeStream = writeStreamMock;
             assertNotNull(t.getOutputStream(16384));
         }
@@ -112,7 +112,7 @@ public class TCPConnectionTest {
 
     @Test
     public void testGetBufferedReader() {
-        try (TCPConnection t = new TCPConnection()) {
+        try (TcpConnection t = new TcpConnection()) {
             t.readStream = readStreamMock;
             assertNotNull(t.getInputStream(16384));
             assertNotNull(t.getBufferedReader());
@@ -121,7 +121,7 @@ public class TCPConnectionTest {
 
     @Test(expected = SocketException.class)
     public void testOpen() throws IOException {
-        try (TCPConnection conn = new TCPConnection()) {
+        try (TcpConnection conn = new TcpConnection()) {
             Socket sock = mock(Socket.class);
             doThrow(new SocketException("Error getting OutputStream")).when(sock).getOutputStream();
             conn.setSocket(sock);
@@ -135,20 +135,20 @@ public class TCPConnectionTest {
 
     @Test
     public void testSetConnectTimeout() {
-        TCPConnection conn = new TCPConnection();
+        TcpConnection conn = new TcpConnection();
         conn.setConnectTimeout(41);
         assertEquals(conn.timeout, 41);
     }
 
     @Test
     public void testIsSetup() {
-        TCPConnection conn = new TCPConnection();
+        TcpConnection conn = new TcpConnection();
         Socket sock = null;
         conn.setSocket(sock);
         assertFalse(conn.isSetup());
         conn.close();
 
-        conn = new TCPConnection();
+        conn = new TcpConnection();
         sock = mock(Socket.class);
         conn.setSocket(sock);
         assertTrue(conn.isSetup());
@@ -157,7 +157,7 @@ public class TCPConnectionTest {
 
     @Test
     public void testMakeTls() throws IOException, NoSuchAlgorithmException {
-        try (TCPConnection conn = new TCPConnection()) {
+        try (TcpConnection conn = new TcpConnection()) {
             SSLSocketFactory sslSf = mock(SSLSocketFactory.class);
             conn.setSocketFactory(sslSf);
             conn.setTlsDebug(true);
@@ -175,7 +175,7 @@ public class TCPConnectionTest {
 
     @Test
     public void testTeardown() {
-        TCPConnection conn = new TCPConnection();
+        TcpConnection conn = new TcpConnection();
         Socket sock = mock(Socket.class);
         conn.setSocket(sock);
         try {
@@ -187,7 +187,7 @@ public class TCPConnectionTest {
         }
         conn.close();
 
-        conn = new TCPConnection();
+        conn = new TcpConnection();
         sock = mock(Socket.class);
         try {
             doThrow(new IOException("Error closing socket")).when(sock).close();
@@ -203,7 +203,7 @@ public class TCPConnectionTest {
 
     @Test
     public void testHandshakeListener() throws SSLPeerUnverifiedException {
-        try (TCPConnection conn = new TCPConnection()) {
+        try (TcpConnection conn = new TcpConnection()) {
             final HandshakeListener hcb = conn.new HandshakeListener();
             HandshakeCompletedEvent event = mock(HandshakeCompletedEvent.class);
             Certificate[] certs = new Certificate[2];
@@ -235,7 +235,7 @@ public class TCPConnectionTest {
 
     @Test
     public void testIsConnected() {
-        try (TCPConnection conn = new TCPConnection()) {
+        try (TcpConnection conn = new TcpConnection()) {
             Socket sock = null;
             conn.setSocket(sock);
             assertFalse(conn.isConnected());
@@ -257,7 +257,7 @@ public class TCPConnectionTest {
         } catch (IOException e1) {
             fail("Couldn't create mock socket");
         }
-        TCPConnection conn = new TCPConnection();
+        TcpConnection conn = new TcpConnection();
         conn.setSocketFactory(factory);
         when(sock.getInputStream()).thenReturn(is);
         conn.open("localhost", 4222, 100);
@@ -276,23 +276,24 @@ public class TCPConnectionTest {
 
         when(factory.createSocket()).thenReturn(client);
 
-        TCPConnection conn = new TCPConnection();
-        conn.setSocketFactory(factory);
+        try (TcpConnection conn = new TcpConnection()) {
+            conn.setSocketFactory(factory);
 
-        // First, test that null readStream returns false
-        conn.open("localhost", 4222, 100);
+            // First, test that null readStream returns false
+            conn.open("localhost", 4222, 100);
 
-        assertNull(conn.readStream);
-        assertFalse(conn.isDataAvailable());
+            assertNull(conn.readStream);
+            assertFalse(conn.isDataAvailable());
 
-        // Now test for available > 0
-        conn.readStream = istream;
-        when(istream.available()).thenReturn(100);
-        assertTrue(conn.isDataAvailable());
+            // Now test for available > 0
+            conn.readStream = istream;
+            when(istream.available()).thenReturn(100);
+            assertTrue(conn.isDataAvailable());
 
-        // Now test for available == 0
-        when(istream.available()).thenReturn(0);
-        assertFalse(conn.isDataAvailable());
+            // Now test for available == 0
+            when(istream.available()).thenReturn(0);
+            assertFalse(conn.isDataAvailable());
+        }
     }
 
     // @Test
@@ -307,7 +308,7 @@ public class TCPConnectionTest {
 
     @Test
     public void testSetTlsDebug() {
-        try (TCPConnection conn = new TCPConnection()) {
+        try (TcpConnection conn = new TcpConnection()) {
             assertFalse(conn.isTlsDebug());
             conn.setTlsDebug(true);
             assertTrue(conn.isTlsDebug());

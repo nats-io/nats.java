@@ -82,7 +82,17 @@ class Parser {
     static final int ascii_9 = 57;
 
     static enum NatsOp {
-        OP_START, OP_PLUS, OP_PLUS_O, OP_PLUS_OK, OP_MINUS, OP_MINUS_E, OP_MINUS_ER, OP_MINUS_ERR, OP_MINUS_ERR_SPC, MINUS_ERR_ARG, OP_M, OP_MS, OP_MSG, OP_MSG_SPC, MSG_ARG, MSG_PAYLOAD, MSG_END, OP_P, OP_PI, OP_PIN, OP_PING, OP_PO, OP_PON, OP_PONG, OP_I, OP_IN, OP_INF, OP_INFO, OP_INFO_SPC, INFO_ARG
+        OP_START, /* Start of message */
+        OP_PLUS, OP_PLUS_O, OP_PLUS_OK, /* +OK */
+        OP_MINUS, OP_MINUS_E, OP_MINUS_ER, OP_MINUS_ERR, /* -ERR */
+        OP_MINUS_ERR_SPC, MINUS_ERR_ARG, /* -ERR '<argument>' */
+        OP_M, OP_MS, OP_MSG, OP_MSG_SPC, MSG_ARG, /* MSG <args> */
+        MSG_PAYLOAD, /* message payload bytes */
+        MSG_END, /* end of message */
+        OP_P, /* P[ING]/P[ONG] */
+        OP_PI, OP_PIN, OP_PING, /* PING */
+        OP_PO, OP_PON, OP_PONG, /* PONG */
+        OP_I, OP_IN, OP_INF, OP_INFO, OP_INFO_SPC, INFO_ARG /* INFO {...} */
     }
 
     protected Parser(ConnectionImpl conn) {
@@ -327,6 +337,8 @@ class Parser {
                             ps.drop = 0;
                             ps.state = NatsOp.OP_START;
                             break;
+                        default:
+                            break;
                     }
                     break;
                 case OP_MINUS:
@@ -486,6 +498,8 @@ class Parser {
                             nc.processPing();
                             ps.drop = 0;
                             ps.state = NatsOp.OP_START;
+                            break;
+                        default:
                             break;
                     }
                     break;

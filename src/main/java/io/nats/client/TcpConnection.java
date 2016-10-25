@@ -29,10 +29,12 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
-/// Convenience class representing the TCP connection to prevent
-/// managing two variables throughout the NATs client code.
-class TCPConnection implements AutoCloseable {
-    final Logger logger = LoggerFactory.getLogger(TCPConnection.class);
+/*
+ * Convenience class representing the TCP connection to prevent managing two variables throughout
+ * the NATS client code.
+ */
+class TcpConnection implements AutoCloseable {
+    final Logger logger = LoggerFactory.getLogger(TcpConnection.class);
 
     /// TODO: Test various scenarios for efficiency. Is a
     /// BufferedReader directly over a network stream really
@@ -52,10 +54,10 @@ class TCPConnection implements AutoCloseable {
     protected int timeout = 0;
     boolean tlsDebug = false;
 
-    public TCPConnection() {}
+    TcpConnection() {}
 
-    public void open(String host, int port, int timeoutMillis) throws IOException {
-        logger.trace("TCPConnection.open({},{},{})", host, port, timeoutMillis);
+    void open(String host, int port, int timeoutMillis) throws IOException {
+        logger.trace("TcpConnection.open({},{},{})", host, port, timeoutMillis);
         mu.lock();
         try {
 
@@ -79,7 +81,7 @@ class TCPConnection implements AutoCloseable {
         }
     }
 
-    public void open() throws IOException {
+    void open() throws IOException {
         mu.lock();
         try {
             writeStream = client.getOutputStream();
@@ -98,11 +100,11 @@ class TCPConnection implements AutoCloseable {
 
     // setSendTimeout?
 
-    public boolean isSetup() {
+    boolean isSetup() {
         return (client != null);
     }
 
-    public void teardown() {
+    void teardown() {
         mu.lock();
         try {
             if (client != null) {
@@ -121,39 +123,39 @@ class TCPConnection implements AutoCloseable {
         }
     }
 
-    public BufferedReader getBufferedReader() {
+    BufferedReader getBufferedReader() {
         return new BufferedReader(new InputStreamReader(bis));
     }
 
-    public InputStream getInputStream(int size) {
+    InputStream getInputStream(int size) {
         if (bis == null) {
             bis = new BufferedInputStream(readStream, size);
         }
         return bis;
     }
 
-    public OutputStream getOutputStream(int size) {
+    OutputStream getOutputStream(int size) {
         if (bos == null) {
             bos = new BufferedOutputStream(writeStream, size);
         }
         return bos;
     }
 
-    public OutputStream getOutputStream() {
+    OutputStream getOutputStream() {
         // if (bos == null) {
         // bos = new BufferedOutputStream(writeStream, size);
         // }
         return writeStream;
     }
 
-    public boolean isConnected() {
+    boolean isConnected() {
         if (client == null) {
             return false;
         }
         return client.isConnected();
     }
 
-    public boolean isDataAvailable() throws IOException {
+    boolean isDataAvailable() throws IOException {
         if (readStream == null) {
             return false;
         }
@@ -236,17 +238,11 @@ class TCPConnection implements AutoCloseable {
         }
     }
 
-    /**
-     * @return the tlsDebug
-     */
-    public boolean isTlsDebug() {
+    boolean isTlsDebug() {
         return tlsDebug;
     }
 
-    /**
-     * @param tlsDebug the tlsDebug to set
-     */
-    public void setTlsDebug(boolean tlsDebug) {
+    void setTlsDebug(boolean tlsDebug) {
         this.tlsDebug = tlsDebug;
     }
 
@@ -256,6 +252,7 @@ class TCPConnection implements AutoCloseable {
             try {
                 client.close();
             } catch (IOException e) {
+                /* NOOP */
             }
         }
         teardown();

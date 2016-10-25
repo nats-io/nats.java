@@ -55,7 +55,7 @@ public class ITAuthTest {
         String noAuthUrl = "nats://localhost:1222";
         String authUrl = "nats://username:password@localhost:1222";
 
-        try (NATSServer s = runServerWithConfig("auth_1222.conf")) {
+        try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
             try (Connection c = new ConnectionFactory(noAuthUrl).createConnection()) {
                 fail("Should have received an error while trying to connect");
             } catch (IOException | TimeoutException e) {
@@ -84,7 +84,7 @@ public class ITAuthTest {
             }
         });
 
-        try (NATSServer s = runServerWithConfig("auth_1222.conf")) {
+        try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
             try (Connection c = cf.createConnection()) {
                 fail("Should have received an error while trying to connect");
             } catch (IOException | TimeoutException e) {
@@ -114,11 +114,11 @@ public class ITAuthTest {
         });
 
         // First server: no auth.
-        try (final NATSServer ts = runServerOnPort(1221)) {
+        try (final NatsServer ts = runServerOnPort(1221)) {
             // Second server: user/pass auth.
-            try (final NATSServer ts2 = runServerWithConfig("auth_1222.conf")) {
+            try (final NatsServer ts2 = runServerWithConfig("auth_1222.conf")) {
                 // Third server: no auth.
-                try (final NATSServer ts3 = runServerOnPort(1223)) {
+                try (final NatsServer ts3 = runServerOnPort(1223)) {
                     try (ConnectionImpl c = (ConnectionImpl) cf.createConnection()) {
                         assertEquals("nats://localhost:1221", c.getConnectedUrl());
                         assertTrue(c.opts.isNoRandomize());
@@ -147,7 +147,7 @@ public class ITAuthTest {
                 { "nats://username@localhost:1222", "nats://username:badpass@localhost:1222",
                         "nats://localhost:1222", "nats://badname:password@localhost:1222" };
 
-        try (NATSServer s = runServerWithConfig("auth_1222.conf")) {
+        try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
             hitDisconnect = 0;
             ConnectionFactory cf = new ConnectionFactory();
             cf.setDisconnectedCallback(new DisconnectedCallback() {
@@ -181,7 +181,7 @@ public class ITAuthTest {
     @Test
     public void testAuthSuccess() throws IOException, TimeoutException {
         String url = ("nats://username:password@localhost:1222");
-        try (NATSServer s = runServerWithConfig("auth_1222.conf")) {
+        try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
             try (Connection c = new ConnectionFactory(url).createConnection()) {
                 assertTrue(!c.isClosed());
             }

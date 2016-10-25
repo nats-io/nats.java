@@ -6,6 +6,14 @@
 
 package io.nats.examples;
 
+import io.nats.client.AsyncSubscription;
+import io.nats.client.Connection;
+import io.nats.client.ConnectionFactory;
+import io.nats.client.Message;
+import io.nats.client.MessageHandler;
+import io.nats.client.Statistics;
+import io.nats.client.SyncSubscription;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
@@ -15,14 +23,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
-import io.nats.client.AsyncSubscription;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionFactory;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.Statistics;
-import io.nats.client.SyncSubscription;
 
 public class Replier implements Runnable {
     Map<String, String> parsedArgs = new HashMap<String, String>();
@@ -117,22 +117,22 @@ public class Replier implements Runnable {
             }
         };
 
-        AsyncSubscription s = c.subscribeAsync(subject, mh);
+        AsyncSubscription sub = c.subscribe(subject, mh);
         // just wait to complete
         testLock.lock();
         try {
-            s.start();
             while (!done) {
                 allDone.await();
             }
         } catch (InterruptedException e) {
+            /* NOOP */
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         } finally {
             testLock.unlock();
         }
-
+        sub.close();
         return end - start;
     }
 
@@ -215,6 +215,11 @@ public class Replier implements Runnable {
         System.out.printf("  Receiving: %s\n", sync ? "Synchronously" : "Asynchronously");
     }
 
+    /**
+     * Main executive.
+     * 
+     * @param args the command-line arguments
+     */
     public static void main(String[] args) {
         try {
             new Replier(args).run();

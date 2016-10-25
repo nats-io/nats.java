@@ -15,7 +15,7 @@ public class Sample {
     long start;
     long end;
 
-    final static double BILLION = 1000000000.0;
+    static final double BILLION = 1000000000.0;
 
     public Sample() {}
 

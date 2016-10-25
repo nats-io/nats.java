@@ -31,15 +31,15 @@ import java.util.concurrent.TimeoutException;
 
 public class UnitTestUtilities {
     // final Object mu = new Object();
-    static NATSServer defaultServer = null;
+    static NatsServer defaultServer = null;
     Process authServerProcess = null;
 
-    static synchronized NATSServer runDefaultServer() {
+    static synchronized NatsServer runDefaultServer() {
         return runDefaultServer(false);
     }
 
-    static synchronized NATSServer runDefaultServer(boolean debug) {
-        NATSServer ns = new NATSServer(debug);
+    static synchronized NatsServer runDefaultServer(boolean debug) {
+        NatsServer ns = new NatsServer(debug);
         sleep(100, TimeUnit.MILLISECONDS);
         return ns;
     }
@@ -48,12 +48,12 @@ public class UnitTestUtilities {
         return new ConnectionFactory().createConnection();
     }
 
-    static synchronized Connection newDefaultConnection(TCPConnectionFactory tcf)
+    static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf)
             throws IOException, TimeoutException {
         return new ConnectionFactory().createConnection(tcf);
     }
 
-    static synchronized Connection newDefaultConnection(TCPConnectionFactory tcf, Options opts)
+    static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf, Options opts)
             throws IOException, TimeoutException {
         ConnectionFactory cf = new ConnectionFactory();
         ConnectionImpl conn = new ConnectionImpl(opts != null ? opts : cf.options(), tcf);
@@ -72,8 +72,8 @@ public class UnitTestUtilities {
         }
         final ConnectionImpl nc = spy(new ConnectionImpl(opts));
 
-        // Set up mock TCPConnection
-        final TCPConnection tcpConnMock = mock(TCPConnection.class);
+        // Set up mock TcpConnection
+        final TcpConnection tcpConnMock = mock(TcpConnection.class);
         final BufferedReader bufferedReaderMock = mock(BufferedReader.class);
         final BufferedInputStream brMock = mock(BufferedInputStream.class);
         final BufferedOutputStream bwMock = mock(BufferedOutputStream.class);
@@ -82,7 +82,7 @@ public class UnitTestUtilities {
         when(tcpConnMock.isConnected()).thenReturn(true);
         // getBufferedReader
 
-        TCPConnectionFactory tcfMock = mock(TCPConnectionFactory.class);
+        TcpConnectionFactory tcfMock = mock(TcpConnectionFactory.class);
         when(tcfMock.createConnection()).thenReturn(tcpConnMock);
         nc.setTcpConnectionFactory(tcfMock);
 
@@ -90,7 +90,7 @@ public class UnitTestUtilities {
             @Override
             public Void answer(InvocationOnMock invocation) throws Throwable {
                 // when(br.readLine()).thenReturn("PONG");
-                Object[] args = invocation.getArguments();
+                // Object[] args = invocation.getArguments();
 
                 // Setup bufferedReaderMock
                 when(tcpConnMock.getBufferedReader()).thenReturn(bufferedReaderMock);
@@ -102,7 +102,7 @@ public class UnitTestUtilities {
                 when(tcpConnMock.getOutputStream(anyInt())).thenReturn(bwMock);
 
                 // First lines are always INFO and then PONG
-                when(bufferedReaderMock.readLine()).thenReturn(TCPConnectionMock.defaultInfo,
+                when(bufferedReaderMock.readLine()).thenReturn(TcpConnectionMock.defaultInfo,
                         PONG_PROTO.trim());
 
                 // Additional pings
@@ -140,7 +140,7 @@ public class UnitTestUtilities {
         return newMockedConnection(null, null);
     }
 
-    static synchronized Connection newMockedConnection(TCPConnectionFactoryMock tcf)
+    static synchronized Connection newMockedConnection(TcpConnectionFactoryMock tcf)
             throws IOException, TimeoutException {
         return newMockedConnection(tcf, null);
     }
@@ -150,13 +150,13 @@ public class UnitTestUtilities {
         return newMockedConnection(null, opts);
     }
 
-    static synchronized Connection newMockedConnection(TCPConnectionFactoryMock tcf, Options opts)
+    static synchronized Connection newMockedConnection(TcpConnectionFactoryMock tcf, Options opts)
             throws IOException, TimeoutException {
-        TCPConnectionFactory tcpConnFactory = null;
+        TcpConnectionFactory tcpConnFactory = null;
         if (tcf != null) {
             tcpConnFactory = null;
         } else {
-            tcpConnFactory = new TCPConnectionFactoryMock();
+            tcpConnFactory = new TcpConnectionFactoryMock();
         }
         return newDefaultConnection(tcpConnFactory,
                 opts != null ? opts : new ConnectionFactory().options());
@@ -189,22 +189,22 @@ public class UnitTestUtilities {
         authServerProcess = Runtime.getRuntime().exec("gnatsd -config auth.conf");
     }
 
-    static NATSServer runServerOnPort(int p) {
+    static NatsServer runServerOnPort(int p) {
         return runServerOnPort(p, false);
     }
 
-    static NATSServer runServerOnPort(int p, boolean debug) {
-        NATSServer n = new NATSServer(p, debug);
+    static NatsServer runServerOnPort(int p, boolean debug) {
+        NatsServer n = new NatsServer(p, debug);
         sleep(500);
         return n;
     }
 
-    static NATSServer runServerWithConfig(String configFile) {
+    static NatsServer runServerWithConfig(String configFile) {
         return runServerWithConfig(configFile, false);
     }
 
-    static NATSServer runServerWithConfig(String configFile, boolean debug) {
-        NATSServer n = new NATSServer(configFile, debug);
+    static NatsServer runServerWithConfig(String configFile, boolean debug) {
+        NatsServer n = new NatsServer(configFile, debug);
         sleep(500);
         return n;
     }
@@ -225,11 +225,10 @@ public class UnitTestUtilities {
             streamReader = new InputStreamReader(stream);
             reader = new BufferedReader(streamReader);
 
-            String currentLine = null; // store current line of output from the
-                                       // cmd
-            StringBuilder commandOutput = new StringBuilder(); // build up the
-                                                               // output from
-                                                               // cmd
+            // store current line of output from the cmd
+            String currentLine = null;
+            // build up the output from cmd
+            StringBuilder commandOutput = new StringBuilder();
             while ((currentLine = reader.readLine()) != null) {
                 commandOutput.append(currentLine + "\n");
             }
@@ -280,20 +279,23 @@ public class UnitTestUtilities {
         try {
             url = new URL("http://localhost:8222/connz");
         } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
-        try (BufferedReader reader =
-                new BufferedReader(new InputStreamReader(url.openStream(), "UTF-8"))) {
-            for (String line; (line = reader.readLine()) != null;) {
-                System.out.println(line);
+        try {
+            if (url != null) {
+                try (InputStream urlInputStream = url.openStream()) {
+                    try (BufferedReader reader =
+                            new BufferedReader(new InputStreamReader(urlInputStream, "UTF-8"))) {
+                        for (String line; (line = reader.readLine()) != null;) {
+                            System.out.println(line);
+                        }
+                    }
+                }
             }
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
     static void sleep(int timeout) {
@@ -317,6 +319,7 @@ public class UnitTestUtilities {
         try {
             val = latch.await(timeout, unit);
         } catch (InterruptedException e) {
+            /* NOOP */
         }
         return val;
     }

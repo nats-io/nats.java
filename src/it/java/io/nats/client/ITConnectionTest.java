@@ -67,7 +67,7 @@ public class ITConnectionTest {
 
     @Test
     public void testDefaultConnection() throws IOException, TimeoutException {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 /* NOOP */
             }
@@ -76,7 +76,7 @@ public class ITConnectionTest {
 
     @Test
     public void testConnectionStatus() throws IOException, TimeoutException {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 assertEquals("Should have status set to CONNECTED", ConnState.CONNECTED,
                         nc.getState());
@@ -92,7 +92,7 @@ public class ITConnectionTest {
     @Test
     public void testConnClosedCb() throws IOException, TimeoutException, InterruptedException {
         final CountDownLatch cbLatch = new CountDownLatch(1);
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 nc.setClosedCallback(new ClosedCallback() {
                     @Override
@@ -110,7 +110,7 @@ public class ITConnectionTest {
     public void testCloseDisconnectedCb()
             throws IOException, TimeoutException, InterruptedException {
         final CountDownLatch cbLatch = new CountDownLatch(1);
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             Thread.sleep(500);
             ConnectionFactory cf = new ConnectionFactory();
             cf.setReconnectAllowed(false);
@@ -130,7 +130,7 @@ public class ITConnectionTest {
 
     @Test
     public void testServerStopDisconnectedCb() throws IOException, TimeoutException {
-        try (NATSServer srv = runDefaultServer()) {
+        try (NatsServer srv = runDefaultServer()) {
             final CountDownLatch latch = new CountDownLatch(1);
             final ConnectionFactory cf = new ConnectionFactory();
             cf.setReconnectAllowed(false);
@@ -156,7 +156,7 @@ public class ITConnectionTest {
 
     // @Test
     // public void testServerSecureConnections() throws Exception {
-    // try (NATSServer srv = runServerWithConfig("tls.conf", true)) {
+    // try (NatsServer srv = runServerWithConfig("tls.conf", true)) {
     // String secureUrl = "nats://derek:buckley@localhost:4443/";
     // ConnectionFactory cf = new ConnectionFactory(secureUrl);
     // try (Connection nc = cf.createConnection()) {
@@ -186,7 +186,7 @@ public class ITConnectionTest {
     //
     // // Test flag mismatch
     // // Wanted but not available..
-    // try (NATSServer ds = runDefaultServer()) {
+    // try (NatsServer ds = runDefaultServer()) {
     // ConnectionFactory cf2 = new ConnectionFactory();
     // cf2.setSecure(true);
     // try (Connection nc = cf2.createConnection()) {

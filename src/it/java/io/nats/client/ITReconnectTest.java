@@ -84,7 +84,7 @@ public class ITReconnectTest {
             }
         });
 
-        try (NATSServer ts = runServerOnPort(22222)) {
+        try (NatsServer ts = runServerOnPort(22222)) {
             try (Connection c = cf.createConnection()) {
                 sleep(500);
                 ts.shutdown();
@@ -107,7 +107,7 @@ public class ITReconnectTest {
         final CountDownLatch ccLatch = new CountDownLatch(1);
         final CountDownLatch dcLatch = new CountDownLatch(1);
 
-        try (NATSServer ts = runServerOnPort(22222)) {
+        try (NatsServer ts = runServerOnPort(22222)) {
             final AtomicInteger ccbCount = new AtomicInteger(0);
             final AtomicLong ccbTime = new AtomicLong(0L);
             final AtomicLong dcbTime = new AtomicLong(0L);
@@ -163,7 +163,7 @@ public class ITReconnectTest {
             } catch (NullPointerException e) {
                 e.printStackTrace();
             }
-        } // NATSServer
+        } // NatsServer
     }
 
     @Test
@@ -183,7 +183,7 @@ public class ITReconnectTest {
         });
         final String testString = "bar";
 
-        try (NATSServer ns1 = runServerOnPort(22222)) {
+        try (NatsServer ns1 = runServerOnPort(22222)) {
             try (Connection c = cf.createConnection()) {
                 AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
                     public void onMessage(Message msg) {
@@ -215,7 +215,7 @@ public class ITReconnectTest {
 
                 // restart the server.
                 logger.debug("Spinning up ns2");
-                try (NATSServer ns2 = runServerOnPort(22222)) {
+                try (NatsServer ns2 = runServerOnPort(22222)) {
                     c.setClosedCallback(null);
                     c.setDisconnectedCallback(null);
                     logger.debug("Flushing connection");
@@ -264,7 +264,7 @@ public class ITReconnectTest {
         };
 
         byte[] payload = "bar".getBytes();
-        try (NATSServer ns1 = runServerOnPort(22222)) {
+        try (NatsServer ns1 = runServerOnPort(22222)) {
             try (Connection c = cf.createConnection()) {
                 c.subscribe("foo", mh);
                 final Subscription foobarSub = c.subscribe("foobar", mh);
@@ -288,7 +288,7 @@ public class ITReconnectTest {
                 c.publish("foo", payload);
                 c.publish("bar", payload);
 
-                try (NATSServer ns2 = runServerOnPort(22222)) {
+                try (NatsServer ns2 = runServerOnPort(22222)) {
                     // server is restarted here...
                     // wait for reconnect
                     assertTrue("Did not receive a reconnect callback message",
@@ -321,7 +321,7 @@ public class ITReconnectTest {
                 e1.printStackTrace();
                 fail(e1.getMessage());
             }
-        } // NATSServer ns
+        } // NatsServer ns
     }
 
     final Object mu = new Object();
@@ -330,7 +330,7 @@ public class ITReconnectTest {
     @Test
     public void testQueueSubsOnReconnect() throws IllegalStateException, Exception {
         ConnectionFactory cf = new ConnectionFactory(reconnectOptions);
-        try (NATSServer ts = runServerOnPort(22222)) {
+        try (NatsServer ts = runServerOnPort(22222)) {
 
             final CountDownLatch latch = new CountDownLatch(1);
             cf.setReconnectedCallback(new ReconnectedCallback() {
@@ -372,7 +372,7 @@ public class ITReconnectTest {
                 ts.shutdown();
 
                 // start back up
-                try (NATSServer ts2 = runServerOnPort(22222)) {
+                try (NatsServer ts2 = runServerOnPort(22222)) {
                     sleep(500);
                     assertTrue("Did not fire ReconnectedCB", await(latch, 3, TimeUnit.SECONDS));
                     sendAndCheckMsgs(c, subj, 10);
@@ -394,11 +394,11 @@ public class ITReconnectTest {
         results.clear();
     }
 
-    public void sendAndCheckMsgs(Connection c, String subj, int numToSend) {
+    void sendAndCheckMsgs(Connection conn, String subj, int numToSend) {
         int numSent = 0;
         for (int i = 0; i < numToSend; i++) {
             try {
-                c.publish(subj, Integer.toString(i).getBytes());
+                conn.publish(subj, Integer.toString(i).getBytes());
             } catch (IllegalStateException | IOException e) {
                 fail(e.getMessage());
             }
@@ -406,14 +406,11 @@ public class ITReconnectTest {
         }
         // Wait for processing
         try {
-            c.flush();
+            conn.flush();
         } catch (Exception e) {
             fail(e.getMessage());
         }
-        try {
-            Thread.sleep(50);
-        } catch (InterruptedException e) {
-        }
+        sleep(50);
 
         checkResults(numSent);
     }
@@ -425,14 +422,14 @@ public class ITReconnectTest {
         cf.setMaxReconnect(60);
 
         Connection c = null;
-        try (NATSServer s1 = runServerOnPort(22222)) {
+        try (NatsServer s1 = runServerOnPort(22222)) {
             c = cf.createConnection();
             assertFalse("isClosed returned true when the connection is still open.", c.isClosed());
         }
 
         assertFalse("isClosed returned true when the connection is still open.", c.isClosed());
 
-        try (NATSServer s2 = runServerOnPort(22222)) {
+        try (NatsServer s2 = runServerOnPort(22222)) {
             assertFalse("isClosed returned true when the connection is still open.", c.isClosed());
 
             c.close();
@@ -443,7 +440,7 @@ public class ITReconnectTest {
     @Test
     public void testIsReconnectingAndStatus() {
 
-        try (NATSServer ts = runServerOnPort(22222)) {
+        try (NatsServer ts = runServerOnPort(22222)) {
             final CountDownLatch dcLatch = new CountDownLatch(1);
             final CountDownLatch rcLatch = new CountDownLatch(1);
 
@@ -481,8 +478,8 @@ public class ITReconnectTest {
                 assertEquals(ConnState.RECONNECTING, c.getState());
 
                 // Wait until we get the reconnect callback
-                try (NATSServer ts2 = runServerOnPort(22222)) {
-                    assertTrue("reconnectedCB callback wasn't triggered.",
+                try (NatsServer ts2 = runServerOnPort(22222)) {
+                    assertTrue("reconnectedCb callback wasn't triggered.",
                             await(rcLatch, 3, TimeUnit.SECONDS));
 
                     assertFalse("isReconnecting returned true after the client was reconnected.",
@@ -509,7 +506,7 @@ public class ITReconnectTest {
 
     @Test
     public void testDefaultReconnectFailure() {
-        try (NATSServer ts = runServerOnPort(4222)) {
+        try (NatsServer ts = runServerOnPort(4222)) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setMaxReconnect(4);
 
@@ -562,7 +559,7 @@ public class ITReconnectTest {
 
     @Test
     public void testReconnectBufSize() {
-        try (NATSServer ts = runServerOnPort(4222)) {
+        try (NatsServer ts = runServerOnPort(4222)) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setReconnectBufSize(34); // 34 bytes
 
@@ -616,7 +613,7 @@ public class ITReconnectTest {
 
     @Test
     public void testReconnectVerbose() {
-        try (NATSServer ts = runServerOnPort(4222)) {
+        try (NatsServer ts = runServerOnPort(4222)) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setVerbose(true);
 
@@ -637,7 +634,7 @@ public class ITReconnectTest {
 
                 ts.shutdown();
                 sleep(500);
-                try (NATSServer ts2 = runServerOnPort(4222)) {
+                try (NatsServer ts2 = runServerOnPort(4222)) {
                     assertTrue("Should have reconnected OK", await(latch));
                     try {
                         nc.flush();
@@ -656,7 +653,7 @@ public class ITReconnectTest {
     // @Test
     // public void testFullFlushChanDuringReconnect() {
     // final ExecutorService exec = Executors.newSingleThreadExecutor();
-    // try (NATSServer ts = utils.createServerOnPort(22222)) {
+    // try (NatsServer ts = utils.createServerOnPort(22222)) {
     // ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
     // cf.setReconnectAllowed(true);
     // cf.setMaxReconnect(10000);
@@ -703,7 +700,7 @@ public class ITReconnectTest {
     // stop.add(true);
     //
     // // Restart the server
-    // try (NATSServer ts2 = utils.createServerOnPort(22222, true)) {
+    // try (NatsServer ts2 = utils.createServerOnPort(22222, true)) {
     // // Wait for the reconnect CB to be invoked (but not for too long)
     // assertTrue("Reconnect callback wasn't triggered", waitTime(rch, 5, TimeUnit.SECONDS));
     // }

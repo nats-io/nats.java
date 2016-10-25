@@ -6,6 +6,7 @@
 
 package io.nats.client;
 
+import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -20,11 +21,11 @@ import org.junit.experimental.categories.Category;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Category(UnitTest.class)
-public class NATSThreadTest implements Runnable {
+public class NatsThreadTest implements Runnable {
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
-    final static int NUM_THREADS = 5;
+    static final int NUM_THREADS = 5;
 
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {}
@@ -41,14 +42,14 @@ public class NATSThreadTest implements Runnable {
     @Test
     public void testRun() {
         final AtomicBoolean exThrown = new AtomicBoolean(false);
-        Thread.UncaughtExceptionHandler h = new Thread.UncaughtExceptionHandler() {
+        Thread.UncaughtExceptionHandler exh = new Thread.UncaughtExceptionHandler() {
             public void uncaughtException(Thread th, Throwable ex) {
                 // System.out.println("Uncaught exception: " + ex);
                 exThrown.set(true);
             }
         };
-        NATSThread nt = new NATSThread(this);
-        nt.setUncaughtExceptionHandler(h);
+        NatsThread nt = new NatsThread(this);
+        nt.setUncaughtExceptionHandler(exh);
         throwException = true;
         nt.start();
         try {
@@ -63,6 +64,7 @@ public class NATSThreadTest implements Runnable {
 
     boolean throwException = false;
 
+    @Override
     public void run() {
         try {
             if (throwException) {
@@ -70,30 +72,27 @@ public class NATSThreadTest implements Runnable {
             }
             Thread.sleep(2000);
         } catch (InterruptedException e) {
+            /* NOOP */
         }
     }
 
     @Test
     public void testNATSThreadRunnable() {
-        NATSThread[] threads = new NATSThread[NUM_THREADS];
+        NatsThread[] threads = new NatsThread[NUM_THREADS];
         for (int i = 0; i < NUM_THREADS; i++) {
-            NATSThread nt = new NATSThread(this);
+            NatsThread nt = new NatsThread(this);
             nt.start();
             threads[i] = nt;
         }
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        assertTrue(NATSThread.getThreadsAlive() > 0);
-        assertTrue(NATSThread.getThreadsCreated() > 0);
-        NATSThread.setDebug(true);
-        assertEquals(true, NATSThread.getDebug());
-        NATSThread.setDebug(false);
-        assertEquals(false, NATSThread.getDebug());
-        NATSThread.setDebug(true);
+        sleep(100);
+
+        assertTrue(NatsThread.getThreadsAlive() > 0);
+        assertTrue(NatsThread.getThreadsCreated() > 0);
+        NatsThread.setDebug(true);
+        assertEquals(true, NatsThread.getDebug());
+        NatsThread.setDebug(false);
+        assertEquals(false, NatsThread.getDebug());
+        NatsThread.setDebug(true);
         try {
             for (int i = 0; i < NUM_THREADS; i++) {
                 {

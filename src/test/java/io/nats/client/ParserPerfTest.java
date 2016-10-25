@@ -32,9 +32,9 @@ public class ParserPerfTest {
 
     @Test
     public void test() {
-        try (TCPConnectionMock mock = new TCPConnectionMock()) {
+        try (TcpConnectionMock mock = new TcpConnectionMock()) {
             ConnectionFactory cf = new ConnectionFactory();
-            try (ConnectionImpl conn = cf.createConnection(new TCPConnectionFactoryMock())) {
+            try (ConnectionImpl conn = cf.createConnection(new TcpConnectionFactoryMock())) {
                 final int BUF_SIZE = 65536;
                 int count = 40000;
 
@@ -90,11 +90,16 @@ public class ParserPerfTest {
         }
     }
 
+    /**
+     * Main executive.
+     * 
+     * @param args the command line arguments
+     */
     public static void main(String[] args) {
-        ParserPerfTest p = new ParserPerfTest();
+        ParserPerfTest parserPerfTest = new ParserPerfTest();
 
         // b.testPubSpeed();
-        p.test();
+        parserPerfTest.test();
     }
 
 }

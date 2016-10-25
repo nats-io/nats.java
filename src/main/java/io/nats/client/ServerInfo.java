@@ -81,8 +81,6 @@ class ServerInfo {
     protected static ServerInfo createFromWire(String infoString) {
         ServerInfo rv = null;
         String jsonString = infoString.replaceFirst("^INFO ", "").trim();
-        // logger.info("jsonString = \"" + jsonString + "\"");
-        // FIXME Infinite loop here
         rv = gson.fromJson(jsonString, ServerInfo.class);
         return rv;
     }
@@ -124,6 +122,8 @@ class ServerInfo {
     }
 
     /**
+     * Returns whether or not authorization is required by the NATS server.
+     * 
      * @return the authRequired
      */
     boolean isAuthRequired() {
@@ -131,6 +131,8 @@ class ServerInfo {
     }
 
     /**
+     * Returns whether or not TLS is required by the NATS server.
+     * 
      * @return the tlsRequired
      */
     boolean isTlsRequired() {
@@ -138,6 +140,8 @@ class ServerInfo {
     }
 
     /**
+     * Returns the max payload size enforced by the NATS server.
+     * 
      * @return the maxPayload
      */
     long getMaxPayload() {

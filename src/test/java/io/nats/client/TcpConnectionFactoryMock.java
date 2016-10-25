@@ -1,6 +1,6 @@
 package io.nats.client;
 
-public class TCPConnectionFactoryMock extends TCPConnectionFactory {
+public class TcpConnectionFactoryMock extends TcpConnectionFactory {
 
     private Options o;
     private String infoString;
@@ -16,26 +16,27 @@ public class TCPConnectionFactoryMock extends TCPConnectionFactory {
     private boolean noInfo;
     private boolean tlsRequired;
 
-    public TCPConnectionFactoryMock() {
+    public TcpConnectionFactoryMock() {
         o = new Options();
     }
 
-    protected TCPConnectionMock createConnection() {
-        TCPConnectionMock m = new TCPConnectionMock();
-        if (infoString != null)
-            m.setServerInfoString(infoString);
-        m.setOpenFailure(openFailure);
-        m.setNoPongs(noPongs);
-        m.setBadReader(badReader);
-        m.setBadWriter(badWriter);
-        m.setVerboseNoOK(verboseNoOK);
-        m.setSendNullPong(sendNullPong);
-        m.setSendGenericError(sendGenericError);
-        m.setSendAuthorizationError(sendAuthorizationError);
-        m.setCloseStream(closeStream);
-        m.setNoInfo(noInfo);
-        m.setTlsRequired(tlsRequired);
-        return m;
+    protected TcpConnectionMock createConnection() {
+        TcpConnectionMock tcpConnMock = new TcpConnectionMock();
+        if (infoString != null) {
+            tcpConnMock.setServerInfoString(infoString);
+        }
+        tcpConnMock.setOpenFailure(openFailure);
+        tcpConnMock.setNoPongs(noPongs);
+        tcpConnMock.setBadReader(badReader);
+        tcpConnMock.setBadWriter(badWriter);
+        tcpConnMock.setVerboseNoOK(verboseNoOK);
+        tcpConnMock.setSendNullPong(sendNullPong);
+        tcpConnMock.setSendGenericError(sendGenericError);
+        tcpConnMock.setSendAuthorizationError(sendAuthorizationError);
+        tcpConnMock.setCloseStream(closeStream);
+        tcpConnMock.setNoInfo(noInfo);
+        tcpConnMock.setTlsRequired(tlsRequired);
+        return tcpConnMock;
     }
 
     public void setServerInfoString(String infoString) {

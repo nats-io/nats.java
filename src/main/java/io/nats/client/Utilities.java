@@ -27,7 +27,7 @@ class Utilities {
     /**
      * Copy an ASCII string to the specified offset in a byte array.
      *
-     * This method assumes that the input string value is ASCII (single byte) encoding. Please do
+     * <p>This method assumes that the input string value is ASCII (single byte) encoding. Please do
      * not arbitrarily change this method without doing your research. It is currently the fastest
      * way to perform this operation as of Java 1.6.
      *
@@ -36,7 +36,7 @@ class Utilities {
      * @param str the string to copy
      *
      */
-    public static int stringToBytesASCII(byte[] buffer, int offset, String str) {
+    public static int stringToBytesAscii(byte[] buffer, int offset, String str) {
         int length = str.length();
         int end = offset + length;
         for (int i = 0; i < length; i++) {

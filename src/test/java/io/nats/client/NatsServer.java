@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-class NATSServer implements Runnable, AutoCloseable {
+class NatsServer implements Runnable, AutoCloseable {
     static final String GNATSD = "gnatsd";
     static final String TEST_RESOURCE_DIR = "src/test/resources";
 
@@ -52,19 +52,19 @@ class NATSServer implements Runnable, AutoCloseable {
         }
     }
 
-    public NATSServer(boolean debug) {
+    public NatsServer(boolean debug) {
         this(-1, debug);
     }
 
-    public NATSServer() {
+    public NatsServer() {
         this(-1, false);
     }
 
-    public NATSServer(int port) {
+    public NatsServer(int port) {
         this(port, false);
     }
 
-    public NATSServer(int port, boolean debug) {
+    public NatsServer(int port, boolean debug) {
         this.debug = debug;
         psInfo = this.createProcessStartInfo();
 
@@ -80,7 +80,7 @@ class NATSServer implements Runnable, AutoCloseable {
         return Paths.get(TEST_RESOURCE_DIR, configFile).toAbsolutePath().toString();
     }
 
-    public NATSServer(String configFile, boolean debug) {
+    public NatsServer(String configFile, boolean debug) {
         this.debug = debug;
         psInfo = this.createProcessStartInfo();
         psInfo.addArgument("-config " + buildConfigFileName(configFile));

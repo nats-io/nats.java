@@ -36,8 +36,10 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,6 +50,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class NatsBench {
     static final Logger log = LoggerFactory.getLogger(NatsBench.class);
+
+    final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();
 
     // Default test values
     private int numMsgs = 100000;
@@ -98,24 +102,22 @@ public class NatsBench {
      * @param properties configuration properties
      */
     public NatsBench(Properties properties) {
-        urls = properties.getProperty("natsbench.servers", urls);
-        secure = Boolean
-                .parseBoolean(properties.getProperty("natsbench.secure", Boolean.toString(secure)));
-        numMsgs = Integer
-                .parseInt(properties.getProperty("natsbench.msg.count", Integer.toString(numMsgs)));
+        urls = properties.getProperty("bench.nats.servers", urls);
+        secure = Boolean.parseBoolean(
+                properties.getProperty("bench.nats.secure", Boolean.toString(secure)));
+        numMsgs = Integer.parseInt(
+                properties.getProperty("bench.nats.msg.count", Integer.toString(numMsgs)));
         size = Integer
-                .parseInt(properties.getProperty("natsbench.msg.size", Integer.toString(numSubs)));
+                .parseInt(properties.getProperty("bench.nats.msg.size", Integer.toString(numSubs)));
         numPubs = Integer
-                .parseInt(properties.getProperty("natsbench.pubs", Integer.toString(numPubs)));
+                .parseInt(properties.getProperty("bench.nats.pubs", Integer.toString(numPubs)));
         numSubs = Integer
-                .parseInt(properties.getProperty("natsbench.subs", Integer.toString(numSubs)));
-        csvFileName = properties.getProperty("natsbench.csv.filename", null);
-        subject = properties.getProperty("natsbench.subject", NUID.nextGlobal());
+                .parseInt(properties.getProperty("bench.nats.subs", Integer.toString(numSubs)));
+        csvFileName = properties.getProperty("bench.nats.csv.filename", null);
+        subject = properties.getProperty("bench.nats.subject", NUID.nextGlobal());
     }
 
     class Worker implements Runnable {
-        // protected final CountDownLatch startLatch;
-        // protected final CountDownLatch doneLatch;
         protected final Phaser phaser;
         protected final int num;
         protected final int size;
@@ -140,7 +142,7 @@ public class NatsBench {
             try {
                 runSubscriber();
             } catch (Exception e) {
-                e.printStackTrace();
+                errorQueue.add(e);
                 phaser.arrive();
             }
         }
@@ -203,7 +205,7 @@ public class NatsBench {
                 runPublisher();
                 phaser.arrive();
             } catch (Exception e) {
-                e.printStackTrace();
+                errorQueue.add(e);
                 phaser.arrive();
             }
         }
@@ -270,6 +272,12 @@ public class NatsBench {
 
         // We're done. Clean up and report.
         Runtime.getRuntime().removeShutdownHook(shutdownHook);
+
+        if (!errorQueue.isEmpty()) {
+            Throwable error = errorQueue.take();
+            log.error(error.getMessage());
+            throw new RuntimeException(error);
+        }
 
         bench.close();
         System.out.println(bench.report());
@@ -405,7 +413,7 @@ public class NatsBench {
                 new NatsBench(args).run();
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Exception:", e);
             System.exit(-1);
         }
         System.exit(0);

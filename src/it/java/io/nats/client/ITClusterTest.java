@@ -83,7 +83,7 @@ public class ITClusterTest {
         cf.setServers(testServers);
 
         // Make sure we can connect to first server if running
-        try (NATSServer ns = runServerOnPort(1222)) {
+        try (NatsServer ns = runServerOnPort(1222)) {
             try (Connection c = cf.createConnection()) {
                 assertTrue(String.format("%s != %s", testServers[0], c.getConnectedUrl()),
                         testServers[0].equals(c.getConnectedUrl()));
@@ -95,7 +95,7 @@ public class ITClusterTest {
         }
 
         // make sure we can connect to a non-first server.
-        try (NATSServer ns = runServerOnPort(1227)) {
+        try (NatsServer ns = runServerOnPort(1227)) {
             try (Connection c = cf.createConnection()) {
                 assertTrue(testServers[5] + " != " + c.getConnectedUrl(),
                         testServers[5].equals(c.getConnectedUrl()));
@@ -116,8 +116,8 @@ public class ITClusterTest {
         cf.setServers(plainServers);
         cf.setConnectionTimeout(5000);
 
-        try (NATSServer as1 = runServerWithConfig("auth_1222.conf")) {
-            try (NATSServer as2 = runServerWithConfig("auth_1224.conf")) {
+        try (NatsServer as1 = runServerWithConfig("auth_1222.conf")) {
+            try (NatsServer as2 = runServerWithConfig("auth_1224.conf")) {
                 boolean exThrown = false;
                 try (Connection c = cf.createConnection()) {
                     fail("Expect Auth failure, got no error");
@@ -151,8 +151,8 @@ public class ITClusterTest {
 
     @Test
     public void testBasicClusterReconnect() throws IOException, TimeoutException {
-        try (NATSServer s1 = runServerOnPort(1222)) {
-            try (NATSServer s2 = runServerOnPort(1224)) {
+        try (NatsServer s1 = runServerOnPort(1222)) {
+            try (NatsServer s2 = runServerOnPort(1224)) {
 
                 final ConnectionFactory cf = new ConnectionFactory(testServers);
                 final AtomicBoolean dcbCalled = new AtomicBoolean(false);
@@ -217,14 +217,14 @@ public class ITClusterTest {
     public void testHotSpotReconnect() throws InterruptedException {
         int numClients = 100;
         ExecutorService executor = Executors.newFixedThreadPool(numClients,
-                new NATSThreadFactory("testhotspotreconnect"));
+                new NatsThreadFactory("testhotspotreconnect"));
 
         final BlockingQueue<String> rch = new LinkedBlockingQueue<String>();
         final BlockingQueue<Integer> dch = new LinkedBlockingQueue<Integer>();
         final AtomicBoolean shutdown = new AtomicBoolean(false);
-        try (NATSServer s1 = runServerOnPort(1222)) {
-            try (NATSServer s2 = runServerOnPort(1224)) {
-                try (NATSServer s3 = runServerOnPort(1226)) {
+        try (NatsServer s1 = runServerOnPort(1222)) {
+            try (NatsServer s2 = runServerOnPort(1224)) {
+                try (NatsServer s3 = runServerOnPort(1226)) {
 
                     final class NATSClient implements Runnable {
                         ConnectionFactory cf = new ConnectionFactory();
@@ -374,7 +374,7 @@ public class ITClusterTest {
 
     @Test
     public void testProperReconnectDelay() throws Exception {
-        try (NATSServer s1 = runServerOnPort(1222)) {
+        try (NatsServer s1 = runServerOnPort(1222)) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setServers(testServers);
             cf.setNoRandomize(true);
@@ -437,7 +437,7 @@ public class ITClusterTest {
             }
         });
 
-        try (NATSServer s1 = runServerOnPort(1222)) {
+        try (NatsServer s1 = runServerOnPort(1222)) {
             try (Connection c = cf.createConnection()) {
                 s1.shutdown();
 
@@ -485,8 +485,8 @@ public class ITClusterTest {
             }
         });
 
-        try (NATSServer s1 = runServerOnPort(1222)) {
-            try (NATSServer s2 = runServerWithConfig("tlsverify.conf")) {
+        try (NatsServer s1 = runServerOnPort(1222)) {
+            try (NatsServer s2 = runServerWithConfig("tlsverify.conf")) {
                 try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
                     s1.shutdown();
 
@@ -542,7 +542,7 @@ public class ITClusterTest {
             }
         });
 
-        try (NATSServer s1 = new NATSServer(1222)) {
+        try (NatsServer s1 = new NatsServer(1222)) {
             sleep(100);
 
             try (Connection c = cf.createConnection()) {
@@ -579,7 +579,7 @@ public class ITClusterTest {
     @Test
     public void testPingReconnect() throws Exception {
         final int reconnects = 4;
-        try (NATSServer s1 = runServerOnPort(1222)) {
+        try (NatsServer s1 = runServerOnPort(1222)) {
             ConnectionFactory cf = new ConnectionFactory();
 
             cf.setServers(testServers);
