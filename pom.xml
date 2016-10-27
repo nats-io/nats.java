@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.nats</groupId>
         <artifactId>nats-parent</artifactId>
-        <version>1.6</version>
+        <version>1.7</version>
         <relativePath />
     </parent>
 
