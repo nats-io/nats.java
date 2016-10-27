@@ -30,10 +30,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -1680,17 +1680,16 @@ public class ConnectionImplTest {
     @Test
     public void testRequest() throws IOException, TimeoutException, InterruptedException {
         final String inbox = "_INBOX.DEADBEEF";
-        SyncSubscriptionImpl mockSub = mock(SyncSubscriptionImpl.class);
+        // SyncSubscriptionImpl mockSub = mock(SyncSubscriptionImpl.class);
         Message replyMsg = new Message();
         replyMsg.setData("answer".getBytes());
         replyMsg.setSubject(inbox);
-        when(mockSub.nextMessage(any(long.class), any(TimeUnit.class))).thenReturn(replyMsg);
+        when(syncSubMock.nextMessage(any(long.class), any(TimeUnit.class))).thenReturn(replyMsg);
         try (ConnectionImpl c = (ConnectionImpl) newNewMockedConnection()) {
             doReturn(inbox).when(c).newInbox();
             doReturn(mchMock).when(c).createMsgChannel(anyInt());
             doReturn(syncSubMock).when(c).subscribe(inbox, (String) null, (MessageHandler) null,
                     mchMock);
-            doReturn(replyMsg).when(syncSubMock).nextMessage(any(int.class), any(TimeUnit.class));
             Message msg = c.request("foo", null);
             verify(syncSubMock, times(1)).nextMessage(-1, TimeUnit.MILLISECONDS);
             assertEquals(replyMsg, msg);
