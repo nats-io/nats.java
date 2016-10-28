@@ -58,7 +58,7 @@ mvn install
 
 ## Platform Notes
 ### Linux
-We use RNG to generate unique inbox names. A peculiarity of the JDK on Linux (see [JDK-6202721] (https://bugs.openjdk.java.net/browse/JDK-6202721) and [JDK-6521844](https://bugs.openjdk.java.net/browse/JDK-6521844)) causes Java to use `/dev/random` even when `/dev/urandom` is called for. This net effect on java-nats-streaming is that client connection startup will be very slow. The standard workaround is to add this to your JVM options:
+We use RNG to generate unique inbox names. A peculiarity of the JDK on Linux (see [JDK-6202721] (https://bugs.openjdk.java.net/browse/JDK-6202721) and [JDK-6521844](https://bugs.openjdk.java.net/browse/JDK-6521844)) causes Java to use `/dev/random` even when `/dev/urandom` is called for. The net effect on java-nats-streaming is that client connection startup will be very slow. The standard workaround is to add this to your JVM options:
 
 `-Djava.security.egd=file:/dev/./urandom`
 
