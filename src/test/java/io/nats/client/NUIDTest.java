@@ -79,7 +79,7 @@ public class NUIDTest {
     }
 
     @Test(timeout = 5000)
-    @Category(UnitTest.class)
+    @Category(PerfTest.class)
     public void testProperPrefix() {
         char min = (char) 255;
         char max = (char) 0;
