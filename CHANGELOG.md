@@ -1,10 +1,16 @@
 Change Log
 ==========
 
+## Version 0.7.1
+_2016-10-30_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.0...0.7.1)
+
+ * [NEW API] `Connection#publish(String subject, String reply, byte[] data, boolean flush)` allows the caller to specify whether a flush of the connection's OutputStream should be forced. The default behavior for the other variants of publish is `false`. This was added to optimize performance for request-reply (used heavily in `java-nats-streaming`). The internal flush strategy of `ConnectionImpl` minimizes flush frequency by using a synchronized flusher thread to 'occasionally' flush. This benefits asynchronous publishing performance, but penalizes request-reply scenarios where a single message is published and then we wait for a reply.
+ * `NatsBench` can now be configured via properties file (see `src/test/resources/natsbench.properties`)
+ 
 ## Version 0.7.0
 _2016-10-19_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.6.0...0.7.0)
 
- * BREAKING CHANGE: `SyncSubscription#nextMessage()` and its variants now throw `InterruptedException` if the underlying `poll`/`take` operation is interrupted. 
+ * [BREAKING CHANGE] `SyncSubscription#nextMessage()` and its variants now throw `InterruptedException` if the underlying `poll`/`take` operation is interrupted. 
  * Fixed interrupt handling.
  * Removed `Channel` implementation in favor of directly using `BlockingQueue`.
 
