@@ -5,7 +5,7 @@ before_install:
 - openssl aes-256-cbc -K $encrypted_d472159ded8f_key -iv $encrypted_d472159ded8f_iv
   -in .travis/keyrings/deploy_key.pem.enc -out .travis/keyrings/deploy_key.pem -d
 - export PATH=$PATH:${TRAVIS_BUILD_DIR}/target
-- echo "MAVEN_OPTS='-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1'" > ~/.mavenrc
+- echo "MAVEN_OPTS='-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Djava.security.egd=file:/dev/./urandom'" > ~/.mavenrc
 install:
 - sudo apt-get install -y gnupg2
 script:
