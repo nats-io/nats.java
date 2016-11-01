@@ -2,7 +2,8 @@
     and the accompanying materials are made available under the terms of the 
     MIT License (MIT) which accompanies this distribution, and is available at 
     http://opensource.org/licenses/MIT -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -142,16 +143,32 @@
                         <id>prepare</id>
                         <phase>pre-integration-test</phase>
                         <configuration>
-                            <target xmlns:unless="ant:unless" xmlns:if="ant:if" name="copy-server-exec" unless:true="${server.installed}">
-                                <condition property="server.installed" else="false">
-                                    <available file="${server.exec.name}" filepath="${project.build.directory}" type="file" />
+                            <target xmlns:unless="ant:unless"
+                                xmlns:if="ant:if" name="copy-server-exec"
+                                unless:true="${server.installed}">
+                                <condition property="server.installed"
+                                    else="false">
+                                    <available file="${server.exec.name}"
+                                        filepath="${project.build.directory}"
+                                        type="file" />
                                 </condition>
-                                <echo if:true="${server.installed}" message="${server.exec.name} is already installed. Skipping download..." />
-                                <echo unless:true="${server.installed}" message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
-                                <get unless:true="${server.installed}" src="${server.exec.pkg.url}" dest="${project.build.directory}" skipexisting="true" />
-                                <unzip unless:true="${server.installed}" src="${project.build.directory}/${server.exec.pkg}.zip" dest="${project.build.directory}" overwrite="false" />
-                                <move unless:true="${server.installed}" file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}" tofile="${project.build.directory}/${server.exec.name}" overwrite="false" />
-                                <chmod perm="+x" file="${project.build.directory}/${server.exec.name}" />
+                                <echo if:true="${server.installed}"
+                                    message="${server.exec.name} is already installed. Skipping download..." />
+                                <echo unless:true="${server.installed}"
+                                    message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
+                                <get unless:true="${server.installed}"
+                                    src="${server.exec.pkg.url}" dest="${project.build.directory}"
+                                    skipexisting="true" />
+                                <unzip unless:true="${server.installed}"
+                                    src="${project.build.directory}/${server.exec.pkg}.zip"
+                                    dest="${project.build.directory}"
+                                    overwrite="false" />
+                                <move unless:true="${server.installed}"
+                                    file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}"
+                                    tofile="${project.build.directory}/${server.exec.name}"
+                                    overwrite="false" />
+                                <chmod perm="+x"
+                                    file="${project.build.directory}/${server.exec.name}" />
                             </target>
                         </configuration>
                         <goals>
@@ -203,7 +220,7 @@
                                 report. -->
                             <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
                             <!-- Exclude example sources -->
-                       </configuration>
+                        </configuration>
                     </execution>
                     <!-- Prepares the property pointing to the JaCoCo runtime 
                         agent which is passed as VM argument when Maven the Failsafe plugin is executed. -->
@@ -324,7 +341,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
                 <executions>
-                                    <execution>
+                    <execution>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>add-source</goal>
@@ -335,7 +352,7 @@
                             </sources>
                         </configuration>
                     </execution>
-                
+
                     <execution>
                         <id>add-test-source</id>
                         <phase>process-resources</phase>
@@ -354,7 +371,13 @@
                 <groupId>com.versioneye</groupId>
                 <artifactId>versioneye-maven-plugin</artifactId>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <configuration>
+                    <tagNameFormat>v@{project.version}</tagNameFormat>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
