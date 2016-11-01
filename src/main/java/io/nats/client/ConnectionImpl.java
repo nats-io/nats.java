@@ -78,8 +78,9 @@ public class ConnectionImpl implements Connection {
     public ConnState status = ConnState.DISCONNECTED;
 
     protected static final String STALE_CONNECTION = "Stale Connection";
-    protected static final String NATS_POOL = "jnats-pool";
-    protected static final String SUB_POOL = "jnats-sub-pool";
+    protected static final String NATS_EXEC = "jnats-exec";
+    protected static final String NATS_SUB = "jnats-sub";
+    protected static final String NATS_CB = "jnats-callbacks";
 
     // Default language string for CONNECT message
     protected static final String LANG_STRING = "java";
@@ -237,9 +238,9 @@ public class ConnectionImpl implements Connection {
 
     void setup() {
         scheduler = Executors.newScheduledThreadPool(2);
-        cbexec = Executors.newSingleThreadExecutor(new NatsThreadFactory("cbexec"));
-        exec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_POOL));
-        subexec = Executors.newCachedThreadPool(new NatsThreadFactory(SUB_POOL));
+        cbexec = Executors.newSingleThreadExecutor(new NatsThreadFactory(NATS_CB));
+        exec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_EXEC));
+        subexec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_SUB));
         fch = createFlushChannel();
         pongs = createPongs();
         subs.clear();
@@ -622,9 +623,20 @@ public class ConnectionImpl implements Connection {
             if (exec != null) {
                 exec.shutdownNow();
             }
+
             if (subexec != null) {
                 subexec.shutdownNow();
             }
+
+            if (scheduler != null) {
+                scheduler.shutdownNow();
+            }
+
+            if (cbexec != null) {
+                // Let any connection callbacks finish
+                cbexec.shutdown();
+            }
+
         } finally {
             mu.unlock();
         }
@@ -820,7 +832,7 @@ public class ConnectionImpl implements Connection {
                 logger.trace("\t\tspawning doReconnect() in state {}", status);
 
                 if (exec.isShutdown()) {
-                    exec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_POOL));
+                    exec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_EXEC));
                 }
                 exec.submit(new Runnable() {
                     public void run() {
@@ -829,7 +841,7 @@ public class ConnectionImpl implements Connection {
                     }
                 });
                 if (cbexec.isShutdown()) {
-                    cbexec = Executors.newSingleThreadExecutor(new NatsThreadFactory(NATS_POOL));
+                    cbexec = Executors.newSingleThreadExecutor(new NatsThreadFactory(NATS_EXEC));
                 }
                 logger.trace("\t\tspawned doReconnect() in state {}", status);
                 return;
