@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+## Version 0.7.2
+_2016-11-01_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.1...0.7.2)
+
+ * [FIXED #83](/../../issues/#83) All thread pool executors are now properly shutdown by `Connection#close()`.
+
 ## Version 0.7.1
 _2016-10-30_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.0...0.7.1)
 
