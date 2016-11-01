@@ -505,6 +505,7 @@ public class ConnectionImplTest {
     // }
 
     @Test
+    // FIXME tests like this will create a real NATS connection on reconnect. Fix all of them
     public void testDoReconnectNoServers()
             throws IOException, TimeoutException, InterruptedException {
         try (ConnectionImpl c = (ConnectionImpl) Mockito
@@ -1896,6 +1897,27 @@ public class ConnectionImplTest {
             assertTrue(nc.getLastException() instanceof IOException);
             assertEquals(ERR_STALE_CONNECTION, nc.getLastException().getMessage());
             assertTrue(nc.isClosed());
+        }
+    }
+
+    @Test
+    public void testThreadsExitOnClose() throws Exception {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+            c.close();
+
+            assertTrue(
+                    String.format("Expected %s to be terminated.", ConnectionImpl.SCHEDULER_NAME),
+                    c.scheduler.awaitTermination(2, TimeUnit.SECONDS));
+
+            assertTrue(
+                    String.format("Expected %s to be terminated.",
+                            ConnectionImpl.SUB_SCHEDULER_NAME),
+                    c.subexec.awaitTermination(2, TimeUnit.SECONDS));
+
+            assertTrue(
+                    String.format("Expected %s to be terminated.",
+                            ConnectionImpl.CB_SCHEDULER_NAME),
+                    c.cbexec.awaitTermination(2, TimeUnit.SECONDS));
         }
     }
 

@@ -78,8 +78,13 @@ public class ConnectionImpl implements Connection {
     public ConnState status = ConnState.DISCONNECTED;
 
     protected static final String STALE_CONNECTION = "Stale Connection";
-    protected static final String NATS_POOL = "jnats-pool";
-    protected static final String SUB_POOL = "jnats-sub-pool";
+
+    protected static final String SCHEDULER_NAME = "jnats-scheduler";
+    protected static final String CB_SCHEDULER_NAME = "jnats-callbacks";
+    protected static final String SUB_SCHEDULER_NAME = "jnats-subscriptions";
+
+    protected static final int MAX_SUB_THREADS = 1000;
+    protected static final int MAX_THREADS = 4 + MAX_SUB_THREADS;
 
     // Default language string for CONNECT message
     protected static final String LANG_STRING = "java";
@@ -185,10 +190,8 @@ public class ConnectionImpl implements Connection {
 
 
     ExecutorService cbexec;
-    ExecutorService exec;
     ExecutorService subexec;
     ScheduledExecutorService scheduler;
-    private ScheduledFuture<?> ftmr = null;
     private ScheduledFuture<?> ptmr = null;
     private List<Future<?>> tasks = new ArrayList<Future<?>>();
     private static final int NUM_WATCHER_THREADS = 2;
@@ -235,11 +238,18 @@ public class ConnectionImpl implements Connection {
         setupServerPool();
     }
 
+    ExecutorService createCallbackScheduler() {
+        return Executors.newSingleThreadExecutor(new NatsThreadFactory(CB_SCHEDULER_NAME));
+    }
+
+    ExecutorService createSubscriptionScheduler() {
+        return Executors.newSingleThreadExecutor(new NatsThreadFactory(SUB_SCHEDULER_NAME));
+    }
+
     void setup() {
-        scheduler = Executors.newScheduledThreadPool(2);
-        cbexec = Executors.newSingleThreadExecutor(new NatsThreadFactory("cbexec"));
-        exec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_POOL));
-        subexec = Executors.newCachedThreadPool(new NatsThreadFactory(SUB_POOL));
+        scheduler = createScheduler();
+        subexec = createSubscriptionScheduler();
+        cbexec = createCallbackScheduler();
         fch = createFlushChannel();
         pongs = createPongs();
         subs.clear();
@@ -549,13 +559,9 @@ public class ConnectionImpl implements Connection {
             // Interrupt any blocking operations
             // Thread.currentThread().interrupt();
 
-            if (ptmr != null) {
-                ptmr.cancel(true);
-            }
-
-            if (ftmr != null) {
-                ftmr.cancel(true);
-            }
+            // if (ptmr != null) {
+            // ptmr.cancel(true);
+            // }
 
             // Go ahead and make sure we have flushed the outbound
             if (conn != null) {
@@ -594,7 +600,7 @@ public class ConnectionImpl implements Connection {
             // disconnect;
             if (doCBs) {
                 if (opts.getDisconnectedCallback() != null && conn != null) {
-                    cbexec.execute(new Runnable() {
+                    cbexec.submit(new Runnable() {
                         public void run() {
                             opts.getDisconnectedCallback().onDisconnect(new ConnectionEvent(nc));
                             logger.trace("executed DisconnectedCB");
@@ -602,7 +608,7 @@ public class ConnectionImpl implements Connection {
                     });
                 }
                 if (opts.getClosedCallback() != null) {
-                    cbexec.execute(new Runnable() {
+                    cbexec.submit(new Runnable() {
 
                         public void run() {
                             opts.getClosedCallback().onClose(new ConnectionEvent(nc));
@@ -619,12 +625,21 @@ public class ConnectionImpl implements Connection {
                 conn.close();
             }
 
-            if (exec != null) {
-                exec.shutdownNow();
+            if (scheduler != null) {
+                for (Future<?> task : tasks) {
+                    task.cancel(true);
+                }
+                scheduler.shutdownNow();
             }
+
             if (subexec != null) {
                 subexec.shutdownNow();
             }
+
+            if (cbexec != null) {
+                cbexec.shutdownNow();
+            }
+
         } finally {
             mu.unlock();
         }
@@ -779,6 +794,10 @@ public class ConnectionImpl implements Connection {
         }
     }
 
+    ScheduledExecutorService createScheduler() {
+        return Executors.newScheduledThreadPool(MAX_THREADS, new NatsThreadFactory(SCHEDULER_NAME));
+    }
+
     // processOpError handles errors from reading or parsing the protocol.
     // This is where disconnect/reconnect is initially handled.
     // The lock should not be held entering this function.
@@ -795,10 +814,7 @@ public class ConnectionImpl implements Connection {
 
                 if (ptmr != null) {
                     ptmr.cancel(true);
-                }
-
-                if (ftmr != null) {
-                    ftmr.cancel(true);
+                    tasks.remove(ptmr);
                 }
 
                 if (this.conn != null) {
@@ -819,17 +835,18 @@ public class ConnectionImpl implements Connection {
 
                 logger.trace("\t\tspawning doReconnect() in state {}", status);
 
-                if (exec.isShutdown()) {
-                    exec = Executors.newCachedThreadPool(new NatsThreadFactory(NATS_POOL));
+                if (scheduler.isShutdown()) {
+                    scheduler = createScheduler();
                 }
-                exec.submit(new Runnable() {
+                scheduler.submit(new Runnable() {
                     public void run() {
                         Thread.currentThread().setName("reconnect");
                         doReconnect();
                     }
                 });
                 if (cbexec.isShutdown()) {
-                    cbexec = Executors.newSingleThreadExecutor(new NatsThreadFactory(NATS_POOL));
+                    cbexec = Executors
+                            .newSingleThreadExecutor(new NatsThreadFactory("callback-thread"));
                 }
                 logger.trace("\t\tspawned doReconnect() in state {}", status);
                 return;
@@ -938,7 +955,7 @@ public class ConnectionImpl implements Connection {
             // Perform appropriate callback if needed for a disconnect
             if (opts.getDisconnectedCallback() != null) {
                 logger.trace("Spawning disconnectCB from doReconnect()");
-                cbexec.execute(new Runnable() {
+                cbexec.submit(new Runnable() {
                     public void run() {
                         opts.getDisconnectedCallback().onDisconnect(new ConnectionEvent(nc));
                     }
@@ -1047,7 +1064,7 @@ public class ConnectionImpl implements Connection {
                 // Queue up the reconnect callback.
                 if (opts.getReconnectedCallback() != null) {
                     logger.trace("Spawning reconnectedCb from doReconnect()");
-                    cbexec.execute(new Runnable() {
+                    cbexec.submit(new Runnable() {
 
                         public void run() {
                             opts.getReconnectedCallback().onReconnect(new ConnectionEvent(nc));
@@ -1285,7 +1302,7 @@ public class ConnectionImpl implements Connection {
         socketWatchersDoneLatch = new CountDownLatch(NUM_WATCHER_THREADS);
         socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
 
-        Future<?> task = exec.submit(new Runnable() {
+        Future<?> task = scheduler.submit(new Runnable() {
             public void run() {
                 logger.debug("readloop starting...");
                 Thread.currentThread().setName("readloop");
@@ -1302,7 +1319,7 @@ public class ConnectionImpl implements Connection {
         });
         tasks.add(task);
 
-        task = exec.submit(new Runnable() {
+        task = scheduler.submit(new Runnable() {
             public void run() {
                 logger.debug("flusher starting...");
                 Thread.currentThread().setName("flusher");
@@ -1653,7 +1670,7 @@ public class ConnectionImpl implements Connection {
         final NATSException nex = new NATSException(ex, this, sub);
         setLastError(ex);
         if (opts.getExceptionHandler() != null && !sub.isSlowConsumer()) {
-            cbexec.execute(new Runnable() {
+            cbexec.submit(new Runnable() {
                 public void run() {
                     opts.getExceptionHandler().onException(nex);
                 }
@@ -1668,7 +1685,7 @@ public class ConnectionImpl implements Connection {
         nex.setConnection(this);
         setLastError(serverEx);
         if (opts.getExceptionHandler() != null) {
-            cbexec.execute(new Runnable() {
+            cbexec.submit(new Runnable() {
                 public void run() {
                     opts.getExceptionHandler().onException(nex);
                 }
@@ -1761,10 +1778,12 @@ public class ConnectionImpl implements Connection {
         try {
             if (ptmr != null) {
                 ptmr.cancel(true);
+                tasks.remove(ptmr);
             }
 
             if (opts.getPingInterval() > 0) {
                 ptmr = createPingTimer();
+                tasks.add(ptmr);
             }
         } finally {
             mu.unlock();

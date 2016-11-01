@@ -7,8 +7,8 @@
 package io.nats.client;
 
 import static io.nats.client.ConnectionImpl.PONG_PROTO;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -333,4 +334,21 @@ public class UnitTestUtilities {
     static void processServerConfigFile(String configFile) {
 
     }
+
+    public static StackTraceElement[] getStackTraceByName(String threadName) {
+        Thread key = getThreadByName(threadName);
+        return Thread.getAllStackTraces().get(key);
+    }
+
+    public static Thread getThreadByName(String threadName) {
+        Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
+        for (Thread thd : threadSet) {
+            if (thd.getName().equals(threadName)) {
+                return thd;
+            }
+        }
+        return null;
+    }
+
+
 }
