@@ -134,40 +134,43 @@ abstract class SubscriptionImpl implements Subscription {
 
     @Override
     public void unsubscribe() throws IOException {
-        ConnectionImpl c;
-        mu.lock();
-        c = this.conn;
-        mu.unlock();
-        if (c == null) {
-            throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
-        }
-        c.unsubscribe(this, 0);
+        unsubscribe(false);
     }
+
+    public void unsubscribe(boolean ignoreInvalid) throws IOException {
+        ConnectionImpl conn;
+        mu.lock();
+        conn = this.conn;
+        mu.unlock();
+        if (conn == null) {
+            if (!ignoreInvalid) {
+                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+            }
+        } else {
+            conn.unsubscribe(this, 0);
+        }
+    }
+
 
     @Override
     public void autoUnsubscribe(int max) throws IOException {
-        ConnectionImpl c = null;
-
+        ConnectionImpl conn;
         mu.lock();
-        try {
-            if (conn == null) {
-                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
-            }
-            c = conn;
-        } finally {
-            mu.unlock();
+        conn = this.conn;
+        mu.unlock();
+        if (conn == null) {
+            throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
         }
-
-        c.unsubscribe(this, max);
+        conn.unsubscribe(this, max);
     }
 
     @Override
     public void close() {
         try {
-            logger.debug("Calling unsubscribe from AutoCloseable.close()");
-            unsubscribe();
+            unsubscribe(true);
         } catch (Exception e) {
-            // Just ignore. This is for AutoCloseable.
+            // Just log and ignore. This is for AutoCloseable.
+            logger.debug("Exception while calling unsubscribe from AutoCloseable.close()", e);
         }
     }
 

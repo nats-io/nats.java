@@ -1905,13 +1905,18 @@ public class ConnectionImplTest {
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             c.close();
 
-            assertTrue(String.format("Expected %s to be terminated.", ConnectionImpl.NATS_EXEC),
-                    c.scheduler.awaitTermination(2, TimeUnit.SECONDS));
+            assertTrue(
+                    String.format("Expected %s to be terminated.", ConnectionImpl.EXEC_NAME),
+                    c.exec.awaitTermination(2, TimeUnit.SECONDS));
 
-            assertTrue(String.format("Expected %s to be terminated.", ConnectionImpl.NATS_SUB),
+            assertTrue(
+                    String.format("Expected %s to be terminated.",
+                            ConnectionImpl.SUB_EXEC_NAME),
                     c.subexec.awaitTermination(2, TimeUnit.SECONDS));
 
-            assertTrue(String.format("Expected %s to be terminated.", ConnectionImpl.NATS_CB),
+            assertTrue(
+                    String.format("Expected %s to be terminated.",
+                            ConnectionImpl.CB_EXEC_NAME),
                     c.cbexec.awaitTermination(2, TimeUnit.SECONDS));
         }
     }

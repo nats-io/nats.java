@@ -308,7 +308,7 @@ public class ITReconnectTest {
 
                     assertTrue("Did not receive our 'done' message", await(latch));
 
-                    // Sleep a bit to guarantee scheduler runs and processes all subs
+                    // Sleep a bit to guarantee exec runs and processes all subs
                     sleep(50, TimeUnit.MILLISECONDS);
 
                     assertEquals(4, received.get());
