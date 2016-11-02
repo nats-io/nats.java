@@ -311,7 +311,7 @@ public class ConnectionImpl implements Connection {
 
         if (servers != null) {
             for (URI s : servers) {
-                addUrlToPool(s);
+                addUrlToPool(s, false);
             }
         }
 
@@ -333,7 +333,7 @@ public class ConnectionImpl implements Connection {
 
         // If the pool is empty, add the default URL
         if (srvPool.isEmpty()) {
-            addUrlToPool(ConnectionFactory.DEFAULT_URL);
+            addUrlToPool(ConnectionFactory.DEFAULT_URL, false);
         }
 
         /*
@@ -345,15 +345,15 @@ public class ConnectionImpl implements Connection {
     }
 
     /* Add a string URL to the server pool */
-    void addUrlToPool(String srvUrl) {
+    void addUrlToPool(String srvUrl, boolean implicit) {
         URI uri = URI.create(srvUrl);
-        srvPool.add(new Srv(uri));
+        srvPool.add(new Srv(uri, implicit));
         urls.put(uri.getAuthority(), uri);
     }
 
     /* Add a URL to the server pool */
-    void addUrlToPool(URI uri) {
-        srvPool.add(new Srv(uri));
+    void addUrlToPool(URI uri, boolean implicit) {
+        srvPool.add(new Srv(uri, implicit));
         urls.put(uri.getAuthority(), uri);
     }
 
@@ -779,7 +779,7 @@ public class ConnectionImpl implements Connection {
         if (info.getConnectUrls() != null) {
             for (String s : info.getConnectUrls()) {
                 if (!urls.containsKey(s)) {
-                    this.addUrlToPool(String.format("nats://%s", s));
+                    this.addUrlToPool(String.format("nats://%s", s), true);
                     updated = true;
                 }
             }
@@ -1439,12 +1439,22 @@ public class ConnectionImpl implements Connection {
         long lastAttempt = 0L;
         long lastAttemptNanos = 0L;
         boolean secure = false;
+        boolean implicit = false;
 
         protected Srv(URI url) {
+            this(url, false);
+        }
+
+        public Srv(URI url, boolean implicit) {
             this.url = url;
+            this.implicit = implicit;
             if (url.getScheme().equals(TLS_SCHEME)) {
                 this.secure = true;
             }
+        }
+
+        boolean isImplicit() {
+            return implicit;
         }
 
         // Mark the last attempt to connect to this Srv
@@ -2643,6 +2653,31 @@ public class ConnectionImpl implements Connection {
 
     void setPingTimer(ScheduledFuture<?> ptmr) {
         this.ptmr = ptmr;
+    }
+
+    @Override
+    public String[] getServers() {
+        mu.lock();
+        try {
+            return getServers(false);
+        } finally {
+            mu.unlock();
+        }
+    }
+
+    @Override
+    public String[] getDiscoveredServers() {
+        mu.lock();
+        try {
+            return getServers(true);
+        } finally {
+            mu.unlock();
+        }
+    }
+
+    String[] getServers(boolean implicitOnly) {
+        String[] servers = new String[srvPool.size()];
+        return servers;
     }
 
     // public long getFlushTimerInterval() {
