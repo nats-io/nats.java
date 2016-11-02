@@ -626,7 +626,9 @@ public class ConnectionImpl implements Connection {
             }
 
             if (scheduler != null) {
-                for (Future<?> task : tasks) {
+                for (
+
+                Future<?> task : tasks) {
                     task.cancel(true);
                 }
                 scheduler.shutdownNow();
@@ -637,7 +639,7 @@ public class ConnectionImpl implements Connection {
             }
 
             if (cbexec != null) {
-                cbexec.shutdownNow();
+                cbexec.shutdown();
             }
 
         } finally {

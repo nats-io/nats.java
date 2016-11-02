@@ -14,7 +14,7 @@
 
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>0.7.2-SNAPSHOT</version>
+    <version>0.7.4-SNAPSHOT</version>
     <packaging>bundle</packaging>
 
     <name>jnats</name>
@@ -45,7 +45,7 @@
         <url>https://github.com/nats-io/jnats</url>
         <connection>scm:git:https://github.com/nats-io/jnats.git</connection>
         <developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
-        <tag>0.5.2</tag>
+        <tag>HEAD</tag>
     </scm>
     <issueManagement>
         <url>https://github.com/nats-io/jnats/issues/</url>
@@ -203,7 +203,7 @@
                                 report. -->
                             <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
                             <!-- Exclude example sources -->
-                       </configuration>
+                        </configuration>
                     </execution>
                     <!-- Prepares the property pointing to the JaCoCo runtime 
                         agent which is passed as VM argument when Maven the Failsafe plugin is executed. -->
@@ -324,7 +324,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
                 <executions>
-                                    <execution>
+                    <execution>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>add-source</goal>
@@ -335,7 +335,7 @@
                             </sources>
                         </configuration>
                     </execution>
-                
+
                     <execution>
                         <id>add-test-source</id>
                         <phase>process-resources</phase>
@@ -354,7 +354,13 @@
                 <groupId>com.versioneye</groupId>
                 <artifactId>versioneye-maven-plugin</artifactId>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <configuration>
+                    <tagNameFormat>@{project.version}</tagNameFormat>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
