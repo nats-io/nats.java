@@ -27,16 +27,17 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
     @Override
     public void close() {
-        super.close();
         mu.lock();
-        logger.debug("In SyncSubscriptionImpl#close()");
-
-        for (long key : threads.keySet()) {
-            if (key != Thread.currentThread().getId()) {
-                threads.get(key).interrupt();
+        try {
+            for (long key : threads.keySet()) {
+                if (key != Thread.currentThread().getId()) {
+                    threads.get(key).interrupt();
+                }
             }
+        } finally {
+            mu.unlock();
         }
-        mu.unlock();
+        super.close();
     }
 
     @Override
@@ -59,6 +60,7 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
     @Override
     public Message nextMessage(long timeout, TimeUnit unit)
             throws IOException, TimeoutException, InterruptedException {
+
         // TODO this call should just return null vs. throwing TimeoutException. TimeoutException
         // was here due to historical implementation tradeoffs that no longer apply.
         mu.lock();
@@ -75,7 +77,7 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
         }
-        if (sc == true) {
+        if (sc) {
             sc = false;
             mu.unlock();
             throw new IOException(ERR_SLOW_CONSUMER);
@@ -90,13 +92,17 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
         Message msg = null;
         // Wait until a message is available
         threads.put(Thread.currentThread().getId(), Thread.currentThread());
-        if (timeout >= 0) {
-            msg = mch.poll(timeout, unit);
-            if (msg == null) {
-                throw new TimeoutException(ERR_TIMEOUT);
+        try {
+            if (timeout >= 0) {
+                msg = mch.poll(timeout, unit);
+                if (msg == null) {
+                    throw new TimeoutException(ERR_TIMEOUT);
+                }
+            } else {
+                msg = mch.take();
             }
-        } else {
-            msg = mch.take();
+        } finally {
+            threads.remove(Thread.currentThread().getId());
         }
 
         if (msg != null) {

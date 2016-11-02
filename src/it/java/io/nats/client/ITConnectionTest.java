@@ -9,9 +9,11 @@ package io.nats.client;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
+import static io.nats.client.UnitTestUtilities.runServerWithConfig;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import io.nats.client.Constants.ConnState;
 
@@ -32,11 +34,15 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Category(IntegrationTest.class)
 public class ITConnectionTest {
@@ -125,6 +131,67 @@ public class ITConnectionTest {
                 assertTrue("Disconnected callback not triggered",
                         cbLatch.await(5, TimeUnit.SECONDS));
             }
+        }
+    }
+
+    public Exception isRunningInAsyncCbDispatcher() {
+        StackTraceElement[] stack =
+                UnitTestUtilities.getStackTraceByName(Thread.currentThread().getName());
+        for (StackTraceElement el : stack) {
+            System.err.println(el);
+            if (el.toString().contains("cbexec")) {
+                return null;
+            }
+        }
+        return new Exception(
+                String.format("Callback not executed from dispatcher:\n %s\n", stack.toString()));
+    }
+
+    // @Test
+    public void testCallbacksOrder() throws Exception {
+        try (NatsServer authSrv = runServerWithConfig("src/test/resources/tls.conf")) {
+            try (NatsServer srv = runDefaultServer()) {
+                final AtomicBoolean firstDisconnect = new AtomicBoolean(true);
+                final AtomicLong dtime1 = new AtomicLong();
+                final AtomicLong dtime2 = new AtomicLong();
+                final AtomicLong rtime = new AtomicLong();
+                final AtomicLong atime1 = new AtomicLong();
+                final AtomicLong atime2 = new AtomicLong();
+                final AtomicLong ctime = new AtomicLong();
+
+                final BlockingQueue<Throwable> cbErrors = new LinkedBlockingQueue<Throwable>(20);
+                final CountDownLatch reconnected = new CountDownLatch(1);
+                final CountDownLatch closed = new CountDownLatch(1);
+                final CountDownLatch asyncErr = new CountDownLatch(2);
+                final CountDownLatch recvLatch = new CountDownLatch(2);
+                final CountDownLatch recvLatch1 = new CountDownLatch(1);
+                final CountDownLatch recvLatch2 = new CountDownLatch(1);
+
+                // fail("Not finished implementing");
+
+                DisconnectedCallback dcb = new DisconnectedCallback() {
+                    public void onDisconnect(ConnectionEvent event) {
+
+                        Exception err = isRunningInAsyncCbDispatcher();
+                        if (err != null) {
+                            cbErrors.add(err);
+                            return;
+                        }
+                        UnitTestUtilities.sleep(100);
+                    }
+                };
+                // dcb.onDisconnect(null);
+                ConnectionFactory cf = new ConnectionFactory();
+                cf.setReconnectAllowed(false);
+                cf.setDisconnectedCallback(dcb);
+                try (Connection nc = cf.createConnection()) {
+
+                    srv.shutdown();
+                    Thread.sleep(500);
+                }
+            }
+
+            fail("Not finished implementing");
         }
     }
 

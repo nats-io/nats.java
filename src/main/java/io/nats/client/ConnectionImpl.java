@@ -79,13 +79,6 @@ public class ConnectionImpl implements Connection {
 
     protected static final String STALE_CONNECTION = "Stale Connection";
 
-    protected static final String SCHEDULER_NAME = "jnats-scheduler";
-    protected static final String CB_SCHEDULER_NAME = "jnats-callbacks";
-    protected static final String SUB_SCHEDULER_NAME = "jnats-subscriptions";
-
-    protected static final int MAX_SUB_THREADS = 1000;
-    protected static final int MAX_THREADS = 4 + MAX_SUB_THREADS;
-
     // Default language string for CONNECT message
     protected static final String LANG_STRING = "java";
 
@@ -189,14 +182,30 @@ public class ConnectionImpl implements Connection {
     private ArrayList<BlockingQueue<Boolean>> pongs;
 
 
-    ExecutorService cbexec;
+    protected static final int NUM_CORE_THREADS = 4;
+
+
+    // The main executor service for core threads and timers
+    ScheduledExecutorService exec;
+    protected static final String EXEC_NAME = "jnats-exec";
+
+    // Executor for subscription threads
     ExecutorService subexec;
-    ScheduledExecutorService scheduler;
+    protected static final String SUB_EXEC_NAME = "jnats-subscriptions";
+
+    // Executor for async connection callbacks
+    ExecutorService cbexec;
+    protected static final String CB_EXEC_NAME = "jnats-callbacks";
+
+    // The ping timer task
     private ScheduledFuture<?> ptmr = null;
+
     private List<Future<?>> tasks = new ArrayList<Future<?>>();
     private static final int NUM_WATCHER_THREADS = 2;
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;
+
+    // The flusher signalling channel
     private BlockingQueue<Boolean> fch;
 
     ConnectionImpl() {}
@@ -238,16 +247,20 @@ public class ConnectionImpl implements Connection {
         setupServerPool();
     }
 
-    ExecutorService createCallbackScheduler() {
-        return Executors.newSingleThreadExecutor(new NatsThreadFactory(CB_SCHEDULER_NAME));
+    ScheduledExecutorService createScheduler() {
+        return Executors.newScheduledThreadPool(NUM_CORE_THREADS, new NatsThreadFactory(EXEC_NAME));
     }
 
     ExecutorService createSubscriptionScheduler() {
-        return Executors.newSingleThreadExecutor(new NatsThreadFactory(SUB_SCHEDULER_NAME));
+        return Executors.newCachedThreadPool(new NatsThreadFactory(SUB_EXEC_NAME));
+    }
+
+    ExecutorService createCallbackScheduler() {
+        return Executors.newSingleThreadExecutor(new NatsThreadFactory(CB_EXEC_NAME));
     }
 
     void setup() {
-        scheduler = createScheduler();
+        exec = createScheduler();
         subexec = createSubscriptionScheduler();
         cbexec = createCallbackScheduler();
         fch = createFlushChannel();
@@ -625,17 +638,12 @@ public class ConnectionImpl implements Connection {
                 conn.close();
             }
 
-            if (scheduler != null) {
-                for (
-
-                Future<?> task : tasks) {
-                    task.cancel(true);
-                }
-                scheduler.shutdownNow();
+            if (exec != null) {
+                exec.shutdownNow();
             }
 
             if (subexec != null) {
-                subexec.shutdownNow();
+                subexec.shutdown();
             }
 
             if (cbexec != null) {
@@ -796,10 +804,6 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    ScheduledExecutorService createScheduler() {
-        return Executors.newScheduledThreadPool(MAX_THREADS, new NatsThreadFactory(SCHEDULER_NAME));
-    }
-
     // processOpError handles errors from reading or parsing the protocol.
     // This is where disconnect/reconnect is initially handled.
     // The lock should not be held entering this function.
@@ -837,10 +841,10 @@ public class ConnectionImpl implements Connection {
 
                 logger.trace("\t\tspawning doReconnect() in state {}", status);
 
-                if (scheduler.isShutdown()) {
-                    scheduler = createScheduler();
+                if (exec.isShutdown()) {
+                    exec = createScheduler();
                 }
-                scheduler.submit(new Runnable() {
+                exec.submit(new Runnable() {
                     public void run() {
                         Thread.currentThread().setName("reconnect");
                         doReconnect();
@@ -1304,7 +1308,7 @@ public class ConnectionImpl implements Connection {
         socketWatchersDoneLatch = new CountDownLatch(NUM_WATCHER_THREADS);
         socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
 
-        Future<?> task = scheduler.submit(new Runnable() {
+        Future<?> task = exec.submit(new Runnable() {
             public void run() {
                 logger.debug("readloop starting...");
                 Thread.currentThread().setName("readloop");
@@ -1321,7 +1325,7 @@ public class ConnectionImpl implements Connection {
         });
         tasks.add(task);
 
-        task = scheduler.submit(new Runnable() {
+        task = exec.submit(new Runnable() {
             public void run() {
                 logger.debug("flusher starting...");
                 Thread.currentThread().setName("flusher");
@@ -1770,7 +1774,7 @@ public class ConnectionImpl implements Connection {
 
     ScheduledFuture<?> createPingTimer() {
         PingTimerTask pinger = new PingTimerTask();
-        ScheduledFuture<?> future = scheduler.scheduleWithFixedDelay(pinger, opts.getPingInterval(),
+        ScheduledFuture<?> future = exec.scheduleWithFixedDelay(pinger, opts.getPingInterval(),
                 opts.getPingInterval(), TimeUnit.MILLISECONDS);
         return future;
     }
@@ -1818,7 +1822,7 @@ public class ConnectionImpl implements Connection {
     //
     // logger.trace("flusher started with interval {}{}", flushTimerInterval, unitString);
     // FlushTimerTask flusher = new FlushTimerTask();
-    // ScheduledFuture<?> future = scheduler.scheduleAtFixedRate(flusher, getFlushTimerInterval(),
+    // ScheduledFuture<?> future = exec.scheduleAtFixedRate(flusher, getFlushTimerInterval(),
     // getFlushTimerInterval(), flushTimerUnit);
     // return future;
     // }
@@ -2346,7 +2350,6 @@ public class ConnectionImpl implements Connection {
                 logger.debug("request() interrupted (and cleared)", e);
                 Thread.interrupted();
             }
-
             return msg;
         }
     }

@@ -8,6 +8,7 @@ package io.nats.client;
 
 import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.await;
+import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertArrayEquals;
@@ -67,14 +68,10 @@ public class ITBasicTest {
     UnitTestUtilities utils = new UnitTestUtilities();
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-        UnitTestUtilities.startDefaultServer();
-    }
+    public static void setUpBeforeClass() throws Exception {}
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-        UnitTestUtilities.stopDefaultServer();
-    }
+    public static void tearDownAfterClass() throws Exception {}
 
     @Before
     public void setUp() throws Exception {
@@ -93,45 +90,45 @@ public class ITBasicTest {
 
     @Test
     public void testConnectedServer() throws IOException, TimeoutException {
+        try (NatsServer srv = runDefaultServer()) {
+            try (ConnectionImpl c = (ConnectionImpl) new ConnectionFactory().createConnection()) {
 
-        try (ConnectionImpl c = (ConnectionImpl) new ConnectionFactory().createConnection()) {
+                String url = c.getConnectedUrl();
+                String badUrl = String.format("Unexpected connected URL of %s\n", url);
+                assertNotNull(badUrl, url);
+                assertEquals(badUrl, ConnectionFactory.DEFAULT_URL, url);
 
-            String url = c.getConnectedUrl();
-            String badUrl = String.format("Unexpected connected URL of %s\n", url);
-            assertNotNull(badUrl, url);
-            assertEquals(badUrl, ConnectionFactory.DEFAULT_URL, url);
+                assertNotNull(c.currentServer().toString());
+                assertTrue(c.currentServer().toString().contains(ConnectionFactory.DEFAULT_URL));
 
-            assertNotNull(c.currentServer().toString());
-            assertTrue(c.currentServer().toString().contains(ConnectionFactory.DEFAULT_URL));
+                String srvId = c.getConnectedServerId();
+                assertNotNull("Expected a connected server id", srvId);
 
-            String srv = c.getConnectedServerId();
-            assertNotNull("Expected a connected server id", srv);
-
-            c.close();
-            url = c.getConnectedUrl();
-            srv = c.getConnectedServerId();
-            assertNull(url);
-            assertNull(srv);
+                c.close();
+                url = c.getConnectedUrl();
+                srvId = c.getConnectedServerId();
+                assertNull(url);
+                assertNull(srvId);
+            }
         }
-
     }
 
     @Test
     public void testMultipleClose() throws Exception {
-        try (final Connection c = new ConnectionFactory().createConnection()) {
-
-            List<Callable<String>> callables = new ArrayList<Callable<String>>(10);
-
-            for (int i = 0; i < 10; i++) {
-                final int index = i;
-                callables.add(new Callable<String>() {
-                    public String call() throws Exception {
-                        c.close();
-                        return "Task " + index;
-                    }
-                });
+        try (NatsServer srv = runDefaultServer()) {
+            try (final Connection c = new ConnectionFactory().createConnection()) {
+                List<Callable<String>> callables = new ArrayList<Callable<String>>(10);
+                for (int i = 0; i < 10; i++) {
+                    final int index = i;
+                    callables.add(new Callable<String>() {
+                        public String call() throws Exception {
+                            c.close();
+                            return "Task " + index;
+                        }
+                    });
+                }
+                List<Future<String>> futures = executor.invokeAll(callables);
             }
-            List<Future<String>> futures = executor.invokeAll(callables);
         }
     }
 
@@ -142,55 +139,61 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testSimplePublish() {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            c.publish("foo", "Hello World".getBytes());
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+    public void testSimplePublish() throws Exception {
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                c.publish("foo", "Hello World".getBytes());
+            }
         }
     }
 
     @Test
     public void testSimplePublishNoData() {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            c.publish("foo", null);
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                c.publish("foo", null);
+            } catch (IOException | TimeoutException e) {
+                fail(e.getMessage());
+            }
         }
     }
 
     @Test(expected = NullPointerException.class)
     public void testSimplePublishError() {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            c.publish(null, "Hello World!".getBytes());
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                c.publish(null, "Hello World!".getBytes());
+            } catch (IOException | TimeoutException e) {
+                fail(e.getMessage());
+            }
         }
     }
 
     @Test
     public void testPublishDoesNotFailOnSlowConsumer() throws Exception {
-        ConnectionFactory cf = new ConnectionFactory();
-        try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
-            try (SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribeSync("foo")) {
-                sub.setPendingLimits(1, 1000);
+        try (NatsServer srv = runDefaultServer()) {
+            ConnectionFactory cf = new ConnectionFactory();
+            try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
+                try (SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribeSync("foo")) {
+                    sub.setPendingLimits(1, 1000);
 
-                byte[] msg = "Hello".getBytes();
-                IOException pubErr = null;
-                for (int i = 0; i < 10; i++) {
-                    try {
-                        nc.publish("foo", msg);
-                    } catch (IOException e) {
-                        pubErr = e;
-                        break;
+                    byte[] msg = "Hello".getBytes();
+                    IOException pubErr = null;
+                    for (int i = 0; i < 10; i++) {
+                        try {
+                            nc.publish("foo", msg);
+                        } catch (IOException e) {
+                            pubErr = e;
+                            break;
+                        }
+                        nc.flush();
                     }
-                    nc.flush();
-                }
-                assertNull("publish() should not fail because of slow consumer.", pubErr);
+                    assertNull("publish() should not fail because of slow consumer.", pubErr);
 
-                assertNotNull(nc.getLastException());
-                assertTrue(nc.getLastException() instanceof IOException);
-                assertEquals(ERR_SLOW_CONSUMER, nc.getLastException().getMessage());
+                    assertNotNull(nc.getLastException());
+                    assertTrue(nc.getLastException() instanceof IOException);
+                    assertEquals(ERR_SLOW_CONSUMER, nc.getLastException().getMessage());
+                }
             }
         }
     }
@@ -204,23 +207,25 @@ public class ITBasicTest {
         final byte[] omsg = "Hello World".getBytes();
 
         final CountDownLatch latch = new CountDownLatch(1);
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
-                @Override
-                public void onMessage(Message msg) {
-                    assertArrayEquals("Message received does not match", omsg, msg.getData());
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                        assertArrayEquals("Message received does not match", omsg, msg.getData());
 
-                    assertNotNull("Callback does not have a valid Subscription",
-                            msg.getSubscription());
-                    latch.countDown();
-                }
+                        assertNotNull("Callback does not have a valid Subscription",
+                                msg.getSubscription());
+                        latch.countDown();
+                    }
 
-            })) {
+                })) {
 
-                c.publish("foo", omsg);
-                c.flush();
-                assertTrue("Did not receive message.", await(latch));
-            } // AsyncSubscription
+                    c.publish("foo", omsg);
+                    c.flush();
+                    assertTrue("Did not receive message.", await(latch));
+                } // AsyncSubscription
+            }
         }
     }
 
@@ -229,15 +234,17 @@ public class ITBasicTest {
         final byte[] omsg = "Hello World".getBytes();
         int timeoutMsec = 1000;
 
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            try (SyncSubscription s = c.subscribeSync("foo")) {
-                try {
-                    Thread.sleep(100);
-                    c.publish("foo", omsg);
-                    Message msg = s.nextMessage(timeoutMsec);
-                    assertArrayEquals("Messages are not equal.", omsg, msg.getData());
-                } catch (InterruptedException e) {
-                    /* swallow */
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                try (SyncSubscription s = c.subscribeSync("foo")) {
+                    try {
+                        Thread.sleep(100);
+                        c.publish("foo", omsg);
+                        Message msg = s.nextMessage(timeoutMsec);
+                        assertArrayEquals("Messages are not equal.", omsg, msg.getData());
+                    } catch (InterruptedException e) {
+                        /* swallow */
+                    }
                 }
             }
         }
@@ -245,17 +252,19 @@ public class ITBasicTest {
 
     @Test
     public void testPubSubWithReply() throws Exception {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            try (SyncSubscription s = c.subscribeSync("foo")) {
-                final byte[] omsg = "Hello World".getBytes();
-                c.publish("foo", "reply", omsg);
-                c.flush();
-                try {
-                    Thread.sleep(100);
-                    Message msg = s.nextMessage(10000);
-                    assertArrayEquals("Message received does not match: ", omsg, msg.getData());
-                } catch (InterruptedException e) {
-                    /* swallow */
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                try (SyncSubscription s = c.subscribeSync("foo")) {
+                    final byte[] omsg = "Hello World".getBytes();
+                    c.publish("foo", "reply", omsg);
+                    c.flush();
+                    try {
+                        Thread.sleep(100);
+                        Message msg = s.nextMessage(10000);
+                        assertArrayEquals("Message received does not match: ", omsg, msg.getData());
+                    } catch (InterruptedException e) {
+                        /* swallow */
+                    }
                 }
             }
         }
@@ -264,61 +273,67 @@ public class ITBasicTest {
     @Test
     public void testFlush() throws Exception {
         final byte[] omsg = "Hello World".getBytes();
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            c.subscribeSync("foo");
-            c.publish("foo", "reply", omsg);
-            c.flush();
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                c.subscribeSync("foo");
+                c.publish("foo", "reply", omsg);
+                c.flush();
+            }
         }
     }
 
     @Test
     public void testQueueSubscriber() throws Exception {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            SyncSubscription s1 = c.subscribeSync("foo", "bar");
-            SyncSubscription s2 = c.subscribeSync("foo", "bar");
-            final byte[] omsg = "Hello World".getBytes();
-            c.publish("foo", omsg);
-            c.flush();
-
-            int r1 = s1.getQueuedMessageCount();
-            int r2 = s2.getQueuedMessageCount();
-            assertEquals("Received too many messages for multiple queue subscribers", 1, r1 + r2);
-
-            // Drain the messages.
-            try {
-                s1.nextMessage(250, TimeUnit.MILLISECONDS);
-                assertEquals(0, s1.getQueuedMessageCount());
-            } catch (TimeoutException e) {
-                /* NOOP */
-            }
-
-            try {
-                s2.nextMessage(250, TimeUnit.MILLISECONDS);
-                assertEquals(0, s2.getQueuedMessageCount());
-            } catch (TimeoutException e) {
-                /* NOOP */
-            }
-
-            int total = 1000;
-            for (int i = 0; i < total; i++) {
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                SyncSubscription s1 = c.subscribeSync("foo", "bar");
+                SyncSubscription s2 = c.subscribeSync("foo", "bar");
+                final byte[] omsg = "Hello World".getBytes();
                 c.publish("foo", omsg);
-            }
-            c.flush();
+                c.flush();
 
-            SyncSubscriptionImpl si1 = (SyncSubscriptionImpl) s1;
-            SyncSubscriptionImpl si2 = (SyncSubscriptionImpl) s2;
-            assertEquals(total, si1.getChannel().size() + si2.getChannel().size());
+                int r1 = s1.getQueuedMessageCount();
+                int r2 = s2.getQueuedMessageCount();
+                assertEquals("Received too many messages for multiple queue subscribers", 1,
+                        r1 + r2);
 
-            final int variance = (int) (total * 0.15);
-            r1 = s1.getQueuedMessageCount();
-            r2 = s2.getQueuedMessageCount();
-            assertEquals("Incorrect total number of messages: ", total, r1 + r2);
+                // Drain the messages.
+                try {
+                    s1.nextMessage(250, TimeUnit.MILLISECONDS);
+                    assertEquals(0, s1.getQueuedMessageCount());
+                } catch (TimeoutException e) {
+                    /* NOOP */
+                }
 
-            double expected = total / 2;
-            int d1 = (int) Math.abs((expected - r1));
-            int d2 = (int) Math.abs((expected - r2));
-            if (d1 > variance || d2 > variance) {
-                fail(String.format("Too much variance in totals: %d, %d > %d", d1, d2, variance));
+                try {
+                    s2.nextMessage(250, TimeUnit.MILLISECONDS);
+                    assertEquals(0, s2.getQueuedMessageCount());
+                } catch (TimeoutException e) {
+                    /* NOOP */
+                }
+
+                int total = 1000;
+                for (int i = 0; i < total; i++) {
+                    c.publish("foo", omsg);
+                }
+                c.flush();
+
+                SyncSubscriptionImpl si1 = (SyncSubscriptionImpl) s1;
+                SyncSubscriptionImpl si2 = (SyncSubscriptionImpl) s2;
+                assertEquals(total, si1.getChannel().size() + si2.getChannel().size());
+
+                final int variance = (int) (total * 0.15);
+                r1 = s1.getQueuedMessageCount();
+                r2 = s2.getQueuedMessageCount();
+                assertEquals("Incorrect total number of messages: ", total, r1 + r2);
+
+                double expected = total / 2;
+                int d1 = (int) Math.abs((expected - r1));
+                int d2 = (int) Math.abs((expected - r2));
+                if (d1 > variance || d2 > variance) {
+                    fail(String.format("Too much variance in totals: %d, %d > %d", d1, d2,
+                            variance));
+                }
             }
         }
     }
@@ -328,17 +343,19 @@ public class ITBasicTest {
         final String replyExpected = "bar";
 
         final CountDownLatch latch = new CountDownLatch(1);
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
-                @Override
-                public void onMessage(Message msg) {
-                    assertEquals(replyExpected, msg.getReplyTo());
-                    latch.countDown();
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                        assertEquals(replyExpected, msg.getReplyTo());
+                        latch.countDown();
+                    }
+                })) {
+                    sleep(200);
+                    c.publish("foo", "bar", (byte[]) null);
+                    assertTrue("Message not received.", await(latch));
                 }
-            })) {
-                sleep(200);
-                c.publish("foo", "bar", (byte[]) null);
-                assertTrue("Message not received.", await(latch));
             }
         }
     }
@@ -346,20 +363,20 @@ public class ITBasicTest {
     @Test
     public void testSyncReplyArg() throws Exception {
         String replyExpected = "bar";
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            try (SyncSubscription s = c.subscribeSync("foo")) {
-                sleep(500);
-                c.publish("foo", replyExpected, (byte[]) null);
-                Message m = null;
-                try {
-                    m = s.nextMessage(1000);
-                } catch (Exception e) {
-                    fail("Received an err on nextMsg(): " + e.getMessage());
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                try (SyncSubscription s = c.subscribeSync("foo")) {
+                    sleep(500);
+                    c.publish("foo", replyExpected, (byte[]) null);
+                    Message m = null;
+                    try {
+                        m = s.nextMessage(1000);
+                    } catch (Exception e) {
+                        fail("Received an err on nextMsg(): " + e.getMessage());
+                    }
+                    assertEquals(replyExpected, m.getReplyTo());
                 }
-                assertEquals(replyExpected, m.getReplyTo());
             }
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
     }
 
@@ -370,33 +387,36 @@ public class ITBasicTest {
         final int max = 20;
         ConnectionFactory cf = new ConnectionFactory();
         cf.setReconnectAllowed(false);
-        try (Connection c = cf.createConnection()) {
-            try (final AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
-                @Override
-                public void onMessage(Message m) {
-                    count.incrementAndGet();
-                    if (count.get() == max) {
-                        try {
-                            m.getSubscription().unsubscribe();
-                            assertFalse(m.getSubscription().isValid());
-                        } catch (Exception e) {
-                            fail("Unsubscribe failed with err: " + e.getMessage());
-                        }
-                        latch.countDown();
-                    }
-                }
-            })) {
-                for (int i = 0; i < max; i++) {
-                    c.publish("foo", null, (byte[]) null);
-                }
-                sleep(100);
-                c.flush();
+        try (NatsServer srv = runDefaultServer()) {
 
-                if (s.isValid()) {
-                    assertTrue("Test complete signal not received", await(latch));
-                    assertFalse(s.isValid());
+            try (Connection c = cf.createConnection()) {
+                try (final AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
+                    @Override
+                    public void onMessage(Message m) {
+                        count.incrementAndGet();
+                        if (count.get() == max) {
+                            try {
+                                m.getSubscription().unsubscribe();
+                                assertFalse(m.getSubscription().isValid());
+                            } catch (Exception e) {
+                                fail("Unsubscribe failed with err: " + e.getMessage());
+                            }
+                            latch.countDown();
+                        }
+                    }
+                })) {
+                    for (int i = 0; i < max; i++) {
+                        c.publish("foo", null, (byte[]) null);
+                    }
+                    sleep(100);
+                    c.flush();
+
+                    if (s.isValid()) {
+                        assertTrue("Test complete signal not received", await(latch));
+                        assertFalse(s.isValid());
+                    }
+                    assertEquals(max, count.get());
                 }
-                assertEquals(max, count.get());
             }
         }
     }
@@ -404,112 +424,116 @@ public class ITBasicTest {
     @Test
     public void testDoubleUnsubscribe() throws IOException, TimeoutException {
         thrown.expect(IllegalStateException.class);
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            try (SyncSubscription s = c.subscribeSync("foo")) {
-                s.unsubscribe();
-                try {
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                try (SyncSubscription s = c.subscribeSync("foo")) {
                     s.unsubscribe();
-                } catch (IllegalStateException e) {
-                    throw e;
+                    try {
+                        s.unsubscribe();
+                    } catch (IllegalStateException e) {
+                        throw e;
+                    }
                 }
             }
         }
     }
 
     @Test(expected = TimeoutException.class)
-    public void testRequestTimeout() throws TimeoutException {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            assertFalse(c.isClosed());
-            assertNull("timeout waiting for response", c.request("foo", "help".getBytes(), 10));
-        } catch (IOException e) {
-            fail(e.getMessage());
+    public void testRequestTimeout() throws Exception {
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                assertFalse(c.isClosed());
+                assertNull("timeout waiting for response", c.request("foo", "help".getBytes(), 10));
+            }
         }
     }
 
     @Test
-    public void testRequest() {
+    public void testRequest() throws Exception {
         final byte[] response = "I will help you.".getBytes();
-        try (final Connection c = new ConnectionFactory().createConnection()) {
-            sleep(100);
-            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
-                public void onMessage(Message msg) {
-                    try {
-                        c.publish(msg.getReplyTo(), response);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            })) {
+        try (NatsServer srv = runDefaultServer()) {
+            try (final Connection c = new ConnectionFactory().createConnection()) {
                 sleep(100);
-                final byte[] request = "help".getBytes();
-                Message msg = null;
-                try {
-                    msg = c.request("foo", request, 5, TimeUnit.SECONDS);
-                    assertNotNull(msg);
-                    assertArrayEquals("Received invalid response", response, msg.getData());
-                } catch (Exception e) {
-                    fail("Request failed: " + e.getMessage());
-                }
+                try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
+                    public void onMessage(Message msg) {
+                        try {
+                            c.publish(msg.getReplyTo(), response);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                })) {
+                    sleep(100);
+                    final byte[] request = "help".getBytes();
+                    Message msg = null;
+                    try {
+                        msg = c.request("foo", request, 5, TimeUnit.SECONDS);
+                        assertNotNull(msg);
+                        assertArrayEquals("Received invalid response", response, msg.getData());
+                    } catch (Exception e) {
+                        fail("Request failed: " + e.getMessage());
+                    }
 
-                msg = null;
-                try {
-                    msg = c.request("foo", request);
-                    assertNotNull("Response message shouldn't be null", msg);
-                    assertArrayEquals("Response isn't valid.", response, msg.getData());
-                } catch (Exception e) {
-                    fail("Request failed: " + e.getMessage());
+                    msg = null;
+                    try {
+                        msg = c.request("foo", request);
+                        assertNotNull("Response message shouldn't be null", msg);
+                        assertArrayEquals("Response isn't valid.", response, msg.getData());
+                    } catch (Exception e) {
+                        fail("Request failed: " + e.getMessage());
+                    }
                 }
             }
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testRequestNoBody() {
+    public void testRequestNoBody() throws Exception {
         final byte[] response = "I will help you.".getBytes();
 
-        try (final Connection c = new ConnectionFactory().createConnection()) {
-            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
-                public void onMessage(Message msg) {
-                    try {
-                        c.publish(msg.getReplyTo(), response);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        fail(e.getMessage());
+        try (NatsServer srv = runDefaultServer()) {
+            try (final Connection c = new ConnectionFactory().createConnection()) {
+                try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
+                    public void onMessage(Message msg) {
+                        try {
+                            c.publish(msg.getReplyTo(), response);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            fail(e.getMessage());
+                        }
                     }
-                }
-            })) {
-                UnitTestUtilities.sleep(100);
-                Message msg = c.request("foo", null, 5000);
-                assertArrayEquals("Response isn't valid.", response, msg.getData());
+                })) {
+                    UnitTestUtilities.sleep(100);
+                    Message msg = c.request("foo", null, 5000);
+                    assertArrayEquals("Response isn't valid.", response, msg.getData());
 
-            } catch (TimeoutException | IOException e) {
-                fail(e.getMessage());
+                } catch (TimeoutException | IOException e) {
+                    fail(e.getMessage());
+                }
             }
-        } catch (IOException | TimeoutException e1) {
-            fail(e1.getMessage());
         }
     }
 
     @Test
     public void testFlushInHandler() throws InterruptedException, IOException, TimeoutException {
         final CountDownLatch mcbLatch = new CountDownLatch(1);
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
-                @Override
-                public void onMessage(Message msg) {
-                    try {
-                        c.flush();
-                        mcbLatch.countDown();
-                    } catch (Exception e1) {
-                        e1.printStackTrace();
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                        try {
+                            c.flush();
+                            mcbLatch.countDown();
+                        } catch (Exception e1) {
+                            e1.printStackTrace();
+                        }
                     }
+                })) {
+                    c.publish("foo", "Hello".getBytes());
+                    assertTrue("Flush did not return properly in callback",
+                            mcbLatch.await(5, TimeUnit.SECONDS));
                 }
-            })) {
-                c.publish("foo", "Hello".getBytes());
-                assertTrue("Flush did not return properly in callback",
-                        mcbLatch.await(5, TimeUnit.SECONDS));
             }
         }
     }
@@ -519,86 +543,90 @@ public class ITBasicTest {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(Constants.ERR_CONNECTION_CLOSED);
 
-        ConnectionFactory cf = new ConnectionFactory();
-        cf.setReconnectAllowed(false);
-        try (final ConnectionImpl nc = (ConnectionImpl) spy(cf.createConnection())) {
-            for (int i = 0; i < 1000; i++) {
-                nc.publish("foo", "Hello".getBytes());
-            }
-
-            final int timeout = 5000;
-
-            // Shunt the flush ping
-            OutputStream bwMock = mock(OutputStream.class);
-            nc.setOutputStream(bwMock);
-
-            final CountDownLatch latch = new CountDownLatch(1);
-            executor.execute(new Runnable() {
-                public void run() {
-                    await(latch);
-                    sleep(100, TimeUnit.MILLISECONDS);
-                    nc.close();
-                    verify(nc, times(1)).clearPendingFlushCalls();
+        try (NatsServer srv = runDefaultServer()) {
+            ConnectionFactory cf = new ConnectionFactory();
+            cf.setReconnectAllowed(false);
+            try (final ConnectionImpl nc = (ConnectionImpl) spy(cf.createConnection())) {
+                for (int i = 0; i < 1000; i++) {
+                    nc.publish("foo", "Hello".getBytes());
                 }
-            });
-            latch.countDown();
-            nc.flush(timeout);
+
+                final int timeout = 5000;
+
+                // Shunt the flush ping
+                OutputStream bwMock = mock(OutputStream.class);
+                nc.setOutputStream(bwMock);
+
+                final CountDownLatch latch = new CountDownLatch(1);
+                executor.execute(new Runnable() {
+                    public void run() {
+                        await(latch);
+                        sleep(100, TimeUnit.MILLISECONDS);
+                        nc.close();
+                        verify(nc, times(1)).clearPendingFlushCalls();
+                    }
+                });
+                latch.countDown();
+                nc.flush(timeout);
+            }
         }
     }
 
     @Test
-    public void testCloseAndDispose() {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            c.close();
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+    public void testCloseAndDispose() throws Exception {
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                c.close();
+            }
         }
     }
 
     @Test
-    public void testInbox() {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            String inbox = c.newInbox();
-            assertFalse("inbox was null or whitespace",
-                    inbox.equals(null) || inbox.trim().length() == 0);
-            assertTrue("Bad INBOX format", inbox.startsWith("_INBOX."));
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+    public void testInbox() throws Exception {
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                String inbox = c.newInbox();
+                assertFalse("inbox was null or whitespace",
+                        inbox.equals(null) || inbox.trim().length() == 0);
+                assertTrue("Bad INBOX format", inbox.startsWith("_INBOX."));
+            }
         }
     }
 
     @Test
     public void testStats() throws Exception {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            byte[] data = "The quick brown fox jumped over the lazy dog".getBytes();
-            int iter = 10;
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                byte[] data = "The quick brown fox jumped over the lazy dog".getBytes();
+                int iter = 10;
 
-            for (int i = 0; i < iter; i++) {
-                c.publish("foo", data);
-            }
+                for (int i = 0; i < iter; i++) {
+                    c.publish("foo", data);
+                }
 
-            Statistics stats = c.getStats();
-            assertEquals("Not properly tracking OutMsgs: ", iter, stats.getOutMsgs());
-            assertEquals("Not properly tracking OutBytes: ", iter * data.length,
-                    stats.getOutBytes());
+                Statistics stats = c.getStats();
+                assertEquals("Not properly tracking OutMsgs: ", iter, stats.getOutMsgs());
+                assertEquals("Not properly tracking OutBytes: ", iter * data.length,
+                        stats.getOutBytes());
 
-            c.resetStats();
+                c.resetStats();
 
-            // Test both sync and async versions of subscribe.
-            try (AsyncSubscription s1 = c.subscribe("foo", new MessageHandler() {
-                public void onMessage(Message msg) {}
-            })) {
-                try (SyncSubscription s2 = c.subscribeSync("foo")) {
-                    for (int i = 0; i < iter; i++) {
-                        c.publish("foo", data);
+                // Test both sync and async versions of subscribe.
+                try (AsyncSubscription s1 = c.subscribe("foo", new MessageHandler() {
+                    public void onMessage(Message msg) {}
+                })) {
+                    try (SyncSubscription s2 = c.subscribeSync("foo")) {
+                        for (int i = 0; i < iter; i++) {
+                            c.publish("foo", data);
+                        }
+                        c.flush();
+
+                        stats = c.getStats();
+                        stats.toString();
+                        assertEquals("Not properly tracking InMsgs: ", 2 * iter, stats.getInMsgs());
+                        assertEquals("Not properly tracking InBytes: ", 2 * iter * data.length,
+                                stats.getInBytes());
                     }
-                    c.flush();
-
-                    stats = c.getStats();
-                    stats.toString();
-                    assertEquals("Not properly tracking InMsgs: ", 2 * iter, stats.getInMsgs());
-                    assertEquals("Not properly tracking InBytes: ", 2 * iter * data.length,
-                            stats.getInBytes());
                 }
             }
         }
@@ -606,24 +634,20 @@ public class ITBasicTest {
 
     @Test
     public void testRaceSafeStats() throws IOException, TimeoutException {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-
-            // new Task(() => { c.publish("foo", null); }).Start();
-            executor.execute(new Runnable() {
-
-                @Override
-                public void run() {
-                    try {
-                        c.publish("foo", null);
-                    } catch (IllegalStateException | IOException e) {
-                        fail(e.getMessage());
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                executor.execute(new Runnable() {
+                    public void run() {
+                        try {
+                            c.publish("foo", null);
+                        } catch (IllegalStateException | IOException e) {
+                            fail(e.getMessage());
+                        }
                     }
-                }
-
-            });
-
-            sleep(1000);
-            assertEquals(1, c.getStats().getOutMsgs());
+                });
+                sleep(1000);
+                assertEquals(1, c.getStats().getOutMsgs());
+            }
         }
     }
 
@@ -652,98 +676,102 @@ public class ITBasicTest {
 
     @Test
     public void testLargeMessage() throws Exception {
-        try (final Connection c = new ConnectionFactory().createConnection()) {
-            int msgSize = 51200;
-            final byte[] omsg = new byte[msgSize];
-            for (int i = 0; i < msgSize; i++) {
-                {
-                    omsg[i] = (byte) 'A';
+        try (NatsServer srv = runDefaultServer()) {
+            try (final Connection c = new ConnectionFactory().createConnection()) {
+                int msgSize = 51200;
+                final byte[] omsg = new byte[msgSize];
+                for (int i = 0; i < msgSize; i++) {
+                    {
+                        omsg[i] = (byte) 'A';
+                    }
                 }
-            }
 
-            omsg[msgSize - 1] = (byte) 'Z';
+                omsg[msgSize - 1] = (byte) 'Z';
 
-            final CountDownLatch latch = new CountDownLatch(1);
-            try (AsyncSubscription sub = c.subscribe("foo", new MessageHandler() {
-                @Override
-                public void onMessage(Message msg) {
-                    assertTrue("Response isn't valid.", compare(omsg, msg.getData()));
-                    latch.countDown();
+                final CountDownLatch latch = new CountDownLatch(1);
+                try (AsyncSubscription sub = c.subscribe("foo", new MessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                        assertTrue("Response isn't valid.", compare(omsg, msg.getData()));
+                        latch.countDown();
+                    }
+                })) {
+
+                    c.publish("foo", omsg);
+                    c.flush(1000);
+                    assertTrue("Didn't receive callback message",
+                            await(latch, 2, TimeUnit.SECONDS));
                 }
-            })) {
-
-                c.publish("foo", omsg);
-                c.flush(1000);
-                assertTrue("Didn't receive callback message", await(latch, 2, TimeUnit.SECONDS));
             }
         }
     }
 
     @Test
     public void testSendAndRecv() throws Exception {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            final CountDownLatch mhLatch = new CountDownLatch(1);
-            final AtomicInteger received = new AtomicInteger();
-            final int count = 1000;
-            try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
-                public void onMessage(Message msg) {
-                    received.incrementAndGet();
-                    if (received.get() == count) {
-                        mhLatch.countDown();
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                final CountDownLatch mhLatch = new CountDownLatch(1);
+                final AtomicInteger received = new AtomicInteger();
+                final int count = 1000;
+                try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
+                    public void onMessage(Message msg) {
+                        received.incrementAndGet();
+                        if (received.get() == count) {
+                            mhLatch.countDown();
+                        }
                     }
+                })) {
+                    for (int i = 0; i < count; i++) {
+                        c.publish("foo", null);
+                    }
+                    c.flush();
+                    assertTrue(String.format("Received (%s) != count (%s)", received, count),
+                            mhLatch.await(5, TimeUnit.SECONDS));
                 }
-            })) {
-                for (int i = 0; i < count; i++) {
-                    c.publish("foo", null);
-                }
-                c.flush();
-                assertTrue(String.format("Received (%s) != count (%s)", received, count),
-                        mhLatch.await(5, TimeUnit.SECONDS));
             }
         }
     }
 
     @Test
-    public void testLargeSubjectAndReply() {
-        try (Connection c = new ConnectionFactory().createConnection()) {
-            int size = 1066;
-            byte[] subjBytes = new byte[size];
-            for (int i = 0; i < size; i++) {
-                subjBytes[i] = 'A';
-            }
-            final String subject = new String(subjBytes);
-
-            byte[] replyBytes = new byte[size];
-            for (int i = 0; i < size; i++) {
-                replyBytes[i] = 'A';
-            }
-            final String reply = new String(replyBytes);
-
-            final CountDownLatch latch = new CountDownLatch(1);
-            try (AsyncSubscription s = c.subscribe(subject, new MessageHandler() {
-                @Override
-                public void onMessage(Message msg) {
-                    assertEquals(subject.length(), msg.getSubject().length());
-                    assertEquals(subject, msg.getSubject());
-                    assertEquals(reply.length(), msg.getReplyTo().length());
-                    assertEquals(reply, msg.getReplyTo());
-                    latch.countDown();
+    public void testLargeSubjectAndReply() throws Exception {
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection c = new ConnectionFactory().createConnection()) {
+                int size = 1066;
+                byte[] subjBytes = new byte[size];
+                for (int i = 0; i < size; i++) {
+                    subjBytes[i] = 'A';
                 }
-            })) {
+                final String subject = new String(subjBytes);
 
-                c.publish(subject, reply, (byte[]) null);
-                try {
-                    c.flush();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    fail(e.getMessage());
+                byte[] replyBytes = new byte[size];
+                for (int i = 0; i < size; i++) {
+                    replyBytes[i] = 'A';
                 }
+                final String reply = new String(replyBytes);
 
-                assertTrue(await(latch));
+                final CountDownLatch latch = new CountDownLatch(1);
+                try (AsyncSubscription s = c.subscribe(subject, new MessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                        assertEquals(subject.length(), msg.getSubject().length());
+                        assertEquals(subject, msg.getSubject());
+                        assertEquals(reply.length(), msg.getReplyTo().length());
+                        assertEquals(reply, msg.getReplyTo());
+                        latch.countDown();
+                    }
+                })) {
+
+                    c.publish(subject, reply, (byte[]) null);
+                    try {
+                        c.flush();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        fail(e.getMessage());
+                    }
+
+                    assertTrue(await(latch));
+                }
             }
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -763,35 +791,39 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testManyRequests() {
+    public void testManyRequests() throws Exception {
         int numMsgs = 500;
-        try (NatsServer ts = new NatsServer()) {
-            sleep(500);
-            ConnectionFactory cf = new ConnectionFactory(ConnectionFactory.DEFAULT_URL);
+        // setLogLevel(Level.TRACE);
+
+        try (NatsServer srv = runDefaultServer()) {
+            ConnectionFactory cf = new ConnectionFactory();
+            cf.setReconnectAllowed(false);
             try (final Connection conn = cf.createConnection()) {
+                // try (final Connection conn = newDefaultConnection()) {
                 try (Subscription s = conn.subscribe("foo", new MessageHandler() {
                     public void onMessage(Message message) {
                         try {
                             conn.publish(message.getReplyTo(), "response".getBytes());
-                        } catch (IOException e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
+                            fail(e.getMessage());
                         }
                     }
                 })) {
                     for (int i = 0; i < numMsgs; i++) {
                         try {
-                            // System.out.println(conn.request("foo", "request".getBytes(), 5000));
-                            conn.request("foo", "request".getBytes(), 5000);
+                            assertNotNull(
+                                    conn.request("foo", "request".getBytes(), 2, TimeUnit.SECONDS));
                         } catch (TimeoutException e) {
-                            System.err.println("got timeout " + i);
+                            logger.error("timed out: {}", i);
+                            logger.info("stats: {}", conn.getStats());
                             fail("timed out: " + i);
-                        } catch (IOException e) {
-                            fail(e.getMessage());
+                        } catch (Exception e) {
+                            logger.error("failed on: {}", i);
+                            fail(String.format("failed on %d: %s", i, e.getMessage()));
                         }
                     }
                 }
-            } catch (IOException | TimeoutException e1) {
-                fail(e1.getMessage());
             }
         }
     }
