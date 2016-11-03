@@ -286,6 +286,21 @@ interface AbstractConnection extends AutoCloseable {
     String getConnectedServerId();
 
     /**
+     * Returns the list of known server URLs, including URLs that have been discovered since the
+     * connection was established.
+     * 
+     * @return the list of known server URLs
+     */
+    String[] getServers();
+
+    /**
+     * Returns the server URLs that have been discovered since the connection was established.
+     * 
+     * @return the server URLs that have been discovered since the connection has been established
+     */
+    String[] getDiscoveredServers();
+
+    /**
      * Returns the current connection state.
      * 
      * @return the current connection state

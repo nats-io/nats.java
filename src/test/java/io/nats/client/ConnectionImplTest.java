@@ -24,6 +24,7 @@ import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.newNewMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -72,6 +73,7 @@ import java.net.URI;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -642,9 +644,9 @@ public class ConnectionImplTest {
                 .spy(new ConnectionImpl(new ConnectionFactory().options()))) {
             nc.setOutputStream(bwMock);
             nc.processInfo(null);
-            verify(nc, times(0)).addUrlToPool(any(String.class));
+            verify(nc, times(0)).addUrlToPool(any(String.class), eq(true));
             nc.processInfo("");
-            verify(nc, times(0)).addUrlToPool(any(String.class));
+            verify(nc, times(0)).addUrlToPool(any(String.class), eq(true));
         }
     }
 
@@ -959,7 +961,8 @@ public class ConnectionImplTest {
             c.setOutputStream(bwMock);
             c.setPending(pendingMock);
             doThrow(new IOException("testCreateConnFlushFailure()")).when(bwMock).flush();
-            when(c.currentServer()).thenReturn(c.new Srv(URI.create("nats://localhost:4222")));
+            when(c.currentServer())
+                    .thenReturn(c.new Srv(URI.create("nats://localhost:4222"), false));
             c.createConn();
             verify(bwMock, times(1)).flush();
             verifier.verifyLogMsgEquals(Level.WARN, Constants.ERR_TCP_FLUSH_FAILED);
@@ -1905,18 +1908,13 @@ public class ConnectionImplTest {
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             c.close();
 
-            assertTrue(
-                    String.format("Expected %s to be terminated.", ConnectionImpl.EXEC_NAME),
+            assertTrue(String.format("Expected %s to be terminated.", ConnectionImpl.EXEC_NAME),
                     c.exec.awaitTermination(2, TimeUnit.SECONDS));
 
-            assertTrue(
-                    String.format("Expected %s to be terminated.",
-                            ConnectionImpl.SUB_EXEC_NAME),
+            assertTrue(String.format("Expected %s to be terminated.", ConnectionImpl.SUB_EXEC_NAME),
                     c.subexec.awaitTermination(2, TimeUnit.SECONDS));
 
-            assertTrue(
-                    String.format("Expected %s to be terminated.",
-                            ConnectionImpl.CB_EXEC_NAME),
+            assertTrue(String.format("Expected %s to be terminated.", ConnectionImpl.CB_EXEC_NAME),
                     c.cbexec.awaitTermination(2, TimeUnit.SECONDS));
         }
     }
@@ -1990,6 +1988,40 @@ public class ConnectionImplTest {
             verify(sub, times(1)).setMax(eq(100L));
             verify(nc, times(0)).removeSub(eq(sub));
         }
+    }
+
+    @Test
+    public void testGetServers() throws ParseException {
+        Options opts = new ConnectionFactory().options();
+        opts.setNoRandomize(true);
+        ConnectionImpl conn = new ConnectionImpl(opts);
+        conn.ps = new Parser(conn).new ParseState();
+        conn.setupServerPool();
+
+        assertArrayEquals(new String[] { "nats://localhost:4222" }, conn.getServers());
+        assertEquals("Expected no discovered servers", 0, conn.getDiscoveredServers().length);
+
+        // Add a new URL
+        conn.parser.parse("INFO {\"connect_urls\":[\"localhost:5222\"]}\r\n".getBytes());
+
+        // Server list should now contain both the default and the new url.
+        String[] expected = { "nats://localhost:4222", "nats://localhost:5222" };
+        assertArrayEquals(expected, conn.getServers());
+
+        // Discovered servers should only contain the new url.
+        String[] actual = conn.getDiscoveredServers();
+        assertEquals(1, actual.length);
+        assertEquals("nats://localhost:5222", actual[0]);
+
+        // verify user credentials are stripped out.
+        opts.setServers(
+                new String[] { "nats://user:pass@localhost:4333", "nats://token@localhost:4444" });
+        conn = new ConnectionImpl(opts);
+        conn.ps = new Parser(conn).new ParseState();
+        conn.setupServerPool();
+
+        expected = new String[] { "nats://localhost:4333", "nats://localhost:4444" };
+        assertArrayEquals(expected, conn.getServers());
     }
 
     @Test
