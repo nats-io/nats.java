@@ -327,7 +327,7 @@ public class ConnectionImpl implements Connection {
          */
 
         if (url != null) {
-            srvPool.add(0, new Srv(url));
+            srvPool.add(0, new Srv(url, false));
             urls.put(url.getAuthority(), url);
         }
 
@@ -1440,10 +1440,6 @@ public class ConnectionImpl implements Connection {
         long lastAttemptNanos = 0L;
         boolean secure = false;
         boolean implicit = false;
-
-        protected Srv(URI url) {
-            this(url, false);
-        }
 
         public Srv(URI url, boolean implicit) {
             this.url = url;
@@ -2655,6 +2651,21 @@ public class ConnectionImpl implements Connection {
         this.ptmr = ptmr;
     }
 
+    String[] getServers(boolean implicitOnly) {
+        List<String> serversList = new ArrayList<String>(srvPool.size());
+        for (int i = 0; i < srvPool.size(); i++) {
+            if (implicitOnly && !srvPool.get(i).isImplicit()) {
+                continue;
+            }
+            URI url = srvPool.get(i).url;
+            String schemeUrl =
+                    String.format("%s://%s:%d", url.getScheme(), url.getHost(), url.getPort());
+            serversList.add(schemeUrl);
+        }
+        String[] servers = new String[serversList.size()];
+        return serversList.toArray(servers);
+    }
+
     @Override
     public String[] getServers() {
         mu.lock();
@@ -2673,11 +2684,6 @@ public class ConnectionImpl implements Connection {
         } finally {
             mu.unlock();
         }
-    }
-
-    String[] getServers(boolean implicitOnly) {
-        String[] servers = new String[srvPool.size()];
-        return servers;
     }
 
     // public long getFlushTimerInterval() {
