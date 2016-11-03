@@ -404,7 +404,6 @@ public class ConnectionImpl implements Connection {
         // Create actual socket connection
         // For first connect we walk all servers in the pool and try
         // to connect immediately.
-        // boolean connected = false;
         IOException returnedErr = null;
         mu.lock();
         try {
@@ -455,8 +454,10 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    // createConn will connect to the server and wrap the appropriate
-    // bufio structures. A new connection is always created.
+    /*
+     * createConn will connect to the server and wrap the appropriate bufio structures. A new
+     * connection is always created.
+     */
     protected void createConn() throws IOException {
         Srv srv = currentServer();
         if (srv == null) {
@@ -542,10 +543,11 @@ public class ConnectionImpl implements Connection {
         close(ConnState.CLOSED, true);
     }
 
-    // Low level close call that will do correct cleanup and set
-    // desired status. Also controls whether user defined callbacks
-    // will be triggered. The lock should not be held entering this
-    // function. This function will handle the locking manually.
+    /*
+     * Low level close call that will do correct cleanup and set desired status. Also controls
+     * whether user defined callbacks will be triggered. The lock should not be held entering this
+     * method. This method will handle the locking manually.
+     */
     private void close(ConnState closeState, boolean doCBs) {
         logger.debug("close({}, {})", closeState, String.valueOf(doCBs));
         final ConnectionImpl nc = this;
@@ -569,13 +571,6 @@ public class ConnectionImpl implements Connection {
             // Clear any queued pongs, e.g. pending flush calls.
             clearPendingFlushCalls();
 
-            // Interrupt any blocking operations
-            // Thread.currentThread().interrupt();
-
-            // if (ptmr != null) {
-            // ptmr.cancel(true);
-            // }
-
             // Go ahead and make sure we have flushed the outbound
             if (conn != null) {
                 try {
@@ -588,8 +583,7 @@ public class ConnectionImpl implements Connection {
             }
 
             logger.trace("Closing subscriptions");
-            // Close sync subscriber channels and release any
-            // pending nextMsg() calls.
+            // Close sync subscribers and release any pending nextMsg() calls.
             for (Map.Entry<Long, SubscriptionImpl> entry : subs.entrySet()) {
                 SubscriptionImpl sub = entry.getValue();
                 // for (Long key : subs.keySet()) {
@@ -609,8 +603,7 @@ public class ConnectionImpl implements Connection {
             }
             subs.clear();
 
-            // perform appropriate callback if needed for a
-            // disconnect;
+            // perform appropriate callback if needed for a disconnect;
             if (doCBs) {
                 if (opts.getDisconnectedCallback() != null && conn != null) {
                     cbexec.submit(new Runnable() {
@@ -791,7 +784,7 @@ public class ConnectionImpl implements Connection {
         return;
     }
 
-    // processAsyncInfo does the same than processInfo, but is called
+    // processAsyncInfo does the same as processInfo, but is called
     // from the parser. Calls processInfo under connection's lock
     // protection.
     void processAsyncInfo(String asyncInfoString) {
@@ -1802,59 +1795,6 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    class FlushTimerTask extends TimerTask {
-        public void run() {
-            flushSocket();
-        }
-    }
-
-    // ScheduledFuture<?> createFlushTimer() {
-    // String unitString = "";
-    // switch (flushTimerUnit) {
-    // case NANOSECONDS:
-    // unitString = "nsec";
-    // break;
-    // case MICROSECONDS:
-    // unitString = "usec";
-    // break;
-    // case MILLISECONDS:
-    // unitString = "msec";
-    // break;
-    // case SECONDS:
-    // unitString = "sec";
-    // break;
-    // default:
-    // }
-    //
-    // logger.trace("flusher started with interval {}{}", flushTimerInterval, unitString);
-    // FlushTimerTask flusher = new FlushTimerTask();
-    // ScheduledFuture<?> future = exec.scheduleAtFixedRate(flusher, getFlushTimerInterval(),
-    // getFlushTimerInterval(), flushTimerUnit);
-    // return future;
-    // }
-
-    // protected void resetFlushTimer() {
-    // mu.lock();
-    // try {
-    // if (ftmr != null) {
-    // ftmr.cancel(true);
-    // logger.trace("flusher cancelled");
-    // }
-    //
-    // if (fch != null) {
-    // fch.clear();
-    // } else {
-    // fch = createFlushChannel();
-    // }
-    // if (getFlushTimerInterval() > 0) {
-    // ftmr = createFlushTimer();
-    // logger.trace("flusher created");
-    // }
-    // } finally {
-    // mu.unlock();
-    // }
-    // }
-
     protected void writeUnsubProto(SubscriptionImpl sub, long max) throws IOException {
         String str = String.format(UNSUB_PROTO, sub.getSid(), max > 0 ? Long.toString(max) : "");
         str = str.replaceAll(" +\r\n", "\r\n");
@@ -1906,47 +1846,6 @@ public class ConnectionImpl implements Connection {
             if (fch != null) {
                 fch.offer(true);
             }
-        }
-    }
-
-    // Experimental per-iteration
-    protected void flushSocket() {
-        final OutputStream bw;
-        final TcpConnection conn;
-        final BlockingQueue<Boolean> fch;
-
-        // snapshot the bw and conn since they can change from underneath of us.
-        mu.lock();
-        try {
-            bw = this.bw;
-            conn = this.conn;
-            fch = this.fch;
-        } finally {
-            mu.unlock();
-        }
-
-        if (conn == null || bw == null) {
-            return;
-        }
-
-        // Return if no work to do
-        if (fch.poll() == null) {
-            return;
-        }
-
-        mu.lock();
-        try {
-            // Check to see if we should bail out.
-            if (!_isConnected() || isConnecting() || bw != this.bw || conn != this.conn) {
-                return;
-            }
-            bw.flush();
-            stats.incrementFlushes();
-        } catch (IOException e) {
-            logger.debug("I/O exception encountered during flush");
-            this.setLastError(e);
-        } finally {
-            mu.unlock();
         }
     }
 
@@ -2319,12 +2218,12 @@ public class ConnectionImpl implements Connection {
             replyBytes = reply.getBytes();
         }
         publish(subjBytes, replyBytes, data, flush);
-    } // publish
+    }
 
     @Override
     public void publish(String subject, String reply, byte[] data) throws IOException {
         publish(subject, reply, data, false);
-    } // publish
+    }
 
     @Override
     public void publish(String subject, byte[] data) throws IOException {
@@ -2686,24 +2585,23 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    // public long getFlushTimerInterval() {
-    // return flushTimerInterval;
-    // }
-    //
-    // public long getFlushTimerInterval(TimeUnit unit) {
-    // return unit.convert(flushTimerInterval, flushTimerUnit);
-    // }
-    //
-    // public void setFlushTimerInterval(long msec) {
-    // // assumes supplied value is msec
-    // this.flushTimerInterval = TimeUnit.MILLISECONDS.toNanos(msec);
-    // resetFlushTimer();
-    // }
-    //
-    // public void setFlushTimerInterval(int duration, TimeUnit unit) {
-    // this.flushTimerInterval = duration;
-    // this.flushTimerUnit = unit;
-    // resetFlushTimer();
-    // }
+    @Override
+    public boolean isAuthRequired() {
+        mu.lock();
+        try {
+            return info.isAuthRequired();
+        } finally {
+            mu.unlock();
+        }
+    }
 
+    @Override
+    public boolean isTlsRequired() {
+        mu.lock();
+        try {
+            return info.isTlsRequired();
+        } finally {
+            mu.unlock();
+        }
+    }
 }
