@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+## Version 0.7.4-SNAPSHOT
+_2016-11-02_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.3...HEAD)
+
+ * Added `Connection#getServers()` and `Connection#getDiscoveredServers()` APIs to match Go client
+ * Added `isTlsRequired()` and `isAuthRequired()` to match Go client capabilities.
+
 ## Version 0.7.3
 _2016-11-01_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.1...0.7.3)
 

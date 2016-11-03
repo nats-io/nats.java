@@ -152,23 +152,38 @@ interface AbstractConnection extends AutoCloseable {
     /**
      * Indicates whether the connection has been closed.
      * 
-     * @return true if the connection is closed.
+     * @return {@code true} if the connection is closed, otherwise {@code false}
      */
     boolean isClosed();
 
     /**
-     * Indicates whether the connection is currently reconnecting.
+     * Indicates whether the connection is currently connected.
      * 
-     * @return whether or not the connection is currently reconnecting
+     * @return {@code true} if the connection is currently connected, otherwise {@code false}
      */
     boolean isConnected();
 
     /**
      * Indicates whether the connection is currently reconnecting.
      * 
-     * @return whether or not the connection is currently reconnecting
+     * @return {@code true} if the connection is currently reconnecting, otherwise {@code false}
      */
     boolean isReconnecting();
+
+    /**
+     * Indicates whether the connected server requires authorization.
+     * 
+     * @return {@code true} if the connected server requires authorization, otherwise {@code false}
+     */
+    boolean isAuthRequired();
+
+    /**
+     * Indicates whether the connected server requires TLS connections.
+     * 
+     * @return {@code true} if the connected server requires TLS connections, otherwise
+     *         {@code false}
+     */
+    boolean isTlsRequired();
 
     /**
      * Retrieves the connection statistics.
