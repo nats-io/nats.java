@@ -6,7 +6,7 @@
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -14,7 +14,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -126,7 +126,7 @@ public class SubscriptionImplTest {
     public void testClearMaxPending() {
         ConnectionImpl nc = mock(ConnectionImpl.class);
         // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+        when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
         try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             int maxMsgs = 44;
@@ -152,7 +152,7 @@ public class SubscriptionImplTest {
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
         // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+        when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
         try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             sub.setChannel(mchMock);
@@ -180,7 +180,7 @@ public class SubscriptionImplTest {
     public void testCloseChannelNullConn() {
         // ConnectionImpl nc = mock(ConnectionImpl.class);
         // Make sure the connection opts aren't null
-        // when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+        // when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
         try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
             assertNotNull(sub.getChannel());
@@ -546,7 +546,7 @@ public class SubscriptionImplTest {
     public void testUnsubscribeConnectionClosed() {
         try (ConnectionImpl nc = mock(ConnectionImpl.class)) {
             // Make sure the connection opts aren't null
-            when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+            when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
             when(nc.isClosed()).thenReturn(true);
 

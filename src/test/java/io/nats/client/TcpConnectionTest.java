@@ -14,9 +14,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import io.nats.client.TcpConnection.HandshakeListener;
 
@@ -119,20 +117,6 @@ public class TcpConnectionTest {
         }
     }
 
-    @Test(expected = SocketException.class)
-    public void testOpen() throws IOException {
-        try (TcpConnection conn = new TcpConnection()) {
-            Socket sock = mock(Socket.class);
-            doThrow(new SocketException("Error getting OutputStream")).when(sock).getOutputStream();
-            conn.setSocket(sock);
-            conn.open();
-        } catch (SocketException e) {
-            throw (e);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
-    }
-
     @Test
     public void testSetConnectTimeout() {
         TcpConnection conn = new TcpConnection();
@@ -174,25 +158,28 @@ public class TcpConnectionTest {
     }
 
     @Test
-    public void testTeardown() {
+    public void testTeardown() throws Exception {
         TcpConnection conn = new TcpConnection();
         Socket sock = mock(Socket.class);
-        conn.setSocket(sock);
+        SocketFactory socketFactory = mock(SocketFactory.class);
+        conn.setSocketFactory(socketFactory);
+        doReturn(sock).when(socketFactory).createSocket();
         try {
-            conn.open();
+            conn.open("nats://localhost:42222", 500);
             conn.teardown();
             assertFalse(conn.isConnected());
         } catch (IOException e) {
+            e.printStackTrace();
             fail("Shouldn't have thrown: " + e.getMessage());
         }
         conn.close();
 
         conn = new TcpConnection();
-        sock = mock(Socket.class);
+        conn.setSocketFactory(socketFactory);
         try {
             doThrow(new IOException("Error closing socket")).when(sock).close();
             conn.setSocket(sock);
-            conn.open();
+            conn.open("nats://localhost:4222", 2000);
             conn.teardown();
             assertFalse(conn.isConnected());
         } catch (IOException e) {
@@ -241,58 +228,6 @@ public class TcpConnectionTest {
             assertFalse(conn.isConnected());
         } catch (Exception e) {
             fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testIsDataAvailableThrowsIoEx() throws IOException {
-        thrown.expect(IOException.class);
-        thrown.expectMessage("available() exception");
-
-        SocketFactory factory = mock(SocketFactory.class);
-        InputStream is = mock(InputStream.class);
-        Socket sock = mock(Socket.class);
-        try {
-            when(factory.createSocket()).thenReturn(sock);
-        } catch (IOException e1) {
-            fail("Couldn't create mock socket");
-        }
-        TcpConnection conn = new TcpConnection();
-        conn.setSocketFactory(factory);
-        when(sock.getInputStream()).thenReturn(is);
-        conn.open("localhost", 4222, 100);
-
-        doThrow(new IOException("available() exception")).when(is).available();
-
-        conn.isDataAvailable();
-        conn.close();
-    }
-
-    @Test
-    public void testIsDataAvailable() throws IOException {
-        SocketFactory factory = mock(SocketFactory.class);
-        Socket client = mock(Socket.class);
-        InputStream istream = mock(InputStream.class);
-
-        when(factory.createSocket()).thenReturn(client);
-
-        try (TcpConnection conn = new TcpConnection()) {
-            conn.setSocketFactory(factory);
-
-            // First, test that null readStream returns false
-            conn.open("localhost", 4222, 100);
-
-            assertNull(conn.readStream);
-            assertFalse(conn.isDataAvailable());
-
-            // Now test for available > 0
-            conn.readStream = istream;
-            when(istream.available()).thenReturn(100);
-            assertTrue(conn.isDataAvailable());
-
-            // Now test for available == 0
-            when(istream.available()).thenReturn(0);
-            assertFalse(conn.isDataAvailable());
         }
     }
 

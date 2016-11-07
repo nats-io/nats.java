@@ -6,6 +6,12 @@
 
 package io.nats.client;
 
+import static io.nats.client.Nats.ConnState;
+import static io.nats.client.Nats.ConnState.CONNECTED;
+import static io.nats.client.Nats.ConnState.CONNECTING;
+import static io.nats.client.Nats.ConnState.CLOSED;
+import static io.nats.client.Nats.ConnState.DISCONNECTED;
+import static io.nats.client.Nats.ConnState.RECONNECTING;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
@@ -15,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import io.nats.client.Constants.ConnState;
 
 import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNot;
@@ -84,12 +89,12 @@ public class ITConnectionTest {
     public void testConnectionStatus() throws IOException, TimeoutException {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
-                assertEquals("Should have status set to CONNECTED", ConnState.CONNECTED,
+                assertEquals("Should have status set to CONNECTED", CONNECTED,
                         nc.getState());
                 assertTrue("Should have status set to CONNECTED", nc.isConnected());
                 nc.close();
 
-                assertEquals("Should have status set to CLOSED", ConnState.CLOSED, nc.getState());
+                assertEquals("Should have status set to CLOSED", CLOSED, nc.getState());
                 assertTrue("Should have status set to CLOSED", nc.isClosed());
             }
         }
@@ -118,9 +123,8 @@ public class ITConnectionTest {
         final CountDownLatch cbLatch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
             Thread.sleep(500);
-            ConnectionFactory cf = new ConnectionFactory();
-            cf.setReconnectAllowed(false);
-            try (Connection nc = cf.createConnection()) {
+            Options opts = new Options.Builder().noReconnect().build();
+            try (Connection nc = opts.connect(Nats.DEFAULT_URL)) {
                 nc.setDisconnectedCallback(new DisconnectedCallback() {
                     @Override
                     public void onDisconnect(ConnectionEvent event) {
@@ -181,16 +185,12 @@ public class ITConnectionTest {
                     }
                 };
                 // dcb.onDisconnect(null);
-                ConnectionFactory cf = new ConnectionFactory();
-                cf.setReconnectAllowed(false);
-                cf.setDisconnectedCallback(dcb);
-                try (Connection nc = cf.createConnection()) {
-
+                Options opts = new Options.Builder().noReconnect().disconnectedCb(dcb).build();
+                try (Connection nc = opts.connect(Nats.DEFAULT_URL)) {
                     srv.shutdown();
                     Thread.sleep(500);
                 }
             }
-
             fail("Not finished implementing");
         }
     }
@@ -199,15 +199,13 @@ public class ITConnectionTest {
     public void testServerStopDisconnectedCb() throws IOException, TimeoutException {
         try (NatsServer srv = runDefaultServer()) {
             final CountDownLatch latch = new CountDownLatch(1);
-            final ConnectionFactory cf = new ConnectionFactory();
-            cf.setReconnectAllowed(false);
-            cf.setDisconnectedCallback(new DisconnectedCallback() {
+            DisconnectedCallback dcb = new DisconnectedCallback() {
                 public void onDisconnect(ConnectionEvent event) {
                     latch.countDown();
                 }
-            });
-
-            try (Connection c = cf.createConnection()) {
+            };
+            Options opts = new Options.Builder().noReconnect().disconnectedCb(dcb).build();
+            try (Connection c = opts.connect(Nats.DEFAULT_URL)) {
                 srv.shutdown();
                 assertTrue("Disconnected callback not triggered", await(latch));
             }
@@ -274,8 +272,7 @@ public class ITConnectionTest {
 
     @Test
     public void testServersRandomize() throws IOException, TimeoutException {
-        Options opts = new Options();
-        opts.setServers(testServers);
+        Options opts = new Options.Builder().servers(testServers).build();
         ConnectionImpl nc = new ConnectionImpl(opts);
         nc.setupServerPool();
         // build url string array from srvPool
@@ -290,9 +287,7 @@ public class ITConnectionTest {
         nc.close();
 
         // Now test that we do not randomize if proper flag is set.
-        opts = new Options();
-        opts.setServers(testServers);
-        opts.setNoRandomize(true);
+        opts = new Options.Builder().servers(testServers).dontRandomize().build();
         nc = new ConnectionImpl(opts);
         nc.setupServerPool();
         // build url string array from srvPool
@@ -312,9 +307,8 @@ public class ITConnectionTest {
          * versa), the behavior is that Opts.Url is always first, even when randomization is
          * enabled. So make sure that this is still the case.
          */
-        Options opts = new Options();
-        opts.setUrl(ConnectionFactory.DEFAULT_URL);
-        opts.setServers(testServers);
+        Options opts = new Options.Builder().url(Nats.DEFAULT_URL).servers(testServers)
+                .build();
         ConnectionImpl nc = new ConnectionImpl(opts);
         nc.setupServerPool();
         // build url string array from srvPool
@@ -330,7 +324,7 @@ public class ITConnectionTest {
 
         assertEquals(
                 String.format("Options.Url should be first in the array, got %s", clientServers[0]),
-                ConnectionFactory.DEFAULT_URL, clientServers[0]);
+                Nats.DEFAULT_URL, clientServers[0]);
         nc.close();
     }
 }

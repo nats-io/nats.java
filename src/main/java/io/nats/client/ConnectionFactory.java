@@ -6,9 +6,10 @@
 
 package io.nats.client;
 
-import static io.nats.client.Constants.NATS_SCHEME;
-import static io.nats.client.Constants.TCP_SCHEME;
-import static io.nats.client.Constants.TLS_SCHEME;
+import static io.nats.client.Nats.NATS_SCHEME;
+import static io.nats.client.Nats.TCP_SCHEME;
+import static io.nats.client.Nats.TLS_SCHEME;
+import static io.nats.client.Nats.*;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -27,163 +28,8 @@ import javax.net.ssl.SSLContext;
  * 
  */
 public class ConnectionFactory implements Cloneable {
-    // Property names
-    static final String PFX = "io.nats.client.";
-    /**
-     * This property is defined as String {@value #PROP_URL}.
-     */
-    public static final String PROP_URL = PFX + "url";
-    /**
-     * This property is defined as String {@value #PROP_HOST}.
-     */
-    public static final String PROP_HOST = PFX + "host";
-    /**
-     * This property is defined as String {@value #PROP_PORT}.
-     */
-    public static final String PROP_PORT = PFX + "port";
-    /**
-     * This property is defined as String {@value #PROP_USERNAME}.
-     */
-    public static final String PROP_USERNAME = PFX + "username";
-    /**
-     * This property is defined as String {@value #PROP_PASSWORD}.
-     */
-    public static final String PROP_PASSWORD = PFX + "password";
-    /**
-     * This property is defined as String {@value #PROP_SERVERS}.
-     */
-    public static final String PROP_SERVERS = PFX + "servers";
-    /**
-     * This property is defined as String {@value #PROP_NORANDOMIZE}.
-     */
-    public static final String PROP_NORANDOMIZE = PFX + "norandomize";
-    /**
-     * This property is defined as String {@value #PROP_CONNECTION_NAME}.
-     */
-    public static final String PROP_CONNECTION_NAME = PFX + "name";
-    /**
-     * This property is defined as String {@value #PROP_VERBOSE}.
-     */
-    public static final String PROP_VERBOSE = PFX + "verbose";
-    /**
-     * This property is defined as String {@value #PROP_PEDANTIC}.
-     */
-    public static final String PROP_PEDANTIC = PFX + "pedantic";
-    /**
-     * This property is defined as String {@value #PROP_SECURE}.
-     */
-    public static final String PROP_SECURE = PFX + "secure";
-    /**
-     * This property is defined as String {@value #PROP_TLS_DEBUG}.
-     */
-    public static final String PROP_TLS_DEBUG = PFX + "tls.debug";
-    /**
-     * This property is defined as String {@value #PROP_RECONNECT_ALLOWED}.
-     */
-    public static final String PROP_RECONNECT_ALLOWED = PFX + "reconnect.allowed";
-    /**
-     * This property is defined as String {@value #PROP_MAX_RECONNECT}.
-     */
-    public static final String PROP_MAX_RECONNECT = PFX + "reconnect.max";
-    /**
-     * This property is defined as String {@value #PROP_RECONNECT_WAIT}.
-     */
-    public static final String PROP_RECONNECT_WAIT = PFX + "reconnect.wait";
-    /**
-     * This property is defined as String {@value #PROP_RECONNECT_BUF_SIZE}.
-     */
-    public static final String PROP_RECONNECT_BUF_SIZE = PFX + "reconnect.buffer.size";
-    /**
-     * This property is defined as String {@value #PROP_CONNECTION_TIMEOUT}.
-     */
-    public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
-    /**
-     * This property is defined as String {@value #PROP_PING_INTERVAL}.
-     */
-    public static final String PROP_PING_INTERVAL = PFX + "pinginterval";
-    /**
-     * This property is defined as String {@value #PROP_MAX_PINGS}.
-     */
-    public static final String PROP_MAX_PINGS = PFX + "maxpings";
-    /**
-     * This property is defined as String {@value #PROP_EXCEPTION_HANDLER}.
-     */
-    public static final String PROP_EXCEPTION_HANDLER = PFX + "callback.exception";
-    /**
-     * This property is defined as String {@value #PROP_CLOSED_CB}.
-     */
-    public static final String PROP_CLOSED_CB = PFX + "callback.closed";
-    /**
-     * This property is defined as String {@value #PROP_DISCONNECTED_CB}.
-     */
-    public static final String PROP_DISCONNECTED_CB = PFX + "callback.disconnected";
-    /**
-     * This property is defined as String {@value #PROP_RECONNECTED_CB}.
-     */
-    public static final String PROP_RECONNECTED_CB = PFX + "callback.reconnected";
 
-    /**
-     * Default server host.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_HOST}
-     */
-    public static final String DEFAULT_HOST = "localhost";
-    /**
-     * Default server port.
-     * 
-     * <p>This property is defined as int {@value #DEFAULT_PORT}
-     */
-    public static final int DEFAULT_PORT = 4222;
-    /**
-     * Default server URL.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_URL}
-     */
-    public static final String DEFAULT_URL = "nats://" + DEFAULT_HOST + ":" + DEFAULT_PORT;
-    /**
-     * Default SSL/TLS protocol version.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_SSL_PROTOCOL}
-     */
-    static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
-    /**
-     * Default maximum number of reconnect attempts.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_MAX_RECONNECT}
-     */
-    public static final int DEFAULT_MAX_RECONNECT = 60;
-    /**
-     * Default wait time before attempting reconnection to the same server.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_RECONNECT_WAIT}
-     */
-    public static final int DEFAULT_RECONNECT_WAIT = 2 * 1000;
-    /**
-     * Default of pending message buffer that is used for buffering messages that are published
-     * during a disconnect/reconnect.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_RECONNECT_BUF_SIZE}
-     */
-    public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
-    /**
-     * Default connection timeout.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_TIMEOUT}
-     */
-    public static final int DEFAULT_TIMEOUT = 2 * 1000;
-    /**
-     * Default server ping interval. {@code <=0} means disabled.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_PING_INTERVAL}
-     */
-    public static final int DEFAULT_PING_INTERVAL = 2 * 60000;
-    /**
-     * Default maximum number of pings that have not received a response.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_MAX_PINGS_OUT}
-     */
-    public static final int DEFAULT_MAX_PINGS_OUT = 2;
-
+    private TcpConnectionFactory factory = null;
     private URI url = null;
     private String host = null;
     private int port = -1;
@@ -196,12 +42,12 @@ public class ConnectionFactory implements Cloneable {
     private boolean pedantic = false;
     private boolean secure = false;
     private boolean reconnectAllowed = true;
-    private int maxReconnect = DEFAULT_MAX_RECONNECT;
-    private long reconnectWait = DEFAULT_RECONNECT_WAIT;
-    private int reconnectBufSize = DEFAULT_RECONNECT_BUF_SIZE;
-    private int connectionTimeout = DEFAULT_TIMEOUT;
-    private long pingInterval = DEFAULT_PING_INTERVAL;
-    private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
+    private int maxReconnect = Nats.DEFAULT_MAX_RECONNECT;
+    private long reconnectWait = Nats.DEFAULT_RECONNECT_WAIT;
+    private int reconnectBufSize = Nats.DEFAULT_RECONNECT_BUF_SIZE;
+    private int connectionTimeout = Nats.DEFAULT_TIMEOUT;
+    private long pingInterval = Nats.DEFAULT_PING_INTERVAL;
+    private int maxPingsOut = Nats.DEFAULT_MAX_PINGS_OUT;
     private SSLContext sslContext;
     private ExceptionHandler exceptionHandler = null;
     private ClosedCallback closedCallback;
@@ -216,154 +62,35 @@ public class ConnectionFactory implements Cloneable {
      * @param props the {@link Properties} object
      */
     public ConnectionFactory(Properties props) {
-        if (props == null) {
-            throw new IllegalArgumentException("Properties cannot be null");
-        }
+        Options opts = new Options.Builder(props).build();
 
-        // PROP_URL
-        if (props.containsKey(PROP_URL)) {
-            this.setUrl(props.getProperty(PROP_URL, DEFAULT_URL));
+        this.factory = opts.factory;
+        this.url = URI.create(opts.url);
+        this.host = opts.host;
+        this.port = opts.port;
+        this.username = opts.username;
+        this.password = opts.password;
+        if (opts.servers != null) {
+            this.servers = new ArrayList<URI>(opts.servers);
         }
-        // PROP_HOST
-        if (props.containsKey(PROP_HOST)) {
-            this.setHost(props.getProperty(PROP_HOST, DEFAULT_HOST));
-        }
-        // PROP_PORT
-        if (props.containsKey(PROP_PORT)) {
-            this.setPort(
-                    Integer.parseInt(props.getProperty(PROP_PORT, Integer.toString(DEFAULT_PORT))));
-        }
-        // PROP_USERNAME
-        if (props.containsKey(PROP_USERNAME)) {
-            this.setUsername(props.getProperty(PROP_USERNAME, null));
-        }
-        // PROP_PASSWORD
-        if (props.containsKey(PROP_PASSWORD)) {
-            this.setPassword(props.getProperty(PROP_PASSWORD, null));
-        }
-        // PROP_SERVERS
-        if (props.containsKey(PROP_SERVERS)) {
-            String str = props.getProperty(PROP_SERVERS);
-            if (str.isEmpty()) {
-                throw new IllegalArgumentException(PROP_SERVERS + " cannot be empty");
-            } else {
-                String[] servers = str.trim().split(",\\s*");
-                this.setServers(servers);
-            }
-        }
-        // PROP_NORANDOMIZE
-        if (props.containsKey(PROP_NORANDOMIZE)) {
-            this.setNoRandomize(Boolean.parseBoolean(props.getProperty(PROP_NORANDOMIZE)));
-        }
-        // PROP_CONNECTION_NAME
-        if (props.containsKey(PROP_CONNECTION_NAME)) {
-            this.setConnectionName(props.getProperty(PROP_CONNECTION_NAME, null));
-        }
-        // PROP_VERBOSE
-        if (props.containsKey(PROP_VERBOSE)) {
-            this.setVerbose(Boolean.parseBoolean(props.getProperty(PROP_VERBOSE)));
-        }
-        // PROP_PEDANTIC
-        if (props.containsKey(PROP_PEDANTIC)) {
-            this.setPedantic(Boolean.parseBoolean(props.getProperty(PROP_PEDANTIC)));
-        }
-        // PROP_SECURE
-        if (props.containsKey(PROP_SECURE)) {
-            this.setSecure(Boolean.parseBoolean(props.getProperty(PROP_SECURE)));
-        }
-        // PROP_TLS_DEBUG
-        if (props.containsKey(PROP_TLS_DEBUG)) {
-            this.setTlsDebug(Boolean.parseBoolean(props.getProperty(PROP_TLS_DEBUG)));
-        }
-        // PROP_RECONNECT_ALLOWED
-        if (props.containsKey(PROP_RECONNECT_ALLOWED)) {
-            this.setReconnectAllowed(Boolean.parseBoolean(
-                    props.getProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(true))));
-        }
-        // PROP_MAX_RECONNECT
-        if (props.containsKey(PROP_MAX_RECONNECT)) {
-            this.setMaxReconnect(Integer.parseInt(props.getProperty(PROP_MAX_RECONNECT,
-                    Integer.toString(DEFAULT_MAX_RECONNECT))));
-        }
-        // PROP_RECONNECT_WAIT
-        if (props.containsKey(PROP_RECONNECT_WAIT)) {
-            this.setReconnectWait(Integer.parseInt(props.getProperty(PROP_RECONNECT_WAIT,
-                    Integer.toString(DEFAULT_RECONNECT_WAIT))));
-        }
-        // PROP_RECONNECT_BUF_SIZE
-        if (props.containsKey(PROP_RECONNECT_BUF_SIZE)) {
-            this.setReconnectBufSize(Integer.parseInt(props.getProperty(PROP_RECONNECT_BUF_SIZE,
-                    Integer.toString(DEFAULT_RECONNECT_BUF_SIZE))));
-        }
-        // PROP_CONNECTION_TIMEOUT
-        if (props.containsKey(PROP_CONNECTION_TIMEOUT)) {
-            this.setConnectionTimeout(Integer.parseInt(
-                    props.getProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(DEFAULT_TIMEOUT))));
-        }
-        // PROP_PING_INTERVAL
-        if (props.containsKey(PROP_PING_INTERVAL)) {
-            this.setPingInterval(Integer.parseInt(props.getProperty(PROP_PING_INTERVAL,
-                    Integer.toString(DEFAULT_PING_INTERVAL))));
-        }
-        // PROP_MAX_PINGS
-        if (props.containsKey(PROP_MAX_PINGS)) {
-            this.setMaxPingsOut(Integer.parseInt(
-                    props.getProperty(PROP_MAX_PINGS, Integer.toString(DEFAULT_MAX_PINGS_OUT))));
-        }
-        // PROP_EXCEPTION_HANDLER
-        if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
-            Object instance = null;
-            try {
-                String str = props.getProperty(PROP_EXCEPTION_HANDLER);
-                Class<?> clazz = Class.forName(str);
-                Constructor<?> constructor = clazz.getConstructor();
-                instance = constructor.newInstance();
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e);
-            } finally {
-                /* NOOP */
-            }
-            this.setExceptionHandler((ExceptionHandler) instance);
-        }
-        // PROP_CLOSED_CB
-        if (props.containsKey(PROP_CLOSED_CB)) {
-            Object instance = null;
-            try {
-                String str = props.getProperty(PROP_CLOSED_CB);
-                Class<?> clazz = Class.forName(str);
-                Constructor<?> constructor = clazz.getConstructor();
-                instance = constructor.newInstance();
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e);
-            }
-            this.setClosedCallback((ClosedCallback) instance);
-        }
-        // PROP_DISCONNECTED_CB
-        if (props.containsKey(PROP_DISCONNECTED_CB)) {
-            Object instance = null;
-            try {
-                String str = props.getProperty(PROP_DISCONNECTED_CB);
-                Class<?> clazz = Class.forName(str);
-                Constructor<?> constructor = clazz.getConstructor();
-                instance = constructor.newInstance();
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e);
-            }
-            this.setDisconnectedCallback((DisconnectedCallback) instance);
-        }
-        // PROP_RECONNECTED_CB
-        if (props.containsKey(PROP_RECONNECTED_CB)) {
-            Object instance = null;
-            try {
-                String str = props.getProperty(PROP_RECONNECTED_CB);
-                Class<?> clazz = Class.forName(str);
-                Constructor<?> constructor = clazz.getConstructor();
-                instance = constructor.newInstance();
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e);
-            }
-            this.setReconnectedCallback((ReconnectedCallback) instance);
-        }
+        this.noRandomize = opts.noRandomize;
+        this.connectionName = opts.connectionName;
+        this.verbose = opts.verbose;
+        this.pedantic = opts.pedantic;
+        this.secure = opts.secure;
+        this.reconnectAllowed = opts.allowReconnect;
+        this.maxReconnect = opts.maxReconnect;
+        this.reconnectBufSize = opts.reconnectBufSize;
+        this.reconnectWait = opts.reconnectWait;
+        this.connectionTimeout = opts.connectionTimeout;
+        this.pingInterval = opts.pingInterval;
+        this.maxPingsOut = opts.maxPingsOut;
+        this.sslContext = opts.sslContext;
+        this.exceptionHandler = opts.asyncErrorCb;
+        this.closedCallback = opts.closedCb;
+        this.disconnectedCallback = opts.disconnectedCb;
+        this.reconnectedCallback = opts.reconnectedCb;
+        this.urlString = opts.url;
     }
 
     /**
@@ -418,6 +145,7 @@ public class ConnectionFactory implements Cloneable {
      * @param cf the {@code ConnectionFactory} to copy
      */
     public ConnectionFactory(ConnectionFactory cf) {
+        this.factory = cf.factory;
         this.url = cf.url;
         this.host = cf.host;
         this.port = cf.port;
@@ -461,9 +189,10 @@ public class ConnectionFactory implements Cloneable {
     // For unit test/mock purposes only.
     ConnectionImpl createConnection(TcpConnectionFactory tcf) throws IOException, TimeoutException {
         ConnectionImpl conn = null;
-        Options options = options();
+        this.factory = tcf;
+        Options options = new Options.Builder(options()).build();
 
-        conn = new ConnectionImpl(options, tcf);
+        conn = new ConnectionImpl(options);
 
         conn.connect();
 
@@ -498,32 +227,39 @@ public class ConnectionFactory implements Cloneable {
     }
 
     protected Options options() {
-        Options result = new Options();
-        url = constructURI();
-        result.setUrl(url);
-        result.setHost(host);
-        result.setPort(port);
-        result.setPassword(password);
-        result.setServers(servers);
-        result.setNoRandomize(noRandomize);
-        result.setConnectionName(connectionName);
-        result.setVerbose(verbose);
-        result.setPedantic(pedantic);
-        result.setSecure(secure);
-        result.setTlsDebug(tlsDebug);
-        result.setReconnectAllowed(reconnectAllowed);
-        result.setMaxReconnect(maxReconnect);
-        result.setReconnectBufSize(reconnectBufSize);
-        result.setReconnectWait(reconnectWait);
-        result.setConnectionTimeout(connectionTimeout);
-        result.setPingInterval(pingInterval);
-        result.setMaxPingsOut(maxPingsOut);
-        result.setExceptionHandler(exceptionHandler);
-        result.setClosedCallback(closedCallback);
-        result.setDisconnectedCallback(disconnectedCallback);
-        result.setReconnectedCallback(reconnectedCallback);
-        result.setSslContext(sslContext);
-        return result;
+        String urlString = null;
+        if (url != null) {
+            url = constructURI();
+            urlString = url.toString();
+        }
+
+        Options.Builder result =
+                new Options.Builder().userInfo(username, password).url(urlString).servers(servers);
+        if (noRandomize) {
+            result = result.dontRandomize();
+        }
+        if (verbose) {
+            result = result.verbose();
+        }
+        if (pedantic) {
+            result = result.pedantic();
+        }
+        if (secure) {
+            result = result.secure();
+        }
+        if (tlsDebug) {
+            result = result.tlsDebug();
+        }
+        if (!reconnectAllowed) {
+            result = result.noReconnect();
+        }
+
+        result = result.factory(factory).maxReconnect(maxReconnect).reconnectWait(reconnectWait)
+                .reconnectBufSize(reconnectBufSize).name(connectionName).timeout(connectionTimeout)
+                .pingInterval(pingInterval).maxPingsOut(maxPingsOut).sslContext(sslContext)
+                .closedCb(closedCallback).disconnectedCb(disconnectedCallback)
+                .reconnectedCb(reconnectedCallback).errorCb(exceptionHandler);
+        return result.build();
     }
 
     /**
@@ -576,6 +312,26 @@ public class ConnectionFactory implements Cloneable {
                 }
             }
         }
+    }
+
+    /**
+     * Returns the default TCP connection factory, which will be used to create TCP connections to
+     * the NATS server.
+     * 
+     * @return the TCP connection factory
+     */
+    TcpConnectionFactory getTcpConnectionFactory() {
+        return this.factory;
+    }
+
+    /**
+     * Sets the default TCP connection factory, which will be used to create TCP connections to the
+     * NATS server.
+     * 
+     * @param factory the {@code TcpConnectionFactory} to set
+     */
+    void setTcpConnectionFactory(TcpConnectionFactory factory) {
+        this.factory = factory;
     }
 
     /**

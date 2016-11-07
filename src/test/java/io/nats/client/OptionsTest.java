@@ -9,7 +9,6 @@ package io.nats.client;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -42,120 +41,67 @@ public class OptionsTest {
     @Test
     public void testGetUrl() {
         String url = "nats://localhost:1234";
-        Options opts = new Options();
+        Options opts = Nats.defaultOptions();
         assertEquals(null, opts.getUrl());
-        opts.setUrl(url);
-        String uriString = opts.getUrl().toString();
-        assertEquals(url, uriString);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testSetUrlURI() {
-        String urlString = "nats://localhost:1234";
-        String badUrlString = "nats://larry:one:two@localhost:5151";
-
-        Options opts = new Options();
-        URI url = URI.create(urlString);
-        opts.setUrl(url);
+        opts = new Options.Builder().url(url).build();
         assertEquals(url, opts.getUrl());
-
-        try {
-            url = URI.create(badUrlString);
-        } catch (Exception e) {
-            fail("Shouldn't throw exception here");
-        }
-        // This should thrown an IllegalArgumentException due to malformed
-        // user info in the URL
-        opts.setUrl(url);
     }
 
+    // @Test(expected = IllegalArgumentException.class)
+    // public void testSetUrlURI() {
+    // String urlString = "nats://localhost:1234";
+    // String badUrlString = "nats://larry:one:two@localhost:5151";
+    //
+    // Options opts = new Options();
+    // URI url = URI.create(urlString);
+    // opts.setUrl(url);
+    // assertEquals(url, opts.getUrl());
+    //
+    // try {
+    // url = URI.create(badUrlString);
+    // } catch (Exception e) {
+    // fail("Shouldn't throw exception here");
+    // }
+    // // This should thrown an IllegalArgumentException due to malformed
+    // // user info in the URL
+    // opts.setUrl(url);
+    // }
+
     @Test
-    public void testSetUrlString() {
+    public void testUrl() {
         final String urlString = "nats://localhost:1234";
-        Options opts = new Options();
+        Options opts = Nats.defaultOptions();
         assertEquals(null, opts.getUrl());
 
-        opts.setUrl("");
+        opts = new Options.Builder().url("").build();
         assertNull("Should be null", opts.getUrl());
 
-        opts.setUrl((String) null);
+        opts = new Options.Builder().url(null).build();
         assertNull("Should be null", opts.getUrl());
 
-        opts.setUrl(urlString);
-        String uriString = opts.getUrl().toString();
-        assertEquals(urlString, uriString);
-
-
-
-        String badUrlString = "tcp://foobar baz";
-        boolean exThrown = false;
-        try {
-            opts.setUrl(badUrlString);
-        } catch (IllegalArgumentException e) {
-            exThrown = true;
-        } catch (Exception e) {
-            fail(e.getMessage());
-        } finally {
-            assertTrue("Should have thrown IllegalArgumentException", exThrown);
-        }
-
-
-    }
-
-    @Test
-    public void testGetHost() {
-        URI uri = URI.create("nats://somehost:5555");
-        Options opts = new Options();
-        opts.setUrl(uri);
-        assertEquals(uri.getHost(), opts.getHost());
+        opts = new Options.Builder().url(urlString).build();
+        assertEquals(urlString, opts.getUrl());
     }
 
     // @Test
-    // public void testSetHost() {
-    // fail("Not yet implemented"); // TODO
+    // public void testGetUsername() {
+    // URI uri = URI.create("nats://larry:foobar@somehost:5555");
+    // Options opts = new Options();
+    // opts.setUrl(uri);
+    // String[] userTokens = uri.getUserInfo().split(":");
+    // String username = userTokens[0];
+    // assertEquals(username, opts.getUsername());
     // }
-    //
-    @Test
-    public void testGetPort() {
-        URI uri = URI.create("nats://somehost:5555");
-        Options opts = new Options();
-        opts.setUrl(uri);
-        assertEquals(uri.getPort(), opts.getPort());
-    }
-
-    // @Test
-    // public void testSetPort() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    @Test
-    public void testGetUsername() {
-        URI uri = URI.create("nats://larry:foobar@somehost:5555");
-        Options opts = new Options();
-        opts.setUrl(uri);
-        String[] userTokens = uri.getUserInfo().split(":");
-        String username = userTokens[0];
-        assertEquals(username, opts.getUsername());
-    }
 
     @Test
-    public void testSetUsername() {
-        String username = "larry";
-        Options opts = new Options();
-        opts.setUsername(username);
-        assertEquals(username, opts.getUsername());
+    public void testUserInfo() {
+        String user = "larry";
+        String pass = "foo";
+        Options opts = new Options.Builder().userInfo(user, pass).build();
+        assertEquals(user, opts.getUsername());
+        assertEquals(pass, opts.getPassword());
     }
 
-    @Test
-    public void testGetPassword() {
-        assertNull(new Options().getPassword());
-    }
-
-    // @Test
-    // public void testSetPassword() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
     // @Test
     // public void testGetServers() {
     // fail("Not yet implemented"); // TODO
@@ -165,14 +111,13 @@ public class OptionsTest {
     public void testSetServersStringArray() {
         String[] serverArray = { "nats://cluster-host-1:5151", "nats://cluster-host-2:5252" };
         List<URI> sList = ConnectionFactoryTest.serverArrayToList(serverArray);
-        Options opts = new Options();
-        opts.setServers(serverArray);
+        Options opts = new Options.Builder().servers(serverArray).build();
         assertEquals(sList, opts.getServers());
 
         String[] badServerArray = { "nats:// cluster-host-1:5151", "nats:// cluster-host-2:5252" };
         boolean exThrown = false;
         try {
-            opts.setServers(badServerArray);
+            opts = new Options.Builder().servers(badServerArray).build();
         } catch (IllegalArgumentException e) {
             exThrown = true;
         } finally {
@@ -237,8 +182,7 @@ public class OptionsTest {
     //
     @Test
     public void testIsTlsDebug() {
-        Options opts = new Options();
-        opts.setTlsDebug(true);
+        Options opts = new Options.Builder().tlsDebug().build();
         assertTrue(opts.isTlsDebug());
     }
 

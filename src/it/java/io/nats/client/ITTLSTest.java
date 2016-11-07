@@ -6,6 +6,8 @@
 
 package io.nats.client;
 
+import static io.nats.client.Nats.ConnState.CONNECTED;
+import static io.nats.client.Nats.ConnState.RECONNECTING;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.runServerWithConfig;
 import static io.nats.client.UnitTestUtilities.sleep;
@@ -82,7 +84,7 @@ public class ITTLSTest {
             assertNotNull(tmf);
             tmf.init(tks);
 
-            SSLContext ctx = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+            SSLContext ctx = SSLContext.getInstance(Nats.DEFAULT_SSL_PROTOCOL);
             assertNotNull(ctx);
             ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
@@ -120,7 +122,7 @@ public class ITTLSTest {
             assertNotNull(tmf);
             tmf.init(tks);
 
-            SSLContext context = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+            SSLContext context = SSLContext.getInstance(Nats.DEFAULT_SSL_PROTOCOL);
             assertNotNull(context);
             context.init(null, tmf.getTrustManagers(), new SecureRandom());
 
@@ -177,7 +179,7 @@ public class ITTLSTest {
             assertNotNull(tmf);
             tmf.init(tks);
 
-            SSLContext context = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+            SSLContext context = SSLContext.getInstance(Nats.DEFAULT_SSL_PROTOCOL);
             assertNotNull(context);
             context.init(null, tmf.getTrustManagers(), new SecureRandom());
 
@@ -214,7 +216,7 @@ public class ITTLSTest {
 
                 assertTrue("Expected to be in a reconnecting state", c.isReconnecting());
 
-                assertEquals(Constants.ConnState.RECONNECTING, c.getState());
+                assertEquals(RECONNECTING, c.getState());
 
                 // Wait until we get the reconnect callback
                 try (NatsServer srv2 = runServerWithConfig("tls_1222.conf")) {
@@ -226,7 +228,7 @@ public class ITTLSTest {
                     assertFalse("isReconnecting returned true after the client was reconnected.",
                             c.isReconnecting());
 
-                    assertEquals(Constants.ConnState.CONNECTED, c.getState());
+                    assertEquals(CONNECTED, c.getState());
 
                     // Close the connection, reconnecting should still be false
                     c.close();

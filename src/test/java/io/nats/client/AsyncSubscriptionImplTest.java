@@ -66,7 +66,7 @@ public class AsyncSubscriptionImplTest {
     @Test
     public void testClose() {
         // Make sure the connection opts aren't null
-        when(connMock.getOptions()).thenReturn(new ConnectionFactory().options());
+        when(connMock.getOptions()).thenReturn(Nats.defaultOptions());
 
         AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(connMock, "foo", "bar", mcbMock);
         sub.close();
@@ -83,7 +83,7 @@ public class AsyncSubscriptionImplTest {
         ConnectionImpl nc = mock(ConnectionImpl.class);
 
         // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+        when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
         try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             assertTrue(s.isValid());

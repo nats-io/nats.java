@@ -1,9 +1,11 @@
 package io.nats.examples;
 
+
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
+import io.nats.client.Nats;
 import io.nats.client.Subscription;
 
 import org.slf4j.Logger;
@@ -20,14 +22,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Subscriber {
     static final Logger log = LoggerFactory.getLogger(Subscriber.class);
 
-    private String url = ConnectionFactory.DEFAULT_URL;
+    private String url = Nats.DEFAULT_URL;
     private String subject;
     private String qgroup;
 
     static final String usageString =
             "\nUsage: java Subscriber [-s <server>] [-q <group>] <subject>\n\nOptions:\n"
                     + "    -s <url>            NATS server URLs, separated by commas (default: "
-                    + ConnectionFactory.DEFAULT_URL + ")\n"
+                    + Nats.DEFAULT_URL + ")\n"
                     + "    -q <name>           Queue group\n";
 
     Subscriber(String[] args) {

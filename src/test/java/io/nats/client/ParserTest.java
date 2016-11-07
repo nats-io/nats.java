@@ -6,8 +6,8 @@
 
 package io.nats.client;
 
-import static io.nats.client.UnitTestUtilities.newMockedConnection;
-import static io.nats.client.UnitTestUtilities.setLogLevel;
+import static org.mockito.Mockito.*;
+import static io.nats.client.UnitTestUtilities.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
@@ -76,10 +76,7 @@ public class ParserTest {
 
     @Test
     public void testParseControl() {
-        // Control c = new Control();
-        Options o = new Options();
-        ConnectionImpl conn = new ConnectionImpl(o);
-        Parser parser = new Parser(conn);
+        ConnectionImpl conn = new ConnectionImpl(Nats.defaultOptions());
 
         Control c = null;
 
@@ -139,8 +136,7 @@ public class ParserTest {
                 // MSG_END default (not an error)
                 "MSG \tfoo 1 6\r\nHello2\r\t" };
 
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             parser = c.parser;
             try (Subscription sub = c.subscribeSync("foo")) {
                 for (String s : goodLines) {
@@ -171,10 +167,9 @@ public class ParserTest {
     @Test
     public void testMinusErrDoesNotThrow() {
         Parser parser;
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
+        try (ConnectionImpl c = (ConnectionImpl) new ConnectionImpl(Nats.defaultOptions())) {
             parser = c.parser;
-            String s = String.format("-ERR %s\r\n", Constants.SERVER_ERR_AUTH_VIOLATION);
+            String s = String.format("-ERR %s\r\n", Nats.SERVER_ERR_AUTH_VIOLATION);
             try {
                 byte[] b = s.getBytes();
                 parser.parse(b, b.length);
@@ -188,12 +183,10 @@ public class ParserTest {
                 byte[] b = s.getBytes();
                 parser.parse(b, b.length);
             } catch (Exception e) {
+                e.printStackTrace();
                 fail("Should not have thrown an exception for [" + s + "]");
             }
 
-        } catch (IOException | TimeoutException e) {
-            // From the connection only
-            fail(e.getMessage());
         } // ConnectionImpl
     }
 
@@ -239,8 +232,7 @@ public class ParserTest {
                 // state default
                 "Z\r\n" };
 
-        try (ConnectionImpl nc =
-                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
+        try (ConnectionImpl nc = (ConnectionImpl) newMockedConnection()) {
 
             parser = nc.parser;
             boolean exThrown = false;
@@ -257,7 +249,7 @@ public class ParserTest {
                 }
                 assertTrue("Should have thrown ParseException for " + s, exThrown);
                 // Reset to OP_START for next line
-                nc.ps.state = NatsOp.OP_START;
+                nc.parser.ps.state = NatsOp.OP_START;
             }
 
         } // ConnectionImpl
@@ -473,7 +465,7 @@ public class ParserTest {
             tmpBuf.rewind();
             tmpBuf.get(tmp);
             assertEquals("Wrong msg content: ", "foo", new String(tmp));
-            for (int k = 3; k < nc.ps.ma.size; k++) {
+            for (int k = 3; k < nc.parser.ps.ma.size; k++) {
                 assertEquals("Wrong msg content: ", (byte) ('a' + ((k - 3) % 26)), tmpBuf.get(k));
             }
 
@@ -517,8 +509,7 @@ public class ParserTest {
         args = badSizeString.getBytes();
 
         exThrown = false;
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
+        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             c.parser.processMsgArgs(args, 0, args.length);
         } catch (ParseException e) {
             exThrown = true;
@@ -552,192 +543,193 @@ public class ParserTest {
 
     @Test
     public void testAsyncInfo() throws IOException, TimeoutException, ParseException {
-        try (ConnectionImpl c =
-                new ConnectionFactory().createConnection(new TcpConnectionFactoryMock())) {
-            c.parser.ps = c.parser.new ParseState();
+        try (ConnectionImpl conn = (ConnectionImpl) new ConnectionImpl(Nats.defaultOptions())) {
+            assertEquals(conn, conn.parser.nc);
 
-            assertEquals("Expected OP_START", NatsOp.OP_START, c.parser.ps.state);
+            assertEquals("Expected OP_START", NatsOp.OP_START, conn.parser.ps.state);
 
             byte[] info = "INFO {}\r\n".getBytes();
-            assertEquals("Expected OP_START", NatsOp.OP_START, c.parser.ps.state);
+            assertEquals("Expected OP_START", NatsOp.OP_START, conn.parser.ps.state);
 
-            c.parser.parse(Arrays.copyOfRange(info, 0, 1), 1);
-            assertEquals(NatsOp.OP_I, c.parser.ps.state);
+            conn.parser.parse(Arrays.copyOfRange(info, 0, 1), 1);
+            assertEquals(NatsOp.OP_I, conn.parser.ps.state);
 
-            c.parser.parse(Arrays.copyOfRange(info, 1, 2), 1);
-            assertEquals(NatsOp.OP_IN, c.parser.ps.state);
+            conn.parser.parse(Arrays.copyOfRange(info, 1, 2), 1);
+            assertEquals(NatsOp.OP_IN, conn.parser.ps.state);
 
-            c.parser.parse(Arrays.copyOfRange(info, 2, 3), 1);
-            assertEquals(NatsOp.OP_INF, c.parser.ps.state);
+            conn.parser.parse(Arrays.copyOfRange(info, 2, 3), 1);
+            assertEquals(NatsOp.OP_INF, conn.parser.ps.state);
 
-            c.parser.parse(Arrays.copyOfRange(info, 3, 4), 1);
-            assertEquals(NatsOp.OP_INFO, c.parser.ps.state);
+            conn.parser.parse(Arrays.copyOfRange(info, 3, 4), 1);
+            assertEquals(NatsOp.OP_INFO, conn.parser.ps.state);
 
-            c.parser.parse(Arrays.copyOfRange(info, 4, 5), 1);
-            assertEquals(NatsOp.OP_INFO_SPC, c.parser.ps.state);
+            conn.parser.parse(Arrays.copyOfRange(info, 4, 5), 1);
+            assertEquals(NatsOp.OP_INFO_SPC, conn.parser.ps.state);
 
             // System.err.println("info length = " + info.length);
             // String str = new String(info, 5, info.length - 5);
             // System.err.println("Substring = [" + str + "]");
 
-            c.parser.parse(Arrays.copyOfRange(info, 5, info.length), info.length - 5);
-            assertEquals(NatsOp.OP_START, c.parser.ps.state);
+            conn.parser.parse(Arrays.copyOfRange(info, 5, info.length), info.length - 5);
+            assertEquals(NatsOp.OP_START, conn.parser.ps.state);
 
             // All at once
-            c.parser.parse(info, info.length);
-            assertEquals(NatsOp.OP_START, c.parser.ps.state);
+            conn.parser.parse(info, info.length);
+            assertEquals(NatsOp.OP_START, conn.parser.ps.state);
 
             // Server pool needs to be setup
-            c.setupServerPool();
+            conn.setupServerPool();
 
             // Partials requiring argBuf
             ServerInfo expectedServer = new ServerInfo("test", "localhost", 4222, "1.2.3", true,
                     true, 2 * 1024 * 1024, new String[] { "localhost:5222", "localhost:6222" });
-            Gson gson = new GsonBuilder().create();
-            String jsonString = gson.toJson(expectedServer);
-            String infoString = String.format("INFO %s\r\n", jsonString);
+
+            String jsonString = expectedServer.toString();
+            String infoString = String.format("%s\r\n", jsonString);
             // System.err.println(infoString);
             info = infoString.getBytes();
 
-            assertEquals(NatsOp.OP_START, c.parser.ps.state);
+            assertEquals(NatsOp.OP_START, conn.parser.ps.state);
 
-            c.parser.parse(info, 9);
-            assertEquals(NatsOp.INFO_ARG, c.parser.ps.state);
-            assertNotNull(c.parser.ps.argBuf);
+            conn.parser.parse(info, 9);
+            assertEquals(NatsOp.INFO_ARG, conn.parser.ps.state);
+            assertNotNull(conn.parser.ps.argBuf);
 
-            c.parser.parse(Arrays.copyOfRange(info, 9, 11), 2);
-            assertEquals(NatsOp.INFO_ARG, c.parser.ps.state);
-            assertNotNull(c.parser.ps.argBuf);
+            conn.parser.parse(Arrays.copyOfRange(info, 9, 11), 2);
+            assertEquals(NatsOp.INFO_ARG, conn.parser.ps.state);
+            assertNotNull(conn.parser.ps.argBuf);
 
-            c.parser.parse(Arrays.copyOfRange(info, 11, info.length), info.length - 11);
-            assertEquals(NatsOp.OP_START, c.parser.ps.state);
-            assertNull(c.parser.ps.argBuf);
+            conn.parser.parse(Arrays.copyOfRange(info, 11, info.length), info.length - 11);
+            assertEquals(NatsOp.OP_START, conn.parser.ps.state);
+            assertNull(conn.parser.ps.argBuf);
 
             // Comparing the string representation is good enough
-            assertEquals(expectedServer.toString(), c.getConnectedServerInfo().toString());
+//            verify(c, times(1)).processAsyncInfo(infoString.trim());
+            assertEquals(expectedServer.toString(), conn.parser.nc.getConnectedServerInfo().toString());
+            assertEquals(expectedServer.toString(), conn.getConnectedServerInfo().toString());
 
             // Good INFOs
             String[] good = { "INFO {}\r\n", "INFO  {}\r\n", "INFO {} \r\n",
                     "INFO { \"server_id\": \"test\"  }   \r\n", "INFO {\"connect_urls\":[]}\r\n" };
             for (String gi : good) {
-                c.parser.ps = c.parser.new ParseState();
+                conn.parser.ps = conn.parser.new ParseState();
                 try {
-                    c.parser.parse(gi.getBytes(), gi.getBytes().length);
+                    conn.parser.parse(gi.getBytes(), gi.getBytes().length);
                 } catch (ParseException e) {
                     fail("Unexpected parse failure: " + e.getMessage());
                     e.printStackTrace();
                 }
-                assertEquals(c.parser.ps.state, NatsOp.OP_START);
+                assertEquals(conn.parser.ps.state, NatsOp.OP_START);
             }
 
             // Wrong INFOs
             String[] wrong = { "IxNFO {}\r\n", "INxFO {}\r\n", "INFxO {}\r\n", "INFOx {}\r\n",
                     "INFO{}\r\n", "INFO {}" };
             for (String wi : wrong) {
-                c.parser.ps = c.parser.new ParseState();
+                conn.parser.ps = conn.parser.new ParseState();
                 boolean exThrown = false;
                 try {
-                    c.parser.parse(wi.getBytes(), wi.getBytes().length);
+                    conn.parser.parse(wi.getBytes(), wi.getBytes().length);
                 } catch (ParseException e) {
                     exThrown = true;
                 }
-                if (!exThrown && (c.parser.ps.state == NatsOp.OP_START)) {
+                if (!exThrown && (conn.parser.ps.state == NatsOp.OP_START)) {
                     fail("Should have failed: " + wi);
                 }
             }
             // Now test the decoding of "connect_urls"
 
             // No randomize for now
-            c.opts.setNoRandomize(true);
+            conn.opts.noRandomize = true;
             // Reset the pool
-            c.setupServerPool();
+            conn.setupServerPool();
             // Reinitialize the parser
-            c.parser.ps = c.parser.new ParseState();
+            conn.parser.ps = conn.parser.new ParseState();
             info = "INFO {\"connect_urls\":[\"localhost:5222\"]}\r\n".getBytes();
-            c.parser.parse(info);
+            conn.parser.parse(info);
 
             // Pool now should contain localhost:4222 (the default URL) and localhost:5222
             String[] srvList = { "localhost:4222", "localhost:5222" };
-            checkPool(c, Arrays.asList(srvList));
+            checkPool(conn, Arrays.asList(srvList));
 
             // Make sure that if client receives the same, it is not added again.
-            c.parser.parse(info, info.length);
-            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+            conn.parser.parse(info, info.length);
+            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
 
             // Pool should still contain localhost:4222 (the default URL) and localhost:5222
-            checkPool(c, Arrays.asList(srvList));
+            checkPool(conn, Arrays.asList(srvList));
 
             // Receive a new URL
             info = "INFO {\"connect_urls\":[\"localhost:6222\"]}\r\n".getBytes();
-            c.parser.parse(info);
-            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+            conn.parser.parse(info);
+            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222 and
             // localhost:6222
             srvList = new String[] { "localhost:4222", "localhost:5222", "localhost:6222" };
-            checkPool(c, Arrays.asList(srvList));
+            checkPool(conn, Arrays.asList(srvList));
 
             // Receive more than 1 URL at once
             info = "INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\"]}\r\n"
                     .getBytes();
-            c.parser.parse(info);
-            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+            conn.parser.parse(info);
+            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222,
             // localhost:6222
             // localhost:7222 and localhost:8222
             srvList = new String[] { "localhost:4222", "localhost:5222", "localhost:6222",
                     "localhost:7222", "localhost:8222" };
-            checkPool(c, Arrays.asList(srvList));
+            checkPool(conn, Arrays.asList(srvList));
 
             // Test with pool randomization now
-            c.getOptions().setNoRandomize(false);
-            c.setupServerPool();
+            conn.opts.noRandomize = false;
+            conn.setupServerPool();
 
             info = "INFO {\"connect_urls\":[\"localhost:5222\"]}\r\n".getBytes();
-            c.parser.parse(info);
-            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+            conn.parser.parse(info);
+            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) and localhost:5222
             srvList = new String[] { "localhost:4222", "localhost:5222" };
-            checkPool(c, Arrays.asList(srvList));
+            checkPool(conn, Arrays.asList(srvList));
 
             // Make sure that if client receives the same, it is not added again.
-            c.parser.parse(info, info.length);
-            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+            conn.parser.parse(info, info.length);
+            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
 
             // Pool should still contain localhost:4222 (the default URL) and localhost:5222
-            checkPool(c, Arrays.asList(srvList));
+            checkPool(conn, Arrays.asList(srvList));
 
             // Receive a new URL
             info = "INFO {\"connect_urls\":[\"localhost:6222\"]}\r\n".getBytes();
-            c.parser.parse(info);
-            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+            conn.parser.parse(info);
+            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222 and
             // localhost:6222
             srvList = new String[] { "localhost:4222", "localhost:5222", "localhost:6222" };
-            checkPool(c, Arrays.asList(srvList));
+            checkPool(conn, Arrays.asList(srvList));
 
             // Receive more than 1 URL at once
             info = "INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\"]}\r\n"
                     .getBytes();
-            c.parser.parse(info);
-            assertEquals(c.parser.ps.state, NatsOp.OP_START);
+            conn.parser.parse(info);
+            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222,
             // localhost:6222
             // localhost:7222 and localhost:8222
             srvList = new String[] { "localhost:4222", "localhost:5222", "localhost:6222",
                     "localhost:7222", "localhost:8222" };
-            checkPool(c, Arrays.asList(srvList));
+            checkPool(conn, Arrays.asList(srvList));
 
             // Finally, check that the pool should be randomized.
             String[] allUrls = new String[] { "localhost:4222", "localhost:5222", "localhost:6222",
                     "localhost:7222", "localhost:8222" };
             int same = 0;
             int i = 0;
-            for (Srv s : c.srvPool) {
+            for (Srv s : conn.srvPool) {
                 if (s.url.getAuthority().equals(allUrls[i])) {
                     same++;
                 }

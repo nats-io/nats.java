@@ -18,7 +18,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URI;
 import java.security.cert.Certificate;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 
 import javax.net.SocketFactory;
@@ -33,7 +35,7 @@ import javax.net.ssl.SSLSocketFactory;
  * Convenience class representing the TCP connection to prevent managing two variables throughout
  * the NATS client code.
  */
-class TcpConnection implements AutoCloseable {
+class TcpConnection implements TransportConnection, AutoCloseable {
     final Logger logger = LoggerFactory.getLogger(TcpConnection.class);
 
     /// TODO: Test various scenarios for efficiency. Is a
@@ -54,10 +56,15 @@ class TcpConnection implements AutoCloseable {
     protected int timeout = 0;
     boolean tlsDebug = false;
 
-    TcpConnection() {}
+    TcpConnection() {
+    }
 
-    void open(String host, int port, int timeoutMillis) throws IOException {
-        logger.trace("TcpConnection.open({},{},{})", host, port, timeoutMillis);
+    @Override
+    public void open(String url, int timeout) throws IOException, TimeoutException {
+        logger.trace("TcpConnection.open({},{})", url, timeout);
+        URI uri = URI.create(url);
+        String host = uri.getHost();
+        int port = uri.getPort();
         mu.lock();
         try {
 
@@ -72,18 +79,6 @@ class TcpConnection implements AutoCloseable {
             logger.debug("socket recv buf size: {}", client.getReceiveBufferSize());
             logger.debug("socket send buf size: {}", client.getSendBufferSize());
 
-            open();
-
-        } catch (IOException e) {
-            throw e;
-        } finally {
-            mu.unlock();
-        }
-    }
-
-    void open() throws IOException {
-        mu.lock();
-        try {
             writeStream = client.getOutputStream();
             readStream = client.getInputStream();
 
@@ -123,18 +118,26 @@ class TcpConnection implements AutoCloseable {
         }
     }
 
-    BufferedReader getBufferedReader() {
+    @Override
+    public BufferedReader getBufferedReader() {
         return new BufferedReader(new InputStreamReader(bis));
     }
 
-    InputStream getInputStream(int size) {
+    @Override
+    public InputStream getInputStream(int size) {
         if (bis == null) {
+            if (size > 0) {
+                bis = new BufferedInputStream(readStream, size);
+            } else {
+                bis = new BufferedInputStream(readStream);
+            }
             bis = new BufferedInputStream(readStream, size);
         }
         return bis;
     }
 
-    OutputStream getOutputStream(int size) {
+    @Override
+    public OutputStream getOutputStream(int size) {
         if (bos == null) {
             bos = new BufferedOutputStream(writeStream, size);
         }
@@ -148,19 +151,17 @@ class TcpConnection implements AutoCloseable {
         return writeStream;
     }
 
-    boolean isConnected() {
+    @Override
+    public boolean isConnected() {
         if (client == null) {
             return false;
         }
         return client.isConnected();
     }
 
-    boolean isDataAvailable() throws IOException {
-        if (readStream == null) {
-            return false;
-        }
-
-        return (readStream.available() > 0);
+    @Override
+    public boolean isClosed() {
+        return client.isClosed();
     }
 
     /**
@@ -196,7 +197,6 @@ class TcpConnection implements AutoCloseable {
             sslSocket.addHandshakeCompletedListener(new HandshakeListener());
         }
 
-        // this.setSocket(sslSocket);
         logger.trace("Starting TLS handshake");
         sslSocket.startHandshake();
         logger.trace("TLS handshake complete");

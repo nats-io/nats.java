@@ -6,6 +6,7 @@
 
 package io.nats.client;
 
+import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
@@ -305,10 +306,9 @@ public class NatsBenchTest {
         final String reqSubject = "request";
 
         final SynchronousQueue<String> ch = new SynchronousQueue<String>();
-        final ConnectionFactory cf = new ConnectionFactory();
 
         try (NatsServer srv = runDefaultServer()) {
-            try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
+            try (ConnectionImpl nc = (ConnectionImpl) newDefaultConnection()) {
                 final Subscription sub = nc.subscribe(reqSubject, new MessageHandler() {
                     public void onMessage(final Message msg) {
                         service.submit(new Runnable() {
@@ -360,13 +360,12 @@ public class NatsBenchTest {
     @Test
     public void testPubSpeed() throws Exception {
         int count = 100 * 1000 * 1000;
-        String url = ConnectionFactory.DEFAULT_URL;
         final String subject = "foo";
         final byte[] payload = null;
         long elapsed = 0L;
 
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory(url).createConnection()) {
+            try (Connection c = newDefaultConnection()) {
                 final Message msg = new Message(subject, null, payload);
 
                 final long t0 = System.nanoTime();
@@ -403,10 +402,9 @@ public class NatsBenchTest {
     // @Category(PerfTest.class)
     // public void testManyConnections() throws Exception {
     // try (NatsServer s = new NatsServer()) {
-    // ConnectionFactory cf = new ConnectionFactory();
     // List<Connection> conns = new ArrayList<Connection>();
     // for (int i = 0; i < 10000; i++) {
-    // Connection conn = cf.createConnection();
+    // Connection conn = newDefaultConnection();
     // conns.add(conn);
     // System.err.printf("Created %d connections\n", i);
     // }

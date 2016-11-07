@@ -6,7 +6,7 @@
 
 package io.nats.client;
 
-import io.nats.client.Constants.ConnState;
+import io.nats.client.Nats.ConnState;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
@@ -319,7 +319,6 @@ interface AbstractConnection extends AutoCloseable {
      * Returns the current connection state.
      * 
      * @return the current connection state
-     * @see Constants.ConnState
      */
     ConnState getState();
 
@@ -347,4 +346,5 @@ interface AbstractConnection extends AutoCloseable {
      * @return the number of valid bytes in the pending output buffer.
      */
     int getPendingByteCount();
+
 }

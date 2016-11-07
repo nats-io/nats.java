@@ -6,7 +6,7 @@
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

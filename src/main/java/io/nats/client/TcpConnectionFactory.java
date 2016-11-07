@@ -1,8 +1,8 @@
 package io.nats.client;
 
-class TcpConnectionFactory {
+class TcpConnectionFactory implements TransportConnectionFactory {
 
-    protected TcpConnection createConnection() {
+    public TcpConnection createConnection() {
         return new TcpConnection();
     }
 }

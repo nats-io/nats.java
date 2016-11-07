@@ -8,6 +8,7 @@ package io.nats.examples;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
+import io.nats.client.Nats;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,7 +18,7 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 public class Publisher {
-    String url = ConnectionFactory.DEFAULT_URL;
+    String url = Nats.DEFAULT_URL;
     String subject;
     String payload;
 

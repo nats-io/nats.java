@@ -6,11 +6,11 @@
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
-import static io.nats.client.Constants.ERR_CONNECTION_CLOSED;
-import static io.nats.client.Constants.ERR_MAX_MESSAGES;
-import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
-import static io.nats.client.Constants.ERR_TIMEOUT;
+import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_CONNECTION_CLOSED;
+import static io.nats.client.Nats.ERR_MAX_MESSAGES;
+import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
+import static io.nats.client.Nats.ERR_TIMEOUT;
 
 import java.io.IOException;
 import java.util.Map;

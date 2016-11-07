@@ -6,10 +6,10 @@
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
-import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
+import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
-import static io.nats.client.UnitTestUtilities.newNewMockedConnection;
+import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
@@ -172,7 +172,7 @@ public class SyncSubscriptionImplTest {
         String queue = "bar";
         long timeout = 1000;
 
-        try (ConnectionImpl nc = (ConnectionImpl) spy(newNewMockedConnection())) {
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
             try (SyncSubscriptionImpl sub = (SyncSubscriptionImpl) nc.subscribe(subj, queue)) {
                 sub.setMax(1);
                 when(mchMock.poll(timeout, TimeUnit.MILLISECONDS)).thenReturn(msgMock);
@@ -203,7 +203,7 @@ public class SyncSubscriptionImplTest {
     public void testNextMessageMaxMessages()
             throws TimeoutException, IOException, InterruptedException {
         thrown.expect(IOException.class);
-        thrown.expectMessage(Constants.ERR_MAX_MESSAGES);
+        thrown.expectMessage(Nats.ERR_MAX_MESSAGES);
         String subj = "foo";
         String queue = "bar";
         int timeout = 100;

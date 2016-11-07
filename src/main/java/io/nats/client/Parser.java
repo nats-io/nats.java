@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.text.ParseException;
+import java.util.Arrays;
 
 class Parser {
     static final Logger logger = LoggerFactory.getLogger(Parser.class);
@@ -18,7 +19,7 @@ class Parser {
     static final int MAX_CONTROL_LINE_SIZE = 1024;
     static final int MAX_MSG_ARGS = 4;
 
-    private ConnectionImpl nc;
+    ConnectionImpl nc;
 
     // List<byte[]> args = new ArrayList<byte[]>();
 
@@ -97,26 +98,28 @@ class Parser {
 
     protected Parser(ConnectionImpl conn) {
         this.nc = conn;
-        this.nc.ps = conn.ps;
     }
 
-    // protected void printStatus(byte[] buf, int i) {
-    // String s = null;
-    // char b = (char) buf[i];
-    // if (b == '\r')
-    // s = "\\r";
-    // else if (b == '\n')
-    // s = "\\n";
-    // else if (b == '\t')
-    // s = "\\t";
-    // else
-    // s = String.format("%c", b);
-    //
-    // System.err.printf("ps.state = %s, new char buf[%d] = '%s' (0x%02X) argBuf=[%s]\n", ps.state,
-    // i, s, (int) b < 32 ? (int) b : b, bufToString(ps.argBuf));
-    // System.err.printf("ps.argBuf == %s\n", ps.argBuf);
-    // System.err.printf("ps.msgBuf == %s\n", ps.msgBuf);
-    // }
+//    protected void printStatus(ps, byte[] buf, int i) {
+//        String str = null;
+//        char byteAsChar = (char) buf[i];
+//
+//        if (byteAsChar == '\r') {
+//            str = "\\r";
+//        } else if (byteAsChar == '\n') {
+//            str = "\\n";
+//        } else if (byteAsChar == '\t') {
+//            str = "\\t";
+//        } else {
+//            str = String.format("%c", byteAsChar);
+//        }
+//
+//        System.err.printf("ps.state = %s, new char buf[%d] = '%s' (0x%02X) argBuf=[%s]\n",
+//             ps.state, i, str, (int) byteAsChar < 32 ? (int) byteAsChar : byteAsChar,
+//                bufToString(ps.argBuf));
+//        System.err.printf("ps.argBuf == %s\n", ps.argBuf);
+//        System.err.printf("ps.msgBuf == %s\n", ps.msgBuf);
+//    }
 
     protected void parse(byte[] buf) throws ParseException {
         parse(buf, buf.length);
@@ -126,13 +129,6 @@ class Parser {
         int i;
         byte b;
         boolean error = false;
-
-        // if (len > buf.length) {
-        // throw new ParseException(String.format("Parse length(%d) > actual buffer length(%d)\n",
-        // len, buf.length),0);
-        // }
-        // String tmpStr = new String(buf, 0, len);
-        // System.err.printf("##### Parsing buf=[%s], ps.argBuf=[%s]\n", tmpStr.trim(), ps.argBuf);
 
         for (i = 0; i < len; i++) {
             b = buf[i];
@@ -215,19 +211,17 @@ class Parser {
                             ps.drop = 1;
                             break;
                         case '\n':
-                            ByteBuffer arg = null;
                             if (ps.argBuf != null) {
                                 // End of args
-                                arg = ps.argBuf;
-                                arg.flip();
-                                processMsgArgs(arg.array(), arg.arrayOffset(), arg.limit());
+                                ps.argBuf.flip();
+                                byte[] arg = ps.argBuf.array();
+                                int from = ps.argBuf.arrayOffset() + ps.argBuf.position();
+                                int to =  ps.argBuf.arrayOffset() + ps.argBuf.limit();
+                                int length = to - from;
+                                processMsgArgs(arg, from, length);
                             } else {
-                                // arg = ByteBuffer.wrap(buf, ps.as, i-ps.drop-ps.as).slice();
                                 processMsgArgs(buf, ps.as, i - ps.drop - ps.as);
                             }
-                            // System.err.printf("arrayOffset=%d, length=%d\n", arg.arrayOffset(),
-                            // arg.limit());
-                            // processMsgArgs(arg.array(), arg.arrayOffset(), arg.limit());
 
                             ps.drop = 0;
                             ps.as = i + 1;
@@ -263,17 +257,7 @@ class Parser {
                                 toCopy = avail;
                             }
 
-                            // System.err.printf("msgBuf=%s(remaining=%d), i=%d, len=%d,
-                            // ps.ma.size=%d, avail = %d, toCopy=%d,"
-                            // + " buf.length=%d\n",
-                            // ps.msgBuf, ps.msgBuf.remaining(), i, len, ps.ma.size, avail, toCopy,
-                            // buf.length);
                             if (toCopy > 0) {
-                                // System.err.printf("msgBuf=%s(remaining=%d), i=%d, len=%d,
-                                // ps.ma.size=%d, avail = %d, toCopy=%d,"
-                                // + " buf.length=%d\n",
-                                // ps.msgBuf, ps.msgBuf.remaining(), i, len, ps.ma.size, avail,
-                                // toCopy, buf.length);
                                 ps.msgBuf.put(buf, i, toCopy);
                                 // Update our index
                                 i += toCopy - 1;
@@ -564,16 +548,18 @@ class Parser {
                             ps.drop = 1;
                             break;
                         case '\n':
-                            ByteBuffer arg = null;
                             if (ps.argBuf != null) {
                                 // End of args
-                                arg = ps.argBuf;
-                                arg.flip();
+                                ps.argBuf.flip();
+                                byte[] arg = ps.argBuf.array();
+                                int from = ps.argBuf.arrayOffset() + ps.argBuf.position();
+                                int to =  ps.argBuf.arrayOffset() + ps.argBuf.limit();
+                                int length = to - from + 1;
                                 ps.argBuf = null;
+                                nc.processAsyncInfo(arg, from, length);
                             } else {
-                                arg = ByteBuffer.wrap(buf, ps.as, i - ps.drop - ps.as);
+                                nc.processAsyncInfo(buf, ps.as, i - ps.as + 1);
                             }
-                            nc.processAsyncInfo(new String(arg.array()));
 
                             ps.drop = 0;
                             ps.as = i + 1;
@@ -598,7 +584,6 @@ class Parser {
                 throw new ParseException(String.format("nats: parse error [%s]: len=%d, '%s'",
                         ps.state, len - i, new String(buf, i, len - i)), i);
             }
-            // System.err.printf("After processing index %d, ps.state=%s\n", i, ps.state );
         } // for
 
         // We have processed the entire buffer
@@ -606,8 +591,7 @@ class Parser {
         if ((ps.state == NatsOp.MSG_ARG || ps.state == NatsOp.MINUS_ERR_ARG)
                 || ps.state == NatsOp.INFO_ARG && (ps.argBuf == null)) {
             ps.argBuf = ByteBuffer.wrap(ps.argBufStore);
-            ps.argBuf.put(buf, ps.as, i - ps.drop - ps.as);
-            // System.err.printf("split msg, no clone, ps.argBuf=%s\n", ps.argBuf);
+            ps.argBuf.put(buf, ps.as, i - ps.as);
             // FIXME, check max len
         }
         // Check for split msg
@@ -616,7 +600,6 @@ class Parser {
             // read buffer and we are not able to process the msg.
             if (ps.argBuf == null) {
                 cloneMsgArg();
-                // System.err.printf("split msg, after clone, ps.argBuf=%s\n", ps.argBuf);
             }
 
             // If we will overflow the scratch buffer, just create a
@@ -646,11 +629,6 @@ class Parser {
     }
 
     protected void processMsgArgs(byte[] arg, int offset, int length) throws ParseException {
-        // if (logger.isDebugEnabled()) {
-        // logger.trace("processMsgArgs (limit={}) content=[{}]\n", buffer.limit(),
-        // bufToString(buffer));
-        // }
-        // System.err.printf("offset=%d, length=%d\n", offset, length);
         int argLen = 0;
         int numArgs = 0;
         int start = -1;
@@ -658,7 +636,6 @@ class Parser {
         int i;
         for (i = offset; i < offset + length; i++) {
             b = arg[i];
-            // System.err.println(String.format("Considering [%c]", (char)b));
             switch (b) {
                 case ' ':
                 case '\t':
@@ -666,8 +643,6 @@ class Parser {
                 case '\n':
                     if (start >= 0) {
                         argLen = i - start;
-                        // System.err.printf("start = %d, len = %d, ps.args[%d]=%s\n", start,
-                        // argLen, numArgs, ps.args[numArgs]);
                         if (argLen > ps.args[numArgs].remaining()) {
                             ps.args[numArgs] = ByteBuffer.allocate(argLen);
                         }
@@ -686,18 +661,6 @@ class Parser {
             argLen = i - start;
             ps.args[numArgs++].put(arg, start, argLen).flip();
         }
-
-        // for (i = 0; i<ps.args.length; i++) {
-        // if (ps.args[i] != null) {
-        // String s = new String(ps.args[i].array());
-        // System.err.printf("arg[%d]=[%s], argLen=%d\n", i, s, s.length());
-        // }
-        // }
-
-        // System.err.println("ps.args[0] = " + ps.args[0]);
-        // System.err.println("ps.args[1] = " + ps.args[1]);
-        // System.err.println("ps.args[2] = " + ps.args[2]);
-        // System.err.println("ps.args[3] = " + ps.args[3]);
 
         ps.ma.subject.clear();
         ps.ma.reply.clear();
@@ -761,8 +724,6 @@ class Parser {
         if (ps.ma.reply.limit() != 0) {
             ps.argBuf.get(ps.ma.reply.array(), 0, ps.ma.reply.limit());
         }
-        // ps.argBuf.flip();
-        // System.err.printf("ps.argBuf 4= %s\n", ps.argBuf);
     }
 
     // parseInt64 expects decimal positive numbers. We

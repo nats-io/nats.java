@@ -94,6 +94,10 @@ class ServerInfo {
         return id;
     }
 
+    void setId(String id) {
+        this.id = id;
+    }
+
     /**
      * Returns the host.
      * 
@@ -101,6 +105,10 @@ class ServerInfo {
      */
     String getHost() {
         return host;
+    }
+
+    void setHost(String host) {
+        this.host = host;
     }
 
     /**
@@ -112,6 +120,10 @@ class ServerInfo {
         return port;
     }
 
+    void setPort(int port) {
+        this.port = port;
+    }
+
     /**
      * Returns the NATS server version.
      * 
@@ -119,6 +131,10 @@ class ServerInfo {
      */
     String getVersion() {
         return version;
+    }
+
+    void setVersion(String version) {
+        this.version = version;
     }
 
     /**
@@ -130,6 +146,10 @@ class ServerInfo {
         return authRequired;
     }
 
+    void setAuthRequired(boolean authRequired) {
+        this.authRequired = authRequired;
+    }
+
     /**
      * Returns whether or not TLS is required by the NATS server.
      * 
@@ -137,6 +157,10 @@ class ServerInfo {
      */
     boolean isTlsRequired() {
         return tlsRequired;
+    }
+
+    void setTlsRequired(boolean tlsRequired) {
+        this.tlsRequired = tlsRequired;
     }
 
     /**
@@ -148,8 +172,16 @@ class ServerInfo {
         return maxPayload;
     }
 
+    void setMaxPayload(long maxPayload) {
+        this.maxPayload = maxPayload;
+    }
+
     String[] getConnectUrls() {
         return connectUrls;
+    }
+
+    void setConnectUrls(String[] connectUrls) {
+        this.connectUrls = connectUrls;
     }
 
     public String toString() {
@@ -159,6 +191,10 @@ class ServerInfo {
         }
         rv = String.format("INFO %s", jsonString);
         return rv;
+    }
+
+    public byte[] toProtoBytes() {
+        return (toString() + "\r\n").getBytes();
     }
 
     public static boolean compare(String str1, String str2) {

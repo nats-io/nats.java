@@ -6,6 +6,8 @@
 
 package io.nats.client;
 
+import static io.nats.client.Nats.ConnState.CONNECTED;
+import static io.nats.client.Nats.ConnState.RECONNECTING;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.runServerOnPort;
 import static io.nats.client.UnitTestUtilities.sleep;
@@ -15,7 +17,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import io.nats.client.Constants.ConnState;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -61,10 +62,10 @@ public class ITReconnectTest {
     private static Properties getReconnectOptions() {
         Properties props = new Properties();
 
-        props.setProperty(ConnectionFactory.PROP_URL, "nats://localhost:22222");
-        props.setProperty(ConnectionFactory.PROP_RECONNECT_ALLOWED, Boolean.toString(true));
-        props.setProperty(ConnectionFactory.PROP_MAX_RECONNECT, Integer.toString(10));
-        props.setProperty(ConnectionFactory.PROP_RECONNECT_WAIT, Integer.toString(100));
+        props.setProperty(Nats.PROP_URL, "nats://localhost:22222");
+        props.setProperty(Nats.PROP_RECONNECT_ALLOWED, Boolean.toString(true));
+        props.setProperty(Nats.PROP_MAX_RECONNECT, Integer.toString(10));
+        props.setProperty(Nats.PROP_RECONNECT_WAIT, Integer.toString(100));
 
         return props;
     }
@@ -466,7 +467,7 @@ public class ITReconnectTest {
                 assertFalse("isReconnecting returned true when the connection is still open.",
                         c.isReconnecting());
 
-                assertEquals(ConnState.CONNECTED, c.getState());
+                assertEquals(CONNECTED, c.getState());
 
                 ts.shutdown();
 
@@ -475,7 +476,7 @@ public class ITReconnectTest {
                 assertTrue("isReconnecting returned false when the client is reconnecting.",
                         c.isReconnecting());
 
-                assertEquals(ConnState.RECONNECTING, c.getState());
+                assertEquals(RECONNECTING, c.getState());
 
                 // Wait until we get the reconnect callback
                 try (NatsServer ts2 = runServerOnPort(22222)) {
@@ -485,7 +486,7 @@ public class ITReconnectTest {
                     assertFalse("isReconnecting returned true after the client was reconnected.",
                             c.isReconnecting());
 
-                    assertEquals(ConnState.CONNECTED, c.getState());
+                    assertEquals(CONNECTED, c.getState());
 
                     // Close the connection, reconnecting should still be false
                     c.close();
@@ -599,7 +600,7 @@ public class ITReconnectTest {
                 try {
                     nc.publish("foo", msg);
                 } catch (IOException e) {
-                    assertEquals(Constants.ERR_RECONNECT_BUF_EXCEEDED, e.getMessage());
+                    assertEquals(Nats.ERR_RECONNECT_BUF_EXCEEDED, e.getMessage());
                     exThrown = true;
                 }
                 assertTrue("Expected to fail to publish message: got no error", exThrown);

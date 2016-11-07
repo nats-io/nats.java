@@ -6,9 +6,9 @@
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
-import static io.nats.client.Constants.ERR_MAX_MESSAGES;
-import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
+import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_MAX_MESSAGES;
+import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
@@ -92,7 +92,7 @@ public class ITSubscriptionTest {
     @Test
     public void testServerAutoUnsub() throws IOException, TimeoutException {
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory().createConnection()) {
+            try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
                 final AtomicLong received = new AtomicLong(0L);
                 int max = 10;
@@ -128,7 +128,7 @@ public class ITSubscriptionTest {
     @Test
     public void testClientSyncAutoUnsub() {
         try (NatsServer s = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory().createConnection()) {
+            try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
 
                 long received = 0;
@@ -182,7 +182,7 @@ public class ITSubscriptionTest {
         };
 
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory().createConnection()) {
+            try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
 
                 int max = 10;
@@ -460,7 +460,7 @@ public class ITSubscriptionTest {
     @Test
     public void testCloseSubRelease() throws IOException, TimeoutException {
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection nc = new ConnectionFactory().createConnection()) {
+            try (final Connection nc = newDefaultConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
                     long start = System.nanoTime();
                     exec.submit(new Runnable() {
@@ -493,7 +493,7 @@ public class ITSubscriptionTest {
     public void testIsValidSubscriber() throws IOException, TimeoutException {
         try (NatsServer srv = runDefaultServer()) {
 
-            try (final Connection nc = new ConnectionFactory().createConnection()) {
+            try (final Connection nc = newDefaultConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
                     assertTrue("Subscription should be valid", sub.isValid());
 
@@ -618,7 +618,7 @@ public class ITSubscriptionTest {
                             elapsed < flushTimeout);
 
                     assertTrue(c.getLastException() instanceof IOException);
-                    assertEquals(Constants.ERR_SLOW_CONSUMER, c.getLastException().getMessage());
+                    assertEquals(Nats.ERR_SLOW_CONSUMER, c.getLastException().getMessage());
 
                     mcbLatch.countDown();
                 }
@@ -711,7 +711,7 @@ public class ITSubscriptionTest {
         final CountDownLatch latch = new CountDownLatch(1);
 
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection c = new ConnectionFactory().createConnection()) {
+            try (final Connection c = newDefaultConnection()) {
                 // Helper
                 try (AsyncSubscription helper = c.subscribe("helper", new MessageHandler() {
                     public void onMessage(Message msg) {

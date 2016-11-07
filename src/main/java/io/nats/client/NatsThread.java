@@ -47,7 +47,6 @@ class NatsThread extends Thread {
     }
 
     public void run() {
-        logger.trace("In RUN");
         // Copy debug flag to ensure consistent value throughout.
         boolean debug = debugLifecycle;
         if (debug) {

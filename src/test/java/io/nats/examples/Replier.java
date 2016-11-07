@@ -11,6 +11,7 @@ import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
+import io.nats.client.Nats;
 import io.nats.client.Statistics;
 import io.nats.client.SyncSubscription;
 
@@ -28,7 +29,7 @@ public class Replier implements Runnable {
     Map<String, String> parsedArgs = new HashMap<String, String>();
 
     int count = 20000;
-    String url = ConnectionFactory.DEFAULT_URL;
+    String url = Nats.DEFAULT_URL;
     String subject = "foo";
     boolean sync = false;
     int received = 0;

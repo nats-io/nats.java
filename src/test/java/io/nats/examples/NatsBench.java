@@ -18,6 +18,7 @@ import io.nats.client.ExceptionHandler;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NATSException;
+import io.nats.client.Nats;
 import io.nats.client.NUID;
 import io.nats.client.Subscription;
 
@@ -59,7 +60,7 @@ public class NatsBench {
     private int numSubs = 0;
     private int size = 128;
 
-    private String urls = ConnectionFactory.DEFAULT_URL;
+    private String urls = Nats.DEFAULT_URL;
     private String subject;
     private AtomicInteger sent = new AtomicInteger();
     private AtomicInteger received = new AtomicInteger();

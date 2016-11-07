@@ -9,6 +9,7 @@ package io.nats.examples;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionFactory;
 import io.nats.client.Message;
+import io.nats.client.Nats;
 import io.nats.client.Statistics;
 
 import java.io.IOException;
@@ -22,7 +23,7 @@ public class Requestor {
     Map<String, String> parsedArgs = new HashMap<String, String>();
 
     int count = 20000;
-    String url = ConnectionFactory.DEFAULT_URL;
+    String url = Nats.DEFAULT_URL;
     String subject = "foo";
     byte[] payload = null;
     long start;
