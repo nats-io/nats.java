@@ -22,35 +22,56 @@ import javax.net.ssl.SSLContext;
 import static io.nats.client.Nats.*;
 import static io.nats.client.Nats.DEFAULT_MAX_PINGS_OUT;
 
+/**
+ * An {@code Options} object contains the immutable (and some mutable) configuration settings for a {@link Connection}.
+ *
+ * <p>The {@code Options} object is constructed using methods of an {@link Options.Builder} as in the following
+ * example:
+ *
+ * <pre>
+ *    Options opts = new Options.Builder()
+ *            .noReconnect()
+ *            .timeout(3, TimeUnit.SECONDS)
+ *            .build();
+ *
+ *    // Now connect
+ *    Connection nc = Nats.connect("nats://example.company.com:4222", opts);
+ *
+ * </pre>
+ */
 public class Options {
     protected String url;
-    String username;
-    String password;
-    String token;
     List<URI> servers;
     boolean noRandomize;
     String connectionName;
     boolean verbose;
     boolean pedantic;
     boolean secure;
+    SSLContext sslContext;
+    // Print console output during connection handshake (java-specific)
+    boolean tlsDebug;
     boolean allowReconnect;
     int maxReconnect;
-    int reconnectBufSize;
     long reconnectWait;
     int connectionTimeout;
     long pingInterval;
     int maxPingsOut;
-    TcpConnectionFactory factory;
-    SSLContext sslContext;
-    boolean tlsDebug;
-    public DisconnectedCallback disconnectedCb;
+    // Connection handlers
     public ClosedCallback closedCb;
+    public DisconnectedCallback disconnectedCb;
     public ReconnectedCallback reconnectedCb;
     public ExceptionHandler asyncErrorCb;
 
-    // For ConnectionFactory
-    String host;
-    int port;
+    // Size of the backing ByteArrayOutputStream buffer during reconnect.
+    // Once this has been exhausted publish operations will error.
+    int reconnectBufSize;
+
+    String username;
+    String password;
+    String token;
+
+    // TODO Allow users to set a custom "dialer" like Go. For now keep package-private
+    TcpConnectionFactory factory;
 
     // private List<X509Certificate> certificates =
     // new ArrayList<X509Certificate>();
@@ -58,8 +79,6 @@ public class Options {
     private Options(Builder builder) {
         this.factory = builder.factory;
         this.url = builder.url;
-        this.host = builder.host;
-        this.port = builder.port;
         this.username = builder.username;
         this.password = builder.password;
         this.token = builder.token;
@@ -87,44 +106,74 @@ public class Options {
 
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+
+        if (!(obj instanceof Options)) {
+            return false;
+        }
+
+        Options other = (Options) obj;
+
+        return (compare(url, other.url)
+        && compare(username, other.username)
+        && compare(password, other.password)
+        && compare(token, other.token)
+        && compare(servers, other.servers)
+        && Boolean.compare(noRandomize, other.noRandomize) == 0
+        && compare(connectionName, other.connectionName)
+        && Boolean.compare(verbose, other.verbose) == 0
+        && Boolean.compare(pedantic, other.pedantic) == 0
+        && Boolean.compare(secure, other.secure) == 0
+        && Boolean.compare(allowReconnect, other.allowReconnect) ==0
+        && Integer.compare(maxReconnect, other.maxReconnect) == 0
+        && Integer.compare(reconnectBufSize, other.reconnectBufSize) == 0
+        && Long.compare(reconnectWait, other.reconnectWait) == 0
+        && Integer.compare(connectionTimeout, other.connectionTimeout) == 0
+        && Long.compare(pingInterval, other.pingInterval) == 0
+        && Integer.compare(maxPingsOut, other.maxPingsOut) == 0
+        && (sslContext == null ? other.sslContext == null : sslContext.equals(other.sslContext))
+        && Boolean.compare(tlsDebug, other.tlsDebug) == 0
+        && (factory == null ? other.factory == null : factory == other.factory)
+        && (disconnectedCb == null ? other.disconnectedCb == null : disconnectedCb == other.disconnectedCb)
+        && (closedCb == null ? other.closedCb == null : closedCb == other.closedCb)
+        && (reconnectedCb == null ? other.reconnectedCb == null : reconnectedCb == other.reconnectedCb)
+        && (asyncErrorCb == null ? other.asyncErrorCb == null : asyncErrorCb == other.asyncErrorCb));
+    }
+
+    static boolean compare(String str1, String str2) {
+        return (str1 == null ? str2 == null : str1.equals(str2));
+    }
+
+    static boolean compare(List<URI> first, List<URI> second) {
+        if (first == null || second == null) {
+            return (first == null && second == null);
+        }
+        if (first.size() != second.size()) {
+            return false;
+        }
+        for (int i = 0; i < first.size(); i++) {
+            URI left = first.get(i);
+            URI right = second.get(i);
+            if (!(left == null ? right == null : left.equals(right))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Creates a connection using this {@code Options} object.
      *
      * @return the {@code Connection}
      * @throws IOException if something goes wrong
-     * @throws TimeoutException if the connection attempt times out
+     * @throws TimeoutException if the connection doesn't complete within the configured timeout
      */
     public Connection connect() throws IOException, TimeoutException {
-        ConnectionImpl conn = new ConnectionImpl(this);
-        conn.connect();
-        return conn;
-    }
-
-    /**
-     * Creates a connection using the supplied list of URLs and this {@code Options} object.
-     * 
-     * @param urls a comma-separated list of NATS server URLs
-     * @return the {@code Connection}
-     * @throws IOException if something goes wrong
-     * @throws TimeoutException if the connection attempt times out
-     */
-    public Connection connect(String urls) throws IOException, TimeoutException {
-        this.servers = processUrlString(urls);
-        ConnectionImpl conn = new ConnectionImpl(this);
-        conn.connect();
-        return conn;
-    }
-
-    List<URI> processUrlString(String urls) {
-        String[] list = urls.split(",");
-        if (list.length == 1) {
-            this.url = list[0];
-        } else {
-            for (String item : list) {
-                servers.add(URI.create(item));
-            }
-        }
-        return servers;
+        return new ConnectionImpl(this).connect();
     }
 
     public TcpConnectionFactory getFactory() {
@@ -242,12 +291,15 @@ public class Options {
         return sslContext;
     }
 
+    /**
+     * An {@link Options} builder.
+     */
     public static final class Builder {
-        private String url;
+        String url;
+        List<URI> servers;
         private String username;
         private String password;
         private String token;
-        private List<URI> servers;
         private boolean noRandomize;
         private String connectionName;
         private boolean verbose;
@@ -267,12 +319,6 @@ public class Options {
         ClosedCallback closedCb;
         ReconnectedCallback reconnectedCb;
         ExceptionHandler asyncErrorCb;
-
-        /*
-         * For ConnectionFactory
-         */
-        private String host;
-        private int port;
 
         /**
          * Constructs a {@link Builder} instance based on the supplied {@link Options} instance.
@@ -311,7 +357,7 @@ public class Options {
         public Builder() {}
 
         /**
-         * Constructs a new connection factory from a {@link Properties} object.
+         * Constructs a new {@code Builder} from a {@link Properties} object.
          *
          * @param props the {@link Properties} object
          */
@@ -323,15 +369,6 @@ public class Options {
             // PROP_URL
             if (props.containsKey(PROP_URL)) {
                 this.url = props.getProperty(PROP_URL, DEFAULT_URL);
-            }
-            // PROP_HOST
-            if (props.containsKey(PROP_HOST)) {
-                this.host = props.getProperty(PROP_HOST, DEFAULT_HOST);
-            }
-            // PROP_PORT
-            if (props.containsKey(PROP_PORT)) {
-                this.port =
-                        Integer.parseInt(props.getProperty(PROP_PORT, Integer.toString(DEFAULT_PORT)));
             }
             // PROP_USERNAME
             if (props.containsKey(PROP_USERNAME)) {
@@ -348,7 +385,7 @@ public class Options {
                     throw new IllegalArgumentException(PROP_SERVERS + " cannot be empty");
                 } else {
                     String[] servers = str.trim().split(",\\s*");
-                    this.servers(servers);
+                    this.servers = processServers(servers);
                 }
             }
             // PROP_NORANDOMIZE
@@ -466,13 +503,6 @@ public class Options {
             }
         }
 
-        public Builder url(String url) {
-            if (url != null && !url.isEmpty()) {
-                this.url = url;
-            }
-            return this;
-        }
-
         public Builder dontRandomize() {
             this.noRandomize = true;
             return this;
@@ -536,31 +566,27 @@ public class Options {
             return this;
         }
 
-        public Builder servers(String[] serverArray) {
+        public List<URI> processServers(String[] serverArray) {
+            List<URI> list = null;
             if ((serverArray != null) && (serverArray.length != 0)) {
-                if (this.servers == null) {
-                    this.servers = new ArrayList<URI>();
-                }
+                list = new ArrayList<URI>(serverArray.length);
                 for (String s : serverArray) {
                     if (s != null && !s.isEmpty()) {
                         try {
-                            this.servers.add(new URI(s.trim()));
+                            list.add(new URI(s.trim()));
                         } catch (URISyntaxException e) {
                             throw new IllegalArgumentException("Bad server URL: " + s);
                         }
-                    } else {
-                        continue;
                     }
-
                 }
             }
-            return this;
+            return list;
         }
 
-        public Builder servers(List<URI> servers) {
-            this.servers = servers;
-            return this;
-        }
+//        public Builder servers(List<URI> servers) {
+//            this.servers = servers;
+//            return this;
+//        }
 
         public Builder sslContext(SSLContext sslContext) {
             this.sslContext = sslContext;
@@ -588,44 +614,6 @@ public class Options {
             this.token = token;
             return this;
         }
-
-        // public Builder url(URI url) {
-        // this.url = url;
-        // if (url != null) {
-        // if (url.getHost() != null) {
-        // this.host(url.getHost());
-        // }
-        // this.port(url.getPort());
-        //
-        // String userInfo = url.getRawUserInfo();
-        // if (userInfo != null) {
-        // String[] userPass = userInfo.split(":");
-        // if (userPass.length > 2) {
-        // throw new IllegalArgumentException(
-        // "Bad user info in NATS " + "URI: " + userInfo);
-        // }
-        // userInfo(userPass[0], userPass[1]);
-        // }
-        // }
-        // return this;
-        // }
-
-        // public Builder url(String url) {
-        // if (url == null) {
-        // return this;
-        // } else {
-        // if (url.isEmpty()) {
-        // return this;
-        // } else {
-        // try {
-        // this.url = new URI(url);
-        // } catch (URISyntaxException e) {
-        // throw new IllegalArgumentException("Bad server URL: " + url);
-        // }
-        // }
-        // }
-        // return this;
-        // }
 
         public Builder userInfo(String user, String pass) {
             this.username = user;

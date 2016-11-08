@@ -11,7 +11,36 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * A {@code Connection} object is a client's active connection to NATS.
+ * A {@code Connection} object is a client's active connection to a NATS server.
+ *
+ * <p>To connect to a NATS server using the default URL:
+ *
+ * <pre>
+ *     Connection nc = Nats.connect();
+ * </pre>
+ *
+ * <p>To connect to a NATS server using a custom URL:
+ *
+ * <pre>
+ *     Connection nc = Nats.connect("nats://someserver:4222");
+ * </pre>
+ *
+ * <p>To connect to a NATS server using a custom URL list:
+ *
+ * <pre>
+ *     Connection nc = Nats.connect("nats://someserver:4222, nats://anotherserver:4222");
+ * </pre>
+
+ * <p>To connect to a NATS server using a custom URL and other options:
+ *
+ * <pre>
+ *     Connection nc = Nats.connect("nats://someserver:4222", new Options.Builder()
+ *             .dontRandomize()
+ *             .maxReconnect(1)
+ *             .reconnectWait(200)
+ *             .build());
+ * </pre>
+ *
  */
 public interface Connection extends AbstractConnection {
     /**

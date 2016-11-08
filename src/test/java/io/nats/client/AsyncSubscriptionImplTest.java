@@ -77,6 +77,17 @@ public class AsyncSubscriptionImplTest {
     // fail("Not yet implemented"); // TODO
     // }
     //
+     @Test
+     public void testStart() {
+         // Make sure the connection opts aren't null
+         when(connMock.getOptions()).thenReturn(Nats.defaultOptions());
+
+         AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(connMock, "foo", "bar", mcbMock);
+         // Just for the sake of coverage, even though it's a NOOP
+         sub.start();
+     }
+
+
 
     @Test
     public void testSetMessageHandler() {

@@ -35,13 +35,4 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
         this.msgHandler = cb;
     }
 
-    @Override
-    public void close() {
-        super.close();
-    }
-
-    @Override
-    public void unsubscribe() throws IOException {
-        super.unsubscribe();
-    }
 }

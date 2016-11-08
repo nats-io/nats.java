@@ -7,9 +7,9 @@
 package io.nats.client;
 
 import static io.nats.client.Nats.ConnState;
+import static io.nats.client.Nats.ConnState.CLOSED;
 import static io.nats.client.Nats.ConnState.CONNECTED;
 import static io.nats.client.Nats.ConnState.CONNECTING;
-import static io.nats.client.Nats.ConnState.CLOSED;
 import static io.nats.client.Nats.ConnState.DISCONNECTED;
 import static io.nats.client.Nats.ConnState.RECONNECTING;
 import static io.nats.client.Nats.ERR_BAD_SUBJECT;
@@ -171,9 +171,7 @@ public class ConnectionImpl implements Connection {
     private int pout;
 
     protected Parser parser = new Parser(this);
-//    protected Parser.ParseState ps = parser.new ParseState();
 
-    // protected MsgArg msgArgs = null;
     protected byte[] pingProtoBytes = null;
     protected int pingProtoBytesLen = 0;
     protected byte[] pongProtoBytes = null;
@@ -407,7 +405,7 @@ public class ConnectionImpl implements Connection {
         return srvPool.get(0);
     }
 
-    protected void connect() throws IOException, TimeoutException {
+    protected Connection connect() throws IOException, TimeoutException {
         // Create actual socket connection
         // For first connect we walk all servers in the pool and try
         // to connect immediately.
@@ -456,6 +454,8 @@ public class ConnectionImpl implements Connection {
             if (returnedErr != null) {
                 throw (returnedErr);
             }
+
+            return this;
         } finally {
             mu.unlock();
         }
@@ -691,12 +691,12 @@ public class ConnectionImpl implements Connection {
 
         // Need to rewrap with bufio
         if (opts.isSecure() || TLS_SCHEME.equals(this.getUrl().getScheme())) {
-            makeTLSConn();
+            makeTlsConn();
         }
     }
 
     // makeSecureConn will wrap an existing Conn using TLS
-    void makeTLSConn() throws IOException {
+    void makeTlsConn() throws IOException {
         conn.setTlsDebug(opts.isTlsDebug());
         conn.makeTLS(opts.getSslContext());
         bw = conn.getOutputStream(DEFAULT_STREAM_BUF_SIZE);
@@ -2455,10 +2455,6 @@ public class ConnectionImpl implements Connection {
     void setConnectedServerInfo(ServerInfo info) {
         this.info = info;
     }
-
-//    void setConnectedServerInfo(String info) {
-//        processInfo(info);
-//    }
 
     @Override
     public Exception getLastException() {

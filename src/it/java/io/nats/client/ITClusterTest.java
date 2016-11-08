@@ -84,8 +84,8 @@ public class ITClusterTest {
 
         Options opts = new Options.Builder(defaultOptions())
                 .dontRandomize()
-                .servers(testServers)
                 .build();
+        opts.servers = Nats.processUrlArray(testServers);
 
         // Make sure we can connect to first server if running
         try (NatsServer ns = runServerOnPort(1222)) {
@@ -118,8 +118,8 @@ public class ITClusterTest {
 
         Options opts = new Options.Builder(Nats.defaultOptions())
                 .dontRandomize()
-                .servers(plainServers)
                 .timeout(5, TimeUnit.SECONDS).build();
+        opts.servers = Nats.processUrlArray(plainServers);
 
         try (NatsServer as1 = runServerWithConfig("auth_1222.conf")) {
             try (NatsServer as2 = runServerWithConfig("auth_1224.conf")) {
@@ -138,8 +138,9 @@ public class ITClusterTest {
                 String[] authServers = new String[] { "nats://localhost:1222",
                         "nats://username:password@localhost:1224" };
 
-                opts = new Options.Builder(opts)
-                        .servers(authServers).build();
+                opts = defaultOptions();
+                opts.servers = Nats.processUrlArray(authServers);
+
                 try (Connection c = opts.connect()) {
                     assertTrue(c.getConnectedUrl().equals(authServers[1]));
                 } catch (IOException | TimeoutException e) {
@@ -160,11 +161,11 @@ public class ITClusterTest {
 
 
                 Options opts = new Options.Builder(Nats.defaultOptions())
-                        .servers(testServers)
                         .maxReconnect(2)
                         .reconnectWait(1, TimeUnit.SECONDS)
                         .dontRandomize()
                         .build();
+                opts.servers = Nats.processUrlArray(testServers);
 
                 final AtomicBoolean dcbCalled = new AtomicBoolean(false);
                 final CountDownLatch dcLatch = new CountDownLatch(1);
@@ -243,9 +244,8 @@ public class ITClusterTest {
 
                         NATSClient(int inst) {
                             this.instance.set(inst);
-                            opts = new Options.Builder(Nats.defaultOptions())
-                                    .servers(testServers)
-                                    .build();
+                            opts = defaultOptions();
+                            opts.servers = Nats.processUrlArray(testServers);
 
                             opts.disconnectedCb = new DisconnectedCallback() {
                                 public void onDisconnect(ConnectionEvent event) {
@@ -386,9 +386,9 @@ public class ITClusterTest {
     public void testProperReconnectDelay() throws Exception {
         try (NatsServer s1 = runServerOnPort(1222)) {
             Options opts = new Options.Builder(defaultOptions())
-                    .servers(testServers)
                     .dontRandomize()
                     .build();
+            opts.servers = Nats.processUrlArray(testServers);
 
             final CountDownLatch latch = new CountDownLatch(1);
             opts.disconnectedCb =  new DisconnectedCallback() {
@@ -425,11 +425,11 @@ public class ITClusterTest {
     @Test
     public void testProperFalloutAfterMaxAttempts() throws IOException, TimeoutException {
         Options opts = new Options.Builder(defaultOptions())
-                .servers(testServers)
                 .dontRandomize()
                 .maxReconnect(5)
                 .reconnectWait(25, TimeUnit.MILLISECONDS)
                 .build();
+        opts.servers = Nats.processUrlArray(testServers);
 
         final CountDownLatch dcLatch = new CountDownLatch(1);
         opts.disconnectedCb = new DisconnectedCallback() {
@@ -474,11 +474,11 @@ public class ITClusterTest {
         final String[] myServers = { "nats://localhost:1222", "nats://localhost:4443" };
 
         Options opts = new Options.Builder(defaultOptions())
-                .servers(myServers)
                 .dontRandomize()
                 .maxReconnect(5)
                 .reconnectWait(25, TimeUnit.MILLISECONDS)
                 .build();
+        opts.servers = Nats.processUrlArray(myServers);
 
         final CountDownLatch dcLatch = new CountDownLatch(1);
         opts.disconnectedCb = new DisconnectedCallback() {
@@ -531,12 +531,12 @@ public class ITClusterTest {
     @Test
     public void testTimeoutOnNoServers() {
         Options opts = new Options.Builder(defaultOptions())
-                .servers(testServers)
                 .dontRandomize()
                 // 1 second total time wait
                 .maxReconnect(10)
                 .reconnectWait(100)
                 .build();
+        opts.servers = Nats.processUrlArray(testServers);
 
         final CountDownLatch dcLatch = new CountDownLatch(1);
         opts.disconnectedCb = new DisconnectedCallback() {
@@ -602,12 +602,12 @@ public class ITClusterTest {
 //        setLogLevel(Level.DEBUG);
         try (NatsServer s1 = runServerOnPort(1222)) {
             Options opts = new Options.Builder(defaultOptions())
-                    .servers(testServers)
                     .dontRandomize()
                     .reconnectWait(200)
                     .pingInterval(50)
                     .maxPingsOut(-1)
                     .timeout(1000).build();
+            opts.servers = Nats.processUrlArray(testServers);
 
             final CountDownLatch wg = new CountDownLatch(reconnects);
             final BlockingQueue<Long> rch = new LinkedBlockingQueue<Long>(reconnects);

@@ -7,9 +7,47 @@
 package io.nats.client;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * A simple factory class for creating Nats {@link Connection} instances.
+ */
 public class Nats {
+
+    private Nats() {}
+
+    /**
+     * Connection states for {@link Connection#getState()}.
+     */
+    public static enum ConnState {
+        /**
+         * The {@code Connection} is currently disconnected.
+         */
+        DISCONNECTED,
+        /**
+         * The {@code Connection} is currently connected.
+         */
+        CONNECTED,
+        /**
+         * The {@code Connection} is currently closed.
+         */
+        CLOSED,
+        /**
+         * The {@code Connection} is currently attempting to reconnect to a server it was previously
+         * connected to.
+         *
+         * @see Connection#isReconnecting()
+         */
+        RECONNECTING,
+        /**
+         * The {@code Connection} is currently connecting to a server for the first time.
+         */
+        CONNECTING
+    }
 
     /**
      * Default server host.
@@ -17,8 +55,6 @@ public class Nats {
      * <p>This property is defined as String {@value #DEFAULT_HOST}
      */
     public static final String DEFAULT_HOST = "localhost";
-    static final String PROP_PROPERTIES_FILENAME = "jnats.properties";
-    static final String PROP_CLIENT_VERSION = "client.version";
 
     // Property names
     static final String PFX = "io.nats.client.";
@@ -115,12 +151,11 @@ public class Nats {
      */
     public static final String PROP_URL = PFX + "url";
 
-    private static final int SECOND = 1000;
-    private static final int MINUTE = 60 * SECOND;
-
     /*
      * Constants
      */
+    private static final int SECOND = 1000;
+    private static final int MINUTE = 60 * SECOND;
 
     /**
      * Default server URL.
@@ -178,21 +213,6 @@ public class Nats {
      * <p>This property is defined as String {@value #DEFAULT_RECONNECT_BUF_SIZE}
      */
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
-
-    static final String DEFAULT_LANG_STRING = "java";
-
-    /**
-     * Default SSL/TLS protocol version.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_SSL_PROTOCOL}
-     */
-    static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
-
-    // Error messages
-    // STALE_CONNECTION is for detection and proper handling of a stale connections
-    static final String STALE_CONNECTION = "stale connection";
-    // PERMISSIONS_ERR is for when nats server subject authorization has failed.
-    static final String PERMISSIONS_ERR = "permissions violation";
 
     // Common messages
     /**
@@ -292,6 +312,17 @@ public class Nats {
      */
     public static final String ERR_PROTOCOL = "nats: protocol error";
 
+    static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
+    static final String DEFAULT_LANG_STRING = "java";
+
+    // Error messages for internal use
+    // STALE_CONNECTION is for detection and proper handling of a stale connections
+    static final String STALE_CONNECTION = "stale connection";
+    // PERMISSIONS_ERR is for when nats server subject authorization has failed.
+    static final String PERMISSIONS_ERR = "permissions violation";
+
+    static final String PROP_PROPERTIES_FILENAME = "jnats.properties";
+    static final String PROP_CLIENT_VERSION = "client.version";
 
     // Server error strings
     protected static final String SERVER_ERR_PARSER = "'Parser Error'";
@@ -306,81 +337,88 @@ public class Nats {
     protected static final String TCP_SCHEME = "tcp";
     protected static final String TLS_SCHEME = "tls";
 
-    /**
-     * Connection states for {@link Connection#getState()}.
-     */
-    public static enum ConnState {
-        /**
-         * The {@code Connection} is currently disconnected.
-         */
-        DISCONNECTED,
-        /**
-         * The {@code Connection} is currently connected.
-         */
-        CONNECTED,
-        /**
-         * The {@code Connection} is currently closed.
-         */
-        CLOSED,
-        /**
-         * The {@code Connection} is currently attempting to reconnect to a server it was previously
-         * connected to.
-         *
-         * @see Connection#isReconnecting()
-         */
-        RECONNECTING,
-        /**
-         * The {@code Connection} is currently connecting to a server for the first time.
-         */
-        CONNECTING
-    }
-
-
-
 
     /**
-     * Creates a NATS connection.
+     * Creates a NATS connection using the default URL ({@value #DEFAULT_URL}) and default
+     * {@link Options}.
      * 
      * @return the {@code Connection}
      * @throws IOException if a problem occurs
      * @throws TimeoutException if the connection attempt times out
      */
     public static Connection connect() throws IOException, TimeoutException {
-        return defaultOptions().connect(DEFAULT_URL);
+        return connect(DEFAULT_URL, defaultOptions());
     }
 
     /**
      * Creates a NATS connection using the supplied URL list and default {@link Options}.
      * 
-     * @param urls a comma-separated list of NATS server URLs
+     * @param url a comma-separated list of NATS server URLs
      * @return the {@code Connection}
      * @throws IOException if a problem occurs
      * @throws TimeoutException if the connection attempt times out
      */
-    public static Connection connect(String urls) throws IOException, TimeoutException {
-        return defaultOptions().connect(urls);
+    public static Connection connect(String url) throws IOException, TimeoutException {
+        return connect(url, defaultOptions());
     }
 
     /**
-     * Creates a NATS connection using the supplied URL list and {@code Options}.
+     * Creates a NATS connection using the supplied URL list and {@link Options}.
      * 
-     * @param urls a comma-separated list of NATS server URLs
+     * @param url a comma-separated list of NATS server URLs
      * @param options an {@link Options} object
      * @return the {@link Connection}
      * @throws IOException if a problem occurs
      * @throws TimeoutException if the connection attempt times out
      */
-    public static Connection connect(String urls, Options options)
+    public static Connection connect(String url, Options options)
             throws IOException, TimeoutException {
-        return options.connect(urls);
+        Options opts = options;
+        if (opts == null) {
+            opts = defaultOptions();
+        }
+        opts.servers = processUrlString(url);
+        return opts.connect();
     }
 
     /**
-     * Returns the default Options object.
+     * Returns the default {@link Options}.
      * 
      * @return the default {@link Options}
      */
     public static Options defaultOptions() {
         return new Options.Builder().build();
     }
+
+    static List<URI> processUrlString(String url) {
+        List<URI> servers = null;
+        if (url != null) {
+            String[] urls = url.split(",");
+            servers = new ArrayList<URI>(urls.length);
+            for (String item : urls) {
+                if (!item.trim().isEmpty()) {
+                    servers.add(URI.create(item.trim()));
+                }
+            }
+        }
+        return servers;
+    }
+
+    static List<URI> processUrlArray(String[] servers) {
+        List<URI> list = null;
+        if (servers != null && servers.length > 0) {
+            list = new ArrayList<URI>(servers.length);
+            for (String s : servers) {
+                try {
+                    list.add(new URI(s.trim()));
+                } catch (URISyntaxException e) {
+                    throw new IllegalArgumentException(e);
+                }
+            }
+        }
+        return list;
+    }
+
+
+
 }

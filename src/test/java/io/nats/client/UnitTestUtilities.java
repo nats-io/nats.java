@@ -64,7 +64,7 @@ public class UnitTestUtilities {
     }
 
     static synchronized Connection newDefaultConnection() throws IOException, TimeoutException {
-        return Nats.connect();
+        return Nats.connect(Nats.DEFAULT_URL);
     }
 
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf)
@@ -207,7 +207,10 @@ public class UnitTestUtilities {
         TcpConnectionFactory tcfMock = newMockedTcpConnectionFactory();
 
         if (opts == null) {
-            options = new Options.Builder(Nats.defaultOptions()).factory(tcfMock).build();
+            options = new Options.Builder(Nats.defaultOptions())
+                    .factory(tcfMock)
+                    .build();
+            options.url = Nats.DEFAULT_URL;
         } else if (opts.getFactory() == null) {
             options = new Options.Builder(opts).factory(tcfMock).build();
         } else {

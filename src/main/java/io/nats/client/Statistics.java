@@ -10,8 +10,9 @@ import java.text.NumberFormat;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
-// Tracks various stats received and sent on this connection,
-// including counts for messages and bytes.
+/**
+ * Tracks various stats received and sent on this connection, including counts for messages and bytes.
+ */
 public class Statistics implements Cloneable {
 
     private AtomicLong inMsgs = new AtomicLong();

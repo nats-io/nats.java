@@ -7,24 +7,12 @@
 package io.nats.client;
 
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
-import static io.nats.client.Nats.ConnState;
+import static io.nats.client.Nats.*;
 import static io.nats.client.Nats.ConnState.CONNECTED;
 import static io.nats.client.Nats.ConnState.CONNECTING;
 import static io.nats.client.Nats.ConnState.CLOSED;
 import static io.nats.client.Nats.ConnState.DISCONNECTED;
 import static io.nats.client.Nats.ConnState.RECONNECTING;
-import static io.nats.client.Nats.ERR_BAD_SUBJECT;
-import static io.nats.client.Nats.ERR_BAD_TIMEOUT;
-import static io.nats.client.Nats.ERR_CONNECTION_CLOSED;
-import static io.nats.client.Nats.ERR_CONNECTION_READ;
-import static io.nats.client.Nats.ERR_MAX_PAYLOAD;
-import static io.nats.client.Nats.ERR_NO_INFO_RECEIVED;
-import static io.nats.client.Nats.ERR_NO_SERVERS;
-import static io.nats.client.Nats.ERR_PROTOCOL;
-import static io.nats.client.Nats.ERR_SECURE_CONN_REQUIRED;
-import static io.nats.client.Nats.ERR_SECURE_CONN_WANTED;
-import static io.nats.client.Nats.ERR_STALE_CONNECTION;
-import static io.nats.client.Nats.ERR_TIMEOUT;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.defaultInfo;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
@@ -183,8 +171,9 @@ public class ConnectionImplTest {
 
     @Test
     public void testConnectProto() throws IOException, TimeoutException {
-        Options opts = new Options.Builder().url("nats://derek:foo@localhost:4222").build();
-        try (ConnectionImpl conn = (ConnectionImpl) new ConnectionImpl(opts)) {
+        Options opts = defaultOptions();
+        opts.url = "nats://derek:foo@localhost:4222";
+        try (ConnectionImpl conn = new ConnectionImpl(opts)) {
             assertNotNull(conn.getUrl().getUserInfo());
             conn.setOutputStream(bwMock);
             String proto = conn.connectProto();
@@ -193,8 +182,9 @@ public class ConnectionImplTest {
             assertEquals("foo", connectInfo.getPass());
         }
 
-        opts = new Options.Builder().url("nats://thisismytoken@localhost:4222").build();
-        try (ConnectionImpl conn = (ConnectionImpl) new ConnectionImpl(opts)) {
+        opts = Nats.defaultOptions();
+        opts.url = "nats://thisismytoken@localhost:4222";
+        try (ConnectionImpl conn = new ConnectionImpl(opts)) {
             assertNotNull(conn.getUrl().getUserInfo());
             conn.setOutputStream(bwMock);
             String proto = conn.connectProto();
@@ -243,8 +233,8 @@ public class ConnectionImplTest {
 
     @Test
     public void testSelectNextServer() throws Exception {
-        Options opts = new Options.Builder().maxReconnect(-1).dontRandomize()
-                .servers(new String[] { "nats://localhost:5222", "nats://localhost:6222" }).build();
+        Options opts = new Options.Builder().maxReconnect(-1).dontRandomize().build();
+        opts.servers = Nats.processUrlString("nats://localhost:5222, nats://localhost:6222");
         ConnectionImpl conn = new ConnectionImpl(opts);
         final List<ConnectionImpl.Srv> pool = conn.getServerPool();
         assertEquals("nats://localhost:5222", conn.currentServer().url.toString());
@@ -1582,10 +1572,14 @@ public class ConnectionImplTest {
         ServerInfo info = new ServerInfo("asfasdfs", "127.0.0.1", 4224, "0.9.4", false, true,
                 1024 * 1024, null);
         TcpConnectionFactory mcf = newMockedTcpConnectionFactory(info);
-        Options opts = new Options.Builder().secure().sslContext(SSLContext.getDefault())
-                .url("tls://localhost:4224").factory(mcf).build();
+        Options opts = new Options.Builder(Nats.defaultOptions())
+                .secure()
+                .sslContext(SSLContext.getDefault())
+                .factory(mcf).build();
+        opts.url = "tls://localhost:4224";
 
         try (ConnectionImpl conn = (ConnectionImpl) spy(newMockedConnection(opts))) {
+            assertEquals(conn.opts.getUrl(), conn.getConnectedUrl());
             assertTrue(conn.isConnected());
             // assertTrue(conn.opts.isSecure());
             // assertEquals(TLS_SCHEME, conn.getUrl().getScheme());
@@ -1593,7 +1587,7 @@ public class ConnectionImplTest {
             // verify(conn, times(1)).processConnectInit();
             // verify(conn, times(1)).processExpectedInfo();
             // verify(conn, times(1)).checkForSecure();
-            // verify(conn, times(1)).makeTLSConn();
+            // verify(conn, times(1)).makeTlsConn();
         }
     }
 
@@ -1777,15 +1771,16 @@ public class ConnectionImplTest {
     public void testSendSubscriptionMessage() throws IOException, TimeoutException {
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             SubscriptionImpl mockSub = mock(SubscriptionImpl.class);
-            when(mockSub.getQueue()).thenReturn("foo");
-            when(mockSub.getSid()).thenReturn(55L);
-            c.setOutputStream(bwMock);
-
+            String subject = doReturn("foo").when(mockSub).getSubject();
+            String queue = doReturn("bar").when(mockSub).getQueue();
+            Long sid = doReturn(55L).when(mockSub).getSid();
+                c.setOutputStream(bwMock);
             // Ensure bw write error is logged
             c.status = CONNECTED;
+            byte[] data = String.format(ConnectionImpl.SUB_PROTO,  subject, queue, sid).getBytes();
             doThrow(new IOException("test")).when(bwMock).write(any(byte[].class));
             c.sendSubscriptionMessage(mockSub);
-            verify(bwMock, times(1)).write(any(byte[].class));
+            verify(bwMock).write(any(byte[].class));
             verifier.verifyLogMsgEquals(Level.WARN,
                     "nats: I/O exception while sending subscription message");
         }
@@ -1994,7 +1989,8 @@ public class ConnectionImplTest {
         ConnectionImpl conn = new ConnectionImpl(opts);
         conn.setupServerPool();
 
-        assertArrayEquals(new String[] { "nats://localhost:4222" }, conn.getServers());
+        // Check the default url
+        assertArrayEquals(new String[] { Nats.DEFAULT_URL }, conn.getServers());
         assertEquals("Expected no discovered servers", 0, conn.getDiscoveredServers().length);
 
         // Add a new URL
@@ -2010,11 +2006,8 @@ public class ConnectionImplTest {
         assertEquals("nats://localhost:5222", actual[0]);
 
         // verify user credentials are stripped out.
-        opts = new Options.Builder(opts).servers(
-                new String[] { "nats://user:pass@localhost:4333", "nats://token@localhost:4444" })
-                .build();
+        opts.servers = Nats.processUrlString("nats://user:pass@localhost:4333, nats://token@localhost:4444");
         conn = new ConnectionImpl(opts);
-//        conn.ps = new Parser(conn).new ParseState();
         conn.setupServerPool();
 
         expected = new String[] { "nats://localhost:4333", "nats://localhost:4444" };

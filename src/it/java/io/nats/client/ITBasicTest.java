@@ -8,6 +8,7 @@ package io.nats.client;
 
 import static io.nats.client.Nats.ERR_NO_SERVERS;
 import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
+import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
@@ -139,8 +140,8 @@ public class ITBasicTest {
         thrown.expect(IOException.class);
         thrown.expectMessage(ERR_NO_SERVERS);
         try (NatsServer srv = runDefaultServer()) {
-            Options opts = new Options.Builder().timeout(-1).url(Nats.DEFAULT_URL).build();
-            try (Connection conn = opts.connect()) {
+            Options opts = new Options.Builder(defaultOptions()).timeout(-1).build();
+            try (Connection conn = Nats.connect(Nats.DEFAULT_URL, opts)) {
 
             }
         }
@@ -393,8 +394,7 @@ public class ITBasicTest {
         final AtomicInteger count = new AtomicInteger(0);
         final int max = 20;
         try (NatsServer srv = runDefaultServer()) {
-            Options opts = new Options.Builder().noReconnect().build();
-            try (Connection c = opts.connect(Nats.DEFAULT_URL)) {
+            try (Connection c = newDefaultConnection()) {
                 try (final AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     @Override
                     public void onMessage(Message m) {
@@ -548,7 +548,7 @@ public class ITBasicTest {
 
         try (NatsServer srv = runDefaultServer()) {
             Options opts = new Options.Builder().noReconnect().build();
-            try (final ConnectionImpl nc = (ConnectionImpl) spy(opts.connect(Nats.DEFAULT_URL))) {
+            try (final ConnectionImpl nc = (ConnectionImpl) spy(newDefaultConnection())) {
                 for (int i = 0; i < 1000; i++) {
                     nc.publish("foo", "Hello".getBytes());
                 }
@@ -799,7 +799,7 @@ public class ITBasicTest {
 
         try (NatsServer srv = runDefaultServer()) {
             Options opts = new Options.Builder().noReconnect().build();
-            try (final Connection conn = opts.connect(Nats.DEFAULT_URL)) {
+            try (final Connection conn = newDefaultConnection()) {
                 try (Subscription s = conn.subscribe("foo", new MessageHandler() {
                     public void onMessage(Message message) {
                         try {

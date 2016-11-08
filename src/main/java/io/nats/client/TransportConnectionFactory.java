@@ -1,5 +1,5 @@
 package io.nats.client;
 
-public interface TransportConnectionFactory {
+interface TransportConnectionFactory {
     TransportConnection createConnection();
 }

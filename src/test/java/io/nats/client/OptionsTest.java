@@ -6,6 +6,9 @@
 
 package io.nats.client;
 
+import static io.nats.client.Nats.*;
+import static io.nats.client.Nats.PROP_RECONNECTED_CB;
+import static org.mockito.Mockito.mock;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -18,8 +21,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import javax.net.ssl.SSLContext;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
 @Category(UnitTest.class)
 public class OptionsTest {
@@ -38,12 +44,158 @@ public class OptionsTest {
     @After
     public void tearDown() throws Exception {}
 
+    static final String url = "nats://foobar:4122";
+    static final String hostname = "foobar2";
+    static final int port = 2323;
+    static final String username = "larry";
+    static final String password = "password";
+    static final String servers = "nats://cluster-host-1:5151 , nats://cluster-host-2:5252";
+    static final String[] serverArray = servers.split(",\\s+");
+    static List<URI> sList = null;
+    static final Boolean noRandomize = true;
+    static final String name = "my_connection";
+    static final Boolean verbose = true;
+    static final Boolean pedantic = true;
+    static final Boolean secure = true;
+    static final Boolean reconnectAllowed = false;
+    static final int maxReconnect = 14;
+    static final int reconnectWait = 100;
+    static final int reconnectBufSize = 12 * 1024 * 1024;
+    static final int timeout = 2000;
+    static final int pingInterval = 5000;
+    static final int maxPings = 4;
+    static final Boolean tlsDebug = true;
+
+    @Test
+    public void testBuilderProperties() throws Exception {
+
+        final ClosedCallback ccb = mock(ClosedCallback.class);
+        final DisconnectedCallback dcb = mock(DisconnectedCallback.class);
+        final ReconnectedCallback rcb = mock(ReconnectedCallback.class);
+        final ExceptionHandler eh = mock(ExceptionHandler.class);
+
+        Properties props = new Properties();
+//        props.setProperty(PROP_HOST, hostname);
+//        props.setProperty(PROP_PORT, Integer.toString(port));
+        props.setProperty(PROP_URL, url);
+        props.setProperty(PROP_USERNAME, username);
+        props.setProperty(PROP_PASSWORD, password);
+        props.setProperty(PROP_SERVERS, servers);
+        props.setProperty(PROP_NORANDOMIZE, Boolean.toString(noRandomize));
+        props.setProperty(PROP_CONNECTION_NAME, name);
+        props.setProperty(PROP_VERBOSE, Boolean.toString(verbose));
+        props.setProperty(PROP_PEDANTIC, Boolean.toString(pedantic));
+        props.setProperty(PROP_SECURE, Boolean.toString(secure));
+        props.setProperty(PROP_TLS_DEBUG, Boolean.toString(secure));
+        props.setProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(reconnectAllowed));
+        props.setProperty(PROP_MAX_RECONNECT, Integer.toString(maxReconnect));
+        props.setProperty(PROP_RECONNECT_WAIT, Integer.toString(reconnectWait));
+        props.setProperty(PROP_RECONNECT_BUF_SIZE, Integer.toString(reconnectBufSize));
+        props.setProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(timeout));
+        props.setProperty(PROP_PING_INTERVAL, Integer.toString(pingInterval));
+        props.setProperty(PROP_MAX_PINGS, Integer.toString(maxPings));
+        props.setProperty(PROP_EXCEPTION_HANDLER, eh.getClass().getName());
+        props.setProperty(PROP_CLOSED_CB, ccb.getClass().getName());
+        props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
+        props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
+
+        Options opts = new Options.Builder(props).build();
+
+//        assertEquals(hostname, opts.host);
+//        assertEquals(port, opts.port);
+
+        assertEquals(username, opts.getUsername());
+        assertEquals(password, opts.getPassword());
+        List<URI> s1 = ConnectionFactoryTest.serverArrayToList(serverArray);
+        List<URI> s2 = opts.getServers();
+        assertEquals(s1, s2);
+        assertEquals(noRandomize, opts.isNoRandomize());
+        assertEquals(name, opts.getConnectionName());
+        assertEquals(verbose, opts.isVerbose());
+        assertEquals(pedantic, opts.isPedantic());
+        assertEquals(secure, opts.isSecure());
+        assertEquals(reconnectAllowed, opts.isReconnectAllowed());
+        assertEquals(maxReconnect, opts.getMaxReconnect());
+        assertEquals(reconnectWait, opts.getReconnectWait());
+        assertEquals(reconnectBufSize, opts.getReconnectBufSize());
+        assertEquals(timeout, opts.getConnectionTimeout());
+        assertEquals(pingInterval, opts.getPingInterval());
+        assertEquals(maxPings, opts.getMaxPingsOut());
+        assertEquals(eh.getClass().getName(), opts.getExceptionHandler().getClass().getName());
+        assertEquals(ccb.getClass().getName(), opts.getClosedCallback().getClass().getName());
+        assertEquals(dcb.getClass().getName(), opts.getDisconnectedCallback().getClass().getName());
+        assertEquals(rcb.getClass().getName(), opts.getReconnectedCallback().getClass().getName());
+    }
+
+    @Test
+    public void testBuilderOptions() throws Exception {
+        String url = "nats://bumblebee.company.com:4222";
+        String username = "derek";
+        String password = "mypassword";
+        String token = "alkjsdf09234ipoiasfasdf";
+        List<URI> servers = Arrays.asList(URI.create("nats://foobar:1222"), URI.create("nats://localhost:2222"));
+        boolean noRandomize = true;
+        String connectionName = "myConnection";
+        boolean verbose = true;
+        boolean pedantic = true;
+        boolean secure = true;
+        boolean allowReconnect = false;
+        int maxReconnect = 20;
+        int reconnectBufSize = 12345678;
+        long reconnectWait = 742;
+        int connectionTimeout = 1212;
+        long pingInterval = 200000;
+        int maxPingsOut = 7;
+        SSLContext sslContext = SSLContext.getInstance(Nats.DEFAULT_SSL_PROTOCOL);
+        boolean tlsDebug = true;
+        TcpConnectionFactory factory = UnitTestUtilities.newMockedTcpConnectionFactory();
+        DisconnectedCallback disconnectedCb = mock(DisconnectedCallback.class);
+        ClosedCallback closedCb = mock(ClosedCallback.class);
+        ReconnectedCallback reconnectedCb = mock(ReconnectedCallback.class);
+        ExceptionHandler asyncErrorCb = mock(ExceptionHandler.class);
+
+        String host = "myhost";
+        int port = 2122;
+
+        Options expected = new Options.Builder()
+                .userInfo(username, password)
+                .token(token)
+                .dontRandomize()
+                .name(connectionName)
+                .verbose()
+                .pedantic()
+                .secure()
+                .noReconnect()
+                .maxReconnect(maxReconnect)
+                .reconnectBufSize(reconnectBufSize)
+                .reconnectWait(reconnectWait)
+                .timeout(connectionTimeout)
+                .pingInterval(pingInterval)
+                .maxPingsOut(maxPingsOut)
+                .sslContext(sslContext)
+                .tlsDebug()
+                .factory(factory)
+                .disconnectedCb(disconnectedCb)
+                .closedCb(closedCb)
+                .reconnectedCb(reconnectedCb)
+                .errorCb(asyncErrorCb)
+                .build();
+
+        expected.url = url;
+        expected.servers = servers;
+
+        Options actual = new Options.Builder(expected).build();
+
+        assertTrue(expected.equals(actual));
+
+    }
+
     @Test
     public void testGetUrl() {
         String url = "nats://localhost:1234";
         Options opts = Nats.defaultOptions();
         assertEquals(null, opts.getUrl());
-        opts = new Options.Builder().url(url).build();
+        opts.url = url;
         assertEquals(url, opts.getUrl());
     }
 
@@ -66,22 +218,6 @@ public class OptionsTest {
     // // user info in the URL
     // opts.setUrl(url);
     // }
-
-    @Test
-    public void testUrl() {
-        final String urlString = "nats://localhost:1234";
-        Options opts = Nats.defaultOptions();
-        assertEquals(null, opts.getUrl());
-
-        opts = new Options.Builder().url("").build();
-        assertNull("Should be null", opts.getUrl());
-
-        opts = new Options.Builder().url(null).build();
-        assertNull("Should be null", opts.getUrl());
-
-        opts = new Options.Builder().url(urlString).build();
-        assertEquals(urlString, opts.getUrl());
-    }
 
     // @Test
     // public void testGetUsername() {
@@ -107,23 +243,24 @@ public class OptionsTest {
     // fail("Not yet implemented"); // TODO
     // }
     //
-    @Test
-    public void testSetServersStringArray() {
-        String[] serverArray = { "nats://cluster-host-1:5151", "nats://cluster-host-2:5252" };
-        List<URI> sList = ConnectionFactoryTest.serverArrayToList(serverArray);
-        Options opts = new Options.Builder().servers(serverArray).build();
-        assertEquals(sList, opts.getServers());
-
-        String[] badServerArray = { "nats:// cluster-host-1:5151", "nats:// cluster-host-2:5252" };
-        boolean exThrown = false;
-        try {
-            opts = new Options.Builder().servers(badServerArray).build();
-        } catch (IllegalArgumentException e) {
-            exThrown = true;
-        } finally {
-            assertTrue("Should have thrown IllegalArgumentException", exThrown);
-        }
-    }
+//    @Test
+//    public void testSetServersStringArray() {
+//        String[] serverArray = { "nats://cluster-host-1:5151", "nats://cluster-host-2:5252" };
+//        List<URI> sList = ConnectionFactoryTest.serverArrayToList(serverArray);
+//        Options opts = new Options.Builder().servers(serverArray).build();
+//
+//        assertEquals(sList, opts.getServers());
+//
+//        String[] badServerArray = { "nats:// cluster-host-1:5151", "nats:// cluster-host-2:5252" };
+//        boolean exThrown = false;
+//        try {
+//            opts = new Options.Builder().servers(badServerArray).build();
+//        } catch (IllegalArgumentException e) {
+//            exThrown = true;
+//        } finally {
+//            assertTrue("Should have thrown IllegalArgumentException", exThrown);
+//        }
+//    }
 
     // @Test
     // public void testSetServersListOfURI() {

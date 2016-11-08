@@ -29,32 +29,32 @@ import javax.net.ssl.SSLContext;
  */
 public class ConnectionFactory implements Cloneable {
 
-    private TcpConnectionFactory factory = null;
-    private URI url = null;
-    private String host = null;
-    private int port = -1;
-    private String username = null;
-    private String password = null;
-    private List<URI> servers = null;
-    private boolean noRandomize = false;
-    private String connectionName = null;
-    private boolean verbose = false;
-    private boolean pedantic = false;
-    private boolean secure = false;
-    private boolean reconnectAllowed = true;
-    private int maxReconnect = Nats.DEFAULT_MAX_RECONNECT;
-    private long reconnectWait = Nats.DEFAULT_RECONNECT_WAIT;
-    private int reconnectBufSize = Nats.DEFAULT_RECONNECT_BUF_SIZE;
-    private int connectionTimeout = Nats.DEFAULT_TIMEOUT;
-    private long pingInterval = Nats.DEFAULT_PING_INTERVAL;
-    private int maxPingsOut = Nats.DEFAULT_MAX_PINGS_OUT;
-    private SSLContext sslContext;
-    private ExceptionHandler exceptionHandler = null;
-    private ClosedCallback closedCallback;
-    private DisconnectedCallback disconnectedCallback;
-    private ReconnectedCallback reconnectedCallback;
-    private String urlString = null;
-    private boolean tlsDebug;
+    TcpConnectionFactory factory = null;
+    URI url = null;
+    String host = null;
+    int port = -1;
+    String username = null;
+    String password = null;
+    List<URI> servers = null;
+    boolean noRandomize = false;
+    String connectionName = null;
+    boolean verbose = false;
+    boolean pedantic = false;
+    boolean secure = false;
+    boolean reconnectAllowed = true;
+    int maxReconnect = Nats.DEFAULT_MAX_RECONNECT;
+    long reconnectWait = Nats.DEFAULT_RECONNECT_WAIT;
+    int reconnectBufSize = Nats.DEFAULT_RECONNECT_BUF_SIZE;
+    int connectionTimeout = Nats.DEFAULT_TIMEOUT;
+    long pingInterval = Nats.DEFAULT_PING_INTERVAL;
+    int maxPingsOut = Nats.DEFAULT_MAX_PINGS_OUT;
+    SSLContext sslContext;
+    ExceptionHandler exceptionHandler = null;
+    ClosedCallback closedCallback;
+    DisconnectedCallback disconnectedCallback;
+    ReconnectedCallback reconnectedCallback;
+    String urlString = null;
+    boolean tlsDebug;
 
     /**
      * Constructs a new connection factory from a {@link Properties} object.
@@ -64,10 +64,19 @@ public class ConnectionFactory implements Cloneable {
     public ConnectionFactory(Properties props) {
         Options opts = new Options.Builder(props).build();
 
-        this.factory = opts.factory;
+        // Get the ConnectionFactory-specific options
+        // PROP_HOST
+        if (props.containsKey(PROP_HOST)) {
+            this.host = props.getProperty(PROP_HOST, DEFAULT_HOST);
+        }
+        // PROP_PORT
+        if (props.containsKey(PROP_PORT)) {
+            this.port =
+                    Integer.parseInt(props.getProperty(PROP_PORT, Integer.toString(DEFAULT_PORT)));
+        }
+
+        this.urlString = opts.url;
         this.url = URI.create(opts.url);
-        this.host = opts.host;
-        this.port = opts.port;
         this.username = opts.username;
         this.password = opts.password;
         if (opts.servers != null) {
@@ -90,7 +99,7 @@ public class ConnectionFactory implements Cloneable {
         this.closedCallback = opts.closedCb;
         this.disconnectedCallback = opts.disconnectedCb;
         this.reconnectedCallback = opts.reconnectedCb;
-        this.urlString = opts.url;
+        this.factory = opts.factory;
     }
 
     /**
@@ -183,20 +192,7 @@ public class ConnectionFactory implements Cloneable {
      * @throws TimeoutException if the connection timeout has been exceeded.
      */
     public Connection createConnection() throws IOException, TimeoutException {
-        return createConnection(null);
-    }
-
-    // For unit test/mock purposes only.
-    ConnectionImpl createConnection(TcpConnectionFactory tcf) throws IOException, TimeoutException {
-        ConnectionImpl conn = null;
-        this.factory = tcf;
-        Options options = new Options.Builder(options()).build();
-
-        conn = new ConnectionImpl(options);
-
-        conn.connect();
-
-        return conn;
+        return new ConnectionImpl(options()).connect();
     }
 
     protected URI constructURI() {
@@ -234,7 +230,11 @@ public class ConnectionFactory implements Cloneable {
         }
 
         Options.Builder result =
-                new Options.Builder().userInfo(username, password).url(urlString).servers(servers);
+                new Options.Builder().userInfo(username, password);
+
+        result.url = urlString;
+        result.servers = servers;
+
         if (noRandomize) {
             result = result.dontRandomize();
         }
@@ -358,11 +358,11 @@ public class ConnectionFactory implements Cloneable {
             setServers(url);
         } else {
             try {
-                this.setUri(new URI(url));
+                this.urlString = url;
+                this.setUri(new URI(urlString));
             } catch (NullPointerException | URISyntaxException e) {
                 throw new IllegalArgumentException(e);
             }
-            this.urlString = this.url.toString();
         }
     }
 

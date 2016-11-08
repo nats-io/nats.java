@@ -7,6 +7,7 @@
 package io.nats.client;
 
 import static io.nats.client.Nats.ERR_AUTHORIZATION;
+import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.runServerOnPort;
 import static io.nats.client.UnitTestUtilities.runServerWithConfig;
@@ -16,6 +17,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import ch.qos.logback.classic.Level;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -83,9 +85,11 @@ public class ITAuthTest {
             }
         };
 
-        Options opts = new Options.Builder().disconnectedCb(dcb).build();
+        Options opts = Nats.defaultOptions();
+        opts.url = url;
+        opts.disconnectedCb = dcb;
         try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
-            try (Connection c = opts.connect(url)) {
+            try (Connection c = opts.connect()) {
                 fail("Should have received an error while trying to connect");
             } catch (IOException | TimeoutException e) {
                 assertEquals(ERR_AUTHORIZATION, e.getMessage());
@@ -108,8 +112,9 @@ public class ITAuthTest {
             }
         };
 
-        Options opts = new Options.Builder().servers(servers).dontRandomize().maxReconnect(1).reconnectWait(100).reconnectedCb(rcb).build();
-
+        Options opts = new Options.Builder(defaultOptions()).dontRandomize().maxReconnect(1)
+                .reconnectWait(100).reconnectedCb(rcb).build();
+        opts.servers = Nats.processUrlArray(servers);
         // First server: no auth.
         try (final NatsServer ts = runServerOnPort(1221)) {
             // Second server: user/pass auth.
@@ -158,7 +163,8 @@ public class ITAuthTest {
                 boolean exThrown = false;
                 // System.err.println("Trying: " + url);
                 Thread.sleep(100);
-                try (Connection c = opts.connect(url)) {
+                opts.url = url;
+                try (Connection c = opts.connect()) {
                     fail("Should not have connected");
                 } catch (Exception e) {
                     assertTrue("Wrong exception thrown", e instanceof IOException);
