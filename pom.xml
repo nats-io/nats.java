@@ -130,6 +130,10 @@
                     <sourceFileExcludes>
                         <sourceFileExclude>**/ConnectionImpl.java</sourceFileExclude>
                     </sourceFileExcludes>
+                    <!--<stylesheet>maven</stylesheet>-->
+                    <!--<stylesheetfile>src/main/javadoc/stylesheet.css</stylesheetfile>-->
+                    <overview>src/main/javadoc/overview.html</overview>
+                    <docfilessubdirs>true</docfilessubdirs>
                 </configuration>
             </plugin>
 

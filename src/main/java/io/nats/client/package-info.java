@@ -5,8 +5,7 @@
  *******************************************************************************/
 
 /**
- * This is the Java client API for NATS, including classes and interfaces for interacting with the
- * NATS server.
+ * This is the Java client API for NATS -- see the {@link io.nats.client.Nats} class for usage.
  * 
  * <H3>NATS Applications</H3>
  * 
