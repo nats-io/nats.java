@@ -31,7 +31,7 @@ import java.util.concurrent.TimeoutException;
  *     Connection nc = Nats.connect("nats://someserver:4222, nats://anotherserver:4222");
  * </pre>
 
- * <p>To connect to a NATS server using a custom URL and other options:
+ * <p>To connect to a NATS server using a custom URL and other custom options:
  *
  * <pre>
  *     Connection nc = Nats.connect("nats://someserver:4222", new Options.Builder()

@@ -8,6 +8,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Random;
 
+/**
+ * A highly performant unique identifier generator.
+ */
 public class NUID {
 
     static final Logger logger = LoggerFactory.getLogger(NUID.class);
