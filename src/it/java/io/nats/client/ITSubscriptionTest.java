@@ -315,7 +315,7 @@ public class ITSubscriptionTest {
                                     if (received.incrementAndGet() >= max) {
                                         break;
                                     }
-                                } catch (IOException | TimeoutException | InterruptedException e) {
+                                } catch (IOException | InterruptedException e) {
                                     elapsed = System.nanoTime() - t0;
                                     logger.debug("Thread {} interrupted: '{}'",
                                             Thread.currentThread().getId(), e.getMessage());
@@ -1210,12 +1210,8 @@ public class ITSubscriptionTest {
                     })) {
                         conn.flush();
                         for (int i = 0; i < numRequests; i++) {
-                            try {
-                                assertNotNull(pub.request("foo", "blah".getBytes(), 5000));
-                            } catch (TimeoutException e) {
-                                fail(String.format("timed out after %d msgs", i + 1));
-                                return;
-                            }
+                            assertNotNull(String.format("timed out after %d msgs", i + 1),
+                                    pub.request("foo", "blah".getBytes(), 5000));
                         } // for
                     } // Subscription
                 } // pub

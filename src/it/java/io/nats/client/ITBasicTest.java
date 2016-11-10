@@ -306,19 +306,11 @@ public class ITBasicTest {
                         r1 + r2);
 
                 // Drain the messages.
-                try {
-                    s1.nextMessage(250, TimeUnit.MILLISECONDS);
-                    assertEquals(0, s1.getQueuedMessageCount());
-                } catch (TimeoutException e) {
-                    /* NOOP */
-                }
+                s1.nextMessage(250, TimeUnit.MILLISECONDS);
+                assertEquals(0, s1.getQueuedMessageCount());
 
-                try {
-                    s2.nextMessage(250, TimeUnit.MILLISECONDS);
-                    assertEquals(0, s2.getQueuedMessageCount());
-                } catch (TimeoutException e) {
-                    /* NOOP */
-                }
+                s2.nextMessage(250, TimeUnit.MILLISECONDS);
+                assertEquals(0, s2.getQueuedMessageCount());
 
                 int total = 1000;
                 for (int i = 0; i < total; i++) {
@@ -443,12 +435,12 @@ public class ITBasicTest {
         }
     }
 
-    @Test(expected = TimeoutException.class)
+    @Test
     public void testRequestTimeout() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
-                assertNull("timeout waiting for response", c.request("foo", "help".getBytes(), 10));
+                assertNull("should time out", c.request("foo", "help".getBytes(), 10));
             }
         }
     }
@@ -509,8 +501,9 @@ public class ITBasicTest {
                 })) {
                     UnitTestUtilities.sleep(100);
                     Message msg = c.request("foo", null, 500);
+                    assertNotNull("Request shouldn't time out", msg);
                     assertArrayEquals("Response isn't valid.", response, msg.getData());
-                } catch (TimeoutException | IOException e) {
+                } catch (IOException e) {
                     fail(e.getMessage());
                 }
             }
@@ -811,17 +804,8 @@ public class ITBasicTest {
                     }
                 })) {
                     for (int i = 0; i < numMsgs; i++) {
-                        try {
-                            assertNotNull(
-                                    conn.request("foo", "request".getBytes(), 2, TimeUnit.SECONDS));
-                        } catch (TimeoutException e) {
-                            logger.error("timed out: {}", i);
-                            logger.info("stats: {}", conn.getStats());
-                            fail("timed out: " + i);
-                        } catch (Exception e) {
-                            logger.error("failed on: {}", i);
-                            fail(String.format("failed on %d: %s", i, e.getMessage()));
-                        }
+                        assertNotNull(String.format("timed out: %d", i),
+                                conn.request("foo", "request".getBytes(), 2, TimeUnit.SECONDS));
                     }
                 }
             }

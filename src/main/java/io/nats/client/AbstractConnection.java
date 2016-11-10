@@ -14,7 +14,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * AbstractConnection is the base interface for all Connection variants.
  */
-interface AbstractConnection extends AutoCloseable {
+public interface AbstractConnection extends AutoCloseable {
 
     /**
      * Creates a {@link SyncSubscription} with interest in a given subject. In order to receive
@@ -215,7 +215,7 @@ interface AbstractConnection extends AutoCloseable {
      * @throws TimeoutException if the connection does not complete within the specified interval
      * @throws Exception if some other error occurs
      */
-    void flush(int timeout) throws IOException, TimeoutException, Exception;
+    void flush(int timeout) throws Exception;
 
     /**
      * Flushes the current connection, waiting up to 60 seconds for completion.
@@ -225,7 +225,7 @@ interface AbstractConnection extends AutoCloseable {
      * @throws Exception if some other error is encountered
      * @see #flush(int)
      */
-    void flush() throws IOException, Exception;
+    void flush() throws Exception;
 
     /**
      * Returns the connection's asynchronous exception callback.

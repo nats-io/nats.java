@@ -14,11 +14,59 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 /**
- * A simple factory class for creating Nats {@link Connection} instances.
+ * <p><img src="{@docRoot}/resources/large-logo.png" alt="NATS logo"></p>
+ * <p>The NATS java client library enables communication with a NATS server using {@link Connection} instances.
+ *
+ * <h1>Contents</h1>
+ *
+ * <b>
+ *      <a href="#0">0. Your first NATS client</a><br>
+ * </b>
+ * <h2 id="foo">0. <a class="meaningful_link" href="#firstclient">Your first NATS client</a></h2>
+ * This client creates a connection to NATS, subscribes to subject {@code foo}, and sends 10
+ * messages to {@code foo} as well:
+ * <pre>
+ * {@code
+ * import io.nats.client.*;
+ * import java.util.concurrent.CountDownLatch;
+ *
+ * int toSend=10;
+ * final CountDownLatch latch=new CountDownLatch(1);
+ * final AtomicInteger received=new AtomicInteger(toSend);
+ *
+ * // Create a connection to the default NATS URL ("nats://localhost:4222"):
+ * Connection nc = Nats.connect();
+ *
+ * // Create an asynchronous {@link MessageHandler}
+ * MessageHandler mcb = new MessageHandler() {
+ *     public void onMessage(Message msg) {
+ *         System.out.println("Received message: " + msg);
+ *         if (received.decrementAndGet() == 0) {
+ *             latch.countDown();
+ *         }
+ *     }
+ * };
+ *
+ * // Subscribe to a subject using an asynchronous message callback
+ * try (Subscription sub = nc.subscribe("foo", mcb));
+ *
+ * // Send messages to yourself
+ * for ( int i = 0; i < toSend; i++ ) {
+ *     nc.publish("foo", "Hello World".getBytes());
+ * }
+ *
+ * // Wait for all messages to be received
+ * latch.await(5000);
+ *
+ * // Close subscription
+ * sub.close();
+ *
+ * // Close connection
+ * nc.close();
+ * }
+ * </pre>
  */
-public class Nats {
-
-    private Nats() {}
+ public class Nats {
 
     /**
      * Connection states for {@link Connection#getState()}.
@@ -47,7 +95,7 @@ public class Nats {
          * The {@code Connection} is currently connecting to a server for the first time.
          */
         CONNECTING
-    }
+    };
 
     /**
      * Default server host.
@@ -156,6 +204,8 @@ public class Nats {
      */
     private static final int SECOND = 1000;
     private static final int MINUTE = 60 * SECOND;
+    static final String PERMISSIONS_ERR = "permissions violation";
+    static final String STALE_CONNECTION = "stale connection";
 
     /**
      * Default server URL.
@@ -215,6 +265,7 @@ public class Nats {
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
 
     // Common messages
+
     /**
      * This error message is defined as String {@value #ERR_CONNECTION_CLOSED}.
      */
@@ -296,11 +347,11 @@ public class Nats {
     /**
      * This error message is defined as String {@value #ERR_STALE_CONNECTION}.
      */
-    public static final String ERR_STALE_CONNECTION = "nats: " + Nats.STALE_CONNECTION;
+    public static final String ERR_STALE_CONNECTION = "nats: " + STALE_CONNECTION;
     /**
      * This error message is defined as String {@value #ERR_PERMISSIONS_VIOLATION}.
      */
-    public static final String ERR_PERMISSIONS_VIOLATION = "nats: " + Nats.PERMISSIONS_ERR;
+    public static final String ERR_PERMISSIONS_VIOLATION = "nats: " + PERMISSIONS_ERR;
 
     // jnats specific
     /**
@@ -312,14 +363,12 @@ public class Nats {
      */
     public static final String ERR_PROTOCOL = "nats: protocol error";
 
+    // Other string constants
+
     static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
     static final String DEFAULT_LANG_STRING = "java";
 
     // Error messages for internal use
-    // STALE_CONNECTION is for detection and proper handling of a stale connections
-    static final String STALE_CONNECTION = "stale connection";
-    // PERMISSIONS_ERR is for when nats server subject authorization has failed.
-    static final String PERMISSIONS_ERR = "permissions violation";
 
     static final String PROP_PROPERTIES_FILENAME = "jnats.properties";
     static final String PROP_CLIENT_VERSION = "client.version";
@@ -418,7 +467,4 @@ public class Nats {
         }
         return list;
     }
-
-
-
 }

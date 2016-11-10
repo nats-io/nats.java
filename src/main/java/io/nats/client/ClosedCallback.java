@@ -9,14 +9,15 @@ package io.nats.client;
 /**
  * When a {@code Connection} is closed for any reason, the {@code Connection} object's
  * {@code ClosedCallback} is notifed, if one has been registered.
+ *
+ * @see Connection#setClosedCallback(ClosedCallback)
  */
 public interface ClosedCallback {
     /**
      * This callback notification method is invoked when the {@code Connection} is closed.
      * 
      * @param event contains information pertinent to the close event.
-     * @see ConnectionFactory#setClosedCallback(ClosedCallback)
-     * @see Connection#setClosedCallback(ClosedCallback)
+     *
      */
     void onClose(ConnectionEvent event);
 }

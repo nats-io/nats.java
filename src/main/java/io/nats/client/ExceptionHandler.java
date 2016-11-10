@@ -17,13 +17,12 @@ package io.nats.client;
  * their connection has failed.
  * 
  * @see Connection#setExceptionHandler(ExceptionHandler)
- * @see ConnectionFactory#setExceptionHandler(ExceptionHandler)
  */
 public interface ExceptionHandler {
     /**
      * Notify user of a NATS exception.
      * 
-     * @param ex a {@code NATSException}, wrapping the original event along with other metadata
+     * @param ex a {@link NATSException}, wrapping the original event along with other metadata
      */
     public void onException(NATSException ex);
 

@@ -9,6 +9,8 @@ package io.nats.client;
 /**
  * When a previously disconnected {@code Connection} is reconnected to a NATS server, the
  * {@code Connection} object's {@code ReconnectedCallback} is notified, if one has been registered.
+ *
+ * @see Connection#setReconnectedCallback(ReconnectedCallback)
  */
 
 public interface ReconnectedCallback {
@@ -17,8 +19,6 @@ public interface ReconnectedCallback {
      * reconnected.
      * 
      * @param event contains information pertinent to the reconnect event.
-     * @see ConnectionFactory#setReconnectedCallback(ReconnectedCallback)
-     * @see Connection#setReconnectedCallback(ReconnectedCallback)
      */
     void onReconnect(ConnectionEvent event);
 }

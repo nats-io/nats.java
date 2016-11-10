@@ -7,24 +7,6 @@
 /**
  * This is the Java client API for NATS -- see the {@link io.nats.client.Nats} class for usage.
  * 
- * <H3>NATS Applications</H3>
- * 
- * <p>A NATS application is composed of the following parts:
- * 
- * <ul>
- * 
- * <li>NATS server (<code>gnatsd</code>) - a broker-style server that terminates and manages all
- * NATS client connections and routes messages between clients based on interest in the form of
- * {@link Subscription} objects</li>
- * 
- * <li>NATS clients - the programs, implemented in various languages, that connect to the NATS
- * server and send and receive NATS messages</li>
- * 
- * <li>NATS messages - {@link Message} object are used to communicate data/information between NATS
- * clients using the NATS protocol</li>
- * 
- * </ul>
- * 
  * @author Larry McQueary
  *
  */

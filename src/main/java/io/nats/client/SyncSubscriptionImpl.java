@@ -42,24 +42,18 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
     @Override
     public Message nextMessage() throws IOException, InterruptedException {
-        Message msg = null;
-        try {
-            msg = nextMessage(-1);
-        } catch (TimeoutException e) {
-            // Can't happen
-        }
-        return msg;
+        return nextMessage(-1);
     }
 
     @Override
     public Message nextMessage(long timeout)
-            throws IOException, TimeoutException, InterruptedException {
+            throws IOException, InterruptedException {
         return nextMessage(timeout, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public Message nextMessage(long timeout, TimeUnit unit)
-            throws IOException, TimeoutException, InterruptedException {
+            throws IOException, InterruptedException {
 
         // TODO this call should just return null vs. throwing TimeoutException. TimeoutException
         // was here due to historical implementation tradeoffs that no longer apply.
@@ -95,9 +89,6 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
         try {
             if (timeout >= 0) {
                 msg = mch.poll(timeout, unit);
-                if (msg == null) {
-                    throw new TimeoutException(ERR_TIMEOUT);
-                }
             } else {
                 msg = mch.take();
             }

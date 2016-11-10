@@ -9,14 +9,14 @@ package io.nats.client;
 /**
  * When a {@code Connection} is disconnected for any reason, the {@code Connection} object's
  * {@code DisconnectedCallback} is notifed, if one has been registered.
+ *
+ * @see Connection#setDisconnectedCallback(DisconnectedCallback)
  */
 public interface DisconnectedCallback {
     /**
      * This callback notification method is invoked when the {@code Connection} is disconnected.
      * 
      * @param event contains information pertinent to the disconnect event.
-     * @see ConnectionFactory#setDisconnectedCallback(DisconnectedCallback)
-     * @see Connection#setDisconnectedCallback(DisconnectedCallback)
      */
     void onDisconnect(ConnectionEvent event);
 }

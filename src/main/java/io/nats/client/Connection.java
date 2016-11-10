@@ -94,27 +94,37 @@ public interface Connection extends AbstractConnection {
      * @param subject the subject to publish the request message to
      * @param data the request message payload
      * @param timeout how long to wait for a response message (in msec)
-     * @return the response message
+     * @return the response message, or {@code null} if timed out
      * @throws IOException if a connection-related error occurs
-     * @throws TimeoutException if {@code timeout} elapses before a message is returned
+     * @throws InterruptedException if {@link Thread#interrupt() interrupted} while waiting to receive a response
      */
     public Message request(String subject, byte[] data, long timeout)
-            throws TimeoutException, IOException;
+            throws IOException, InterruptedException;
+
+    /**
+     * Publishes a request message to the specified subject, waiting up to {@code timeout} msec for
+     * a response.
+     *
+     * @param subject the subject to publish the request message to
+     * @param data the request message payload
+     * @param timeout how long to wait for a response message (in msec)
+     * @param unit how long to wait for a response message (in msec)
+     * @return the response message, or {@code null} if timed out
+     * @throws IOException if a connection-related error occurs
+     * @throws InterruptedException if {@link Thread#interrupt() interrupted} while waiting to receive a response
+     */
+    public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
+            throws IOException, InterruptedException;
 
     /**
      * Publishes a request message to the specified subject, waiting for a response until one is
      * available.
      * 
      * @param subject the subject to publish the request message to
-     * @param data the message payload
-     * @return the response message
+     * @param data the request message payload
+     * @return the response message, or {@code null} if timed out
      * @throws IOException if a connection-related error occurs
-     * @throws TimeoutException if {@code timeout} elapses before a message is returned
+     * @throws InterruptedException if {@link Thread#interrupt() interrupted} while waiting to receive a response
      */
-    public Message request(String subject, byte[] data) throws TimeoutException, IOException;
-
-    Message request(String subject, byte[] data, long timeout, TimeUnit unit)
-            throws TimeoutException, IOException;
-
-
+    public Message request(String subject, byte[] data) throws IOException, InterruptedException;
 }

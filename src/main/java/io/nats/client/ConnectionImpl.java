@@ -2262,7 +2262,7 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
-            throws TimeoutException, IOException {
+            throws IOException {
         String inbox = newInbox();
         BlockingQueue<Message> ch = createMsgChannel(8);
 
@@ -2286,12 +2286,12 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public Message request(String subject, byte[] data, long timeout)
-            throws TimeoutException, IOException {
+            throws IOException {
         return request(subject, data, timeout, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public Message request(String subject, byte[] data) throws IOException, TimeoutException {
+    public Message request(String subject, byte[] data) throws IOException {
         return request(subject, data, -1, TimeUnit.MILLISECONDS);
     }
 

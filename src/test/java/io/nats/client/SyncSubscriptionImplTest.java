@@ -186,16 +186,16 @@ public class SyncSubscriptionImplTest {
         }
     }
 
-    @Test(expected = TimeoutException.class)
+    @Test
     public void testNextMessageTimesOut()
-            throws TimeoutException, IOException, InterruptedException {
+            throws IOException, InterruptedException {
         String subj = "foo";
         String queue = "bar";
         int timeout = 100;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
         try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue)) {
-            s.nextMessage(timeout);
+            assertNull(s.nextMessage(timeout));
         }
     }
 
