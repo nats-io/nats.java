@@ -1125,13 +1125,18 @@ public class ConnectionImpl implements Connection {
 
     static String normalizeErr(String error) {
         String str = error;
-        str = str.replaceFirst(_ERR_OP_ + "\\s+", "").toLowerCase();
-        str = str.replaceAll("^\'|\'$", "");
+        if (str != null) {
+            str = str.replaceFirst(_ERR_OP_ + "\\s+", "").toLowerCase();
+            str = str.replaceAll("^\'|\'$", "");
+        }
         return str;
     }
 
     static String normalizeErr(ByteBuffer error) {
-        String str = Parser.bufToString(error).trim();
+        String str = Parser.bufToString(error);
+        if (str != null) {
+            str = str.trim();
+        }
         return normalizeErr(str);
     }
 

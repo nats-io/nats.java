@@ -13,6 +13,8 @@ import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.util.Arrays;
 
+import static io.nats.client.Parser.NatsOp.*;
+
 class Parser {
     static final Logger logger = LoggerFactory.getLogger(Parser.class);
 
@@ -59,7 +61,7 @@ class Parser {
     }
 
     protected class ParseState {
-        NatsOp state = NatsOp.OP_START;
+        NatsOp state = OP_START;
         int as;
         int drop;
         MsgArg ma = new MsgArg();
@@ -140,21 +142,21 @@ class Parser {
                     switch (b) {
                         case 'M':
                         case 'm':
-                            ps.state = NatsOp.OP_M;
+                            ps.state = OP_M;
                             break;
                         case 'P':
                         case 'p':
-                            ps.state = NatsOp.OP_P;
+                            ps.state = OP_P;
                             break;
                         case '+':
-                            ps.state = NatsOp.OP_PLUS;
+                            ps.state = OP_PLUS;
                             break;
                         case '-':
-                            ps.state = NatsOp.OP_MINUS;
+                            ps.state = OP_MINUS;
                             break;
                         case 'I':
                         case 'i':
-                            ps.state = NatsOp.OP_I;
+                            ps.state = OP_I;
                             break;
                         default:
                             error = true;
@@ -165,7 +167,7 @@ class Parser {
                     switch (b) {
                         case 'S':
                         case 's':
-                            ps.state = NatsOp.OP_MS;
+                            ps.state = OP_MS;
                             break;
                         default:
                             error = true;
@@ -176,7 +178,7 @@ class Parser {
                     switch (b) {
                         case 'G':
                         case 'g':
-                            ps.state = NatsOp.OP_MSG;
+                            ps.state = OP_MSG;
                             break;
                         default:
                             error = true;
@@ -187,7 +189,7 @@ class Parser {
                     switch (b) {
                         case ' ':
                         case '\t':
-                            ps.state = NatsOp.OP_MSG_SPC;
+                            ps.state = OP_MSG_SPC;
                             break;
                         default:
                             error = true;
@@ -200,7 +202,7 @@ class Parser {
                         case '\t':
                             continue;
                         default:
-                            ps.state = NatsOp.MSG_ARG;
+                            ps.state = MSG_ARG;
                             ps.as = i;
                             break;
                     }
@@ -217,6 +219,7 @@ class Parser {
                                 byte[] arg = ps.argBuf.array();
                                 int from = ps.argBuf.arrayOffset() + ps.argBuf.position();
                                 int to =  ps.argBuf.arrayOffset() + ps.argBuf.limit();
+                                ps.argBuf = null;
                                 int length = to - from;
                                 processMsgArgs(arg, from, length);
                             } else {
@@ -225,7 +228,7 @@ class Parser {
 
                             ps.drop = 0;
                             ps.as = i + 1;
-                            ps.state = NatsOp.MSG_PAYLOAD;
+                            ps.state = MSG_PAYLOAD;
 
                             // jump ahead with the index. If this overruns
                             // what is left we fall out and process split
@@ -277,7 +280,7 @@ class Parser {
                         // ps.argBuf.clear();
                         ps.msgBuf = null;
                         // ps.msgBuf.clear();
-                        ps.state = NatsOp.MSG_END;
+                        ps.state = MSG_END;
                     }
 
                     break;
@@ -286,7 +289,7 @@ class Parser {
                         case '\n':
                             ps.drop = 0;
                             ps.as = i + 1;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             continue;
@@ -296,7 +299,7 @@ class Parser {
                     switch (b) {
                         case 'O':
                         case 'o':
-                            ps.state = NatsOp.OP_PLUS_O;
+                            ps.state = OP_PLUS_O;
                             break;
                         default:
                             error = true;
@@ -307,7 +310,7 @@ class Parser {
                     switch (b) {
                         case 'K':
                         case 'k':
-                            ps.state = NatsOp.OP_PLUS_OK;
+                            ps.state = OP_PLUS_OK;
                             break;
                         default:
                             error = true;
@@ -319,7 +322,7 @@ class Parser {
                         case '\n':
                             nc.processOk();
                             ps.drop = 0;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             break;
@@ -329,7 +332,7 @@ class Parser {
                     switch (b) {
                         case 'E':
                         case 'e':
-                            ps.state = NatsOp.OP_MINUS_E;
+                            ps.state = OP_MINUS_E;
                             break;
                         default:
                             error = true;
@@ -340,7 +343,7 @@ class Parser {
                     switch (b) {
                         case 'R':
                         case 'r':
-                            ps.state = NatsOp.OP_MINUS_ER;
+                            ps.state = OP_MINUS_ER;
                             break;
                         default:
                             error = true;
@@ -351,7 +354,7 @@ class Parser {
                     switch (b) {
                         case 'R':
                         case 'r':
-                            ps.state = NatsOp.OP_MINUS_ERR;
+                            ps.state = OP_MINUS_ERR;
                             break;
                         default:
                             error = true;
@@ -362,7 +365,7 @@ class Parser {
                     switch (b) {
                         case ' ':
                         case '\t':
-                            ps.state = NatsOp.OP_MINUS_ERR_SPC;
+                            ps.state = OP_MINUS_ERR_SPC;
                             break;
                         default:
                             error = true;
@@ -375,7 +378,7 @@ class Parser {
                         case '\t':
                             continue;
                         default:
-                            ps.state = NatsOp.MINUS_ERR_ARG;
+                            ps.state = MINUS_ERR_ARG;
                             ps.as = i;
                             break;
                     }
@@ -391,12 +394,12 @@ class Parser {
                                 arg = ps.argBuf;
                                 ps.argBuf = null;
                             } else {
-                                arg = ByteBuffer.wrap(buf, ps.as, i - ps.as);
+                                arg = ByteBuffer.wrap(buf, ps.as, i - ps.drop - ps.as);
                             }
                             nc.processErr(arg);
                             ps.drop = 0;
                             ps.as = i + 1;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             if (ps.argBuf != null) {
@@ -409,11 +412,11 @@ class Parser {
                     switch (b) {
                         case 'I':
                         case 'i':
-                            ps.state = NatsOp.OP_PI;
+                            ps.state = OP_PI;
                             break;
                         case 'O':
                         case 'o':
-                            ps.state = NatsOp.OP_PO;
+                            ps.state = OP_PO;
                             break;
                         default:
                             error = true;
@@ -424,7 +427,7 @@ class Parser {
                     switch (b) {
                         case 'N':
                         case 'n':
-                            ps.state = NatsOp.OP_PON;
+                            ps.state = OP_PON;
                             break;
                         default:
                             // parseError(buf, i);
@@ -436,7 +439,7 @@ class Parser {
                     switch (b) {
                         case 'G':
                         case 'g':
-                            ps.state = NatsOp.OP_PONG;
+                            ps.state = OP_PONG;
                             break;
                         default:
                             error = true;
@@ -448,7 +451,7 @@ class Parser {
                         case '\n':
                             nc.processPong();
                             ps.drop = 0;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             break;
@@ -458,7 +461,7 @@ class Parser {
                     switch (b) {
                         case 'N':
                         case 'n':
-                            ps.state = NatsOp.OP_PIN;
+                            ps.state = OP_PIN;
                             break;
                         default:
                             error = true;
@@ -469,7 +472,7 @@ class Parser {
                     switch (b) {
                         case 'G':
                         case 'g':
-                            ps.state = NatsOp.OP_PING;
+                            ps.state = OP_PING;
                             break;
                         default:
                             error = true;
@@ -481,7 +484,7 @@ class Parser {
                         case '\n':
                             nc.processPing();
                             ps.drop = 0;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             break;
@@ -491,7 +494,7 @@ class Parser {
                     switch (b) {
                         case 'N':
                         case 'n':
-                            ps.state = NatsOp.OP_IN;
+                            ps.state = OP_IN;
                             break;
                         default:
                             error = true;
@@ -502,7 +505,7 @@ class Parser {
                     switch (b) {
                         case 'F':
                         case 'f':
-                            ps.state = NatsOp.OP_INF;
+                            ps.state = OP_INF;
                             break;
                         default:
                             error = true;
@@ -513,7 +516,7 @@ class Parser {
                     switch (b) {
                         case 'O':
                         case 'o':
-                            ps.state = NatsOp.OP_INFO;
+                            ps.state = OP_INFO;
                             break;
                         default:
                             error = true;
@@ -524,7 +527,7 @@ class Parser {
                     switch (b) {
                         case ' ':
                         case '\t':
-                            ps.state = NatsOp.OP_INFO_SPC;
+                            ps.state = OP_INFO_SPC;
                             break;
                         default:
                             error = true;
@@ -537,7 +540,7 @@ class Parser {
                         case '\t':
                             continue;
                         default:
-                            ps.state = NatsOp.INFO_ARG;
+                            ps.state = INFO_ARG;
                             ps.as = i;
                             break;
                     }
@@ -558,12 +561,12 @@ class Parser {
                                 ps.argBuf = null;
                                 nc.processAsyncInfo(arg, from, length);
                             } else {
-                                nc.processAsyncInfo(buf, ps.as, i - ps.as + 1);
+                                nc.processAsyncInfo(buf, ps.as, i - ps.drop - ps.as);
                             }
 
                             ps.drop = 0;
                             ps.as = i + 1;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
 
                             break;
                         default:
@@ -586,16 +589,25 @@ class Parser {
             }
         } // for
 
-        // We have processed the entire buffer
         // Check for split buffer scenarios
-        if ((ps.state == NatsOp.MSG_ARG || ps.state == NatsOp.MINUS_ERR_ARG)
-                || ps.state == NatsOp.INFO_ARG && (ps.argBuf == null)) {
-            ps.argBuf = ByteBuffer.wrap(ps.argBufStore);
-            ps.argBuf.put(buf, ps.as, i - ps.as);
-            // FIXME, check max len
+        if ((ps.state == MSG_ARG || ps.state == MINUS_ERR_ARG) || ps.state == INFO_ARG && (ps.argBuf == null)) {
+            try {
+                ps.argBuf = ByteBuffer.wrap(ps.argBufStore);
+                assert(ps.as >= 0);
+                assert((i - ps.drop - ps.as) > 0);
+                if (i - ps.drop - ps.as > 0) {
+                    ps.argBuf.put(buf, ps.as, i - ps.drop - ps.as);
+                }
+                // FIXME, check max len
+            } catch (IndexOutOfBoundsException e) {
+                e.printStackTrace();
+                logger.error("state = {}, i = {}, buf(len:{}) = [{}], ps.argBuf = {}, ps.as = {}, i - ps.as = {}",
+                        ps.state, i, len, new String(buf, 0, len), ps.argBuf, ps.as, i-ps.as);
+                nc.processErr(ps.argBuf);
+            }
         }
         // Check for split msg
-        if (ps.state == NatsOp.MSG_PAYLOAD && ps.msgBuf == null) {
+        if (ps.state == MSG_PAYLOAD && ps.msgBuf == null) {
             // We need to clone the msgArg if it is still referencing the
             // read buffer and we are not able to process the msg.
             if (ps.argBuf == null) {
@@ -604,13 +616,36 @@ class Parser {
 
             // If we will overflow the scratch buffer, just create a
             // new buffer to hold the split message.
-            int lrem = len - ps.as; // portion of msg remaining in buffer
-            if (ps.ma.size > ps.msgBufStore.length) {
+            if (ps.ma.size > ps.msgBufStore.length - ps.argBuf.limit()) {
+                int lrem = len - ps.as; // portion of msg remaining in buffer
                 ps.msgBufStore = new byte[ps.ma.size];
+                ps.msgBuf = ByteBuffer.wrap(ps.msgBufStore);
+                // copy what's left in the buffer
+                try {
+                    // FIXME check max len
+                    if (ps.msgBuf.remaining() < lrem) {
+                        String err = String.format("msgBuf remaining cap too small(%d) after realloc, " +
+                                "needed: %d", ps.msgBuf.remaining(), lrem);
+                        throw new ParseException(err, i);
+                    } else if (buf.length < ps.as || lrem - ps.as > buf.length) {
+                        String err = String.format("Programmer error; buf length = %d, trying to copy offset %d, " +
+                                "length %d", ps.as, lrem);
+                        throw new ParseException(err, i);
+                    }
+                    // Can throw BufferOverflowException if lrem > ps.msgBuf.remaining
+                    ps.msgBuf.put(buf, ps.as, lrem);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    logger.error("state = {}, i = {}, buf(len:{}) = [{}], ps.msgBuf = {}, ps.as = {}, lrem = {}",
+                            ps.state, i, len, new String(buf, 0, len), ps.msgBuf, ps.as, lrem);
+                    nc.processErr(ps.msgBuf);
+                }
+            } else {
+                // copy args
+                ps.msgBuf.put(ps.argBuf);
+                // copy body
+                ps.msgBuf.put(buf, ps.as, len - ps.as);
             }
-            ps.msgBuf = ByteBuffer.wrap(ps.msgBufStore);
-            // copy what's left in the buffer
-            ps.msgBuf.put(buf, ps.as, lrem);
         }
     }
 

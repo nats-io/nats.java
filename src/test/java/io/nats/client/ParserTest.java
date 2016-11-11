@@ -534,9 +534,8 @@ public class ParserTest {
         String msg = String.format("MSG foo 1 -100\r\n");
         byte[] msgBytes = msg.getBytes();
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
-            Parser parser = c.parser;
             try (Subscription sub = c.subscribeSync("foo")) {
-                parser.parse(msgBytes, msgBytes.length);
+                c.parser.parse(msgBytes, msgBytes.length);
             }
         }
     }
