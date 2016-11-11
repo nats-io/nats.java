@@ -65,9 +65,10 @@ We use RNG to generate unique inbox names. A peculiarity of the JDK on Linux (se
 ## Basic Usage
 
 ```java
+import io.nats.client.*;
 
-ConnectionFactory cf = new ConnectionFactory(Constants.DEFAULT_URL);
-Connection nc = cf.createConnection();
+// Connect to default URL ("nats://localhost:4222")
+Connection nc = Nat.connect();
 
 // Simple Publisher
 nc.publish("foo", "Hello World".getBytes());
@@ -94,8 +95,8 @@ nc.subscribe("help", m -> {
 });
 
 // Close connection
-ConnectionFactory cf = new ConnectionFactory("nats://localhost:4222");
-nc = cf.createConnection();
+Connect nc = Nats.connect("nats://localhost:4222");
+...
 nc.close();
 ```
 ## TLS
@@ -121,14 +122,15 @@ TLS/SSL connections may be configured through the use of an [SSLContext](https:/
 	SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
 	c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
-	// Create a new NATS connection factory
-	ConnectionFactory cf = new ConnectionFactory("nats://localhost:1222");
-	cf.setSecure(true); 	// Set the secure option, indicating that TLS is required
-	cf.setTlsDebug(true);   // Set TLS debug, which will produce additional console output
-	cf.setSslContext(c);	// Set the context for this factory
+	// Create NATS options
+	Options opts = new Options.Builder()
+		.secure()       // Set the secure option, indicating that TLS is required
+		.tlsDebug()     // Set TLS debug, which will produce additional console output
+		.sslContext(c)  // Set the context for this factory
+		.build();
 
 	// Create a new SSL connection
-	try (Connection connection = cf.createConnection()) {
+	try (Connection connection = Nats.connect("nats://localhost:1222", opts)) {
 		connection.publish("foo", "Hello".getBytes());
 		connection.close();
 	} catch (Exception e) {
@@ -197,8 +199,8 @@ sub = nc.subscribe("foo");
 sub.autoUnsubscribe(MAX_WANTED);
 
 // Multiple connections
-nc1 = cf.createConnection("nats://host1:4222");
-nc2 = cf.createConnection("nats://host2:4222");
+nc1 = Nats.connect("nats://host1:4222");
+nc2 = Nats.connect("nats://host2:4222");
 
 nc1.subscribe("foo", m -> {
     System.out.printf("Received a message: %s\n", new String(m.getData()));
