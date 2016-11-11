@@ -50,7 +50,7 @@ class NatsThread extends Thread {
         // Copy debug flag to ensure consistent value throughout.
         boolean debug = debugLifecycle;
         if (debug) {
-            logger.debug("Created {}", getName());
+            logger.trace("Created {}", getName());
         }
         try {
             if (startSignal != null) {
@@ -60,14 +60,14 @@ class NatsThread extends Thread {
             super.run();
         } catch (InterruptedException e) {
             // TODO Auto-generated catch block
-            logger.debug("Interrupted: ", e);
+            logger.trace("Interrupted: ", e);
         } finally {
             if (this.doneSignal != null) {
                 this.doneSignal.countDown();
             }
             alive.decrementAndGet();
             if (debug) {
-                logger.debug("Exiting {}", getName());
+                logger.trace("Exiting {}", getName());
             }
         }
     }
