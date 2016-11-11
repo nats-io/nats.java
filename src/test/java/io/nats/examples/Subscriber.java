@@ -2,7 +2,6 @@ package io.nats.examples;
 
 
 import io.nats.client.Connection;
-import io.nats.client.ConnectionFactory;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
@@ -16,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -25,62 +25,73 @@ public class Subscriber {
     private String url = Nats.DEFAULT_URL;
     private String subject;
     private String qgroup;
+    private int count;
 
     static final String usageString =
             "\nUsage: java Subscriber [-s <server>] [-q <group>] <subject>\n\nOptions:\n"
                     + "    -s <url>            NATS server URLs, separated by commas (default: "
                     + Nats.DEFAULT_URL + ")\n"
-                    + "    -q <name>           Queue group\n";
+                    + "    -q <name>           Queue group\n"
+                    + "    -n <num>            Number of messages to receive";
 
-    Subscriber(String[] args) {
+    public Subscriber(String[] args) {
         parseArgs(args);
         if (subject == null) {
             usage();
         }
     }
 
-    void usage() {
+    static void usage() {
         System.err.println(usageString);
-        System.exit(-1);
     }
 
-    void run() throws IOException, TimeoutException {
-        ConnectionFactory cf = new ConnectionFactory(url);
+    public void run() throws Exception {
+        final CountDownLatch start = new CountDownLatch(1);
+        final CountDownLatch done = new CountDownLatch(1);
+        final AtomicInteger delivered = new AtomicInteger();
 
-        try (final Connection nc = cf.createConnection()) {
+        try (final Connection nc = Nats.connect(url)) {
             // System.out.println("Connected successfully to " + cf.getNatsUrl());
-            final AtomicInteger count = new AtomicInteger();
             try (final Subscription sub = nc.subscribe(subject, qgroup, new MessageHandler() {
                 @Override
                 public void onMessage(Message m) {
-                    System.out.printf("[#%d] Received on [%s]: '%s'\n", count.incrementAndGet(),
+                    try {
+                        start.await();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    System.out.printf("[#%d] Received on [%s]: '%s'\n", delivered.incrementAndGet(),
                             m.getSubject(), m);
+                    if (delivered.get() == count) {
+                        done.countDown();
+                    }
                 }
             })) {
-                System.out.printf("Listening on [%s]\n", subject);
-                Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+                Thread hook = new Thread(new Runnable() {
                     @Override
                     public void run() {
                         System.err.println("\nCaught CTRL-C, shutting down gracefully...\n");
                         try {
                             sub.unsubscribe();
-                        } catch (IOException e) {
+                            nc.close();
+                        } catch (Exception e) {
                             log.error("Problem unsubscribing", e);
                         }
-                        nc.close();
+                        done.countDown();
                     }
-                }));
-                while (true) {
-                    // loop forever
-                }
+                });
+                Runtime.getRuntime().addShutdownHook(hook);
+                System.out.printf("Listening on [%s]\n", subject);
+                start.countDown();
+                done.await();
+                Runtime.getRuntime().removeShutdownHook(hook);
             }
         }
     }
 
-    private void parseArgs(String[] args) {
+    public void parseArgs(String[] args) {
         if (args == null || args.length < 1) {
-            usage();
-            return;
+            throw new IllegalArgumentException("must supply at least a subject name");
         }
 
         List<String> argList = new ArrayList<String>(Arrays.asList(args));
@@ -97,7 +108,7 @@ public class Subscriber {
                 case "-s":
                 case "--server":
                     if (!it.hasNext()) {
-                        usage();
+                        throw new IllegalArgumentException(arg + " requires an argument");
                     }
                     it.remove();
                     url = it.next();
@@ -106,16 +117,23 @@ public class Subscriber {
                 case "-q":
                 case "--qgroup":
                     if (!it.hasNext()) {
-                        usage();
+                        throw new IllegalArgumentException(arg + " requires an argument");
                     }
                     it.remove();
                     qgroup = it.next();
                     it.remove();
                     continue;
+                case "-n":
+                case "--count":
+                    if (!it.hasNext()) {
+                        throw new IllegalArgumentException(arg + " requires an argument");
+                    }
+                    it.remove();
+                    count = Integer.parseInt(it.next());
+                    it.remove();
+                    continue;
                 default:
-                    System.err.printf("Unexpected token: '%s'\n", arg);
-                    usage();
-                    break;
+                    throw new IllegalArgumentException(String.format("Unexpected token: '%s'", arg));
             }
         }
     }
@@ -125,13 +143,13 @@ public class Subscriber {
      * 
      * @param args the subject, cluster info, and subscription options
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         try {
             new Subscriber(args).run();
-        } catch (IOException | TimeoutException e) {
-            log.error("Couldn't create Subscriber", e);
-            System.exit(-1);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            Subscriber.usage();
+            throw e;
         }
-        System.exit(0);
     }
 }

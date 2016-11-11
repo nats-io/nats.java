@@ -1,237 +1,166 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
-
 package io.nats.examples;
 
-import io.nats.client.AsyncSubscription;
+
 import io.nats.client.Connection;
-import io.nats.client.ConnectionFactory;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
-import io.nats.client.Statistics;
-import io.nats.client.SyncSubscription;
+import io.nats.client.Subscription;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class Replier implements Runnable {
-    Map<String, String> parsedArgs = new HashMap<String, String>();
+import java.text.DateFormat;
+import java.text.FieldPosition;
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
-    int count = 20000;
-    String url = Nats.DEFAULT_URL;
-    String subject = "foo";
-    boolean sync = false;
-    int received = 0;
-    boolean verbose = false;
+public class Replier {
+    static final Logger log = LoggerFactory.getLogger(Replier.class);
 
-    long start = 0L;
-    long end = 0L;
+    private String url = Nats.DEFAULT_URL;
+    private String subject;
+    private String reply;
+    private String qgroup;
+    private int count;
+    private boolean showTime;
 
-    Lock testLock = new ReentrantLock();
-    Condition allDone = testLock.newCondition();
-    boolean done = false;
+    static final String usageString =
+            "\nUsage: java Replier [-s <server>] [-q <group>] <subject> <reply>\n\nOptions:\n"
+                    + "    -s <url>            NATS server URLs, separated by commas (default: "
+                    + Nats.DEFAULT_URL + ")\n"
+                    + "    -q <name>           Queue group\n"
+                    + "    -n <num>            Number of messages to receive\n"
+                    + "    -t                  Display timestamps";
 
-    byte[] replyBytes = "reply".getBytes(Charset.forName("UTF-8"));
-
-    Replier(String[] args) {
+    public Replier(String[] args) {
         parseArgs(args);
-        banner();
-    }
-
-    @Override
-    public void run() {
-        try (Connection c = new ConnectionFactory(url).createConnection()) {
-            long elapsed;
-            long seconds;
-
-            if (sync) {
-                elapsed = receiveSyncSubscriber(c);
-            } else {
-                elapsed = receiveAsyncSubscriber(c);
-            }
-            seconds = TimeUnit.NANOSECONDS.toSeconds(elapsed);
-            System.out.printf("Replied to %d msgs in %d seconds ", received, seconds);
-
-            if (seconds > 0) {
-                System.out.printf("(%d msgs/second).\n", (received / seconds));
-            } else {
-                System.out.println();
-                System.out.println("Test not long enough to produce meaningful stats. "
-                        + "Please increase the message count (-count n)");
-            }
-            printStats(c);
-        } catch (IOException | TimeoutException e) {
-            System.err.println("Couldn't connect: " + e.getMessage());
-            System.exit(-1);
+        if (subject == null) {
+            usage();
         }
     }
 
-    private void printStats(Connection c) {
-        Statistics s = c.getStats();
-        System.out.printf("Statistics:  \n");
-        System.out.printf("   Incoming Payload Bytes: %d\n", s.getInBytes());
-        System.out.printf("   Incoming Messages: %d\n", s.getInMsgs());
-        System.out.printf("   Outgoing Payload Bytes: %d\n", s.getOutBytes());
-        System.out.printf("   Outgoing Messages: %d\n", s.getOutMsgs());
+    static void usage() {
+        System.err.println(usageString);
     }
 
+    public void run() throws Exception {
+        final CountDownLatch start = new CountDownLatch(1);
+        final CountDownLatch done = new CountDownLatch(1);
+        final AtomicInteger delivered = new AtomicInteger();
 
-    private long receiveAsyncSubscriber(Connection conn) {
-        final Connection c = conn;
-        MessageHandler mh = new MessageHandler() {
-            public void onMessage(Message msg) {
-                if (received++ == 0) {
-                    start = System.nanoTime();
-                }
-
-                if (verbose) {
-                    System.out.println("Received: " + msg);
-                }
-
-                try {
-                    c.publish(msg.getReplyTo(), replyBytes);
-                } catch (IllegalStateException | IOException e) {
-                    e.printStackTrace();
-                }
-
-                if (received >= count) {
-                    end = System.nanoTime();
-                    testLock.lock();
+        try (final Connection nc = Nats.connect(url)) {
+            // System.out.println("Connected successfully to " + cf.getNatsUrl());
+            try (final Subscription sub = nc.subscribe(subject, qgroup, new MessageHandler() {
+                @Override
+                public void onMessage(Message msg) {
+                    delivered.incrementAndGet();
                     try {
-                        done = true;
-                        allDone.signal();
-                    } finally {
-                        testLock.unlock();
+                        start.await();
+                        String dateStr = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date());
+                        System.out.printf("%s [#%d] Received on [%s]: '%s'\n", showTime ? dateStr : "", delivered.get(),
+                                msg.getSubject(), msg.getData() != null ? new String(msg.getData()) : "null");
+                        nc.publish(msg.getReplyTo(), reply.getBytes());
+                        nc.flush();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    if (delivered.get() == count) {
+                        done.countDown();
                     }
                 }
+            })) {
+                Thread hook = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        System.err.println("\nCaught CTRL-C, shutting down gracefully...\n");
+                        try {
+                            sub.unsubscribe();
+                            nc.close();
+                        } catch (Exception e) {
+                            log.error("Problem unsubscribing", e);
+                        }
+                        done.countDown();
+                    }
+                });
+                Runtime.getRuntime().addShutdownHook(hook);
+                System.out.printf("Listening on [%s]\n", subject);
+                start.countDown();
+                done.await();
+                Runtime.getRuntime().removeShutdownHook(hook);
             }
-        };
-
-        AsyncSubscription sub = c.subscribe(subject, mh);
-        // just wait to complete
-        testLock.lock();
-        try {
-            while (!done) {
-                allDone.await();
-            }
-        } catch (InterruptedException e) {
-            /* NOOP */
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } finally {
-            testLock.unlock();
-        }
-        sub.close();
-        return end - start;
-    }
-
-
-    private long receiveSyncSubscriber(Connection c) {
-        SyncSubscription sub = c.subscribeSync(subject);
-
-        Message m = null;
-        try {
-            while (received < count) {
-                m = sub.nextMessage();
-                if (received++ == 0) {
-                    start = System.nanoTime();
-                }
-
-                if (verbose) {
-                    System.out.println("Received: " + m);
-                }
-
-                c.publish(m.getReplyTo(), replyBytes);
-            }
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        end = System.nanoTime();
-        return end - start;
-    }
-
-    private void usage() {
-        System.err.println("Usage:  Publish [-url url] [-subject subject] "
-                + "[-count count] [-sync] [-verbose]");
-
-        System.exit(-1);
-    }
-
-    private void parseArgs(String[] args) {
-        if (args == null) {
-            return;
-        }
-
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("-sync") || args[i].equals("-verbose")) {
-                parsedArgs.put(args[i], "true");
-            } else {
-                if (i + 1 == args.length) {
-                    usage();
-                }
-
-                parsedArgs.put(args[i], args[i + 1]);
-                i++;
-            }
-
-        }
-
-        if (parsedArgs.containsKey("-count")) {
-            count = Integer.parseInt(parsedArgs.get("-count"));
-        }
-
-        if (parsedArgs.containsKey("-url")) {
-            url = parsedArgs.get("-url");
-        }
-
-        if (parsedArgs.containsKey("-subject")) {
-            subject = parsedArgs.get("-subject");
-        }
-
-        if (parsedArgs.containsKey("-sync")) {
-            sync = true;
-        }
-
-        if (parsedArgs.containsKey("-verbose")) {
-            verbose = true;
         }
     }
 
-    private void banner() {
-        System.out.printf("Receiving %d messages on subject %s\n", count, subject);
-        System.out.printf("  URL: %s\n", url);
-        System.out.printf("  Receiving: %s\n", sync ? "Synchronously" : "Asynchronously");
+    public void parseArgs(String[] args) {
+        if (args == null || args.length < 2) {
+            throw new IllegalArgumentException("must supply at least a subject name and a reply msg");
+        }
+
+        List<String> argList = new ArrayList<String>(Arrays.asList(args));
+
+        // The last arg should be subject
+        // get the subject and remove it from args
+        reply = argList.remove(argList.size() - 1);
+        subject = argList.remove(argList.size() - 1);
+
+        // Anything left is flags + args
+        Iterator<String> it = argList.iterator();
+        while (it.hasNext()) {
+            String arg = it.next();
+            switch (arg) {
+                case "-s":
+                case "--server":
+                    if (!it.hasNext()) {
+                        throw new IllegalArgumentException(arg + " requires an argument");
+                    }
+                    it.remove();
+                    url = it.next();
+                    it.remove();
+                    continue;
+                case "-q":
+                case "--qgroup":
+                    if (!it.hasNext()) {
+                        throw new IllegalArgumentException(arg + " requires an argument");
+                    }
+                    it.remove();
+                    qgroup = it.next();
+                    it.remove();
+                    continue;
+                case "-n":
+                case "--count":
+                    if (!it.hasNext()) {
+                        throw new IllegalArgumentException(arg + " requires an argument");
+                    }
+                    it.remove();
+                    count = Integer.parseInt(it.next());
+                    it.remove();
+                    continue;
+                case "-t":
+                    it.remove();
+                    showTime = true;
+                    continue;
+                default:
+                    throw new IllegalArgumentException(String.format("Unexpected token: '%s'", arg));
+            }
+        }
     }
 
     /**
-     * Main executive.
-     * 
-     * @param args the command-line arguments
+     * Subscribes to a subject.
+     *
+     * @param args the subject, cluster info, and subscription options
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         try {
             new Replier(args).run();
-        } catch (Exception ex) {
-            System.err.println("Exception: " + ex.getMessage());
-            ex.printStackTrace();
-        } finally {
-            System.exit(0);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            Replier.usage();
+            throw e;
         }
     }
-
-
-
 }

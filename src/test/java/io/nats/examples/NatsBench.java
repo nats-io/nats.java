@@ -12,12 +12,12 @@ import io.nats.client.AsyncSubscription;
 import io.nats.client.ClosedCallback;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionEvent;
-import io.nats.client.ConnectionFactory;
 import io.nats.client.DisconnectedCallback;
 import io.nats.client.ExceptionHandler;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NATSException;
+import io.nats.client.Options;
 import io.nats.client.Nats;
 import io.nats.client.NUID;
 import io.nats.client.Subscription;
@@ -66,7 +66,7 @@ public class NatsBench {
     private AtomicInteger received = new AtomicInteger();
     private String csvFileName;
 
-    private ConnectionFactory cf;
+    Options opts = null;
     private Thread shutdownHook;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
@@ -95,6 +95,12 @@ public class NatsBench {
             return;
         }
         parseArgs(args);
+
+        if (secure) {
+            opts = new Options.Builder(Nats.defaultOptions()).secure().noReconnect().build();
+        } else {
+            opts = new Options.Builder(Nats.defaultOptions()).noReconnect().build();
+        }
     }
 
     /**
@@ -149,7 +155,7 @@ public class NatsBench {
         }
 
         public void runSubscriber() throws Exception {
-            final Connection nc = cf.createConnection();
+            final Connection nc = Nats.connect(urls, opts);
             nc.setDisconnectedCallback(new DisconnectedCallback() {
                 @Override
                 public void onDisconnect(ConnectionEvent ev) {
@@ -212,7 +218,7 @@ public class NatsBench {
         }
 
         public void runPublisher() throws Exception {
-            try (Connection nc = cf.createConnection()) {
+            try (Connection nc = Nats.connect(urls, opts)) {
                 byte[] payload = null;
                 if (size > 0) {
                     payload = new byte[size];
@@ -243,10 +249,6 @@ public class NatsBench {
         installShutdownHook();
 
         phaser.register();
-
-        cf = new ConnectionFactory(urls);
-        cf.setSecure(secure);
-        cf.setReconnectAllowed(false);
 
         bench = new Benchmark("NATS", numSubs, numPubs);
 

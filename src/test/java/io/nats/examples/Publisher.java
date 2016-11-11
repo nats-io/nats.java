@@ -24,32 +24,26 @@ public class Publisher {
 
     static final String usageString =
             "\nUsage: java Publisher [-s <server>] <subject> <message>\n\nOptions:\n"
-                    + "    -s <url>        NATS server URLs, separated by commas\n";
+                    + "    -s <url>        the NATS server URLs, separated by commas\n";
 
-    Publisher(String[] args) throws IOException, TimeoutException {
+    public Publisher(String[] args) {
         parseArgs(args);
-        if (subject == null) {
-            usage();
-        }
     }
 
-    void usage() {
+    public static void usage() {
         System.err.println(usageString);
-        System.exit(-1);
     }
 
-    void run() throws IOException, TimeoutException {
-        ConnectionFactory cf = new ConnectionFactory(url);
-        try (Connection nc = cf.createConnection()) {
+    public void run() throws IOException, TimeoutException {
+        try (Connection nc = Nats.connect(url)) {
             nc.publish(subject, payload.getBytes());
-            System.err.printf("Published [%s] : '%s'\n", subject, payload);
+            System.out.printf("Published [%s] : '%s'\n", subject, payload);
         }
     }
 
-    private void parseArgs(String[] args) {
+    public void parseArgs(String[] args) {
         if (args == null || args.length < 2) {
-            usage();
-            return;
+            throw new IllegalArgumentException("must supply at least subject and msg");
         }
 
         List<String> argList = new ArrayList<String>(Arrays.asList(args));
@@ -69,16 +63,15 @@ public class Publisher {
                 case "-s":
                 case "--server":
                     if (!it.hasNext()) {
-                        usage();
+                        throw new IllegalArgumentException(arg + " requires an argument");
                     }
                     it.remove();
                     url = it.next();
                     it.remove();
                     continue;
                 default:
-                    System.err.printf("Unexpected token: '%s'\n", arg);
-                    usage();
-                    break;
+                    throw new IllegalArgumentException(
+                            String.format("Unexpected token: '%s'", arg));
             }
         }
     }
@@ -88,14 +81,13 @@ public class Publisher {
      * 
      * @param args the subject, message payload, and other arguments
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         try {
             new Publisher(args).run();
-        } catch (IOException | TimeoutException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            System.exit(-1);
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+            Publisher.usage();
+            throw e;
         }
-        System.exit(0);
     }
 }
