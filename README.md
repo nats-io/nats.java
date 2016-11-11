@@ -68,7 +68,7 @@ We use RNG to generate unique inbox names. A peculiarity of the JDK on Linux (se
 import io.nats.client.*;
 
 // Connect to default URL ("nats://localhost:4222")
-Connection nc = Nat.connect();
+Connection nc = Nats.connect();
 
 // Simple Publisher
 nc.publish("foo", "Hello World".getBytes());
