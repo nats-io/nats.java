@@ -79,6 +79,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 
@@ -673,7 +674,7 @@ public class ConnectionImplTest {
     public void testProcessOpErrFlushError() throws IOException, TimeoutException {
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
             c.setOutputStream(bwMock);
-            doThrow(new IOException("testProcessOpErrFlushErrort()")).when(bwMock).flush();
+            doThrow(new IOException("testProcessOpErrFlushError()")).when(bwMock).flush();
             c.processOpError(new Exception("foo"));
             verifier.verifyLogMsgEquals(Level.ERROR, "I/O error during flush");
         }
@@ -1329,23 +1330,43 @@ public class ConnectionImplTest {
     }
 
     @Test
-    public void testProcessErrPermissionsViolation() throws IOException, TimeoutException {
-        final CountDownLatch ccbLatch = new CountDownLatch(1);
+    public void testProcessErrPermissionsViolation() throws Exception {
+        final String serverError = Nats.PERMISSIONS_ERR + " foobar";
+        final String errMsg = "nats: " + serverError;
+        final CountDownLatch ecbLatch = new CountDownLatch(1);
+        final AtomicBoolean correctAsyncError = new AtomicBoolean();
+
         Options opts = new Options.Builder().factory(newMockedTcpConnectionFactory())
-                .closedCb(new ClosedCallback() {
-                    public void onClose(ConnectionEvent event) {
-                        ccbLatch.countDown();
+                .errorCb(new ExceptionHandler() {
+                    @Override
+                    public void onException(NATSException ex) {
+                        Throwable cause = ex.getCause();
+                        if (cause.getMessage().equals(errMsg)) {
+                            correctAsyncError.set(true);
+                        }
+                        ecbLatch.countDown();
                     }
                 }).noReconnect().build();
-        try (ConnectionImpl c = (ConnectionImpl) spy(opts.connect())) {
-            ByteBuffer error = ByteBuffer.allocate(DEFAULT_BUF_SIZE);
-            String err = Nats.PERMISSIONS_ERR + " foobar";
-            error.put(err.getBytes());
-            error.flip();
-            c.processErr(error);
+        try (ConnectionImpl conn = (ConnectionImpl) spy(opts.connect())) {
+            ByteBuffer error = (ByteBuffer) ByteBuffer.allocate(DEFAULT_BUF_SIZE)
+                .put(serverError.getBytes())
+                .flip();
+            conn.processErr(error);
 
             // Verify we identified and processed it
-            verify(c, times(1)).processPermissionsViolation(err);
+            verify(conn, times(1)).processPermissionsViolation(serverError);
+
+            // wait for callback
+            assertTrue("Async error cb should have been triggered", ecbLatch.await(5, TimeUnit.SECONDS));
+
+            // verify callback got correct error
+            assertTrue("Should get correct error", correctAsyncError.get());
+
+            // verufy conn's error was also set correctly
+            Exception err = conn.getLastException();
+            assertNotNull(err);
+            assertEquals(errMsg, err.getMessage());
+
         }
     }
 
@@ -1774,7 +1795,7 @@ public class ConnectionImplTest {
             String subject = doReturn("foo").when(mockSub).getSubject();
             String queue = doReturn("bar").when(mockSub).getQueue();
             Long sid = doReturn(55L).when(mockSub).getSid();
-                c.setOutputStream(bwMock);
+            c.setOutputStream(bwMock);
             // Ensure bw write error is logged
             c.status = CONNECTED;
             byte[] data = String.format(ConnectionImpl.SUB_PROTO,  subject, queue, sid).getBytes();

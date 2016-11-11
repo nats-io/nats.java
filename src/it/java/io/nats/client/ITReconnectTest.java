@@ -96,7 +96,7 @@ public class ITReconnectTest {
         }
     }
 
-    @Test
+    @Test (timeout = 5000)
     public void testReconnectAllowedFlags() {
         final int maxRecon = 2;
         final long reconWait = TimeUnit.SECONDS.toMillis(1);

@@ -286,7 +286,7 @@ public class ParserTest {
 
     @Test
     public void testParserSplitMsg() throws IOException, TimeoutException {
-        try (ConnectionImpl nc = (ConnectionImpl) newMockedConnection()) {
+        try (ConnectionImpl nc = new ConnectionImpl(Nats.defaultOptions())) {
             // nc.ps = &parseState{}
             byte[] buf = null;
 

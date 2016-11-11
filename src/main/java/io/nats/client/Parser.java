@@ -614,7 +614,7 @@ class Parser {
                 cloneMsgArg();
             }
 
-            // If we will overflow the scratch buffer, just create a
+            // If we will overflow the msg buffer, create a
             // new buffer to hold the split message.
             if (ps.ma.size > ps.msgBufStore.length - ps.argBuf.limit()) {
                 int lrem = len - ps.as; // portion of msg remaining in buffer

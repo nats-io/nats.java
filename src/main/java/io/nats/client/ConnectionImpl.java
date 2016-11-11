@@ -262,7 +262,6 @@ public class ConnectionImpl implements Connection {
     void setup() {
         exec = createScheduler();
         subexec = createSubscriptionScheduler();
-        cbexec = createCallbackScheduler();
         fch = createFlushChannel();
         pongs = createPongs();
         subs.clear();
@@ -455,6 +454,8 @@ public class ConnectionImpl implements Connection {
                 throw (returnedErr);
             }
 
+            cbexec = createCallbackScheduler();
+
             return this;
         } finally {
             mu.unlock();
@@ -615,8 +616,9 @@ public class ConnectionImpl implements Connection {
 
             // perform appropriate callback if needed for a disconnect;
             if (doCBs) {
+                Future<?> future = null;
                 if (opts.getDisconnectedCallback() != null && conn != null) {
-                    cbexec.submit(new Runnable() {
+                    future = cbexec.submit(new Runnable() {
                         public void run() {
                             opts.getDisconnectedCallback().onDisconnect(new ConnectionEvent(nc));
                             logger.trace("executed DisconnectedCB");
@@ -624,7 +626,7 @@ public class ConnectionImpl implements Connection {
                     });
                 }
                 if (opts.getClosedCallback() != null) {
-                    cbexec.submit(new Runnable() {
+                    future = cbexec.submit(new Runnable() {
 
                         public void run() {
                             opts.getClosedCallback().onClose(new ConnectionEvent(nc));
@@ -632,6 +634,16 @@ public class ConnectionImpl implements Connection {
                         }
 
                     });
+                }
+                if (future != null) {
+                    try {
+                        future.get();
+                    } catch (Exception e) {
+                        logger.debug("Exception waiting for disconnected or closed callback to complete", e);
+                    }
+                }
+                if (cbexec != null) {
+                    cbexec.shutdownNow();
                 }
             }
 
@@ -647,10 +659,6 @@ public class ConnectionImpl implements Connection {
 
             if (subexec != null) {
                 subexec.shutdown();
-            }
-
-            if (cbexec != null) {
-                cbexec.shutdown();
             }
 
         } finally {
@@ -1335,7 +1343,7 @@ public class ConnectionImpl implements Connection {
                 } catch (InterruptedException e) {
                     logger.debug("Interrupted", e);
                 } catch (Exception e) {
-                    logger.error("Unexpected exception in flusher", e);
+                    logger.error("Unexpected exception in readloop", e);
                 } finally {
                     socketWatchersDoneLatch.countDown();
                 }
@@ -1355,7 +1363,7 @@ public class ConnectionImpl implements Connection {
                 } catch (InterruptedException e) {
                     logger.debug("Interrupted", e);
                 } catch (Exception e) {
-                    logger.error("Unexpected exception in readloop", e);
+                    logger.error("Unexpected exception in flusher", e);
                 } finally {
                     socketWatchersDoneLatch.countDown();
                 }
