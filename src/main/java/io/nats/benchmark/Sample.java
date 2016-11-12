@@ -8,10 +8,10 @@ package io.nats.benchmark;
 
 import static io.nats.benchmark.Utils.humanBytes;
 
-import java.text.DecimalFormat;
-
 import io.nats.client.Connection;
 import io.nats.client.Statistics;
+
+import java.text.DecimalFormat;
 
 public class Sample {
     int jobMsgCnt;

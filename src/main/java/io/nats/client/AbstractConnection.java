@@ -6,10 +6,10 @@
 
 package io.nats.client;
 
+import io.nats.client.Nats.ConnState;
+
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
-
-import io.nats.client.Nats.ConnState;
 
 /**
  * AbstractConnection is the base interface for all Connection variants.

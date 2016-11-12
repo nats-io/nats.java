@@ -10,6 +10,9 @@ import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import ch.qos.logback.classic.Logger;
+import io.nats.examples.Publisher;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -24,9 +27,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import ch.qos.logback.classic.Logger;
-import io.nats.examples.Publisher;
 
 @Category(IntegrationTest.class)
 public class PublisherTest {

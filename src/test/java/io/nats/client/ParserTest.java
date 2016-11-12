@@ -15,6 +15,11 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import ch.qos.logback.classic.Level;
+import io.nats.client.ConnectionImpl.Control;
+import io.nats.client.ConnectionImpl.Srv;
+import io.nats.client.Parser.NatsOp;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -33,11 +38,6 @@ import java.text.ParseException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-
-import ch.qos.logback.classic.Level;
-import io.nats.client.ConnectionImpl.Control;
-import io.nats.client.ConnectionImpl.Srv;
-import io.nats.client.Parser.NatsOp;
 
 @Category(UnitTest.class)
 public class ParserTest {

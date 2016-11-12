@@ -13,6 +13,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import ch.qos.logback.classic.Level;
+import io.nats.examples.NatsBench;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -47,9 +50,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.net.SocketFactory;
-
-import ch.qos.logback.classic.Level;
-import io.nats.examples.NatsBench;
 
 @Category(PerfTest.class)
 public class NatsBenchTest {

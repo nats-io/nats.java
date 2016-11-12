@@ -6,6 +6,22 @@
 
 package io.nats.examples;
 
+import io.nats.benchmark.Benchmark;
+import io.nats.benchmark.Sample;
+import io.nats.client.AsyncSubscription;
+import io.nats.client.ClosedCallback;
+import io.nats.client.Connection;
+import io.nats.client.ConnectionEvent;
+import io.nats.client.DisconnectedCallback;
+import io.nats.client.ExceptionHandler;
+import io.nats.client.Message;
+import io.nats.client.MessageHandler;
+import io.nats.client.NATSException;
+import io.nats.client.NUID;
+import io.nats.client.Nats;
+import io.nats.client.Options;
+import io.nats.client.Subscription;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,22 +44,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import io.nats.benchmark.Benchmark;
-import io.nats.benchmark.Sample;
-import io.nats.client.AsyncSubscription;
-import io.nats.client.ClosedCallback;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionEvent;
-import io.nats.client.DisconnectedCallback;
-import io.nats.client.ExceptionHandler;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.NATSException;
-import io.nats.client.NUID;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
 
 /**
  * A utility class for measuring NATS performance.

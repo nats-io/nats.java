@@ -6,15 +6,15 @@
 
 package io.nats.examples;
 
+import io.nats.client.Connection;
+import io.nats.client.Nats;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-
-import io.nats.client.Connection;
-import io.nats.client.Nats;
 
 public class Publisher {
     String url = Nats.DEFAULT_URL;

@@ -13,6 +13,11 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.nats.client.ConnectionImpl;
+import io.nats.client.Statistics;
+import io.nats.client.TestCasePrinterRule;
+import io.nats.client.UnitTest;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -25,11 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import io.nats.client.ConnectionImpl;
-import io.nats.client.Statistics;
-import io.nats.client.TestCasePrinterRule;
-import io.nats.client.UnitTest;
 
 @Category(UnitTest.class)
 public class BenchmarkFunctionalTest {

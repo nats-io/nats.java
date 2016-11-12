@@ -6,8 +6,6 @@
 
 package io.nats.client;
 
-import static io.nats.client.NatsOp.OP_START;
-import static io.nats.client.Parser.MsgArg.NatsOp.OP_START;
 import static io.nats.client.Parser.NatsOp.INFO_ARG;
 import static io.nats.client.Parser.NatsOp.MINUS_ERR_ARG;
 import static io.nats.client.Parser.NatsOp.MSG_ARG;

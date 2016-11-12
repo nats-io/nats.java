@@ -12,6 +12,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import ch.qos.logback.classic.Logger;
+import io.nats.examples.Replier;
+import io.nats.examples.Requestor;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -29,10 +33,6 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import ch.qos.logback.classic.Logger;
-import io.nats.examples.Replier;
-import io.nats.examples.Requestor;
 
 @Category(IntegrationTest.class)
 public class ReplierTest {

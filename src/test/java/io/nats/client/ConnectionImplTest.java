@@ -48,6 +48,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import io.nats.client.ConnectionImpl.Control;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -89,9 +92,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 
 import javax.net.ssl.SSLContext;
-
-import ch.qos.logback.classic.Level;
-import io.nats.client.ConnectionImpl.Control;
 
 @Category(UnitTest.class)
 public class ConnectionImplTest {

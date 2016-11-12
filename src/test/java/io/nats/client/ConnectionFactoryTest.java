@@ -21,6 +21,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import ch.qos.logback.classic.Logger;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -40,8 +42,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.SSLContext;
-
-import ch.qos.logback.classic.Logger;
 
 @Category(UnitTest.class)
 public class ConnectionFactoryTest

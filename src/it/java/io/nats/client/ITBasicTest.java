@@ -26,6 +26,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -51,8 +53,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import ch.qos.logback.classic.Level;
 
 @Category(IntegrationTest.class)
 public class ITBasicTest {

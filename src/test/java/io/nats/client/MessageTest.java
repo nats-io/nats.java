@@ -13,6 +13,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+import ch.qos.logback.classic.Level;
+import io.nats.client.Parser.MsgArg;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -29,9 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-
-import ch.qos.logback.classic.Level;
-import io.nats.client.Parser.MsgArg;
 
 @Category(UnitTest.class)
 public class MessageTest {

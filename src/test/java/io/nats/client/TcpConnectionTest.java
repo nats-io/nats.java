@@ -18,6 +18,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import io.nats.client.TcpConnection.HandshakeListener;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -45,9 +48,6 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-
-import ch.qos.logback.classic.Level;
-import io.nats.client.TcpConnection.HandshakeListener;
 
 @Category(UnitTest.class)
 public class TcpConnectionTest {

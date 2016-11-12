@@ -7,6 +7,12 @@
 package io.nats.examples;
 
 
+import io.nats.client.Connection;
+import io.nats.client.Message;
+import io.nats.client.MessageHandler;
+import io.nats.client.Nats;
+import io.nats.client.Subscription;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,12 +22,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.Nats;
-import io.nats.client.Subscription;
 
 public class Subscriber {
     static final Logger log = LoggerFactory.getLogger(Subscriber.class);

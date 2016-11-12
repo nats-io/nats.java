@@ -10,6 +10,8 @@ import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import ch.qos.logback.classic.Level;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -21,8 +23,6 @@ import org.junit.rules.ExpectedException;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import ch.qos.logback.classic.Level;
 
 @Category(UnitTest.class)
 public class StatisticsTest {

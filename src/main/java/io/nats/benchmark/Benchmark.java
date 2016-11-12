@@ -6,12 +6,12 @@
 
 package io.nats.benchmark;
 
+import io.nats.client.NUID;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-
-import io.nats.client.NUID;
 
 /**
  * A utility class for collecting and calculating benchmark metrics.
