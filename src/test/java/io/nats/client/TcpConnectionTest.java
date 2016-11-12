@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -10,15 +10,13 @@ import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
-
-import io.nats.client.TcpConnection.HandshakeListener;
-
-import ch.qos.logback.classic.Level;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -38,7 +36,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.net.SocketException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 
@@ -49,12 +46,15 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
+import ch.qos.logback.classic.Level;
+import io.nats.client.TcpConnection.HandshakeListener;
+
 @Category(UnitTest.class)
 public class TcpConnectionTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     static final Logger logger = LoggerFactory.getLogger(TcpConnectionTest.class);
 
-    static final LogVerifier verifier = new LogVerifier();
+    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -69,10 +69,12 @@ public class TcpConnectionTest {
     private OutputStream writeStreamMock;
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -153,7 +155,7 @@ public class TcpConnectionTest {
             when(sslSf.createSocket(any(Socket.class), any(String.class), any(int.class),
                     any(boolean.class))).thenReturn(sock);
             conn.setSocket(sock);
-            conn.makeTLS();
+            conn.makeTls();
         }
     }
 

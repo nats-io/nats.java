@@ -1,17 +1,17 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.benchmark;
-
-import io.nats.client.NUID;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import io.nats.client.NUID;
 
 /**
  * A utility class for collecting and calculating benchmark metrics.
@@ -19,8 +19,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class Benchmark extends Sample {
     String name = null;
     String runId = null;
-    SampleGroup pubs = new SampleGroup();
-    SampleGroup subs = new SampleGroup();
+    final SampleGroup pubs = new SampleGroup();
+    final SampleGroup subs = new SampleGroup();
     BlockingQueue<Sample> pubChannel = new LinkedBlockingQueue<Sample>();
     BlockingQueue<Sample> subChannel;
 
@@ -35,9 +35,9 @@ public class Benchmark extends Sample {
     /**
      * Initializes a Benchmark. After creating a bench call addSubSample/addPubSample. When done
      * collecting samples, call endBenchmark.
-     * 
-     * @param name a descriptive name for this test run
-     * @param runId a unique id for this test run (typically a guid)
+     *
+     * @param name   a descriptive name for this test run
+     * @param runId  a unique id for this test run (typically a guid)
      * @param subCnt the number of subscribers
      * @param pubCnt the number of publishers
      */
@@ -86,11 +86,11 @@ public class Benchmark extends Sample {
 
     /**
      * Creates the output report.
-     * 
+     *
      * @return the report as a String.
      */
     public String report() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         String indent = "";
         if (pubs.hasSamples() && subs.hasSamples()) {
             sb.append(String.format("%s Pub/Sub stats: %s\n", name, this));
@@ -126,7 +126,7 @@ public class Benchmark extends Sample {
 
     /**
      * Returns a list of text lines for output to a CSV file.
-     * 
+     *
      * @return a list of text lines for output to a CSV file
      */
     public List<String> csv() {
@@ -134,7 +134,7 @@ public class Benchmark extends Sample {
         String header =
                 "#RunID, ClientID, MsgCount, MsgBytes, MsgsPerSec, BytesPerSec, DurationSecs";
         lines.add(header);
-        SampleGroup[] groups = new SampleGroup[] { subs, pubs };
+        SampleGroup[] groups = new SampleGroup[] {subs, pubs};
         String pre = "S";
         int i = 0;
         for (SampleGroup grp : groups) {

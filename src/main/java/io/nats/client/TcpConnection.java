@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -20,7 +20,6 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
 import java.security.cert.Certificate;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 
 import javax.net.SocketFactory;
@@ -42,25 +41,25 @@ class TcpConnection implements TransportConnection, AutoCloseable {
     /// BufferedReader directly over a network stream really
     /// more efficient for NATS?
     ///
-    ReentrantLock mu = new ReentrantLock();
+    final ReentrantLock mu = new ReentrantLock();
     protected SocketFactory factory = SocketFactory.getDefault();
     protected SSLContext sslContext;
     Socket client = null;
-    protected OutputStream writeStream = null;
-    protected InputStream readStream = null;
+    OutputStream writeStream = null;
+    InputStream readStream = null;
     protected BufferedReader bisr = null;
     protected BufferedInputStream bis = null;
     protected BufferedOutputStream bos = null;
 
     protected InetSocketAddress addr = null;
-    protected int timeout = 0;
+    int timeout = 0;
     boolean tlsDebug = false;
 
     TcpConnection() {
     }
 
     @Override
-    public void open(String url, int timeout) throws IOException, TimeoutException {
+    public void open(String url, int timeout) throws IOException {
         logger.trace("TcpConnection.open({},{})", url, timeout);
         URI uri = URI.create(url);
         String host = uri.getHost();
@@ -82,14 +81,12 @@ class TcpConnection implements TransportConnection, AutoCloseable {
             writeStream = client.getOutputStream();
             readStream = client.getInputStream();
 
-        } catch (IOException e) {
-            throw e;
         } finally {
             mu.unlock();
         }
     }
 
-    protected void setConnectTimeout(int value) {
+    void setConnectTimeout(int value) {
         this.timeout = value;
     }
 
@@ -153,10 +150,7 @@ class TcpConnection implements TransportConnection, AutoCloseable {
 
     @Override
     public boolean isConnected() {
-        if (client == null) {
-            return false;
-        }
-        return client.isConnected();
+        return client != null && client.isConnected();
     }
 
     @Override
@@ -168,9 +162,9 @@ class TcpConnection implements TransportConnection, AutoCloseable {
      * Set the socket factory used to make connections with. Can be used to enable SSL connections
      * by passing in a javax.net.ssl.SSLSocketFactory instance.
      *
-     * @see #makeTLS
+     * @see #makeTls
      */
-    protected void setSocketFactory(SocketFactory factory) {
+    void setSocketFactory(SocketFactory factory) {
         this.factory = factory;
     }
 
@@ -182,13 +176,13 @@ class TcpConnection implements TransportConnection, AutoCloseable {
         }
     }
 
-    protected void makeTLS(SSLContext context) throws IOException {
+    void makeTls(SSLContext context) throws IOException {
         this.sslContext = context;
         setSocketFactory(sslContext.getSocketFactory());
-        makeTLS();
+        makeTls();
     }
 
-    protected void makeTLS() throws IOException {
+    void makeTls() throws IOException {
         SSLSocketFactory sslSf = getSslSocketFactory();
         SSLSocket sslSocket = (SSLSocket) sslSf.createSocket(client,
                 client.getInetAddress().getHostAddress(), client.getPort(), true);
@@ -207,7 +201,7 @@ class TcpConnection implements TransportConnection, AutoCloseable {
         bos = null;
     }
 
-    protected void setSocket(Socket sock) {
+    void setSocket(Socket sock) {
         mu.lock();
         try {
             client = sock;
@@ -221,7 +215,7 @@ class TcpConnection implements TransportConnection, AutoCloseable {
             SSLSession session = event.getSession();
             logger.trace("Handshake Completed with peer {}", session.getPeerHost());
             logger.trace("   cipher: {}", session.getCipherSuite());
-            Certificate[] certs = null;
+            Certificate[] certs;
             try {
                 certs = session.getPeerCertificates();
             } catch (SSLPeerUnverifiedException puv) {

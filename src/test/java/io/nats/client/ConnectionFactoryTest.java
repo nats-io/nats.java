@@ -1,12 +1,18 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import static io.nats.client.Nats.*;
+import static io.nats.client.Nats.ConnState;
+import static io.nats.client.Nats.DEFAULT_SSL_PROTOCOL;
+import static io.nats.client.Nats.PROP_CLOSED_CB;
+import static io.nats.client.Nats.PROP_DISCONNECTED_CB;
+import static io.nats.client.Nats.PROP_EXCEPTION_HANDLER;
+import static io.nats.client.Nats.PROP_RECONNECTED_CB;
+import static io.nats.client.Nats.PROP_SERVERS;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnectionFactory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -14,8 +20,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import ch.qos.logback.classic.Logger;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -37,6 +41,8 @@ import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.SSLContext;
 
+import ch.qos.logback.classic.Logger;
+
 @Category(UnitTest.class)
 public class ConnectionFactoryTest
         implements ExceptionHandler, ClosedCallback, DisconnectedCallback, ReconnectedCallback {
@@ -52,21 +58,24 @@ public class ConnectionFactoryTest
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConnectionFactoryNullProperties() {
-        Properties nullProps = null;
-        new ConnectionFactory(nullProps);
+        new ConnectionFactory((Properties) null);
     }
 
     static final String url = "nats://foobar:4122";
@@ -112,8 +121,8 @@ public class ConnectionFactoryTest
 
     @Test
     public void testConnectionFactoryBadCallbackProps() {
-        String[] propNames = { PROP_EXCEPTION_HANDLER, PROP_CLOSED_CB, PROP_DISCONNECTED_CB,
-                PROP_RECONNECTED_CB };
+        String[] propNames = {PROP_EXCEPTION_HANDLER, PROP_CLOSED_CB, PROP_DISCONNECTED_CB,
+                PROP_RECONNECTED_CB};
         for (String p : propNames) {
             Properties props = new Properties();
             props.setProperty(p, "foo.bar.baz");
@@ -171,7 +180,7 @@ public class ConnectionFactoryTest
     @Test
     public void testConnectionFactoryStringStringArray() {
         String url = "nats://localhost:1222";
-        String[] servers = { "nats://localhost:1234", "nats://localhost:5678" };
+        String[] servers = {"nats://localhost:1234", "nats://localhost:5678"};
         List<URI> s1 = new ArrayList<URI>(10);
         List<URI> s2 = new ArrayList<URI>(10);
         List<URI> connServerPool = new ArrayList<URI>();
@@ -253,7 +262,7 @@ public class ConnectionFactoryTest
             // test passed-in options
             serverList = conn.opts.getServers();
             assertEquals(s1, serverList);
-            assertEquals(url, conn.opts.getUrl().toString());
+            assertEquals(url, conn.opts.getUrl());
 
             // Test the URLS produced by setupServerPool
             connServerPool = new ArrayList<URI>();
@@ -270,7 +279,7 @@ public class ConnectionFactoryTest
 
     @Test
     public void testOptions() throws IOException, TimeoutException {
-        String[] servers = new String[] { "nats://somehost:1010", "nats://somehost2:1020" };
+        String[] servers = new String[] {"nats://somehost:1010", "nats://somehost2:1020"};
         String host = "localhost";
         int port = 7272;
         URI uri = URI.create(String.format("nats://%s:%d", host, port));
@@ -294,16 +303,20 @@ public class ConnectionFactoryTest
 
 
         ReconnectedCallback rcb = new ReconnectedCallback() {
-            public void onReconnect(ConnectionEvent event) {}
+            public void onReconnect(ConnectionEvent event) {
+            }
         };
         DisconnectedCallback dcb = new DisconnectedCallback() {
-            public void onDisconnect(ConnectionEvent event) {}
+            public void onDisconnect(ConnectionEvent event) {
+            }
         };
         ClosedCallback ccb = new ClosedCallback() {
-            public void onClose(ConnectionEvent event) {}
+            public void onClose(ConnectionEvent event) {
+            }
         };
         ExceptionHandler ecb = new ExceptionHandler() {
-            public void onException(NATSException ex) {}
+            public void onException(NATSException ex) {
+            }
         };
 
         ConnectionFactory cf = new ConnectionFactory();
@@ -341,7 +354,7 @@ public class ConnectionFactoryTest
 
         Options opts = cf.options();
         assertEquals(tcf, opts.getFactory());
-        assertEquals(urlString, opts.getUrl().toString());
+        assertEquals(urlString, opts.getUrl());
         assertEquals(username, opts.getUsername());
         assertEquals(password, opts.getPassword());
         assertEquals(dontRandomize, opts.isNoRandomize());
@@ -370,20 +383,17 @@ public class ConnectionFactoryTest
         assertTrue(conn.opts.isVerbose());
     }
 
-     @Test
-     public void testCreateConnection() throws Exception {
-         TcpConnectionFactory tcf = newMockedTcpConnectionFactory();
-         ConnectionFactory cf = new ConnectionFactory();
-         cf.setTcpConnectionFactory(tcf);
-         Options opts = cf.options();
-         assertEquals(opts.factory, cf.factory);
-         try (Connection conn = cf.createConnection()) {
-//             assertEquals(opts, conn.opts);
-//             assertEquals(opts.factory, conn.getTcpConnectionFactory());
-//             conn.connect();
-//             assertTrue(conn.isConnected());
-         }
-     }
+    @Test
+    public void testCreateConnection() throws Exception {
+        TcpConnectionFactory tcf = newMockedTcpConnectionFactory();
+        ConnectionFactory cf = new ConnectionFactory();
+        cf.setTcpConnectionFactory(tcf);
+        Options opts = cf.options();
+        assertEquals(opts.factory, cf.factory);
+        try (Connection conn = cf.createConnection()) {
+            assertTrue(conn.isConnected());
+        }
+    }
 
     @Test
     public void testClone() {
@@ -391,7 +401,7 @@ public class ConnectionFactoryTest
         cf.setUri(URI.create("nats://localhost:7272"));
         cf.setHost("localhost");
         cf.setPort(7272);
-        cf.setServers(new String[] { "nats://somehost:1010", "nats://somehost2:1020" });
+        cf.setServers(new String[] {"nats://somehost:1010", "nats://somehost2:1020"});
         cf.setUsername("foo");
         cf.setPassword("bar");
         cf.setNoRandomize(true);
@@ -605,7 +615,7 @@ public class ConnectionFactoryTest
     //
     @Test
     public void testSetServersListOfUri() {
-        String[] servers = { "nats://localhost:1234", "nats://localhost:5678" };
+        String[] servers = {"nats://localhost:1234", "nats://localhost:5678"};
         List<URI> s1 = new ArrayList<URI>();
 
         for (String s : servers) {
@@ -619,7 +629,7 @@ public class ConnectionFactoryTest
 
     @Test
     public void testSetServersStringArray() {
-        String[] servers = { "nats://localhost:1234", "nats://localhost:5678" };
+        String[] servers = {"nats://localhost:1234", "nats://localhost:5678"};
         List<URI> s1 = new ArrayList<URI>();
         TcpConnectionFactory mcf = newMockedTcpConnectionFactory();
 
@@ -655,7 +665,7 @@ public class ConnectionFactoryTest
             fail(e.getMessage());
         }
 
-        String[] badServers = { "foo bar", "bar" };
+        String[] badServers = {"foo bar", "bar"};
         boolean exThrown = false;
         try {
             cf = new ConnectionFactory(badServers);
@@ -951,22 +961,22 @@ public class ConnectionFactoryTest
         cf.setHost(host);
         assertEquals(host, cf.getHost());
         assertEquals(-1, cf.getPort());
-        assertEquals(expectedUrl, cf.constructURI().toString());
+        assertEquals(expectedUrl, cf.constructUri().toString());
 
         cf.setPort(port);
         assertEquals(port, cf.getPort());
         assertNull(cf.getUrlString());
-        assertEquals(expectedUrl1, cf.constructURI().toString());
+        assertEquals(expectedUrl1, cf.constructUri().toString());
 
         assertNull(cf.getUsername());
         assertNull(cf.getPassword());
         cf.setUsername(user);
         assertEquals(user, cf.getUsername());
-        assertEquals(expectedUrl2, cf.constructURI().toString());
+        assertEquals(expectedUrl2, cf.constructUri().toString());
 
         cf.setPassword(pass);
         assertEquals(pass, cf.getPassword());
-        assertEquals(expectedUrl3, cf.constructURI().toString());
+        assertEquals(expectedUrl3, cf.constructUri().toString());
 
     }
 

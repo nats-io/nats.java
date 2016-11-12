@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -14,13 +14,15 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 /**
- * <p><img src="{@docRoot}/resources/large-logo.png" alt="NATS logo"></p>
- * <p>The NATS java client library enables communication with a NATS server using {@link Connection} instances.
- *
- * <h1>Contents</h1>
- *
- * <b>
- *      <a href="#0">0. Your first NATS client</a><br>
+ * <img src="{@docRoot}/resources/large-logo.png" alt="NATS logo">
+ * <p>
+ * <p>The NATS java client library enables communication with a NATS server using
+ * {@link Connection} instances.
+ * <p>
+ * <p><h1>Contents</h1>
+ * <p>
+ * <p><b>
+ * <a href="#0">0. Your first NATS client</a><br>
  * </b>
  * <h2 id="foo">0. <a class="meaningful_link" href="#firstclient">Your first NATS client</a></h2>
  * This client creates a connection to NATS, subscribes to subject {@code foo}, and sends 10
@@ -66,12 +68,12 @@ import java.util.concurrent.TimeoutException;
  * }
  * </pre>
  */
- public class Nats {
+public class Nats {
 
     /**
      * Connection states for {@link Connection#getState()}.
      */
-    public static enum ConnState {
+    public enum ConnState {
         /**
          * The {@code Connection} is currently disconnected.
          */
@@ -95,11 +97,11 @@ import java.util.concurrent.TimeoutException;
          * The {@code Connection} is currently connecting to a server for the first time.
          */
         CONNECTING
-    };
+    }
 
     /**
      * Default server host.
-     *
+     * <p>
      * <p>This property is defined as String {@value #DEFAULT_HOST}
      */
     public static final String DEFAULT_HOST = "localhost";
@@ -209,49 +211,49 @@ import java.util.concurrent.TimeoutException;
 
     /**
      * Default server URL.
-     *
+     * <p>
      * <p>This property is defined as String {@value #DEFAULT_URL}
      */
     public static final String DEFAULT_URL = "nats://localhost:4222";
 
     /**
      * Default server port.
-     *
+     * <p>
      * <p>This property is defined as int {@value #DEFAULT_PORT}
      */
     public static final int DEFAULT_PORT = 4222;
 
     /**
      * Default maximum number of reconnect attempts.
-     *
+     * <p>
      * <p>This property is defined as String {@value #DEFAULT_MAX_RECONNECT}
      */
     public static final int DEFAULT_MAX_RECONNECT = 60;
 
     /**
      * Default wait time before attempting reconnection to the same server.
-     *
+     * <p>
      * <p>This property is defined as String {@value #DEFAULT_RECONNECT_WAIT}
      */
     public static final int DEFAULT_RECONNECT_WAIT = 2 * SECOND;
 
     /**
      * Default connection timeout.
-     *
+     * <p>
      * <p>This property is defined as String {@value #DEFAULT_TIMEOUT}
      */
     public static final int DEFAULT_TIMEOUT = 2 * SECOND;
 
     /**
      * Default server ping interval. {@code <=0} means disabled.
-     *
+     * <p>
      * <p>This property is defined as String {@value #DEFAULT_PING_INTERVAL}
      */
 
     public static final int DEFAULT_PING_INTERVAL = 2 * MINUTE;
     /**
      * Default maximum number of pings that have not received a response.
-     *
+     * <p>
      * <p>This property is defined as String {@value #DEFAULT_MAX_PINGS_OUT}
      */
     public static final int DEFAULT_MAX_PINGS_OUT = 2;
@@ -259,7 +261,7 @@ import java.util.concurrent.TimeoutException;
     /**
      * Default of pending message buffer that is used for buffering messages that are published
      * during a disconnect/reconnect.
-     *
+     * <p>
      * <p>This property is defined as String {@value #DEFAULT_RECONNECT_BUF_SIZE}
      */
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
@@ -376,23 +378,23 @@ import java.util.concurrent.TimeoutException;
     // Server error strings
     protected static final String SERVER_ERR_PARSER = "'Parser Error'";
     protected static final String SERVER_ERR_AUTH_TIMEOUT = "'Authorization Timeout'";
-    protected static final String SERVER_ERR_AUTH_VIOLATION = "'Authorization Violation'";
+    static final String SERVER_ERR_AUTH_VIOLATION = "'Authorization Violation'";
     protected static final String SERVER_ERR_MAX_PAYLOAD = "'Maximum Payload Violation'";
     protected static final String SERVER_ERR_INVALID_SUBJECT = "'Invalid Subject'";
     protected static final String SERVER_UNKNOWN_PROTOCOL_OP = "'Unknown Protocol Operation'";
     protected static final String SERVER_ERR_TLS_REQUIRED = "'Secure Connection - TLS Required'";
 
-    protected static final String NATS_SCHEME = "nats";
-    protected static final String TCP_SCHEME = "tcp";
-    protected static final String TLS_SCHEME = "tls";
+    static final String NATS_SCHEME = "nats";
+    static final String TCP_SCHEME = "tcp";
+    static final String TLS_SCHEME = "tls";
 
 
     /**
      * Creates a NATS connection using the default URL ({@value #DEFAULT_URL}) and default
      * {@link Options}.
-     * 
+     *
      * @return the {@code Connection}
-     * @throws IOException if a problem occurs
+     * @throws IOException      if a problem occurs
      * @throws TimeoutException if the connection attempt times out
      */
     public static Connection connect() throws IOException, TimeoutException {
@@ -401,10 +403,10 @@ import java.util.concurrent.TimeoutException;
 
     /**
      * Creates a NATS connection using the supplied URL list and default {@link Options}.
-     * 
+     *
      * @param url a comma-separated list of NATS server URLs
      * @return the {@code Connection}
-     * @throws IOException if a problem occurs
+     * @throws IOException      if a problem occurs
      * @throws TimeoutException if the connection attempt times out
      */
     public static Connection connect(String url) throws IOException, TimeoutException {
@@ -413,11 +415,11 @@ import java.util.concurrent.TimeoutException;
 
     /**
      * Creates a NATS connection using the supplied URL list and {@link Options}.
-     * 
-     * @param url a comma-separated list of NATS server URLs
+     *
+     * @param url     a comma-separated list of NATS server URLs
      * @param options an {@link Options} object
      * @return the {@link Connection}
-     * @throws IOException if a problem occurs
+     * @throws IOException      if a problem occurs
      * @throws TimeoutException if the connection attempt times out
      */
     public static Connection connect(String url, Options options)
@@ -432,7 +434,7 @@ import java.util.concurrent.TimeoutException;
 
     /**
      * Returns the default {@link Options}.
-     * 
+     *
      * @return the default {@link Options}
      */
     public static Options defaultOptions() {

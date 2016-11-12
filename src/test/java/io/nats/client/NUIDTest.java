@@ -1,5 +1,11 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 /**
- * 
+ *
  */
 
 package io.nats.client;
@@ -24,22 +30,26 @@ import java.util.Arrays;
 import java.util.Locale;
 
 public class NUIDTest {
-    final Logger logger = LoggerFactory.getLogger(NUIDTest.class);
+    private final Logger logger = LoggerFactory.getLogger(NUIDTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test
     @Category(UnitTest.class)
@@ -84,12 +94,12 @@ public class NUIDTest {
         char min = (char) 255;
         char max = (char) 0;
         char[] digits = NUID.digits;
-        for (int i = 0; i < digits.length; i++) {
-            if (digits[i] < min) {
-                min = digits[i];
+        for (char digit : digits) {
+            if (digit < min) {
+                min = digit;
             }
-            if (digits[i] > max) {
-                max = digits[i];
+            if (digit > max) {
+                max = digit;
             }
         }
 

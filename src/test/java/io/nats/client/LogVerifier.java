@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -10,36 +10,35 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.classic.spi.LoggingEvent;
-import ch.qos.logback.core.Appender;
-
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class LogVerifier {
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.LoggingEvent;
+import ch.qos.logback.core.Appender;
+
+class LogVerifier {
     @Mock
     private Appender<ILoggingEvent> mockAppender;
     // Captor is genericised with ch.qos.logback.classic.spi.LoggingEvent
     @Captor
     private ArgumentCaptor<LoggingEvent> captorLoggingEvent;
 
-    protected void setup() {
+    void setup() {
         MockitoAnnotations.initMocks(this);
         final Logger logger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
         logger.addAppender(mockAppender);
     }
 
-    protected void teardown() {
+    void teardown() {
         final Logger logger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
         logger.detachAppender(mockAppender);
     }
@@ -53,8 +52,7 @@ public class LogVerifier {
         List<LoggingEvent> events = captorLoggingEvent.getAllValues();
         if (events.size() > 1) {
             System.err.println("Captured logging events: ");
-            for (Iterator<LoggingEvent> it = events.iterator(); it.hasNext();) {
-                LoggingEvent ev = it.next();
+            for (LoggingEvent ev : events) {
                 System.err.println(ev);
             }
         }
@@ -73,8 +71,7 @@ public class LogVerifier {
         List<LoggingEvent> events = captorLoggingEvent.getAllValues();
         if (events.size() > 1) {
             System.err.println("Captured logging events: ");
-            for (Iterator<LoggingEvent> it = events.iterator(); it.hasNext();) {
-                LoggingEvent ev = it.next();
+            for (LoggingEvent ev : events) {
                 System.err.println(ev);
             }
         }

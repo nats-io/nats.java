@@ -1,22 +1,24 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.client;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.TimeoutException;
 
-/**
- * Created by larry on 11/3/16.
- */
 interface TransportConnection {
     /**
      * Opens a connection using the specified URL string.
      *
-     * @param url the URL or URI of the transport endpoint
+     * @param url     the URL or URI of the transport endpoint
      * @param timeout the timeout value to be used in milliseconds
      */
-    void open(String url, int timeout) throws IOException, TimeoutException;
+    void open(String url, int timeout) throws IOException;
 
     /**
      * Closes the the connection and releases any held resources.

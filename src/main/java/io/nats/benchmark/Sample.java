@@ -1,11 +1,17 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.benchmark;
 
 import static io.nats.benchmark.Utils.humanBytes;
 
+import java.text.DecimalFormat;
+
 import io.nats.client.Connection;
 import io.nats.client.Statistics;
-
-import java.text.DecimalFormat;
 
 public class Sample {
     int jobMsgCnt;
@@ -17,16 +23,17 @@ public class Sample {
 
     static final double BILLION = 1000000000.0;
 
-    public Sample() {}
+    Sample() {
+    }
 
     /**
      * Constructs a new benchmark sample.
-     * 
+     *
      * @param jobCount the number of messages that were sent or received
-     * @param msgSize the size in bytes of each messages
-     * @param start the start time in nanoseconds
-     * @param end the end time in nanoseconds
-     * @param nc the NATs connection
+     * @param msgSize  the size in bytes of each messages
+     * @param start    the start time in nanoseconds
+     * @param end      the end time in nanoseconds
+     * @param nc       the NATs connection
      */
     public Sample(int jobCount, int msgSize, long start, long end, Connection nc) {
         this.jobMsgCnt = jobCount;
@@ -40,7 +47,7 @@ public class Sample {
 
     /**
      * Duration that the sample was active (ns).
-     * 
+     *
      * @return Duration that the sample was active (ns)
      */
     public long duration() {
@@ -49,7 +56,7 @@ public class Sample {
 
     /**
      * Throughput of bytes per second.
-     * 
+     *
      * @return throughput of bytes per second
      */
     public double throughput() {
@@ -58,7 +65,7 @@ public class Sample {
 
     /**
      * Rate of messages in the job per second.
-     * 
+     *
      * @return rate of messages in the job per second.
      */
     public long rate() {

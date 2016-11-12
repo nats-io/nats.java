@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -10,18 +10,17 @@ import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.Nats.ERR_CONNECTION_CLOSED;
 import static io.nats.client.Nats.ERR_MAX_MESSAGES;
 import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
-import static io.nats.client.Nats.ERR_TIMEOUT;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription {
-    private Map<Long, Thread> threads = new ConcurrentHashMap<Long, Thread>();
+    private final Map<Long, Thread> threads = new ConcurrentHashMap<Long, Thread>();
 
-    protected SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
+    SyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue) {
         super(nc, subj, queue);
     }
 
@@ -55,8 +54,6 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
     public Message nextMessage(long timeout, TimeUnit unit)
             throws IOException, InterruptedException {
 
-        // TODO this call should just return null vs. throwing TimeoutException. TimeoutException
-        // was here due to historical implementation tradeoffs that no longer apply.
         mu.lock();
         if (connClosed) {
             mu.unlock();
@@ -79,7 +76,7 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
         // snapshot
         final ConnectionImpl localConn = (ConnectionImpl) this.getConnection();
-        // final BlockingQueue<Message> localChannel = mch;
+        final BlockingQueue<Message> localChannel = mch;
         final long localMax = max;
         // boolean chanClosed = localChannel.isClosed();
         mu.unlock();
@@ -87,10 +84,13 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
         // Wait until a message is available
         threads.put(Thread.currentThread().getId(), Thread.currentThread());
         try {
+            if (localChannel == null) {
+                throw new IllegalStateException(ERR_CONNECTION_CLOSED);
+            }
             if (timeout >= 0) {
-                msg = mch.poll(timeout, unit);
+                msg = localChannel.poll(timeout, unit);
             } else {
-                msg = mch.take();
+                msg = localChannel.take();
             }
         } finally {
             threads.remove(Thread.currentThread().getId());

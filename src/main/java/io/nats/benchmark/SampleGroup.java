@@ -1,11 +1,17 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.benchmark;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SampleGroup extends Sample {
-    List<Sample> samples = new ArrayList<Sample>();
+class SampleGroup extends Sample {
+    final List<Sample> samples = new ArrayList<Sample>();
 
     SampleGroup(SampleGroup... groups) {
         for (SampleGroup g : groups) {
@@ -17,7 +23,7 @@ public class SampleGroup extends Sample {
 
     /**
      * Adds a sample to the group.
-     * 
+     *
      * @param stat the sample to add
      */
     public void addSample(Sample stat) {
@@ -36,39 +42,39 @@ public class SampleGroup extends Sample {
 
     /**
      * Returns the minimum of the message rates in the SampleGroup.
-     * 
+     *
      * @return the minimum of the message rates in the SampleGroup
      */
     public long minRate() {
         Long min = null;
         for (Sample s : samples) {
             if (min == null) {
-                min = new Long(s.rate());
+                min = s.rate();
             }
             min = Math.min(min, s.rate());
         }
-        return min.longValue();
+        return min;
     }
 
     /**
      * Returns the maximum of the message rates in the SampleGroup.
-     * 
+     *
      * @return the maximum of the message rates in the SampleGroup
      */
     public long maxRate() {
         Long max = null;
         for (Sample s : samples) {
             if (max == null) {
-                max = new Long(s.rate());
+                max = s.rate();
             }
             max = Math.max(max, s.rate());
         }
-        return max.longValue();
+        return max;
     }
 
     /**
      * Returns the average of the message rates in the SampleGroup.
-     * 
+     *
      * @return the average of the message rates in the SampleGroup
      */
     public long avgRate() {
@@ -76,12 +82,12 @@ public class SampleGroup extends Sample {
         for (Sample s : samples) {
             sum += s.rate();
         }
-        return (long) (sum / (long) samples.size());
+        return sum / (long) samples.size();
     }
 
     /**
      * Returns the standard deviation of the message rates in the SampleGroup.
-     * 
+     *
      * @return the standard deviation of the message rates in the SampleGroup
      */
     public double stdDev() {
@@ -96,7 +102,7 @@ public class SampleGroup extends Sample {
 
     /**
      * Formats the statistics for this group in a human-readable format.
-     * 
+     *
      * @return the statistics for this group in a human-readable format (string)
      */
     public String statistics() {

@@ -1,14 +1,10 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.examples;
-
-import io.nats.client.Connection;
-import io.nats.client.ConnectionFactory;
-import io.nats.client.Nats;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -16,6 +12,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+
+import io.nats.client.Connection;
+import io.nats.client.Nats;
 
 public class Publisher {
     String url = Nats.DEFAULT_URL;
@@ -53,7 +52,7 @@ public class Publisher {
         payload = argList.remove(argList.size() - 1);
 
         // get the subject and remove it from args
-        subject = argList.remove(argList.size() - 1);;
+        subject = argList.remove(argList.size() - 1);
 
         // Anything left is flags + args
         Iterator<String> it = argList.iterator();
@@ -78,7 +77,7 @@ public class Publisher {
 
     /**
      * Publishes a message to a subject.
-     * 
+     *
      * @param args the subject, message payload, and other arguments
      */
     public static void main(String[] args) throws Exception {

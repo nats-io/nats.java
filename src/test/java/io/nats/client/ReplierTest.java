@@ -1,9 +1,23 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.client;
 
-import ch.qos.logback.classic.Logger;
-import io.nats.examples.Requestor;
-import io.nats.examples.Replier;
-import org.junit.*;
+import static io.nats.client.UnitTestUtilities.runDefaultServer;
+import static io.nats.client.UnitTestUtilities.sleep;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.slf4j.LoggerFactory;
@@ -16,9 +30,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static io.nats.client.UnitTestUtilities.runDefaultServer;
-import static io.nats.client.UnitTestUtilities.sleep;
-import static org.junit.Assert.*;
+import ch.qos.logback.classic.Logger;
+import io.nats.examples.Replier;
+import io.nats.examples.Requestor;
 
 @Category(IntegrationTest.class)
 public class ReplierTest {
@@ -27,25 +41,29 @@ public class ReplierTest {
 
     static final LogVerifier verifier = new LogVerifier();
 
-    ExecutorService service = Executors.newCachedThreadPool();
+    private final ExecutorService service = Executors.newCachedThreadPool();
 
     @Rule
-    public ExpectedException thrown = ExpectedException.none();
+    public final ExpectedException thrown = ExpectedException.none();
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test
     public void testReplierStringArray() throws Exception {
@@ -63,7 +81,7 @@ public class ReplierTest {
     @Test
     public void testParseArgsBadFlags() {
         List<String> argList = new ArrayList<String>();
-        String[] flags = new String[] { "-s", "--server", "-n", "--count", "-q", "--qgroup" };
+        String[] flags = new String[] {"-s", "--server", "-n", "--count", "-q", "--qgroup"};
         boolean exThrown = false;
 
         for (String flag : flags) {
@@ -106,7 +124,8 @@ public class ReplierTest {
                 @Override
                 public void run() {
                     try {
-                        Replier.main(new String[]{"-s", Nats.DEFAULT_URL, "-n", "1", "foo", "gotcha"});
+                        Replier.main(new String[] {"-s", Nats.DEFAULT_URL, "-n", "1", "foo",
+                                "gotcha"});
                         done.countDown();
                     } catch (Exception e) {
                         errors.add(e);
@@ -119,7 +138,7 @@ public class ReplierTest {
                 public void run() {
                     try {
                         startReq.await();
-                        new Requestor(new String[]{"-s", Nats.DEFAULT_URL, "foo", "bar"}).run();
+                        new Requestor(new String[] {"-s", Nats.DEFAULT_URL, "foo", "bar"}).run();
                     } catch (Exception e) {
                         errors.add(e);
                     }
@@ -140,6 +159,6 @@ public class ReplierTest {
     public void testMainFailsNoServers() throws Exception {
         thrown.expect(IOException.class);
         thrown.expectMessage(Nats.ERR_NO_SERVERS);
-        Replier.main(new String[] { "-s", "nats://enterprise:4242", "foobar", "gotcha" });
+        Replier.main(new String[] {"-s", "nats://enterprise:4242", "foobar", "gotcha"});
     }
 }

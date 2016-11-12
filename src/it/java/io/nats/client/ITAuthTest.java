@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -17,7 +17,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import ch.qos.logback.classic.Level;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -36,13 +35,15 @@ public class ITAuthTest {
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
-    int hitDisconnect;
+    private int hitDisconnect;
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -50,7 +51,8 @@ public class ITAuthTest {
     }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test
     public void testAuth() {
@@ -102,7 +104,7 @@ public class ITAuthTest {
     @Test
     public void testAuthFailAllowReconnect() throws IOException, TimeoutException {
         String[] servers =
-                { "nats://localhost:1221", "nats://localhost:1222", "nats://localhost:1223", };
+                {"nats://localhost:1221", "nats://localhost:1222", "nats://localhost:1223",};
 
         final CountDownLatch latch = new CountDownLatch(1);
 
@@ -146,8 +148,8 @@ public class ITAuthTest {
     @Test
     public void testAuthFailure() {
         String[] urls =
-                { "nats://username@localhost:1222", "nats://username:badpass@localhost:1222",
-                        "nats://localhost:1222", "nats://badname:password@localhost:1222" };
+                {"nats://username@localhost:1222", "nats://username:badpass@localhost:1222",
+                        "nats://localhost:1222", "nats://badname:password@localhost:1222"};
 
         try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
             hitDisconnect = 0;

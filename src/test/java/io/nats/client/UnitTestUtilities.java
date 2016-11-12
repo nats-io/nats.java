@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -11,8 +11,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -34,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class UnitTestUtilities {
+class UnitTestUtilities {
     // final Object mu = new Object();
     static NatsServer defaultServer = null;
     Process authServerProcess = null;
@@ -171,7 +169,8 @@ public class UnitTestUtilities {
     }
 
     static void setTcpConnState(TcpConnection mock, boolean open) {
-        logger.trace("\n\nChanging state, connection ({}) = {}\n" , mock, (open? "open" : "closed"));
+        logger.trace("\n\nChanging state, connection ({}) = {}\n", mock, (open ? "open" :
+                "closed"));
         logger.trace("old status, isClosed={}", mock.isClosed());
         doReturn(!open).when(mock).isClosed();
         logger.trace("new status, isClosed={}", mock.isClosed());
@@ -289,7 +288,7 @@ public class UnitTestUtilities {
             // build up the output from cmd
             StringBuilder commandOutput = new StringBuilder();
             while ((currentLine = reader.readLine()) != null) {
-                commandOutput.append(currentLine + "\n");
+                commandOutput.append(currentLine).append("\n");
             }
 
             int returnCode = process.waitFor();
@@ -299,11 +298,11 @@ public class UnitTestUtilities {
 
         } catch (IOException e) {
             System.err.println("Cannot retrieve output of command");
-            System.err.println(e);
+            System.err.println(e.getMessage());
             output = null;
         } catch (InterruptedException e) {
             System.err.println("Cannot retrieve output of command");
-            System.err.println(e);
+            System.err.println(e.getMessage());
         } finally {
             // Close all inputs / readers
 
@@ -345,8 +344,9 @@ public class UnitTestUtilities {
             if (url != null) {
                 try (InputStream urlInputStream = url.openStream()) {
                     try (BufferedReader reader =
-                            new BufferedReader(new InputStreamReader(urlInputStream, "UTF-8"))) {
-                        for (String line; (line = reader.readLine()) != null;) {
+                                 new BufferedReader(new InputStreamReader(urlInputStream,
+                                         "UTF-8"))) {
+                        for (String line; (line = reader.readLine()) != null; ) {
                             System.out.println(line);
                         }
                     }

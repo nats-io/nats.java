@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -19,8 +19,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -42,30 +40,34 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import ch.qos.logback.classic.Level;
+
 @Category(IntegrationTest.class)
 public class ITSubscriptionTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(ITSubscriptionTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ITSubscriptionTest.class);
 
     static final LogVerifier verifier = new LogVerifier();
 
     @Rule
-    public ExpectedException thrown = ExpectedException.none();
+    public final ExpectedException thrown = ExpectedException.none();
 
-    ExecutorService exec;
+    private ExecutorService exec;
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     /**
      * Per-test-case setup.
-     * 
+     *
      * @throws Exception if something goes wrong
      */
     @Before
@@ -78,7 +80,7 @@ public class ITSubscriptionTest {
 
     /**
      * Per-test-case cleanup.
-     * 
+     *
      * @throws Exception if something goes wrong
      */
     @After
@@ -234,7 +236,7 @@ public class ITSubscriptionTest {
                 sub.autoUnsubscribe(max);
 
                 // Send less than the max
-                int total = (int) max / 2;
+                int total = max / 2;
                 String str;
                 for (int i = 0; i < total; i++) {
                     str = String.format("Hello %d", i + 1);
@@ -395,7 +397,7 @@ public class ITSubscriptionTest {
                             }
                         }
                     });
-                    sub.autoUnsubscribe((int) max);
+                    sub.autoUnsubscribe(max);
                     nc.flush();
 
                     // Trigger the first message, the other are sent from the callback.
@@ -436,7 +438,7 @@ public class ITSubscriptionTest {
                             }
                         }
                     });
-                    sub.autoUnsubscribe((int) max);
+                    sub.autoUnsubscribe(max);
                     nc.flush();
 
                     // Trigger the first message, the other are sent from the callback.
@@ -574,15 +576,15 @@ public class ITSubscriptionTest {
             try (final Connection c = cf.createConnection()) {
                 c.setExceptionHandler(null);
                 try (final AsyncSubscriptionImpl s =
-                        (AsyncSubscriptionImpl) c.subscribe("foo", new MessageHandler() {
-                            public void onMessage(Message msg) {
-                                try {
-                                    mcbLatch.await();
-                                } catch (InterruptedException e) {
+                             (AsyncSubscriptionImpl) c.subscribe("foo", new MessageHandler() {
+                                 public void onMessage(Message msg) {
+                                     try {
+                                         mcbLatch.await();
+                                     } catch (InterruptedException e) {
                                     /* NOOP */
-                                }
-                            }
-                        })) {
+                                     }
+                                 }
+                             })) {
 
                     int pml = s.getPendingMsgsLimit();
                     assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, pml);
@@ -838,7 +840,7 @@ public class ITSubscriptionTest {
                     assertTrue("No message received", await(latch));
 
                     // Test old way
-                    int queued = sub.getQueuedMessageCount();
+                    @SuppressWarnings("deprecation") int queued = sub.getQueuedMessageCount();
                     assertTrue(
                             String.format("Expected %d or %d, got %d\n", total, total - 1, queued),
                             (queued == total) || (queued == total - 1));
@@ -947,7 +949,8 @@ public class ITSubscriptionTest {
                 byte[] msg = "0123456789".getBytes();
 
                 Subscription sub = nc.subscribe("foo", new MessageHandler() {
-                    public void onMessage(Message msg) {}
+                    public void onMessage(Message msg) {
+                    }
                 });
                 for (int i = 0; i < total; i++) {
                     nc.publish("foo", msg);
@@ -1022,7 +1025,7 @@ public class ITSubscriptionTest {
                     nc.flush();
 
                     // Test old way
-                    int queued = sub.getQueuedMessageCount();
+                    @SuppressWarnings("deprecation") int queued = sub.getQueuedMessageCount();
                     assertTrue(
                             String.format("Expected %d or %d, got %d\n", total, total - 1, queued),
                             (queued == total) || (queued == total - 1));
@@ -1051,15 +1054,15 @@ public class ITSubscriptionTest {
         }
     }
 
-    void send(Connection nc, String subject, byte[] payload, int count) throws Exception {
+    private void send(Connection nc, String subject, byte[] payload, int count) throws Exception {
         for (int i = 0; i < count; i++) {
             nc.publish(subject, payload);
         }
         nc.flush();
     }
 
-    void checkPending(Subscription sub, int limitCount, int limitBytes, int expectedCount,
-            int expectedBytes, int payloadLen) throws Exception {
+    private void checkPending(Subscription sub, int limitCount, int limitBytes, int expectedCount,
+                              int expectedBytes, int payloadLen) {
         int lc = sub.getPendingMsgsLimit();
         int lb = sub.getPendingBytesLimit();
         String errMsg =

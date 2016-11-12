@@ -1,3 +1,9 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.benchmark;
 
 import static org.junit.Assert.assertEquals;
@@ -6,11 +12,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import io.nats.client.ConnectionImpl;
-import io.nats.client.Statistics;
-import io.nats.client.TestCasePrinterRule;
-import io.nats.client.UnitTest;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -25,6 +26,11 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import io.nats.client.ConnectionImpl;
+import io.nats.client.Statistics;
+import io.nats.client.TestCasePrinterRule;
+import io.nats.client.UnitTest;
+
 @Category(UnitTest.class)
 public class BenchmarkFunctionalTest {
     static final Logger logger = LoggerFactory.getLogger(BenchmarkFunctionalTest.class);
@@ -33,30 +39,34 @@ public class BenchmarkFunctionalTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
-    static final int MSG_SIZE = 8;
-    static final int MILLION = 1000 * 1000;
-    static final int BILLION = MILLION * 1000;
-    static final double EPSILON = 1.0 / 1.0E18;
+    private static final int MSG_SIZE = 8;
+    private static final int MILLION = 1000 * 1000;
+    private static final int BILLION = MILLION * 1000;
+    private static final double EPSILON = 1.0 / 1.0E18;
 
-    long baseTime = System.nanoTime();
+    private final long baseTime = System.nanoTime();
 
     /**
      * Returns a million message sample.
-     * 
+     *
      * @return a Sample for one million messages
      */
-    public Sample millionMessagesSecondSample(int seconds) {
+    private Sample millionMessagesSecondSample(int seconds) {
         int messages = MILLION * seconds;
         long start = baseTime;
         long end = start + TimeUnit.SECONDS.toNanos(seconds);
@@ -197,12 +207,12 @@ public class BenchmarkFunctionalTest {
 
     /**
      * Creates a Benchmark object with test data.
-     * 
+     *
      * @param subs number of subscribers
      * @param pubs number of publishers
      * @return the created Benchmark
      */
-    public Benchmark makeBench(int subs, int pubs) {
+    private Benchmark makeBench(int subs, int pubs) {
         Benchmark bench = new Benchmark("test", subs, pubs);
         for (int i = 0; i < subs; i++) {
             bench.addSubSample(millionMessagesSecondSample(1));

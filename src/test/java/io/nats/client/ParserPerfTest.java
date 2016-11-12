@@ -1,3 +1,9 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
@@ -20,16 +26,20 @@ public class ParserPerfTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test
     public void test() {
@@ -76,7 +86,7 @@ public class ParserPerfTest {
                     (totalMsgs / elapsedSec));
 
             double totalBytes = (double) count * bufLen;
-            double mbPerSec = (double) totalBytes / elapsedSec / 1000000;
+            double mbPerSec = totalBytes / elapsedSec / 1000000;
             System.err.printf("Parsed %.0fMB in %ds (%.0fMB/sec)\n", totalBytes / 1000000,
                     elapsedSec, mbPerSec);
 
@@ -90,7 +100,7 @@ public class ParserPerfTest {
 
     /**
      * Main executive.
-     * 
+     *
      * @param args the command line arguments
      */
     public static void main(String[] args) {

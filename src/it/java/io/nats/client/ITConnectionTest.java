@@ -1,17 +1,13 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import static io.nats.client.Nats.ConnState;
-import static io.nats.client.Nats.ConnState.CONNECTED;
-import static io.nats.client.Nats.ConnState.CONNECTING;
 import static io.nats.client.Nats.ConnState.CLOSED;
-import static io.nats.client.Nats.ConnState.DISCONNECTED;
-import static io.nats.client.Nats.ConnState.RECONNECTING;
+import static io.nats.client.Nats.ConnState.CONNECTED;
 import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
@@ -19,15 +15,15 @@ import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.runServerWithConfig;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.*;
-import static org.mockito.AdditionalMatchers.not;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
-
-import org.hamcrest.core.IsEqual;
 import org.hamcrest.core.IsNot;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -39,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -66,22 +63,26 @@ public class ITConnectionTest {
     ExecutorService executor = Executors.newFixedThreadPool(5);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test
     public void testDefaultConnection() throws IOException, TimeoutException {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
-                /* NOOP */
+                assertTrue(nc.isConnected());
             }
         }
     }
@@ -141,7 +142,7 @@ public class ITConnectionTest {
         }
     }
 
-    public Exception isRunningInAsyncCbDispatcher() {
+    private Exception isRunningInAsyncCbDispatcher() {
         StackTraceElement[] stack =
                 UnitTestUtilities.getStackTraceByName(Thread.currentThread().getName());
         for (StackTraceElement el : stack) {
@@ -151,7 +152,8 @@ public class ITConnectionTest {
             }
         }
         return new Exception(
-                String.format("Callback not executed from dispatcher:\n %s\n", stack.toString()));
+                String.format("Callback not executed from dispatcher:\n %s\n", Arrays.toString
+                        (stack)));
     }
 
     // @Test
@@ -271,9 +273,9 @@ public class ITConnectionTest {
     // }
     // }
 
-    static String[] testServers = { "nats://localhost:1222", "nats://localhost:1223",
+    private static final String[] testServers = {"nats://localhost:1222", "nats://localhost:1223",
             "nats://localhost:1224", "nats://localhost:1225", "nats://localhost:1226",
-            "nats://localhost:1227", "nats://localhost:1228" };
+            "nats://localhost:1227", "nats://localhost:1228"};
 
     @Test
     public void testServersRandomize() throws IOException, TimeoutException {
@@ -312,7 +314,7 @@ public class ITConnectionTest {
          * versa), the behavior is that Opts.Url is always first, even when randomization is
          * enabled. So make sure that this is still the case.
          */
-        opts =  Nats.defaultOptions();
+        opts = Nats.defaultOptions();
         opts.servers = Nats.processUrlArray(testServers);
         opts.url = Nats.DEFAULT_URL;
         nc = new ConnectionImpl(opts);
@@ -326,7 +328,8 @@ public class ITConnectionTest {
 
         clientServers = clientServerList.toArray(new String[clientServerList.size()]);
         // In theory this could happen..
-        assertThat("serverPool list not randomized", clientServers, IsNot.not(equalTo(testServers)));
+        assertThat("serverPool list not randomized", clientServers, IsNot.not(equalTo
+                (testServers)));
 
         assertEquals(
                 String.format("Options.url should be first in the array, got %s", clientServers[0]),

@@ -1,15 +1,10 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
-/**
- * 
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
  */
 
 package io.nats.client;
-
-import java.io.IOException;
 
 /*
  * This is the implementation of the AsyncSubscription interface.
@@ -19,8 +14,8 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 
     MessageHandler msgHandler;
 
-    protected AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue,
-            MessageHandler cb) {
+    AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue,
+                          MessageHandler cb) {
         super(nc, subj, queue);
         this.msgHandler = cb;
     }

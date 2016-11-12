@@ -1,22 +1,21 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
 import static io.nats.client.Nats.ConnState.CONNECTED;
 import static io.nats.client.Nats.ConnState.RECONNECTING;
-import static io.nats.client.UnitTestUtilities.*;
+import static io.nats.client.UnitTestUtilities.await;
+import static io.nats.client.UnitTestUtilities.runServerOnPort;
+import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-
-import ch.qos.logback.classic.Level;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -35,28 +34,31 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Category(IntegrationTest.class)
 public class ITReconnectTest {
-    static final Logger logger = LoggerFactory.getLogger(ITReconnectTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ITReconnectTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
-    private Properties reconnectOptions = getReconnectOptions();
+    private final Properties reconnectOptions = getReconnectOptions();
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     private static Properties getReconnectOptions() {
         Properties props = new Properties();
@@ -104,7 +106,8 @@ public class ITReconnectTest {
         try (NatsServer ts = runServerOnPort(22222)) {
             final CountDownLatch ccLatch = new CountDownLatch(1);
             final CountDownLatch dcLatch = new CountDownLatch(1);
-            try (final ConnectionImpl c = (ConnectionImpl) Nats.connect("nats://localhost:22222", opts)) {
+            try (final ConnectionImpl c = (ConnectionImpl) Nats.connect("nats://localhost:22222",
+                    opts)) {
                 c.setClosedCallback(new ClosedCallback() {
                     public void onClose(ConnectionEvent event) {
                         ccLatch.countDown();
@@ -121,12 +124,14 @@ public class ITReconnectTest {
 
                 // We want wait to timeout here, and the connection
                 // should not trigger the Closed CB.
-                assertFalse("ClosedCB should not be triggered yet", ccLatch.await(500, TimeUnit.MILLISECONDS));
+                assertFalse("ClosedCB should not be triggered yet", ccLatch.await(500, TimeUnit
+                        .MILLISECONDS));
 
 
                 // We should wait to get the disconnected callback to ensure
                 // that we are in the process of reconnecting.
-                assertTrue("DisconnectedCB should have been triggered", dcLatch.await(2, TimeUnit.SECONDS));
+                assertTrue("DisconnectedCB should have been triggered", dcLatch.await(2, TimeUnit
+                        .SECONDS));
 
                 assertTrue("Expected to be in a reconnecting state", c.isReconnecting());
                 c.setClosedCallback(null);
@@ -153,7 +158,7 @@ public class ITReconnectTest {
 
         try (NatsServer ns1 = runServerOnPort(22222)) {
             try (Connection c = cf.createConnection()) {
-                AsyncSubscription s = c.subscribeAsync("foo", new MessageHandler() {
+                AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     public void onMessage(Message msg) {
                         String s = new String(msg.getData());
                         if (!s.equals(testString)) {
@@ -293,10 +298,10 @@ public class ITReconnectTest {
     }
 
     final Object mu = new Object();
-    final Map<Integer, Integer> results = new ConcurrentHashMap<Integer, Integer>();
+    private final Map<Integer, Integer> results = new ConcurrentHashMap<Integer, Integer>();
 
     @Test
-    public void testQueueSubsOnReconnect() throws IllegalStateException, Exception {
+    public void testQueueSubsOnReconnect() throws Exception {
         ConnectionFactory cf = new ConnectionFactory(reconnectOptions);
         try (NatsServer ts = runServerOnPort(22222)) {
 
@@ -350,10 +355,10 @@ public class ITReconnectTest {
 
     }
 
-    void checkResults(int numSent) {
+    private void checkResults(int numSent) {
         for (int i = 0; i < numSent; i++) {
             if (results.containsKey(i)) {
-                assertEquals("results count should have been 1 for " + String.valueOf(i), (int) 1,
+                assertEquals("results count should have been 1 for " + String.valueOf(i), 1,
                         (int) results.get(i));
             } else {
                 fail("results doesn't contain seqno: " + i);
@@ -362,7 +367,7 @@ public class ITReconnectTest {
         results.clear();
     }
 
-    void sendAndCheckMsgs(Connection conn, String subj, int numToSend) {
+    private void sendAndCheckMsgs(Connection conn, String subj, int numToSend) {
         int numSent = 0;
         for (int i = 0; i < numToSend; i++) {
             try {

@@ -1,17 +1,35 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import static io.nats.client.Nats.*;
+import static io.nats.client.Nats.PROP_CLOSED_CB;
+import static io.nats.client.Nats.PROP_CONNECTION_NAME;
+import static io.nats.client.Nats.PROP_CONNECTION_TIMEOUT;
+import static io.nats.client.Nats.PROP_DISCONNECTED_CB;
+import static io.nats.client.Nats.PROP_EXCEPTION_HANDLER;
+import static io.nats.client.Nats.PROP_MAX_PINGS;
+import static io.nats.client.Nats.PROP_MAX_RECONNECT;
+import static io.nats.client.Nats.PROP_NORANDOMIZE;
+import static io.nats.client.Nats.PROP_PASSWORD;
+import static io.nats.client.Nats.PROP_PEDANTIC;
+import static io.nats.client.Nats.PROP_PING_INTERVAL;
 import static io.nats.client.Nats.PROP_RECONNECTED_CB;
-import static org.mockito.Mockito.mock;
+import static io.nats.client.Nats.PROP_RECONNECT_ALLOWED;
+import static io.nats.client.Nats.PROP_RECONNECT_BUF_SIZE;
+import static io.nats.client.Nats.PROP_RECONNECT_WAIT;
+import static io.nats.client.Nats.PROP_SECURE;
+import static io.nats.client.Nats.PROP_SERVERS;
+import static io.nats.client.Nats.PROP_TLS_DEBUG;
+import static io.nats.client.Nats.PROP_URL;
+import static io.nats.client.Nats.PROP_USERNAME;
+import static io.nats.client.Nats.PROP_VERBOSE;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -21,11 +39,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-import javax.net.ssl.SSLContext;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+
+import javax.net.ssl.SSLContext;
 
 @Category(UnitTest.class)
 public class OptionsTest {
@@ -33,37 +52,41 @@ public class OptionsTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
-    static final String url = "nats://foobar:4122";
+    private static final String url = "nats://foobar:4122";
     static final String hostname = "foobar2";
     static final int port = 2323;
-    static final String username = "larry";
-    static final String password = "password";
-    static final String servers = "nats://cluster-host-1:5151 , nats://cluster-host-2:5252";
-    static final String[] serverArray = servers.split(",\\s+");
+    private static final String username = "larry";
+    private static final String password = "password";
+    private static final String servers = "nats://cluster-host-1:5151 , nats://cluster-host-2:5252";
+    private static final String[] serverArray = servers.split(",\\s+");
     static List<URI> sList = null;
-    static final Boolean noRandomize = true;
-    static final String name = "my_connection";
-    static final Boolean verbose = true;
-    static final Boolean pedantic = true;
-    static final Boolean secure = true;
-    static final Boolean reconnectAllowed = false;
-    static final int maxReconnect = 14;
-    static final int reconnectWait = 100;
-    static final int reconnectBufSize = 12 * 1024 * 1024;
-    static final int timeout = 2000;
-    static final int pingInterval = 5000;
-    static final int maxPings = 4;
+    private static final Boolean noRandomize = true;
+    private static final String name = "my_connection";
+    private static final Boolean verbose = true;
+    private static final Boolean pedantic = true;
+    private static final Boolean secure = true;
+    private static final Boolean reconnectAllowed = false;
+    private static final int maxReconnect = 14;
+    private static final int reconnectWait = 100;
+    private static final int reconnectBufSize = 12 * 1024 * 1024;
+    private static final int timeout = 2000;
+    private static final int pingInterval = 5000;
+    private static final int maxPings = 4;
     static final Boolean tlsDebug = true;
 
     @Test
@@ -133,7 +156,8 @@ public class OptionsTest {
         String username = "derek";
         String password = "mypassword";
         String token = "alkjsdf09234ipoiasfasdf";
-        List<URI> servers = Arrays.asList(URI.create("nats://foobar:1222"), URI.create("nats://localhost:2222"));
+        List<URI> servers = Arrays.asList(URI.create("nats://foobar:1222"), URI.create
+                ("nats://localhost:2222"));
         boolean noRandomize = true;
         String connectionName = "myConnection";
         boolean verbose = true;
@@ -251,7 +275,8 @@ public class OptionsTest {
 //
 //        assertEquals(sList, opts.getServers());
 //
-//        String[] badServerArray = { "nats:// cluster-host-1:5151", "nats:// cluster-host-2:5252" };
+//        String[] badServerArray = { "nats:// cluster-host-1:5151", "nats://
+// cluster-host-2:5252" };
 //        boolean exThrown = false;
 //        try {
 //            opts = new Options.Builder().servers(badServerArray).build();

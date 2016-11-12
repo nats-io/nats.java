@@ -1,26 +1,22 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import static io.nats.client.Nats.ConnState;
-import static io.nats.client.Nats.ConnState.CONNECTED;
-import static io.nats.client.Nats.ConnState.CONNECTING;
-import static io.nats.client.Nats.ConnState.CLOSED;
-import static io.nats.client.Nats.ConnState.DISCONNECTED;
 import static io.nats.client.Nats.ConnState.RECONNECTING;
 import static io.nats.client.Nats.defaultOptions;
-import static io.nats.client.UnitTestUtilities.*;
+import static io.nats.client.UnitTestUtilities.await;
+import static io.nats.client.UnitTestUtilities.runServerOnPort;
+import static io.nats.client.UnitTestUtilities.runServerWithConfig;
+import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -33,7 +29,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -52,10 +52,12 @@ public class ITClusterTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -67,12 +69,12 @@ public class ITClusterTest {
         // s.shutdown();
     }
 
-    static final String[] testServers = new String[] { "nats://localhost:1222",
+    private static final String[] testServers = new String[] {"nats://localhost:1222",
             "nats://localhost:1223", "nats://localhost:1224", "nats://localhost:1225",
-            "nats://localhost:1226", "nats://localhost:1227", "nats://localhost:1228" };
+            "nats://localhost:1226", "nats://localhost:1227", "nats://localhost:1228"};
 
     static final String[] testServersShortList =
-            new String[] { "nats://localhost:1222", "nats://localhost:1223" };
+            new String[] {"nats://localhost:1222", "nats://localhost:1223"};
 
     UnitTestUtilities utils = new UnitTestUtilities();
 
@@ -89,11 +91,7 @@ public class ITClusterTest {
             try (Connection c = opts.connect()) {
                 assertTrue(String.format("%s != %s", testServers[0], c.getConnectedUrl()),
                         testServers[0].equals(c.getConnectedUrl()));
-            } catch (IOException | TimeoutException e) {
-                throw e;
             }
-        } catch (Exception e1) {
-            fail(e1.getMessage());
         }
 
         // make sure we can connect to a non-first server.
@@ -101,17 +99,13 @@ public class ITClusterTest {
             try (Connection c = opts.connect()) {
                 assertTrue(testServers[5] + " != " + c.getConnectedUrl(),
                         testServers[5].equals(c.getConnectedUrl()));
-            } catch (IOException | TimeoutException e) {
-                throw e;
             }
-        } catch (Exception e1) {
-            fail(e1.getMessage());
         }
     }
 
     @Test
     public void testAuthServers() throws IOException, TimeoutException {
-        String[] plainServers = new String[] { "nats://localhost:1222", "nats://localhost:1224" };
+        String[] plainServers = new String[] {"nats://localhost:1222", "nats://localhost:1224"};
 
         Options opts = new Options.Builder(Nats.defaultOptions())
                 .dontRandomize()
@@ -132,8 +126,8 @@ public class ITClusterTest {
                 assertTrue("Expect Auth failure, got no error", exThrown);
 
                 // Test that we can connect to a subsequent correct server.
-                String[] authServers = new String[] { "nats://localhost:1222",
-                        "nats://username:password@localhost:1224" };
+                String[] authServers = new String[] {"nats://localhost:1222",
+                        "nats://username:password@localhost:1224"};
 
                 opts = defaultOptions();
                 opts.servers = Nats.processUrlArray(authServers);
@@ -343,7 +337,7 @@ public class ITClusterTest {
                         if (count != null) {
                             cs.put(url, ++count);
                         } else {
-                            cs.put(url, new Integer(1));
+                            cs.put(url, 1);
                         }
                     }
 
@@ -388,7 +382,7 @@ public class ITClusterTest {
             opts.servers = Nats.processUrlArray(testServers);
 
             final CountDownLatch latch = new CountDownLatch(1);
-            opts.disconnectedCb =  new DisconnectedCallback() {
+            opts.disconnectedCb = new DisconnectedCallback() {
                 public void onDisconnect(ConnectionEvent event) {
                     event.getConnection().setDisconnectedCallback(null);
                     latch.countDown();
@@ -468,7 +462,7 @@ public class ITClusterTest {
     @Test
     public void testProperFalloutAfterMaxAttemptsWithAuthMismatch()
             throws IOException, TimeoutException {
-        final String[] myServers = { "nats://localhost:1222", "nats://localhost:4443" };
+        final String[] myServers = {"nats://localhost:1222", "nats://localhost:4443"};
 
         Options opts = new Options.Builder(defaultOptions())
                 .dontRandomize()
@@ -590,10 +584,13 @@ public class ITClusterTest {
     }
 
     /**
-     * Ensures that if a ping is not ponged within the pingInterval, that a disconnect/reconnect takes place.
-     *
-     * <p>We test this by setting maxPingsOut < 0 and setting the pingInterval very small. After the first
-     * disconnect, we measure the reconnect-to-disconnect time to ensure it isn't greater than 2 * pingInterval.
+     * Ensures that if a ping is not ponged within the pingInterval, that a disconnect/reconnect
+     * takes place.
+     * <p>
+     * <p>We test this by setting maxPingsOut < 0 and setting the pingInterval very small. After
+     * the first
+     * disconnect, we measure the reconnect-to-disconnect time to ensure it isn't greater than 2
+     * * pingInterval.
      *
      * @throws Exception if anything goes wrong
      */
@@ -639,7 +636,8 @@ public class ITClusterTest {
                     Long disconnectedAt = dch.take();
                     Long reconnectedAt = rch.take();
                     Long pingCycle = TimeUnit.NANOSECONDS.toMillis(disconnectedAt - reconnectedAt);
-                    assertFalse(String.format("Reconnect due to ping took %d msec", pingCycle), pingCycle > 2 * c.opts.getPingInterval());
+                    assertFalse(String.format("Reconnect due to ping took %d msec", pingCycle),
+                            pingCycle > 2 * c.opts.getPingInterval());
                 }
             }
         }

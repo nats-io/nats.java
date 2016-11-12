@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -11,7 +11,8 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Tracks various stats received and sent on this connection, including counts for messages and bytes.
+ * Tracks various stats received and sent on this connection, including counts for messages and
+ * bytes.
  */
 public class Statistics implements Cloneable {
 
@@ -22,7 +23,8 @@ public class Statistics implements Cloneable {
     private AtomicLong reconnects = new AtomicLong();
     private AtomicLong flushes = new AtomicLong();
 
-    public Statistics() {}
+    public Statistics() {
+    }
 
     // deep copy contructor
     Statistics(Statistics obj) {
@@ -65,7 +67,9 @@ public class Statistics implements Cloneable {
     }
 
     /**
-     * @return the number of messages that have been received on this Connection.
+     * Returns the number of messages that have been received on this Connection.
+     *
+     * @return the number of messages
      */
     public long getInMsgs() {
         return inMsgs.get();
@@ -79,7 +83,9 @@ public class Statistics implements Cloneable {
     }
 
     /**
-     * @return the number of messages published on this Connection.
+     * Returns the number of messages published on this Connection.
+     *
+     * @return the number of messages
      */
     public long getOutMsgs() {
         return outMsgs.get();
@@ -90,7 +96,9 @@ public class Statistics implements Cloneable {
     }
 
     /**
-     * @return the number of bytes received on this Connection.
+     * Returns the number of bytes received on this Connection.
+     *
+     * @return the number of bytes
      */
     public long getInBytes() {
         return inBytes.get();
@@ -104,7 +112,9 @@ public class Statistics implements Cloneable {
     }
 
     /**
-     * @return the number of bytes that have been output on this Connection.
+     * Returns the number of bytes that have been output on this Connection.
+     *
+     * @return the number of bytes
      */
     public long getOutBytes() {
         return outBytes.get();
@@ -118,7 +128,9 @@ public class Statistics implements Cloneable {
     }
 
     /**
-     * @return the number of times this Connection has reconnected.
+     * Returns the number of times this Connection has reconnected.
+     *
+     * @return the number of reconnects
      */
     public long getReconnects() {
         return reconnects.get();
@@ -129,7 +141,9 @@ public class Statistics implements Cloneable {
     }
 
     /**
-     * @return the number of times this Connection has reconnected.
+     * Returns the number of times this Connection's underlying TCP connection has been flushed.
+     *
+     * @return the number of flushes
      */
     long getFlushes() {
         return flushes.get();

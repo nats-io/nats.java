@@ -1,3 +1,9 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
@@ -5,11 +11,6 @@ import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import io.nats.examples.Publisher;
-import io.nats.examples.Subscriber;
-
-import ch.qos.logback.classic.Logger;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -25,7 +26,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import ch.qos.logback.classic.Logger;
+import io.nats.examples.Publisher;
+import io.nats.examples.Subscriber;
 
 @Category(IntegrationTest.class)
 public class SubscriberTest {
@@ -34,25 +41,29 @@ public class SubscriberTest {
 
     static final LogVerifier verifier = new LogVerifier();
 
-    ExecutorService service = Executors.newCachedThreadPool();
+    final ExecutorService service = Executors.newCachedThreadPool();
 
     @Rule
-    public ExpectedException thrown = ExpectedException.none();
+    public final ExpectedException thrown = ExpectedException.none();
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test
     public void testSubscriberStringArray() throws Exception {
@@ -69,7 +80,7 @@ public class SubscriberTest {
     @Test
     public void testParseArgsBadFlags() {
         List<String> argList = new ArrayList<String>();
-        String[] flags = new String[] { "-s", "--server", "-n", "--count", "-q", "--qgroup" };
+        String[] flags = new String[] {"-s", "--server", "-n", "--count", "-q", "--qgroup"};
         boolean exThrown = false;
 
         for (String flag : flags) {
@@ -118,7 +129,7 @@ public class SubscriberTest {
                 @Override
                 public void run() {
                     try {
-                        Subscriber.main(new String[]{"-s", Nats.DEFAULT_URL, "-n", "1", "foo"});
+                        Subscriber.main(new String[] {"-s", Nats.DEFAULT_URL, "-n", "1", "foo"});
                         done.countDown();
                     } catch (Exception e) {
                         errors.add(e);
@@ -131,7 +142,7 @@ public class SubscriberTest {
                 public void run() {
                     try {
                         startPub.await();
-                        new Publisher(new String[]{"-s", Nats.DEFAULT_URL, "foo", "bar"}).run();
+                        new Publisher(new String[] {"-s", Nats.DEFAULT_URL, "foo", "bar"}).run();
                     } catch (Exception e) {
                         errors.add(e);
                     }
@@ -152,6 +163,6 @@ public class SubscriberTest {
     public void testMainFailsNoServers() throws Exception {
         thrown.expect(IOException.class);
         thrown.expectMessage(Nats.ERR_NO_SERVERS);
-        Subscriber.main(new String[] { "-s", "nats://enterprise:4242", "foobar" });
+        Subscriber.main(new String[] {"-s", "nats://enterprise:4242", "foobar"});
     }
 }

@@ -1,19 +1,32 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.client;
 
-import ch.qos.logback.classic.Logger;
-import io.nats.examples.Requestor;
-import org.junit.*;
+import static io.nats.client.UnitTestUtilities.runDefaultServer;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
-import static io.nats.client.UnitTestUtilities.runDefaultServer;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import ch.qos.logback.classic.Logger;
+import io.nats.examples.Requestor;
 
 @Category(IntegrationTest.class)
 public class RequestorTest {
@@ -29,16 +42,20 @@ public class RequestorTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test
     public void testRequestorStringArray() throws Exception {
@@ -57,7 +74,7 @@ public class RequestorTest {
     @Test
     public void testParseArgsBadFlags() {
         List<String> argList = new ArrayList<String>();
-        String[] flags = new String[] { "-s" };
+        String[] flags = new String[] {"-s"};
         boolean exThrown = false;
 
         for (String flag : flags) {
@@ -85,7 +102,7 @@ public class RequestorTest {
         try {
             exThrown = false;
             argList.clear();
-            argList.addAll(Arrays.asList("foo"));
+            argList.addAll(Collections.singletonList("foo"));
             String[] args = new String[argList.size()];
             args = argList.toArray(args);
             new Requestor(args);
@@ -100,14 +117,14 @@ public class RequestorTest {
     @Test(expected = IllegalArgumentException.class)
     public void testMainFails() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
-            Requestor.main(new String[] { "foobar" });
+            Requestor.main(new String[] {"foobar"});
         }
     }
 
     @Test
     public void testMainSuccess() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
-            Requestor.main(new String[] { "-s", Nats.DEFAULT_URL, "foo", "bar" });
+            Requestor.main(new String[] {"-s", Nats.DEFAULT_URL, "foo", "bar"});
         }
     }
 

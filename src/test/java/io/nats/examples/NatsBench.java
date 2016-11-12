@@ -1,26 +1,10 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.examples;
-
-import io.nats.benchmark.Benchmark;
-import io.nats.benchmark.Sample;
-import io.nats.client.AsyncSubscription;
-import io.nats.client.ClosedCallback;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionEvent;
-import io.nats.client.DisconnectedCallback;
-import io.nats.client.ExceptionHandler;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.NATSException;
-import io.nats.client.Options;
-import io.nats.client.Nats;
-import io.nats.client.NUID;
-import io.nats.client.Subscription;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +29,24 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.nats.benchmark.Benchmark;
+import io.nats.benchmark.Sample;
+import io.nats.client.AsyncSubscription;
+import io.nats.client.ClosedCallback;
+import io.nats.client.Connection;
+import io.nats.client.ConnectionEvent;
+import io.nats.client.DisconnectedCallback;
+import io.nats.client.ExceptionHandler;
+import io.nats.client.Message;
+import io.nats.client.MessageHandler;
+import io.nats.client.NATSException;
+import io.nats.client.NUID;
+import io.nats.client.Nats;
+import io.nats.client.Options;
+import io.nats.client.Subscription;
+
 /**
  * A utility class for measuring NATS performance.
- *
  */
 public class NatsBench {
     static final Logger log = LoggerFactory.getLogger(NatsBench.class);
@@ -62,8 +61,8 @@ public class NatsBench {
 
     private String urls = Nats.DEFAULT_URL;
     private String subject;
-    private AtomicInteger sent = new AtomicInteger();
-    private AtomicInteger received = new AtomicInteger();
+    private final AtomicInteger sent = new AtomicInteger();
+    private final AtomicInteger received = new AtomicInteger();
     private String csvFileName;
 
     Options opts = null;
@@ -86,7 +85,7 @@ public class NatsBench {
 
     /**
      * Main constructor for NatsBench.
-     * 
+     *
      * @param args configuration parameters
      */
     public NatsBench(String[] args) {
@@ -105,7 +104,7 @@ public class NatsBench {
 
     /**
      * Properties-based constructor for NatsBench.
-     * 
+     *
      * @param properties configuration properties
      */
     public NatsBench(Properties properties) {
@@ -125,9 +124,9 @@ public class NatsBench {
     }
 
     class Worker implements Runnable {
-        protected final Phaser phaser;
-        protected final int num;
-        protected final int size;
+        final Phaser phaser;
+        final int num;
+        final int size;
 
         Worker(Phaser phaser, int numMsgs, int size) {
             this.phaser = phaser;
@@ -136,7 +135,8 @@ public class NatsBench {
         }
 
         @Override
-        public void run() {}
+        public void run() {
+        }
     }
 
     class SubWorker extends Worker {
@@ -239,7 +239,7 @@ public class NatsBench {
 
     /**
      * Runs the benchmark.
-     * 
+     *
      * @throws Exception if an exception occurs
      */
     public void run() throws Exception {
@@ -403,7 +403,7 @@ public class NatsBench {
 
     /**
      * The main program executive.
-     * 
+     *
      * @param args command line arguments
      */
     public static void main(String[] args) {

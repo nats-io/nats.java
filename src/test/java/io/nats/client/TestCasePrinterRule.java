@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -23,7 +23,6 @@ public class TestCasePrinterRule implements TestRule {
     private String beforeContent = null;
     private String afterContent = null;
     private long timeStart;
-    private long timeEnd;
 
     public TestCasePrinterRule(OutputStream os) {
         out = os;
@@ -39,7 +38,7 @@ public class TestCasePrinterRule implements TestRule {
         @Override
         protected void after() {
             try {
-                timeEnd = System.currentTimeMillis();
+                long timeEnd = System.currentTimeMillis();
                 double seconds = (timeEnd - timeStart) / 1000.0;
                 out.write((afterContent + "Time elapsed: "
                         + new DecimalFormat("0.000").format(seconds) + " sec\n").getBytes());

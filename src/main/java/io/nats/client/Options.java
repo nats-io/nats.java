@@ -1,17 +1,45 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
+
+import static io.nats.client.Nats.DEFAULT_MAX_PINGS_OUT;
+import static io.nats.client.Nats.DEFAULT_MAX_RECONNECT;
+import static io.nats.client.Nats.DEFAULT_PING_INTERVAL;
+import static io.nats.client.Nats.DEFAULT_RECONNECT_BUF_SIZE;
+import static io.nats.client.Nats.DEFAULT_RECONNECT_WAIT;
+import static io.nats.client.Nats.DEFAULT_TIMEOUT;
+import static io.nats.client.Nats.DEFAULT_URL;
+import static io.nats.client.Nats.PROP_CLOSED_CB;
+import static io.nats.client.Nats.PROP_CONNECTION_NAME;
+import static io.nats.client.Nats.PROP_CONNECTION_TIMEOUT;
+import static io.nats.client.Nats.PROP_DISCONNECTED_CB;
+import static io.nats.client.Nats.PROP_EXCEPTION_HANDLER;
+import static io.nats.client.Nats.PROP_MAX_PINGS;
+import static io.nats.client.Nats.PROP_MAX_RECONNECT;
+import static io.nats.client.Nats.PROP_NORANDOMIZE;
+import static io.nats.client.Nats.PROP_PASSWORD;
+import static io.nats.client.Nats.PROP_PEDANTIC;
+import static io.nats.client.Nats.PROP_PING_INTERVAL;
+import static io.nats.client.Nats.PROP_RECONNECTED_CB;
+import static io.nats.client.Nats.PROP_RECONNECT_ALLOWED;
+import static io.nats.client.Nats.PROP_RECONNECT_BUF_SIZE;
+import static io.nats.client.Nats.PROP_RECONNECT_WAIT;
+import static io.nats.client.Nats.PROP_SECURE;
+import static io.nats.client.Nats.PROP_SERVERS;
+import static io.nats.client.Nats.PROP_TLS_DEBUG;
+import static io.nats.client.Nats.PROP_URL;
+import static io.nats.client.Nats.PROP_USERNAME;
+import static io.nats.client.Nats.PROP_VERBOSE;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -19,15 +47,13 @@ import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.SSLContext;
 
-import static io.nats.client.Nats.*;
-import static io.nats.client.Nats.DEFAULT_MAX_PINGS_OUT;
-
 /**
- * An {@code Options} object contains the immutable (and some mutable) configuration settings for a {@link Connection}.
- *
- * <p>The {@code Options} object is constructed using methods of an {@link Options.Builder} as in the following
+ * An {@code Options} object contains the immutable (and some mutable) configuration settings for
+ * a {@link Connection}.
+ * <p>
+ * <p>The {@code Options} object is constructed using methods of an {@link Options.Builder} as in
+ * the following
  * example:
- *
  * <pre>
  *    Options opts = new Options.Builder()
  *            .noReconnect()
@@ -40,22 +66,22 @@ import static io.nats.client.Nats.DEFAULT_MAX_PINGS_OUT;
  * </pre>
  */
 public class Options {
-    protected String url;
+    String url;
     List<URI> servers;
     boolean noRandomize;
-    String connectionName;
-    boolean verbose;
-    boolean pedantic;
-    boolean secure;
-    SSLContext sslContext;
+    final String connectionName;
+    final boolean verbose;
+    final boolean pedantic;
+    final boolean secure;
+    final SSLContext sslContext;
     // Print console output during connection handshake (java-specific)
-    boolean tlsDebug;
-    boolean allowReconnect;
-    int maxReconnect;
-    long reconnectWait;
-    int connectionTimeout;
-    long pingInterval;
-    int maxPingsOut;
+    final boolean tlsDebug;
+    final boolean allowReconnect;
+    final int maxReconnect;
+    final long reconnectWait;
+    final int connectionTimeout;
+    final long pingInterval;
+    final int maxPingsOut;
     // Connection handlers
     public ClosedCallback closedCb;
     public DisconnectedCallback disconnectedCb;
@@ -64,14 +90,14 @@ public class Options {
 
     // Size of the backing ByteArrayOutputStream buffer during reconnect.
     // Once this has been exhausted publish operations will error.
-    int reconnectBufSize;
+    final int reconnectBufSize;
 
-    String username;
-    String password;
-    String token;
+    final String username;
+    final String password;
+    final String token;
 
     // TODO Allow users to set a custom "dialer" like Go. For now keep package-private
-    TcpConnectionFactory factory;
+    final TcpConnectionFactory factory;
 
     // private List<X509Certificate> certificates =
     // new ArrayList<X509Certificate>();
@@ -119,29 +145,33 @@ public class Options {
         Options other = (Options) obj;
 
         return (compare(url, other.url)
-        && compare(username, other.username)
-        && compare(password, other.password)
-        && compare(token, other.token)
-        && compare(servers, other.servers)
-        && Boolean.compare(noRandomize, other.noRandomize) == 0
-        && compare(connectionName, other.connectionName)
-        && Boolean.compare(verbose, other.verbose) == 0
-        && Boolean.compare(pedantic, other.pedantic) == 0
-        && Boolean.compare(secure, other.secure) == 0
-        && Boolean.compare(allowReconnect, other.allowReconnect) ==0
-        && Integer.compare(maxReconnect, other.maxReconnect) == 0
-        && Integer.compare(reconnectBufSize, other.reconnectBufSize) == 0
-        && Long.compare(reconnectWait, other.reconnectWait) == 0
-        && Integer.compare(connectionTimeout, other.connectionTimeout) == 0
-        && Long.compare(pingInterval, other.pingInterval) == 0
-        && Integer.compare(maxPingsOut, other.maxPingsOut) == 0
-        && (sslContext == null ? other.sslContext == null : sslContext.equals(other.sslContext))
-        && Boolean.compare(tlsDebug, other.tlsDebug) == 0
-        && (factory == null ? other.factory == null : factory == other.factory)
-        && (disconnectedCb == null ? other.disconnectedCb == null : disconnectedCb == other.disconnectedCb)
-        && (closedCb == null ? other.closedCb == null : closedCb == other.closedCb)
-        && (reconnectedCb == null ? other.reconnectedCb == null : reconnectedCb == other.reconnectedCb)
-        && (asyncErrorCb == null ? other.asyncErrorCb == null : asyncErrorCb == other.asyncErrorCb));
+                && compare(username, other.username)
+                && compare(password, other.password)
+                && compare(token, other.token)
+                && compare(servers, other.servers)
+                && Boolean.compare(noRandomize, other.noRandomize) == 0
+                && compare(connectionName, other.connectionName)
+                && Boolean.compare(verbose, other.verbose) == 0
+                && Boolean.compare(pedantic, other.pedantic) == 0
+                && Boolean.compare(secure, other.secure) == 0
+                && Boolean.compare(allowReconnect, other.allowReconnect) == 0
+                && Integer.compare(maxReconnect, other.maxReconnect) == 0
+                && Integer.compare(reconnectBufSize, other.reconnectBufSize) == 0
+                && Long.compare(reconnectWait, other.reconnectWait) == 0
+                && Integer.compare(connectionTimeout, other.connectionTimeout) == 0
+                && Long.compare(pingInterval, other.pingInterval) == 0
+                && Integer.compare(maxPingsOut, other.maxPingsOut) == 0
+                && (sslContext == null ? other.sslContext == null : sslContext.equals(other
+                .sslContext))
+                && Boolean.compare(tlsDebug, other.tlsDebug) == 0
+                && (factory == null ? other.factory == null : factory == other.factory)
+                && (disconnectedCb == null ? other.disconnectedCb == null : disconnectedCb
+                == other.disconnectedCb)
+                && (closedCb == null ? other.closedCb == null : closedCb == other.closedCb)
+                && (reconnectedCb == null ? other.reconnectedCb == null : reconnectedCb == other
+                .reconnectedCb)
+                && (asyncErrorCb == null ? other.asyncErrorCb == null : asyncErrorCb == other
+                .asyncErrorCb));
     }
 
     static boolean compare(String str1, String str2) {
@@ -169,7 +199,7 @@ public class Options {
      * Creates a connection using this {@code Options} object.
      *
      * @return the {@code Connection}
-     * @throws IOException if something goes wrong
+     * @throws IOException      if something goes wrong
      * @throws TimeoutException if the connection doesn't complete within the configured timeout
      */
     public Connection connect() throws IOException, TimeoutException {
@@ -322,7 +352,7 @@ public class Options {
 
         /**
          * Constructs a {@link Builder} instance based on the supplied {@link Options} instance.
-         * 
+         *
          * @param template the {@link Options} object to use as a template
          */
         public Builder(Options template) {
@@ -354,7 +384,8 @@ public class Options {
             this.factory = template.factory;
         }
 
-        public Builder() {}
+        public Builder() {
+        }
 
         /**
          * Constructs a new {@code Builder} from a {@link Properties} object.
@@ -435,7 +466,8 @@ public class Options {
             // PROP_CONNECTION_TIMEOUT
             if (props.containsKey(PROP_CONNECTION_TIMEOUT)) {
                 this.connectionTimeout = Integer.parseInt(
-                        props.getProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(DEFAULT_TIMEOUT)));
+                        props.getProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(
+                                DEFAULT_TIMEOUT)));
             }
             // PROP_PING_INTERVAL
             if (props.containsKey(PROP_PING_INTERVAL)) {
@@ -449,7 +481,7 @@ public class Options {
             }
             // PROP_EXCEPTION_HANDLER
             if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
-                Object instance = null;
+                Object instance;
                 try {
                     String str = props.getProperty(PROP_EXCEPTION_HANDLER);
                     Class<?> clazz = Class.forName(str);
@@ -457,14 +489,12 @@ public class Options {
                     instance = constructor.newInstance();
                 } catch (Exception e) {
                     throw new IllegalArgumentException(e);
-                } finally {
-                /* NOOP */
                 }
                 this.asyncErrorCb = (ExceptionHandler) instance;
             }
             // PROP_CLOSED_CB
             if (props.containsKey(PROP_CLOSED_CB)) {
-                Object instance = null;
+                Object instance;
                 try {
                     String str = props.getProperty(PROP_CLOSED_CB);
                     Class<?> clazz = Class.forName(str);
@@ -477,7 +507,7 @@ public class Options {
             }
             // PROP_DISCONNECTED_CB
             if (props.containsKey(PROP_DISCONNECTED_CB)) {
-                Object instance = null;
+                Object instance;
                 try {
                     String str = props.getProperty(PROP_DISCONNECTED_CB);
                     Class<?> clazz = Class.forName(str);
@@ -490,7 +520,7 @@ public class Options {
             }
             // PROP_RECONNECTED_CB
             if (props.containsKey(PROP_RECONNECTED_CB)) {
-                Object instance = null;
+                Object instance;
                 try {
                     String str = props.getProperty(PROP_RECONNECTED_CB);
                     Class<?> clazz = Class.forName(str);
@@ -566,7 +596,7 @@ public class Options {
             return this;
         }
 
-        public List<URI> processServers(String[] serverArray) {
+        List<URI> processServers(String[] serverArray) {
             List<URI> list = null;
             if ((serverArray != null) && (serverArray.length != 0)) {
                 list = new ArrayList<URI>(serverArray.length);
@@ -583,11 +613,6 @@ public class Options {
             return list;
         }
 
-//        public Builder servers(List<URI> servers) {
-//            this.servers = servers;
-//            return this;
-//        }
-
         public Builder sslContext(SSLContext sslContext) {
             this.sslContext = sslContext;
             if (sslContext != null) {
@@ -602,7 +627,7 @@ public class Options {
         }
 
         public Builder timeout(int timeout, TimeUnit unit) {
-            return timeout((int)unit.toMillis(timeout));
+            return timeout((int) unit.toMillis(timeout));
         }
 
         public Builder tlsDebug() {
@@ -648,7 +673,7 @@ public class Options {
 
         /**
          * Creates a {@link Options} instance based on the current configuration.
-         * 
+         *
          * @return the created {@link Options} instance
          */
         public Options build() {

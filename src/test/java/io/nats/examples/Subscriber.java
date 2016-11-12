@@ -1,23 +1,27 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.examples;
 
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.Subscription;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Subscriber {
     static final Logger log = LoggerFactory.getLogger(Subscriber.class);
@@ -133,14 +137,15 @@ public class Subscriber {
                     it.remove();
                     continue;
                 default:
-                    throw new IllegalArgumentException(String.format("Unexpected token: '%s'", arg));
+                    throw new IllegalArgumentException(String.format("Unexpected token: '%s'",
+                            arg));
             }
         }
     }
 
     /**
      * Subscribes to a subject.
-     * 
+     *
      * @param args the subject, cluster info, and subscription options
      */
     public static void main(String[] args) throws Exception {

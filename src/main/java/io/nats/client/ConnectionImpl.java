@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -29,11 +29,6 @@ import static io.nats.client.Nats.ERR_TCP_FLUSH_FAILED;
 import static io.nats.client.Nats.ERR_TIMEOUT;
 import static io.nats.client.Nats.PERMISSIONS_ERR;
 import static io.nats.client.Nats.TLS_SCHEME;
-
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.annotations.SerializedName;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +68,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.annotations.SerializedName;
+
 public class ConnectionImpl implements Connection {
     final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
 
@@ -96,8 +95,8 @@ public class ConnectionImpl implements Connection {
     protected static final int FLUSH_CHAN_SIZE = 1;
 
     // The number of msec the flusher will wait between flushes
-    protected long flushTimerInterval = 1;
-    protected TimeUnit flushTimerUnit = TimeUnit.MICROSECONDS;
+    protected final long flushTimerInterval = 1;
+    protected final TimeUnit flushTimerUnit = TimeUnit.MICROSECONDS;
 
 
     public static final String _CRLF_ = "\r\n";
@@ -123,14 +122,14 @@ public class ConnectionImpl implements Connection {
     public static final String OK_PROTO = _OK_OP_ + _CRLF_;
 
 
-    static enum ClientProto {
+    enum ClientProto {
         CLIENT_PROTO_ZERO(0), // CLIENT_PROTO_ZERO is the original client protocol from 2009.
         CLIENT_PROTO_INFO(1); // clientProtoInfo signals a client can receive more then the original
         // INFO block. This can be used to update clients on other cluster
         // members, etc.
         private final int value;
 
-        private ClientProto(int value) {
+        ClientProto(int value) {
             this.value = value;
         }
 
@@ -140,12 +139,12 @@ public class ConnectionImpl implements Connection {
     }
 
     private ConnectionImpl nc = null;
-    protected final Lock mu = new ReentrantLock();
+    final Lock mu = new ReentrantLock();
     // protected final Lock mu = new AlternateDeadlockDetectingLock(true, true);
 
-    private AtomicLong sidCounter = new AtomicLong();
+    private final AtomicLong sidCounter = new AtomicLong();
     private URI url = null;
-    protected Options opts = null;
+    Options opts = null;
 
     private TcpConnectionFactory tcf = null;
     TcpConnection conn = null;
@@ -164,16 +163,16 @@ public class ConnectionImpl implements Connection {
     private ByteArrayOutputStream pending = null;
 
     protected Map<Long, SubscriptionImpl> subs = new ConcurrentHashMap<Long, SubscriptionImpl>();
-    protected List<Srv> srvPool = null;
-    protected Map<String, URI> urls = null;
+    List<Srv> srvPool = null;
+    Map<String, URI> urls = null;
     private Exception lastEx = null;
     private ServerInfo info = null;
     private int pout;
 
-    protected Parser parser = new Parser(this);
+    Parser parser = new Parser(this);
 
-    protected byte[] pingProtoBytes = null;
-    protected int pingProtoBytesLen = 0;
+    byte[] pingProtoBytes = null;
+    int pingProtoBytesLen = 0;
     protected byte[] pongProtoBytes = null;
     protected int pongProtoBytesLen = 0;
     protected byte[] pubPrimBytes = null;
@@ -191,20 +190,20 @@ public class ConnectionImpl implements Connection {
 
     // The main executor service for core threads and timers
     ScheduledExecutorService exec;
-    protected static final String EXEC_NAME = "jnats-exec";
+    static final String EXEC_NAME = "jnats-exec";
 
     // Executor for subscription threads
     ExecutorService subexec;
-    protected static final String SUB_EXEC_NAME = "jnats-subscriptions";
+    static final String SUB_EXEC_NAME = "jnats-subscriptions";
 
     // Executor for async connection callbacks
     ExecutorService cbexec;
-    protected static final String CB_EXEC_NAME = "jnats-callbacks";
+    static final String CB_EXEC_NAME = "jnats-callbacks";
 
     // The ping timer task
     private ScheduledFuture<?> ptmr = null;
 
-    private List<Future<?>> tasks = new ArrayList<Future<?>>();
+    private final List<Future<?>> tasks = new ArrayList<Future<?>>();
     private static final int NUM_WATCHER_THREADS = 2;
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;
@@ -212,7 +211,8 @@ public class ConnectionImpl implements Connection {
     // The flusher signalling channel
     private BlockingQueue<Boolean> fch;
 
-    ConnectionImpl() {}
+    ConnectionImpl() {
+    }
 
     ConnectionImpl(Options opts) {
         Properties props = this.getProperties(Nats.PROP_PROPERTIES_FILENAME);
@@ -267,7 +267,7 @@ public class ConnectionImpl implements Connection {
         subs.clear();
     }
 
-    protected Properties getProperties(InputStream inputStream) {
+    Properties getProperties(InputStream inputStream) {
         Properties rv = new Properties();
         try {
             if (inputStream == null) {
@@ -282,7 +282,7 @@ public class ConnectionImpl implements Connection {
         return rv;
     }
 
-    protected Properties getProperties(String resourceName) {
+    Properties getProperties(String resourceName) {
         InputStream is = getClass().getClassLoader().getResourceAsStream(resourceName);
         return getProperties(is);
     }
@@ -300,7 +300,7 @@ public class ConnectionImpl implements Connection {
      * any Srv Options. We will randomize the server pool (except Url) unless the NoRandomize flag
      * is set.
      */
-    protected void setupServerPool() {
+    void setupServerPool() {
 
         final URI url;
         if (opts.getUrl() != null) {
@@ -361,7 +361,7 @@ public class ConnectionImpl implements Connection {
         urls.put(uri.getAuthority(), uri);
     }
 
-    protected Srv currentServer() {
+    Srv currentServer() {
         Srv rv = null;
         for (Srv s : srvPool) {
             if (s.url.equals(this.getUrl())) {
@@ -372,18 +372,18 @@ public class ConnectionImpl implements Connection {
         return rv;
     }
 
-    protected Srv selectNextServer() throws IOException {
+    Srv selectNextServer() throws IOException {
         Srv srv = currentServer();
         if (srv == null) {
             throw new IOException(ERR_NO_SERVERS);
         }
-        /**
+        /*
          * Pop the current server and put onto the end of the list. Select head of list as long as
          * number of reconnect attempts under MaxReconnect.
          */
         srvPool.remove(srv);
 
-        /**
+        /*
          * if the maxReconnect is unlimited, or the number of reconnect attempts is less than
          * maxReconnect, move the current server to the end of the list.
          *
@@ -401,15 +401,14 @@ public class ConnectionImpl implements Connection {
         return srvPool.get(0);
     }
 
-    protected Connection connect() throws IOException, TimeoutException {
+    Connection connect() throws IOException {
         // Create actual socket connection
         // For first connect we walk all servers in the pool and try
         // to connect immediately.
         IOException returnedErr = null;
         mu.lock();
         try {
-            for (int i = 0; i < srvPool.size(); i++) {
-                Srv srv = srvPool.get(i);
+            for (Srv srv : srvPool) {
                 this.setUrl(srv.url);
 
                 try {
@@ -460,7 +459,7 @@ public class ConnectionImpl implements Connection {
      * createConn will connect to the server and wrap the appropriate bufio structures. A new
      * connection is always created.
      */
-    protected void createConn() throws IOException, TimeoutException {
+    void createConn() throws IOException, TimeoutException {
         if (opts.getConnectionTimeout() < 0) {
             throw new IllegalArgumentException(ERR_BAD_TIMEOUT);
         }
@@ -648,7 +647,7 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    protected void processConnectInit() throws IOException {
+    void processConnectInit() throws IOException {
 
         // Set our status to connecting.
         status = CONNECTING;
@@ -687,12 +686,12 @@ public class ConnectionImpl implements Connection {
     // makeSecureConn will wrap an existing Conn using TLS
     void makeTlsConn() throws IOException {
         conn.setTlsDebug(opts.isTlsDebug());
-        conn.makeTLS(opts.getSslContext());
+        conn.makeTls(opts.getSslContext());
         bw = conn.getOutputStream(DEFAULT_STREAM_BUF_SIZE);
         br = conn.getInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
 
-    protected void processExpectedInfo() throws IOException {
+    void processExpectedInfo() throws IOException {
         Control control;
 
         try {
@@ -716,7 +715,7 @@ public class ConnectionImpl implements Connection {
 
     // processPing will send an immediate pong protocol response to the
     // server. The server uses this mechanism to detect dead clients.
-    protected void processPing() {
+    void processPing() {
         try {
             sendProto(pongProtoBytes, pongProtoBytesLen);
         } catch (IOException e) {
@@ -727,7 +726,7 @@ public class ConnectionImpl implements Connection {
 
     // processPong is used to process responses to the client's ping
     // messages. We use pings for the flush mechanism as well.
-    protected void processPong() {
+    void processPong() {
         BlockingQueue<Boolean> ch = createBooleanChannel(1);
         mu.lock();
         try {
@@ -750,14 +749,13 @@ public class ConnectionImpl implements Connection {
     }
 
     // processOK is a placeholder for processing OK messages.
-    protected void processOk() {
+    void processOk() {
         // NOOP;
-        return;
     }
 
     // processInfo is used to parse the info messages sent
     // from the server.
-    protected void processInfo(String infoString) {
+    void processInfo(String infoString) {
         if ((infoString == null) || infoString.isEmpty()) {
             return;
         }
@@ -776,7 +774,6 @@ public class ConnectionImpl implements Connection {
                 Collections.shuffle(srvPool);
             }
         }
-        return;
     }
 
     // processAsyncInfo does the same as processInfo, but is called
@@ -906,14 +903,14 @@ public class ConnectionImpl implements Connection {
 
     // flushReconnectPending will push the pending items that were
     // gathered while we were in a RECONNECTING state to the socket.
-    protected void flushReconnectPendingItems() {
+    void flushReconnectPendingItems() {
         if (pending == null) {
             return;
         }
 
         if (pending.size() > 0) {
             try {
-                bw.write(pending.toByteArray(), 0, (int) pending.size());
+                bw.write(pending.toByteArray(), 0, pending.size());
                 bw.flush();
             } catch (IOException e) {
                 logger.error("Error flushing pending items", e);
@@ -957,7 +954,7 @@ public class ConnectionImpl implements Connection {
             }
 
             while (!srvPool.isEmpty()) {
-                Srv cur = null;
+                Srv cur;
                 try {
                     cur = selectNextServer();
                     this.setUrl(cur.url);
@@ -1112,9 +1109,9 @@ public class ConnectionImpl implements Connection {
 
     // processErr processes any error messages from the server and
     // sets the connection's lastError.
-    protected void processErr(ByteBuffer error) {
+    void processErr(ByteBuffer error) {
         // boolean doCBs = false;
-        NATSException ex = null;
+        NATSException ex;
         String err = normalizeErr(error);
 
         if (STALE_CONNECTION.equalsIgnoreCase(err)) {
@@ -1136,7 +1133,7 @@ public class ConnectionImpl implements Connection {
 
     // caller must lock
     protected void sendConnect() throws IOException {
-        String line = null;
+        String line;
 
         // Send CONNECT
         bw.write(connectProto().getBytes());
@@ -1182,9 +1179,9 @@ public class ConnectionImpl implements Connection {
     }
 
     // This function is only used during the initial connection process
-    protected String readLine() throws IOException {
+    String readLine() throws IOException {
         BufferedReader breader = conn.getBufferedReader();
-        String line = null;
+        String line;
         line = breader.readLine();
         if (line == null) {
             throw new EOFException(ERR_CONNECTION_CLOSED);
@@ -1195,7 +1192,7 @@ public class ConnectionImpl implements Connection {
     /*
      * This method is only used by processPing. It is also used in the gnatsd tests.
      */
-    protected void sendProto(byte[] value, int length) throws IOException {
+    void sendProto(byte[] value, int length) throws IOException {
         mu.lock();
         try {
             bw.write(value, 0, length);
@@ -1240,19 +1237,17 @@ public class ConnectionImpl implements Connection {
                 opts.isSecure(), opts.getConnectionName(), LANG_STRING, version,
                 ClientProto.CLIENT_PROTO_INFO);
 
-        String result = String.format(CONN_PROTO, info);
-        return result;
+        return String.format(CONN_PROTO, info);
     }
 
-    protected Control readOp() throws IOException {
+    Control readOp() throws IOException {
         // This is only used when creating a connection, so simplify
         // life and just create a BufferedReader to read the incoming
         // info string.
         //
         // Do not close the BufferedReader; let TcpConnection manage it.
         String str = readLine();
-        Control control = new Control(str);
-        return control;
+        return new Control(str);
     }
 
     // waitForExits will wait for all socket watcher threads to
@@ -1331,7 +1326,7 @@ public class ConnectionImpl implements Connection {
         String op = null;
         String args = null;
 
-        protected Control(String line) {
+        Control(String line) {
             if (line == null) {
                 return;
             }
@@ -1360,25 +1355,25 @@ public class ConnectionImpl implements Connection {
 
     class ConnectInfo {
         @SerializedName("verbose")
-        private Boolean verbose;
+        private final Boolean verbose;
 
         @SerializedName("pedantic")
-        private Boolean pedantic;
+        private final Boolean pedantic;
 
         @SerializedName("user")
-        private String user;
+        private final String user;
 
         @SerializedName("pass")
-        private String pass;
+        private final String pass;
 
         @SerializedName("auth_token")
-        private String token;
+        private final String token;
 
         @SerializedName("tls_required")
-        private Boolean tlsRequired;
+        private final Boolean tlsRequired;
 
         @SerializedName("name")
-        private String name;
+        private final String name;
 
         @SerializedName("lang")
         private String lang = ConnectionImpl.LANG_STRING;
@@ -1387,19 +1382,20 @@ public class ConnectionImpl implements Connection {
         private String version = ConnectionImpl.this.version;
 
         @SerializedName("protocol")
-        private int protocol;
+        private final int protocol;
 
-        private transient Gson gson = new GsonBuilder().create();
+        private final transient Gson gson = new GsonBuilder().create();
 
         public ConnectInfo(boolean verbose, boolean pedantic, String username, String password,
-                String token, boolean secure, String connectionName, String lang, String version,
-                ClientProto proto) {
-            this.verbose = new Boolean(verbose);
-            this.pedantic = new Boolean(pedantic);
+                           String token, boolean secure, String connectionName, String lang,
+                           String version,
+                           ClientProto proto) {
+            this.verbose = verbose;
+            this.pedantic = pedantic;
             this.user = username;
             this.pass = password;
             this.token = token;
-            this.tlsRequired = new Boolean(secure);
+            this.tlsRequired = secure;
             this.name = connectionName;
             this.lang = lang;
             this.version = version;
@@ -1452,8 +1448,8 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    protected void readLoop() {
-        Parser parser = null;
+    void readLoop() {
+        Parser parser;
         int len;
         boolean sb;
         // stack copy
@@ -1508,11 +1504,11 @@ public class ConnectionImpl implements Connection {
     /**
      * waitForMsgs waits on the conditional shared with readLoop and processMsg. It is used to
      * deliver messages to asynchronous subscribers.
-     * 
+     *
      * @param sub the asynchronous subscriber
      * @throws InterruptedException if the thread is interrupted
      */
-    protected void waitForMsgs(AsyncSubscriptionImpl sub) throws InterruptedException {
+    void waitForMsgs(AsyncSubscriptionImpl sub) throws InterruptedException {
         boolean closed;
         long delivered = 0L;
         long max;
@@ -1568,12 +1564,12 @@ public class ConnectionImpl implements Connection {
      * processMsg is called by parse and will place the msg on the appropriate channel/pending queue
      * for processing. If the channel is full, or the pending queue is over the pending limits, the
      * connection is considered a slow consumer.
-     * 
-     * @param data the buffer containing the message body
+     *
+     * @param data   the buffer containing the message body
      * @param offset the offset within this buffer of the beginning of the message body
      * @param length the length of the message body
      */
-    protected void processMsg(byte[] data, int offset, int length) {
+    void processMsg(byte[] data, int offset, int length) {
         SubscriptionImpl sub;
 
         mu.lock();
@@ -1605,7 +1601,6 @@ public class ConnectionImpl implements Connection {
                 if ((sub.pMsgsLimit > 0 && sub.pMsgs > sub.pMsgsLimit)
                         || (sub.pBytesLimit > 0 && sub.pBytes > sub.pBytesLimit)) {
                     handleSlowConsumer(sub, msg);
-                    return;
                 } else {
                     // We use mch for everything, unlike Go client
                     if (sub.getChannel() != null) {
@@ -1615,7 +1610,6 @@ public class ConnectionImpl implements Connection {
                             sub.setSlowConsumer(false);
                         } else {
                             handleSlowConsumer(sub, msg);
-                            return;
                         }
                     }
                 }
@@ -1628,7 +1622,7 @@ public class ConnectionImpl implements Connection {
     }
 
     // Assumes you already have the lock
-    protected void handleSlowConsumer(SubscriptionImpl sub, Message msg) {
+    void handleSlowConsumer(SubscriptionImpl sub, Message msg) {
         sub.dropped++;
         processSlowConsumer(sub);
         sub.pMsgs--;
@@ -1688,7 +1682,7 @@ public class ConnectionImpl implements Connection {
     // removeFlushEntry is needed when we need to discard queued up responses
     // for our pings as part of a flush call. This happens when we have a flush
     // call outstanding and we call close.
-    protected boolean removeFlushEntry(BlockingQueue<Boolean> ch) {
+    boolean removeFlushEntry(BlockingQueue<Boolean> ch) {
         mu.lock();
         try {
             if (pongs == null) {
@@ -1710,7 +1704,7 @@ public class ConnectionImpl implements Connection {
     }
 
     // The lock must be held entering this function.
-    protected void sendPing(BlockingQueue<Boolean> ch) {
+    void sendPing(BlockingQueue<Boolean> ch) {
         if (pongs == null) {
             pongs = createPongs();
         }
@@ -1757,12 +1751,11 @@ public class ConnectionImpl implements Connection {
 
     ScheduledFuture<?> createPingTimer() {
         PingTimerTask pinger = new PingTimerTask();
-        ScheduledFuture<?> future = exec.scheduleWithFixedDelay(pinger, opts.getPingInterval(),
+        return exec.scheduleWithFixedDelay(pinger, opts.getPingInterval(),
                 opts.getPingInterval(), TimeUnit.MILLISECONDS);
-        return future;
     }
 
-    protected void resetPingTimer() {
+    void resetPingTimer() {
         mu.lock();
         try {
             if (ptmr != null) {
@@ -1779,14 +1772,14 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    protected void writeUnsubProto(SubscriptionImpl sub, long max) throws IOException {
+    void writeUnsubProto(SubscriptionImpl sub, long max) throws IOException {
         String str = String.format(UNSUB_PROTO, sub.getSid(), max > 0 ? Long.toString(max) : "");
         str = str.replaceAll(" +\r\n", "\r\n");
         byte[] unsub = str.getBytes();
         bw.write(unsub);
     }
 
-    protected void unsubscribe(SubscriptionImpl sub, int max) throws IOException {
+    void unsubscribe(SubscriptionImpl sub, int max) throws IOException {
         unsubscribe(sub, (long) max);
     }
 
@@ -1890,13 +1883,13 @@ public class ConnectionImpl implements Connection {
             mu.unlock();
         }
 
-        Boolean rv = null;
+        Boolean rv;
         while (!(Thread.currentThread().isInterrupted())) {
             try {
                 rv = ch.poll(timeout, TimeUnit.MILLISECONDS);
                 if (rv == null) {
                     err = new TimeoutException(ERR_TIMEOUT);
-                } else if (rv == true) {
+                } else if (rv) {
                     ch.clear();
                 } else {
                     err = new IllegalStateException(ERR_CONNECTION_CLOSED);
@@ -1926,7 +1919,7 @@ public class ConnectionImpl implements Connection {
 
     // resendSubscriptions will send our subscription state back to the
     // server. Used in reconnects
-    protected void resendSubscriptions() {
+    void resendSubscriptions() {
         long adjustedMax = 0L;
         for (Long key : subs.keySet()) {
             SubscriptionImpl sub = subs.get(key);
@@ -1970,15 +1963,15 @@ public class ConnectionImpl implements Connection {
 
     /**
      * subscribe is the internal subscribe function that indicates interest in a subject.
-     * 
+     *
      * @param subject the subject
-     * @param queue an optional subscription queue
-     * @param cb async callback
-     * @param ch channel
+     * @param queue   an optional subscription queue
+     * @param cb      async callback
+     * @param ch      channel
      * @return the Subscription object
      */
     SubscriptionImpl subscribe(String subject, String queue, MessageHandler cb,
-            BlockingQueue<Message> ch) {
+                               BlockingQueue<Message> ch) {
         final SubscriptionImpl sub;
         mu.lock();
         try {
@@ -2039,7 +2032,7 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public AsyncSubscription subscribe(String subject, MessageHandler cb) {
-        return (AsyncSubscriptionImpl) subscribe(subject, null, cb);
+        return subscribe(subject, null, cb);
     }
 
     @Override
@@ -2056,7 +2049,7 @@ public class ConnectionImpl implements Connection {
     @Override
     @Deprecated
     public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) {
-        return (AsyncSubscriptionImpl) subscribe(subj, null, cb);
+        return subscribe(subj, null, cb);
     }
 
     private void addSubscription(SubscriptionImpl sub) {
@@ -2066,13 +2059,13 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public SyncSubscription subscribeSync(String subject, String queue) {
-        return (SyncSubscription) subscribe(subject, queue, (MessageHandler) null,
+        return (SyncSubscription) subscribe(subject, queue, null,
                 createMsgChannel());
     }
 
     @Override
     public SyncSubscription subscribeSync(String subject) {
-        return (SyncSubscription) subscribe(subject, null, (MessageHandler) null,
+        return (SyncSubscription) subscribe(subject, null, null,
                 createMsgChannel());
     }
 
@@ -2102,7 +2095,7 @@ public class ConnectionImpl implements Connection {
     }
 
     // Used for handrolled itoa
-    static final byte[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+    static final byte[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 
     // The internal publish operation sends a protocol data message by queueing into the buffered
     // OutputStream and kicking the flush go routine. These writes should be protected.
@@ -2208,7 +2201,7 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public void publish(String subject, byte[] data) throws IOException {
-        publish(subject, (String) null, data);
+        publish(subject, null, data);
     }
 
     @Override
@@ -2253,8 +2246,7 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public String newInbox() {
-        String inbox = String.format("%s%s", inboxPrefix, NUID.nextGlobal());
-        return inbox;
+        return String.format("%s%s", inboxPrefix, NUID.nextGlobal());
     }
 
     @Override
@@ -2273,7 +2265,7 @@ public class ConnectionImpl implements Connection {
     }
 
     // Assumes already have the lock
-    protected void sendSubscriptionMessage(SubscriptionImpl sub) {
+    void sendSubscriptionMessage(SubscriptionImpl sub) {
         // We will send these for all subs when we reconnect
         // so that we can suppress here.
         String queue = sub.getQueue();
@@ -2420,7 +2412,7 @@ public class ConnectionImpl implements Connection {
         this.lastEx = err;
     }
 
-    protected Options getOptions() {
+    Options getOptions() {
         return this.opts;
     }
 
@@ -2463,29 +2455,29 @@ public class ConnectionImpl implements Connection {
     }
 
 
-    protected ArrayList<BlockingQueue<Boolean>> getPongs() {
+    ArrayList<BlockingQueue<Boolean>> getPongs() {
         return pongs;
     }
 
-    protected void setPongs(ArrayList<BlockingQueue<Boolean>> pongs) {
+    void setPongs(ArrayList<BlockingQueue<Boolean>> pongs) {
         this.pongs = pongs;
     }
 
-    protected Map<Long, SubscriptionImpl> getSubs() {
+    Map<Long, SubscriptionImpl> getSubs() {
         return subs;
     }
 
-    protected void setSubs(Map<Long, SubscriptionImpl> subs) {
+    void setSubs(Map<Long, SubscriptionImpl> subs) {
         this.subs = subs;
     }
 
     // for testing purposes
-    protected List<Srv> getServerPool() {
+    List<Srv> getServerPool() {
         return this.srvPool;
     }
 
     // for testing purposes
-    protected void setServerPool(List<Srv> pool) {
+    void setServerPool(List<Srv> pool) {
         this.srvPool = pool;
     }
 
@@ -2506,19 +2498,19 @@ public class ConnectionImpl implements Connection {
         return fch;
     }
 
-    protected void setTcpConnection(TcpConnection conn) {
+    void setTcpConnection(TcpConnection conn) {
         this.conn = conn;
     }
 
-    protected TcpConnection getTcpConnection() {
+    TcpConnection getTcpConnection() {
         return this.conn;
     }
 
-    protected void setTcpConnectionFactory(TcpConnectionFactory factory) {
+    void setTcpConnectionFactory(TcpConnectionFactory factory) {
         this.tcf = factory;
     }
 
-    protected TcpConnectionFactory getTcpConnectionFactory() {
+    TcpConnectionFactory getTcpConnectionFactory() {
         return this.tcf;
     }
 
@@ -2548,11 +2540,11 @@ public class ConnectionImpl implements Connection {
 
     String[] getServers(boolean implicitOnly) {
         List<String> serversList = new ArrayList<String>(srvPool.size());
-        for (int i = 0; i < srvPool.size(); i++) {
-            if (implicitOnly && !srvPool.get(i).isImplicit()) {
+        for (Srv aSrvPool : srvPool) {
+            if (implicitOnly && !aSrvPool.isImplicit()) {
                 continue;
             }
-            URI url = srvPool.get(i).url;
+            URI url = aSrvPool.url;
             String schemeUrl =
                     String.format("%s://%s:%d", url.getScheme(), url.getHost(), url.getPort());
             serversList.add(schemeUrl);

@@ -1,22 +1,29 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.examples;
 
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.Subscription;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.text.DateFormat;
-import java.text.FieldPosition;
-import java.text.ParsePosition;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Replier {
     static final Logger log = LoggerFactory.getLogger(Replier.class);
@@ -60,9 +67,12 @@ public class Replier {
                     delivered.incrementAndGet();
                     try {
                         start.await();
-                        String dateStr = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new Date());
-                        System.out.printf("%s [#%d] Received on [%s]: '%s'\n", showTime ? dateStr : "", delivered.get(),
-                                msg.getSubject(), msg.getData() != null ? new String(msg.getData()) : "null");
+                        String dateStr = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new
+                                Date());
+                        System.out.printf("%s [#%d] Received on [%s]: '%s'\n", showTime ? dateStr
+                                        : "", delivered.get(),
+                                msg.getSubject(), msg.getData() != null ? new String(msg.getData
+                                        ()) : "null");
                         nc.publish(msg.getReplyTo(), reply.getBytes());
                         nc.flush();
                     } catch (Exception e) {
@@ -97,7 +107,8 @@ public class Replier {
 
     public void parseArgs(String[] args) {
         if (args == null || args.length < 2) {
-            throw new IllegalArgumentException("must supply at least a subject name and a reply msg");
+            throw new IllegalArgumentException("must supply at least a subject name and a reply " +
+                    "msg");
         }
 
         List<String> argList = new ArrayList<String>(Arrays.asList(args));
@@ -144,7 +155,8 @@ public class Replier {
                     showTime = true;
                     continue;
                 default:
-                    throw new IllegalArgumentException(String.format("Unexpected token: '%s'", arg));
+                    throw new IllegalArgumentException(String.format("Unexpected token: '%s'",
+                            arg));
             }
         }
     }

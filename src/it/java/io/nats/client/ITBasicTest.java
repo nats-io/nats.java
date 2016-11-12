@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -25,8 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
-import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -54,27 +52,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import ch.qos.logback.classic.Level;
+
 @Category(IntegrationTest.class)
 public class ITBasicTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     static final Logger logger = LoggerFactory.getLogger(ITBasicTest.class);
 
-    static final LogVerifier verifier = new LogVerifier();
+    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
-    public ExpectedException thrown = ExpectedException.none();
+    public final ExpectedException thrown = ExpectedException.none();
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
-    ExecutorService executor = Executors.newCachedThreadPool();
+    private final ExecutorService executor = Executors.newCachedThreadPool();
     UnitTestUtilities utils = new UnitTestUtilities();
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -142,7 +144,7 @@ public class ITBasicTest {
         try (NatsServer srv = runDefaultServer()) {
             Options opts = new Options.Builder(defaultOptions()).timeout(-1).build();
             try (Connection conn = Nats.connect(Nats.DEFAULT_URL, opts)) {
-
+                fail("Should not have connected");
             }
         }
     }
@@ -353,7 +355,7 @@ public class ITBasicTest {
                     }
                 })) {
                     sleep(200);
-                    c.publish("foo", "bar", (byte[]) null);
+                    c.publish("foo", "bar", null);
                     assertTrue("Message not received.", await(latch));
                 }
             }
@@ -367,7 +369,7 @@ public class ITBasicTest {
             try (Connection c = newDefaultConnection()) {
                 try (SyncSubscription s = c.subscribeSync("foo")) {
                     sleep(500);
-                    c.publish("foo", replyExpected, (byte[]) null);
+                    c.publish("foo", replyExpected, null);
                     Message m = null;
                     try {
                         m = s.nextMessage(1000);
@@ -403,7 +405,7 @@ public class ITBasicTest {
                     }
                 })) {
                     for (int i = 0; i < max; i++) {
-                        c.publish("foo", null, (byte[]) null);
+                        c.publish("foo", null, null);
                     }
                     sleep(100);
                     c.flush();
@@ -425,11 +427,7 @@ public class ITBasicTest {
             try (Connection c = newDefaultConnection()) {
                 try (SyncSubscription s = c.subscribeSync("foo")) {
                     s.unsubscribe();
-                    try {
-                        s.unsubscribe();
-                    } catch (IllegalStateException e) {
-                        throw e;
-                    }
+                    s.unsubscribe();
                 }
             }
         }
@@ -582,7 +580,7 @@ public class ITBasicTest {
             try (Connection c = newDefaultConnection()) {
                 String inbox = c.newInbox();
                 assertFalse("inbox was null or whitespace",
-                        inbox.equals(null) || inbox.trim().length() == 0);
+                        inbox == null || inbox.trim().length() == 0);
                 assertTrue("Bad INBOX format", inbox.startsWith("_INBOX."));
             }
         }
@@ -608,7 +606,8 @@ public class ITBasicTest {
 
                 // Test both sync and async versions of subscribe.
                 try (AsyncSubscription s1 = c.subscribe("foo", new MessageHandler() {
-                    public void onMessage(Message msg) {}
+                    public void onMessage(Message msg) {
+                    }
                 })) {
                     try (SyncSubscription s2 = c.subscribeSync("foo")) {
                         for (int i = 0; i < iter; i++) {
@@ -756,7 +755,7 @@ public class ITBasicTest {
                     }
                 })) {
 
-                    c.publish(subject, reply, (byte[]) null);
+                    c.publish(subject, reply, null);
                     try {
                         c.flush();
                     } catch (Exception e) {

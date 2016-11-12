@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -10,8 +10,6 @@ import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -26,12 +24,14 @@ import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ch.qos.logback.classic.Level;
+
 @Category(UnitTest.class)
 public class AsyncSubscriptionImplTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     static final Logger logger = LoggerFactory.getLogger(AsyncSubscriptionImplTest.class);
 
-    static final LogVerifier verifier = new LogVerifier();
+    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -46,10 +46,12 @@ public class AsyncSubscriptionImplTest {
     public MessageHandler mcbMock;
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -77,16 +79,15 @@ public class AsyncSubscriptionImplTest {
     // fail("Not yet implemented"); // TODO
     // }
     //
-     @Test
-     public void testStart() {
-         // Make sure the connection opts aren't null
-         when(connMock.getOptions()).thenReturn(Nats.defaultOptions());
+    @Test
+    public void testStart() {
+        // Make sure the connection opts aren't null
+        when(connMock.getOptions()).thenReturn(Nats.defaultOptions());
 
-         AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(connMock, "foo", "bar", mcbMock);
-         // Just for the sake of coverage, even though it's a NOOP
-         sub.start();
-     }
-
+        AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(connMock, "foo", "bar", mcbMock);
+        // Just for the sake of coverage, even though it's a NOOP
+        sub.start();
+    }
 
 
     @Test
@@ -100,7 +101,8 @@ public class AsyncSubscriptionImplTest {
             assertTrue(s.isValid());
             s.setMessageHandler(new MessageHandler() {
                 @Override
-                public void onMessage(Message msg) {}
+                public void onMessage(Message msg) {
+                }
             });
         }
     }
