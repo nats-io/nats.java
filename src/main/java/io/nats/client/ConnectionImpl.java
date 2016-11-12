@@ -203,7 +203,7 @@ public class ConnectionImpl implements Connection {
     // The ping timer task
     private ScheduledFuture<?> ptmr = null;
 
-    private final List<Future<?>> tasks = new ArrayList<Future<?>>();
+    private final List<Future<?>> tasks = new ArrayList<>();
     private static final int NUM_WATCHER_THREADS = 2;
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;

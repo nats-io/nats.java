@@ -46,11 +46,8 @@ class SampleGroup extends Sample {
      * @return the minimum of the message rates in the SampleGroup
      */
     public long minRate() {
-        Long min = null;
+        long min = (samples.isEmpty() ? 0L : samples.get(0).rate());
         for (Sample s : samples) {
-            if (min == null) {
-                min = s.rate();
-            }
             min = Math.min(min, s.rate());
         }
         return min;
@@ -62,11 +59,8 @@ class SampleGroup extends Sample {
      * @return the maximum of the message rates in the SampleGroup
      */
     public long maxRate() {
-        Long max = null;
+        long max = (samples.isEmpty() ? 0L : samples.get(0).rate());
         for (Sample s : samples) {
-            if (max == null) {
-                max = s.rate();
-            }
             max = Math.max(max, s.rate());
         }
         return max;
