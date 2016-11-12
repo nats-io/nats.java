@@ -373,7 +373,6 @@ public class ConnectionImpl implements Connection {
     }
 
     protected Srv selectNextServer() throws IOException {
-        logger.trace("In selectNextServer()");
         Srv srv = currentServer();
         if (srv == null) {
             throw new IOException(ERR_NO_SERVERS);
@@ -382,7 +381,6 @@ public class ConnectionImpl implements Connection {
          * Pop the current server and put onto the end of the list. Select head of list as long as
          * number of reconnect attempts under MaxReconnect.
          */
-        logger.trace("selectNextServer, removing {}", srv);
         srvPool.remove(srv);
 
         /**
@@ -392,7 +390,6 @@ public class ConnectionImpl implements Connection {
          */
         int maxReconnect = opts.getMaxReconnect();
         if ((maxReconnect < 0) || (srv.reconnects < maxReconnect)) {
-            logger.trace("selectNextServer: adding {}, maxReconnect: {}", srv, maxReconnect);
             srvPool.add(srv);
         }
 
@@ -422,14 +419,11 @@ public class ConnectionImpl implements Connection {
                     this.setup();
                     try {
                         processConnectInit();
-                        logger.trace("connect() Resetting reconnects for {}", srv);
                         srv.reconnects = 0;
                         returnedErr = null;
                         break;
                     } catch (IOException e) {
                         returnedErr = e;
-                        // e.printStackTrace();
-                        logger.trace("{} Exception: {}", this.getUrl(), e.getMessage());
                         mu.unlock();
                         close(DISCONNECTED, false);
                         mu.lock();
@@ -477,10 +471,8 @@ public class ConnectionImpl implements Connection {
             srv.updateLastAttempt();
         }
 
-        logger.trace("createConn(): {}", srv.url);
-
         try {
-            logger.trace("Opening {}", srv.url);
+            logger.debug("Opening {}", srv.url);
             conn = tcf.createConnection();
             conn.open(srv.url.toString(), opts.getConnectionTimeout());
             logger.trace("Opened {} as TcpConnection ({})", srv.url, conn);
@@ -490,7 +482,6 @@ public class ConnectionImpl implements Connection {
         }
 
         if ((pending != null) && (bw != null)) {
-            logger.trace("Flushing old outputstream to pending");
             try {
                 bw.flush();
             } catch (IOException e) {
@@ -565,7 +556,7 @@ public class ConnectionImpl implements Connection {
 
         mu.lock();
         try {
-            if (_isClosed()) {
+            if (closed()) {
                 this.status = closeState;
                 return;
             }
@@ -593,7 +584,6 @@ public class ConnectionImpl implements Connection {
                 }
             }
 
-            logger.trace("Closing subscriptions");
             // Close sync subscribers and release any pending nextMsg() calls.
             for (Map.Entry<Long, SubscriptionImpl> entry : subs.entrySet()) {
                 SubscriptionImpl sub = entry.getValue();
@@ -616,9 +606,9 @@ public class ConnectionImpl implements Connection {
 
             // perform appropriate callback if needed for a disconnect;
             if (doCBs) {
-                Future<?> future = null;
                 if (opts.getDisconnectedCallback() != null && conn != null) {
-                    future = cbexec.submit(new Runnable() {
+                    cbexec.submit(new Runnable() {
+                        @Override
                         public void run() {
                             opts.getDisconnectedCallback().onDisconnect(new ConnectionEvent(nc));
                             logger.trace("executed DisconnectedCB");
@@ -626,24 +616,16 @@ public class ConnectionImpl implements Connection {
                     });
                 }
                 if (opts.getClosedCallback() != null) {
-                    future = cbexec.submit(new Runnable() {
-
+                    cbexec.submit(new Runnable() {
+                        @Override
                         public void run() {
                             opts.getClosedCallback().onClose(new ConnectionEvent(nc));
                             logger.trace("executed ClosedCB");
                         }
-
                     });
                 }
-                if (future != null) {
-                    try {
-                        future.get();
-                    } catch (Exception e) {
-                        logger.debug("Exception waiting for disconnected or closed callback to complete", e);
-                    }
-                }
                 if (cbexec != null) {
-                    cbexec.shutdownNow();
+                    cbexec.shutdown();
                 }
             }
 
@@ -667,7 +649,6 @@ public class ConnectionImpl implements Connection {
     }
 
     protected void processConnectInit() throws IOException {
-        logger.trace("processConnectInit(): {}", this.getUrl());
 
         // Set our status to connecting.
         status = CONNECTING;
@@ -747,7 +728,6 @@ public class ConnectionImpl implements Connection {
     // processPong is used to process responses to the client's ping
     // messages. We use pings for the flush mechanism as well.
     protected void processPong() {
-        logger.trace("Processing PONG");
         BlockingQueue<Boolean> ch = createBooleanChannel(1);
         mu.lock();
         try {
@@ -767,7 +747,6 @@ public class ConnectionImpl implements Connection {
                 Thread.currentThread().interrupt();
             }
         }
-        logger.trace("Processed PONG");
     }
 
     // processOK is a placeholder for processing OK messages.
@@ -820,7 +799,7 @@ public class ConnectionImpl implements Connection {
     void processOpError(Exception err) {
         mu.lock();
         try {
-            if (isConnecting() || _isClosed() || _isReconnecting()) {
+            if (connecting() || closed() || reconnecting()) {
                 return;
             }
 
@@ -850,12 +829,9 @@ public class ConnectionImpl implements Connection {
 
                 // Create a new pending buffer to underpin the buffered output
                 // stream while we are reconnecting.
-                logger.trace("processOpError: redirecting output to pending buffer");
 
                 setPending(new ByteArrayOutputStream(opts.getReconnectBufSize()));
                 setOutputStream(getPending());
-
-                logger.trace("\t\tspawning doReconnect() in state {}", status);
 
                 if (exec.isShutdown()) {
                     exec = createScheduler();
@@ -870,10 +846,7 @@ public class ConnectionImpl implements Connection {
                     cbexec = Executors
                             .newSingleThreadExecutor(new NatsThreadFactory("callback-thread"));
                 }
-                logger.trace("\t\tspawned doReconnect() in state {}", status);
-                return;
             } else {
-                logger.trace("\t\tcalling processDisconnect() in state {}", status);
                 processDisconnect();
                 setLastError(err);
                 close();
@@ -892,13 +865,13 @@ public class ConnectionImpl implements Connection {
     public boolean isReconnecting() {
         mu.lock();
         try {
-            return _isReconnecting();
+            return reconnecting();
         } finally {
             mu.unlock();
         }
     }
 
-    boolean _isReconnecting() {
+    boolean reconnecting() {
         return (status == RECONNECTING);
     }
 
@@ -906,13 +879,13 @@ public class ConnectionImpl implements Connection {
     public boolean isConnected() {
         mu.lock();
         try {
-            return _isConnected();
+            return connected();
         } finally {
             mu.unlock();
         }
     }
 
-    private boolean _isConnected() {
+    private boolean connected() {
         // Test if Conn is connected or connecting.
         return (status == CONNECTING || status == CONNECTED);
     }
@@ -921,27 +894,25 @@ public class ConnectionImpl implements Connection {
     public boolean isClosed() {
         mu.lock();
         try {
-            return _isClosed();
+            return closed();
         } finally {
             mu.unlock();
         }
     }
 
-    boolean _isClosed() {
+    boolean closed() {
         return (status == CLOSED);
     }
 
     // flushReconnectPending will push the pending items that were
     // gathered while we were in a RECONNECTING state to the socket.
     protected void flushReconnectPendingItems() {
-        logger.trace("flushReconnectPendingItems()");
         if (pending == null) {
             return;
         }
 
         if (pending.size() > 0) {
             try {
-                logger.trace("flushReconnectPendingItems() writing {} bytes.", pending.size());
                 bw.write(pending.toByteArray(), 0, (int) pending.size());
                 bw.flush();
             } catch (IOException e) {
@@ -950,7 +921,6 @@ public class ConnectionImpl implements Connection {
         }
 
         pending = null;
-        logger.trace("flushReconnectPendingItems() DONE");
     }
 
     // Try to reconnect using the option parameters.
@@ -992,7 +962,6 @@ public class ConnectionImpl implements Connection {
                     cur = selectNextServer();
                     this.setUrl(cur.url);
                 } catch (IOException nse) {
-                    logger.trace("doReconnect() calling setLastError({})", nse.getMessage());
                     setLastError(nse);
                     break;
                 }
@@ -1024,14 +993,10 @@ public class ConnectionImpl implements Connection {
                 // Mark that we tried a reconnect
                 cur.reconnects++;
 
-                logger.trace("doReconnect() incremented cur.reconnects: {}", cur);
-                logger.trace("doReconnect: trying createConn() for {}", cur);
-
                 // try to create a new connection
                 try {
                     conn.teardown();
                     createConn();
-                    logger.trace("doReconnect: createConn() successful for {}", cur);
                 } catch (Exception e) {
                     conn.teardown();
                     logger.trace("doReconnect: createConn() failed for {}", cur);
@@ -1067,7 +1032,7 @@ public class ConnectionImpl implements Connection {
 
                 // Now send off and clear pending buffer
                 flushReconnectPendingItems();
-                logger.debug("just called flushReconnectPendingItems");
+
                 // Flush the buffer
                 try {
                     getOutputStream().flush();
@@ -1086,14 +1051,14 @@ public class ConnectionImpl implements Connection {
 
                 // Queue up the reconnect callback.
                 if (opts.getReconnectedCallback() != null) {
-                    logger.trace("Spawning reconnectedCb from doReconnect()");
+                    logger.trace("Scheduling reconnectedCb from doReconnect()");
                     cbexec.submit(new Runnable() {
 
                         public void run() {
                             opts.getReconnectedCallback().onReconnect(new ConnectionEvent(nc));
                         }
                     });
-                    logger.trace("Spawned reconnectedCb from doReconnect()");
+                    logger.trace("Scheduled reconnectedCb from doReconnect()");
                 }
 
                 // Release the lock here, we will return below
@@ -1108,7 +1073,6 @@ public class ConnectionImpl implements Connection {
                 } finally {
                     mu.lock();
                 }
-                logger.trace("doReconnect reconnected successfully!");
                 return;
             } // while
 
@@ -1122,12 +1086,10 @@ public class ConnectionImpl implements Connection {
             mu.unlock();
         }
 
-        logger.trace("Calling   close() from doReconnect()");
         close();
-        logger.trace("Completed close() from doReconnect()");
     }
 
-    boolean isConnecting() {
+    boolean connecting() {
         return (status == CONNECTING);
     }
 
@@ -1155,8 +1117,6 @@ public class ConnectionImpl implements Connection {
         NATSException ex = null;
         String err = normalizeErr(error);
 
-        logger.trace("processErr(error={})", err);
-
         if (STALE_CONNECTION.equalsIgnoreCase(err)) {
             processOpError(new IOException(ERR_STALE_CONNECTION));
         } else if (err.startsWith(PERMISSIONS_ERR)) {
@@ -1178,11 +1138,8 @@ public class ConnectionImpl implements Connection {
     protected void sendConnect() throws IOException {
         String line = null;
 
-        logger.trace("sendConnect()");
-
         // Send CONNECT
         bw.write(connectProto().getBytes());
-        logger.trace("=> {}", connectProto().trim());
         bw.flush();
 
         // Process +OK
@@ -1196,12 +1153,10 @@ public class ConnectionImpl implements Connection {
 
         // Send PING
         bw.write(pingProtoBytes, 0, pingProtoBytesLen);
-        logger.trace("=> {}", new String(pingProtoBytes).trim());
         bw.flush();
 
         // Now read the response from the server.
         try {
-            logger.trace("Awaiting PONG...");
             line = readLine();
         } catch (IOException e) {
             throw new IOException(ERR_CONNECTION_READ, e);
@@ -1229,26 +1184,21 @@ public class ConnectionImpl implements Connection {
     // This function is only used during the initial connection process
     protected String readLine() throws IOException {
         BufferedReader breader = conn.getBufferedReader();
-        String s = null;
-        logger.trace("readLine() Reading from input stream");
-        s = breader.readLine();
-        if (s == null) {
+        String line = null;
+        line = breader.readLine();
+        if (line == null) {
             throw new EOFException(ERR_CONNECTION_CLOSED);
         }
-        logger.trace("<= {}", s != null ? s.trim() : "null");
-        return s;
+        return line;
     }
 
     /*
      * This method is only used by processPing. It is also used in the gnatsd tests.
      */
     protected void sendProto(byte[] value, int length) throws IOException {
-        logger.trace("in sendProto()");
         mu.lock();
         try {
-            logger.trace("in sendProto(), writing");
             bw.write(value, 0, length);
-            logger.trace("=> {}", new String(value).trim());
             kickFlusher();
         } finally {
             mu.unlock();
@@ -1302,7 +1252,6 @@ public class ConnectionImpl implements Connection {
         // Do not close the BufferedReader; let TcpConnection manage it.
         String str = readLine();
         Control control = new Control(str);
-        logger.trace("readOp returning: " + control);
         return control;
     }
 
@@ -1324,7 +1273,6 @@ public class ConnectionImpl implements Connection {
     }
 
     protected void spinUpSocketWatchers() {
-        logger.trace("Spinning up threads");
         // Make sure everything has exited.
 
         waitForExits();
@@ -1383,12 +1331,12 @@ public class ConnectionImpl implements Connection {
         String op = null;
         String args = null;
 
-        protected Control(String s) {
-            if (s == null) {
+        protected Control(String line) {
+            if (line == null) {
                 return;
             }
 
-            String[] parts = s.split(" ", 2);
+            String[] parts = line.split(" ", 2);
 
             switch (parts.length) {
                 case 1:
@@ -1524,7 +1472,7 @@ public class ConnectionImpl implements Connection {
         while (true) {
             mu.lock();
             try {
-                sb = (_isClosed() || _isReconnecting());
+                sb = (closed() || reconnecting());
                 if (sb) {
                     parser.ps = parser.new ParseState();
                 }
@@ -1773,7 +1721,6 @@ public class ConnectionImpl implements Connection {
 
         try {
             bw.write(pingProtoBytes, 0, pingProtoBytesLen);
-            logger.trace("=> {}", new String(pingProtoBytes).trim());
             bw.flush();
         } catch (IOException e) {
             setLastError(e);
@@ -1837,7 +1784,6 @@ public class ConnectionImpl implements Connection {
         str = str.replaceAll(" +\r\n", "\r\n");
         byte[] unsub = str.getBytes();
         bw.write(unsub);
-        logger.trace("=> {}", str.trim());
     }
 
     protected void unsubscribe(SubscriptionImpl sub, int max) throws IOException {
@@ -1853,23 +1799,23 @@ public class ConnectionImpl implements Connection {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
-            SubscriptionImpl s = subs.get(sub.getSid());
+            SubscriptionImpl subscription = subs.get(sub.getSid());
             // already unsubscribed
-            if (s == null) {
+            if (subscription == null) {
                 return;
             }
 
             // If the autounsubscribe max is > 0, set that on the subscription
             if (max > 0) {
-                s.setMax(max);
+                subscription.setMax(max);
             } else {
-                removeSub(s);
+                removeSub(subscription);
             }
 
             // We will send all subscriptions when reconnecting
             // so that we can suppress here.
-            if (!_isReconnecting()) {
-                writeUnsubProto(s, max);
+            if (!reconnecting()) {
+                writeUnsubProto(subscription, max);
             }
 
             kickFlusher();
@@ -1898,13 +1844,12 @@ public class ConnectionImpl implements Connection {
         if (conn == null || bw == null) {
             return;
         }
-        logger.trace("entering flusher loop...");
+
         while (fch.take()) {
             mu.lock();
             try {
-                // logger.info("Flushing output stream...");
                 // Check to see if we should bail out.
-                if (!_isConnected() || isConnecting() || bw != this.bw || conn != this.conn) {
+                if (!connected() || connecting() || bw != this.bw || conn != this.conn) {
                     return;
                 }
                 bw.flush();
@@ -1935,7 +1880,7 @@ public class ConnectionImpl implements Connection {
         BlockingQueue<Boolean> ch = null;
         mu.lock();
         try {
-            if (_isClosed()) {
+            if (closed()) {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
@@ -1988,10 +1933,9 @@ public class ConnectionImpl implements Connection {
             if (sub instanceof AsyncSubscription) {
                 ((AsyncSubscriptionImpl) sub).start(); // enableAsyncProcessing()
             }
-            logger.trace("Resending subscriptions:");
+
             sub.lock();
             try {
-                logger.trace("Sub = {}", sub);
                 if (sub.max > 0) {
                     if (sub.delivered < sub.max) {
                         adjustedMax = sub.max - sub.delivered;
@@ -2039,7 +1983,7 @@ public class ConnectionImpl implements Connection {
         mu.lock();
         try {
             // Check for some error conditions.
-            if (_isClosed()) {
+            if (closed()) {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
@@ -2071,7 +2015,7 @@ public class ConnectionImpl implements Connection {
             addSubscription(sub);
 
             // Send SUB proto
-            if (!_isReconnecting()) {
+            if (!reconnecting()) {
                 sendSubscriptionMessage(sub);
             }
 
@@ -2118,7 +2062,6 @@ public class ConnectionImpl implements Connection {
     private void addSubscription(SubscriptionImpl sub) {
         sub.setSid(sidCounter.incrementAndGet());
         subs.put(sub.getSid(), sub);
-        logger.trace("Successfully added subscription to {} [{}]", sub.getSubject(), sub.getSid());
     }
 
     @Override
@@ -2174,13 +2117,13 @@ public class ConnectionImpl implements Connection {
 
             // Since we have the lock, examine directly for a tiny performance
             // boost in fastpath
-            if (_isClosed()) {
+            if (closed()) {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
 
             // Check if we are reconnecting, and if so check if
             // we have exceeded our reconnect outbound buffer limits.
-            if (_isReconnecting()) {
+            if (reconnecting()) {
                 // Flush to underlying buffer
                 try {
                     bw.flush();
@@ -2338,7 +2281,6 @@ public class ConnectionImpl implements Connection {
                 (queue != null && !queue.isEmpty()) ? " " + queue : "", sub.getSid());
         try {
             bw.write(subLine.getBytes());
-            // logger.trace("=> {}", s.trim() );
         } catch (IOException e) {
             logger.warn("nats: I/O exception while sending subscription message");
         }

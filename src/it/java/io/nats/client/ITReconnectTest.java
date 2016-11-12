@@ -8,9 +8,7 @@ package io.nats.client;
 
 import static io.nats.client.Nats.ConnState.CONNECTED;
 import static io.nats.client.Nats.ConnState.RECONNECTING;
-import static io.nats.client.UnitTestUtilities.await;
-import static io.nats.client.UnitTestUtilities.runServerOnPort;
-import static io.nats.client.UnitTestUtilities.sleep;
+import static io.nats.client.UnitTestUtilities.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -18,6 +16,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 
+import ch.qos.logback.classic.Level;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -96,73 +95,41 @@ public class ITReconnectTest {
         }
     }
 
-    @Test (timeout = 5000)
-    public void testReconnectAllowedFlags() {
-        final int maxRecon = 2;
-        final long reconWait = TimeUnit.SECONDS.toMillis(1);
-        ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
-        cf.setReconnectAllowed(true);
-        cf.setMaxReconnect(maxRecon);
-        cf.setReconnectWait(reconWait);
-
-        final CountDownLatch ccLatch = new CountDownLatch(1);
-        final CountDownLatch dcLatch = new CountDownLatch(1);
-
+    @Test
+    public void testReconnectAllowedFlags() throws Exception {
+        Options opts = new Options.Builder(Nats.defaultOptions())
+                .maxReconnect(2)
+                .reconnectWait(1, TimeUnit.SECONDS)
+                .build();
         try (NatsServer ts = runServerOnPort(22222)) {
-            final AtomicInteger ccbCount = new AtomicInteger(0);
-            final AtomicLong ccbTime = new AtomicLong(0L);
-            final AtomicLong dcbTime = new AtomicLong(0L);
-            try (final ConnectionImpl c = (ConnectionImpl) cf.createConnection()) {
+            final CountDownLatch ccLatch = new CountDownLatch(1);
+            final CountDownLatch dcLatch = new CountDownLatch(1);
+            try (final ConnectionImpl c = (ConnectionImpl) Nats.connect("nats://localhost:22222", opts)) {
                 c.setClosedCallback(new ClosedCallback() {
                     public void onClose(ConnectionEvent event) {
-                        ccbTime.set(System.nanoTime());
-                        long closeInterval =
-                                TimeUnit.NANOSECONDS.toMillis(ccbTime.get() - dcbTime.get());
-                        // Check to ensure that the disconnect cb fired first
-                        assertTrue((dcbTime.get() - ccbTime.get()) < 0);
-                        assertNotEquals("ClosedCB triggered prematurely.", 0L, dcbTime);
-                        ccbCount.incrementAndGet();
                         ccLatch.countDown();
-                        assertTrue(c.isClosed());
                     }
                 });
 
                 c.setDisconnectedCallback(new DisconnectedCallback() {
                     public void onDisconnect(ConnectionEvent event) {
-                        // Check to ensure that the closed cb didn't fire first
-                        dcbTime.set(System.nanoTime());
-                        assertTrue((dcbTime.get() - ccbTime.get()) > 0);
-                        assertEquals("ClosedCB triggered prematurely.", 0, ccbCount.get());
                         dcLatch.countDown();
-                        // assertFalse(c.isClosed());
-                        logger.debug("Signaled disconnect");
                     }
                 });
-
-                assertFalse(c.isClosed());
 
                 ts.shutdown();
 
                 // We want wait to timeout here, and the connection
-                // should not trigger the Close CB.
-                assertEquals(0, ccbCount.get());
-                assertFalse(await(ccLatch, 500, TimeUnit.MILLISECONDS));
+                // should not trigger the Closed CB.
+                assertFalse("ClosedCB should not be triggered yet", ccLatch.await(500, TimeUnit.MILLISECONDS));
 
 
                 // We should wait to get the disconnected callback to ensure
                 // that we are in the process of reconnecting.
-                assertTrue("DisconnectedCB should have been triggered.", await(dcLatch));
+                assertTrue("DisconnectedCB should have been triggered", dcLatch.await(2, TimeUnit.SECONDS));
 
                 assertTrue("Expected to be in a reconnecting state", c.isReconnecting());
-
-                // assertEquals(1, cch.getCount());
-                // assertTrue(UnitTestUtilities.waitTime(cch, 1000, TimeUnit.MILLISECONDS));
-
-            } // Connection
-            catch (IOException | TimeoutException e1) {
-                fail("Should have connected OK: " + e1.getMessage());
-            } catch (NullPointerException e) {
-                e.printStackTrace();
+                c.setClosedCallback(null);
             }
         } // NatsServer
     }

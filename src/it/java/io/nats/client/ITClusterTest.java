@@ -33,10 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -529,14 +526,25 @@ public class ITClusterTest {
     }
 
     @Test
-    public void testTimeoutOnNoServers() {
+    public void testTimeoutOnNoServers() throws Exception {
+        int maxRecon = 10;
+        int reconWait = 100;
+        String[] servers = testServers;
+        final String hostOs = System.getProperty("os.name").toLowerCase();
+        boolean windows = (hostOs.contains("win"));
+        windows = true;
+        if (windows) {
+            servers = Arrays.copyOf(testServers, 2);
+            maxRecon = 2;
+        }
+
         Options opts = new Options.Builder(defaultOptions())
                 .dontRandomize()
                 // 1 second total time wait
-                .maxReconnect(10)
-                .reconnectWait(100)
+                .maxReconnect(maxRecon)
+                .reconnectWait(reconWait)
                 .build();
-        opts.servers = Nats.processUrlArray(testServers);
+        opts.servers = Nats.processUrlArray(servers);
 
         final CountDownLatch dcLatch = new CountDownLatch(1);
         opts.disconnectedCb = new DisconnectedCallback() {
@@ -553,36 +561,30 @@ public class ITClusterTest {
             }
         };
 
-        try (NatsServer s1 = new NatsServer(1222)) {
-            sleep(100);
-
+        try (NatsServer s1 = runServerOnPort(1222)) {
             try (Connection c = opts.connect()) {
-                assertNotNull(c.getDisconnectedCallback());
                 s1.shutdown();
-                // while(dch.getCount()!=1) {
-                // UnitTestUtilities.sleep(50);
-                // }
+
                 // wait for disconnect
                 assertTrue("Did not receive a disconnect callback message",
-                        await(dcLatch, 2, TimeUnit.SECONDS));
+                        dcLatch.await(5, TimeUnit.SECONDS));
 
                 long t0 = System.nanoTime();
 
                 // Wait for ClosedCB
                 assertTrue("Did not receive a closed callback signal",
-                        await(ccLatch, 2, TimeUnit.SECONDS));
+                        ccLatch.await(5, TimeUnit.SECONDS));
 
-                long elapsedMsec = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
+                if (windows) {
+                    long elapsedMsec = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
 
-                // Use 500ms as variable time delta
-                long variable = 500;
-                long expected = opts.getMaxReconnect() * opts.getReconnectWait();
+                    // Use 500ms as variable time delta
+                    long variable = 500;
+                    long expected = opts.getMaxReconnect() * opts.getReconnectWait();
 
-                assertFalse("Waited too long for Closed state: " + elapsedMsec,
-                        elapsedMsec > (expected + variable));
-            } catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-                fail(e.getMessage());
+                    assertFalse("Waited too long for Closed state: " + elapsedMsec,
+                            elapsedMsec > (expected + variable));
+                }
             }
         }
     }

@@ -9,8 +9,6 @@ package io.nats.client;
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
 import static io.nats.client.Nats.*;
 import static io.nats.client.Nats.ConnState.CONNECTED;
-import static io.nats.client.Nats.ConnState.CONNECTING;
-import static io.nats.client.Nats.ConnState.CLOSED;
 import static io.nats.client.Nats.ConnState.DISCONNECTED;
 import static io.nats.client.Nats.ConnState.RECONNECTING;
 import static io.nats.client.UnitTestUtilities.await;
@@ -319,7 +317,7 @@ public class ConnectionImplTest {
             c.setInputStream(brMock);
             TcpConnection connMock = mock(TcpConnection.class);
             c.setTcpConnection(connMock);
-            when(c._isClosed()).thenReturn(true);
+            when(c.closed()).thenReturn(true);
             c.readLoop();
             assertNull(c.parser.ps);
             verify(brMock, times(0)).read(any(byte[].class));
@@ -349,7 +347,7 @@ public class ConnectionImplTest {
             c.setOutputStream(bwMock);
             TcpConnection connMock = mock(TcpConnection.class);
             c.setTcpConnection(connMock);
-            when(c._isReconnecting()).thenReturn(true);
+            when(c.reconnecting()).thenReturn(true);
             c.readLoop();
             assertNull(c.parser.ps);
             verify(brMock, times(0)).read(any(byte[].class));
@@ -650,21 +648,21 @@ public class ConnectionImplTest {
     public void testProcessOpErrConditionsNotMet() throws IOException, TimeoutException {
         try (ConnectionImpl c = (ConnectionImpl) Mockito.spy(newMockedConnection())) {
             c.opts = spy(Nats.defaultOptions());
-            when(c.isConnecting()).thenReturn(true);
-            assertTrue(c.isConnecting());
+            when(c.connecting()).thenReturn(true);
+            assertTrue(c.connecting());
 
             c.processOpError(new Exception("foo"));
             verify(c.opts, times(0)).isReconnectAllowed();
 
-            when(c.isConnecting()).thenReturn(false);
-            when(c._isClosed()).thenReturn(true);
+            when(c.connecting()).thenReturn(false);
+            when(c.closed()).thenReturn(true);
             c.processOpError(new Exception("foo"));
             verify(c.opts, times(0)).isReconnectAllowed();
 
 
-            when(c.isConnecting()).thenReturn(false);
-            when(c._isClosed()).thenReturn(false);
-            when(c._isReconnecting()).thenReturn(true);
+            when(c.connecting()).thenReturn(false);
+            when(c.closed()).thenReturn(false);
+            when(c.reconnecting()).thenReturn(true);
             c.processOpError(new Exception("foo"));
             verify(c.opts, times(0)).isReconnectAllowed();
         }
