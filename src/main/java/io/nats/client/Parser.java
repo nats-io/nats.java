@@ -37,11 +37,10 @@ import static io.nats.client.Parser.NatsOp.OP_PON;
 import static io.nats.client.Parser.NatsOp.OP_PONG;
 import static io.nats.client.Parser.NatsOp.OP_START;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.nio.ByteBuffer;
 import java.text.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class Parser {
     static final Logger logger = LoggerFactory.getLogger(Parser.class);

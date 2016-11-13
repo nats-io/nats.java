@@ -7,11 +7,9 @@
 package io.nats.client;
 
 import io.nats.client.Parser.MsgArg;
-
+import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Arrays;
 
 /**
  * A {@code Message} object is used to send a message containing a stream of uninterpreted bytes.

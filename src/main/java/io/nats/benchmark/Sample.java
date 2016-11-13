@@ -10,7 +10,6 @@ import static io.nats.benchmark.Utils.humanBytes;
 
 import io.nats.client.Connection;
 import io.nats.client.Statistics;
-
 import java.text.DecimalFormat;
 
 public class Sample {

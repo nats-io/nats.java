@@ -8,15 +8,14 @@ package io.nats.client;
 
 import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 abstract class SubscriptionImpl implements Subscription {
 

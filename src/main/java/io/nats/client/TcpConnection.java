@@ -6,9 +6,6 @@
 
 package io.nats.client;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -21,7 +18,6 @@ import java.net.Socket;
 import java.net.URI;
 import java.security.cert.Certificate;
 import java.util.concurrent.locks.ReentrantLock;
-
 import javax.net.SocketFactory;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLContext;
@@ -29,6 +25,8 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * Convenience class representing the TCP connection to prevent managing two variables throughout

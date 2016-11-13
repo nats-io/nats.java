@@ -7,7 +7,6 @@
 package io.nats.client;
 
 import io.nats.client.Nats.ConnState;
-
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 

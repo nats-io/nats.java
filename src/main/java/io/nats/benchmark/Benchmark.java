@@ -7,7 +7,6 @@
 package io.nats.benchmark;
 
 import io.nats.client.NUID;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
