@@ -43,8 +43,8 @@ public class Benchmark extends Sample {
     public Benchmark(String name, String runId, int subCnt, int pubCnt) {
         this.name = name;
         this.runId = runId;
-        this.subChannel = new LinkedBlockingQueue<Sample>(subCnt);
-        this.pubChannel = new LinkedBlockingQueue<Sample>(pubCnt);
+        this.subChannel = new LinkedBlockingQueue<Sample>();
+        this.pubChannel = new LinkedBlockingQueue<Sample>();
     }
 
     public final void addPubSample(Sample sample) {
