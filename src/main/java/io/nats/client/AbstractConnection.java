@@ -8,7 +8,6 @@ package io.nats.client;
 
 import io.nats.client.Nats.ConnState;
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
 /**
  * AbstractConnection is the base interface for all Connection variants.
@@ -134,7 +133,7 @@ public interface AbstractConnection extends AutoCloseable {
 
     /**
      * Closes the connection, also closing all subscriptions on this connection.
-     * <p>
+     *
      * <p>When {@code close()} is called, the following things happen, in order: <ol> <li>The
      * Connection is flushed, and any other pending flushes previously requested by the user are
      * immediately cleared. <li>Message delivery to all active subscriptions is terminated
@@ -211,20 +210,17 @@ public interface AbstractConnection extends AutoCloseable {
      *
      * @param timeout - the connection timeout in milliseconds.
      * @throws IOException      if a connection-related error prevents the flush from completing
-     * @throws TimeoutException if the connection does not complete within the specified interval
-     * @throws Exception        if some other error occurs
      */
-    void flush(int timeout) throws Exception;
+    void flush(int timeout) throws IOException;
 
     /**
      * Flushes the current connection, waiting up to 60 seconds for completion.
      *
      * @throws IOException if a connection-related issue prevented the flush from completing
      *                     successfully
-     * @throws Exception   if some other error is encountered
      * @see #flush(int)
      */
-    void flush() throws Exception;
+    void flush() throws IOException;
 
     /**
      * Returns the connection's asynchronous exception callback.

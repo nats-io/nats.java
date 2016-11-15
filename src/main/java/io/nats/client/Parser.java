@@ -50,58 +50,6 @@ class Parser {
 
     final ConnectionImpl nc;
 
-    // List<byte[]> args = new ArrayList<byte[]>();
-
-    class MsgArg {
-        // byte[] subjectBytes = new byte[MAX_CONTROL_LINE_SIZE];
-        ByteBuffer subject = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
-        // int subjectLength = 0;
-        // byte[] replyBytes = new byte [MAX_CONTROL_LINE_SIZE];
-        ByteBuffer reply = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
-        // int replyLength = 0;
-        long sid;
-        int size;
-
-        public String toString() {
-            String subjectString = "null";
-            String replyString = "null";
-            byte[] subjectArray;
-            byte[] replyArray;
-
-            if (subject != null) {
-                subjectArray = subject.array();
-                subjectString = new String(subjectArray, 0, subject.limit());
-            }
-
-            if (reply != null) {
-                replyArray = reply.array();
-                replyString = new String(replyArray, 0, reply.limit());
-            }
-            return String.format("{subject=%s(len=%d), reply=%s(len=%d), sid=%d, size=%d}",
-                    subjectString, subjectString.length(), replyString, replyString.length(), sid,
-                    size);
-        }
-    }
-
-    class ParseState {
-        NatsOp state = OP_START;
-        int as;
-        int drop;
-        final MsgArg ma = new MsgArg();
-        final byte[] argBufStore = new byte[ConnectionImpl.DEFAULT_BUF_SIZE];
-        ByteBuffer argBuf = null;
-        byte[] msgBufStore = new byte[ConnectionImpl.DEFAULT_BUF_SIZE];
-        ByteBuffer msgBuf = null;
-        // byte[] scratch = new byte[MAX_CONTROL_LINE_SIZE];
-        final ByteBuffer[] args = new ByteBuffer[MAX_MSG_ARGS];
-
-        ParseState() {
-            for (int i = 0; i < MAX_MSG_ARGS; i++) {
-                args[i] = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
-            }
-        }
-    }
-
     ParseState ps = new ParseState();
 
     static final int ascii_0 = 48;
@@ -602,10 +550,9 @@ class Parser {
                 }
                 // FIXME, check max len
             } catch (IndexOutOfBoundsException e) {
-                e.printStackTrace();
                 logger.error("state = {}, i = {}, buf(len:{}) = [{}], ps.argBuf = {}, ps.as = {},"
                                 + " i - ps.as = {}",
-                        ps.state, i, len, new String(buf, 0, len), ps.argBuf, ps.as, i - ps.as);
+                        ps.state, i, len, new String(buf, 0, len), ps.argBuf, ps.as, i - ps.as, e);
                 nc.processErr(ps.argBuf);
             }
         }
@@ -638,10 +585,9 @@ class Parser {
                     // Can throw BufferOverflowException if lrem > ps.msgBuf.remaining
                     ps.msgBuf.put(buf, ps.as, lrem);
                 } catch (Exception e) {
-                    e.printStackTrace();
                     logger.error("state = {}, i = {}, buf(len:{}) = [{}], ps.msgBuf = {}, ps.as ="
                                     + " {}, lrem = {}",
-                            ps.state, i, len, new String(buf, 0, len), ps.msgBuf, ps.as, lrem);
+                            ps.state, i, len, new String(buf, 0, len), ps.msgBuf, ps.as, lrem, e);
                     nc.processErr(ps.msgBuf);
                 }
             } else {
@@ -784,5 +730,55 @@ class Parser {
 
     private void submitMsg(final byte[] data, final int offset, final int length) {
         nc.processMsg(data, offset, length);
+    }
+
+    static class MsgArg {
+        // byte[] subjectBytes = new byte[MAX_CONTROL_LINE_SIZE];
+        ByteBuffer subject = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
+        // int subjectLength = 0;
+        // byte[] replyBytes = new byte [MAX_CONTROL_LINE_SIZE];
+        ByteBuffer reply = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
+        // int replyLength = 0;
+        long sid;
+        int size;
+
+        public String toString() {
+            String subjectString = "null";
+            String replyString = "null";
+            byte[] subjectArray;
+            byte[] replyArray;
+
+            if (subject != null) {
+                subjectArray = subject.array();
+                subjectString = new String(subjectArray, 0, subject.limit());
+            }
+
+            if (reply != null) {
+                replyArray = reply.array();
+                replyString = new String(replyArray, 0, reply.limit());
+            }
+            return String.format("{subject=%s(len=%d), reply=%s(len=%d), sid=%d, size=%d}",
+                    subjectString, subjectString.length(), replyString, replyString.length(), sid,
+                    size);
+        }
+    }
+
+    static class ParseState {
+        NatsOp state = OP_START;
+        int as;
+        int drop;
+        final MsgArg ma = new MsgArg();
+        final byte[] argBufStore = new byte[ConnectionImpl.DEFAULT_BUF_SIZE];
+        ByteBuffer argBuf = null;
+        byte[] msgBufStore = new byte[ConnectionImpl.DEFAULT_BUF_SIZE];
+        ByteBuffer msgBuf = null;
+        // byte[] scratch = new byte[MAX_CONTROL_LINE_SIZE];
+        final ByteBuffer[] args = new ByteBuffer[MAX_MSG_ARGS];
+
+        ParseState() {
+            for (int i = 0; i < MAX_MSG_ARGS; i++) {
+                args[i] = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
+            }
+        }
     }
 }

@@ -11,16 +11,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 /**
  * <img src="{@docRoot}/resources/large-logo.png" alt="NATS logo">
- * <p>
+ *
  * <p>The NATS java client library enables communication with a NATS server using
  * {@link Connection} instances.
- * <p>
- * <p><h1>Contents</h1>
- * <p>
+ *
+ * <h1>Contents</h1>
+ *
  * <p><b>
  * <a href="#0">0. Your first NATS client</a><br>
  * </b>
@@ -68,7 +67,9 @@ import java.util.concurrent.TimeoutException;
  * }
  * </pre>
  */
-public class Nats {
+public final class Nats {
+
+    private Nats() {}
 
     /**
      * Connection states for {@link Connection#getState()}.
@@ -101,7 +102,7 @@ public class Nats {
 
     /**
      * Default server host.
-     * <p>
+     *
      * <p>This property is defined as String {@value #DEFAULT_HOST}
      */
     public static final String DEFAULT_HOST = "localhost";
@@ -211,49 +212,49 @@ public class Nats {
 
     /**
      * Default server URL.
-     * <p>
+     *
      * <p>This property is defined as String {@value #DEFAULT_URL}
      */
     public static final String DEFAULT_URL = "nats://localhost:4222";
 
     /**
      * Default server port.
-     * <p>
+     *
      * <p>This property is defined as int {@value #DEFAULT_PORT}
      */
     public static final int DEFAULT_PORT = 4222;
 
     /**
      * Default maximum number of reconnect attempts.
-     * <p>
+     *
      * <p>This property is defined as String {@value #DEFAULT_MAX_RECONNECT}
      */
     public static final int DEFAULT_MAX_RECONNECT = 60;
 
     /**
      * Default wait time before attempting reconnection to the same server.
-     * <p>
+     *
      * <p>This property is defined as String {@value #DEFAULT_RECONNECT_WAIT}
      */
     public static final int DEFAULT_RECONNECT_WAIT = 2 * SECOND;
 
     /**
      * Default connection timeout.
-     * <p>
+     *
      * <p>This property is defined as String {@value #DEFAULT_TIMEOUT}
      */
     public static final int DEFAULT_TIMEOUT = 2 * SECOND;
 
     /**
      * Default server ping interval. {@code <=0} means disabled.
-     * <p>
+     *
      * <p>This property is defined as String {@value #DEFAULT_PING_INTERVAL}
      */
 
     public static final int DEFAULT_PING_INTERVAL = 2 * MINUTE;
     /**
      * Default maximum number of pings that have not received a response.
-     * <p>
+     *
      * <p>This property is defined as String {@value #DEFAULT_MAX_PINGS_OUT}
      */
     public static final int DEFAULT_MAX_PINGS_OUT = 2;
@@ -261,7 +262,7 @@ public class Nats {
     /**
      * Default of pending message buffer that is used for buffering messages that are published
      * during a disconnect/reconnect.
-     * <p>
+     *
      * <p>This property is defined as String {@value #DEFAULT_RECONNECT_BUF_SIZE}
      */
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
@@ -395,9 +396,8 @@ public class Nats {
      *
      * @return the {@code Connection}
      * @throws IOException      if a problem occurs
-     * @throws TimeoutException if the connection attempt times out
      */
-    public static Connection connect() throws IOException, TimeoutException {
+    public static Connection connect() throws IOException {
         return connect(DEFAULT_URL, defaultOptions());
     }
 
@@ -407,9 +407,8 @@ public class Nats {
      * @param url a comma-separated list of NATS server URLs
      * @return the {@code Connection}
      * @throws IOException      if a problem occurs
-     * @throws TimeoutException if the connection attempt times out
      */
-    public static Connection connect(String url) throws IOException, TimeoutException {
+    public static Connection connect(String url) throws IOException {
         return connect(url, defaultOptions());
     }
 
@@ -420,10 +419,8 @@ public class Nats {
      * @param options an {@link Options} object
      * @return the {@link Connection}
      * @throws IOException      if a problem occurs
-     * @throws TimeoutException if the connection attempt times out
      */
-    public static Connection connect(String url, Options options)
-            throws IOException, TimeoutException {
+    public static Connection connect(String url, Options options) throws IOException {
         Options opts = options;
         if (opts == null) {
             opts = defaultOptions();

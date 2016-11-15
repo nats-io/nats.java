@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Tracks various stats received and sent on this connection, including counts for messages and
  * bytes.
  */
-public class Statistics implements Cloneable {
+public class Statistics {
 
     private AtomicLong inMsgs = new AtomicLong();
     private AtomicLong outMsgs = new AtomicLong();
@@ -34,11 +34,6 @@ public class Statistics implements Cloneable {
         this.outMsgs = obj.outMsgs;
         this.reconnects = obj.reconnects;
         this.flushes = obj.flushes;
-    }
-
-    @Override
-    protected Object clone() throws CloneNotSupportedException {
-        return super.clone();
     }
 
     /**

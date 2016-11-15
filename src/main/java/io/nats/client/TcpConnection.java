@@ -6,6 +6,8 @@
 
 package io.nats.client;
 
+import static java.lang.System.in;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -33,25 +35,25 @@ import org.slf4j.LoggerFactory;
  * the NATS client code.
  */
 class TcpConnection implements TransportConnection, AutoCloseable {
-    final Logger logger = LoggerFactory.getLogger(TcpConnection.class);
+    private final Logger logger = LoggerFactory.getLogger(TcpConnection.class);
 
-    /// TODO: Test various scenarios for efficiency. Is a
-    /// BufferedReader directly over a network stream really
-    /// more efficient for NATS?
-    ///
-    final ReentrantLock mu = new ReentrantLock();
-    protected SocketFactory factory = SocketFactory.getDefault();
-    protected SSLContext sslContext;
-    Socket client = null;
-    OutputStream writeStream = null;
-    InputStream readStream = null;
-    protected BufferedReader bisr = null;
-    protected BufferedInputStream bis = null;
-    protected BufferedOutputStream bos = null;
+    // TODO: Test various scenarios for efficiency. Is a
+    // BufferedReader directly over a network stream really
+    // more efficient for NATS?
+    //
+    private final ReentrantLock mu = new ReentrantLock();
+    private SocketFactory factory = SocketFactory.getDefault();
+    private SSLContext sslContext;
+    private Socket client = null;
+    private OutputStream writeStream = null;
+    private InputStream readStream = null;
+    private BufferedReader bisr = null;
+    private BufferedInputStream bis = null;
+    private BufferedOutputStream bos = null;
 
-    protected InetSocketAddress addr = null;
-    int timeout = 0;
-    boolean tlsDebug = false;
+    private InetSocketAddress addr = null;
+    private int timeout = 0;
+    private boolean tlsDebug = false;
 
     TcpConnection() {
     }
@@ -208,28 +210,6 @@ class TcpConnection implements TransportConnection, AutoCloseable {
         }
     }
 
-    class HandshakeListener implements HandshakeCompletedListener {
-        public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent event) {
-            SSLSession session = event.getSession();
-            logger.trace("Handshake Completed with peer {}", session.getPeerHost());
-            logger.trace("   cipher: {}", session.getCipherSuite());
-            Certificate[] certs;
-            try {
-                certs = session.getPeerCertificates();
-            } catch (SSLPeerUnverifiedException puv) {
-                certs = null;
-            }
-            if (certs != null) {
-                logger.trace("   peer certificates:");
-                for (int z = 0; z < certs.length; z++) {
-                    logger.trace("      certs[{}]: {}", z, certs[z]);
-                }
-            } else {
-                logger.trace("No peer certificates presented");
-            }
-        }
-    }
-
     boolean isTlsDebug() {
         return tlsDebug;
     }
@@ -256,5 +236,47 @@ class TcpConnection implements TransportConnection, AutoCloseable {
 
     protected void setSslContext(SSLContext sslContext) {
         this.sslContext = sslContext;
+    }
+
+    protected void setReadStream(InputStream in) {
+        readStream = in;
+    }
+
+    protected InputStream getReadStream() {
+        return readStream;
+    }
+
+    protected void setWriteStream(OutputStream out) {
+        writeStream = out;
+    }
+
+    protected OutputStream getWriteStream() {
+        return writeStream;
+    }
+
+    protected int getTimeout() {
+        return timeout;
+    }
+
+    class HandshakeListener implements HandshakeCompletedListener {
+        public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent event) {
+            SSLSession session = event.getSession();
+            logger.trace("Handshake Completed with peer {}", session.getPeerHost());
+            logger.trace("   cipher: {}", session.getCipherSuite());
+            Certificate[] certs;
+            try {
+                certs = session.getPeerCertificates();
+            } catch (SSLPeerUnverifiedException puv) {
+                certs = null;
+            }
+            if (certs != null) {
+                logger.trace("   peer certificates:");
+                for (int z = 0; z < certs.length; z++) {
+                    logger.trace("      certs[{}]: {}", z, certs[z]);
+                }
+            } else {
+                logger.trace("No peer certificates presented");
+            }
+        }
     }
 }

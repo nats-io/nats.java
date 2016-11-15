@@ -32,7 +32,6 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Category(IntegrationTest.class)
@@ -74,7 +73,7 @@ public class ITReconnectTest {
     UnitTestUtilities utils = new UnitTestUtilities();
 
     @Test
-    public void testReconnectDisallowedFlags() {
+    public void testReconnectDisallowedFlags() throws Exception {
         ConnectionFactory cf = new ConnectionFactory(reconnectOptions);
         cf.setUrl("nats://localhost:22222");
         cf.setReconnectAllowed(false);
@@ -91,8 +90,6 @@ public class ITReconnectTest {
                 sleep(500);
                 ts.shutdown();
                 assertTrue(await(latch));
-            } catch (IOException | TimeoutException e1) {
-                fail(e1.getMessage());
             }
         }
     }
@@ -140,7 +137,7 @@ public class ITReconnectTest {
     }
 
     @Test
-    public void testBasicReconnectFunctionality() {
+    public void testBasicReconnectFunctionality() throws Exception {
         ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
         cf.setMaxReconnect(10);
         cf.setReconnectWait(100);
@@ -161,19 +158,12 @@ public class ITReconnectTest {
                 AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     public void onMessage(Message msg) {
                         String s = new String(msg.getData());
-                        if (!s.equals(testString)) {
-                            fail("String doesn't match");
-                        }
+                        assertEquals("String doesn't match", testString, s);
                         latch.countDown();
                     }
                 });
 
-                try {
-                    c.flush();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    fail(e.getMessage());
-                }
+                c.flush();
 
                 logger.debug("Shutting down ns1");
                 ns1.shutdown();
@@ -192,20 +182,11 @@ public class ITReconnectTest {
                     c.setClosedCallback(null);
                     c.setDisconnectedCallback(null);
                     logger.debug("Flushing connection");
-                    try {
-                        c.flush(5000);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        fail(e.getMessage());
-                    }
+                    c.flush(5000);
                     assertTrue("Did not receive our message", await(latch));
                     assertEquals("Wrong number of reconnects.", 1, c.getStats().getReconnects());
                 } // ns2
             } // Connection
-            catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-                fail(e.getMessage());
-            }
         } // ns1
     }
 
@@ -288,11 +269,6 @@ public class ITReconnectTest {
 
                     c.setDisconnectedCallback(null);
                 }
-            } // Connection c
-            catch (IOException | TimeoutException e1) {
-                // TODO Auto-generated catch block
-                e1.printStackTrace();
-                fail(e1.getMessage());
             }
         } // NatsServer ns
     }
@@ -367,29 +343,21 @@ public class ITReconnectTest {
         results.clear();
     }
 
-    private void sendAndCheckMsgs(Connection conn, String subj, int numToSend) {
+    private void sendAndCheckMsgs(Connection conn, String subj, int numToSend) throws Exception {
         int numSent = 0;
         for (int i = 0; i < numToSend; i++) {
-            try {
-                conn.publish(subj, Integer.toString(i).getBytes());
-            } catch (IllegalStateException | IOException e) {
-                fail(e.getMessage());
-            }
+            conn.publish(subj, Integer.toString(i).getBytes());
             numSent++;
         }
         // Wait for processing
-        try {
-            conn.flush();
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
+        conn.flush();
         sleep(50);
 
         checkResults(numSent);
     }
 
     @Test
-    public void testIsClosed() throws IOException, TimeoutException {
+    public void testIsClosed() throws Exception {
         ConnectionFactory cf = new ConnectionFactory("nats://localhost:22222");
         cf.setReconnectAllowed(true);
         cf.setMaxReconnect(60);
@@ -411,7 +379,7 @@ public class ITReconnectTest {
     }
 
     @Test
-    public void testIsReconnectingAndStatus() {
+    public void testIsReconnectingAndStatus() throws Exception {
 
         try (NatsServer ts = runServerOnPort(22222)) {
             final CountDownLatch dcLatch = new CountDownLatch(1);
@@ -469,16 +437,12 @@ public class ITReconnectTest {
                     assertTrue("Status returned " + c.getState()
                             + " after close() was called instead of CLOSED", c.isClosed());
                 }
-            } catch (IOException | TimeoutException e1) {
-                // TODO Auto-generated catch block
-                e1.printStackTrace();
-                fail();
             }
         }
     }
 
     @Test
-    public void testDefaultReconnectFailure() {
+    public void testDefaultReconnectFailure() throws Exception {
         try (NatsServer ts = runServerOnPort(4222)) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setMaxReconnect(4);
@@ -515,10 +479,6 @@ public class ITReconnectTest {
 
                 assertFalse("Should not have reconnected", await(rcLatch, 1, TimeUnit.SECONDS));
 
-            } // conn
-            catch (IOException | TimeoutException e1) {
-                e1.printStackTrace();
-                fail(e1.getMessage());
             }
 
             assertTrue("Connection didn't close within timeout",
@@ -531,7 +491,7 @@ public class ITReconnectTest {
     }
 
     @Test
-    public void testReconnectBufSize() {
+    public void testReconnectBufSize() throws Exception {
         try (NatsServer ts = runServerOnPort(4222)) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setReconnectBufSize(34); // 34 bytes
@@ -544,12 +504,7 @@ public class ITReconnectTest {
             });
 
             try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
-                try {
-                    nc.flush();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    fail("Error during flush: " + e.getMessage());
-                }
+                nc.flush();
 
                 // Force disconnected state
                 ts.shutdown();
@@ -577,15 +532,12 @@ public class ITReconnectTest {
                 }
                 assertTrue("Expected to fail to publish message: got no error", exThrown);
 
-            } catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-                fail(e.getMessage());
             }
         }
     }
 
     @Test
-    public void testReconnectVerbose() {
+    public void testReconnectVerbose() throws Exception {
         try (NatsServer ts = runServerOnPort(4222)) {
             ConnectionFactory cf = new ConnectionFactory();
             cf.setVerbose(true);
@@ -598,27 +550,14 @@ public class ITReconnectTest {
             });
 
             try (Connection nc = cf.createConnection()) {
-                try {
-                    nc.flush();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    fail("Error during flush: " + e.getMessage());
-                }
+                nc.flush();
 
                 ts.shutdown();
                 sleep(500);
                 try (NatsServer ts2 = runServerOnPort(4222)) {
                     assertTrue("Should have reconnected OK", await(latch));
-                    try {
-                        nc.flush();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        fail("Error during flush: " + e.getMessage());
-                    }
+                    nc.flush();
                 }
-            } catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-                fail(e.getMessage());
             }
         }
     }

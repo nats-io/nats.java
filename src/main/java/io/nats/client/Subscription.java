@@ -11,7 +11,7 @@ import java.io.IOException;
 /**
  * A client uses a {@code Subscription} object to receive messages that have been published to a
  * subject.
- * <p>
+ *
  * <p>Each {@code Subscription} object is unique, even if the subscription is to the same subject.
  * This means that if {@code Connection.subscribe("foo", cb)} is called twice in a row, each of the
  * resulting {@code Subscription} objects will be unique, and any message delivered on subject "foo"

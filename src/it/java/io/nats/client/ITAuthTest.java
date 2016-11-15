@@ -28,7 +28,6 @@ import org.junit.experimental.categories.Category;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Category(IntegrationTest.class)
 public class ITAuthTest {
@@ -62,13 +61,13 @@ public class ITAuthTest {
         try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
             try (Connection c = Nats.connect(noAuthUrl)) {
                 fail("Should have received an error while trying to connect");
-            } catch (IOException | TimeoutException e) {
+            } catch (IOException e) {
                 assertEquals(ERR_AUTHORIZATION, e.getMessage());
             }
 
             try (Connection c = Nats.connect(authUrl)) {
                 assertFalse(c.isClosed());
-            } catch (IOException | TimeoutException e) {
+            } catch (IOException e) {
                 fail("Should have connected successfully, but got: " + e.getMessage());
             }
         }
@@ -76,7 +75,7 @@ public class ITAuthTest {
 
 
     @Test
-    public void testAuthFailNoDisconnectCb() throws InterruptedException {
+    public void testAuthFailNoDisconnectCb() throws Exception {
         String url = "nats://localhost:1222";
         final CountDownLatch latch = new CountDownLatch(1);
 
@@ -93,7 +92,7 @@ public class ITAuthTest {
         try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
             try (Connection c = opts.connect()) {
                 fail("Should have received an error while trying to connect");
-            } catch (IOException | TimeoutException e) {
+            } catch (IOException e) {
                 assertEquals(ERR_AUTHORIZATION, e.getMessage());
             }
             assertFalse("Should not have received a disconnect callback on auth failure",
@@ -102,7 +101,7 @@ public class ITAuthTest {
     }
 
     @Test
-    public void testAuthFailAllowReconnect() throws IOException, TimeoutException {
+    public void testAuthFailAllowReconnect() throws Exception  {
         String[] servers =
                 {"nats://localhost:1221", "nats://localhost:1222", "nats://localhost:1223",};
 
@@ -125,7 +124,7 @@ public class ITAuthTest {
                 try (final NatsServer ts3 = runServerOnPort(1223)) {
                     try (ConnectionImpl c = (ConnectionImpl) opts.connect()) {
                         assertEquals("nats://localhost:1221", c.getConnectedUrl());
-                        assertTrue(c.opts.isNoRandomize());
+                        assertTrue(c.getOptions().isNoRandomize());
 
                         // Stop the server
                         ts.shutdown();
@@ -183,7 +182,7 @@ public class ITAuthTest {
     }
 
     @Test
-    public void testAuthSuccess() throws IOException, TimeoutException {
+    public void testAuthSuccess() throws Exception  {
         String url = ("nats://username:password@localhost:1222");
         try (NatsServer s = runServerWithConfig("auth_1222.conf")) {
             try (Connection c = Nats.connect(url)) {

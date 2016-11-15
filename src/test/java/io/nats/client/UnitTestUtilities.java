@@ -29,7 +29,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class UnitTestUtilities {
@@ -61,30 +60,30 @@ class UnitTestUtilities {
         return ns;
     }
 
-    static synchronized Connection newDefaultConnection() throws IOException, TimeoutException {
+    static synchronized Connection newDefaultConnection() throws IOException {
         return Nats.connect(Nats.DEFAULT_URL);
     }
 
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf)
-            throws IOException, TimeoutException {
+            throws IOException {
         return new Options.Builder().factory(tcf).build().connect();
     }
 
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf, Options opts)
-            throws IOException, TimeoutException {
+            throws IOException {
         return new Options.Builder(opts).factory(tcf).build().connect();
     }
 
-    static Connection newMockedConnection() throws IOException, TimeoutException {
+    static Connection newMockedConnection() throws IOException {
         return newMockedConnection(null);
     }
 
-    static TcpConnection newMockedTcpConnection() throws IOException, TimeoutException {
+    static TcpConnection newMockedTcpConnection() throws IOException {
         return newMockedTcpConnection(null);
     }
 
     static TcpConnection newMockedTcpConnection(ServerInfo info)
-            throws IOException, TimeoutException {
+            throws IOException {
         // Set up mock TcpConnection
         final ServerInfo serverInfo =
                 (info == null ? ServerInfo.createFromWire(defaultInfo) : info);
@@ -198,8 +197,7 @@ class UnitTestUtilities {
     }
 
     static Connection newMockedConnection(Options opts)
-            throws IOException, TimeoutException {
-        final ConnectionImpl nc;
+            throws IOException {
         Options options = null;
 
         // Default in case not set in opts param
@@ -216,8 +214,7 @@ class UnitTestUtilities {
             options = new Options.Builder(opts).build();
         }
 
-        nc = (ConnectionImpl) options.connect();
-        return nc;
+        return options.connect();
     }
 
     static synchronized void startDefaultServer() {

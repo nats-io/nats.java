@@ -40,7 +40,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Condition;
 
 @Category(UnitTest.class)
@@ -133,7 +132,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessage() throws IOException, InterruptedException {
+    public void testNextMessage() throws Exception {
         String subj = "foo";
         String queue = "bar";
 
@@ -147,8 +146,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessageTimeoutSuccess()
-            throws TimeoutException, IOException, InterruptedException {
+    public void testNextMessageTimeoutSuccess() throws Exception {
         String subj = "foo";
         String queue = "bar";
         long timeout = 1000;
@@ -167,8 +165,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessageAutoUnsubscribeMax()
-            throws TimeoutException, IOException, InterruptedException {
+    public void testNextMessageAutoUnsubscribeMax() throws Exception {
         String subj = "foo";
         String queue = "bar";
         long timeout = 1000;
@@ -188,8 +185,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessageTimesOut()
-            throws IOException, InterruptedException {
+    public void testNextMessageTimesOut() throws Exception {
         String subj = "foo";
         String queue = "bar";
         int timeout = 100;
@@ -201,8 +197,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessageMaxMessages()
-            throws TimeoutException, IOException, InterruptedException {
+    public void testNextMessageMaxMessages() throws Exception {
         thrown.expect(IOException.class);
         thrown.expectMessage(Nats.ERR_MAX_MESSAGES);
         String subj = "foo";
@@ -219,8 +214,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test(timeout = 3000)
-    public void testNextMessageInterrupted()
-            throws TimeoutException, IOException, InterruptedException {
+    public void testNextMessageInterrupted() throws Exception {
         thrown.expect(InterruptedException.class);
         String subj = "foo";
         int timeout = 30000;
@@ -239,8 +233,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessageSubClosed()
-            throws TimeoutException, IOException, InterruptedException {
+    public void testNextMessageSubClosed() throws Exception {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
         String subj = "foo";
@@ -256,8 +249,7 @@ public class SyncSubscriptionImplTest {
     }
 
     @Test
-    public void testNextMessageSlowConsumer()
-            throws TimeoutException, IOException, InterruptedException {
+    public void testNextMessageSlowConsumer() throws Exception {
         thrown.expect(IOException.class);
         thrown.expectMessage(ERR_SLOW_CONSUMER);
         String subj = "foo";

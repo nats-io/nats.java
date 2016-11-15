@@ -97,7 +97,7 @@ public class TcpConnectionTest {
     @Test
     public void testGetBufferedInputStream() {
         try (TcpConnection t = new TcpConnection()) {
-            t.readStream = readStreamMock;
+            t.setReadStream(readStreamMock);
             assertNotNull(t.getInputStream(16384));
         }
     }
@@ -105,7 +105,7 @@ public class TcpConnectionTest {
     @Test
     public void testGetBufferedOutputStream() {
         try (TcpConnection t = new TcpConnection()) {
-            t.writeStream = writeStreamMock;
+            t.setWriteStream(writeStreamMock);
             assertNotNull(t.getOutputStream(16384));
         }
     }
@@ -113,7 +113,7 @@ public class TcpConnectionTest {
     @Test
     public void testGetBufferedReader() {
         try (TcpConnection t = new TcpConnection()) {
-            t.readStream = readStreamMock;
+            t.setReadStream(readStreamMock);
             assertNotNull(t.getInputStream(16384));
             assertNotNull(t.getBufferedReader());
         }
@@ -123,7 +123,7 @@ public class TcpConnectionTest {
     public void testSetConnectTimeout() {
         TcpConnection conn = new TcpConnection();
         conn.setConnectTimeout(41);
-        assertEquals(conn.timeout, 41);
+        assertEquals(conn.getTimeout(), 41);
     }
 
     @Test

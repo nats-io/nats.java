@@ -99,7 +99,7 @@ public class SubscriptionImplTest {
             assertEquals(nc, s.getConnection());
             assertEquals(subj, s.getSubject());
             assertEquals(queue, s.getQueue());
-            assertEquals(mcbMock, s.msgHandler);
+            assertEquals(mcbMock, s.getMessageHandler());
             assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
             assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
         }
@@ -416,16 +416,6 @@ public class SubscriptionImplTest {
             assertFalse(sub.isValid());
         }
     }
-
-    @Test
-    public void testPrintStats() {
-        String subj = "foo";
-        String queue = "bar";
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.printStats();
-        }
-    }
-
 
     // @Test
     // public void testProcessMsg() {

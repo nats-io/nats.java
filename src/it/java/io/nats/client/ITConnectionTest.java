@@ -21,6 +21,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import io.nats.client.ConnectionImpl.Srv;
 import org.hamcrest.core.IsNot;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -43,7 +44,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -79,7 +79,7 @@ public class ITConnectionTest {
     }
 
     @Test
-    public void testDefaultConnection() throws IOException, TimeoutException {
+    public void testDefaultConnection() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 assertTrue(nc.isConnected());
@@ -88,7 +88,7 @@ public class ITConnectionTest {
     }
 
     @Test
-    public void testConnectionStatus() throws IOException, TimeoutException {
+    public void testConnectionStatus() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
                 assertEquals("Should have status set to CONNECTED", CONNECTED,
@@ -103,7 +103,7 @@ public class ITConnectionTest {
     }
 
     @Test
-    public void testConnClosedCb() throws IOException, TimeoutException, InterruptedException {
+    public void testConnClosedCb() throws Exception{
         final CountDownLatch cbLatch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
             try (Connection nc = newDefaultConnection()) {
@@ -121,7 +121,7 @@ public class ITConnectionTest {
 
     @Test
     public void testCloseDisconnectedCb()
-            throws IOException, TimeoutException, InterruptedException {
+            throws Exception {
         final CountDownLatch cbLatch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
             Thread.sleep(500);
@@ -201,7 +201,7 @@ public class ITConnectionTest {
     }
 
     @Test
-    public void testServerStopDisconnectedCb() throws IOException, TimeoutException {
+    public void testServerStopDisconnectedCb() throws Exception{
         try (NatsServer srv = runDefaultServer()) {
             final CountDownLatch latch = new CountDownLatch(1);
             DisconnectedCallback dcb = new DisconnectedCallback() {
@@ -278,7 +278,7 @@ public class ITConnectionTest {
             "nats://localhost:1227", "nats://localhost:1228"};
 
     @Test
-    public void testServersRandomize() throws IOException, TimeoutException {
+    public void testServersRandomize() throws Exception{
         Options opts = new Options.Builder(defaultOptions()).build();
         opts.servers = Nats.processUrlArray(testServers);
         ConnectionImpl nc = new ConnectionImpl(opts);
@@ -287,7 +287,7 @@ public class ITConnectionTest {
         // build url string array from srvPool
         int idx = 0;
         String[] clientServers = new String[nc.getServerPool().size()];
-        for (ConnectionImpl.Srv s : nc.getServerPool()) {
+        for (Srv s : nc.getServerPool()) {
             clientServers[idx++] = s.url.toString();
         }
         // In theory this could happen..
@@ -304,7 +304,7 @@ public class ITConnectionTest {
         // build url string array from srvPool
         idx = 0;
         clientServers = new String[nc.getServerPool().size()];
-        for (ConnectionImpl.Srv s : nc.getServerPool()) {
+        for (Srv s : nc.getServerPool()) {
             clientServers[idx++] = s.url.toString();
         }
         assertArrayEquals("ServerPool list should not be randomized", testServers, clientServers);
@@ -322,7 +322,7 @@ public class ITConnectionTest {
 
         // build url string array from srvPool
         List<String> clientServerList = new ArrayList<String>();
-        for (ConnectionImpl.Srv s : nc.getServerPool()) {
+        for (Srv s : nc.getServerPool()) {
             clientServerList.add(s.url.toString());
         }
 

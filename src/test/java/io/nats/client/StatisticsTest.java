@@ -9,6 +9,7 @@ package io.nats.client;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import ch.qos.logback.classic.Level;
 
@@ -80,15 +81,24 @@ public class StatisticsTest {
     }
 
     @Test
-    public void testClone() throws CloneNotSupportedException {
-        Statistics stats = createDummyStats();
-        Statistics stats2 = (Statistics) stats.clone();
-        assertEquals(stats.getFlushes(), stats2.getFlushes());
-        assertEquals(stats.getFlushes(), stats2.getFlushes());
-        assertEquals(stats.getInMsgs(), stats2.getInMsgs());
-        assertEquals(stats.getOutBytes(), stats2.getOutBytes());
-        assertEquals(stats.getOutMsgs(), stats2.getOutMsgs());
-        assertEquals(stats.getReconnects(), stats2.getReconnects());
+    public void testCopyConstructor() {
+        Statistics s1 = new Statistics();
+
+        s1.incrementInMsgs();
+        s1.incrementInBytes(8192);
+        s1.incrementOutMsgs();
+        s1.incrementOutBytes(512);
+        s1.incrementReconnects();
+
+        Statistics s2 = new Statistics(s1);
+
+        assertEquals(s1.getInMsgs(), s2.getInMsgs());
+        assertEquals(s1.getOutMsgs(), s2.getOutMsgs());
+        assertEquals(s1.getInBytes(), s2.getInBytes());
+        assertEquals(s1.getOutBytes(), s2.getOutBytes());
+        assertEquals(s1.getReconnects(), s2.getReconnects());
+
+        assertTrue(s2.equals(s2));
     }
 
     @Test

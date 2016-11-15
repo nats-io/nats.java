@@ -39,7 +39,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.SocketException;
 import java.net.URI;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -63,21 +62,20 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ConnectionImpl implements Connection {
-    final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
+class ConnectionImpl implements Connection {
+    private final Logger logger = LoggerFactory.getLogger(ConnectionImpl.class);
 
-    String version = null;
+    private String version = null;
 
-    private static final String inboxPrefix = "_INBOX.";
+    private static final String INBOX_PREFIX = "_INBOX.";
 
-    public ConnState status = DISCONNECTED;
+    private ConnState status = DISCONNECTED;
 
     protected static final String STALE_CONNECTION = "Stale Connection";
 
@@ -93,31 +91,31 @@ public class ConnectionImpl implements Connection {
     protected static final int FLUSH_CHAN_SIZE = 1;
 
     // The number of msec the flusher will wait between flushes
-    protected final long flushTimerInterval = 1;
-    protected final TimeUnit flushTimerUnit = TimeUnit.MICROSECONDS;
+    private long flushTimerInterval = 1;
+    private TimeUnit flushTimerUnit = TimeUnit.MICROSECONDS;
 
 
-    public static final String _CRLF_ = "\r\n";
-    public static final String _EMPTY_ = "";
-    public static final String _SPC_ = " ";
-    public static final String _PUB_P_ = "PUB ";
+    protected static final String _CRLF_ = "\r\n";
+    protected static final String _EMPTY_ = "";
+    protected static final String _SPC_ = " ";
+    protected static final String _PUB_P_ = "PUB ";
 
     // Operations
-    public static final String _OK_OP_ = "+OK";
-    public static final String _ERR_OP_ = "-ERR";
-    public static final String _MSG_OP_ = "MSG";
-    public static final String _PING_OP_ = "PING";
-    public static final String _PONG_OP_ = "PONG";
-    public static final String _INFO_OP_ = "INFO";
+    protected static final String _OK_OP_ = "+OK";
+    protected static final String _ERR_OP_ = "-ERR";
+    protected static final String _MSG_OP_ = "MSG";
+    protected static final String _PING_OP_ = "PING";
+    protected static final String _PONG_OP_ = "PONG";
+    protected static final String _INFO_OP_ = "INFO";
 
     // Message Prototypes
-    public static final String CONN_PROTO = "CONNECT %s" + _CRLF_;
-    public static final String PING_PROTO = "PING" + _CRLF_;
-    public static final String PONG_PROTO = "PONG" + _CRLF_;
-    public static final String PUB_PROTO = "PUB %s %s %d" + _CRLF_;
-    public static final String SUB_PROTO = "SUB %s%s %d" + _CRLF_;
-    public static final String UNSUB_PROTO = "UNSUB %d %s" + _CRLF_;
-    public static final String OK_PROTO = _OK_OP_ + _CRLF_;
+    protected static final String CONN_PROTO = "CONNECT %s" + _CRLF_;
+    protected static final String PING_PROTO = "PING" + _CRLF_;
+    protected static final String PONG_PROTO = "PONG" + _CRLF_;
+    protected static final String PUB_PROTO = "PUB %s %s %d" + _CRLF_;
+    protected static final String SUB_PROTO = "SUB %s%s %d" + _CRLF_;
+    protected static final String UNSUB_PROTO = "UNSUB %d %s" + _CRLF_;
+    protected static final String OK_PROTO = _OK_OP_ + _CRLF_;
 
 
     enum ClientProto {
@@ -142,13 +140,13 @@ public class ConnectionImpl implements Connection {
 
     private final AtomicLong sidCounter = new AtomicLong();
     private URI url = null;
-    Options opts = null;
+    private Options opts = null;
 
     private TcpConnectionFactory tcf = null;
-    TcpConnection conn = null;
+    private TcpConnection conn = null;
 
     // Prepare protocol messages for efficiency
-    ByteBuffer pubProtoBuf = null;
+    private ByteBuffer pubProtoBuf = null;
 
     // we have a buffered reader for writing, and reading.
     // This is for both performance, and having to work around
@@ -160,42 +158,42 @@ public class ConnectionImpl implements Connection {
     private InputStream br = null;
     private ByteArrayOutputStream pending = null;
 
-    protected Map<Long, SubscriptionImpl> subs = new ConcurrentHashMap<Long, SubscriptionImpl>();
-    List<Srv> srvPool = null;
-    Map<String, URI> urls = null;
+    private Map<Long, SubscriptionImpl> subs = new ConcurrentHashMap<Long, SubscriptionImpl>();
+    private List<Srv> srvPool = null;
+    private Map<String, URI> urls = null;
     private Exception lastEx = null;
     private ServerInfo info = null;
     private int pout;
 
-    Parser parser = new Parser(this);
+    private Parser parser = new Parser(this);
 
-    byte[] pingProtoBytes = null;
-    int pingProtoBytesLen = 0;
-    protected byte[] pongProtoBytes = null;
-    protected int pongProtoBytesLen = 0;
-    protected byte[] pubPrimBytes = null;
-    protected int pubPrimBytesLen = 0;
+    private byte[] pingProtoBytes = null;
+    private int pingProtoBytesLen = 0;
+    private byte[] pongProtoBytes = null;
+    private int pongProtoBytesLen = 0;
+    private byte[] pubPrimBytes = null;
+    private int pubPrimBytesLen = 0;
 
-    protected byte[] crlfProtoBytes = null;
-    protected int crlfProtoBytesLen = 0;
+    private byte[] crlfProtoBytes = null;
+    private int crlfProtoBytesLen = 0;
 
-    protected Statistics stats = null;
-    private ArrayList<BlockingQueue<Boolean>> pongs;
+    private Statistics stats = null;
+    private List<BlockingQueue<Boolean>> pongs;
 
 
-    protected static final int NUM_CORE_THREADS = 4;
+    private static final int NUM_CORE_THREADS = 4;
 
 
     // The main executor service for core threads and timers
-    ScheduledExecutorService exec;
+    private ScheduledExecutorService exec;
     static final String EXEC_NAME = "jnats-exec";
 
     // Executor for subscription threads
-    ExecutorService subexec;
+    private ExecutorService subexec;
     static final String SUB_EXEC_NAME = "jnats-subscriptions";
 
     // Executor for async connection callbacks
-    ExecutorService cbexec;
+    private ExecutorService cbexec;
     static final String CB_EXEC_NAME = "jnats-callbacks";
 
     // The ping timer task
@@ -219,7 +217,6 @@ public class ConnectionImpl implements Connection {
         this.nc = this;
         this.opts = opts;
         this.stats = new Statistics();
-        // this.msgArgs = new MsgArg();
         if (opts.getFactory() != null) {
             tcf = opts.getFactory();
         } else {
@@ -235,7 +232,6 @@ public class ConnectionImpl implements Connection {
         pongProtoBytesLen = pongProtoBytes.length;
         pubPrimBytes = _PUB_P_.getBytes();
         pubPrimBytesLen = pubPrimBytes.length;
-
         crlfProtoBytes = _CRLF_.getBytes();
         crlfProtoBytesLen = crlfProtoBytes.length;
 
@@ -426,13 +422,11 @@ public class ConnectionImpl implements Connection {
                         mu.lock();
                         this.setUrl(null);
                     }
-                } catch (Exception e) { // createConn failed
-                    if (e instanceof SocketException) {
-                        if (e.getMessage() != null) {
-                            if (e.getMessage().contains("Connection refused")) {
-                                setLastError(null);
-                            }
-                        }
+                } catch (IOException e) { // createConn failed
+                    // Cancel out default connection refused, will trigger the
+                    // No servers error conditional
+                    if (e.getMessage() != null && e.getMessage().contains("Connection refused")) {
+                            setLastError(null);
                     }
                 }
             } // for
@@ -457,9 +451,10 @@ public class ConnectionImpl implements Connection {
      * createConn will connect to the server and wrap the appropriate bufio structures. A new
      * connection is always created.
      */
-    void createConn() throws IOException, TimeoutException {
+    void createConn() throws IOException {
         if (opts.getConnectionTimeout() < 0) {
-            throw new IllegalArgumentException(ERR_BAD_TIMEOUT);
+            logger.warn("{}: {}", ERR_BAD_TIMEOUT, opts.getConnectionTimeout());
+            throw new IOException(ERR_BAD_TIMEOUT);
         }
         Srv srv = currentServer();
         if (srv == null) {
@@ -819,7 +814,9 @@ public class ConnectionImpl implements Connection {
                 }
 
                 if (fch != null) {
-                    fch.offer(false);
+                    if (!fch.offer(false)) {
+                        logger.debug("Coudn't kick flush channel following connection error");
+                    }
                 }
 
                 // Create a new pending buffer to underpin the buffered output
@@ -880,9 +877,8 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    private boolean connected() {
-        // Test if Conn is connected or connecting.
-        return (status == CONNECTING || status == CONNECTED);
+    boolean connected() {
+        return (status == CONNECTED);
     }
 
     @Override
@@ -1086,6 +1082,10 @@ public class ConnectionImpl implements Connection {
 
     boolean connecting() {
         return (status == CONNECTING);
+    }
+
+    ConnState status() {
+        return status;
     }
 
     static String normalizeErr(String error) {
@@ -1320,145 +1320,21 @@ public class ConnectionImpl implements Connection {
         resetPingTimer();
     }
 
-    protected class Control {
-        String op = null;
-        String args = null;
-
-        Control(String line) {
-            if (line == null) {
-                return;
-            }
-
-            String[] parts = line.split(" ", 2);
-
-            switch (parts.length) {
-                case 1:
-                    op = parts[0].trim();
-                    break;
-                case 2:
-                    op = parts[0].trim();
-                    args = parts[1].trim();
-                    if (args.isEmpty()) {
-                        args = null;
-                    }
-                    break;
-                default:
-            }
-        }
-
-        public String toString() {
-            return "{op=" + op + ", args=" + args + "}";
-        }
-    }
-
-    class ConnectInfo {
-        @SerializedName("verbose")
-        private final Boolean verbose;
-
-        @SerializedName("pedantic")
-        private final Boolean pedantic;
-
-        @SerializedName("user")
-        private final String user;
-
-        @SerializedName("pass")
-        private final String pass;
-
-        @SerializedName("auth_token")
-        private final String token;
-
-        @SerializedName("tls_required")
-        private final Boolean tlsRequired;
-
-        @SerializedName("name")
-        private final String name;
-
-        @SerializedName("lang")
-        private String lang = ConnectionImpl.LANG_STRING;
-
-        @SerializedName("version")
-        private String version = ConnectionImpl.this.version;
-
-        @SerializedName("protocol")
-        private final int protocol;
-
-        private final transient Gson gson = new GsonBuilder().create();
-
-        public ConnectInfo(boolean verbose, boolean pedantic, String username, String password,
-                           String token, boolean secure, String connectionName, String lang,
-                           String version,
-                           ClientProto proto) {
-            this.verbose = verbose;
-            this.pedantic = pedantic;
-            this.user = username;
-            this.pass = password;
-            this.token = token;
-            this.tlsRequired = secure;
-            this.name = connectionName;
-            this.lang = lang;
-            this.version = version;
-            this.protocol = proto.getValue();
-        }
-
-        public String toString() {
-            return gson.toJson(this);
-        }
-    }
-
-    class Srv {
-        URI url = null;
-        int reconnects = 0;
-        long lastAttempt = 0L;
-        long lastAttemptNanos = 0L;
-        boolean secure = false;
-        boolean implicit = false;
-
-        public Srv(URI url, boolean implicit) {
-            this.url = url;
-            this.implicit = implicit;
-            if (url.getScheme().equals(TLS_SCHEME)) {
-                this.secure = true;
-            }
-        }
-
-        boolean isImplicit() {
-            return implicit;
-        }
-
-        // Mark the last attempt to connect to this Srv
-        void updateLastAttempt() {
-            lastAttemptNanos = System.nanoTime();
-            lastAttempt = System.currentTimeMillis();
-        }
-
-        // Returns time since last attempt, in msec
-        long timeSinceLastAttempt() {
-            return (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lastAttemptNanos));
-        }
-
-        public String toString() {
-            SimpleDateFormat format = new SimpleDateFormat("MM/dd/yyyy hh:mm:ss");
-            String dateToStr = format.format(new Date(lastAttempt));
-
-            return String.format(
-                    "{url=%s, reconnects=%d, lastAttempt=%s, timeSinceLastAttempt=%dms}",
-                    url.toString(), reconnects, dateToStr, timeSinceLastAttempt());
-        }
-    }
-
     void readLoop() {
         Parser parser;
         int len;
         boolean sb;
-        // stack copy
         TcpConnection conn = null;
 
         mu.lock();
-        parser = this.parser;
-        if (parser.ps == null) {
-            parser.ps = parser.new ParseState();
+        try {
+            parser = this.parser;
+            if (parser.ps == null) {
+                parser.ps = new Parser.ParseState();
+            }
+        } finally {
+            mu.unlock();
         }
-        mu.unlock();
 
         // Stack based buffer.
         byte[] buffer = new byte[DEFAULT_BUF_SIZE];
@@ -1468,7 +1344,7 @@ public class ConnectionImpl implements Connection {
             try {
                 sb = (closed() || reconnecting());
                 if (sb) {
-                    parser.ps = parser.new ParseState();
+                    parser.ps = new Parser.ParseState();
                 }
                 conn = this.conn;
             } finally {
@@ -1495,8 +1371,11 @@ public class ConnectionImpl implements Connection {
         }
 
         mu.lock();
-        parser.ps = null;
-        mu.unlock();
+        try {
+            parser.ps = null;
+        } finally {
+            mu.unlock();
+        }
     }
 
     /**
@@ -1527,7 +1406,7 @@ public class ConnectionImpl implements Connection {
                     sub.pBytes -= (msg.getData() == null ? 0 : msg.getData().length);
                 }
 
-                mcb = sub.msgHandler;
+                mcb = sub.getMessageHandler();
                 max = sub.max;
                 closed = sub.isClosed();
                 if (!closed) {
@@ -1688,7 +1567,7 @@ public class ConnectionImpl implements Connection {
             }
 
             for (BlockingQueue<Boolean> c : pongs) {
-                if (c == ch) {
+                if (c.equals(ch)) {
                     c.clear();
                     pongs.remove(c);
                     return true;
@@ -1719,32 +1598,8 @@ public class ConnectionImpl implements Connection {
         }
     }
 
-    ArrayList<BlockingQueue<Boolean>> createPongs() {
+    List<BlockingQueue<Boolean>> createPongs() {
         return new ArrayList<BlockingQueue<Boolean>>();
-    }
-
-    // This will fire periodically and send a client origin
-    // ping to the server. Will also check that we have received
-    // responses from the server.
-    class PingTimerTask extends TimerTask {
-        public void run() {
-            mu.lock();
-            if (status != CONNECTED) {
-                mu.unlock();
-                return;
-            }
-
-            // Check for violation
-            setActualPingsOutstanding(getActualPingsOutstanding() + 1);
-            if (getActualPingsOutstanding() > opts.getMaxPingsOut()) {
-                mu.unlock();
-                processOpError(new IOException(ERR_STALE_CONNECTION));
-                return;
-            }
-
-            sendPing(null);
-            mu.unlock();
-        }
     }
 
     ScheduledFuture<?> createPingTimer() {
@@ -1816,10 +1671,8 @@ public class ConnectionImpl implements Connection {
     }
 
     protected void kickFlusher() {
-        if (bw != null) {
-            if (fch != null) {
-                fch.offer(true);
-            }
+        if (bw != null && fch != null) {
+            boolean kicked = fch.offer(true);
         }
     }
 
@@ -1862,8 +1715,7 @@ public class ConnectionImpl implements Connection {
      * @see io.nats.client.AbstractConnection#flush(int)
      */
     @Override
-    public void flush(int timeout) throws Exception {
-        Exception err = null;
+    public void flush(int timeout) throws IOException {
         if (timeout <= 0) {
             throw new IllegalArgumentException(ERR_BAD_TIMEOUT);
         }
@@ -1881,28 +1733,24 @@ public class ConnectionImpl implements Connection {
             mu.unlock();
         }
 
-        Boolean rv;
-        while (!(Thread.currentThread().isInterrupted())) {
-            try {
-                rv = ch.poll(timeout, TimeUnit.MILLISECONDS);
-                if (rv == null) {
-                    err = new TimeoutException(ERR_TIMEOUT);
-                } else if (rv) {
-                    ch.clear();
-                } else {
-                    err = new IllegalStateException(ERR_CONNECTION_CLOSED);
-                }
-                break;
-            } catch (InterruptedException e) {
-                // Set interrupted flag.
-                logger.debug("flush was interrupted while waiting for PONG", e);
-                Thread.currentThread().interrupt();
+        Boolean rv = null;
+        try {
+            rv = ch.poll(timeout, TimeUnit.MILLISECONDS);
+            if (rv == null) {
+                throw new IOException(ERR_TIMEOUT);
+            } else if (rv) {
+                ch.clear();
+            } else {
+                throw new IllegalStateException(ERR_CONNECTION_CLOSED);
             }
-        }
-
-        if (err != null) {
-            this.removeFlushEntry(ch);
-            throw err;
+        } catch (InterruptedException e) {
+            // Set interrupted flag.
+            logger.debug("flush was interrupted while waiting for PONG", e);
+            Thread.currentThread().interrupt();
+        } finally {
+            if (rv == null) {
+                this.removeFlushEntry(ch);
+            }
         }
     }
 
@@ -1910,7 +1758,7 @@ public class ConnectionImpl implements Connection {
     /// Flush will perform a round trip to the server and return when it
     /// receives the internal reply.
     @Override
-    public void flush() throws Exception {
+    public void flush() throws IOException {
         // 60 second default.
         flush(60000);
     }
@@ -1919,11 +1767,8 @@ public class ConnectionImpl implements Connection {
     // server. Used in reconnects
     void resendSubscriptions() {
         long adjustedMax = 0L;
-        for (Long key : subs.keySet()) {
-            SubscriptionImpl sub = subs.get(key);
-            if (sub instanceof AsyncSubscription) {
-                ((AsyncSubscriptionImpl) sub).start(); // enableAsyncProcessing()
-            }
+        for (Map.Entry<Long, SubscriptionImpl> entry : subs.entrySet()) {
+            SubscriptionImpl sub = entry.getValue();
 
             sub.lock();
             try {
@@ -2244,7 +2089,7 @@ public class ConnectionImpl implements Connection {
 
     @Override
     public String newInbox() {
-        return String.format("%s%s", inboxPrefix, NUID.nextGlobal());
+        return String.format("%s%s", INBOX_PREFIX, NUID.nextGlobal());
     }
 
     @Override
@@ -2414,6 +2259,10 @@ public class ConnectionImpl implements Connection {
         return this.opts;
     }
 
+    void setOptions(Options options) {
+        this.opts = options;
+    }
+
     void setPending(ByteArrayOutputStream pending) {
         this.pending = pending;
     }
@@ -2453,11 +2302,11 @@ public class ConnectionImpl implements Connection {
     }
 
 
-    ArrayList<BlockingQueue<Boolean>> getPongs() {
+    List<BlockingQueue<Boolean>> getPongs() {
         return pongs;
     }
 
-    void setPongs(ArrayList<BlockingQueue<Boolean>> pongs) {
+    void setPongs(List<BlockingQueue<Boolean>> pongs) {
         this.pongs = pongs;
     }
 
@@ -2536,6 +2385,14 @@ public class ConnectionImpl implements Connection {
         this.ptmr = ptmr;
     }
 
+    void setParser(Parser parser) {
+        this.parser = parser;
+    }
+
+    Parser getParser() {
+        return parser;
+    }
+
     String[] getServers(boolean implicitOnly) {
         List<String> serversList = new ArrayList<String>(srvPool.size());
         for (Srv aSrvPool : srvPool) {
@@ -2588,6 +2445,156 @@ public class ConnectionImpl implements Connection {
             return info.isTlsRequired();
         } finally {
             mu.unlock();
+        }
+    }
+
+    static class Control {
+        String op = null;
+        String args = null;
+
+        Control(String line) {
+            if (line == null) {
+                return;
+            }
+
+            String[] parts = line.split(" ", 2);
+
+            switch (parts.length) {
+                case 1:
+                    op = parts[0].trim();
+                    break;
+                case 2:
+                    op = parts[0].trim();
+                    args = parts[1].trim();
+                    if (args.isEmpty()) {
+                        args = null;
+                    }
+                    break;
+                default:
+            }
+        }
+
+        public String toString() {
+            return "{op=" + op + ", args=" + args + "}";
+        }
+    }
+
+    static class ConnectInfo {
+        @SerializedName("verbose")
+        private final Boolean verbose;
+
+        @SerializedName("pedantic")
+        private final Boolean pedantic;
+
+        @SerializedName("user")
+        private final String user;
+
+        @SerializedName("pass")
+        private final String pass;
+
+        @SerializedName("auth_token")
+        private final String token;
+
+        @SerializedName("tls_required")
+        private final Boolean tlsRequired;
+
+        @SerializedName("name")
+        private final String name;
+
+        @SerializedName("lang")
+        private String lang = ConnectionImpl.LANG_STRING;
+
+        @SerializedName("version")
+        private String version;
+
+        @SerializedName("protocol")
+        private final int protocol;
+
+        private final transient Gson gson = new GsonBuilder().create();
+
+        public ConnectInfo(boolean verbose, boolean pedantic, String username, String password,
+                           String token, boolean secure, String connectionName, String lang,
+                           String version, ClientProto proto) {
+            this.verbose = verbose;
+            this.pedantic = pedantic;
+            this.user = username;
+            this.pass = password;
+            this.token = token;
+            this.tlsRequired = secure;
+            this.name = connectionName;
+            this.lang = lang;
+            this.version = version;
+            this.protocol = proto.getValue();
+        }
+
+        public String toString() {
+            return gson.toJson(this);
+        }
+    }
+
+    static class Srv {
+        URI url = null;
+        int reconnects = 0;
+        long lastAttempt = 0L;
+        long lastAttemptNanos = 0L;
+        boolean implicit = false;
+
+        Srv(URI url, boolean implicit) {
+            this.url = url;
+            this.implicit = implicit;
+        }
+
+        boolean isImplicit() {
+            return implicit;
+        }
+
+        // Mark the last attempt to connect to this Srv
+        void updateLastAttempt() {
+            lastAttemptNanos = System.nanoTime();
+            lastAttempt = System.currentTimeMillis();
+        }
+
+        // Returns time since last attempt, in msec
+        long timeSinceLastAttempt() {
+            return (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lastAttemptNanos));
+        }
+
+        public String toString() {
+            SimpleDateFormat format = new SimpleDateFormat("MM/dd/yyyy hh:mm:ss");
+            String dateToStr = format.format(new Date(lastAttempt));
+
+            return String.format(
+                    "{url=%s, reconnects=%d, lastAttempt=%s, timeSinceLastAttempt=%dms}",
+                    url.toString(), reconnects, dateToStr, timeSinceLastAttempt());
+        }
+    }
+
+    // This will fire periodically and send a client origin
+    // ping to the server. Will also check that we have received
+    // responses from the server.
+    class PingTimerTask extends TimerTask {
+        public void run() {
+            boolean stale = false;
+            mu.lock();
+            try {
+                if (!connected()) {
+                    return;
+                }
+
+                // Check for violation
+                setActualPingsOutstanding(getActualPingsOutstanding() + 1);
+                if (getActualPingsOutstanding() > opts.getMaxPingsOut()) {
+                    stale = true;
+                    return;
+                }
+
+                sendPing(null);
+            } finally {
+                mu.unlock();
+                if (stale) {
+                    processOpError(new IOException(ERR_STALE_CONNECTION));
+                }
+            }
         }
     }
 }

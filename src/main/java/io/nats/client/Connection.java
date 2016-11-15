@@ -11,24 +11,24 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A {@code Connection} object is a client's active connection to a NATS server.
- * <p>
+ *
  * <p>To connect to a NATS server using the default URL:
- * <p>
+ *
  * <pre>
  *     Connection nc = Nats.connect();
  * </pre>
- * <p>
+ *
  * <p>To connect to a NATS server using a custom URL:
- * <p>
+ *
  * <pre>
  *     Connection nc = Nats.connect("nats://someserver:4222");
  * </pre>
- * <p>
+ *
  * <p>To connect to a NATS server using a custom URL list:
  * <pre>
  *     Connection nc = Nats.connect("nats://someserver:4222, nats://anotherserver:4222");
  * </pre>
- * <p>
+ *
  * <p>To connect to a NATS server using a custom URL and other custom options:
  * <pre>
  *     Connection nc = Nats.connect("nats://someserver:4222", new Options.Builder()

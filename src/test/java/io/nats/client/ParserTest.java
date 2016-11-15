@@ -16,10 +16,17 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import ch.qos.logback.classic.Level;
+import io.nats.client.ConnectionAccessor;
 import io.nats.client.ConnectionImpl.Control;
 import io.nats.client.ConnectionImpl.Srv;
 import io.nats.client.Parser.NatsOp;
-
+import java.io.IOException;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.text.ParseException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -31,13 +38,6 @@ import org.junit.rules.ExpectedException;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.text.ParseException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 @Category(UnitTest.class)
 public class ParserTest {
@@ -73,7 +73,7 @@ public class ParserTest {
     }
 
     @Test
-    public void testParseControl() {
+    public void testParseControl() throws Exception {
         ConnectionImpl conn = new ConnectionImpl(Nats.defaultOptions());
 
         Control c = null;
@@ -81,38 +81,38 @@ public class ParserTest {
         NatsOp.valueOf(NatsOp.OP_START.toString());
 
         // Test with NULL line
-        c = conn.new Control(null);
+        c = new Control(null);
         assertTrue(c.op == null);
         assertTrue(c.args == null);
 
         // Test line with single op
-        c = conn.new Control("op");
+        c = new Control("op");
         assertNotNull(c.op);
         assertEquals(c.op, "op");
         assertNull(c.args);
 
         // Test line with trailing spaces
-        c = conn.new Control("op   ");
+        c = new Control("op   ");
         assertNotNull(c.op);
         assertEquals(c.op, "op");
         assertNull(c.args);
 
         // Test line with op and args
-        c = conn.new Control("op    args");
+        c = new Control("op    args");
         assertNotNull(c.op);
         assertEquals(c.op, "op");
         assertNotNull(c.args);
         assertEquals(c.args, "args");
 
         // Test line with op and args and trailing spaces
-        c = conn.new Control("op   args  ");
+        c = new Control("op   args  ");
         assertNotNull(c.op);
         assertEquals(c.op, "op");
         assertNotNull(c.args);
         assertEquals(c.args, "args");
 
         // Test line with op and args args
-        c = conn.new Control("op   args  args   ");
+        c = new Control("op   args  args   ");
         assertNotNull(c.op);
         assertEquals(c.op, "op");
         assertNotNull(c.args);
@@ -121,7 +121,7 @@ public class ParserTest {
     }
 
     @Test
-    public void testParseGoodLines() {
+    public void testParseGoodLines() throws Exception {
         Parser parser = null;
         String[] goodLines = {
                 // OP_PLUS_OK
@@ -134,9 +134,9 @@ public class ParserTest {
                 // MSG_END default (not an error)
                 "MSG \tfoo 1 6\r\nHello2\r\t"};
 
-        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
-            parser = c.parser;
-            try (Subscription sub = c.subscribeSync("foo")) {
+        try (ConnectionImpl nc = (ConnectionImpl) newMockedConnection()) {
+            parser = ConnectionAccessor.getParser(nc);
+            try (Subscription sub = nc.subscribeSync("foo")) {
                 for (String s : goodLines) {
                     // ConnectionImpl.printSubs(c);
                     byte[] buffer = s.getBytes();
@@ -150,10 +150,6 @@ public class ParserTest {
                 }
             }
         } // ConnectionImpl
-        catch (IOException | TimeoutException e1) {
-            // TODO Auto-generated catch block
-            fail(e1.getMessage());
-        }
     }
 
     @Test
@@ -165,8 +161,8 @@ public class ParserTest {
     @Test
     public void testMinusErrDoesNotThrow() {
         Parser parser;
-        try (ConnectionImpl c = new ConnectionImpl(Nats.defaultOptions())) {
-            parser = c.parser;
+        try (ConnectionImpl nc = new ConnectionImpl(Nats.defaultOptions())) {
+            parser = ConnectionAccessor.getParser(nc);
             String s = String.format("-ERR %s\r\n", Nats.SERVER_ERR_AUTH_VIOLATION);
             try {
                 byte[] b = s.getBytes();
@@ -189,7 +185,7 @@ public class ParserTest {
     }
 
     @Test
-    public void testParseBadLines() {
+    public void testParseBadLines() throws Exception {
         Parser parser = null;
 
         String[] badLines = {
@@ -231,8 +227,7 @@ public class ParserTest {
                 "Z\r\n"};
 
         try (ConnectionImpl nc = (ConnectionImpl) newMockedConnection()) {
-
-            parser = nc.parser;
+            parser = ConnectionAccessor.getParser(nc);
             boolean exThrown = false;
 
             for (String s : badLines) {
@@ -240,24 +235,20 @@ public class ParserTest {
                 byte[] buffer = s.getBytes();
                 try {
                     parser.parse(buffer, buffer.length);
-                } catch (ParseException e) {
+                } catch (Exception e) {
                     assertTrue("Wrong exception type. Should have thrown ParseException",
                             e instanceof ParseException);
                     exThrown = true;
                 }
                 assertTrue("Should have thrown ParseException for " + s, exThrown);
                 // Reset to OP_START for next line
-                nc.parser.ps.state = NatsOp.OP_START;
+                parser.ps.state = NatsOp.OP_START;
             }
-
         } // ConnectionImpl
-        catch (IOException | TimeoutException e1) {
-            fail(e1.getMessage());
-        }
     }
 
     @Test
-    public void testLargeArgs() throws IOException, TimeoutException {
+    public void testLargeArgs() throws Exception {
         Parser parser = null;
         int payloadSize = 66000;
         char[] buf = new char[payloadSize];
@@ -270,8 +261,7 @@ public class ParserTest {
         String msg = String.format("MSG foo 1 %d\r\n", payloadSize);
         byte[] msgBytes = msg.getBytes();
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
-
-            parser = c.parser;
+            parser = ConnectionAccessor.getParser(c);
             try (Subscription sub = c.subscribeSync("foo")) {
                 try {
                     parser.parse(msgBytes, msgBytes.length);
@@ -283,62 +273,64 @@ public class ParserTest {
     }
 
     @Test
-    public void testParserSplitMsg() throws IOException, TimeoutException {
+    public void testParserSplitMsg() throws Exception {
         try (ConnectionImpl nc = new ConnectionImpl(Nats.defaultOptions())) {
             // nc.ps = &parseState{}
             byte[] buf = null;
 
-            nc.parser.ps = nc.parser.new ParseState();
+            Parser parser = ConnectionAccessor.getParser(nc);
+
+            parser.ps = new Parser.ParseState();
             boolean exThrown = false;
             buf = "MSG a\r\n".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 exThrown = true;
             }
             assertTrue(exThrown);
 
-            nc.parser.ps = nc.parser.new ParseState();
+            parser.ps = new Parser.ParseState();
             exThrown = false;
             buf = "MSG a b c\r\n".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 exThrown = true;
             }
             assertTrue(exThrown);
 
-            nc.parser.ps = nc.parser.new ParseState();
+            parser.ps = new Parser.ParseState();
 
             assertEquals(0, nc.getStats().getInMsgs());
             assertEquals(0, nc.getStats().getInBytes());
 
             buf = "MSG a".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 fail("Parser error: " + e.getMessage());
             }
-            if (nc.parser.ps.argBuf == null) {
+            if (parser.ps.argBuf == null) {
                 fail("Arg buffer should have been created");
             }
 
             buf = " 1 3\r\nf".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
             }
 
-            assertEquals("Wrong msg size: ", 3, nc.parser.ps.ma.size);
-            assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
-            assertEquals("Wrong subject: ", "a", Parser.bufToString(nc.parser.ps.ma.subject));
-            assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
+            assertEquals("Wrong msg size: ", 3, parser.ps.ma.size);
+            assertEquals("Wrong sid: ", 1, parser.ps.ma.sid);
+            assertEquals("Wrong subject: ", "a", Parser.bufToString(parser.ps.ma.subject));
+            assertNotNull("Msg buffer should have been created", parser.ps.msgBuf);
 
             buf = "oo\r\n".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
@@ -349,29 +341,29 @@ public class ParserTest {
 
             assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
             assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
-            assertNull("Buffers should be null now", nc.parser.ps.argBuf);
-            assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
+            assertNull("Buffers should be null now", parser.ps.argBuf);
+            assertNull("Buffers should be null now", parser.ps.msgBuf);
 
             buf = "MSG a 1 3\r\nfo".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
             }
-            assertEquals("Wrong msg size: ", 3, nc.parser.ps.ma.size);
-            assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
-            assertEquals("Wrong subject: ", "a", new String(nc.parser.ps.ma.subject.array(), 0,
-                    nc.parser.ps.ma.subject.limit()));
-            assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
-            assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
+            assertEquals("Wrong msg size: ", 3, parser.ps.ma.size);
+            assertEquals("Wrong sid: ", 1, parser.ps.ma.sid);
+            assertEquals("Wrong subject: ", "a", new String(parser.ps.ma.subject.array(), 0,
+                    parser.ps.ma.subject.limit()));
+            assertNotNull("Msg buffer should have been created", parser.ps.msgBuf);
+            assertNotNull("Arg buffer should have been created", parser.ps.argBuf);
 
             expectedCount++;
             expectedSize += 3;
 
             buf = "o\r\n".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
@@ -379,26 +371,26 @@ public class ParserTest {
 
             assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
             assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
-            assertNull("Buffers should be null now", nc.parser.ps.argBuf);
-            assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
+            assertNull("Buffers should be null now", parser.ps.argBuf);
+            assertNull("Buffers should be null now", parser.ps.msgBuf);
 
             buf = "MSG a 1 6\r\nfo".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
             }
 
-            assertEquals("Wrong msg size: ", 6, nc.parser.ps.ma.size);
-            assertEquals("Wromg sid: ", 1, nc.parser.ps.ma.sid);
-            assertEquals("Wrong subject: ", "a", Parser.bufToString(nc.parser.ps.ma.subject));
-            assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
-            assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
+            assertEquals("Wrong msg size: ", 6, parser.ps.ma.size);
+            assertEquals("Wromg sid: ", 1, parser.ps.ma.sid);
+            assertEquals("Wrong subject: ", "a", Parser.bufToString(parser.ps.ma.subject));
+            assertNotNull("Msg buffer should have been created", parser.ps.msgBuf);
+            assertNotNull("Arg buffer should have been created", parser.ps.argBuf);
 
             buf = "ob".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
@@ -409,7 +401,7 @@ public class ParserTest {
 
             buf = "ar\r\n".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
@@ -417,26 +409,26 @@ public class ParserTest {
 
             assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
             assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
-            assertNull("Buffers should be null now", nc.parser.ps.argBuf);
-            assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
+            assertNull("Buffers should be null now", parser.ps.argBuf);
+            assertNull("Buffers should be null now", parser.ps.msgBuf);
 
             // Let's have a msg that is bigger than the parser's scratch size.
             // Since we prepopulate the msg with 'foo', adding 3 to the size.
-            int msgSize = nc.parser.ps.msgBufStore.length + 100 + 3;
+            int msgSize = parser.ps.msgBufStore.length + 100 + 3;
             buf = String.format("MSG a 1 b %d\r\nfoo", msgSize).getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
             }
 
-            assertEquals("Wrong msg size: ", msgSize, nc.parser.ps.ma.size);
-            assertEquals("Wrong sid: ", 1, nc.parser.ps.ma.sid);
-            assertEquals("Wrong subject: ", "a", Parser.bufToString(nc.parser.ps.ma.subject));
-            assertEquals("Wrong reply: ", "b", Parser.bufToString(nc.parser.ps.ma.reply));
-            assertNotNull("Msg buffer should have been created", nc.parser.ps.msgBuf);
-            assertNotNull("Arg buffer should have been created", nc.parser.ps.argBuf);
+            assertEquals("Wrong msg size: ", msgSize, parser.ps.ma.size);
+            assertEquals("Wrong sid: ", 1, parser.ps.ma.sid);
+            assertEquals("Wrong subject: ", "a", Parser.bufToString(parser.ps.ma.subject));
+            assertEquals("Wrong reply: ", "b", Parser.bufToString(parser.ps.ma.reply));
+            assertNotNull("Msg buffer should have been created", parser.ps.msgBuf);
+            assertNotNull("Arg buffer should have been created", parser.ps.argBuf);
 
             expectedCount++;
             expectedSize += msgSize;
@@ -448,28 +440,28 @@ public class ParserTest {
                 buf[i] = (byte) ('a' + (i % 26));
             }
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
             }
 
-            assertEquals("Wrong state: ", nc.parser.ps.state, Parser.NatsOp.MSG_PAYLOAD);
-            assertEquals("Wrong msg size: ", msgSize, nc.parser.ps.ma.size);
-            assertEquals("Wrong msg size: ", nc.parser.ps.msgBuf.limit(), nc.parser.ps.ma.size);
+            assertEquals("Wrong state: ", parser.ps.state, Parser.NatsOp.MSG_PAYLOAD);
+            assertEquals("Wrong msg size: ", msgSize, parser.ps.ma.size);
+            assertEquals("Wrong msg size: ", parser.ps.msgBuf.limit(), parser.ps.ma.size);
             // Check content:
             byte[] tmp = new byte[3];
-            ByteBuffer tmpBuf = nc.parser.ps.msgBuf.duplicate();
+            ByteBuffer tmpBuf = parser.ps.msgBuf.duplicate();
             tmpBuf.rewind();
             tmpBuf.get(tmp);
             assertEquals("Wrong msg content: ", "foo", new String(tmp));
-            for (int k = 3; k < nc.parser.ps.ma.size; k++) {
+            for (int k = 3; k < parser.ps.ma.size; k++) {
                 assertEquals("Wrong msg content: ", (byte) ('a' + ((k - 3) % 26)), tmpBuf.get(k));
             }
 
             buf = "\r\n".getBytes();
             try {
-                nc.parser.parse(buf, buf.length);
+                parser.parse(buf, buf.length);
             } catch (ParseException e) {
                 e.printStackTrace();
                 fail("Parser error: " + e.getMessage());
@@ -477,9 +469,9 @@ public class ParserTest {
 
             assertEquals("Wrong #msgs: ", expectedCount, nc.getStats().getInMsgs());
             assertEquals("Wrong #bytes: ", expectedSize, nc.getStats().getInBytes());
-            assertNull("Buffers should be null now", nc.parser.ps.argBuf);
-            assertNull("Buffers should be null now", nc.parser.ps.msgBuf);
-            assertEquals("Wrong state: ", nc.parser.ps.state, Parser.NatsOp.OP_START);
+            assertNull("Buffers should be null now", parser.ps.argBuf);
+            assertNull("Buffers should be null now", parser.ps.msgBuf);
+            assertEquals("Wrong state: ", parser.ps.state, Parser.NatsOp.OP_START);
         }
     } // testParserSplitMsg
 
@@ -490,15 +482,15 @@ public class ParserTest {
 
         boolean exThrown = false;
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
-            c.parser.processMsgArgs(args, 0, args.length);
+            Parser parser = ConnectionAccessor.getParser(c);
+            parser.processMsgArgs(args, 0, args.length);
         } catch (ParseException e) {
             exThrown = true;
             String msg = String.format("Wrong msg: [%s]\n", e.getMessage());
             assertTrue(msg, e.getMessage().startsWith("nats: processMsgArgs bad number of args"));
-        } catch (IOException | TimeoutException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
-            fail(e1.getMessage());
+        } catch (IOException e) {
+            e.printStackTrace();
+            fail(e.getMessage());
         } finally {
             assertTrue("Should have thrown ParseException", exThrown);
         }
@@ -508,24 +500,24 @@ public class ParserTest {
 
         exThrown = false;
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
-            c.parser.processMsgArgs(args, 0, args.length);
+            Parser parser = ConnectionAccessor.getParser(c);
+            parser.processMsgArgs(args, 0, args.length);
         } catch (ParseException e) {
             exThrown = true;
             String msg = String.format("Wrong msg: [%s]\n", e.getMessage());
             assertTrue(msg,
                     e.getMessage().startsWith("nats: processMsgArgs bad or missing size: "));
-        } catch (IOException | TimeoutException e1) {
+        } catch (IOException e) {
             // TODO Auto-generated catch block
-            e1.printStackTrace();
-            fail(e1.getMessage());
+            e.printStackTrace();
+            fail(e.getMessage());
         } finally {
             assertTrue("Should have thrown ParseException", exThrown);
         }
     }
 
     @Test
-    public void testProcessMsgArgsNegativeSize()
-            throws IOException, TimeoutException, ParseException {
+    public void testProcessMsgArgsNegativeSize() throws Exception {
         thrown.expect(ParseException.class);
         thrown.expectMessage("nats: processMsgArgs bad or missing size:");
 
@@ -533,46 +525,48 @@ public class ParserTest {
         byte[] msgBytes = msg.getBytes();
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             try (Subscription sub = c.subscribeSync("foo")) {
-                c.parser.parse(msgBytes, msgBytes.length);
+                Parser parser = ConnectionAccessor.getParser(c);
+                parser.parse(msgBytes, msgBytes.length);
             }
         }
     }
 
     @Test
-    public void testAsyncInfo() throws IOException, TimeoutException, ParseException {
+    public void testAsyncInfo() throws Exception {
         try (ConnectionImpl conn = new ConnectionImpl(Nats.defaultOptions())) {
-            assertEquals(conn, conn.parser.nc);
+            Parser parser = ConnectionAccessor.getParser(conn);
+            assertEquals(conn, parser.nc);
 
-            assertEquals("Expected OP_START", NatsOp.OP_START, conn.parser.ps.state);
+            assertEquals("Expected OP_START", NatsOp.OP_START, parser.ps.state);
 
             byte[] info = "INFO {}\r\n".getBytes();
-            assertEquals("Expected OP_START", NatsOp.OP_START, conn.parser.ps.state);
+            assertEquals("Expected OP_START", NatsOp.OP_START, parser.ps.state);
 
-            conn.parser.parse(Arrays.copyOfRange(info, 0, 1), 1);
-            assertEquals(NatsOp.OP_I, conn.parser.ps.state);
+            parser.parse(Arrays.copyOfRange(info, 0, 1), 1);
+            assertEquals(NatsOp.OP_I, parser.ps.state);
 
-            conn.parser.parse(Arrays.copyOfRange(info, 1, 2), 1);
-            assertEquals(NatsOp.OP_IN, conn.parser.ps.state);
+            parser.parse(Arrays.copyOfRange(info, 1, 2), 1);
+            assertEquals(NatsOp.OP_IN, parser.ps.state);
 
-            conn.parser.parse(Arrays.copyOfRange(info, 2, 3), 1);
-            assertEquals(NatsOp.OP_INF, conn.parser.ps.state);
+            parser.parse(Arrays.copyOfRange(info, 2, 3), 1);
+            assertEquals(NatsOp.OP_INF, parser.ps.state);
 
-            conn.parser.parse(Arrays.copyOfRange(info, 3, 4), 1);
-            assertEquals(NatsOp.OP_INFO, conn.parser.ps.state);
+            parser.parse(Arrays.copyOfRange(info, 3, 4), 1);
+            assertEquals(NatsOp.OP_INFO, parser.ps.state);
 
-            conn.parser.parse(Arrays.copyOfRange(info, 4, 5), 1);
-            assertEquals(NatsOp.OP_INFO_SPC, conn.parser.ps.state);
+            parser.parse(Arrays.copyOfRange(info, 4, 5), 1);
+            assertEquals(NatsOp.OP_INFO_SPC, parser.ps.state);
 
             // System.err.println("info length = " + info.length);
             // String str = new String(info, 5, info.length - 5);
             // System.err.println("Substring = [" + str + "]");
 
-            conn.parser.parse(Arrays.copyOfRange(info, 5, info.length), info.length - 5);
-            assertEquals(NatsOp.OP_START, conn.parser.ps.state);
+            parser.parse(Arrays.copyOfRange(info, 5, info.length), info.length - 5);
+            assertEquals(NatsOp.OP_START, parser.ps.state);
 
             // All at once
-            conn.parser.parse(info, info.length);
-            assertEquals(NatsOp.OP_START, conn.parser.ps.state);
+            parser.parse(info, info.length);
+            assertEquals(NatsOp.OP_START, parser.ps.state);
 
             // Server pool needs to be setup
             conn.setupServerPool();
@@ -586,23 +580,23 @@ public class ParserTest {
             // System.err.println(infoString);
             info = infoString.getBytes();
 
-            assertEquals(NatsOp.OP_START, conn.parser.ps.state);
+            assertEquals(NatsOp.OP_START, parser.ps.state);
 
-            conn.parser.parse(info, 9);
-            assertEquals(NatsOp.INFO_ARG, conn.parser.ps.state);
-            assertNotNull(conn.parser.ps.argBuf);
+            parser.parse(info, 9);
+            assertEquals(NatsOp.INFO_ARG, parser.ps.state);
+            assertNotNull(parser.ps.argBuf);
 
-            conn.parser.parse(Arrays.copyOfRange(info, 9, 11), 2);
-            assertEquals(NatsOp.INFO_ARG, conn.parser.ps.state);
-            assertNotNull(conn.parser.ps.argBuf);
+            parser.parse(Arrays.copyOfRange(info, 9, 11), 2);
+            assertEquals(NatsOp.INFO_ARG, parser.ps.state);
+            assertNotNull(parser.ps.argBuf);
 
-            conn.parser.parse(Arrays.copyOfRange(info, 11, info.length), info.length - 11);
-            assertEquals(NatsOp.OP_START, conn.parser.ps.state);
-            assertNull(conn.parser.ps.argBuf);
+            parser.parse(Arrays.copyOfRange(info, 11, info.length), info.length - 11);
+            assertEquals(NatsOp.OP_START, parser.ps.state);
+            assertNull(parser.ps.argBuf);
 
             // Comparing the string representation is good enough
 //            verify(c, times(1)).processAsyncInfo(infoString.trim());
-            assertEquals(expectedServer.toString(), conn.parser.nc.getConnectedServerInfo()
+            assertEquals(expectedServer.toString(), parser.nc.getConnectedServerInfo()
                     .toString());
             assertEquals(expectedServer.toString(), conn.getConnectedServerInfo().toString());
 
@@ -610,57 +604,57 @@ public class ParserTest {
             String[] good = {"INFO {}\r\n", "INFO  {}\r\n", "INFO {} \r\n",
                     "INFO { \"server_id\": \"test\"  }   \r\n", "INFO {\"connect_urls\":[]}\r\n"};
             for (String gi : good) {
-                conn.parser.ps = conn.parser.new ParseState();
+                parser.ps = new Parser.ParseState();
                 try {
-                    conn.parser.parse(gi.getBytes(), gi.getBytes().length);
+                    parser.parse(gi.getBytes(), gi.getBytes().length);
                 } catch (ParseException e) {
                     fail("Unexpected parse failure: " + e.getMessage());
                     e.printStackTrace();
                 }
-                assertEquals(conn.parser.ps.state, NatsOp.OP_START);
+                assertEquals(parser.ps.state, NatsOp.OP_START);
             }
 
             // Wrong INFOs
             String[] wrong = {"IxNFO {}\r\n", "INxFO {}\r\n", "INFxO {}\r\n", "INFOx {}\r\n",
                     "INFO{}\r\n", "INFO {}"};
             for (String wi : wrong) {
-                conn.parser.ps = conn.parser.new ParseState();
+                parser.ps = new Parser.ParseState();
                 boolean exThrown = false;
                 try {
-                    conn.parser.parse(wi.getBytes(), wi.getBytes().length);
+                    parser.parse(wi.getBytes(), wi.getBytes().length);
                 } catch (ParseException e) {
                     exThrown = true;
                 }
-                if (!exThrown && (conn.parser.ps.state == NatsOp.OP_START)) {
+                if (!exThrown && (parser.ps.state == NatsOp.OP_START)) {
                     fail("Should have failed: " + wi);
                 }
             }
             // Now test the decoding of "connect_urls"
 
             // No randomize for now
-            conn.opts.noRandomize = true;
+            conn.getOptions().noRandomize = true;
             // Reset the pool
             conn.setupServerPool();
             // Reinitialize the parser
-            conn.parser.ps = conn.parser.new ParseState();
+            parser.ps = new Parser.ParseState();
             info = "INFO {\"connect_urls\":[\"localhost:5222\"]}\r\n".getBytes();
-            conn.parser.parse(info);
+            parser.parse(info);
 
             // Pool now should contain localhost:4222 (the default URL) and localhost:5222
             String[] srvList = {"localhost:4222", "localhost:5222"};
             checkPool(conn, Arrays.asList(srvList));
 
             // Make sure that if client receives the same, it is not added again.
-            conn.parser.parse(info, info.length);
-            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
+            parser.parse(info, info.length);
+            assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool should still contain localhost:4222 (the default URL) and localhost:5222
             checkPool(conn, Arrays.asList(srvList));
 
             // Receive a new URL
             info = "INFO {\"connect_urls\":[\"localhost:6222\"]}\r\n".getBytes();
-            conn.parser.parse(info);
-            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
+            parser.parse(info);
+            assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222 and
             // localhost:6222
@@ -670,8 +664,8 @@ public class ParserTest {
             // Receive more than 1 URL at once
             info = "INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\"]}\r\n"
                     .getBytes();
-            conn.parser.parse(info);
-            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
+            parser.parse(info);
+            assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222,
             // localhost:6222
@@ -681,28 +675,28 @@ public class ParserTest {
             checkPool(conn, Arrays.asList(srvList));
 
             // Test with pool randomization now
-            conn.opts.noRandomize = false;
+            conn.getOptions().noRandomize = false;
             conn.setupServerPool();
 
             info = "INFO {\"connect_urls\":[\"localhost:5222\"]}\r\n".getBytes();
-            conn.parser.parse(info);
-            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
+            parser.parse(info);
+            assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) and localhost:5222
             srvList = new String[] {"localhost:4222", "localhost:5222"};
             checkPool(conn, Arrays.asList(srvList));
 
             // Make sure that if client receives the same, it is not added again.
-            conn.parser.parse(info, info.length);
-            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
+            parser.parse(info, info.length);
+            assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool should still contain localhost:4222 (the default URL) and localhost:5222
             checkPool(conn, Arrays.asList(srvList));
 
             // Receive a new URL
             info = "INFO {\"connect_urls\":[\"localhost:6222\"]}\r\n".getBytes();
-            conn.parser.parse(info);
-            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
+            parser.parse(info);
+            assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222 and
             // localhost:6222
@@ -712,8 +706,8 @@ public class ParserTest {
             // Receive more than 1 URL at once
             info = "INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\"]}\r\n"
                     .getBytes();
-            conn.parser.parse(info);
-            assertEquals(conn.parser.ps.state, NatsOp.OP_START);
+            parser.parse(info);
+            assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222,
             // localhost:6222
@@ -727,7 +721,7 @@ public class ParserTest {
                     "localhost:7222", "localhost:8222"};
             int same = 0;
             int i = 0;
-            for (Srv s : conn.srvPool) {
+            for (Srv s : ConnectionAccessor.getSrvPool(conn)) {
                 if (s.url.getAuthority().equals(allUrls[i])) {
                     same++;
                 }
@@ -739,25 +733,27 @@ public class ParserTest {
 
     private void checkPool(ConnectionImpl conn, List<String> urls) {
         // Check booth pool and urls map
-        if (conn.srvPool.size() != urls.size()) {
+        List<Srv> srvPool = ConnectionAccessor.getSrvPool(conn);
+        if (srvPool.size() != urls.size()) {
             fail(String.format("Pool should have %d elements, has %d", urls.size(),
-                    conn.srvPool.size()));
+                    srvPool.size()));
         }
 
-        if (conn.urls.size() != urls.size()) {
+        Map<String, URI> connUrls = ConnectionAccessor.getUrls(conn);
+        if (connUrls.size() != urls.size()) {
             fail(String.format("Map should have %d elements, has %d", urls.size(),
-                    conn.urls.size()));
+                    connUrls.size()));
         }
 
         for (int i = 0; i < urls.size(); i++) {
             String url = urls.get(i);
             if (conn.getOptions().isNoRandomize()) {
-                if (!conn.srvPool.get(i).url.getAuthority().equals(url)) {
+                if (!srvPool.get(i).url.getAuthority().equals(url)) {
                     fail(String.format("Pool should have %s at index %d, has %s", url, i,
-                            conn.srvPool.get(i).url.getAuthority()));
+                            srvPool.get(i).url.getAuthority()));
                 }
             } else {
-                if (!conn.urls.containsKey(url)) {
+                if (!connUrls.containsKey(url)) {
                     fail(String.format("Pool should have %s", url));
                 }
             }

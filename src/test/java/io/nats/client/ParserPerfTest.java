@@ -19,7 +19,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 public class ParserPerfTest {
     @Rule
@@ -42,7 +41,7 @@ public class ParserPerfTest {
     }
 
     @Test
-    public void test() {
+    public void test() throws Exception {
         try (ConnectionImpl conn = (ConnectionImpl) newMockedConnection()) {
             final int BUF_SIZE = 65536;
             int count = 40000;
@@ -91,10 +90,6 @@ public class ParserPerfTest {
                     elapsedSec, mbPerSec);
 
             System.err.printf("Average parse time per msg = %dns\n", avgNsec);
-        } catch (IOException | TimeoutException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
@@ -103,7 +98,7 @@ public class ParserPerfTest {
      *
      * @param args the command line arguments
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         ParserPerfTest parserPerfTest = new ParserPerfTest();
 
         // b.testPubSpeed();

@@ -19,48 +19,39 @@ import org.slf4j.LoggerFactory;
 
 abstract class SubscriptionImpl implements Subscription {
 
-    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
+    static final Logger logger = LoggerFactory.getLogger(SubscriptionImpl.class);
 
     /**
      * Default maximum pending/undelivered messages on a subscription.
-     * <p>
-     * <p>This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
      */
     static final int DEFAULT_MAX_PENDING_MSGS = 65536;
     /**
      * Default maximum pending/undelivered payload bytes on a subscription.
-     * <p>
-     * <p>This property is defined as String {@value #DEFAULT_MAX_PENDING_BYTES}
      */
     static final int DEFAULT_MAX_PENDING_BYTES = 65536 * 1024;
 
-    final Lock mu = new ReentrantLock();
+    private final Lock mu = new ReentrantLock();
 
-    long sid; // int64 in Go
+    private long sid; // int64 in Go
 
     // Subject that represents this subscription. This can be different
     // than the received subject inside a Msg if this is a wildcard.
-    String subject = null;
+    private final String subject;
 
     // Optional queue group name. If present, all subscriptions with the
     // same name will form a distributed queue, and each message will
     // only be processed by one member of the group.
-    final String queue;
+    private final String queue;
 
     // Number of messages delivered on this subscription
-    long msgs;
     long delivered; // uint64
-    long bytes; // uint64
-    // int pendingMax; // uint64 in Go, int here due to underlying data structure
     long max; // AutoUnsubscribe max
-
     boolean closed;
     boolean connClosed;
-
     // slow consumer flag
     boolean sc;
 
-    ConnectionImpl conn = null;
+    private ConnectionImpl conn;
     BlockingQueue<Message> mch;
     Condition pCond;
 
@@ -397,17 +388,5 @@ abstract class SubscriptionImpl implements Subscription {
 
     void unlock() {
         mu.unlock();
-    }
-
-    void printStats() {
-        System.err.println("delivered: " + delivered);
-        System.err.println("dropped: " + dropped);
-        System.err.println("pMsgs: " + pMsgs);
-        System.err.println("pMsgsLimit: " + pMsgsLimit);
-        System.err.println("pMsgsMax: " + pMsgsMax);
-        System.err.println("pBytes: " + pBytes);
-        System.err.println("pBytesLimit: " + pBytesLimit);
-        System.err.println("pBytesMax: " + pBytesMax);
-        System.err.println();
     }
 }

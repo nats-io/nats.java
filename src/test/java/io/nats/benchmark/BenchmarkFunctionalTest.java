@@ -13,7 +13,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.nats.client.ConnectionImpl;
+import io.nats.client.Connection;
 import io.nats.client.Statistics;
 import io.nats.client.TestCasePrinterRule;
 import io.nats.client.UnitTest;
@@ -71,7 +71,7 @@ public class BenchmarkFunctionalTest {
         long start = baseTime;
         long end = start + TimeUnit.SECONDS.toNanos(seconds);
 
-        final ConnectionImpl nc = mock(ConnectionImpl.class);
+        final Connection nc = mock(Connection.class);
         when(nc.getStats()).thenReturn(new Statistics());
         Sample stat = new Sample(messages, MSG_SIZE, start, end, nc);
         stat.msgCnt = (long) messages;
@@ -196,10 +196,10 @@ public class BenchmarkFunctionalTest {
         bench.addPubSample(millionMessagesSecondSample(1));
         bench.addSubSample(millionMessagesSecondSample(1));
         bench.close();
-        assertNotNull(bench.runId);
-        assertFalse(bench.runId.isEmpty());
-        assertEquals(1, bench.pubs.samples.size());
-        assertEquals(1, bench.subs.samples.size());
+        assertNotNull(bench.getRunId());
+        assertFalse(bench.getRunId().isEmpty());
+        assertEquals(1, bench.getPubs().getSamples().size());
+        assertEquals(1, bench.getSubs().getSamples().size());
         assertEquals(2 * MILLION, bench.msgCnt);
         assertEquals(2 * MILLION * MSG_SIZE, bench.ioBytes);
         assertEquals(1, TimeUnit.NANOSECONDS.toSeconds(bench.duration()));

@@ -12,7 +12,7 @@ package io.nats.client;
  */
 class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscription {
 
-    MessageHandler msgHandler;
+    private MessageHandler msgHandler;
 
     AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue,
                           MessageHandler cb) {
@@ -21,6 +21,7 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
     }
 
     @Override
+    @Deprecated
     public void start() {
         /* Deprecated */
     }
@@ -28,6 +29,11 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
     @Override
     public void setMessageHandler(MessageHandler cb) {
         this.msgHandler = cb;
+    }
+
+    @Override
+    public MessageHandler getMessageHandler() {
+        return msgHandler;
     }
 
 }

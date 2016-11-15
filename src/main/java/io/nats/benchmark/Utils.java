@@ -9,7 +9,9 @@ package io.nats.benchmark;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Utils {
+public final class Utils {
+
+    private Utils() {}
 
     /**
      * humanBytes formats bytes as a human readable string.

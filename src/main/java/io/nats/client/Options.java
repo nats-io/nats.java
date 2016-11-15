@@ -41,15 +41,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.net.ssl.SSLContext;
 
 /**
  * An {@code Options} object contains the immutable (and some mutable) configuration settings for
  * a {@link Connection}.
- * <p>
+ *
  * <p>The {@code Options} object is constructed using methods of an {@link Options.Builder} as in
  * the following
  * example:
@@ -173,6 +173,14 @@ public class Options {
                 .asyncErrorCb));
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(url, username, password, token, servers, noRandomize, connectionName,
+                verbose, pedantic, secure, allowReconnect, maxReconnect, reconnectBufSize,
+                reconnectWait, connectionTimeout, pingInterval, maxPingsOut, sslContext, tlsDebug,
+                factory, disconnectedCb, closedCb, reconnectedCb, asyncErrorCb);
+    }
+
     static boolean compare(String str1, String str2) {
         return (str1 == null ? str2 == null : str1.equals(str2));
     }
@@ -199,9 +207,8 @@ public class Options {
      *
      * @return the {@code Connection}
      * @throws IOException      if something goes wrong
-     * @throws TimeoutException if the connection doesn't complete within the configured timeout
      */
-    public Connection connect() throws IOException, TimeoutException {
+    public Connection connect() throws IOException {
         return new ConnectionImpl(this).connect();
     }
 
@@ -604,7 +611,7 @@ public class Options {
                         try {
                             list.add(new URI(s.trim()));
                         } catch (URISyntaxException e) {
-                            throw new IllegalArgumentException("Bad server URL: " + s);
+                            throw new IllegalArgumentException("Bad server URL: " + s, e);
                         }
                     }
                 }

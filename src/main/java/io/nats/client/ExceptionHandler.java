@@ -11,7 +11,7 @@ package io.nats.client;
  * {@code Connection} object's {@code ExceptionHandler}, if one has been registered. It does this by
  * calling the listener's {@code onException} method, passing it a NATSException argument describing
  * the problem.
- * <p>
+ *
  * <p>An exception handler allows a client to be notified of a problem asynchronously. Some
  * connections only consume messages asynchronously, so they would have no other way to learn that
  * their connection has failed.

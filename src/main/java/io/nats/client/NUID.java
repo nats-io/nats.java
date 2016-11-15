@@ -9,6 +9,7 @@ package io.nats.client;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,13 +40,13 @@ public class NUID {
     static final long minInc = 33L;
     static final long maxInc = 333L;
     static final int totalLen = preLen + seqLen;
-    static SecureRandom srand;
-    static Random prand;
+    private static SecureRandom srand;
+    private static Random prand;
 
     // Instance fields
     char[] pre;
-    long seq;
-    long inc;
+    private long seq;
+    private long inc;
 
 
     // Global NUID
@@ -132,7 +133,7 @@ public class NUID {
      * when we exhaust the sequential range.
      */
 
-    void randomizePrefix() {
+    final void randomizePrefix() {
         byte[] cb = new byte[preLen];
 
         // Use SecureRandom for prefix only
@@ -180,7 +181,7 @@ public class NUID {
      * @param pre the pre to set
      */
     void setPre(char[] pre) {
-        this.pre = pre;
+        this.pre = Arrays.copyOf(pre, pre.length);
     }
 
     /**

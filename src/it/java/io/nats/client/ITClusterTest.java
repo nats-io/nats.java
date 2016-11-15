@@ -18,6 +18,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -39,8 +40,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -79,7 +78,7 @@ public class ITClusterTest {
     UnitTestUtilities utils = new UnitTestUtilities();
 
     @Test
-    public void testServersOption() throws IOException, TimeoutException {
+    public void testServersOption() throws Exception {
 
         Options opts = new Options.Builder(defaultOptions())
                 .dontRandomize()
@@ -104,7 +103,7 @@ public class ITClusterTest {
     }
 
     @Test
-    public void testAuthServers() throws IOException, TimeoutException {
+    public void testAuthServers() throws Exception {
         String[] plainServers = new String[] {"nats://localhost:1222", "nats://localhost:1224"};
 
         Options opts = new Options.Builder(Nats.defaultOptions())
@@ -134,7 +133,7 @@ public class ITClusterTest {
 
                 try (Connection c = opts.connect()) {
                     assertTrue(c.getConnectedUrl().equals(authServers[1]));
-                } catch (IOException | TimeoutException e) {
+                } catch (IOException e) {
                     if (e.getMessage().contains("Authorization")) {
                         // ignore Authorization Failure
                     } else {
@@ -146,7 +145,7 @@ public class ITClusterTest {
     }
 
     @Test
-    public void testBasicClusterReconnect() throws IOException, TimeoutException {
+    public void testBasicClusterReconnect() throws Exception {
         try (NatsServer s1 = runServerOnPort(1222)) {
             try (NatsServer s2 = runServerOnPort(1224)) {
 
@@ -275,7 +274,7 @@ public class ITClusterTest {
                                     sleep(10);
                                 }
                                 nc.close();
-                            } catch (IOException | TimeoutException e) {
+                            } catch (IOException e) {
                                 e.printStackTrace();
                             }
                         }
@@ -414,7 +413,7 @@ public class ITClusterTest {
     }
 
     @Test
-    public void testProperFalloutAfterMaxAttempts() throws IOException, TimeoutException {
+    public void testProperFalloutAfterMaxAttempts() throws Exception {
         Options opts = new Options.Builder(defaultOptions())
                 .dontRandomize()
                 .maxReconnect(5)
@@ -461,7 +460,7 @@ public class ITClusterTest {
 
     @Test
     public void testProperFalloutAfterMaxAttemptsWithAuthMismatch()
-            throws IOException, TimeoutException {
+            throws Exception {
         final String[] myServers = {"nats://localhost:1222", "nats://localhost:4443"};
 
         Options opts = new Options.Builder(defaultOptions())
@@ -505,7 +504,7 @@ public class ITClusterTest {
                             closedCbCalled.get());
 
                     // Make sure we have not exceeded MaxReconnect
-                    assertEquals("Wrong number of reconnects", nc.opts.getMaxReconnect(),
+                    assertEquals("Wrong number of reconnects", nc.getOptions().getMaxReconnect(),
                             nc.getStats().getReconnects());
 
                     // Make sure we are not still reconnecting
@@ -637,7 +636,7 @@ public class ITClusterTest {
                     Long reconnectedAt = rch.take();
                     Long pingCycle = TimeUnit.NANOSECONDS.toMillis(disconnectedAt - reconnectedAt);
                     assertFalse(String.format("Reconnect due to ping took %d msec", pingCycle),
-                            pingCycle > 2 * c.opts.getPingInterval());
+                            pingCycle > 2 * c.getOptions().getPingInterval());
                 }
             }
         }

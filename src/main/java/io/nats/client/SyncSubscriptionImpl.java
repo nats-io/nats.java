@@ -26,15 +26,15 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
     @Override
     public void close() {
-        mu.lock();
+        lock();
         try {
-            for (long key : threads.keySet()) {
-                if (key != Thread.currentThread().getId()) {
-                    threads.get(key).interrupt();
+            for (Map.Entry<Long, Thread> entry : threads.entrySet()) {
+                if (entry.getKey() != Thread.currentThread().getId()) {
+                    entry.getValue().interrupt();
                 }
             }
         } finally {
-            mu.unlock();
+            unlock();
         }
         super.close();
     }
@@ -54,23 +54,23 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
     public Message nextMessage(long timeout, TimeUnit unit)
             throws IOException, InterruptedException {
 
-        mu.lock();
+        lock();
         if (connClosed) {
-            mu.unlock();
+            unlock();
             throw new IllegalStateException(ERR_CONNECTION_CLOSED);
         }
         if (mch == null) {
             if ((this.max > 0) && (delivered >= this.max)) {
-                mu.unlock();
+                unlock();
                 throw new IOException(ERR_MAX_MESSAGES);
             } else if (closed) {
-                mu.unlock();
+                unlock();
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
         }
         if (sc) {
             sc = false;
-            mu.unlock();
+            unlock();
             throw new IOException(ERR_SLOW_CONSUMER);
         }
 
@@ -79,7 +79,7 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
         final BlockingQueue<Message> localChannel = mch;
         final long localMax = max;
         // boolean chanClosed = localChannel.isClosed();
-        mu.unlock();
+        unlock();
         Message msg = null;
         // Wait until a message is available
         threads.put(Thread.currentThread().getId(), Thread.currentThread());
@@ -98,12 +98,15 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
 
         if (msg != null) {
             // Update some stats
-            mu.lock();
-            this.delivered++;
-            long delivered = this.delivered;
-            pMsgs--;
-            pBytes -= (msg.getData() != null ? msg.getData().length : 0);
-            mu.unlock();
+            lock();
+            try {
+                this.delivered++;
+                long delivered = this.delivered;
+                pMsgs--;
+                pBytes -= (msg.getData() != null ? msg.getData().length : 0);
+            } finally {
+                unlock();
+            }
 
             if (localMax > 0) {
                 if (delivered > localMax) {

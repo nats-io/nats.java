@@ -106,7 +106,7 @@ public class MessageTest {
         final byte[] payload = "Hello World".getBytes();
         final SubscriptionImpl sub = mock(SubscriptionImpl.class);
 
-        MsgArg ma = new Parser(new ConnectionImpl()).new MsgArg();
+        MsgArg ma = new MsgArg();
         ma.subject = ByteBuffer.allocate(subj.length);
         ma.subject.put(subj);
         ma.reply = ByteBuffer.allocate(reply.length);
@@ -133,7 +133,7 @@ public class MessageTest {
         final byte[] payload = "Hello World".getBytes();
         final SubscriptionImpl sub = mock(SubscriptionImpl.class);
 
-        MsgArg ma = new Parser(new ConnectionImpl()).new MsgArg();
+        MsgArg ma = new MsgArg();
         ma.subject = ByteBuffer.allocate(subj.length);
         ma.subject.put(subj);
         ma.reply = ByteBuffer.allocate(reply.length);
@@ -155,7 +155,7 @@ public class MessageTest {
         final byte[] payload = "Hello World".getBytes();
         final SubscriptionImpl sub = mock(SubscriptionImpl.class);
 
-        MsgArg ma = new Parser(new ConnectionImpl()).new MsgArg();
+        MsgArg ma = new MsgArg();
         ma.subject = ByteBuffer.allocate(subj.length);
         ma.subject.put(subj);
         ma.reply = ByteBuffer.allocate(reply.length);
@@ -167,12 +167,12 @@ public class MessageTest {
     }
 
     @Test
-    public void testMessageByteArrayLongStringStringSubscriptionImpl() {
+    public void testMessageByteArrayStringStringSubscriptionImpl() {
         byte[] payload = "This is a message payload.".getBytes();
         String subj = "foo";
         String reply = "bar";
 
-        Message msg = new Message(payload, payload.length, subj, reply, null);
+        Message msg = new Message(payload, subj, reply, null);
         assertEquals(subj, msg.getSubject());
         assertEquals(reply, msg.getReplyTo());
         assertTrue(Arrays.equals(payload, msg.getData()));
@@ -184,7 +184,7 @@ public class MessageTest {
         String subj = "foo";
         String reply = "bar";
 
-        Message msg = new Message(payload, payload.length, subj, reply, null);
+        Message msg = new Message(payload, subj, reply, null);
         assertEquals(subj, msg.getSubject());
         assertEquals(reply, msg.getReplyTo());
         assertTrue(Arrays.equals(payload, msg.getData()));
@@ -230,7 +230,7 @@ public class MessageTest {
         String subj = "foo";
         String reply = "bar";
 
-        Message msg = new Message(payload, payload.length, subj, reply, subMock);
+        Message msg = new Message(payload, subj, reply, subMock);
         assertEquals(subMock, msg.getSubscription());
     }
 

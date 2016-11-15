@@ -8,22 +8,16 @@ package io.nats.client;
 
 import io.nats.client.Parser.MsgArg;
 import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A {@code Message} object is used to send a message containing a stream of uninterpreted bytes.
  */
 public class Message {
-    static final Logger logger = LoggerFactory.getLogger(Message.class);
-    protected SubscriptionImpl sub;
+    private SubscriptionImpl sub;
     private byte[] subjectBytes;
     private String subjectString;
-    // private ByteBuffer subject;
-    // private ByteBuffer replyTo;
     private byte[] replyToBytes;
     private String replyToString;
-    // private ByteBuffer data;
     private byte[] data;
 
     /**
@@ -39,7 +33,7 @@ public class Message {
      * @param data    the message payload
      */
     public Message(String subject, String reply, byte[] data) {
-        this(data, (null != data ? data.length : 0), subject, reply, null);
+        this(data, subject, reply, null);
     }
 
     /*
@@ -65,7 +59,7 @@ public class Message {
         }
     }
 
-    Message(byte[] data, int length, String subject, String reply, SubscriptionImpl sub) {
+    Message(byte[] data, String subject, String reply, SubscriptionImpl sub) {
         if (subject == null) {
             throw new NullPointerException("Subject cannot be null");
         }
@@ -137,10 +131,8 @@ public class Message {
      * @return the reply subject
      */
     public String getReplyTo() {
-        if (replyToString == null) {
-            if (replyToBytes != null) {
-                replyToString = new String(replyToBytes, 0, replyToBytes.length);
-            }
+        if (replyToString == null && replyToBytes != null) {
+            replyToString = new String(replyToBytes, 0, replyToBytes.length);
         }
         return replyToString;
     }
@@ -212,7 +204,7 @@ public class Message {
      */
     @Override
     public String toString() {
-        int maxBytes = 32;
+        final int maxBytes = 32;
         int len = 0;
 
         byte[] buf = getData();
@@ -236,4 +228,5 @@ public class Message {
 
         return sb.toString();
     }
+
 }

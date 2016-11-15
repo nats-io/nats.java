@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 class SampleGroup extends Sample {
-    final List<Sample> samples = new ArrayList<Sample>();
+    private final List<Sample> samples = new ArrayList<Sample>();
 
     SampleGroup(SampleGroup... groups) {
         for (SampleGroup g : groups) {
@@ -19,6 +19,10 @@ class SampleGroup extends Sample {
                 addSample(stat);
             }
         }
+    }
+
+    public final List<Sample> getSamples() {
+        return samples;
     }
 
     /**

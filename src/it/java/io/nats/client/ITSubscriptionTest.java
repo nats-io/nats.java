@@ -38,7 +38,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -92,7 +91,7 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testServerAutoUnsub() throws IOException, TimeoutException {
+    public void testServerAutoUnsub() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
@@ -128,7 +127,7 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testClientSyncAutoUnsub() {
+    public void testClientSyncAutoUnsub() throws Exception {
         try (NatsServer s = runDefaultServer()) {
             try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
@@ -167,14 +166,12 @@ public class ITSubscriptionTest {
                     assertFalse("Expected subscription to be invalid after hitting max",
                             sub.isValid());
                 }
-            } catch (IOException | TimeoutException e2) {
-                fail("Should have connected");
             }
         }
     }
 
     @Test
-    public void testClientAsyncAutoUnsub() throws IOException, TimeoutException {
+    public void testClientAsyncAutoUnsub() throws Exception {
         final AtomicInteger received = new AtomicInteger(0);
         MessageHandler mh = new MessageHandler() {
             @Override
@@ -460,7 +457,7 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testCloseSubRelease() throws IOException, TimeoutException {
+    public void testCloseSubRelease() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (final Connection nc = newDefaultConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
@@ -492,7 +489,7 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testIsValidSubscriber() throws IOException, TimeoutException {
+    public void testIsValidSubscriber() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
 
             try (final Connection nc = newDefaultConnection()) {
@@ -569,7 +566,7 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testSlowAsyncSubscriber() throws IOException, TimeoutException {
+    public void testSlowAsyncSubscriber() throws Exception {
         ConnectionFactory cf = new ConnectionFactory();
         final CountDownLatch mcbLatch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
@@ -708,8 +705,7 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testAsyncSubscriberStarvation()
-            throws IOException, TimeoutException, InterruptedException {
+    public void testAsyncSubscriberStarvation() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
 
         try (NatsServer srv = runDefaultServer()) {
@@ -801,8 +797,7 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testNextMsgCallOnClosedSub()
-            throws IOException, TimeoutException, InterruptedException {
+    public void testNextMsgCallOnClosedSub() throws Exception {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
         try (NatsServer srv = runDefaultServer()) {

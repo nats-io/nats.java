@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import java.util.Arrays;
+import java.util.Objects;
 
 class ServerInfo {
     @SerializedName("server_id")
@@ -58,7 +59,9 @@ class ServerInfo {
         this.authRequired = authRequired;
         this.tlsRequired = tlsRequired;
         this.maxPayload = maxPayload;
-        this.connectUrls = connectUrls;
+        if (connectUrls != null) {
+            this.connectUrls = Arrays.copyOf(connectUrls, connectUrls.length);
+        }
     }
 
     ServerInfo(ServerInfo input) {
@@ -180,7 +183,7 @@ class ServerInfo {
     }
 
     void setConnectUrls(String[] connectUrls) {
-        this.connectUrls = connectUrls;
+        this.connectUrls = Arrays.copyOf(connectUrls, connectUrls.length);
     }
 
     public String toString() {
@@ -220,5 +223,11 @@ class ServerInfo {
                 && Boolean.compare(sslRequired, other.sslRequired) == 0
                 && Boolean.compare(tlsRequired, other.tlsRequired) == 0
                 && compare(version, other.version));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, version, goVersion, host, port, authRequired, sslRequired,
+                tlsRequired, tlsVerify, maxPayload, connectUrls);
     }
 }

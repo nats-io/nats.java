@@ -25,7 +25,7 @@ public class ConnectionEvent {
      *
      * @return the {@link Connection}
      */
-    public Connection getConnection() {
+    public final Connection getConnection() {
         return nc;
     }
 

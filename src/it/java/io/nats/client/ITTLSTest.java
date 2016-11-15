@@ -35,7 +35,6 @@ import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -112,7 +111,7 @@ public class ITTLSTest {
     }
 
     @Test
-    public void testTlsSuccessSecureConnect() {
+    public void testTlsSuccessSecureConnect() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
         try (NatsServer srv = runServerWithConfig("tls_1222.conf")) {
@@ -152,21 +151,12 @@ public class ITTLSTest {
                 } catch (Exception e) {
                     fail(e.getMessage());
                 }
-            } catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-                fail(e.getMessage());
-            } finally {
-                srv.shutdown();
             }
-        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
-                | KeyManagementException e1) {
-            // TODO Auto-generated catch block
-            fail(e1.getMessage());
         }
     }
 
     @Test
-    public void testTlsSuccessSecureReconnect() {
+    public void testTlsSuccessSecureReconnect() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
         final CountDownLatch dcLatch = new CountDownLatch(1);
@@ -242,15 +232,7 @@ public class ITTLSTest {
                     assertTrue("Status returned " + c.getState()
                             + " after close() was called instead of CLOSED", c.isClosed());
                 }
-            } catch (IOException | TimeoutException e) {
-                fail("Should have connected OK: " + e.getMessage());
-            } finally {
-                srv.shutdown();
             }
-        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
-                | KeyManagementException e1) {
-            // TODO Auto-generated catch block
-            fail(e1.getMessage());
         }
     }
 }

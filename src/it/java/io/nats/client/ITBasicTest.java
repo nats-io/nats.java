@@ -51,7 +51,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Category(IntegrationTest.class)
@@ -94,7 +93,7 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testConnectedServer() throws IOException, TimeoutException {
+    public void testConnectedServer() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (ConnectionImpl conn = (ConnectionImpl) newDefaultConnection()) {
 
@@ -159,23 +158,19 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testSimplePublishNoData() {
+    public void testSimplePublishNoData() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection c = newDefaultConnection()) {
                 c.publish("foo", null);
-            } catch (IOException | TimeoutException e) {
-                fail(e.getMessage());
             }
         }
     }
 
     @Test(expected = NullPointerException.class)
-    public void testSimplePublishError() {
+    public void testSimplePublishError() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection c = newDefaultConnection()) {
                 c.publish(null, "Hello World!".getBytes());
-            } catch (IOException | TimeoutException e) {
-                fail(e.getMessage());
             }
         }
     }
@@ -240,7 +235,7 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testSyncSubscribe() throws IOException, TimeoutException {
+    public void testSyncSubscribe() throws Exception {
         final byte[] omsg = "Hello World".getBytes();
         int timeoutMsec = 1000;
 
@@ -341,7 +336,7 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testReplyArg() throws IOException, TimeoutException {
+    public void testReplyArg() throws Exception {
         final String replyExpected = "bar";
 
         final CountDownLatch latch = new CountDownLatch(1);
@@ -421,7 +416,7 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testDoubleUnsubscribe() throws IOException, TimeoutException {
+    public void testDoubleUnsubscribe() throws Exception {
         thrown.expect(IllegalStateException.class);
         try (NatsServer srv = runDefaultServer()) {
             try (Connection c = newDefaultConnection()) {
@@ -509,7 +504,7 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testFlushInHandler() throws InterruptedException, IOException, TimeoutException {
+    public void testFlushInHandler() throws Exception {
         final CountDownLatch mcbLatch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
             try (Connection c = newDefaultConnection()) {
@@ -627,7 +622,7 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testRaceSafeStats() throws IOException, TimeoutException {
+    public void testRaceSafeStats() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
             try (Connection c = newDefaultConnection()) {
                 executor.execute(new Runnable() {
@@ -643,29 +638,6 @@ public class ITBasicTest {
                 assertEquals(1, c.getStats().getOutMsgs());
             }
         }
-    }
-
-    @Test
-    public void testStatsClone() {
-        Statistics s1 = new Statistics();
-        Statistics s2 = null;
-
-        s1.incrementInMsgs();
-        s1.incrementInBytes(8192);
-        s1.incrementOutMsgs();
-        s1.incrementOutBytes(512);
-        s1.incrementReconnects();
-
-        try {
-            s2 = (Statistics) s1.clone();
-        } catch (CloneNotSupportedException e) {
-            fail("Clone should not throw an exception");
-        }
-        assertEquals(s1.getInMsgs(), s2.getInMsgs());
-        assertEquals(s1.getOutMsgs(), s2.getOutMsgs());
-        assertEquals(s1.getInBytes(), s2.getInBytes());
-        assertEquals(s1.getOutBytes(), s2.getOutBytes());
-        assertEquals(s1.getReconnects(), s2.getReconnects());
     }
 
     @Test

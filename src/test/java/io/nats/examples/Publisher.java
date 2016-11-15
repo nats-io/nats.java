@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 public class Publisher {
     String url = Nats.DEFAULT_URL;
@@ -33,7 +32,7 @@ public class Publisher {
         System.err.println(usageString);
     }
 
-    public void run() throws IOException, TimeoutException {
+    public void run() throws IOException {
         try (Connection nc = Nats.connect(url)) {
             nc.publish(subject, payload.getBytes());
             System.out.printf("Published [%s] : '%s'\n", subject, payload);

@@ -30,4 +30,6 @@ public interface AsyncSubscription extends Subscription {
      * @see MessageHandler#onMessage(Message)
      */
     void setMessageHandler(MessageHandler cb);
+
+    MessageHandler getMessageHandler();
 }

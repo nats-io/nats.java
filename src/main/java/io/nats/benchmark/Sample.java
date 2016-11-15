@@ -38,7 +38,7 @@ public class Sample {
         this.jobMsgCnt = jobCount;
         this.start = start;
         this.end = end;
-        this.msgBytes = msgSize * jobCount;
+        this.msgBytes = (long) msgSize * jobCount;
         Statistics stats = nc.getStats();
         this.msgCnt = stats.getOutMsgs() + stats.getInMsgs();
         this.ioBytes = stats.getOutBytes() + stats.getInBytes();
@@ -84,5 +84,53 @@ public class Sample {
         String rate = formatter.format(rate());
         String throughput = humanBytes(throughput(), false);
         return String.format("%s msgs/sec ~ %s/sec", rate, throughput);
+    }
+
+    final int getJobMsgCnt() {
+        return jobMsgCnt;
+    }
+
+    final void setJobMsgCnt(int jobMsgCnt) {
+        this.jobMsgCnt = jobMsgCnt;
+    }
+
+    final long getMsgCnt() {
+        return msgCnt;
+    }
+
+    final void setMsgCnt(long msgCnt) {
+        this.msgCnt = msgCnt;
+    }
+
+    final long getMsgBytes() {
+        return msgBytes;
+    }
+
+    final void setMsgBytes(long msgBytes) {
+        this.msgBytes = msgBytes;
+    }
+
+    final long getIoBytes() {
+        return ioBytes;
+    }
+
+    final void setIoBytes(long ioBytes) {
+        this.ioBytes = ioBytes;
+    }
+
+    final long getStart() {
+        return start;
+    }
+
+    final void setStart(long start) {
+        this.start = start;
+    }
+
+    final long getEnd() {
+        return end;
+    }
+
+    final void setEnd(long end) {
+        this.end = end;
     }
 }
