@@ -1,13 +1,12 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static java.lang.System.in;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -18,9 +17,9 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.URI;
 import java.security.cert.Certificate;
 import java.util.concurrent.locks.ReentrantLock;
-
 import javax.net.SocketFactory;
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLContext;
@@ -28,73 +27,64 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /*
  * Convenience class representing the TCP connection to prevent managing two variables throughout
  * the NATS client code.
  */
-class TcpConnection implements AutoCloseable {
-    final Logger logger = LoggerFactory.getLogger(TcpConnection.class);
+class TcpConnection implements TransportConnection, AutoCloseable {
+    private final Logger logger = LoggerFactory.getLogger(TcpConnection.class);
 
-    /// TODO: Test various scenarios for efficiency. Is a
-    /// BufferedReader directly over a network stream really
-    /// more efficient for NATS?
-    ///
-    ReentrantLock mu = new ReentrantLock();
-    protected SocketFactory factory = SocketFactory.getDefault();
-    protected SSLContext sslContext;
-    Socket client = null;
-    protected OutputStream writeStream = null;
-    protected InputStream readStream = null;
-    protected BufferedReader bisr = null;
-    protected BufferedInputStream bis = null;
-    protected BufferedOutputStream bos = null;
+    // TODO: Test various scenarios for efficiency. Is a
+    // BufferedReader directly over a network stream really
+    // more efficient for NATS?
+    //
+    private final ReentrantLock mu = new ReentrantLock();
+    private SocketFactory factory = SocketFactory.getDefault();
+    private SSLContext sslContext;
+    private Socket client = null;
+    private OutputStream writeStream = null;
+    private InputStream readStream = null;
+    private BufferedReader bisr = null;
+    private BufferedInputStream bis = null;
+    private BufferedOutputStream bos = null;
 
-    protected InetSocketAddress addr = null;
-    protected int timeout = 0;
-    boolean tlsDebug = false;
+    private int timeout = 0;
+    private boolean tlsDebug = false;
 
-    TcpConnection() {}
+    TcpConnection() {
+    }
 
-    void open(String host, int port, int timeoutMillis) throws IOException {
-        logger.trace("TcpConnection.open({},{},{})", host, port, timeoutMillis);
+    @Override
+    public void open(String url, int timeout) throws IOException {
+        logger.trace("TcpConnection.open({},{})", url, timeout);
+        URI uri = URI.create(url);
+        String host = uri.getHost();
+        int port = uri.getPort();
         mu.lock();
         try {
 
-            this.addr = new InetSocketAddress(host, port);
             client = factory.createSocket();
             client.setTcpNoDelay(true);
             client.setReceiveBufferSize(2 * 1024 * 1024);
             client.setSendBufferSize(2 * 1024 * 1024);
-            client.connect(addr, timeout);
+            client.connect(new InetSocketAddress(host, port), timeout);
 
             logger.debug("socket tcp_nodelay: {}", client.getTcpNoDelay());
             logger.debug("socket recv buf size: {}", client.getReceiveBufferSize());
             logger.debug("socket send buf size: {}", client.getSendBufferSize());
 
-            open();
-
-        } catch (IOException e) {
-            throw e;
-        } finally {
-            mu.unlock();
-        }
-    }
-
-    void open() throws IOException {
-        mu.lock();
-        try {
             writeStream = client.getOutputStream();
             readStream = client.getInputStream();
 
-        } catch (IOException e) {
-            throw e;
         } finally {
             mu.unlock();
         }
     }
 
-    protected void setConnectTimeout(int value) {
+    void setConnectTimeout(int value) {
         this.timeout = value;
     }
 
@@ -123,18 +113,26 @@ class TcpConnection implements AutoCloseable {
         }
     }
 
-    BufferedReader getBufferedReader() {
+    @Override
+    public BufferedReader getBufferedReader() {
         return new BufferedReader(new InputStreamReader(bis));
     }
 
-    InputStream getInputStream(int size) {
+    @Override
+    public InputStream getInputStream(int size) {
         if (bis == null) {
+            if (size > 0) {
+                bis = new BufferedInputStream(readStream, size);
+            } else {
+                bis = new BufferedInputStream(readStream);
+            }
             bis = new BufferedInputStream(readStream, size);
         }
         return bis;
     }
 
-    OutputStream getOutputStream(int size) {
+    @Override
+    public OutputStream getOutputStream(int size) {
         if (bos == null) {
             bos = new BufferedOutputStream(writeStream, size);
         }
@@ -148,28 +146,23 @@ class TcpConnection implements AutoCloseable {
         return writeStream;
     }
 
-    boolean isConnected() {
-        if (client == null) {
-            return false;
-        }
-        return client.isConnected();
+    @Override
+    public boolean isConnected() {
+        return client != null && client.isConnected();
     }
 
-    boolean isDataAvailable() throws IOException {
-        if (readStream == null) {
-            return false;
-        }
-
-        return (readStream.available() > 0);
+    @Override
+    public boolean isClosed() {
+        return client.isClosed();
     }
 
     /**
      * Set the socket factory used to make connections with. Can be used to enable SSL connections
      * by passing in a javax.net.ssl.SSLSocketFactory instance.
      *
-     * @see #makeTLS
+     * @see #makeTls
      */
-    protected void setSocketFactory(SocketFactory factory) {
+    void setSocketFactory(SocketFactory factory) {
         this.factory = factory;
     }
 
@@ -181,13 +174,13 @@ class TcpConnection implements AutoCloseable {
         }
     }
 
-    protected void makeTLS(SSLContext context) throws IOException {
+    void makeTls(SSLContext context) throws IOException {
         this.sslContext = context;
         setSocketFactory(sslContext.getSocketFactory());
-        makeTLS();
+        makeTls();
     }
 
-    protected void makeTLS() throws IOException {
+    void makeTls() throws IOException {
         SSLSocketFactory sslSf = getSslSocketFactory();
         SSLSocket sslSocket = (SSLSocket) sslSf.createSocket(client,
                 client.getInetAddress().getHostAddress(), client.getPort(), true);
@@ -196,7 +189,6 @@ class TcpConnection implements AutoCloseable {
             sslSocket.addHandshakeCompletedListener(new HandshakeListener());
         }
 
-        // this.setSocket(sslSocket);
         logger.trace("Starting TLS handshake");
         sslSocket.startHandshake();
         logger.trace("TLS handshake complete");
@@ -207,34 +199,12 @@ class TcpConnection implements AutoCloseable {
         bos = null;
     }
 
-    protected void setSocket(Socket sock) {
+    void setSocket(Socket sock) {
         mu.lock();
         try {
             client = sock;
         } finally {
             mu.unlock();
-        }
-    }
-
-    class HandshakeListener implements HandshakeCompletedListener {
-        public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent event) {
-            SSLSession session = event.getSession();
-            logger.trace("Handshake Completed with peer {}", session.getPeerHost());
-            logger.trace("   cipher: {}", session.getCipherSuite());
-            Certificate[] certs = null;
-            try {
-                certs = session.getPeerCertificates();
-            } catch (SSLPeerUnverifiedException puv) {
-                certs = null;
-            }
-            if (certs != null) {
-                logger.trace("   peer certificates:");
-                for (int z = 0; z < certs.length; z++) {
-                    logger.trace("      certs[{}]: {}", z, certs[z]);
-                }
-            } else {
-                logger.trace("No peer certificates presented");
-            }
         }
     }
 
@@ -264,5 +234,47 @@ class TcpConnection implements AutoCloseable {
 
     protected void setSslContext(SSLContext sslContext) {
         this.sslContext = sslContext;
+    }
+
+    protected void setReadStream(InputStream in) {
+        readStream = in;
+    }
+
+    protected InputStream getReadStream() {
+        return readStream;
+    }
+
+    protected void setWriteStream(OutputStream out) {
+        writeStream = out;
+    }
+
+    protected OutputStream getWriteStream() {
+        return writeStream;
+    }
+
+    protected int getTimeout() {
+        return timeout;
+    }
+
+    class HandshakeListener implements HandshakeCompletedListener {
+        public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent event) {
+            SSLSession session = event.getSession();
+            logger.trace("Handshake Completed with peer {}", session.getPeerHost());
+            logger.trace("   cipher: {}", session.getCipherSuite());
+            Certificate[] certs;
+            try {
+                certs = session.getPeerCertificates();
+            } catch (SSLPeerUnverifiedException puv) {
+                certs = null;
+            }
+            if (certs != null) {
+                logger.trace("   peer certificates:");
+                for (int z = 0; z < certs.length; z++) {
+                    logger.trace("      certs[{}]: {}", z, certs[z]);
+                }
+            } else {
+                logger.trace("No peer certificates presented");
+            }
+        }
     }
 }

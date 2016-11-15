@@ -1,8 +1,15 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import ch.qos.logback.classic.Level;
 
@@ -23,7 +30,7 @@ public class StatisticsTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     static final Logger logger = LoggerFactory.getLogger(StatisticsTest.class);
 
-    static final LogVerifier verifier = new LogVerifier();
+    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -32,10 +39,12 @@ public class StatisticsTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -49,7 +58,7 @@ public class StatisticsTest {
         setLogLevel(Level.INFO);
     }
 
-    Statistics createDummyStats() {
+    private Statistics createDummyStats() {
         Statistics stats = new Statistics();
         stats.incrementFlushes();
         stats.incrementInBytes(44L);
@@ -72,15 +81,24 @@ public class StatisticsTest {
     }
 
     @Test
-    public void testClone() throws CloneNotSupportedException {
-        Statistics stats = createDummyStats();
-        Statistics stats2 = (Statistics) stats.clone();
-        assertEquals(stats.getFlushes(), stats2.getFlushes());
-        assertEquals(stats.getFlushes(), stats2.getFlushes());
-        assertEquals(stats.getInMsgs(), stats2.getInMsgs());
-        assertEquals(stats.getOutBytes(), stats2.getOutBytes());
-        assertEquals(stats.getOutMsgs(), stats2.getOutMsgs());
-        assertEquals(stats.getReconnects(), stats2.getReconnects());
+    public void testCopyConstructor() {
+        Statistics s1 = new Statistics();
+
+        s1.incrementInMsgs();
+        s1.incrementInBytes(8192);
+        s1.incrementOutMsgs();
+        s1.incrementOutBytes(512);
+        s1.incrementReconnects();
+
+        Statistics s2 = new Statistics(s1);
+
+        assertEquals(s1.getInMsgs(), s2.getInMsgs());
+        assertEquals(s1.getOutMsgs(), s2.getOutMsgs());
+        assertEquals(s1.getInBytes(), s2.getInBytes());
+        assertEquals(s1.getOutBytes(), s2.getOutBytes());
+        assertEquals(s1.getReconnects(), s2.getReconnects());
+
+        assertTrue(s2.equals(s2));
     }
 
     @Test

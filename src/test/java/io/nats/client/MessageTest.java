@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -13,9 +13,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-import io.nats.client.Parser.MsgArg;
-
 import ch.qos.logback.classic.Level;
+import io.nats.client.Parser.MsgArg;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -39,22 +38,24 @@ public class MessageTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     static final Logger logger = LoggerFactory.getLogger(MessageTest.class);
 
-    static final LogVerifier verifier = new LogVerifier();
+    private static final LogVerifier verifier = new LogVerifier();
 
     @Mock
     private AsyncSubscriptionImpl subMock;
 
     @Rule
-    public ExpectedException thrown = ExpectedException.none();
+    public final ExpectedException thrown = ExpectedException.none();
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -105,7 +106,7 @@ public class MessageTest {
         final byte[] payload = "Hello World".getBytes();
         final SubscriptionImpl sub = mock(SubscriptionImpl.class);
 
-        MsgArg ma = new Parser(new ConnectionImpl()).new MsgArg();
+        MsgArg ma = new MsgArg();
         ma.subject = ByteBuffer.allocate(subj.length);
         ma.subject.put(subj);
         ma.reply = ByteBuffer.allocate(reply.length);
@@ -132,7 +133,7 @@ public class MessageTest {
         final byte[] payload = "Hello World".getBytes();
         final SubscriptionImpl sub = mock(SubscriptionImpl.class);
 
-        MsgArg ma = new Parser(new ConnectionImpl()).new MsgArg();
+        MsgArg ma = new MsgArg();
         ma.subject = ByteBuffer.allocate(subj.length);
         ma.subject.put(subj);
         ma.reply = ByteBuffer.allocate(reply.length);
@@ -154,7 +155,7 @@ public class MessageTest {
         final byte[] payload = "Hello World".getBytes();
         final SubscriptionImpl sub = mock(SubscriptionImpl.class);
 
-        MsgArg ma = new Parser(new ConnectionImpl()).new MsgArg();
+        MsgArg ma = new MsgArg();
         ma.subject = ByteBuffer.allocate(subj.length);
         ma.subject.put(subj);
         ma.reply = ByteBuffer.allocate(reply.length);
@@ -166,12 +167,12 @@ public class MessageTest {
     }
 
     @Test
-    public void testMessageByteArrayLongStringStringSubscriptionImpl() {
+    public void testMessageByteArrayStringStringSubscriptionImpl() {
         byte[] payload = "This is a message payload.".getBytes();
         String subj = "foo";
         String reply = "bar";
 
-        Message msg = new Message(payload, payload.length, subj, reply, null);
+        Message msg = new Message(payload, subj, reply, null);
         assertEquals(subj, msg.getSubject());
         assertEquals(reply, msg.getReplyTo());
         assertTrue(Arrays.equals(payload, msg.getData()));
@@ -183,7 +184,7 @@ public class MessageTest {
         String subj = "foo";
         String reply = "bar";
 
-        Message msg = new Message(payload, payload.length, subj, reply, null);
+        Message msg = new Message(payload, subj, reply, null);
         assertEquals(subj, msg.getSubject());
         assertEquals(reply, msg.getReplyTo());
         assertTrue(Arrays.equals(payload, msg.getData()));
@@ -229,7 +230,7 @@ public class MessageTest {
         String subj = "foo";
         String reply = "bar";
 
-        Message msg = new Message(payload, payload.length, subj, reply, subMock);
+        Message msg = new Message(payload, subj, reply, subMock);
         assertEquals(subMock, msg.getSubscription());
     }
 

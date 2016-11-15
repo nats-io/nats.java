@@ -1,16 +1,25 @@
-package io.nats.client;
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package io.nats.client;
 
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Random;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * A highly performant unique identifier generator.
+ */
 public class NUID {
 
-    static final Logger logger = LoggerFactory.getLogger(NUID.class);
+    private static final Logger logger = LoggerFactory.getLogger(NUID.class);
 
     /*
      * NUID needs to be very fast to generate and truly unique, all while being entropy pool
@@ -20,10 +29,10 @@ public class NUID {
      */
 
     // Constants
-    static final char[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
+    static final char[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
             'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
             'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
-            'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z' };
+            'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
     static final int base = 62;
     static final int preLen = 12;
     static final int seqLen = 10;
@@ -31,18 +40,18 @@ public class NUID {
     static final long minInc = 33L;
     static final long maxInc = 333L;
     static final int totalLen = preLen + seqLen;
-    static SecureRandom srand;
-    static Random prand;
+    private static SecureRandom srand;
+    private static Random prand;
 
     // Instance fields
     char[] pre;
-    long seq;
-    long inc;
+    private long seq;
+    private long inc;
 
 
     // Global NUID
     public static final NUID globalNUID = new NUID();
-    private static Object lock = new Object();
+    private static final Object lock = new Object();
 
     static NUID getInstance() {
         return globalNUID;
@@ -78,7 +87,7 @@ public class NUID {
 
     /**
      * Generate the next NUID string from the global locked NUID instance.
-     * 
+     *
      * @return the next NUID string from the global locked NUID instance.
      */
     public static String nextGlobal() {
@@ -89,7 +98,7 @@ public class NUID {
 
     /**
      * Generate the next NUID string from this instance.
-     * 
+     *
      * @return the next NUID string from this instance.
      */
     public String next() {
@@ -124,7 +133,7 @@ public class NUID {
      * when we exhaust the sequential range.
      */
 
-    void randomizePrefix() {
+    final void randomizePrefix() {
         byte[] cb = new byte[preLen];
 
         // Use SecureRandom for prefix only
@@ -168,16 +177,16 @@ public class NUID {
 
     /**
      * Sets the prefix.
-     * 
+     *
      * @param pre the pre to set
      */
     void setPre(char[] pre) {
-        this.pre = pre;
+        this.pre = Arrays.copyOf(pre, pre.length);
     }
 
     /**
      * Return the current sequence value.
-     * 
+     *
      * @return the seq
      */
     long getSeq() {
@@ -186,7 +195,7 @@ public class NUID {
 
     /**
      * Set the sequence to the supplied value.
-     * 
+     *
      * @param seq the seq to set
      */
     void setSeq(long seq) {
@@ -195,7 +204,7 @@ public class NUID {
 
     /**
      * Return the current increment.
-     * 
+     *
      * @return the inc
      */
     long getInc() {
@@ -204,7 +213,7 @@ public class NUID {
 
     /**
      * Set the increment to the supplied value.
-     * 
+     *
      * @param inc the inc to set
      */
     void setInc(long inc) {

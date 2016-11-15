@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -28,30 +28,34 @@ public class ServerInfoTest {
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
-    static String testString =
+    private static final String testString =
             "INFO {\"server_id\":\"s76hOxUCzhR2ngkcVYSPPV\",\"version\":\"0.9.4\","
                     + "\"go\":\"go1.6.3\",\"host\":\"0.0.0.0\",\"port\":4222,"
                     + "\"auth_required\":true,\"ssl_required\":true,\"tls_required\":true,"
                     + "\"tls_verify\":false,\"max_payload\":1048576,"
                     + "\"connect_urls\":[\"10.0.1.3:4222\",\"[fe80::42:aff:fe00:103]:4222\"]}\r\n";
-    static String testStringNoConnectedUrls =
+    private static final String testStringNoConnectedUrls =
             "INFO {\"server_id\":\"s76hOxUCzhR2ngkcVYSPPV\",\"version\":\"0.9.4\","
                     + "\"go\":\"go1.6.3\",\"host\":\"0.0.0.0\",\"port\":4222,"
                     + "\"auth_required\":true,\"ssl_required\":true,\"tls_required\":true,"
                     + "\"tls_verify\":false,\"max_payload\":1048576}\r\n";
-    static ServerInfo testInstance = ServerInfo.createFromWire(testString);
+    private static final ServerInfo testInstance = ServerInfo.createFromWire(testString);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     /**
      * Test method for {@link io.nats.client.ServerInfo#ServerInfo(io.nats.client.ServerInfo)}.

@@ -1,12 +1,12 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -14,7 +14,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -44,10 +44,10 @@ public class SubscriptionImplTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     static final Logger logger = LoggerFactory.getLogger(SubscriptionImplTest.class);
 
-    static final LogVerifier verifier = new LogVerifier();
+    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
-    public ExpectedException thrown = ExpectedException.none();
+    public final ExpectedException thrown = ExpectedException.none();
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -62,10 +62,12 @@ public class SubscriptionImplTest {
     private MessageHandler mcbMock;
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -97,7 +99,7 @@ public class SubscriptionImplTest {
             assertEquals(nc, s.getConnection());
             assertEquals(subj, s.getSubject());
             assertEquals(queue, s.getQueue());
-            assertEquals(mcbMock, s.msgHandler);
+            assertEquals(mcbMock, s.getMessageHandler());
             assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
             assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
         }
@@ -126,7 +128,7 @@ public class SubscriptionImplTest {
     public void testClearMaxPending() {
         ConnectionImpl nc = mock(ConnectionImpl.class);
         // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+        when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
         try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             int maxMsgs = 44;
@@ -152,7 +154,7 @@ public class SubscriptionImplTest {
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
         // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+        when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
         try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             sub.setChannel(mchMock);
@@ -180,7 +182,7 @@ public class SubscriptionImplTest {
     public void testCloseChannelNullConn() {
         // ConnectionImpl nc = mock(ConnectionImpl.class);
         // Make sure the connection opts aren't null
-        // when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+        // when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
         try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
             assertNotNull(sub.getChannel());
@@ -415,16 +417,6 @@ public class SubscriptionImplTest {
         }
     }
 
-    @Test
-    public void testPrintStats() {
-        String subj = "foo";
-        String queue = "bar";
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.printStats();
-        }
-    }
-
-
     // @Test
     // public void testProcessMsg() {
     // MessageHandler mcb = new MessageHandler() {
@@ -546,7 +538,7 @@ public class SubscriptionImplTest {
     public void testUnsubscribeConnectionClosed() {
         try (ConnectionImpl nc = mock(ConnectionImpl.class)) {
             // Make sure the connection opts aren't null
-            when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+            when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
             when(nc.isClosed()).thenReturn(true);
 

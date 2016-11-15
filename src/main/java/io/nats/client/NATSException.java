@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -30,9 +30,9 @@ public class NATSException extends Exception {
 
     /**
      * General-purpose NATS exception for asynchronous events.
-     * 
-     * @param ex the asynchronous exception
-     * @param nc the NATS connection on which the event occurred (if applicable)
+     *
+     * @param ex  the asynchronous exception
+     * @param nc  the NATS connection on which the event occurred (if applicable)
      * @param sub the {@code Subscription} on which the event occurred (if applicable)
      */
     public NATSException(Throwable ex, Connection nc, Subscription sub) {

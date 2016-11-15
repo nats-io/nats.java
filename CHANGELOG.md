@@ -1,11 +1,17 @@
 Change Log
 ==========
 
-## Version 0.7.4-SNAPSHOT
-_2016-11-02_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.3...HEAD)
+## Version 1.0-RC-SNAPSHOT
+_2016-11-15_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.3...HEAD)
 
- * Added `Connection#getServers()` and `Connection#getDiscoveredServers()` APIs to match Go client
- * Added `isTlsRequired()` and `isAuthRequired()` to match Go client capabilities.
+ * [ADDED] `Nats.connect()` and variants have been added as a preferred method for connecting to NATS. `ConnectionFactory.createConnection()` will also continue to be supported.
+ * [ADDED] `Connection#getServers()` and `Connection#getDiscoveredServers()` APIs to match Go client
+ * [ADDED] `isTlsRequired()` and `isAuthRequired()` to match Go client capabilities.
+ * [CHANGED] Methods that previously threw `TimeoutException` now only throw `IOException` in the event of a failure (or return `null` where appropriate).
+  * `ConnectionFactory#createConnection()`
+  * `ConnectionImpl#flush(int timeout)`
+  * `SyncSubscription#nextMessage(int timeout)` - returns `null` if the timeout elapses before a message is available.
+ * [CHANGED] Several constant definitions have been moved to the `Nats` class. 
 
 ## Version 0.7.3
 _2016-11-01_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.1...0.7.3)

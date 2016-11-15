@@ -1,59 +1,45 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
-/**
- * 
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
  */
 
 package io.nats.client;
 
 import io.nats.client.Parser.MsgArg;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Arrays;
 
 /**
  * A {@code Message} object is used to send a message containing a stream of uninterpreted bytes.
  */
 public class Message {
-    static final Logger logger = LoggerFactory.getLogger(Message.class);
+    private SubscriptionImpl sub;
     private byte[] subjectBytes;
     private String subjectString;
-    // private ByteBuffer subject;
-    // private ByteBuffer replyTo;
     private byte[] replyToBytes;
     private String replyToString;
-    // private ByteBuffer data;
     private byte[] data;
-    protected SubscriptionImpl sub;
 
     /**
      * Message constructor.
      */
-    public Message() {}
+    public Message() {
+    }
 
     /**
      * @param subject the subject this {@code Message} will be published to, or that it was received
-     *        from.
-     * @param reply the (optional) queue group name
-     * @param data the message payload
+     *                from.
+     * @param reply   the (optional) reply subject name
+     * @param data    the message payload
      */
     public Message(String subject, String reply, byte[] data) {
-        this(data, (null != data ? data.length : 0), subject, reply, null);
+        this(data, subject, reply, null);
     }
-
-    // protected Message(MsgArg ma, SubscriptionImpl sub, byte[] data, int length) {
-    // this(data, length, ma.subject, ma.reply, sub);
-    // }
 
     /*
      * Note that this constructor may throw ArrayIndexOutOfBoundsException
      */
-    protected Message(MsgArg ma, SubscriptionImpl sub, byte[] buf, int offset, int length) {
+    Message(MsgArg ma, SubscriptionImpl sub, byte[] buf, int offset, int length) {
         this.setSubject(ma.subject.array(), ma.subject.limit());
         if (ma.reply.limit() > 0) {
             this.setReplyTo(ma.reply.array(), ma.reply.limit());
@@ -73,7 +59,10 @@ public class Message {
         }
     }
 
-    protected Message(byte[] data, int length, String subject, String reply, SubscriptionImpl sub) {
+    Message(byte[] data, String subject, String reply, SubscriptionImpl sub) {
+        if (subject == null) {
+            throw new NullPointerException("Subject cannot be null");
+        }
         this.setSubject(subject);
         // make a deep copy of the bytes for this message.
         this.setData(data);
@@ -83,7 +72,7 @@ public class Message {
 
     /**
      * Returns the message payload.
-     * 
+     *
      * @return the message payload
      */
     public byte[] getData() {
@@ -91,8 +80,21 @@ public class Message {
     }
 
     /**
+     * Sets the message payload data.
+     *
+     * @param data the data
+     */
+    public void setData(byte[] data) {
+        if (data != null) {
+            setData(data, 0, data.length);
+        } else {
+            setData(null, 0, 0);
+        }
+    }
+
+    /**
      * Returns the message subject.
-     * 
+     *
      * @return the message subject
      */
     public String getSubject() {
@@ -102,22 +104,21 @@ public class Message {
         return subjectString;
     }
 
-    byte[] getSubjectBytes() {
-        return subjectBytes;
-    }
-
     /**
      * Sets the subject of the message.
-     * 
+     *
      * @param subject the subject to set
      */
     public void setSubject(final String subject) {
-        String subj = subject.trim();
-        if (subj == null || subj.isEmpty()) {
+        if (subject == null || subject.trim().isEmpty()) {
             throw new IllegalArgumentException("Subject cannot be null, empty, or whitespace.");
         }
-        this.subjectString = subj;
-        this.subjectBytes = subj.getBytes();
+        this.subjectString = subject.trim();
+        this.subjectBytes = subjectString.getBytes();
+    }
+
+    byte[] getSubjectBytes() {
+        return subjectBytes;
     }
 
     void setSubject(byte[] subject, int length) {
@@ -126,25 +127,19 @@ public class Message {
 
     /**
      * Returns the reply subject.
-     * 
+     *
      * @return the reply subject
      */
     public String getReplyTo() {
-        if (replyToString == null) {
-            if (replyToBytes != null) {
-                replyToString = new String(replyToBytes, 0, replyToBytes.length);
-            }
+        if (replyToString == null && replyToBytes != null) {
+            replyToString = new String(replyToBytes, 0, replyToBytes.length);
         }
         return replyToString;
     }
 
-    byte[] getReplyToBytes() {
-        return replyToBytes;
-    }
-
     /**
      * Sets the message reply subject.
-     * 
+     *
      * @param replyTo the message reply subject
      */
     public void setReplyTo(String replyTo) {
@@ -161,6 +156,10 @@ public class Message {
         }
     }
 
+    byte[] getReplyToBytes() {
+        return replyToBytes;
+    }
+
     void setReplyTo(byte[] replyTo, int length) {
         if (replyTo == null) {
             this.replyToBytes = null;
@@ -172,7 +171,7 @@ public class Message {
 
     /**
      * Returns the {@code Subscription} object the message was received on.
-     * 
+     *
      * @return the {@code Subscription} the message was received on
      */
     public Subscription getSubscription() {
@@ -181,8 +180,8 @@ public class Message {
 
     /**
      * Sets the message payload data.
-     * 
-     * @param data the data
+     *
+     * @param data   the data
      * @param offset the start offset in the data
      * @param length the number of bytes to write
      */
@@ -200,25 +199,12 @@ public class Message {
     }
 
     /**
-     * Sets the message payload data.
-     * 
-     * @param data the data
-     */
-    public void setData(byte[] data) {
-        if (data != null) {
-            setData(data, 0, data.length);
-        } else {
-            setData(null, 0, 0);
-        }
-    }
-
-    /**
-     * @see java.lang.Object#toString()
      * @return a string representation of the message
+     * @see java.lang.Object#toString()
      */
     @Override
     public String toString() {
-        int maxBytes = 32;
+        final int maxBytes = 32;
         int len = 0;
 
         byte[] buf = getData();
@@ -242,4 +228,5 @@ public class Message {
 
         return sb.toString();
     }
+
 }

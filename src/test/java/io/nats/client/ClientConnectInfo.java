@@ -1,21 +1,22 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
+
+import org.junit.experimental.categories.Category;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 
-import org.junit.experimental.categories.Category;
-
 @Category(UnitTest.class)
 class ClientConnectInfo {
 
-    public ClientConnectInfo() {}
+    private ClientConnectInfo() {
+    }
 
     @SerializedName("verbose")
     private boolean verbose = false;
@@ -50,9 +51,9 @@ class ClientConnectInfo {
     @SerializedName("protocol")
     private int protocol;
 
-    private static transient Gson gson = new GsonBuilder().create();
+    private static final transient Gson gson = new GsonBuilder().create();
 
-    protected static ClientConnectInfo createFromWire(String connectString) {
+    static ClientConnectInfo createFromWire(String connectString) {
         ClientConnectInfo rv = null;
         String jsonString = connectString.replaceFirst("^CONNECT ", "").trim();
         rv = gson.fromJson(jsonString, ClientConnectInfo.class);
@@ -109,8 +110,7 @@ class ClientConnectInfo {
     }
 
     public String toString() {
-        String rv = String.format("CONNECT %s", gson.toJson(this));
-        return rv;
+        return String.format("CONNECT %s", gson.toJson(this));
     }
 
     public String getUser() {

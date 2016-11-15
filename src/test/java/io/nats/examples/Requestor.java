@@ -1,152 +1,103 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.examples;
 
 import io.nats.client.Connection;
-import io.nats.client.ConnectionFactory;
 import io.nats.client.Message;
-import io.nats.client.Statistics;
+import io.nats.client.Nats;
 
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class Requestor {
-    Map<String, String> parsedArgs = new HashMap<String, String>();
+    String url = Nats.DEFAULT_URL;
+    String subject;
+    String payload;
 
-    int count = 20000;
-    String url = ConnectionFactory.DEFAULT_URL;
-    String subject = "foo";
-    byte[] payload = null;
-    long start;
-    long end;
-    long elapsed;
+    static final String usageString =
+            "\nUsage: java Requestor [-s <server>] <subject> <message>\n\nOptions:\n"
+                    + "    -s <url>        the NATS server URLs, separated by commas\n";
 
-    /**
-     * Runs the example.
-     */
-    public void run(String[] args) {
+    public Requestor(String[] args) {
         parseArgs(args);
-        banner();
+    }
 
-        try (Connection c = new ConnectionFactory(url).createConnection()) {
-            start = System.nanoTime();
-            int received = 0;
+    public static void usage() {
+        System.err.println(usageString);
+    }
 
-            Message msg = null;
-            byte[] reply = null;
-            try {
-                for (int i = 0; i < count; i++) {
-                    msg = c.request(subject, payload, 10000);
-                    if (msg == null) {
-                        break;
-                    }
-
-                    received++;
-                    reply = msg.getData();
-                    if (reply != null) {
-                        System.out.println("Got reply: " + new String(reply));
-                    } else {
-                        System.out.println("Got reply with null payload");
-                    }
+    public void run() throws Exception {
+        try (Connection nc = Nats.connect(url)) {
+            Message msg = nc.request(subject, payload.getBytes(), 100, TimeUnit.MILLISECONDS);
+            System.out.printf("Published [%s] : '%s'\n", subject, payload);
+            if (msg == null) {
+                Exception err = nc.getLastException();
+                if (err != null) {
+                    System.err.println("Error in request");
+                    throw err;
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
+                throw new TimeoutException("Request timed out");
             }
+            System.out.printf("Received [%s] : '%s'\n", msg.getSubject(),
+                    msg.getData() == null ? "" : new String(msg.getData()));
+        }
+    }
 
-            end = System.nanoTime();
-            elapsed = TimeUnit.NANOSECONDS.toSeconds(end - start);
+    public void parseArgs(String[] args) {
+        if (args == null || args.length < 2) {
+            throw new IllegalArgumentException("must supply at least subject and msg");
+        }
 
-            System.out.printf("Completed %d requests in %d seconds ", received, elapsed);
-            if (elapsed > 0) {
-                System.out.printf("(%d msgs/second).\n", (received / elapsed));
-            } else {
-                System.out.println();
-                System.out.println("Test not long enough to produce meaningful stats. "
-                        + "Please increase the message count (-count n)");
+        List<String> argList = new ArrayList<String>(Arrays.asList(args));
+
+        // The last arg should be subject and payload
+        // get the payload and remove it from args
+        payload = argList.remove(argList.size() - 1);
+
+        // get the subject and remove it from args
+        subject = argList.remove(argList.size() - 1);
+
+        // Anything left is flags + args
+        Iterator<String> it = argList.iterator();
+        while (it.hasNext()) {
+            String arg = it.next();
+            switch (arg) {
+                case "-s":
+                case "--server":
+                    if (!it.hasNext()) {
+                        throw new IllegalArgumentException(arg + " requires an argument");
+                    }
+                    it.remove();
+                    url = it.next();
+                    it.remove();
+                    continue;
+                default:
+                    throw new IllegalArgumentException(
+                            String.format("Unexpected token: '%s'", arg));
             }
-            printStats(c);
-        } catch (IOException | TimeoutException e) {
-            System.err.println("Couldn't connect: " + e.getMessage());
-            System.exit(-1);
         }
-
-    }
-
-    private void printStats(Connection conn) {
-        Statistics stats = conn.getStats();
-        System.out.printf("Statistics:  ");
-        System.out.printf("   Incoming Payload Bytes: %d\n", stats.getInBytes());
-        System.out.printf("   Incoming Messages: %d\n", stats.getInMsgs());
-        System.out.printf("   Outgoing Payload Bytes: %d\n", stats.getOutBytes());
-        System.out.printf("   Outgoing Messages: %d\n", stats.getOutMsgs());
-    }
-
-    private void usage() {
-        System.err.println("Usage:  Requestor [-url url] [-subject subject] "
-                + "[-count count] [-payload payload]");
-
-        System.exit(-1);
-    }
-
-    private void parseArgs(String[] args) {
-        if (args == null) {
-            return;
-        }
-
-        for (int i = 0; i < args.length; i++) {
-            if (i + 1 == args.length) {
-                usage();
-            }
-
-            parsedArgs.put(args[i], args[i + 1]);
-            i++;
-        }
-
-        if (parsedArgs.containsKey("-count")) {
-            count = Integer.parseInt(parsedArgs.get("-count"));
-        }
-
-        if (parsedArgs.containsKey("-url")) {
-            url = parsedArgs.get("-url");
-        }
-
-        if (parsedArgs.containsKey("-subject")) {
-            subject = parsedArgs.get("-subject");
-        }
-
-        if (parsedArgs.containsKey("-payload")) {
-            payload = parsedArgs.get("-payload").getBytes(Charset.forName("UTF-8"));
-        }
-    }
-
-    private void banner() {
-        System.out.printf("Sending %d requests on subject %s\n", count, subject);
-        System.out.printf("  URL: %s\n", url);
-        System.out.printf("  Payload is %d bytes.\n", payload != null ? payload.length : 0);
     }
 
     /**
-     * Runs Requestor.
-     * 
-     * @param args the command line arguments
+     * Publishes a message to a subject.
+     *
+     * @param args the subject, message payload, and other arguments
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         try {
-            new Requestor().run(args);
-        } catch (Exception ex) {
-            System.err.println("Exception: " + ex.getMessage());
-            ex.printStackTrace();
-        } finally {
-            System.exit(0);
+            new Requestor(args).run();
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.getMessage());
+            Requestor.usage();
+            throw e;
         }
-
     }
 }

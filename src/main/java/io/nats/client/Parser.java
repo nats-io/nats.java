@@ -1,16 +1,46 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static io.nats.client.Parser.NatsOp.INFO_ARG;
+import static io.nats.client.Parser.NatsOp.MINUS_ERR_ARG;
+import static io.nats.client.Parser.NatsOp.MSG_ARG;
+import static io.nats.client.Parser.NatsOp.MSG_END;
+import static io.nats.client.Parser.NatsOp.MSG_PAYLOAD;
+import static io.nats.client.Parser.NatsOp.OP_I;
+import static io.nats.client.Parser.NatsOp.OP_IN;
+import static io.nats.client.Parser.NatsOp.OP_INF;
+import static io.nats.client.Parser.NatsOp.OP_INFO;
+import static io.nats.client.Parser.NatsOp.OP_INFO_SPC;
+import static io.nats.client.Parser.NatsOp.OP_M;
+import static io.nats.client.Parser.NatsOp.OP_MINUS;
+import static io.nats.client.Parser.NatsOp.OP_MINUS_E;
+import static io.nats.client.Parser.NatsOp.OP_MINUS_ER;
+import static io.nats.client.Parser.NatsOp.OP_MINUS_ERR;
+import static io.nats.client.Parser.NatsOp.OP_MINUS_ERR_SPC;
+import static io.nats.client.Parser.NatsOp.OP_MS;
+import static io.nats.client.Parser.NatsOp.OP_MSG;
+import static io.nats.client.Parser.NatsOp.OP_MSG_SPC;
+import static io.nats.client.Parser.NatsOp.OP_P;
+import static io.nats.client.Parser.NatsOp.OP_PI;
+import static io.nats.client.Parser.NatsOp.OP_PIN;
+import static io.nats.client.Parser.NatsOp.OP_PING;
+import static io.nats.client.Parser.NatsOp.OP_PLUS;
+import static io.nats.client.Parser.NatsOp.OP_PLUS_O;
+import static io.nats.client.Parser.NatsOp.OP_PLUS_OK;
+import static io.nats.client.Parser.NatsOp.OP_PO;
+import static io.nats.client.Parser.NatsOp.OP_PON;
+import static io.nats.client.Parser.NatsOp.OP_PONG;
+import static io.nats.client.Parser.NatsOp.OP_START;
 
 import java.nio.ByteBuffer;
 import java.text.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class Parser {
     static final Logger logger = LoggerFactory.getLogger(Parser.class);
@@ -18,70 +48,14 @@ class Parser {
     static final int MAX_CONTROL_LINE_SIZE = 1024;
     static final int MAX_MSG_ARGS = 4;
 
-    private ConnectionImpl nc;
-
-    // List<byte[]> args = new ArrayList<byte[]>();
-
-    protected class MsgArg {
-        // byte[] subjectBytes = new byte[MAX_CONTROL_LINE_SIZE];
-        ByteBuffer subject = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
-        // int subjectLength = 0;
-        // byte[] replyBytes = new byte [MAX_CONTROL_LINE_SIZE];
-        ByteBuffer reply = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
-        // int replyLength = 0;
-        long sid;
-        int size;
-
-        public String toString() {
-            String subjectString = "null";
-            String replyString = "null";
-            byte[] subjectArray = null;
-            byte[] replyArray = null;
-
-            if (subject != null) {
-                subjectArray = subject.array();
-                if (subjectArray != null) {
-                    subjectString = new String(subjectArray, 0, subject.limit());
-                }
-            }
-
-            if (reply != null) {
-                replyArray = reply.array();
-                if (replyArray != null) {
-                    replyString = new String(replyArray, 0, reply.limit());
-                }
-            }
-            return String.format("{subject=%s(len=%d), reply=%s(len=%d), sid=%d, size=%d}",
-                    subjectString, subjectString.length(), replyString, replyString.length(), sid,
-                    size);
-        }
-    }
-
-    protected class ParseState {
-        NatsOp state = NatsOp.OP_START;
-        int as;
-        int drop;
-        MsgArg ma = new MsgArg();
-        byte[] argBufStore = new byte[ConnectionImpl.DEFAULT_BUF_SIZE];
-        ByteBuffer argBuf = null;
-        byte[] msgBufStore = new byte[ConnectionImpl.DEFAULT_BUF_SIZE];
-        ByteBuffer msgBuf = null;
-        // byte[] scratch = new byte[MAX_CONTROL_LINE_SIZE];
-        ByteBuffer[] args = new ByteBuffer[MAX_MSG_ARGS];
-
-        ParseState() {
-            for (int i = 0; i < MAX_MSG_ARGS; i++) {
-                args[i] = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
-            }
-        }
-    }
+    final ConnectionImpl nc;
 
     ParseState ps = new ParseState();
 
     static final int ascii_0 = 48;
     static final int ascii_9 = 57;
 
-    static enum NatsOp {
+    enum NatsOp {
         OP_START, /* Start of message */
         OP_PLUS, OP_PLUS_O, OP_PLUS_OK, /* +OK */
         OP_MINUS, OP_MINUS_E, OP_MINUS_ER, OP_MINUS_ERR, /* -ERR */
@@ -95,44 +69,18 @@ class Parser {
         OP_I, OP_IN, OP_INF, OP_INFO, OP_INFO_SPC, INFO_ARG /* INFO {...} */
     }
 
-    protected Parser(ConnectionImpl conn) {
+    Parser(ConnectionImpl conn) {
         this.nc = conn;
-        this.nc.ps = conn.ps;
     }
 
-    // protected void printStatus(byte[] buf, int i) {
-    // String s = null;
-    // char b = (char) buf[i];
-    // if (b == '\r')
-    // s = "\\r";
-    // else if (b == '\n')
-    // s = "\\n";
-    // else if (b == '\t')
-    // s = "\\t";
-    // else
-    // s = String.format("%c", b);
-    //
-    // System.err.printf("ps.state = %s, new char buf[%d] = '%s' (0x%02X) argBuf=[%s]\n", ps.state,
-    // i, s, (int) b < 32 ? (int) b : b, bufToString(ps.argBuf));
-    // System.err.printf("ps.argBuf == %s\n", ps.argBuf);
-    // System.err.printf("ps.msgBuf == %s\n", ps.msgBuf);
-    // }
-
-    protected void parse(byte[] buf) throws ParseException {
+    void parse(byte[] buf) throws ParseException {
         parse(buf, buf.length);
     }
 
-    protected void parse(byte[] buf, int len) throws ParseException {
+    void parse(byte[] buf, int len) throws ParseException {
         int i;
         byte b;
         boolean error = false;
-
-        // if (len > buf.length) {
-        // throw new ParseException(String.format("Parse length(%d) > actual buffer length(%d)\n",
-        // len, buf.length),0);
-        // }
-        // String tmpStr = new String(buf, 0, len);
-        // System.err.printf("##### Parsing buf=[%s], ps.argBuf=[%s]\n", tmpStr.trim(), ps.argBuf);
 
         for (i = 0; i < len; i++) {
             b = buf[i];
@@ -144,21 +92,21 @@ class Parser {
                     switch (b) {
                         case 'M':
                         case 'm':
-                            ps.state = NatsOp.OP_M;
+                            ps.state = OP_M;
                             break;
                         case 'P':
                         case 'p':
-                            ps.state = NatsOp.OP_P;
+                            ps.state = OP_P;
                             break;
                         case '+':
-                            ps.state = NatsOp.OP_PLUS;
+                            ps.state = OP_PLUS;
                             break;
                         case '-':
-                            ps.state = NatsOp.OP_MINUS;
+                            ps.state = OP_MINUS;
                             break;
                         case 'I':
                         case 'i':
-                            ps.state = NatsOp.OP_I;
+                            ps.state = OP_I;
                             break;
                         default:
                             error = true;
@@ -169,7 +117,7 @@ class Parser {
                     switch (b) {
                         case 'S':
                         case 's':
-                            ps.state = NatsOp.OP_MS;
+                            ps.state = OP_MS;
                             break;
                         default:
                             error = true;
@@ -180,7 +128,7 @@ class Parser {
                     switch (b) {
                         case 'G':
                         case 'g':
-                            ps.state = NatsOp.OP_MSG;
+                            ps.state = OP_MSG;
                             break;
                         default:
                             error = true;
@@ -191,7 +139,7 @@ class Parser {
                     switch (b) {
                         case ' ':
                         case '\t':
-                            ps.state = NatsOp.OP_MSG_SPC;
+                            ps.state = OP_MSG_SPC;
                             break;
                         default:
                             error = true;
@@ -204,7 +152,7 @@ class Parser {
                         case '\t':
                             continue;
                         default:
-                            ps.state = NatsOp.MSG_ARG;
+                            ps.state = MSG_ARG;
                             ps.as = i;
                             break;
                     }
@@ -215,23 +163,22 @@ class Parser {
                             ps.drop = 1;
                             break;
                         case '\n':
-                            ByteBuffer arg = null;
                             if (ps.argBuf != null) {
                                 // End of args
-                                arg = ps.argBuf;
-                                arg.flip();
-                                processMsgArgs(arg.array(), arg.arrayOffset(), arg.limit());
+                                ps.argBuf.flip();
+                                byte[] arg = ps.argBuf.array();
+                                int from = ps.argBuf.arrayOffset() + ps.argBuf.position();
+                                int to = ps.argBuf.arrayOffset() + ps.argBuf.limit();
+                                ps.argBuf = null;
+                                int length = to - from;
+                                processMsgArgs(arg, from, length);
                             } else {
-                                // arg = ByteBuffer.wrap(buf, ps.as, i-ps.drop-ps.as).slice();
                                 processMsgArgs(buf, ps.as, i - ps.drop - ps.as);
                             }
-                            // System.err.printf("arrayOffset=%d, length=%d\n", arg.arrayOffset(),
-                            // arg.limit());
-                            // processMsgArgs(arg.array(), arg.arrayOffset(), arg.limit());
 
                             ps.drop = 0;
                             ps.as = i + 1;
-                            ps.state = NatsOp.MSG_PAYLOAD;
+                            ps.state = MSG_PAYLOAD;
 
                             // jump ahead with the index. If this overruns
                             // what is left we fall out and process split
@@ -263,17 +210,7 @@ class Parser {
                                 toCopy = avail;
                             }
 
-                            // System.err.printf("msgBuf=%s(remaining=%d), i=%d, len=%d,
-                            // ps.ma.size=%d, avail = %d, toCopy=%d,"
-                            // + " buf.length=%d\n",
-                            // ps.msgBuf, ps.msgBuf.remaining(), i, len, ps.ma.size, avail, toCopy,
-                            // buf.length);
                             if (toCopy > 0) {
-                                // System.err.printf("msgBuf=%s(remaining=%d), i=%d, len=%d,
-                                // ps.ma.size=%d, avail = %d, toCopy=%d,"
-                                // + " buf.length=%d\n",
-                                // ps.msgBuf, ps.msgBuf.remaining(), i, len, ps.ma.size, avail,
-                                // toCopy, buf.length);
                                 ps.msgBuf.put(buf, i, toCopy);
                                 // Update our index
                                 i += toCopy - 1;
@@ -293,7 +230,7 @@ class Parser {
                         // ps.argBuf.clear();
                         ps.msgBuf = null;
                         // ps.msgBuf.clear();
-                        ps.state = NatsOp.MSG_END;
+                        ps.state = MSG_END;
                     }
 
                     break;
@@ -302,7 +239,7 @@ class Parser {
                         case '\n':
                             ps.drop = 0;
                             ps.as = i + 1;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             continue;
@@ -312,7 +249,7 @@ class Parser {
                     switch (b) {
                         case 'O':
                         case 'o':
-                            ps.state = NatsOp.OP_PLUS_O;
+                            ps.state = OP_PLUS_O;
                             break;
                         default:
                             error = true;
@@ -323,7 +260,7 @@ class Parser {
                     switch (b) {
                         case 'K':
                         case 'k':
-                            ps.state = NatsOp.OP_PLUS_OK;
+                            ps.state = OP_PLUS_OK;
                             break;
                         default:
                             error = true;
@@ -335,7 +272,7 @@ class Parser {
                         case '\n':
                             nc.processOk();
                             ps.drop = 0;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             break;
@@ -345,7 +282,7 @@ class Parser {
                     switch (b) {
                         case 'E':
                         case 'e':
-                            ps.state = NatsOp.OP_MINUS_E;
+                            ps.state = OP_MINUS_E;
                             break;
                         default:
                             error = true;
@@ -356,7 +293,7 @@ class Parser {
                     switch (b) {
                         case 'R':
                         case 'r':
-                            ps.state = NatsOp.OP_MINUS_ER;
+                            ps.state = OP_MINUS_ER;
                             break;
                         default:
                             error = true;
@@ -367,7 +304,7 @@ class Parser {
                     switch (b) {
                         case 'R':
                         case 'r':
-                            ps.state = NatsOp.OP_MINUS_ERR;
+                            ps.state = OP_MINUS_ERR;
                             break;
                         default:
                             error = true;
@@ -378,7 +315,7 @@ class Parser {
                     switch (b) {
                         case ' ':
                         case '\t':
-                            ps.state = NatsOp.OP_MINUS_ERR_SPC;
+                            ps.state = OP_MINUS_ERR_SPC;
                             break;
                         default:
                             error = true;
@@ -391,7 +328,7 @@ class Parser {
                         case '\t':
                             continue;
                         default:
-                            ps.state = NatsOp.MINUS_ERR_ARG;
+                            ps.state = MINUS_ERR_ARG;
                             ps.as = i;
                             break;
                     }
@@ -402,17 +339,17 @@ class Parser {
                             ps.drop = 1;
                             break;
                         case '\n':
-                            ByteBuffer arg = null;
+                            ByteBuffer arg;
                             if (ps.argBuf != null) {
                                 arg = ps.argBuf;
                                 ps.argBuf = null;
                             } else {
-                                arg = ByteBuffer.wrap(buf, ps.as, i - ps.as);
+                                arg = ByteBuffer.wrap(buf, ps.as, i - ps.drop - ps.as);
                             }
                             nc.processErr(arg);
                             ps.drop = 0;
                             ps.as = i + 1;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             if (ps.argBuf != null) {
@@ -425,11 +362,11 @@ class Parser {
                     switch (b) {
                         case 'I':
                         case 'i':
-                            ps.state = NatsOp.OP_PI;
+                            ps.state = OP_PI;
                             break;
                         case 'O':
                         case 'o':
-                            ps.state = NatsOp.OP_PO;
+                            ps.state = OP_PO;
                             break;
                         default:
                             error = true;
@@ -440,7 +377,7 @@ class Parser {
                     switch (b) {
                         case 'N':
                         case 'n':
-                            ps.state = NatsOp.OP_PON;
+                            ps.state = OP_PON;
                             break;
                         default:
                             // parseError(buf, i);
@@ -452,7 +389,7 @@ class Parser {
                     switch (b) {
                         case 'G':
                         case 'g':
-                            ps.state = NatsOp.OP_PONG;
+                            ps.state = OP_PONG;
                             break;
                         default:
                             error = true;
@@ -464,7 +401,7 @@ class Parser {
                         case '\n':
                             nc.processPong();
                             ps.drop = 0;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             break;
@@ -474,7 +411,7 @@ class Parser {
                     switch (b) {
                         case 'N':
                         case 'n':
-                            ps.state = NatsOp.OP_PIN;
+                            ps.state = OP_PIN;
                             break;
                         default:
                             error = true;
@@ -485,7 +422,7 @@ class Parser {
                     switch (b) {
                         case 'G':
                         case 'g':
-                            ps.state = NatsOp.OP_PING;
+                            ps.state = OP_PING;
                             break;
                         default:
                             error = true;
@@ -497,7 +434,7 @@ class Parser {
                         case '\n':
                             nc.processPing();
                             ps.drop = 0;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
                             break;
                         default:
                             break;
@@ -507,7 +444,7 @@ class Parser {
                     switch (b) {
                         case 'N':
                         case 'n':
-                            ps.state = NatsOp.OP_IN;
+                            ps.state = OP_IN;
                             break;
                         default:
                             error = true;
@@ -518,7 +455,7 @@ class Parser {
                     switch (b) {
                         case 'F':
                         case 'f':
-                            ps.state = NatsOp.OP_INF;
+                            ps.state = OP_INF;
                             break;
                         default:
                             error = true;
@@ -529,7 +466,7 @@ class Parser {
                     switch (b) {
                         case 'O':
                         case 'o':
-                            ps.state = NatsOp.OP_INFO;
+                            ps.state = OP_INFO;
                             break;
                         default:
                             error = true;
@@ -540,7 +477,7 @@ class Parser {
                     switch (b) {
                         case ' ':
                         case '\t':
-                            ps.state = NatsOp.OP_INFO_SPC;
+                            ps.state = OP_INFO_SPC;
                             break;
                         default:
                             error = true;
@@ -553,7 +490,7 @@ class Parser {
                         case '\t':
                             continue;
                         default:
-                            ps.state = NatsOp.INFO_ARG;
+                            ps.state = INFO_ARG;
                             ps.as = i;
                             break;
                     }
@@ -564,20 +501,22 @@ class Parser {
                             ps.drop = 1;
                             break;
                         case '\n':
-                            ByteBuffer arg = null;
                             if (ps.argBuf != null) {
                                 // End of args
-                                arg = ps.argBuf;
-                                arg.flip();
+                                ps.argBuf.flip();
+                                byte[] arg = ps.argBuf.array();
+                                int from = ps.argBuf.arrayOffset() + ps.argBuf.position();
+                                int to = ps.argBuf.arrayOffset() + ps.argBuf.limit();
+                                int length = to - from + 1;
                                 ps.argBuf = null;
+                                nc.processAsyncInfo(arg, from, length);
                             } else {
-                                arg = ByteBuffer.wrap(buf, ps.as, i - ps.drop - ps.as);
+                                nc.processAsyncInfo(buf, ps.as, i - ps.drop - ps.as);
                             }
-                            nc.processAsyncInfo(new String(arg.array()));
 
                             ps.drop = 0;
                             ps.as = i + 1;
-                            ps.state = NatsOp.OP_START;
+                            ps.state = OP_START;
 
                             break;
                         default:
@@ -594,44 +533,73 @@ class Parser {
             } // switch(ps.state)
 
             if (error) {
-                error = false;
                 throw new ParseException(String.format("nats: parse error [%s]: len=%d, '%s'",
                         ps.state, len - i, new String(buf, i, len - i)), i);
             }
-            // System.err.printf("After processing index %d, ps.state=%s\n", i, ps.state );
         } // for
 
-        // We have processed the entire buffer
         // Check for split buffer scenarios
-        if ((ps.state == NatsOp.MSG_ARG || ps.state == NatsOp.MINUS_ERR_ARG)
-                || ps.state == NatsOp.INFO_ARG && (ps.argBuf == null)) {
-            ps.argBuf = ByteBuffer.wrap(ps.argBufStore);
-            ps.argBuf.put(buf, ps.as, i - ps.drop - ps.as);
-            // System.err.printf("split msg, no clone, ps.argBuf=%s\n", ps.argBuf);
-            // FIXME, check max len
+        if ((ps.state == MSG_ARG || ps.state == MINUS_ERR_ARG) || ps.state == INFO_ARG && (ps
+                .argBuf == null)) {
+            try {
+                ps.argBuf = ByteBuffer.wrap(ps.argBufStore);
+                assert (ps.as >= 0);
+                assert ((i - ps.drop - ps.as) > 0);
+                if (i - ps.drop - ps.as > 0) {
+                    ps.argBuf.put(buf, ps.as, i - ps.drop - ps.as);
+                }
+                // FIXME, check max len
+            } catch (IndexOutOfBoundsException e) {
+                logger.error("state = {}, i = {}, buf(len:{}) = [{}], ps.argBuf = {}, ps.as = {},"
+                                + " i - ps.as = {}",
+                        ps.state, i, len, new String(buf, 0, len), ps.argBuf, ps.as, i - ps.as, e);
+                nc.processErr(ps.argBuf);
+            }
         }
         // Check for split msg
-        if (ps.state == NatsOp.MSG_PAYLOAD && ps.msgBuf == null) {
+        if (ps.state == MSG_PAYLOAD && ps.msgBuf == null) {
             // We need to clone the msgArg if it is still referencing the
             // read buffer and we are not able to process the msg.
             if (ps.argBuf == null) {
                 cloneMsgArg();
-                // System.err.printf("split msg, after clone, ps.argBuf=%s\n", ps.argBuf);
             }
 
-            // If we will overflow the scratch buffer, just create a
+            // If we will overflow the msg buffer, create a
             // new buffer to hold the split message.
-            int lrem = len - ps.as; // portion of msg remaining in buffer
-            if (ps.ma.size > ps.msgBufStore.length) {
+            if (ps.ma.size > ps.msgBufStore.length - ps.argBuf.limit()) {
+                int lrem = len - ps.as; // portion of msg remaining in buffer
                 ps.msgBufStore = new byte[ps.ma.size];
+                ps.msgBuf = ByteBuffer.wrap(ps.msgBufStore);
+                // copy what's left in the buffer
+                try {
+                    // FIXME check max len
+                    if (ps.msgBuf.remaining() < lrem) {
+                        String err = String.format("msgBuf remaining cap too small(%d) after "
+                                + "realloc, needed: %d", ps.msgBuf.remaining(), lrem);
+                        throw new ParseException(err, i);
+                    } else if (buf.length < ps.as || lrem - ps.as > buf.length) {
+                        String err = String.format("Programmer error; buf length = %d, trying to "
+                                + "copy offset %d, length %d", buf.length, ps.as, lrem);
+                        throw new ParseException(err, i);
+                    }
+                    // Can throw BufferOverflowException if lrem > ps.msgBuf.remaining
+                    ps.msgBuf.put(buf, ps.as, lrem);
+                } catch (Exception e) {
+                    logger.error("state = {}, i = {}, buf(len:{}) = [{}], ps.msgBuf = {}, ps.as ="
+                                    + " {}, lrem = {}",
+                            ps.state, i, len, new String(buf, 0, len), ps.msgBuf, ps.as, lrem, e);
+                    nc.processErr(ps.msgBuf);
+                }
+            } else {
+                // copy args
+                ps.msgBuf.put(ps.argBuf);
+                // copy body
+                ps.msgBuf.put(buf, ps.as, len - ps.as);
             }
-            ps.msgBuf = ByteBuffer.wrap(ps.msgBufStore);
-            // copy what's left in the buffer
-            ps.msgBuf.put(buf, ps.as, lrem);
         }
     }
 
-    protected static String bufToString(ByteBuffer arg) {
+    static String bufToString(ByteBuffer arg) {
         if (arg == null) {
             return null;
         }
@@ -641,24 +609,17 @@ class Parser {
         byte[] stringBytes = new byte[len];
         arg.get(stringBytes, 0, len);
         arg.position(pos);
-        String str = new String(stringBytes);
-        return str;
+        return new String(stringBytes);
     }
 
-    protected void processMsgArgs(byte[] arg, int offset, int length) throws ParseException {
-        // if (logger.isDebugEnabled()) {
-        // logger.trace("processMsgArgs (limit={}) content=[{}]\n", buffer.limit(),
-        // bufToString(buffer));
-        // }
-        // System.err.printf("offset=%d, length=%d\n", offset, length);
-        int argLen = 0;
+    void processMsgArgs(byte[] arg, int offset, int length) throws ParseException {
+        int argLen;
         int numArgs = 0;
         int start = -1;
         byte b;
         int i;
         for (i = offset; i < offset + length; i++) {
             b = arg[i];
-            // System.err.println(String.format("Considering [%c]", (char)b));
             switch (b) {
                 case ' ':
                 case '\t':
@@ -666,8 +627,6 @@ class Parser {
                 case '\n':
                     if (start >= 0) {
                         argLen = i - start;
-                        // System.err.printf("start = %d, len = %d, ps.args[%d]=%s\n", start,
-                        // argLen, numArgs, ps.args[numArgs]);
                         if (argLen > ps.args[numArgs].remaining()) {
                             ps.args[numArgs] = ByteBuffer.allocate(argLen);
                         }
@@ -686,18 +645,6 @@ class Parser {
             argLen = i - start;
             ps.args[numArgs++].put(arg, start, argLen).flip();
         }
-
-        // for (i = 0; i<ps.args.length; i++) {
-        // if (ps.args[i] != null) {
-        // String s = new String(ps.args[i].array());
-        // System.err.printf("arg[%d]=[%s], argLen=%d\n", i, s, s.length());
-        // }
-        // }
-
-        // System.err.println("ps.args[0] = " + ps.args[0]);
-        // System.err.println("ps.args[1] = " + ps.args[1]);
-        // System.err.println("ps.args[2] = " + ps.args[2]);
-        // System.err.println("ps.args[3] = " + ps.args[3]);
 
         ps.ma.subject.clear();
         ps.ma.reply.clear();
@@ -761,14 +708,12 @@ class Parser {
         if (ps.ma.reply.limit() != 0) {
             ps.argBuf.get(ps.ma.reply.array(), 0, ps.ma.reply.limit());
         }
-        // ps.argBuf.flip();
-        // System.err.printf("ps.argBuf 4= %s\n", ps.argBuf);
     }
 
     // parseInt64 expects decimal positive numbers. We
     // return -1 to signal error
     static long parseLong(byte[] data, int length) {
-        long n = 0;
+        long num = 0;
         if (length == 0) {
             return -1;
         }
@@ -778,12 +723,62 @@ class Parser {
             if (dec < ascii_0 || dec > ascii_9) {
                 return -1;
             }
-            n = (n * 10) + dec - ascii_0;
+            num = (num * 10) + dec - ascii_0;
         }
-        return n;
+        return num;
     }
 
     private void submitMsg(final byte[] data, final int offset, final int length) {
         nc.processMsg(data, offset, length);
+    }
+
+    static class MsgArg {
+        // byte[] subjectBytes = new byte[MAX_CONTROL_LINE_SIZE];
+        ByteBuffer subject = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
+        // int subjectLength = 0;
+        // byte[] replyBytes = new byte [MAX_CONTROL_LINE_SIZE];
+        ByteBuffer reply = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
+        // int replyLength = 0;
+        long sid;
+        int size;
+
+        public String toString() {
+            String subjectString = "null";
+            String replyString = "null";
+            byte[] subjectArray;
+            byte[] replyArray;
+
+            if (subject != null) {
+                subjectArray = subject.array();
+                subjectString = new String(subjectArray, 0, subject.limit());
+            }
+
+            if (reply != null) {
+                replyArray = reply.array();
+                replyString = new String(replyArray, 0, reply.limit());
+            }
+            return String.format("{subject=%s(len=%d), reply=%s(len=%d), sid=%d, size=%d}",
+                    subjectString, subjectString.length(), replyString, replyString.length(), sid,
+                    size);
+        }
+    }
+
+    static class ParseState {
+        NatsOp state = OP_START;
+        int as;
+        int drop;
+        final MsgArg ma = new MsgArg();
+        final byte[] argBufStore = new byte[ConnectionImpl.DEFAULT_BUF_SIZE];
+        ByteBuffer argBuf = null;
+        byte[] msgBufStore = new byte[ConnectionImpl.DEFAULT_BUF_SIZE];
+        ByteBuffer msgBuf = null;
+        // byte[] scratch = new byte[MAX_CONTROL_LINE_SIZE];
+        final ByteBuffer[] args = new ByteBuffer[MAX_MSG_ARGS];
+
+        ParseState() {
+            for (int i = 0; i < MAX_MSG_ARGS; i++) {
+                args[i] = ByteBuffer.allocate(MAX_CONTROL_LINE_SIZE);
+            }
+        }
     }
 }

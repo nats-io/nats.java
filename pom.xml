@@ -1,20 +1,21 @@
-<!-- Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program 
-    and the accompanying materials are made available under the terms of the 
-    MIT License (MIT) which accompanies this distribution, and is available at 
-    http://opensource.org/licenses/MIT -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<!--
+  ~  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying materials are made available under the terms of the MIT License (MIT) which accompanies this distribution, and is available at http://opensource.org/licenses/MIT
+  -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>io.nats</groupId>
         <artifactId>nats-parent</artifactId>
         <version>1.8</version>
-        <relativePath />
+        <relativePath/>
     </parent>
 
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>0.7.4-SNAPSHOT</version>
+    <version>1.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
 
     <name>jnats</name>
@@ -32,14 +33,14 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-    <developers />
-    <contributors />
+    <developers/>
+    <contributors/>
 
-    <mailingLists />
+    <mailingLists/>
 
-    <prerequisites />
+    <prerequisites/>
 
-    <modules />
+    <modules/>
 
     <scm>
         <url>https://github.com/nats-io/jnats</url>
@@ -56,7 +57,7 @@
         <url>https://travis-ci.org/nats-io/jnats/</url>
     </ciManagement>
 
-    <dependencyManagement />
+    <dependencyManagement/>
     <dependencies>
 
         <dependency>
@@ -90,7 +91,8 @@
         </dependency>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
-            <artifactId>groovy</artifactId>
+            <artifactId>groovy-all</artifactId>
+            <version>${groovy-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -100,14 +102,19 @@
         </dependency>
     </dependencies>
 
-    <repositories />
-    <pluginRepositories />
+    <repositories/>
+    <pluginRepositories/>
 
     <properties>
+        <gmaven-version>1.4</gmaven-version>
+        <gmaven-provider-selection>2.0</gmaven-provider-selection>
+
         <!-- Used to locate the profile specific configuration file. -->
         <build.profile.id>dev</build.profile.id>
-        <jacoco.it.execution.data.file>${project.build.directory}/coverage-reports/jacoco-it.exec</jacoco.it.execution.data.file>
-        <jacoco.ut.execution.data.file>${project.build.directory}/coverage-reports/jacoco-ut.exec</jacoco.ut.execution.data.file>
+        <jacoco.it.execution.data.file>${project.build.directory}/coverage-reports/jacoco-it.exec
+        </jacoco.it.execution.data.file>
+        <jacoco.ut.execution.data.file>${project.build.directory}/coverage-reports/jacoco-ut.exec
+        </jacoco.ut.execution.data.file>
         <!-- Only unit tests are run by default. -->
         <skip.integration.tests>true</skip.integration.tests>
         <skip.unit.tests>false</skip.unit.tests>
@@ -115,20 +122,69 @@
         <!-- Used for downloading and installing a server binary for tests -->
         <server.version>0.9.4</server.version>
         <server.exec.name>gnatsd</server.exec.name>
-        <server.exec.pkg>${server.exec.name}-v${server.version}-${nats.os}-${nats.arch}</server.exec.pkg>
-        <server.exec.pkg.url>https://github.com/nats-io/${server.exec.name}/releases/download/v${server.version}/${server.exec.pkg}.zip</server.exec.pkg.url>
+        <server.exec.pkg>${server.exec.name}-v${server.version}-${nats.os}-${nats.arch}
+        </server.exec.pkg>
+        <server.exec.pkg.url>
+            https://github.com/nats-io/${server.exec.name}/releases/download/v${server.version}/${server.exec.pkg}.zip
+        </server.exec.pkg.url>
     </properties>
 
     <build>
         <plugins>
 
             <plugin>
+                <groupId>org.codehaus.gmavenplus</groupId>
+                <artifactId>gmavenplus-plugin</artifactId>
+                <version>1.5</version>
+                <configuration>
+                <sources>
+                    <source>
+                        <directory>${project.basedir}/src/main/java</directory>
+                        <includes>
+                            <include>**/*.groovy</include>
+                        </includes>
+                    </source>
+                </sources>
+                <testSources>
+                    <testSource>
+                        <directory>${project.basedir}/src/test/java</directory>
+                        <includes>
+                            <include>**/*.groovy</include>
+                        </includes>
+                    </testSource>
+                </testSources>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>addSources</goal>
+                            <goal>addTestSources</goal>
+                            <goal>generateStubs</goal>
+                            <goal>compile</goal>
+                            <goal>testGenerateStubs</goal>
+                            <goal>testCompile</goal>
+                            <goal>removeStubs</goal>
+                            <goal>removeTestStubs</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <configuration>
+                    <excludePackageNames>io.nats.benchmark</excludePackageNames>
                     <sourceFileExcludes>
                         <sourceFileExclude>**/ConnectionImpl.java</sourceFileExclude>
                     </sourceFileExcludes>
+                    <!--<stylesheet>maven</stylesheet>-->
+                    <!--<stylesheetfile>src/main/javadoc/stylesheet.css</stylesheetfile>-->
+                    <overview>src/main/javadoc/overview.html</overview>
+                    <docfilessubdirs>true</docfilessubdirs>
                 </configuration>
             </plugin>
 
@@ -142,16 +198,27 @@
                         <id>prepare</id>
                         <phase>pre-integration-test</phase>
                         <configuration>
-                            <target xmlns:unless="ant:unless" xmlns:if="ant:if" name="copy-server-exec" unless:true="${server.installed}">
+                            <target xmlns:unless="ant:unless" xmlns:if="ant:if"
+                                    name="copy-server-exec" unless:true="${server.installed}">
                                 <condition property="server.installed" else="false">
-                                    <available file="${server.exec.name}" filepath="${project.build.directory}" type="file" />
+                                    <available file="${server.exec.name}"
+                                               filepath="${project.build.directory}" type="file"/>
                                 </condition>
-                                <echo if:true="${server.installed}" message="${server.exec.name} is already installed. Skipping download..." />
-                                <echo unless:true="${server.installed}" message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
-                                <get unless:true="${server.installed}" src="${server.exec.pkg.url}" dest="${project.build.directory}" skipexisting="true" />
-                                <unzip unless:true="${server.installed}" src="${project.build.directory}/${server.exec.pkg}.zip" dest="${project.build.directory}" overwrite="false" />
-                                <move unless:true="${server.installed}" file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}" tofile="${project.build.directory}/${server.exec.name}" overwrite="false" />
-                                <chmod perm="+x" file="${project.build.directory}/${server.exec.name}" />
+                                <echo if:true="${server.installed}"
+                                      message="${server.exec.name} is already installed. Skipping download..."/>
+                                <echo unless:true="${server.installed}"
+                                      message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..."/>
+                                <get unless:true="${server.installed}" src="${server.exec.pkg.url}"
+                                     dest="${project.build.directory}" skipexisting="true"/>
+                                <unzip unless:true="${server.installed}"
+                                       src="${project.build.directory}/${server.exec.pkg}.zip"
+                                       dest="${project.build.directory}" overwrite="false"/>
+                                <move unless:true="${server.installed}"
+                                      file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}"
+                                      tofile="${project.build.directory}/${server.exec.name}"
+                                      overwrite="false"/>
+                                <chmod perm="+x"
+                                       file="${project.build.directory}/${server.exec.name}"/>
                             </target>
                         </configuration>
                         <goals>
@@ -201,7 +268,8 @@
                             <dataFile>${jacoco.ut.execution.data.file}</dataFile>
                             <!-- Sets the output directory for the code coverage 
                                 report. -->
-                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut</outputDirectory>
+                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-ut
+                            </outputDirectory>
                             <!-- Exclude example sources -->
                         </configuration>
                     </execution>
@@ -236,7 +304,8 @@
                             <dataFile>${jacoco.it.execution.data.file}</dataFile>
                             <!-- Sets the output directory for the code coverage 
                                 report. -->
-                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-it</outputDirectory>
+                            <outputDirectory>${project.reporting.outputDirectory}/jacoco-it
+                            </outputDirectory>
                         </configuration>
                     </execution>
                 </executions>

@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -31,7 +31,7 @@ public class AsyncSubscriptionImplTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     static final Logger logger = LoggerFactory.getLogger(AsyncSubscriptionImplTest.class);
 
-    static final LogVerifier verifier = new LogVerifier();
+    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -46,10 +46,12 @@ public class AsyncSubscriptionImplTest {
     public MessageHandler mcbMock;
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -66,7 +68,7 @@ public class AsyncSubscriptionImplTest {
     @Test
     public void testClose() {
         // Make sure the connection opts aren't null
-        when(connMock.getOptions()).thenReturn(new ConnectionFactory().options());
+        when(connMock.getOptions()).thenReturn(Nats.defaultOptions());
 
         AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(connMock, "foo", "bar", mcbMock);
         sub.close();
@@ -77,19 +79,30 @@ public class AsyncSubscriptionImplTest {
     // fail("Not yet implemented"); // TODO
     // }
     //
+    @Test
+    public void testStart() {
+        // Make sure the connection opts aren't null
+        when(connMock.getOptions()).thenReturn(Nats.defaultOptions());
+
+        AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(connMock, "foo", "bar", mcbMock);
+        // Just for the sake of coverage, even though it's a NOOP
+        sub.start();
+    }
+
 
     @Test
     public void testSetMessageHandler() {
         ConnectionImpl nc = mock(ConnectionImpl.class);
 
         // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(new ConnectionFactory().options());
+        when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
         try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             assertTrue(s.isValid());
             s.setMessageHandler(new MessageHandler() {
                 @Override
-                public void onMessage(Message msg) {}
+                public void onMessage(Message msg) {
+                }
             });
         }
     }

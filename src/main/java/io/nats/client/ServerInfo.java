@@ -1,16 +1,16 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
-
 import java.util.Arrays;
+import java.util.Objects;
 
 class ServerInfo {
     @SerializedName("server_id")
@@ -47,10 +47,10 @@ class ServerInfo {
     private String[] connectUrls;
 
     private transient String jsonString = null;
-    private static transient Gson gson = new GsonBuilder().create();
+    private static final transient Gson gson = new GsonBuilder().create();
 
-    protected ServerInfo(String id, String host, int port, String version, boolean authRequired,
-            boolean tlsRequired, int maxPayload, final String[] connectUrls) {
+    ServerInfo(String id, String host, int port, String version, boolean authRequired,
+               boolean tlsRequired, int maxPayload, final String[] connectUrls) {
 
         this.id = id;
         this.host = host;
@@ -59,10 +59,12 @@ class ServerInfo {
         this.authRequired = authRequired;
         this.tlsRequired = tlsRequired;
         this.maxPayload = maxPayload;
-        this.connectUrls = connectUrls;
+        if (connectUrls != null) {
+            this.connectUrls = Arrays.copyOf(connectUrls, connectUrls.length);
+        }
     }
 
-    protected ServerInfo(ServerInfo input) {
+    ServerInfo(ServerInfo input) {
         this.id = input.id;
         this.version = input.version;
         this.goVersion = input.goVersion;
@@ -78,8 +80,8 @@ class ServerInfo {
         }
     }
 
-    protected static ServerInfo createFromWire(String infoString) {
-        ServerInfo rv = null;
+    static ServerInfo createFromWire(String infoString) {
+        ServerInfo rv;
         String jsonString = infoString.replaceFirst("^INFO ", "").trim();
         rv = gson.fromJson(jsonString, ServerInfo.class);
         return rv;
@@ -87,78 +89,114 @@ class ServerInfo {
 
     /**
      * Returns the server_id.
-     * 
+     *
      * @return the id
      */
     String getId() {
         return id;
     }
 
+    void setId(String id) {
+        this.id = id;
+    }
+
     /**
      * Returns the host.
-     * 
+     *
      * @return the host
      */
     String getHost() {
         return host;
     }
 
+    void setHost(String host) {
+        this.host = host;
+    }
+
     /**
      * Returns the port.
-     * 
+     *
      * @return the port
      */
     int getPort() {
         return port;
     }
 
+    void setPort(int port) {
+        this.port = port;
+    }
+
     /**
      * Returns the NATS server version.
-     * 
+     *
      * @return the gnatsd server version
      */
     String getVersion() {
         return version;
     }
 
+    void setVersion(String version) {
+        this.version = version;
+    }
+
     /**
      * Returns whether or not authorization is required by the NATS server.
-     * 
+     *
      * @return the authRequired
      */
     boolean isAuthRequired() {
         return authRequired;
     }
 
+    void setAuthRequired(boolean authRequired) {
+        this.authRequired = authRequired;
+    }
+
     /**
      * Returns whether or not TLS is required by the NATS server.
-     * 
+     *
      * @return the tlsRequired
      */
     boolean isTlsRequired() {
         return tlsRequired;
     }
 
+    void setTlsRequired(boolean tlsRequired) {
+        this.tlsRequired = tlsRequired;
+    }
+
     /**
      * Returns the max payload size enforced by the NATS server.
-     * 
+     *
      * @return the maxPayload
      */
     long getMaxPayload() {
         return maxPayload;
     }
 
+    void setMaxPayload(long maxPayload) {
+        this.maxPayload = maxPayload;
+    }
+
     String[] getConnectUrls() {
         return connectUrls;
     }
 
+    void setConnectUrls(String[] connectUrls) {
+        this.connectUrls = Arrays.copyOf(connectUrls, connectUrls.length);
+    }
+
     public String toString() {
-        String rv = null;
+        String rv;
         if (jsonString == null) {
             jsonString = gson.toJson(this);
         }
         rv = String.format("INFO %s", jsonString);
         return rv;
+    }
+
+    public byte[] toProtoBytes() {
+        return (toString() + "\r\n").getBytes();
     }
 
     public static boolean compare(String str1, String str2) {
@@ -185,5 +223,11 @@ class ServerInfo {
                 && Boolean.compare(sslRequired, other.sslRequired) == 0
                 && Boolean.compare(tlsRequired, other.tlsRequired) == 0
                 && compare(version, other.version));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, version, goVersion, host, port, authRequired, sslRequired,
+                tlsRequired, tlsVerify, maxPayload, connectUrls);
     }
 }

@@ -1,11 +1,13 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
+import static io.nats.client.Nats.ConnState.CONNECTED;
+import static io.nats.client.Nats.ConnState.RECONNECTING;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.runServerWithConfig;
 import static io.nats.client.UnitTestUtilities.sleep;
@@ -33,7 +35,6 @@ import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -47,10 +48,12 @@ public class ITTLSTest {
     UnitTestUtilities utils = new UnitTestUtilities();
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -58,13 +61,14 @@ public class ITTLSTest {
     }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test
     public void testTlsSuccessWithCert() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
-        try (NatsServer srv = utils.runServerWithConfig("tls_1222_verify.conf")) {
+        try (NatsServer srv = runServerWithConfig("tls_1222_verify.conf")) {
             UnitTestUtilities.sleep(2000);
 
             final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
@@ -82,7 +86,7 @@ public class ITTLSTest {
             assertNotNull(tmf);
             tmf.init(tks);
 
-            SSLContext ctx = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+            SSLContext ctx = SSLContext.getInstance(Nats.DEFAULT_SSL_PROTOCOL);
             assertNotNull(ctx);
             ctx.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
@@ -107,7 +111,7 @@ public class ITTLSTest {
     }
 
     @Test
-    public void testTlsSuccessSecureConnect() {
+    public void testTlsSuccessSecureConnect() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
         try (NatsServer srv = runServerWithConfig("tls_1222.conf")) {
@@ -120,7 +124,7 @@ public class ITTLSTest {
             assertNotNull(tmf);
             tmf.init(tks);
 
-            SSLContext context = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+            SSLContext context = SSLContext.getInstance(Nats.DEFAULT_SSL_PROTOCOL);
             assertNotNull(context);
             context.init(null, tmf.getTrustManagers(), new SecureRandom());
 
@@ -147,21 +151,12 @@ public class ITTLSTest {
                 } catch (Exception e) {
                     fail(e.getMessage());
                 }
-            } catch (IOException | TimeoutException e) {
-                e.printStackTrace();
-                fail(e.getMessage());
-            } finally {
-                srv.shutdown();
             }
-        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
-                | KeyManagementException e1) {
-            // TODO Auto-generated catch block
-            fail(e1.getMessage());
         }
     }
 
     @Test
-    public void testTlsSuccessSecureReconnect() {
+    public void testTlsSuccessSecureReconnect() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 
         final CountDownLatch dcLatch = new CountDownLatch(1);
@@ -177,7 +172,7 @@ public class ITTLSTest {
             assertNotNull(tmf);
             tmf.init(tks);
 
-            SSLContext context = SSLContext.getInstance(ConnectionFactory.DEFAULT_SSL_PROTOCOL);
+            SSLContext context = SSLContext.getInstance(Nats.DEFAULT_SSL_PROTOCOL);
             assertNotNull(context);
             context.init(null, tmf.getTrustManagers(), new SecureRandom());
 
@@ -214,7 +209,7 @@ public class ITTLSTest {
 
                 assertTrue("Expected to be in a reconnecting state", c.isReconnecting());
 
-                assertEquals(Constants.ConnState.RECONNECTING, c.getState());
+                assertEquals(RECONNECTING, c.getState());
 
                 // Wait until we get the reconnect callback
                 try (NatsServer srv2 = runServerWithConfig("tls_1222.conf")) {
@@ -226,7 +221,7 @@ public class ITTLSTest {
                     assertFalse("isReconnecting returned true after the client was reconnected.",
                             c.isReconnecting());
 
-                    assertEquals(Constants.ConnState.CONNECTED, c.getState());
+                    assertEquals(CONNECTED, c.getState());
 
                     // Close the connection, reconnecting should still be false
                     c.close();
@@ -237,15 +232,7 @@ public class ITTLSTest {
                     assertTrue("Status returned " + c.getState()
                             + " after close() was called instead of CLOSED", c.isClosed());
                 }
-            } catch (IOException | TimeoutException e) {
-                fail("Should have connected OK: " + e.getMessage());
-            } finally {
-                srv.shutdown();
             }
-        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
-                | KeyManagementException e1) {
-            // TODO Auto-generated catch block
-            fail(e1.getMessage());
         }
     }
 }

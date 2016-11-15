@@ -1,20 +1,20 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
+import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import io.nats.examples.NatsBench;
-
 import ch.qos.logback.classic.Level;
+import io.nats.examples.NatsBench;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -66,14 +66,16 @@ public class NatsBenchTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     /**
      * Per-test-case setup.
-     * 
+     *
      * @throws Exception if something goes wrong.
      */
     @Before
@@ -85,7 +87,7 @@ public class NatsBenchTest {
 
     /**
      * Per-test-case cleanup.
-     * 
+     *
      * @throws Exception if something goes wrong.
      */
     @After
@@ -291,12 +293,10 @@ public class NatsBenchTest {
         long msgPerSec = msgs / TimeUnit.NANOSECONDS.toSeconds(elapsed);
         long bytesPerSec = bytes / TimeUnit.NANOSECONDS.toSeconds(elapsed);
         String secString = String.format("%.2f", (double) elapsed / 1000000000.0);
-        String result =
-                String.format("Published %s msgs in %s sec (rate: %s msg/sec, %s bytes/sec)",
-                        NumberFormat.getNumberInstance(Locale.US).format(msgs), secString,
-                        NumberFormat.getNumberInstance(Locale.US).format(msgPerSec),
-                        NumberFormat.getNumberInstance(Locale.US).format(bytesPerSec));
-        return result;
+        return String.format("Published %s msgs in %s sec (rate: %s msg/sec, %s bytes/sec)",
+                NumberFormat.getNumberInstance(Locale.US).format(msgs), secString,
+                NumberFormat.getNumberInstance(Locale.US).format(msgPerSec),
+                NumberFormat.getNumberInstance(Locale.US).format(bytesPerSec));
     }
 
     @Test
@@ -305,10 +305,9 @@ public class NatsBenchTest {
         final String reqSubject = "request";
 
         final SynchronousQueue<String> ch = new SynchronousQueue<String>();
-        final ConnectionFactory cf = new ConnectionFactory();
 
         try (NatsServer srv = runDefaultServer()) {
-            try (ConnectionImpl nc = (ConnectionImpl) cf.createConnection()) {
+            try (ConnectionImpl nc = (ConnectionImpl) newDefaultConnection()) {
                 final Subscription sub = nc.subscribe(reqSubject, new MessageHandler() {
                     public void onMessage(final Message msg) {
                         service.submit(new Runnable() {
@@ -360,13 +359,12 @@ public class NatsBenchTest {
     @Test
     public void testPubSpeed() throws Exception {
         int count = 100 * 1000 * 1000;
-        String url = ConnectionFactory.DEFAULT_URL;
         final String subject = "foo";
         final byte[] payload = null;
         long elapsed = 0L;
 
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory(url).createConnection()) {
+            try (Connection c = newDefaultConnection()) {
                 final Message msg = new Message(subject, null, payload);
 
                 final long t0 = System.nanoTime();
@@ -403,10 +401,9 @@ public class NatsBenchTest {
     // @Category(PerfTest.class)
     // public void testManyConnections() throws Exception {
     // try (NatsServer s = new NatsServer()) {
-    // ConnectionFactory cf = new ConnectionFactory();
     // List<Connection> conns = new ArrayList<Connection>();
     // for (int i = 0; i < 10000; i++) {
-    // Connection conn = cf.createConnection();
+    // Connection conn = newDefaultConnection();
     // conns.add(conn);
     // System.err.printf("Created %d connections\n", i);
     // }

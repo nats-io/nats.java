@@ -1,8 +1,8 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
@@ -14,18 +14,18 @@ import java.util.Arrays;
 import java.util.List;
 
 class NatsServer implements Runnable, AutoCloseable {
-    static final String GNATSD = "gnatsd";
-    static final String TEST_RESOURCE_DIR = "src/test/resources";
+    private static final String GNATSD = "gnatsd";
+    private static final String TEST_RESOURCE_DIR = "src/test/resources";
 
     // Enable this for additional server debugging info.
-    boolean debug = false;
+    private boolean debug = false;
 
-    ProcessBuilder pb;
-    Process p;
-    ProcessStartInfo psInfo;
+    private ProcessBuilder pb;
+    private Process p;
+    private ProcessStartInfo psInfo;
 
     class ProcessStartInfo {
-        List<String> arguments = new ArrayList<String>();
+        final List<String> arguments = new ArrayList<String>();
 
         public ProcessStartInfo(String command) {
             this.arguments.add(command);
@@ -40,7 +40,7 @@ class NatsServer implements Runnable, AutoCloseable {
         }
 
         String getArgsAsString() {
-            String stringVal = new String();
+            String stringVal = "";
             for (String str : arguments) {
                 stringVal = stringVal.concat(str + " ");
             }
@@ -98,7 +98,7 @@ class NatsServer implements Runnable, AutoCloseable {
         return psInfo;
     }
 
-    public void start() {
+    private void start() {
         try {
             pb = new ProcessBuilder(psInfo.arguments);
             pb.directory(new File("target"));

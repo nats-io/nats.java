@@ -1,14 +1,14 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
-import static io.nats.client.Constants.ERR_MAX_MESSAGES;
-import static io.nats.client.Constants.ERR_SLOW_CONSUMER;
+import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_MAX_MESSAGES;
+import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
@@ -38,34 +38,35 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Category(IntegrationTest.class)
 public class ITSubscriptionTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(ITSubscriptionTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ITSubscriptionTest.class);
 
     static final LogVerifier verifier = new LogVerifier();
 
     @Rule
-    public ExpectedException thrown = ExpectedException.none();
+    public final ExpectedException thrown = ExpectedException.none();
 
-    ExecutorService exec;
+    private ExecutorService exec;
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     /**
      * Per-test-case setup.
-     * 
+     *
      * @throws Exception if something goes wrong
      */
     @Before
@@ -78,7 +79,7 @@ public class ITSubscriptionTest {
 
     /**
      * Per-test-case cleanup.
-     * 
+     *
      * @throws Exception if something goes wrong
      */
     @After
@@ -90,9 +91,9 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testServerAutoUnsub() throws IOException, TimeoutException {
+    public void testServerAutoUnsub() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory().createConnection()) {
+            try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
                 final AtomicLong received = new AtomicLong(0L);
                 int max = 10;
@@ -126,9 +127,9 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testClientSyncAutoUnsub() {
+    public void testClientSyncAutoUnsub() throws Exception {
         try (NatsServer s = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory().createConnection()) {
+            try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
 
                 long received = 0;
@@ -165,14 +166,12 @@ public class ITSubscriptionTest {
                     assertFalse("Expected subscription to be invalid after hitting max",
                             sub.isValid());
                 }
-            } catch (IOException | TimeoutException e2) {
-                fail("Should have connected");
             }
         }
     }
 
     @Test
-    public void testClientAsyncAutoUnsub() throws IOException, TimeoutException {
+    public void testClientAsyncAutoUnsub() throws Exception {
         final AtomicInteger received = new AtomicInteger(0);
         MessageHandler mh = new MessageHandler() {
             @Override
@@ -182,7 +181,7 @@ public class ITSubscriptionTest {
         };
 
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = new ConnectionFactory().createConnection()) {
+            try (Connection c = newDefaultConnection()) {
                 assertFalse(c.isClosed());
 
                 int max = 10;
@@ -234,7 +233,7 @@ public class ITSubscriptionTest {
                 sub.autoUnsubscribe(max);
 
                 // Send less than the max
-                int total = (int) max / 2;
+                int total = max / 2;
                 String str;
                 for (int i = 0; i < total; i++) {
                     str = String.format("Hello %d", i + 1);
@@ -315,7 +314,7 @@ public class ITSubscriptionTest {
                                     if (received.incrementAndGet() >= max) {
                                         break;
                                     }
-                                } catch (IOException | TimeoutException | InterruptedException e) {
+                                } catch (IOException | InterruptedException e) {
                                     elapsed = System.nanoTime() - t0;
                                     logger.debug("Thread {} interrupted: '{}'",
                                             Thread.currentThread().getId(), e.getMessage());
@@ -395,7 +394,7 @@ public class ITSubscriptionTest {
                             }
                         }
                     });
-                    sub.autoUnsubscribe((int) max);
+                    sub.autoUnsubscribe(max);
                     nc.flush();
 
                     // Trigger the first message, the other are sent from the callback.
@@ -436,7 +435,7 @@ public class ITSubscriptionTest {
                             }
                         }
                     });
-                    sub.autoUnsubscribe((int) max);
+                    sub.autoUnsubscribe(max);
                     nc.flush();
 
                     // Trigger the first message, the other are sent from the callback.
@@ -458,9 +457,9 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testCloseSubRelease() throws IOException, TimeoutException {
+    public void testCloseSubRelease() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection nc = new ConnectionFactory().createConnection()) {
+            try (final Connection nc = newDefaultConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
                     long start = System.nanoTime();
                     exec.submit(new Runnable() {
@@ -490,10 +489,10 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testIsValidSubscriber() throws IOException, TimeoutException {
+    public void testIsValidSubscriber() throws Exception {
         try (NatsServer srv = runDefaultServer()) {
 
-            try (final Connection nc = new ConnectionFactory().createConnection()) {
+            try (final Connection nc = newDefaultConnection()) {
                 try (SyncSubscription sub = nc.subscribeSync("foo")) {
                     assertTrue("Subscription should be valid", sub.isValid());
 
@@ -567,22 +566,22 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testSlowAsyncSubscriber() throws IOException, TimeoutException {
+    public void testSlowAsyncSubscriber() throws Exception {
         ConnectionFactory cf = new ConnectionFactory();
         final CountDownLatch mcbLatch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
             try (final Connection c = cf.createConnection()) {
                 c.setExceptionHandler(null);
                 try (final AsyncSubscriptionImpl s =
-                        (AsyncSubscriptionImpl) c.subscribe("foo", new MessageHandler() {
-                            public void onMessage(Message msg) {
-                                try {
-                                    mcbLatch.await();
-                                } catch (InterruptedException e) {
+                             (AsyncSubscriptionImpl) c.subscribe("foo", new MessageHandler() {
+                                 public void onMessage(Message msg) {
+                                     try {
+                                         mcbLatch.await();
+                                     } catch (InterruptedException e) {
                                     /* NOOP */
-                                }
-                            }
-                        })) {
+                                     }
+                                 }
+                             })) {
 
                     int pml = s.getPendingMsgsLimit();
                     assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, pml);
@@ -618,7 +617,7 @@ public class ITSubscriptionTest {
                             elapsed < flushTimeout);
 
                     assertTrue(c.getLastException() instanceof IOException);
-                    assertEquals(Constants.ERR_SLOW_CONSUMER, c.getLastException().getMessage());
+                    assertEquals(Nats.ERR_SLOW_CONSUMER, c.getLastException().getMessage());
 
                     mcbLatch.countDown();
                 }
@@ -706,12 +705,11 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testAsyncSubscriberStarvation()
-            throws IOException, TimeoutException, InterruptedException {
+    public void testAsyncSubscriberStarvation() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
 
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection c = new ConnectionFactory().createConnection()) {
+            try (final Connection c = newDefaultConnection()) {
                 // Helper
                 try (AsyncSubscription helper = c.subscribe("helper", new MessageHandler() {
                     public void onMessage(Message msg) {
@@ -799,8 +797,7 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testNextMsgCallOnClosedSub()
-            throws IOException, TimeoutException, InterruptedException {
+    public void testNextMsgCallOnClosedSub() throws Exception {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
         try (NatsServer srv = runDefaultServer()) {
@@ -838,7 +835,7 @@ public class ITSubscriptionTest {
                     assertTrue("No message received", await(latch));
 
                     // Test old way
-                    int queued = sub.getQueuedMessageCount();
+                    @SuppressWarnings("deprecation") int queued = sub.getQueuedMessageCount();
                     assertTrue(
                             String.format("Expected %d or %d, got %d\n", total, total - 1, queued),
                             (queued == total) || (queued == total - 1));
@@ -947,7 +944,8 @@ public class ITSubscriptionTest {
                 byte[] msg = "0123456789".getBytes();
 
                 Subscription sub = nc.subscribe("foo", new MessageHandler() {
-                    public void onMessage(Message msg) {}
+                    public void onMessage(Message msg) {
+                    }
                 });
                 for (int i = 0; i < total; i++) {
                     nc.publish("foo", msg);
@@ -1022,7 +1020,7 @@ public class ITSubscriptionTest {
                     nc.flush();
 
                     // Test old way
-                    int queued = sub.getQueuedMessageCount();
+                    @SuppressWarnings("deprecation") int queued = sub.getQueuedMessageCount();
                     assertTrue(
                             String.format("Expected %d or %d, got %d\n", total, total - 1, queued),
                             (queued == total) || (queued == total - 1));
@@ -1051,15 +1049,15 @@ public class ITSubscriptionTest {
         }
     }
 
-    void send(Connection nc, String subject, byte[] payload, int count) throws Exception {
+    private void send(Connection nc, String subject, byte[] payload, int count) throws Exception {
         for (int i = 0; i < count; i++) {
             nc.publish(subject, payload);
         }
         nc.flush();
     }
 
-    void checkPending(Subscription sub, int limitCount, int limitBytes, int expectedCount,
-            int expectedBytes, int payloadLen) throws Exception {
+    private void checkPending(Subscription sub, int limitCount, int limitBytes, int expectedCount,
+                              int expectedBytes, int payloadLen) {
         int lc = sub.getPendingMsgsLimit();
         int lb = sub.getPendingBytesLimit();
         String errMsg =
@@ -1210,12 +1208,8 @@ public class ITSubscriptionTest {
                     })) {
                         conn.flush();
                         for (int i = 0; i < numRequests; i++) {
-                            try {
-                                assertNotNull(pub.request("foo", "blah".getBytes(), 5000));
-                            } catch (TimeoutException e) {
-                                fail(String.format("timed out after %d msgs", i + 1));
-                                return;
-                            }
+                            assertNotNull(String.format("timed out after %d msgs", i + 1),
+                                    pub.request("foo", "blah".getBytes(), 5000));
                         } // for
                     } // Subscription
                 } // pub

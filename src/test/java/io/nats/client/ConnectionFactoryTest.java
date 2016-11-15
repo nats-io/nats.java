@@ -1,43 +1,26 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import static io.nats.client.ConnectionFactory.DEFAULT_SSL_PROTOCOL;
-import static io.nats.client.ConnectionFactory.PROP_CLOSED_CB;
-import static io.nats.client.ConnectionFactory.PROP_CONNECTION_NAME;
-import static io.nats.client.ConnectionFactory.PROP_CONNECTION_TIMEOUT;
-import static io.nats.client.ConnectionFactory.PROP_DISCONNECTED_CB;
-import static io.nats.client.ConnectionFactory.PROP_EXCEPTION_HANDLER;
-import static io.nats.client.ConnectionFactory.PROP_HOST;
-import static io.nats.client.ConnectionFactory.PROP_MAX_PINGS;
-import static io.nats.client.ConnectionFactory.PROP_MAX_RECONNECT;
-import static io.nats.client.ConnectionFactory.PROP_NORANDOMIZE;
-import static io.nats.client.ConnectionFactory.PROP_PASSWORD;
-import static io.nats.client.ConnectionFactory.PROP_PEDANTIC;
-import static io.nats.client.ConnectionFactory.PROP_PING_INTERVAL;
-import static io.nats.client.ConnectionFactory.PROP_PORT;
-import static io.nats.client.ConnectionFactory.PROP_RECONNECTED_CB;
-import static io.nats.client.ConnectionFactory.PROP_RECONNECT_ALLOWED;
-import static io.nats.client.ConnectionFactory.PROP_RECONNECT_BUF_SIZE;
-import static io.nats.client.ConnectionFactory.PROP_RECONNECT_WAIT;
-import static io.nats.client.ConnectionFactory.PROP_SECURE;
-import static io.nats.client.ConnectionFactory.PROP_SERVERS;
-import static io.nats.client.ConnectionFactory.PROP_TLS_DEBUG;
-import static io.nats.client.ConnectionFactory.PROP_URL;
-import static io.nats.client.ConnectionFactory.PROP_USERNAME;
-import static io.nats.client.ConnectionFactory.PROP_VERBOSE;
+import static io.nats.client.ConnectionImpl.Srv;
+import static io.nats.client.Nats.ConnState;
+import static io.nats.client.Nats.DEFAULT_SSL_PROTOCOL;
+import static io.nats.client.Nats.PROP_CLOSED_CB;
+import static io.nats.client.Nats.PROP_DISCONNECTED_CB;
+import static io.nats.client.Nats.PROP_EXCEPTION_HANDLER;
+import static io.nats.client.Nats.PROP_RECONNECTED_CB;
+import static io.nats.client.Nats.PROP_SERVERS;
+import static io.nats.client.UnitTestUtilities.newMockedTcpConnectionFactory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import io.nats.client.Constants.ConnState;
 
 import ch.qos.logback.classic.Logger;
 
@@ -57,7 +40,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeoutException;
 
 import javax.net.ssl.SSLContext;
 
@@ -76,21 +58,24 @@ public class ConnectionFactoryTest
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConnectionFactoryNullProperties() {
-        Properties nullProps = null;
-        new ConnectionFactory(nullProps);
+        new ConnectionFactory((Properties) null);
     }
 
     static final String url = "nats://foobar:4122";
@@ -117,62 +102,7 @@ public class ConnectionFactoryTest
 
     @Test
     public void testConnectionFactoryProperties() {
-        final ClosedCallback ccb = this;
-        final DisconnectedCallback dcb = this;
-        final ReconnectedCallback rcb = this;
-        final ExceptionHandler eh = this;
 
-        Properties props = new Properties();
-        props.setProperty(PROP_HOST, hostname);
-        props.setProperty(PROP_PORT, Integer.toString(port));
-        props.setProperty(PROP_URL, url);
-        props.setProperty(PROP_USERNAME, username);
-        props.setProperty(PROP_PASSWORD, password);
-        props.setProperty(PROP_SERVERS, servers);
-        props.setProperty(PROP_NORANDOMIZE, Boolean.toString(noRandomize));
-        props.setProperty(PROP_CONNECTION_NAME, name);
-        props.setProperty(PROP_VERBOSE, Boolean.toString(verbose));
-        props.setProperty(PROP_PEDANTIC, Boolean.toString(pedantic));
-        props.setProperty(PROP_SECURE, Boolean.toString(secure));
-        props.setProperty(PROP_TLS_DEBUG, Boolean.toString(secure));
-        props.setProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(reconnectAllowed));
-        props.setProperty(PROP_MAX_RECONNECT, Integer.toString(maxReconnect));
-        props.setProperty(PROP_RECONNECT_WAIT, Integer.toString(reconnectWait));
-        props.setProperty(PROP_RECONNECT_BUF_SIZE, Integer.toString(reconnectBufSize));
-        props.setProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(timeout));
-        props.setProperty(PROP_PING_INTERVAL, Integer.toString(pingInterval));
-        props.setProperty(PROP_MAX_PINGS, Integer.toString(maxPings));
-        props.setProperty(PROP_EXCEPTION_HANDLER, eh.getClass().getName());
-        props.setProperty(PROP_CLOSED_CB, ccb.getClass().getName());
-        props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
-        props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
-
-        ConnectionFactory cf = new ConnectionFactory(props);
-        assertEquals(hostname, cf.getHost());
-
-        assertEquals(port, cf.getPort());
-
-        assertEquals(username, cf.getUsername());
-        assertEquals(password, cf.getPassword());
-        List<URI> s1 = ConnectionFactoryTest.serverArrayToList(serverArray);
-        List<URI> s2 = cf.getServers();
-        assertEquals(s1, s2);
-        assertEquals(noRandomize, cf.isNoRandomize());
-        assertEquals(name, cf.getConnectionName());
-        assertEquals(verbose, cf.isVerbose());
-        assertEquals(pedantic, cf.isPedantic());
-        assertEquals(secure, cf.isSecure());
-        assertEquals(reconnectAllowed, cf.isReconnectAllowed());
-        assertEquals(maxReconnect, cf.getMaxReconnect());
-        assertEquals(reconnectWait, cf.getReconnectWait());
-        assertEquals(reconnectBufSize, cf.getReconnectBufSize());
-        assertEquals(timeout, cf.getConnectionTimeout());
-        assertEquals(pingInterval, cf.getPingInterval());
-        assertEquals(maxPings, cf.getMaxPingsOut());
-        assertEquals(eh.getClass().getName(), cf.getExceptionHandler().getClass().getName());
-        assertEquals(ccb.getClass().getName(), cf.getClosedCallback().getClass().getName());
-        assertEquals(dcb.getClass().getName(), cf.getDisconnectedCallback().getClass().getName());
-        assertEquals(rcb.getClass().getName(), cf.getReconnectedCallback().getClass().getName());
     }
 
     @Test
@@ -191,8 +121,8 @@ public class ConnectionFactoryTest
 
     @Test
     public void testConnectionFactoryBadCallbackProps() {
-        String[] propNames = { PROP_EXCEPTION_HANDLER, PROP_CLOSED_CB, PROP_DISCONNECTED_CB,
-                PROP_RECONNECTED_CB };
+        String[] propNames = {PROP_EXCEPTION_HANDLER, PROP_CLOSED_CB, PROP_DISCONNECTED_CB,
+                PROP_RECONNECTED_CB};
         for (String p : propNames) {
             Properties props = new Properties();
             props.setProperty(p, "foo.bar.baz");
@@ -241,20 +171,20 @@ public class ConnectionFactoryTest
         ConnectionFactory cf = new ConnectionFactory(serverArray);
         assertEquals(sList, cf.getServers());
         assertEquals(null, cf.getUrlString());
-        // try (ConnectionImpl c = cf.createConnection()) {
-        // } catch (IOException | TimeoutException e) {
-        // fail(e.getMessage());
-        // }
     }
 
     @Test
-    public void testConnectionFactoryStringStringArray() {
+    public void testConnectionFactoryStringStringArray() throws Exception {
         String url = "nats://localhost:1222";
-        String[] servers = { "nats://localhost:1234", "nats://localhost:5678" };
-        ArrayList<URI> s1 = new ArrayList<URI>(10);
-        ArrayList<URI> s2 = new ArrayList<URI>(10);
+        String[] servers = {"nats://localhost:1234", "nats://localhost:5678"};
+        List<URI> s1 = new ArrayList<URI>(10);
+        List<URI> s2 = new ArrayList<URI>(10);
+        List<URI> connServerPool = new ArrayList<URI>();
+        List<Srv> srvPool = null;
+        List<URI> serverList = null;
 
-        TcpConnectionFactoryMock mcf = new TcpConnectionFactoryMock();
+        final TcpConnectionFactory mcf = newMockedTcpConnectionFactory();
+
         for (String s : servers) {
             s1.add(URI.create(s));
             s2.add(URI.create(s));
@@ -265,110 +195,173 @@ public class ConnectionFactoryTest
         assertNotNull(cf.getServers());
         assertEquals(s1, cf.getServers());
         cf.setNoRandomize(true);
-        ConnectionImpl c = null;
-        try {
-            c = cf.createConnection(mcf);
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+        cf.setTcpConnectionFactory(mcf);
+        try (ConnectionImpl conn = (ConnectionImpl) cf.createConnection()) {
+            // test passed-in options
+            serverList = conn.getOptions().getServers();
+            assertEquals(s1, serverList);
         }
 
-        // test passed-in options
-        List<URI> serverList = c.opts.getServers();
-        assertEquals(s1, serverList);
-
-        // Test the URLS produced by setupServerPool
-        List<URI> connServerPool = new ArrayList<URI>();
-        List<ConnectionImpl.Srv> srvPool = c.srvPool;
-        c.close();
-        assertTrue(c.getState() == ConnState.CLOSED);
-        for (ConnectionImpl.Srv srv : srvPool) {
-            connServerPool.add(srv.url);
-        }
-        assertEquals(s1, connServerPool);
-
-        TcpConnectionMock mock = (TcpConnectionMock) c.getTcpConnection();
-        mock.bounce();
+        // TcpConnectionMock mock = (TcpConnectionMock) c.getTcpConnection();
+        // mock.bounce();
 
         // test url, null
         cf = new ConnectionFactory(url, null);
         cf.setNoRandomize(true);
         assertEquals(url, cf.getUrlString());
         // System.err.println("Connecting to: " + url);
-        try (ConnectionImpl c2 = cf.createConnection(mcf)) {
+        cf.setTcpConnectionFactory(newMockedTcpConnectionFactory());
+        try (ConnectionImpl conn = (ConnectionImpl) cf.createConnection()) {
+            assertEquals(URI.create(url), conn.getUrl());
             // test passed-in options
-            assertNull(c2.opts.getServers());
-
-            // Test the URLS produced by setupServerPool
-            connServerPool = new ArrayList<URI>();
-            srvPool = c2.srvPool;
-            for (ConnectionImpl.Srv srv : srvPool) {
-                connServerPool.add(srv.url);
-            }
-            s1.clear();
-            s1.add(URI.create(url));
-            assertEquals(s1, connServerPool);
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+            assertNull(conn.getOptions().getServers());
         }
 
         s1.clear();
         s1.addAll(s2);
         assertEquals(s1, s2);
 
-        mock.bounce();
+        // mock.bounce();
 
         // test url, servers
         cf = new ConnectionFactory(url, servers);
         cf.setNoRandomize(true);
         assertNotNull(cf.getUrlString());
         assertEquals(url, cf.getUrlString());
-        try (ConnectionImpl c2 = cf.createConnection(mcf)) {
+        cf.setTcpConnectionFactory(mcf);
+        try (ConnectionImpl conn = (ConnectionImpl) cf.createConnection()) {
             // test passed-in options
-            serverList = c2.opts.getServers();
+            serverList = conn.getOptions().getServers();
             assertEquals(s1, serverList);
-            assertEquals(url, c2.opts.getUrl().toString());
-
-            // Test the URLS produced by setupServerPool
-            connServerPool = new ArrayList<URI>();
-            srvPool = c2.srvPool;
-            for (ConnectionImpl.Srv srv : srvPool) {
-                connServerPool.add(srv.url);
-            }
-            s1.add(0, URI.create(url));
-            assertEquals(s1, connServerPool);
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+            assertEquals(url, conn.getOptions().getUrl());
         }
     }
 
-    // @Test
-    // public void testCreateConnection() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testCreateConnectionTCPConnection() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetSubChanLen() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetSubChanLen() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
+    @Test
+    public void testOptions() throws IOException {
+        String[] servers = new String[] {"nats://somehost:1010", "nats://somehost2:1020"};
+        String host = "localhost";
+        int port = 7272;
+        URI uri = URI.create(String.format("nats://%s:%d", host, port));
+        String urlString = uri.toString();
+        String username = "foo";
+        String password = "bar";
+        boolean dontRandomize = true;
+        String name = "BAR";
+        boolean verbose = true;
+        boolean pedantic = true;
+        boolean secure = true;
+        boolean reconnectAllowed = false;
+        int maxReconnect = 14;
+        int reconnectWait = 55000;
+        int timeout = 99;
+        int pingInterval = 9900;
+        int maxPings = 11;
+        boolean tlsDebug = true;
+        SSLContext sslContext = null;
+        TcpConnectionFactory tcf = newMockedTcpConnectionFactory();
+
+
+        ReconnectedCallback rcb = new ReconnectedCallback() {
+            public void onReconnect(ConnectionEvent event) {
+            }
+        };
+        DisconnectedCallback dcb = new DisconnectedCallback() {
+            public void onDisconnect(ConnectionEvent event) {
+            }
+        };
+        ClosedCallback ccb = new ClosedCallback() {
+            public void onClose(ConnectionEvent event) {
+            }
+        };
+        ExceptionHandler ecb = new ExceptionHandler() {
+            public void onException(NATSException ex) {
+            }
+        };
+
+        ConnectionFactory cf = new ConnectionFactory();
+        cf.setTcpConnectionFactory(tcf);
+        cf.setUrl(urlString);
+        cf.setUsername(username);
+        cf.setPassword(password);
+        cf.setHost(host);
+        cf.setPort(port);
+        cf.setServers(servers);
+        cf.setNoRandomize(dontRandomize);
+        cf.setConnectionName(name);
+        cf.setVerbose(verbose);
+        cf.setPedantic(pedantic);
+        cf.setSecure(secure);
+        cf.setReconnectAllowed(reconnectAllowed);
+        cf.setMaxReconnect(maxReconnect);
+        cf.setReconnectBufSize(reconnectBufSize);
+        cf.setReconnectWait(reconnectWait);
+        cf.setConnectionTimeout(timeout);
+        cf.setPingInterval(pingInterval);
+        cf.setMaxPingsOut(maxPings);
+        try {
+            sslContext = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
+            cf.setSSLContext(sslContext);
+        } catch (NoSuchAlgorithmException e1) {
+            e1.printStackTrace();
+        }
+        cf.setTlsDebug(tlsDebug);
+
+        cf.setReconnectedCallback(rcb);
+        cf.setClosedCallback(ccb);
+        cf.setDisconnectedCallback(dcb);
+        cf.setExceptionHandler(ecb);
+
+        Options opts = cf.options();
+        assertEquals(tcf, opts.getFactory());
+        assertEquals(urlString, opts.getUrl());
+        assertEquals(username, opts.getUsername());
+        assertEquals(password, opts.getPassword());
+        assertEquals(dontRandomize, opts.isNoRandomize());
+        assertEquals(name, opts.getConnectionName());
+        assertEquals(verbose, opts.isVerbose());
+        assertEquals(pedantic, opts.isPedantic());
+        assertEquals(secure, opts.isSecure());
+        assertEquals(reconnectAllowed, opts.isReconnectAllowed());
+        assertEquals(maxReconnect, opts.getMaxReconnect());
+        assertEquals(reconnectBufSize, opts.getReconnectBufSize());
+        assertEquals(reconnectWait, opts.getReconnectWait());
+        assertEquals(timeout, opts.getConnectionTimeout());
+        assertEquals(pingInterval, opts.getPingInterval());
+        assertEquals(maxPings, opts.getMaxPingsOut());
+        assertEquals(sslContext, opts.getSslContext());
+        assertEquals(uri.toString(), cf.getUrlString());
+        assertEquals(tlsDebug, opts.isTlsDebug());
+
+        assertEquals(dcb, opts.getDisconnectedCallback());
+        assertEquals(rcb, opts.getReconnectedCallback());
+        assertEquals(ccb, opts.getClosedCallback());
+
+        ConnectionImpl conn = new ConnectionImpl(opts);
+        assertEquals(opts, conn.getOptions());
+        assertTrue(opts.isVerbose());
+        assertTrue(conn.getOptions().isVerbose());
+    }
 
     @Test
-    public void testClone() {
+    public void testCreateConnection() throws Exception {
+        TcpConnectionFactory tcf = newMockedTcpConnectionFactory();
+        ConnectionFactory cf = new ConnectionFactory();
+        cf.setTcpConnectionFactory(tcf);
+        Options opts = cf.options();
+        assertEquals(opts.factory, cf.getTcpConnectionFactory());
+        try (Connection conn = cf.createConnection()) {
+            assertTrue(conn.isConnected());
+        }
+    }
+
+    @Test
+    public void testCopyConstructor() {
         ConnectionFactory cf = new ConnectionFactory();
         cf.setUri(URI.create("nats://localhost:7272"));
         cf.setHost("localhost");
         cf.setPort(7272);
-        cf.setServers(new String[] { "nats://somehost:1010", "nats://somehost2:1020" });
+        cf.setServers(new String[] {"nats://somehost:1010", "nats://somehost2:1020"});
         cf.setUsername("foo");
         cf.setPassword("bar");
         cf.setNoRandomize(true);
@@ -391,7 +384,7 @@ public class ConnectionFactoryTest
         cf.setTlsDebug(true);
 
         ConnectionFactory cf2 = null;
-        cf2 = cf.clone();
+        cf2 = new ConnectionFactory(cf);
         assertEquals(cf.getUrlString(), cf2.getUrlString());
         assertEquals(cf.getHost(), cf2.getHost());
         assertEquals(cf.getPort(), cf2.getPort());
@@ -582,7 +575,7 @@ public class ConnectionFactoryTest
     //
     @Test
     public void testSetServersListOfUri() {
-        String[] servers = { "nats://localhost:1234", "nats://localhost:5678" };
+        String[] servers = {"nats://localhost:1234", "nats://localhost:5678"};
         List<URI> s1 = new ArrayList<URI>();
 
         for (String s : servers) {
@@ -595,25 +588,25 @@ public class ConnectionFactoryTest
     }
 
     @Test
-    public void testSetServersStringArray() {
-        String[] servers = { "nats://localhost:1234", "nats://localhost:5678" };
+    public void testSetServersStringArray() throws Exception {
+        String[] servers = {"nats://localhost:1234", "nats://localhost:5678"};
         List<URI> s1 = new ArrayList<URI>();
+        TcpConnectionFactory mcf = newMockedTcpConnectionFactory();
+
+        // Initial setup
         ConnectionFactory cf = new ConnectionFactory(servers);
         cf.setServers(servers);
         cf.setNoRandomize(true);
+        cf.setTcpConnectionFactory(mcf);
 
         assertNull(cf.getUrlString());
 
-        TcpConnectionFactoryMock mcf = new TcpConnectionFactoryMock();
         for (String s : servers) {
             s1.add(URI.create(s));
         }
-        try (ConnectionImpl c = cf.createConnection(mcf)) {
-            List<URI> serverList = c.opts.getServers();
+        try (ConnectionImpl c = (ConnectionImpl) cf.createConnection()) {
+            List<URI> serverList = c.getOptions().getServers();
             assertEquals(s1, serverList);
-        } catch (IOException | TimeoutException e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
 
         try {
@@ -629,7 +622,7 @@ public class ConnectionFactoryTest
             fail(e.getMessage());
         }
 
-        String[] badServers = { "foo bar", "bar" };
+        String[] badServers = {"foo bar", "bar"};
         boolean exThrown = false;
         try {
             cf = new ConnectionFactory(badServers);
@@ -638,7 +631,6 @@ public class ConnectionFactoryTest
         } finally {
             assertTrue(exThrown);
         }
-
     }
 
     @Test
@@ -675,7 +667,16 @@ public class ConnectionFactoryTest
         assertEquals(s1, cf.getServers());
 
     }
-    // @Test
+
+    @Test
+    public void testSetAndGetTcpConnectionFactory() throws Exception {
+        TcpConnectionFactory tcf = newMockedTcpConnectionFactory();
+        ConnectionFactory cf = new ConnectionFactory();
+        cf.setTcpConnectionFactory(tcf);
+        assertEquals(tcf, cf.getTcpConnectionFactory());
+    }
+
+// @Test
     // public void testIsNoRandomize() {
     // fail("Not yet implemented"); // TODO
     // }
@@ -721,118 +722,17 @@ public class ConnectionFactoryTest
     // }
 
     @Test
-    public void testIsTlsDebug() {
-        TcpConnectionFactoryMock mock = new TcpConnectionFactoryMock();
+    public void testIsTlsDebug() throws Exception {
+        TcpConnectionFactory mcf = newMockedTcpConnectionFactory();
         ConnectionFactory cf = new ConnectionFactory();
         cf.setTlsDebug(true);
+        cf.setTcpConnectionFactory(mcf);
         assertTrue(cf.isTlsDebug());
-        try (ConnectionImpl c = cf.createConnection(mock)) {
-            assertTrue(c.opts.isTlsDebug());
-        } catch (IOException | TimeoutException e) {
-            fail(e.getMessage());
+        try (ConnectionImpl c = (ConnectionImpl) cf.createConnection()) {
+            assertTrue(c.getOptions().isTlsDebug());
         }
     }
 
-    // @Test
-    // public void testSetSecure() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testIsReconnectAllowed() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetReconnectAllowed() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetMaxReconnect() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetMaxReconnect() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetReconnectWait() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetReconnectWait() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetConnectionTimeout() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetConnectionTimeout() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetPingInterval() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetPingInterval() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetMaxPingsOut() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetClosedCallback() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetClosedCallback() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetDisconnectedCallback() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetDisconnectedCallback() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetReconnectedCallback() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetReconnectedCallback() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetMaxPingsOut() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetExceptionHandler() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
     @Test
     public void testSetExceptionHandler() {
         ConnectionFactory cf = new ConnectionFactory();
@@ -906,7 +806,7 @@ public class ConnectionFactoryTest
         final String user = "derek";
         final String pass = "derek";
         final String expectedUrl =
-                String.format("nats://%s:%d", host, ConnectionFactory.DEFAULT_PORT);
+                String.format("nats://%s:%d", host, Nats.DEFAULT_PORT);
         final String expectedUrl1 = String.format("nats://%s:%d", host, port);
         final String expectedUrl2 = String.format("nats://%s@%s:%d", user, host, port);
         final String expectedUrl3 = String.format("nats://%s:%s@%s:%d", user, pass, host, port);
@@ -915,22 +815,22 @@ public class ConnectionFactoryTest
         cf.setHost(host);
         assertEquals(host, cf.getHost());
         assertEquals(-1, cf.getPort());
-        assertEquals(expectedUrl, cf.constructURI().toString());
+        assertEquals(expectedUrl, cf.constructUri().toString());
 
         cf.setPort(port);
         assertEquals(port, cf.getPort());
         assertNull(cf.getUrlString());
-        assertEquals(expectedUrl1, cf.constructURI().toString());
+        assertEquals(expectedUrl1, cf.constructUri().toString());
 
         assertNull(cf.getUsername());
         assertNull(cf.getPassword());
         cf.setUsername(user);
         assertEquals(user, cf.getUsername());
-        assertEquals(expectedUrl2, cf.constructURI().toString());
+        assertEquals(expectedUrl2, cf.constructUri().toString());
 
         cf.setPassword(pass);
         assertEquals(pass, cf.getPassword());
-        assertEquals(expectedUrl3, cf.constructURI().toString());
+        assertEquals(expectedUrl3, cf.constructUri().toString());
 
     }
 
@@ -938,6 +838,6 @@ public class ConnectionFactoryTest
     public void testSetReconnectBufSizeNegative() {
         ConnectionFactory cf = new ConnectionFactory();
         cf.setReconnectBufSize(-14);
-        assertEquals(ConnectionFactory.DEFAULT_RECONNECT_BUF_SIZE, cf.getReconnectBufSize());
+        assertEquals(Nats.DEFAULT_RECONNECT_BUF_SIZE, cf.getReconnectBufSize());
     }
 }

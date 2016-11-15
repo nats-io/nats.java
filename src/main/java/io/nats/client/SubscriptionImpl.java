@@ -1,15 +1,12 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import static io.nats.client.Constants.ERR_BAD_SUBSCRIPTION;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
@@ -17,51 +14,44 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 abstract class SubscriptionImpl implements Subscription {
 
-    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
+    static final Logger logger = LoggerFactory.getLogger(SubscriptionImpl.class);
 
     /**
      * Default maximum pending/undelivered messages on a subscription.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_MAX_PENDING_MSGS}
      */
     static final int DEFAULT_MAX_PENDING_MSGS = 65536;
     /**
      * Default maximum pending/undelivered payload bytes on a subscription.
-     * 
-     * <p>This property is defined as String {@value #DEFAULT_MAX_PENDING_BYTES}
      */
     static final int DEFAULT_MAX_PENDING_BYTES = 65536 * 1024;
 
-    final Lock mu = new ReentrantLock();
+    private final Lock mu = new ReentrantLock();
 
-    long sid; // int64 in Go
+    private long sid; // int64 in Go
 
     // Subject that represents this subscription. This can be different
     // than the received subject inside a Msg if this is a wildcard.
-    String subject = null;
+    private final String subject;
 
     // Optional queue group name. If present, all subscriptions with the
     // same name will form a distributed queue, and each message will
     // only be processed by one member of the group.
-    String queue;
+    private final String queue;
 
     // Number of messages delivered on this subscription
-    long msgs;
     long delivered; // uint64
-    long bytes; // uint64
-    // int pendingMax; // uint64 in Go, int here due to underlying data structure
     long max; // AutoUnsubscribe max
-
-    protected boolean closed;
-    protected boolean connClosed;
-
+    boolean closed;
+    boolean connClosed;
     // slow consumer flag
     boolean sc;
 
-    ConnectionImpl conn = null;
+    private ConnectionImpl conn;
     BlockingQueue<Message> mch;
     Condition pCond;
 
@@ -79,7 +69,7 @@ abstract class SubscriptionImpl implements Subscription {
     }
 
     SubscriptionImpl(ConnectionImpl conn, String subject, String queue, int pendingMsgsLimit,
-            int pendingBytesLimit) {
+                     int pendingBytesLimit) {
         this.conn = conn;
         this.subject = subject;
         this.queue = queue;
@@ -174,12 +164,12 @@ abstract class SubscriptionImpl implements Subscription {
         }
     }
 
-    protected long getSid() {
+    long getSid() {
 
         return sid;
     }
 
-    protected void setSid(long id) {
+    void setSid(long id) {
         this.sid = id;
     }
 
@@ -291,11 +281,11 @@ abstract class SubscriptionImpl implements Subscription {
         setPendingBytesMax(0);
     }
 
-    protected Connection getConnection() {
-        return (Connection) this.conn;
+    Connection getConnection() {
+        return this.conn;
     }
 
-    protected void setConnection(ConnectionImpl conn) {
+    void setConnection(ConnectionImpl conn) {
         this.conn = conn;
     }
 
@@ -331,7 +321,7 @@ abstract class SubscriptionImpl implements Subscription {
 
     @Override
     public int getPendingBytesLimit() {
-        int rv = 0;
+        int rv;
         mu.lock();
         rv = pBytesLimit;
         mu.unlock();
@@ -355,7 +345,7 @@ abstract class SubscriptionImpl implements Subscription {
 
     @Override
     public int getPendingMsgsLimit() {
-        int rv = 0;
+        int rv;
         mu.lock();
         rv = pMsgsLimit;
         mu.unlock();
@@ -368,28 +358,27 @@ abstract class SubscriptionImpl implements Subscription {
     }
 
     public String toString() {
-        String str = String.format(
+        return String.format(
                 "{subject=%s, queue=%s, sid=%d, max=%d, delivered=%d, pendingMsgsLimit=%d, "
                         + "pendingBytesLimit=%d, maxPendingMsgs=%d, maxPendingBytes=%d, valid=%b}",
                 getSubject(), getQueue() == null ? "null" : getQueue(), getSid(), getMax(),
                 delivered, getPendingMsgsLimit(), getPendingBytesLimit(), getPendingMsgsMax(),
                 getPendingBytesMax(), isValid());
-        return str;
     }
 
-    protected void setSlowConsumer(boolean sc) {
+    void setSlowConsumer(boolean sc) {
         this.sc = sc;
     }
 
-    protected boolean isSlowConsumer() {
+    boolean isSlowConsumer() {
         return this.sc;
     }
 
-    protected void setMax(long max) {
+    void setMax(long max) {
         this.max = max;
     }
 
-    protected long getMax() {
+    long getMax() {
         return max;
     }
 
@@ -399,17 +388,5 @@ abstract class SubscriptionImpl implements Subscription {
 
     void unlock() {
         mu.unlock();
-    }
-
-    void printStats() {
-        System.err.println("delivered: " + delivered);
-        System.err.println("dropped: " + dropped);
-        System.err.println("pMsgs: " + pMsgs);
-        System.err.println("pMsgsLimit: " + pMsgsLimit);
-        System.err.println("pMsgsMax: " + pMsgsMax);
-        System.err.println("pBytes: " + pBytes);
-        System.err.println("pBytesLimit: " + pBytesLimit);
-        System.err.println("pBytesMax: " + pBytesMax);
-        System.err.println();
     }
 }

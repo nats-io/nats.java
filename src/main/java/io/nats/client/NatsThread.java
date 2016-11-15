@@ -1,16 +1,15 @@
-/*******************************************************************************
- * Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
- * materials are made available under the terms of the MIT License (MIT) which accompanies this
- * distribution, and is available at http://opensource.org/licenses/MIT
- *******************************************************************************/
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
 
 package io.nats.client;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * NatsThread. <p/> Custom thread base class
@@ -40,18 +39,17 @@ class NatsThread extends Thread {
     }
 
     public NatsThread(Runnable r, String poolName, CountDownLatch startSignal,
-            CountDownLatch doneSignal) {
+                      CountDownLatch doneSignal) {
         super(r, poolName);
         this.startSignal = startSignal;
         this.doneSignal = doneSignal;
     }
 
     public void run() {
-        logger.trace("In RUN");
         // Copy debug flag to ensure consistent value throughout.
         boolean debug = debugLifecycle;
         if (debug) {
-            logger.debug("Created {}", getName());
+            logger.trace("Created {}", getName());
         }
         try {
             if (startSignal != null) {
@@ -61,14 +59,14 @@ class NatsThread extends Thread {
             super.run();
         } catch (InterruptedException e) {
             // TODO Auto-generated catch block
-            logger.debug("Interrupted: ", e);
+            logger.trace("Interrupted: ", e);
         } finally {
             if (this.doneSignal != null) {
                 this.doneSignal.countDown();
             }
             alive.decrementAndGet();
             if (debug) {
-                logger.debug("Exiting {}", getName());
+                logger.trace("Exiting {}", getName());
             }
         }
     }

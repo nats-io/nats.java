@@ -1,3 +1,9 @@
+/*
+ *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  materials are made available under the terms of the MIT License (MIT) which accompanies this
+ *  distribution, and is available at http://opensource.org/licenses/MIT
+ */
+
 package io.nats.benchmark;
 
 import static org.junit.Assert.assertEquals;
@@ -7,7 +13,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.nats.client.ConnectionImpl;
+import io.nats.client.Connection;
 import io.nats.client.Statistics;
 import io.nats.client.TestCasePrinterRule;
 import io.nats.client.UnitTest;
@@ -33,35 +39,39 @@ public class BenchmarkFunctionalTest {
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @BeforeClass
-    public static void setUpBeforeClass() throws Exception {}
+    public static void setUpBeforeClass() throws Exception {
+    }
 
     @AfterClass
-    public static void tearDownAfterClass() throws Exception {}
+    public static void tearDownAfterClass() throws Exception {
+    }
 
     @Before
-    public void setUp() throws Exception {}
+    public void setUp() throws Exception {
+    }
 
     @After
-    public void tearDown() throws Exception {}
+    public void tearDown() throws Exception {
+    }
 
-    static final int MSG_SIZE = 8;
-    static final int MILLION = 1000 * 1000;
-    static final int BILLION = MILLION * 1000;
-    static final double EPSILON = 1.0 / 1.0E18;
+    private static final int MSG_SIZE = 8;
+    private static final int MILLION = 1000 * 1000;
+    private static final int BILLION = MILLION * 1000;
+    private static final double EPSILON = 1.0 / 1.0E18;
 
-    long baseTime = System.nanoTime();
+    private final long baseTime = System.nanoTime();
 
     /**
      * Returns a million message sample.
-     * 
+     *
      * @return a Sample for one million messages
      */
-    public Sample millionMessagesSecondSample(int seconds) {
+    private Sample millionMessagesSecondSample(int seconds) {
         int messages = MILLION * seconds;
         long start = baseTime;
         long end = start + TimeUnit.SECONDS.toNanos(seconds);
 
-        final ConnectionImpl nc = mock(ConnectionImpl.class);
+        final Connection nc = mock(Connection.class);
         when(nc.getStats()).thenReturn(new Statistics());
         Sample stat = new Sample(messages, MSG_SIZE, start, end, nc);
         stat.msgCnt = (long) messages;
@@ -186,10 +196,10 @@ public class BenchmarkFunctionalTest {
         bench.addPubSample(millionMessagesSecondSample(1));
         bench.addSubSample(millionMessagesSecondSample(1));
         bench.close();
-        assertNotNull(bench.runId);
-        assertFalse(bench.runId.isEmpty());
-        assertEquals(1, bench.pubs.samples.size());
-        assertEquals(1, bench.subs.samples.size());
+        assertNotNull(bench.getRunId());
+        assertFalse(bench.getRunId().isEmpty());
+        assertEquals(1, bench.getPubs().getSamples().size());
+        assertEquals(1, bench.getSubs().getSamples().size());
         assertEquals(2 * MILLION, bench.msgCnt);
         assertEquals(2 * MILLION * MSG_SIZE, bench.ioBytes);
         assertEquals(1, TimeUnit.NANOSECONDS.toSeconds(bench.duration()));
@@ -197,12 +207,12 @@ public class BenchmarkFunctionalTest {
 
     /**
      * Creates a Benchmark object with test data.
-     * 
+     *
      * @param subs number of subscribers
      * @param pubs number of publishers
      * @return the created Benchmark
      */
-    public Benchmark makeBench(int subs, int pubs) {
+    private Benchmark makeBench(int subs, int pubs) {
         Benchmark bench = new Benchmark("test", subs, pubs);
         for (int i = 0; i < subs; i++) {
             bench.addSubSample(millionMessagesSecondSample(1));

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -e
+
+SCRIPTDIR=$(dirname "$0")
+SRCDIR=$(cd "$SCRIPTDIR"/.. && pwd)
+
+(
+    cd "$SRCDIR"
+    mvn -q test-compile
+    mvn -q exec:java \
+        -Dexec.classpathScope=test \
+        -Dexec.mainClass="io.nats.examples.Replier" \
+        -Dexec.args="$*"
+)
