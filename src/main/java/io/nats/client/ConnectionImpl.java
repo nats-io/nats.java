@@ -813,10 +813,8 @@ class ConnectionImpl implements Connection {
                     conn.close();
                 }
 
-                if (fch != null) {
-                    if (!fch.offer(false)) {
-                        logger.debug("Coudn't kick flush channel following connection error");
-                    }
+                if (fch != null && !fch.offer(false)) {
+                    logger.debug("Coudn't kick flush channel following connection error");
                 }
 
                 // Create a new pending buffer to underpin the buffered output
@@ -1672,7 +1670,7 @@ class ConnectionImpl implements Connection {
 
     protected void kickFlusher() {
         if (bw != null && fch != null) {
-            boolean kicked = fch.offer(true);
+            fch.offer(true);
         }
     }
 

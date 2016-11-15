@@ -208,8 +208,8 @@ public interface AbstractConnection extends AutoCloseable {
     /**
      * Flushes the current connection, waiting up to {@code timeout} for successful completion.
      *
-     * @param timeout - the connection timeout in milliseconds.
-     * @throws IOException      if a connection-related error prevents the flush from completing
+     * @param timeout the connection timeout in milliseconds.
+     * @throws IOException if a connection-related error prevents the flush from completing
      */
     void flush(int timeout) throws IOException;
 

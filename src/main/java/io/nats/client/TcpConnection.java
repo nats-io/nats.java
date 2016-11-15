@@ -51,7 +51,6 @@ class TcpConnection implements TransportConnection, AutoCloseable {
     private BufferedInputStream bis = null;
     private BufferedOutputStream bos = null;
 
-    private InetSocketAddress addr = null;
     private int timeout = 0;
     private boolean tlsDebug = false;
 
@@ -67,12 +66,11 @@ class TcpConnection implements TransportConnection, AutoCloseable {
         mu.lock();
         try {
 
-            this.addr = new InetSocketAddress(host, port);
             client = factory.createSocket();
             client.setTcpNoDelay(true);
             client.setReceiveBufferSize(2 * 1024 * 1024);
             client.setSendBufferSize(2 * 1024 * 1024);
-            client.connect(addr, timeout);
+            client.connect(new InetSocketAddress(host, port), timeout);
 
             logger.debug("socket tcp_nodelay: {}", client.getTcpNoDelay());
             logger.debug("socket recv buf size: {}", client.getReceiveBufferSize());

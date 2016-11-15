@@ -75,7 +75,7 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
         }
 
         // snapshot
-        final ConnectionImpl localConn = (ConnectionImpl) this.getConnection();
+        final ConnectionImpl nc = (ConnectionImpl) this.getConnection();
         final BlockingQueue<Message> localChannel = mch;
         final long localMax = max;
         // boolean chanClosed = localChannel.isClosed();
@@ -99,9 +99,10 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
         if (msg != null) {
             // Update some stats
             lock();
+            long delivered;
             try {
                 this.delivered++;
-                long delivered = this.delivered;
+                delivered = this.delivered;
                 pMsgs--;
                 pBytes -= (msg.getData() != null ? msg.getData().length : 0);
             } finally {
@@ -114,11 +115,11 @@ class SyncSubscriptionImpl extends SubscriptionImpl implements SyncSubscription 
                 }
                 // Remove subscription if we have reached max.
                 if (delivered == localMax) {
-                    localConn.mu.lock();
+                    nc.mu.lock();
                     try {
-                        localConn.removeSub(this);
+                        nc.removeSub(this);
                     } finally {
-                        localConn.mu.unlock();
+                        nc.mu.unlock();
                     }
                 }
             }
