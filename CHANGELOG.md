@@ -7,7 +7,7 @@ _2016-11-15_  [GitHub Diff](https://github.com/nats-io/jnats/compare/0.7.3...HEA
  * [ADDED] `Nats.connect()` and variants have been added as a preferred method for connecting to NATS. `ConnectionFactory.createConnection()` will also continue to be supported.
  * [ADDED] `Connection#getServers()` and `Connection#getDiscoveredServers()` APIs to match Go client
  * [ADDED] `isTlsRequired()` and `isAuthRequired()` to match Go client capabilities.
- * [CHANGED] Methods that previously threw `TimeoutException` now only throw `IOException` in the event of a failure (or return `null` where appropriate).
+ * [CHANGED] Methods that previously threw `TimeoutException` now simply return `null` (for non-`void` methods) or throw `IOException` if their timeout elapses before they complete.
   * `ConnectionFactory#createConnection()`
   * `ConnectionImpl#flush(int timeout)`
   * `SyncSubscription#nextMessage(int timeout)` - returns `null` if the timeout elapses before a message is available.
