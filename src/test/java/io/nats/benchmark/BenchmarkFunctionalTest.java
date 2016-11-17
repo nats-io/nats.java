@@ -256,7 +256,6 @@ public class BenchmarkFunctionalTest {
         assertTrue("Expected 0 length for 0 clients", zero.isEmpty());
 
         List<Integer> oneTwo = Utils.msgsPerClient(1, 2);
-        System.err.println(oneTwo);
         assertTrue("Expected uneven distribution",
                 oneTwo.size() == 2 && (oneTwo.get(0) + oneTwo.get(1) == 1));
 

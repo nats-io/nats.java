@@ -6,6 +6,7 @@
 
 package io.nats.client;
 
+import static io.nats.client.Nats.connect;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -61,7 +62,7 @@ class UnitTestUtilities {
     }
 
     static synchronized Connection newDefaultConnection() throws IOException {
-        return Nats.connect(Nats.DEFAULT_URL);
+        return connect(Nats.DEFAULT_URL);
     }
 
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf)
@@ -72,10 +73,6 @@ class UnitTestUtilities {
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf, Options opts)
             throws IOException {
         return new Options.Builder(opts).factory(tcf).build().connect();
-    }
-
-    static Connection newMockedConnection() throws IOException {
-        return newMockedConnection(null);
     }
 
     static TcpConnection newMockedTcpConnection() throws IOException {
@@ -196,6 +193,16 @@ class UnitTestUtilities {
         return tcf;
     }
 
+    static Connection newMockedConnection() throws IOException {
+        return newMockedConnection((Options) null);
+    }
+
+    static Connection newMockedConnection(String url) throws IOException {
+        Options opts = Nats.defaultOptions();
+        opts.url = url;
+        return newMockedConnection(opts);
+    }
+
     static Connection newMockedConnection(Options opts)
             throws IOException {
         Options options = null;
@@ -213,8 +220,7 @@ class UnitTestUtilities {
         } else {
             options = new Options.Builder(opts).build();
         }
-
-        return options.connect();
+        return Nats.connect(options.url, options);
     }
 
     static synchronized void startDefaultServer() {

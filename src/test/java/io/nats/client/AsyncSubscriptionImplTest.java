@@ -7,6 +7,7 @@
 package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.setLogLevel;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -97,13 +98,17 @@ public class AsyncSubscriptionImplTest {
         // Make sure the connection opts aren't null
         when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
+        MessageHandler mh = new MessageHandler() {
+            @Override
+            public void onMessage(Message msg) {
+            }
+        };
+
         try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
             assertTrue(s.isValid());
-            s.setMessageHandler(new MessageHandler() {
-                @Override
-                public void onMessage(Message msg) {
-                }
-            });
+            s.setMessageHandler(mh);
+
+            assertEquals(mh, s.getMessageHandler());
         }
     }
 

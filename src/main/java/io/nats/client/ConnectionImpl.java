@@ -720,7 +720,7 @@ class ConnectionImpl implements Connection {
     // processPong is used to process responses to the client's ping
     // messages. We use pings for the flush mechanism as well.
     void processPong() {
-        BlockingQueue<Boolean> ch = createBooleanChannel(1);
+        BlockingQueue<Boolean> ch = null;
         mu.lock();
         try {
             if (pongs != null && pongs.size() > 0) {
@@ -732,12 +732,7 @@ class ConnectionImpl implements Connection {
             mu.unlock();
         }
         if (ch != null) {
-            try {
-                ch.put(true);
-            } catch (InterruptedException e) {
-                logger.debug("processPong interrupted", e);
-                Thread.currentThread().interrupt();
-            }
+            ch.add(true);
         }
     }
 
@@ -2554,7 +2549,8 @@ class ConnectionImpl implements Connection {
 
         // Returns time since last attempt, in msec
         long timeSinceLastAttempt() {
-            return (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lastAttemptNanos));
+            return (lastAttemptNanos == 0L ? 0L :
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lastAttemptNanos));
         }
 
         public String toString() {
