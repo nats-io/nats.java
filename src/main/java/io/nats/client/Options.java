@@ -371,7 +371,7 @@ public class Options {
             }
             this.noRandomize = template.noRandomize;
             this.connectionName = template.connectionName;
-            this.verbose = template.pedantic;
+            this.verbose = template.verbose;
             this.pedantic = template.pedantic;
             this.secure = template.secure;
             this.allowReconnect = template.allowReconnect;
