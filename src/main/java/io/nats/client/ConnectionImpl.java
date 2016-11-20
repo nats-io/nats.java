@@ -664,15 +664,11 @@ class ConnectionImpl implements Connection {
 
     void shutdownAndAwaitTermination(ExecutorService pool, String name) {
         try {
-            List<Runnable> waitingTasks = pool.shutdownNow();
+            pool.shutdownNow();
             if (!pool.awaitTermination(10, TimeUnit.SECONDS)) {
                 logger.error("{} did not terminate", name);
                 ThreadPoolExecutor poolExec = (ThreadPoolExecutor) pool;
                 logger.error("{} tasks still active", poolExec.getActiveCount());
-                for (Runnable r : waitingTasks) {
-                    logger.error("Task: {}", r.toString());
-                }
-                return;
             }
         } catch (InterruptedException ie) {
             // (Re-)Cancel if current thread also interrupted
@@ -2079,37 +2075,26 @@ class ConnectionImpl implements Connection {
 
     @Override
     public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
-            throws IOException {
+            throws IOException, InterruptedException {
         String inbox = newInbox();
         BlockingQueue<Message> ch = createMsgChannel(8);
 
-        Message msg = null;
 
         try (SyncSubscription sub = (SyncSubscription) subscribe(inbox, null, null, ch)) {
             sub.autoUnsubscribe(1);
             publish(subject, inbox, data);
-            while (!Thread.currentThread().isInterrupted()){
-                try {
-                    msg = sub.nextMessage(timeout, unit);
-                    break;
-                } catch (InterruptedException e) {
-                    // There is nothing a caller can do with this, so swallow it.
-                    logger.debug("request() interrupted", e);
-                    Thread.interrupted();
-                }
-            }
+            return sub.nextMessage(timeout, unit);
         }
-        return msg;
     }
 
     @Override
     public Message request(String subject, byte[] data, long timeout)
-            throws IOException {
+            throws IOException, InterruptedException {
         return request(subject, data, timeout, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public Message request(String subject, byte[] data) throws IOException {
+    public Message request(String subject, byte[] data) throws IOException, InterruptedException {
         return request(subject, data, -1, TimeUnit.MILLISECONDS);
     }
 
