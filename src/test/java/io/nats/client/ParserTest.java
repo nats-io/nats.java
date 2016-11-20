@@ -6,6 +6,7 @@
 
 package io.nats.client;
 
+import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
@@ -14,6 +15,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import ch.qos.logback.classic.Level;
 import io.nats.client.ConnectionAccessor;
@@ -21,6 +23,7 @@ import io.nats.client.ConnectionImpl.Control;
 import io.nats.client.ConnectionImpl.Srv;
 import io.nats.client.Parser.NatsOp;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
@@ -74,7 +77,7 @@ public class ParserTest {
 
     @Test
     public void testParseControl() throws Exception {
-        ConnectionImpl conn = new ConnectionImpl(Nats.defaultOptions());
+        ConnectionImpl conn = new ConnectionImpl(defaultOptions());
 
         Control c = null;
 
@@ -161,7 +164,7 @@ public class ParserTest {
     @Test
     public void testMinusErrDoesNotThrow() {
         Parser parser;
-        try (ConnectionImpl nc = new ConnectionImpl(Nats.defaultOptions())) {
+        try (ConnectionImpl nc = new ConnectionImpl(defaultOptions())) {
             parser = ConnectionAccessor.getParser(nc);
             String s = String.format("-ERR %s\r\n", Nats.SERVER_ERR_AUTH_VIOLATION);
             try {
@@ -226,7 +229,7 @@ public class ParserTest {
                 // state default
                 "Z\r\n"};
 
-        try (ConnectionImpl nc = (ConnectionImpl) newMockedConnection()) {
+        try (ConnectionImpl nc = new ConnectionImpl(defaultOptions())) {
             parser = ConnectionAccessor.getParser(nc);
             boolean exThrown = false;
 
@@ -260,8 +263,9 @@ public class ParserTest {
 
         String msg = String.format("MSG foo 1 %d\r\n", payloadSize);
         byte[] msgBytes = msg.getBytes();
-        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+        try (ConnectionImpl c = (ConnectionImpl) new ConnectionImpl(defaultOptions())) {
             parser = ConnectionAccessor.getParser(c);
+            c.setOutputStream(mock(OutputStream.class));
             try (Subscription sub = c.subscribeSync("foo")) {
                 try {
                     parser.parse(msgBytes, msgBytes.length);
@@ -274,7 +278,7 @@ public class ParserTest {
 
     @Test
     public void testParserSplitMsg() throws Exception {
-        try (ConnectionImpl nc = new ConnectionImpl(Nats.defaultOptions())) {
+        try (ConnectionImpl nc = new ConnectionImpl(defaultOptions())) {
             // nc.ps = &parseState{}
             byte[] buf = null;
 
@@ -523,7 +527,8 @@ public class ParserTest {
 
         String msg = "MSG foo 1 -100\r\n";
         byte[] msgBytes = msg.getBytes();
-        try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
+        try (ConnectionImpl c = new ConnectionImpl(defaultOptions())) {
+            c.setOutputStream(mock(OutputStream.class));
             try (Subscription sub = c.subscribeSync("foo")) {
                 Parser parser = ConnectionAccessor.getParser(c);
                 parser.parse(msgBytes, msgBytes.length);
@@ -533,7 +538,7 @@ public class ParserTest {
 
     @Test
     public void testAsyncInfo() throws Exception {
-        try (ConnectionImpl conn = new ConnectionImpl(Nats.defaultOptions())) {
+        try (ConnectionImpl conn = new ConnectionImpl(defaultOptions())) {
             Parser parser = ConnectionAccessor.getParser(conn);
             assertEquals(conn, parser.nc);
 

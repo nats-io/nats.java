@@ -10,10 +10,28 @@ import static io.nats.client.ConnectionImpl.Srv;
 import static io.nats.client.Nats.ConnState;
 import static io.nats.client.Nats.DEFAULT_SSL_PROTOCOL;
 import static io.nats.client.Nats.PROP_CLOSED_CB;
+import static io.nats.client.Nats.PROP_CONNECTION_NAME;
+import static io.nats.client.Nats.PROP_CONNECTION_TIMEOUT;
 import static io.nats.client.Nats.PROP_DISCONNECTED_CB;
 import static io.nats.client.Nats.PROP_EXCEPTION_HANDLER;
+import static io.nats.client.Nats.PROP_HOST;
+import static io.nats.client.Nats.PROP_MAX_PINGS;
+import static io.nats.client.Nats.PROP_MAX_RECONNECT;
+import static io.nats.client.Nats.PROP_NORANDOMIZE;
+import static io.nats.client.Nats.PROP_PASSWORD;
+import static io.nats.client.Nats.PROP_PEDANTIC;
+import static io.nats.client.Nats.PROP_PING_INTERVAL;
+import static io.nats.client.Nats.PROP_PORT;
 import static io.nats.client.Nats.PROP_RECONNECTED_CB;
+import static io.nats.client.Nats.PROP_RECONNECT_ALLOWED;
+import static io.nats.client.Nats.PROP_RECONNECT_BUF_SIZE;
+import static io.nats.client.Nats.PROP_RECONNECT_WAIT;
+import static io.nats.client.Nats.PROP_SECURE;
 import static io.nats.client.Nats.PROP_SERVERS;
+import static io.nats.client.Nats.PROP_TLS_DEBUG;
+import static io.nats.client.Nats.PROP_URL;
+import static io.nats.client.Nats.PROP_USERNAME;
+import static io.nats.client.Nats.PROP_VERBOSE;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnectionFactory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -21,6 +39,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import ch.qos.logback.classic.Logger;
 
@@ -102,7 +121,63 @@ public class ConnectionFactoryTest
 
     @Test
     public void testConnectionFactoryProperties() {
+        final ClosedCallback ccb = mock(ClosedCallback.class);
+        final DisconnectedCallback dcb = mock(DisconnectedCallback.class);
+        final ReconnectedCallback rcb = mock(ReconnectedCallback.class);
+        final ExceptionHandler eh = mock(ExceptionHandler.class);
 
+        Properties props = new Properties();
+        props.setProperty(PROP_HOST, hostname);
+        props.setProperty(PROP_PORT, Integer.toString(port));
+        props.setProperty(PROP_URL, url);
+        props.setProperty(PROP_USERNAME, username);
+        props.setProperty(PROP_PASSWORD, password);
+        props.setProperty(PROP_SERVERS, servers);
+        props.setProperty(PROP_NORANDOMIZE, Boolean.toString(noRandomize));
+        props.setProperty(PROP_CONNECTION_NAME, name);
+        props.setProperty(PROP_VERBOSE, Boolean.toString(verbose));
+        props.setProperty(PROP_PEDANTIC, Boolean.toString(pedantic));
+        props.setProperty(PROP_SECURE, Boolean.toString(secure));
+        props.setProperty(PROP_TLS_DEBUG, Boolean.toString(secure));
+        props.setProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(reconnectAllowed));
+        props.setProperty(PROP_MAX_RECONNECT, Integer.toString(maxReconnect));
+        props.setProperty(PROP_RECONNECT_WAIT, Integer.toString(reconnectWait));
+        props.setProperty(PROP_RECONNECT_BUF_SIZE, Integer.toString(reconnectBufSize));
+        props.setProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(timeout));
+        props.setProperty(PROP_PING_INTERVAL, Integer.toString(pingInterval));
+        props.setProperty(PROP_MAX_PINGS, Integer.toString(maxPings));
+        props.setProperty(PROP_EXCEPTION_HANDLER, eh.getClass().getName());
+        props.setProperty(PROP_CLOSED_CB, ccb.getClass().getName());
+        props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
+        props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
+
+        ConnectionFactory cf = new ConnectionFactory(props);
+        assertEquals(hostname, cf.getHost());
+        assertEquals(port, cf.getPort());
+        assertEquals(username, cf.getUsername());
+        assertEquals(password, cf.getPassword());
+        List<URI> s1 = ConnectionFactoryTest.serverArrayToList(serverArray);
+        List<URI> s2 = cf.getServers();
+        assertEquals(s1, s2);
+        assertEquals(noRandomize, cf.isNoRandomize());
+        assertEquals(name, cf.getConnectionName());
+        assertEquals(verbose, cf.isVerbose());
+        assertEquals(pedantic, cf.isPedantic());
+        assertEquals(secure, cf.isSecure());
+        assertEquals(reconnectAllowed, cf.isReconnectAllowed());
+        assertEquals(maxReconnect, cf.getMaxReconnect());
+        assertEquals(reconnectWait, cf.getReconnectWait());
+        assertEquals(reconnectBufSize, cf.getReconnectBufSize());
+        assertEquals(timeout, cf.getConnectionTimeout());
+        assertEquals(pingInterval, cf.getPingInterval());
+        assertEquals(maxPings, cf.getMaxPingsOut());
+        assertEquals(eh.getClass().getName(), cf.getExceptionHandler().getClass().getName());
+        assertEquals(ccb.getClass().getName(), cf.getClosedCallback().getClass().getName());
+        assertEquals(dcb.getClass().getName(), cf.getDisconnectedCallback().getClass().getName());
+        assertEquals(rcb.getClass().getName(), cf.getReconnectedCallback().getClass().getName());
+
+        ConnectionFactory cf2 = new ConnectionFactory(cf);
+        assertTrue(cf2.equals(cf));
     }
 
     @Test

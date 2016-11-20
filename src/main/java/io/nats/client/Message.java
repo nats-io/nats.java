@@ -48,11 +48,15 @@ public class Message {
         // make a deep copy of the bytes for this message.
         if (length > 0) {
             if (length > buf.length) {
-                throw new IllegalArgumentException(
-                        "nats: source buffer smaller than requested copy length");
+                String msg = String.format(
+                        "nats: source buffer size (%d) smaller than requested copy length(%d)",
+                        length, buf.length);
+                throw new IllegalArgumentException(msg);
             } else if (length > ma.size) {
-                throw new IllegalArgumentException(
-                        "nats: requested copy length larger than ma.size");
+                String msg = String.format(
+                        "nats: requested copy length(%d) larger than ma.size(%d)",
+                        length, ma.size);
+                throw new IllegalArgumentException(msg);
             }
             data = new byte[length];
             System.arraycopy(buf, offset, data, 0, length);

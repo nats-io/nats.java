@@ -73,11 +73,11 @@ class Parser {
         this.nc = conn;
     }
 
-    void parse(byte[] buf) throws ParseException {
+    void parse(byte[] buf) throws ParseException, InterruptedException {
         parse(buf, buf.length);
     }
 
-    void parse(byte[] buf, int len) throws ParseException {
+    void parse(byte[] buf, int len) throws ParseException, InterruptedException {
         int i;
         byte b;
         boolean error = false;
@@ -591,10 +591,12 @@ class Parser {
                     nc.processErr(ps.msgBuf);
                 }
             } else {
-                // copy args
-                ps.msgBuf.put(ps.argBuf);
+                ps.msgBuf = ByteBuffer.wrap(ps.msgBufStore);
                 // copy body
-                ps.msgBuf.put(buf, ps.as, len - ps.as);
+                if (len - ps.as > 0) {
+                    logger.info("Putting buf from {} for {} bytes", ps.as, len - ps.as);
+                    ps.msgBuf.put(buf, ps.as, len - ps.as);
+                }
             }
         }
     }

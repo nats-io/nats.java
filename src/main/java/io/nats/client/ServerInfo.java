@@ -49,6 +49,8 @@ class ServerInfo {
     private transient String jsonString = null;
     private static final transient Gson gson = new GsonBuilder().create();
 
+    protected ServerInfo() {}
+
     ServerInfo(String id, String host, int port, String version, boolean authRequired,
                boolean tlsRequired, int maxPayload, final String[] connectUrls) {
 
@@ -193,10 +195,6 @@ class ServerInfo {
         }
         rv = String.format("INFO %s", jsonString);
         return rv;
-    }
-
-    public byte[] toProtoBytes() {
-        return (toString() + "\r\n").getBytes();
     }
 
     public static boolean compare(String str1, String str2) {

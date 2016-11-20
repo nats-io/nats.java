@@ -103,7 +103,7 @@ class UnitTestUtilities {
         doAnswer(new Answer<Void>() {
             @Override
             public Void answer(InvocationOnMock invocation) throws Throwable {
-                setTcpConnState(tcpConnMock, true);
+                closed.set(false);
                 return null;
             }
         }).when(tcpConnMock).open(any(String.class), anyInt());
@@ -142,6 +142,7 @@ class UnitTestUtilities {
                 }
 
                 String lastWrite = queue.poll(500, TimeUnit.MILLISECONDS);
+//                String lastWrite = queue.poll();
                 if (lastWrite != null && lastWrite.equals("PING")) {
                     System.arraycopy(pongBytes, 0, buf, 0, pongBytes.length);
                     return pongBytes.length;
@@ -155,21 +156,23 @@ class UnitTestUtilities {
         doAnswer(new Answer<Void>() {
             @Override
             public Void answer(InvocationOnMock invocation) throws Throwable {
-                closed.set(true);
-                setTcpConnState(tcpConnMock, false);
+                try {
+                    closed.set(true);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 return null;
             }
         }).when(tcpConnMock).close();
 
-        return tcpConnMock;
-    }
+        doAnswer(new Answer<Boolean>() {
+            @Override
+            public Boolean answer(InvocationOnMock invocation) {
+                return closed.get();
+            }
+        }).when(tcpConnMock).isClosed();
 
-    static void setTcpConnState(TcpConnection mock, boolean open) {
-        logger.trace("\n\nChanging state, connection ({}) = {}\n", mock, (open ? "open" :
-                "closed"));
-        logger.trace("old status, isClosed={}", mock.isClosed());
-        doReturn(!open).when(mock).isClosed();
-        logger.trace("new status, isClosed={}", mock.isClosed());
+        return tcpConnMock;
     }
 
     static TcpConnectionFactory newMockedTcpConnectionFactory() {

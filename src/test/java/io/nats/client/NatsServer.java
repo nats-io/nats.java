@@ -122,7 +122,6 @@ class NatsServer implements Runnable, AutoCloseable {
         if (p == null) {
             return;
         }
-
         p.destroy();
         if (debug) {
             System.out.println("Stopped [" + psInfo + "]");

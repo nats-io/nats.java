@@ -9,10 +9,18 @@ package io.nats.client;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import ch.qos.logback.classic.Logger;
+import io.nats.examples.Publisher;
+import io.nats.examples.Replier;
 import io.nats.examples.Requestor;
 
+import io.nats.examples.Subscriber;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -34,6 +42,8 @@ public class RequestorTest {
     static final Logger logger = (Logger) LoggerFactory.getLogger(RequestorTest.class);
 
     static final LogVerifier verifier = new LogVerifier();
+
+    final ExecutorService service = Executors.newCachedThreadPool();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -67,7 +77,7 @@ public class RequestorTest {
         args = argList.toArray(args);
 
         try (NatsServer srv = runDefaultServer()) {
-            new Requestor(args).run();
+            new Requestor(args);
         }
     }
 
@@ -121,10 +131,43 @@ public class RequestorTest {
         }
     }
 
-    @Test
+    @Test(timeout = 5000)
     public void testMainSuccess() throws Exception {
+        final List<Throwable> errors = new ArrayList<Throwable>();
         try (NatsServer srv = runDefaultServer()) {
-            Requestor.main(new String[] {"-s", Nats.DEFAULT_URL, "foo", "bar"});
+            final CountDownLatch startPub = new CountDownLatch(1);
+            final CountDownLatch done = new CountDownLatch(1);
+            service.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Replier.main(new String[] {"-s", Nats.DEFAULT_URL, "-n", "1", "foo", "reply"});
+                        done.countDown();
+                    } catch (Exception e) {
+                        errors.add(e);
+                    }
+                }
+            });
+            Thread.sleep(500);
+            startPub.countDown();
+            service.execute(new Runnable() {
+                public void run() {
+                    try {
+                        startPub.await();
+                        new Requestor(new String[] {"-s", Nats.DEFAULT_URL, "foo", "bar"}).run();
+                    } catch (Exception e) {
+                        errors.add(e);
+                    }
+                }
+            });
+
+            done.await();
+            if (errors.size() != 0) {
+                for (Throwable t : errors) {
+                    t.printStackTrace();
+                }
+                fail("Unexpected exceptions");
+            }
         }
     }
 

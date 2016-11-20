@@ -11,6 +11,7 @@ import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.runServerOnPort;
 import static io.nats.client.UnitTestUtilities.runServerWithConfig;
+import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -18,7 +19,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import ch.qos.logback.classic.Level;
 import java.util.concurrent.TimeUnit;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -60,17 +63,17 @@ public class ITClusterTest {
 
     @Before
     public void setUp() throws Exception {
-        // s = util.createServerWithConfig("auth_1222.conf");
     }
 
     @After
     public void tearDown() throws Exception {
-        // s.shutdown();
     }
 
     private static final String[] testServers = new String[] {"nats://localhost:1222",
             "nats://localhost:1223", "nats://localhost:1224", "nats://localhost:1225",
             "nats://localhost:1226", "nats://localhost:1227", "nats://localhost:1228"};
+
+    static final String servers = StringUtils.join(testServers, ",");
 
     static final String[] testServersShortList =
             new String[] {"nats://localhost:1222", "nats://localhost:1223"};
@@ -151,11 +154,8 @@ public class ITClusterTest {
 
 
                 Options opts = new Options.Builder(Nats.defaultOptions())
-                        .maxReconnect(2)
-                        .reconnectWait(1, TimeUnit.SECONDS)
                         .dontRandomize()
                         .build();
-                opts.servers = Nats.processUrlArray(testServers);
 
                 final AtomicBoolean dcbCalled = new AtomicBoolean(false);
                 final CountDownLatch dcLatch = new CountDownLatch(1);
@@ -173,11 +173,12 @@ public class ITClusterTest {
                 final CountDownLatch rcLatch = new CountDownLatch(1);
                 opts.reconnectedCb = new ReconnectedCallback() {
                     public void onReconnect(ConnectionEvent event) {
+                        logger.info("rcb called");
                         rcLatch.countDown();
                     }
                 };
 
-                try (Connection c = opts.connect()) {
+                try (Connection c = Nats.connect(servers, opts)) {
                     assertNotNull(c.getConnectedUrl());
 
                     s1.shutdown();
@@ -343,12 +344,8 @@ public class ITClusterTest {
                     for (NATSClient client : tasks) {
                         client.shutdown();
                     }
-                    executor.shutdown();
-                    try {
-                        assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                    executor.shutdownNow();
+                    assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
 
                     assertEquals(disconnected, reconnected);
 

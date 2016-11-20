@@ -7,15 +7,16 @@
 package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.setLogLevel;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.mock;
 
 import ch.qos.logback.classic.Level;
 import io.nats.client.Parser.MsgArg;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -24,6 +25,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -127,7 +129,7 @@ public class MessageTest {
     @Test
     public void testMsgArgConstructorSourceBufferTooSmall() {
         thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("nats: source buffer smaller than requested copy length");
+        thrown.expectMessage(containsString("smaller than requested copy length"));
         final byte[] subj = "foo".getBytes();
         final byte[] reply = "bar".getBytes();
         final byte[] payload = "Hello World".getBytes();
@@ -149,7 +151,7 @@ public class MessageTest {
     @Test
     public void testMsgArgConstructorCopyLengthMismatch() {
         thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage("nats: requested copy length larger than ma.size");
+        thrown.expectMessage(containsString("larger than ma.size"));
         final byte[] subj = "foo".getBytes();
         final byte[] reply = "bar".getBytes();
         final byte[] payload = "Hello World".getBytes();
