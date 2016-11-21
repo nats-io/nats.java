@@ -9,6 +9,7 @@ package io.nats.client;
 import static io.nats.client.ConnectionImpl.DEFAULT_BUF_SIZE;
 import static io.nats.client.ConnectionImpl.Srv;
 import static io.nats.client.Nats.ConnState.CONNECTED;
+import static io.nats.client.Nats.ConnState.DISCONNECTED;
 import static io.nats.client.Nats.ConnState.RECONNECTING;
 import static io.nats.client.Nats.ERR_BAD_SUBJECT;
 import static io.nats.client.Nats.ERR_BAD_TIMEOUT;
@@ -25,9 +26,11 @@ import static io.nats.client.Nats.ERR_TIMEOUT;
 import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.defaultInfo;
+import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnection;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnectionFactory;
+import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -41,17 +44,14 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.withSettings;
 import static org.mockito.internal.verification.VerificationModeFactory.atLeast;
 
 import ch.qos.logback.classic.Level;
@@ -66,7 +66,6 @@ import java.net.SocketException;
 import java.net.URI;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -90,15 +89,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockingDetails;
 import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.mockito.runners.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Category(UnitTest.class)
+@RunWith(MockitoJUnitRunner.class)
 public class ConnectionImplTest {
     static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     private static final Logger logger = LoggerFactory.getLogger(ConnectionImplTest.class);
@@ -111,8 +112,17 @@ public class ConnectionImplTest {
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
+    @InjectMocks
+    ConnectionImpl connection;
+
     @Mock
-    private BlockingQueue<Boolean> fchMock;
+    private Options opts;
+
+    @Mock
+    private TcpConnectionFactory tcf;
+
+    @Mock
+    private BlockingQueue<Boolean> fch;
 
     @Mock
     private BlockingQueue<Message> mchMock;
@@ -166,7 +176,7 @@ public class ConnectionImplTest {
      */
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+        //MockitoAnnotations.initMocks(this);
         verifier.setup();
     }
 
@@ -179,17 +189,23 @@ public class ConnectionImplTest {
         setLogLevel(Level.WARN);
     }
 
-    @SuppressWarnings("resource")
-    @Test
-    public void testConnectionImpl() {
-        new ConnectionImpl();
-    }
+//    @SuppressWarnings("resource")
+//    @Test
+//    public void testConnectionImpl() {
+//        new ConnectionImpl();
+//    }
+
+//    @Test
+//    public void testMocking() {
+//        assertEquals(tcf, connection.getTcpConnectionFactory());
+//    }
 
     @Test
     public void testConnectProto() throws Exception {
         Options opts = defaultOptions();
         opts.url = "nats://derek:foo@localhost:4222";
         try (ConnectionImpl conn = new ConnectionImpl(opts)) {
+            conn.setupServerPool();
             assertNotNull(conn.getUrl().getUserInfo());
             conn.setOutputStream(bwMock);
             String proto = conn.connectProto();
@@ -201,6 +217,7 @@ public class ConnectionImplTest {
         opts = Nats.defaultOptions();
         opts.url = "nats://thisismytoken@localhost:4222";
         try (ConnectionImpl conn = new ConnectionImpl(opts)) {
+            conn.setupServerPool();
             assertNotNull(conn.getUrl().getUserInfo());
             conn.setOutputStream(bwMock);
             String proto = conn.connectProto();
@@ -252,10 +269,13 @@ public class ConnectionImplTest {
         Options opts = new Options.Builder().maxReconnect(-1).dontRandomize().build();
         opts.servers = Nats.processUrlString("nats://localhost:5222, nats://localhost:6222");
         ConnectionImpl conn = new ConnectionImpl(opts);
+        conn.setupServerPool();
         final List<Srv> pool = conn.getServerPool();
         assertEquals("nats://localhost:5222", conn.currentServer().url.toString());
 
         Srv srv = conn.selectNextServer();
+        assertNotNull(srv.toString());
+        assertFalse(srv.toString().isEmpty());
         assertEquals("nats://localhost:6222", srv.url.toString());
         conn.setUrl(srv.url);
         assertEquals(2, pool.size());
@@ -512,6 +532,7 @@ public class ConnectionImplTest {
         Options opts = new Options.Builder().reconnectWait(1).build();
         try (ConnectionImpl c =
                      Mockito.spy(new ConnectionImpl(opts))) {
+            c.setupServerPool();
             c.setOutputStream(bwMock);
             c.setPending(pendingMock);
             doThrow(new IOException(ERR_NO_SERVERS)).when(c).selectNextServer();
@@ -527,6 +548,7 @@ public class ConnectionImplTest {
         Options opts = new Options.Builder().reconnectWait(1).maxReconnect(1).build();
         try (ConnectionImpl c =
                      Mockito.spy(new ConnectionImpl(opts))) {
+            c.setupServerPool();
             c.setOutputStream(bwMock);
             c.setPending(pendingMock);
             doThrow(new IOException(ERR_NO_SERVERS)).when(c).createConn();
@@ -541,6 +563,7 @@ public class ConnectionImplTest {
         Options opts = new Options.Builder().factory(newMockedTcpConnectionFactory())
                 .reconnectWait(1).maxReconnect(1).build();
         try (ConnectionImpl conn = spy(new ConnectionImpl(opts))) {
+            conn.setupServerPool();
             conn.setOutputStream(bwMock);
             conn.setPending(pendingMock);
 
@@ -560,6 +583,7 @@ public class ConnectionImplTest {
                 .maxReconnect(1).build();
         try (ConnectionImpl c =
                      Mockito.spy(new ConnectionImpl(opts))) {
+            c.setupServerPool();
             c.setOutputStream(bwMock);
             c.setPending(pendingMock);
             when(c.isClosed()).thenReturn(true);
@@ -674,6 +698,44 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testProcessOpErrReconnectConditions() throws Exception {
+        Options opts = spy(new Options.Builder(Nats.defaultOptions()).build());
+
+        try (ConnectionImpl c = spy(new ConnectionImpl(opts))) {
+            ScheduledExecutorService mockExec = mock(ScheduledExecutorService.class);
+            doReturn(mockExec).when(c).createScheduler();
+            doReturn(true).when(mockExec).awaitTermination(10, TimeUnit.SECONDS);
+
+            c.setup();
+
+            doReturn(false).when(c).connecting();
+            assertFalse(c.connecting());
+            doReturn(false).when(c).closed();
+            assertFalse(c.closed());
+            doReturn(false).when(c).reconnecting();
+            assertFalse(c.reconnecting());
+
+            MockingDetails details = Mockito.mockingDetails(c);
+            ConnectionImpl realConn =
+                    (ConnectionImpl) details.getMockCreationSettings().getSpiedInstance();
+            ConnectionAccessor.setState(realConn, DISCONNECTED);
+
+            IOException err = mock(IOException.class);
+
+            c.processOpError(err);
+            verify(opts, times(1)).isReconnectAllowed();
+            verify(c, times(1)).processDisconnect();
+            verify(c, times(1)).setLastError(err);
+            verify(c).close();
+
+            // Test for TCP conn == null
+            ConnectionAccessor.setState(realConn, CONNECTED);
+            c.setTcpConnection(null);
+
+        }
+    }
+
+    @Test
     public void testProcessOpErrFlushError() throws Exception {
         try (ConnectionImpl conn = new ConnectionImpl(defaultOptions())) {
             conn.setup();
@@ -783,7 +845,6 @@ public class ConnectionImplTest {
         }
     }
 
-
     @Test
     public void testErrOnMaxPayloadLimit() throws Exception {
         thrown.expect(IllegalArgumentException.class);
@@ -844,10 +905,12 @@ public class ConnectionImplTest {
         OutputStream os = mock(OutputStream.class);
         doThrow(new IOException("test")).when(os).flush();
         try (ConnectionImpl connection = new ConnectionImpl(defaultOptions())) {
+            connection.setup();
+            connection.setupServerPool();
             connection.setOutputStream(os);
             connection.setConnectedServerInfo(ServerInfo.createFromWire(defaultInfo));
             connection.setPending(mock(ByteArrayOutputStream.class));
-            connection.setFlushChannel(fchMock);
+            connection.setFlushChannel(fch);
             ConnectionAccessor.setState(connection, RECONNECTING);
             connection.publish("foo", null);
             verifier.verifyLogMsgEquals(Level.ERROR, "I/O exception during flush");
@@ -926,6 +989,7 @@ public class ConnectionImplTest {
         thrown.expectMessage(ERR_NO_SERVERS);
 
         try (ConnectionImpl c = spy(new ConnectionImpl(Nats.defaultOptions()))) {
+            c.setupServerPool();
             when(c.currentServer()).thenReturn(null);
             c.createConn();
         }
@@ -934,6 +998,7 @@ public class ConnectionImplTest {
     @Test
     public void testCreateConnFlushFailure() throws Exception {
         try (ConnectionImpl c = spy(new ConnectionImpl(Nats.defaultOptions()))) {
+            c.setupServerPool();
             c.setTcpConnectionFactory(newMockedTcpConnectionFactory());
             c.setOutputStream(bwMock);
             c.setPending(pendingMock);
@@ -954,6 +1019,7 @@ public class ConnectionImplTest {
         TcpConnectionFactory tcf = newMockedTcpConnectionFactory();
         Options opts = new Options.Builder(Nats.defaultOptions()).factory(tcf).build();
         try (ConnectionImpl nc = new ConnectionImpl(opts)) {
+            nc.setupServerPool();
             TcpConnection conn = tcf.createConnection();
             doThrow(new IOException(ERR_NO_SERVERS)).when(conn).open(anyString(), anyInt());
             doReturn(conn).when(tcf).createConnection();
@@ -1184,8 +1250,8 @@ public class ConnectionImplTest {
         int timeout = 500;
         TimeUnit unit = TimeUnit.MILLISECONDS;
         try (ConnectionImpl connection = (ConnectionImpl) spy(newMockedConnection())) {
-            doReturn(fchMock).when(connection).createBooleanChannel(1);
-            Boolean result = doReturn(null).when(fchMock).poll(timeout, unit);
+            doReturn(fch).when(connection).createBooleanChannel(1);
+            Boolean result = doReturn(null).when(fch).poll(timeout, unit);
             connection.flush((int) unit.toMillis(timeout));
         }
     }
@@ -1560,6 +1626,8 @@ public class ConnectionImplTest {
         thrown.expect(NullPointerException.class);
         try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection())) {
             assertEquals("nats://localhost:4222", c.getConnectedUrl());
+            assertFalse(c.isAuthRequired());
+            assertFalse(c.isTlsRequired());
             c.close();
             assertNull(c.getConnectedUrl());
         }
@@ -1601,7 +1669,7 @@ public class ConnectionImplTest {
     // throws Exception {
     // try (ConnectionImpl c = (ConnectionImpl) Mockito
     // .spy(new ConnectionImpl(Nats.defaultOptions()))) {
-    // c.setFlushChannel(fchMock);
+    // c.setFlushChannel(fch);
     // c.setOutputStream(bwMock);
     // TcpConnection tconn = mock(TcpConnection.class);
     // when(tconn.isConnected()).thenReturn(true);
@@ -1610,12 +1678,12 @@ public class ConnectionImplTest {
     //
     // c.conn = null;
     // c.flusher();
-    // verify(fchMock, times(0)).take();
+    // verify(fch, times(0)).take();
     //
     // c.setTcpConnection(tconn);
     // c.setOutputStream(null);
     // c.flusher();
-    // verify(fchMock, times(0)).take();
+    // verify(fch, times(0)).take();
     // }
     // }
     //
@@ -1624,13 +1692,13 @@ public class ConnectionImplTest {
     // throws Exception {
     // try (ConnectionImpl c = (ConnectionImpl) Mockito
     // .spy(new ConnectionImpl(Nats.defaultOptions()))) {
-    // c.setFlushChannel(fchMock);
+    // c.setFlushChannel(fch);
     // c.setOutputStream(bwMock);
     // TcpConnection tconn = mock(TcpConnection.class);
     // when(tconn.isConnected()).thenReturn(true);
     // c.setTcpConnection(tconn);
     // c.status = CONNECTED;
-    // doThrow(new InterruptedException("test")).when(fchMock).take();
+    // doThrow(new InterruptedException("test")).when(fch).take();
     // c.flusher();
     // assertTrue(Thread.interrupted());
     // verify(bwMock, times(0)).flush();
@@ -1642,8 +1710,8 @@ public class ConnectionImplTest {
     // InterruptedException {
     // try (ConnectionImpl c = (ConnectionImpl) Mockito
     // .spy(new ConnectionImpl(Nats.defaultOptions()))) {
-    // c.setFlushChannel(fchMock);
-    // when(fchMock.take()).thenReturn(true).thenReturn(false);
+    // c.setFlushChannel(fch);
+    // when(fch.take()).thenReturn(true).thenReturn(false);
     // c.setOutputStream(bwMock);
     // doThrow(new IOException("flush error")).when(bwMock).flush();
     //
@@ -1744,7 +1812,7 @@ public class ConnectionImplTest {
 
         Options opts = new Options.Builder().factory(mcf).verbose().build();
         try (Connection c = newMockedConnection(opts)) {
-            // Should be connected
+            // Should connect
         }
     }
 
@@ -2121,5 +2189,4 @@ public class ConnectionImplTest {
             assertEquals(CONNECTED, nc.getState());
         }
     }
-
 }

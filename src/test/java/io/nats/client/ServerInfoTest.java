@@ -8,6 +8,7 @@ package io.nats.client;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
@@ -72,6 +73,73 @@ public class ServerInfoTest {
         assertTrue(EqualsBuilder.reflectionEquals(s1, s2));
 
         assertTrue(s2.equals(s1));
+        assertTrue(s2.hashCode() == s1.hashCode());
+    }
+
+    @Test
+    public void testCompareNull() {
+        assertFalse(ServerInfo.compare("foo", "bar"));
+        assertFalse(ServerInfo.compare(null, "bar"));
+        assertFalse(ServerInfo.compare("foo", null));
+        assertTrue(ServerInfo.compare("foo", "foo"));
+        assertTrue(ServerInfo.compare(null, null));
+    }
+
+    @Test
+    public void testEqualsFailure() {
+        ServerInfo s1 = ServerInfo.createFromWire(testString);
+        assertFalse(s1.equals(null));
+        assertFalse(s1.equals("foo"));
+
+        ServerInfo s2 = null;
+
+        s2 = new ServerInfo(s1);
+        s2.setId("foo");
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setVersion("9.1.5000");
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setGoVersion("14.1");
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setHost("s2hostname");
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setPort(5101);
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setAuthRequired(!s1.isAuthRequired());
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setAuthRequired(!s1.isAuthRequired());
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setSslRequired(!s1.isSslRequired());
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setTlsRequired(!s1.isTlsRequired());
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setTlsVerify(!s1.isTlsVerify());
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setMaxPayload(2 * 1024 * 1024);
+        assertFalse(s2.equals(s1));
+
+        s2 = new ServerInfo(s1);
+        s2.setConnectUrls(new String[] { "foo", "bar"});
+        assertFalse(s2.equals(s1));
     }
 
     @Test
@@ -137,6 +205,13 @@ public class ServerInfoTest {
         testInstance.setAuthRequired(true);
     }
 
+    @Test
+    public void testIsSslRequired() {
+        assertEquals(true, testInstance.isSslRequired());
+        testInstance.setSslRequired(false);
+        assertEquals(false, testInstance.isSslRequired());
+        testInstance.setSslRequired(true);
+    }
     /**
      * Test method for {@link io.nats.client.ServerInfo#isTlsRequired()}.
      */
@@ -146,6 +221,14 @@ public class ServerInfoTest {
         testInstance.setTlsRequired(false);
         assertEquals(false, testInstance.isTlsRequired());
         testInstance.setTlsRequired(true);
+    }
+
+    @Test
+    public void testIsTlsVerify() {
+        assertEquals(false, testInstance.isTlsVerify());
+        testInstance.setTlsVerify(true);
+        assertEquals(true, testInstance.isTlsVerify());
+        testInstance.setTlsVerify(false);
     }
 
     /**

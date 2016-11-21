@@ -10,6 +10,7 @@ import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -277,6 +278,28 @@ public class ParserTest {
     }
 
     @Test
+    public void testParserLargeMsg() throws Exception {
+        int size = 912000;
+        byte[] preamble = String.format("MSG foo 1 %d\r\n", size).getBytes();
+        int preambleLength = preamble.length;
+        byte[] data = new byte[preambleLength + size + 2];
+        System.arraycopy(preamble, 0, data, 0, preambleLength);
+        for (int i = preambleLength; i < preambleLength + size; i++) {
+            data[i] = (byte) 'A';
+        }
+        data[size-2] = '\r';
+        data[size-1] = '\n';
+
+        try (ConnectionImpl c = new ConnectionImpl(defaultOptions())) {
+            c.setOutputStream(mock(OutputStream.class));
+            try (Subscription sub = c.subscribeSync("foo")) {
+                Parser parser = ConnectionAccessor.getParser(c);
+                parser.parse(data, data.length);
+            }
+        }
+    }
+
+        @Test
     public void testParserSplitMsg() throws Exception {
         try (ConnectionImpl nc = new ConnectionImpl(defaultOptions())) {
             // nc.ps = &parseState{}
@@ -537,6 +560,26 @@ public class ParserTest {
     }
 
     @Test
+    public void testMsgArg() {
+        Parser.MsgArg arg = new Parser.MsgArg();
+        arg.subject.put("subject".getBytes());
+        arg.reply.put("reply".getBytes());
+        arg.sid = 22;
+        arg.size = 128;
+
+        assertNotNull(arg.toString());
+        assertFalse(arg.toString().isEmpty());
+
+        arg.subject = null;
+        assertNotNull(arg.toString());
+        assertFalse(arg.toString().isEmpty());
+
+        arg.reply = null;
+        assertNotNull(arg.toString());
+        assertFalse(arg.toString().isEmpty());
+    }
+
+    @Test
     public void testAsyncInfo() throws Exception {
         try (ConnectionImpl conn = new ConnectionImpl(defaultOptions())) {
             Parser parser = ConnectionAccessor.getParser(conn);
@@ -732,7 +775,7 @@ public class ParserTest {
                 }
                 i++;
             }
-            assertNotEquals(same, allUrls.length);
+            assertNotEquals("Pool does not seem to be randomized", same, allUrls.length);
         }
     }
 
@@ -764,6 +807,5 @@ public class ParserTest {
             }
         }
     }
-
 }
 

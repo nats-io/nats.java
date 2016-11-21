@@ -33,7 +33,6 @@ import static io.nats.client.Nats.TLS_SCHEME;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
-import com.sun.corba.se.spi.orbutil.threadpool.ThreadPool;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -44,7 +43,6 @@ import java.net.URI;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -63,7 +61,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
@@ -141,7 +138,7 @@ class ConnectionImpl implements Connection {
     final Lock mu = new ReentrantLock();
     // protected final Lock mu = new AlternateDeadlockDetectingLock(true, true);
 
-    private final AtomicLong sidCounter = new AtomicLong();
+    private final AtomicLong sidCounter = new AtomicLong(0L);
     private URI url = null;
     private Options opts = null;
 
@@ -170,15 +167,14 @@ class ConnectionImpl implements Connection {
 
     private Parser parser = new Parser(this);
 
-    private byte[] pingProtoBytes = null;
-    private int pingProtoBytesLen = 0;
-    private byte[] pongProtoBytes = null;
-    private int pongProtoBytesLen = 0;
-    private byte[] pubPrimBytes = null;
-    private int pubPrimBytesLen = 0;
-
-    private byte[] crlfProtoBytes = null;
-    private int crlfProtoBytesLen = 0;
+    private static final byte[] pingProtoBytes = PING_PROTO.getBytes();
+    private static final int pingProtoBytesLen = pingProtoBytes.length;
+    private static final byte[] pongProtoBytes = PONG_PROTO.getBytes();
+    private static final int pongProtoBytesLen = pongProtoBytes.length;
+    private static final byte[] pubPrimBytes = _PUB_P_.getBytes();
+    private static final int pubPrimBytesLen = pubPrimBytes.length;
+    private static final byte[] crlfProtoBytes = _CRLF_.getBytes();
+    private static final int crlfProtoBytesLen = crlfProtoBytes.length;
 
     private Statistics stats = null;
     private List<BlockingQueue<Boolean>> pongs;
@@ -215,8 +211,8 @@ class ConnectionImpl implements Connection {
     // The flusher signalling channel
     private BlockingQueue<Boolean> fch;
 
-    ConnectionImpl() {
-    }
+//    ConnectionImpl() {
+//    }
 
     ConnectionImpl(Options opts) {
         Properties props = this.getProperties(Nats.PROP_PROPERTIES_FILENAME);
@@ -230,34 +226,14 @@ class ConnectionImpl implements Connection {
         } else {
             tcf = new TcpConnectionFactory();
         }
-        setTcpConnection(tcf.createConnection());
-
-        sidCounter.set(0);
-
-        pingProtoBytes = PING_PROTO.getBytes();
-        pingProtoBytesLen = pingProtoBytes.length;
-        pongProtoBytes = PONG_PROTO.getBytes();
-        pongProtoBytesLen = pongProtoBytes.length;
-        pubPrimBytes = _PUB_P_.getBytes();
-        pubPrimBytesLen = pubPrimBytes.length;
-        crlfProtoBytes = _CRLF_.getBytes();
-        crlfProtoBytesLen = crlfProtoBytes.length;
-
-        // predefine the start of the publish protocol message.
-        buildPublishProtocolBuffer(Parser.MAX_CONTROL_LINE_SIZE);
-
-        setupServerPool();
     }
 
     ScheduledExecutorService createScheduler() {
         ScheduledThreadPoolExecutor sexec = (ScheduledThreadPoolExecutor)
                 Executors.newScheduledThreadPool(NUM_CORE_THREADS,
                         new NatsThreadFactory(EXEC_NAME));
-//        sexec.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
-//        sexec.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
         sexec.setRemoveOnCancelPolicy(true);
         return sexec;
-//        return Executors.newScheduledThreadPool(NUM_CORE_THREADS, new NatsThreadFactory(EXEC_NAME));
     }
 
     ExecutorService createSubscriptionScheduler() {
@@ -275,6 +251,9 @@ class ConnectionImpl implements Connection {
         fch = createFlushChannel();
         pongs = createPongs();
         subs.clear();
+
+        // predefine the start of the publish protocol message.
+        buildPublishProtocolBuffer(Parser.MAX_CONTROL_LINE_SIZE);
     }
 
     Properties getProperties(InputStream inputStream) {
@@ -301,9 +280,7 @@ class ConnectionImpl implements Connection {
         pubProtoBuf = ByteBuffer.allocate(size);
         pubProtoBuf.put(pubPrimBytes, 0, pubPrimBytesLen);
         pubProtoBuf.mark();
-        // System.arraycopy(pubPrimBytes, 0, pubProtoBuf, 0, pubPrimBytesLen);
     }
-
 
     /*
      * Create the server pool using the options given. We will place a Url option first, followed by
@@ -416,6 +393,9 @@ class ConnectionImpl implements Connection {
         // For first connect we walk all servers in the pool and try
         // to connect immediately.
         IOException returnedErr = null;
+
+        setupServerPool();
+
         mu.lock();
         try {
             for (Srv srv : srvPool) {
@@ -667,8 +647,6 @@ class ConnectionImpl implements Connection {
             pool.shutdownNow();
             if (!pool.awaitTermination(10, TimeUnit.SECONDS)) {
                 logger.error("{} did not terminate", name);
-                ThreadPoolExecutor poolExec = (ThreadPoolExecutor) pool;
-                logger.error("{} tasks still active", poolExec.getActiveCount());
             }
         } catch (InterruptedException ie) {
             // (Re-)Cancel if current thread also interrupted
@@ -1019,10 +997,10 @@ class ConnectionImpl implements Connection {
 
                 // try to create a new connection
                 try {
-                    conn.teardown();
+//                    conn.teardown();
                     createConn();
                 } catch (Exception e) {
-                    conn.teardown();
+//                    conn.teardown();
                     logger.trace("doReconnect: createConn() failed for {}", cur);
                     logger.trace("createConn failed", e);
                     // not yet connected, retry and hold
@@ -1038,7 +1016,7 @@ class ConnectionImpl implements Connection {
                 try {
                     processConnectInit();
                 } catch (IOException e) {
-                    conn.teardown();
+//                    conn.teardown();
                     logger.warn("couldn't connect to {} ({})", cur.url, e.getMessage());
                     setLastError(e);
                     status = RECONNECTING;
@@ -1095,9 +1073,6 @@ class ConnectionImpl implements Connection {
                         logger.warn("Error flushing connection", e);
                     }
                 }
-//                finally {
-//                    mu.lockInterruptibly();
-//                }
                 return;
             } // while
 
