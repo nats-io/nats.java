@@ -95,7 +95,7 @@ class ConnectionImpl implements Connection {
     private TimeUnit flushTimerUnit = TimeUnit.MICROSECONDS;
 
 
-    protected static final String _CRLF_ = "\r\n";
+    protected static final String CRLF = "\r\n";
     protected static final String _EMPTY_ = "";
     protected static final String _SPC_ = " ";
     protected static final String _PUB_P_ = "PUB ";
@@ -109,13 +109,13 @@ class ConnectionImpl implements Connection {
     protected static final String _INFO_OP_ = "INFO";
 
     // Message Prototypes
-    protected static final String CONN_PROTO = "CONNECT %s" + _CRLF_;
-    protected static final String PING_PROTO = "PING" + _CRLF_;
-    protected static final String PONG_PROTO = "PONG" + _CRLF_;
-    protected static final String PUB_PROTO = "PUB %s %s %d" + _CRLF_;
-    protected static final String SUB_PROTO = "SUB %s%s %d" + _CRLF_;
-    protected static final String UNSUB_PROTO = "UNSUB %d %s" + _CRLF_;
-    protected static final String OK_PROTO = _OK_OP_ + _CRLF_;
+    protected static final String CONN_PROTO = "CONNECT %s" + CRLF;
+    protected static final String PING_PROTO = "PING" + CRLF;
+    protected static final String PONG_PROTO = "PONG" + CRLF;
+    protected static final String PUB_PROTO = "PUB %s %s %d" + CRLF;
+    protected static final String SUB_PROTO = "SUB %s%s %d" + CRLF;
+    protected static final String UNSUB_PROTO = "UNSUB %d %s" + CRLF;
+    protected static final String OK_PROTO = _OK_OP_ + CRLF;
 
 
     enum ClientProto {
@@ -173,7 +173,7 @@ class ConnectionImpl implements Connection {
     private static final int pongProtoBytesLen = pongProtoBytes.length;
     private static final byte[] pubPrimBytes = _PUB_P_.getBytes();
     private static final int pubPrimBytesLen = pubPrimBytes.length;
-    private static final byte[] crlfProtoBytes = _CRLF_.getBytes();
+    private static final byte[] crlfProtoBytes = CRLF.getBytes();
     private static final int crlfProtoBytesLen = crlfProtoBytes.length;
 
     private Statistics stats = null;

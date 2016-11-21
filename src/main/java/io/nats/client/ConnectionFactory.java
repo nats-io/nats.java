@@ -186,7 +186,7 @@ public class ConnectionFactory {
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
         return Objects.hash(factory, url, host, port, username, password, servers, noRandomize,
                 connectionName, verbose, pedantic, secure, reconnectAllowed, maxReconnect,
                 reconnectBufSize, reconnectWait, connectionTimeout, pingInterval, maxPingsOut,
@@ -195,7 +195,7 @@ public class ConnectionFactory {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public final boolean equals(Object obj) {
         if (obj == null) {
             return false;
         }

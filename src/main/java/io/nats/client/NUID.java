@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A highly performant unique identifier generator.
  */
-public class NUID {
+public final class NUID {
 
     private static final Logger logger = LoggerFactory.getLogger(NUID.class);
 
@@ -40,8 +40,8 @@ public class NUID {
     static final long minInc = 33L;
     static final long maxInc = 333L;
     static final int totalLen = preLen + seqLen;
-    private static SecureRandom srand;
-    private static Random prand;
+    private SecureRandom srand;
+    private final Random prand;
 
     // Instance fields
     char[] pre;
@@ -51,7 +51,6 @@ public class NUID {
 
     // Global NUID
     public static final NUID globalNUID = new NUID();
-    private static final Object lock = new Object();
 
     static NUID getInstance() {
         return globalNUID;
@@ -90,10 +89,8 @@ public class NUID {
      *
      * @return the next NUID string from the global locked NUID instance.
      */
-    public static String nextGlobal() {
-        synchronized (lock) {
-            return getInstance().next();
-        }
+    public static synchronized String nextGlobal() {
+        return getInstance().next();
     }
 
     /**
@@ -101,7 +98,7 @@ public class NUID {
      *
      * @return the next NUID string from this instance.
      */
-    public String next() {
+    public final String next() {
         // Increment and capture.
         seq += inc;
         if (seq >= maxSeq) {
@@ -155,13 +152,13 @@ public class NUID {
         return val;
     }
 
-    byte[] longToBytes(long x) {
+    static byte[] longToBytes(long x) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
         buffer.putLong(x);
         return buffer.array();
     }
 
-    long bytesToLong(byte[] bytes) {
+    static long bytesToLong(byte[] bytes) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
         buffer.put(bytes);
         buffer.flip();// need flip

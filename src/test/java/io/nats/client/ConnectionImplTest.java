@@ -310,7 +310,7 @@ public class ConnectionImplTest {
             int pingProtoBytesLen = pingProtoBytes.length;
             byte[] pongProtoBytes = ConnectionImpl.PONG_PROTO.getBytes();
             int pongProtoBytesLen = pongProtoBytes.length;
-            byte[] crlfProtoBytes = ConnectionImpl._CRLF_.getBytes();
+            byte[] crlfProtoBytes = ConnectionImpl.CRLF.getBytes();
             int crlfBytesLen = crlfProtoBytes.length;
 
             ByteArrayOutputStream baos = mock(ByteArrayOutputStream.class);
