@@ -728,13 +728,7 @@ public class ITBasicTest {
                 })) {
 
                     c.publish(subject, reply, null);
-                    try {
-                        c.flush();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        fail(e.getMessage());
-                    }
-
+                    c.flush(5000);
                     assertTrue(await(latch));
                 }
             }

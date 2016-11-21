@@ -43,10 +43,9 @@ import java.net.URI;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -61,6 +60,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
@@ -95,7 +95,7 @@ class ConnectionImpl implements Connection {
     private TimeUnit flushTimerUnit = TimeUnit.MICROSECONDS;
 
 
-    protected static final String _CRLF_ = "\r\n";
+    protected static final String CRLF = "\r\n";
     protected static final String _EMPTY_ = "";
     protected static final String _SPC_ = " ";
     protected static final String _PUB_P_ = "PUB ";
@@ -109,13 +109,13 @@ class ConnectionImpl implements Connection {
     protected static final String _INFO_OP_ = "INFO";
 
     // Message Prototypes
-    protected static final String CONN_PROTO = "CONNECT %s" + _CRLF_;
-    protected static final String PING_PROTO = "PING" + _CRLF_;
-    protected static final String PONG_PROTO = "PONG" + _CRLF_;
-    protected static final String PUB_PROTO = "PUB %s %s %d" + _CRLF_;
-    protected static final String SUB_PROTO = "SUB %s%s %d" + _CRLF_;
-    protected static final String UNSUB_PROTO = "UNSUB %d %s" + _CRLF_;
-    protected static final String OK_PROTO = _OK_OP_ + _CRLF_;
+    protected static final String CONN_PROTO = "CONNECT %s" + CRLF;
+    protected static final String PING_PROTO = "PING" + CRLF;
+    protected static final String PONG_PROTO = "PONG" + CRLF;
+    protected static final String PUB_PROTO = "PUB %s %s %d" + CRLF;
+    protected static final String SUB_PROTO = "SUB %s%s %d" + CRLF;
+    protected static final String UNSUB_PROTO = "UNSUB %d %s" + CRLF;
+    protected static final String OK_PROTO = _OK_OP_ + CRLF;
 
 
     enum ClientProto {
@@ -138,7 +138,7 @@ class ConnectionImpl implements Connection {
     final Lock mu = new ReentrantLock();
     // protected final Lock mu = new AlternateDeadlockDetectingLock(true, true);
 
-    private final AtomicLong sidCounter = new AtomicLong();
+    private final AtomicLong sidCounter = new AtomicLong(0L);
     private URI url = null;
     private Options opts = null;
 
@@ -167,15 +167,14 @@ class ConnectionImpl implements Connection {
 
     private Parser parser = new Parser(this);
 
-    private byte[] pingProtoBytes = null;
-    private int pingProtoBytesLen = 0;
-    private byte[] pongProtoBytes = null;
-    private int pongProtoBytesLen = 0;
-    private byte[] pubPrimBytes = null;
-    private int pubPrimBytesLen = 0;
-
-    private byte[] crlfProtoBytes = null;
-    private int crlfProtoBytesLen = 0;
+    private static final byte[] pingProtoBytes = PING_PROTO.getBytes();
+    private static final int pingProtoBytesLen = pingProtoBytes.length;
+    private static final byte[] pongProtoBytes = PONG_PROTO.getBytes();
+    private static final int pongProtoBytesLen = pongProtoBytes.length;
+    private static final byte[] pubPrimBytes = _PUB_P_.getBytes();
+    private static final int pubPrimBytesLen = pubPrimBytes.length;
+    private static final byte[] crlfProtoBytes = CRLF.getBytes();
+    private static final int crlfProtoBytesLen = crlfProtoBytes.length;
 
     private Statistics stats = null;
     private List<BlockingQueue<Boolean>> pongs;
@@ -198,8 +197,13 @@ class ConnectionImpl implements Connection {
 
     // The ping timer task
     private ScheduledFuture<?> ptmr = null;
+    static final String PINGTIMER = "pingtimer";
 
-    private final List<Future<?>> tasks = new ArrayList<>();
+    static final String READLOOP = "readloop";
+
+    static final String FLUSHER = "flusher";
+
+    private final Map<String, Future<?>> tasks = new HashMap<>();
     private static final int NUM_WATCHER_THREADS = 2;
     private CountDownLatch socketWatchersStartLatch = new CountDownLatch(NUM_WATCHER_THREADS);
     private CountDownLatch socketWatchersDoneLatch = null;
@@ -207,8 +211,8 @@ class ConnectionImpl implements Connection {
     // The flusher signalling channel
     private BlockingQueue<Boolean> fch;
 
-    ConnectionImpl() {
-    }
+//    ConnectionImpl() {
+//    }
 
     ConnectionImpl(Options opts) {
         Properties props = this.getProperties(Nats.PROP_PROPERTIES_FILENAME);
@@ -222,27 +226,14 @@ class ConnectionImpl implements Connection {
         } else {
             tcf = new TcpConnectionFactory();
         }
-        setTcpConnection(tcf.createConnection());
-
-        sidCounter.set(0);
-
-        pingProtoBytes = PING_PROTO.getBytes();
-        pingProtoBytesLen = pingProtoBytes.length;
-        pongProtoBytes = PONG_PROTO.getBytes();
-        pongProtoBytesLen = pongProtoBytes.length;
-        pubPrimBytes = _PUB_P_.getBytes();
-        pubPrimBytesLen = pubPrimBytes.length;
-        crlfProtoBytes = _CRLF_.getBytes();
-        crlfProtoBytesLen = crlfProtoBytes.length;
-
-        // predefine the start of the publish protocol message.
-        buildPublishProtocolBuffer(Parser.MAX_CONTROL_LINE_SIZE);
-
-        setupServerPool();
     }
 
     ScheduledExecutorService createScheduler() {
-        return Executors.newScheduledThreadPool(NUM_CORE_THREADS, new NatsThreadFactory(EXEC_NAME));
+        ScheduledThreadPoolExecutor sexec = (ScheduledThreadPoolExecutor)
+                Executors.newScheduledThreadPool(NUM_CORE_THREADS,
+                        new NatsThreadFactory(EXEC_NAME));
+        sexec.setRemoveOnCancelPolicy(true);
+        return sexec;
     }
 
     ExecutorService createSubscriptionScheduler() {
@@ -255,10 +246,14 @@ class ConnectionImpl implements Connection {
 
     void setup() {
         exec = createScheduler();
+        cbexec = createCallbackScheduler();
         subexec = createSubscriptionScheduler();
         fch = createFlushChannel();
         pongs = createPongs();
         subs.clear();
+
+        // predefine the start of the publish protocol message.
+        buildPublishProtocolBuffer(Parser.MAX_CONTROL_LINE_SIZE);
     }
 
     Properties getProperties(InputStream inputStream) {
@@ -285,9 +280,7 @@ class ConnectionImpl implements Connection {
         pubProtoBuf = ByteBuffer.allocate(size);
         pubProtoBuf.put(pubPrimBytes, 0, pubPrimBytesLen);
         pubProtoBuf.mark();
-        // System.arraycopy(pubPrimBytes, 0, pubProtoBuf, 0, pubPrimBytesLen);
     }
-
 
     /*
      * Create the server pool using the options given. We will place a Url option first, followed by
@@ -400,6 +393,9 @@ class ConnectionImpl implements Connection {
         // For first connect we walk all servers in the pool and try
         // to connect immediately.
         IOException returnedErr = null;
+
+        setupServerPool();
+
         mu.lock();
         try {
             for (Srv srv : srvPool) {
@@ -417,6 +413,12 @@ class ConnectionImpl implements Connection {
                         break;
                     } catch (IOException e) {
                         returnedErr = e;
+                        mu.unlock();
+                        close(DISCONNECTED, false);
+                        mu.lock();
+                        this.setUrl(null);
+                    } catch (InterruptedException e) {
+                        returnedErr = new IOException(e);
                         mu.unlock();
                         close(DISCONNECTED, false);
                         mu.lock();
@@ -628,11 +630,11 @@ class ConnectionImpl implements Connection {
             }
 
             if (exec != null) {
-                exec.shutdownNow();
+                shutdownAndAwaitTermination(exec, EXEC_NAME);
             }
 
             if (subexec != null) {
-                subexec.shutdown();
+                shutdownAndAwaitTermination(subexec, SUB_EXEC_NAME);
             }
 
         } finally {
@@ -640,7 +642,21 @@ class ConnectionImpl implements Connection {
         }
     }
 
-    void processConnectInit() throws IOException {
+    void shutdownAndAwaitTermination(ExecutorService pool, String name) {
+        try {
+            pool.shutdownNow();
+            if (!pool.awaitTermination(10, TimeUnit.SECONDS)) {
+                logger.error("{} did not terminate", name);
+            }
+        } catch (InterruptedException ie) {
+            // (Re-)Cancel if current thread also interrupted
+            pool.shutdownNow();
+            // Preserve interrupt status
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    void processConnectInit() throws IOException, InterruptedException {
 
         // Set our status to connecting.
         status = CONNECTING;
@@ -684,7 +700,7 @@ class ConnectionImpl implements Connection {
         br = conn.getInputStream(DEFAULT_STREAM_BUF_SIZE);
     }
 
-    void processExpectedInfo() throws IOException {
+    void processExpectedInfo() throws IOException, InterruptedException {
         Control control;
 
         try {
@@ -719,9 +735,9 @@ class ConnectionImpl implements Connection {
 
     // processPong is used to process responses to the client's ping
     // messages. We use pings for the flush mechanism as well.
-    void processPong() {
-        BlockingQueue<Boolean> ch = createBooleanChannel(1);
-        mu.lock();
+    void processPong() throws InterruptedException {
+        BlockingQueue<Boolean> ch = null;
+        mu.lockInterruptibly();
         try {
             if (pongs != null && pongs.size() > 0) {
                 ch = pongs.get(0);
@@ -732,12 +748,7 @@ class ConnectionImpl implements Connection {
             mu.unlock();
         }
         if (ch != null) {
-            try {
-                ch.put(true);
-            } catch (InterruptedException e) {
-                logger.debug("processPong interrupted", e);
-                Thread.currentThread().interrupt();
-            }
+            ch.add(true);
         }
     }
 
@@ -786,8 +797,8 @@ class ConnectionImpl implements Connection {
     // processOpError handles errors from reading or parsing the protocol.
     // This is where disconnect/reconnect is initially handled.
     // The lock should not be held entering this function.
-    void processOpError(Exception err) {
-        mu.lock();
+    void processOpError(Exception err) throws InterruptedException {
+        mu.lockInterruptibly();
         try {
             if (connecting() || closed() || reconnecting()) {
                 return;
@@ -808,13 +819,13 @@ class ConnectionImpl implements Connection {
                     try {
                         bw.flush();
                     } catch (IOException e1) {
-                        logger.error("I/O error during flush", e1);
+                        logger.warn("I/O error during flush");
                     }
                     conn.close();
                 }
 
                 if (fch != null && !fch.offer(false)) {
-                    logger.debug("Coudn't kick flush channel following connection error");
+                    logger.debug("Coudn't shut down flusher following connection error");
                 }
 
                 // Create a new pending buffer to underpin the buffered output
@@ -829,12 +840,15 @@ class ConnectionImpl implements Connection {
                 exec.submit(new Runnable() {
                     public void run() {
                         Thread.currentThread().setName("reconnect");
-                        doReconnect();
+                        try {
+                            doReconnect();
+                        } catch (InterruptedException e) {
+                            logger.warn("nats: interrupted while reonnecting");
+                        }
                     }
                 });
                 if (cbexec.isShutdown()) {
-                    cbexec = Executors
-                            .newSingleThreadExecutor(new NatsThreadFactory("callback-thread"));
+                    cbexec = createCallbackScheduler();
                 }
             } else {
                 processDisconnect();
@@ -914,7 +928,7 @@ class ConnectionImpl implements Connection {
 
     // Try to reconnect using the option parameters.
     // This function assumes we are allowed to reconnect.
-    void doReconnect() {
+    void doReconnect() throws InterruptedException {
         logger.trace("doReconnect()");
         // We want to make sure we have the other watchers shutdown properly
         // here before we proceed past this point
@@ -926,7 +940,7 @@ class ConnectionImpl implements Connection {
         // sent out, but are still in the pipe.
 
         // Hold the lock manually and release where needed below.
-        mu.lock();
+        mu.lockInterruptibly();
         try {
             // Clear any queued pongs, e.g. pending flush calls.
             nc.clearPendingFlushCalls();
@@ -955,22 +969,21 @@ class ConnectionImpl implements Connection {
                     break;
                 }
 
+                long sleepTime = 0L;
+
                 // Sleep appropriate amount of time before the
                 // connection attempt if connecting to same server
                 // we just got disconnected from.
 
-                long elapsedMillis = cur.timeSinceLastAttempt();
-                if (elapsedMillis < opts.getReconnectWait()) {
-                    long sleepTime = opts.getReconnectWait() - elapsedMillis;
+                long timeSinceLastAttempt = cur.timeSinceLastAttempt();
+                if (timeSinceLastAttempt < opts.getReconnectWait()) {
+                    sleepTime = opts.getReconnectWait() - timeSinceLastAttempt;
+                }
+
+                if (sleepTime > 0) {
                     mu.unlock();
-                    try {
-                        sleepInterval((int) sleepTime, TimeUnit.MILLISECONDS);
-                    } catch (InterruptedException e) {
-                        logger.debug("Interrupted while in doReconnect()");
-                        break;
-                    } finally {
-                        mu.lock();
-                    }
+                    Thread.sleep(sleepTime);
+                    mu.lockInterruptibly();
                 }
 
                 // Check if we have been closed first.
@@ -984,10 +997,10 @@ class ConnectionImpl implements Connection {
 
                 // try to create a new connection
                 try {
-                    conn.teardown();
+//                    conn.teardown();
                     createConn();
                 } catch (Exception e) {
-                    conn.teardown();
+//                    conn.teardown();
                     logger.trace("doReconnect: createConn() failed for {}", cur);
                     logger.trace("createConn failed", e);
                     // not yet connected, retry and hold
@@ -1003,7 +1016,7 @@ class ConnectionImpl implements Connection {
                 try {
                     processConnectInit();
                 } catch (IOException e) {
-                    conn.teardown();
+//                    conn.teardown();
                     logger.warn("couldn't connect to {} ({})", cur.url, e.getMessage());
                     setLastError(e);
                     status = RECONNECTING;
@@ -1026,7 +1039,7 @@ class ConnectionImpl implements Connection {
                 try {
                     getOutputStream().flush();
                 } catch (IOException e) {
-                    logger.debug("Error flushing output stream");
+                    logger.warn("Error flushing output stream");
                     setLastError(e);
                     status = RECONNECTING;
                     continue;
@@ -1055,12 +1068,10 @@ class ConnectionImpl implements Connection {
                 try {
                     // Make sure to flush everything
                     flush();
-                } catch (Exception e) {
+                } catch (IOException e) {
                     if (status == CONNECTED) {
                         logger.warn("Error flushing connection", e);
                     }
-                } finally {
-                    mu.lock();
                 }
                 return;
             } // while
@@ -1105,7 +1116,7 @@ class ConnectionImpl implements Connection {
 
     // processErr processes any error messages from the server and
     // sets the connection's lastError.
-    void processErr(ByteBuffer error) {
+    void processErr(ByteBuffer error) throws InterruptedException {
         // boolean doCBs = false;
         NATSException ex;
         String err = normalizeErr(error);
@@ -1248,22 +1259,17 @@ class ConnectionImpl implements Connection {
 
     // waitForExits will wait for all socket watcher threads to
     // complete before proceeding.
-    private void waitForExits() {
+    private void waitForExits() throws InterruptedException {
         // Kick old flusher forcefully.
         kickFlusher();
 
         if (socketWatchersDoneLatch != null) {
-            try {
-                logger.debug("nats: waiting for watcher threads to exit");
-                socketWatchersDoneLatch.await();
-            } catch (InterruptedException e) {
-                logger.warn("nats: interrupted waiting for threads to exit");
-                Thread.currentThread().interrupt();
-            }
+            logger.debug("nats: waiting for watcher threads to exit");
+            socketWatchersDoneLatch.await();
         }
     }
 
-    protected void spinUpSocketWatchers() {
+    protected void spinUpSocketWatchers() throws InterruptedException {
         // Make sure everything has exited.
 
         waitForExits();
@@ -1273,43 +1279,45 @@ class ConnectionImpl implements Connection {
 
         Future<?> task = exec.submit(new Runnable() {
             public void run() {
-                logger.debug("readloop starting...");
-                Thread.currentThread().setName("readloop");
+                Thread.currentThread().setName(READLOOP);
+                logger.debug("{} starting...", READLOOP);
                 socketWatchersStartLatch.countDown();
                 try {
                     socketWatchersStartLatch.await();
                     readLoop();
                 } catch (InterruptedException e) {
-                    logger.debug("Interrupted", e);
+                    logger.debug("{} interrupted", READLOOP);
+                    Thread.currentThread().interrupt();
                 } catch (Exception e) {
-                    logger.error("Unexpected exception in readloop", e);
+                    logger.error("Unexpected exception in {}", READLOOP, e);
                 } finally {
                     socketWatchersDoneLatch.countDown();
                 }
-                logger.debug("readloop exiting");
+                logger.debug("{} exiting", READLOOP);
             }
         });
-        tasks.add(task);
+        tasks.put(READLOOP, task);
 
         task = exec.submit(new Runnable() {
             public void run() {
-                logger.debug("flusher starting...");
-                Thread.currentThread().setName("flusher");
+                Thread.currentThread().setName(FLUSHER);
+                logger.debug("{} starting...", FLUSHER);
                 socketWatchersStartLatch.countDown();
                 try {
                     socketWatchersStartLatch.await();
                     flusher();
                 } catch (InterruptedException e) {
-                    logger.debug("Interrupted", e);
+                    logger.debug("{} interrupted", FLUSHER);
+                    Thread.currentThread().interrupt();
                 } catch (Exception e) {
-                    logger.error("Unexpected exception in flusher", e);
+                    logger.error("Unexpected exception in {}", FLUSHER, e);
                 } finally {
                     socketWatchersDoneLatch.countDown();
                 }
-                logger.debug("flusher exiting");
+                logger.debug("{} exiting", FLUSHER);
             }
         });
-        tasks.add(task);
+        tasks.put(FLUSHER, task);
         // resetFlushTimer();
         // socketWatchersDoneLatch.countDown();
 
@@ -1318,13 +1326,13 @@ class ConnectionImpl implements Connection {
         resetPingTimer();
     }
 
-    void readLoop() {
+    void readLoop() throws InterruptedException {
         Parser parser;
         int len;
         boolean sb;
         TcpConnection conn = null;
 
-        mu.lock();
+        mu.lockInterruptibly();
         try {
             parser = this.parser;
             if (parser.ps == null) {
@@ -1337,8 +1345,8 @@ class ConnectionImpl implements Connection {
         // Stack based buffer.
         byte[] buffer = new byte[DEFAULT_BUF_SIZE];
 
-        while (true) {
-            mu.lock();
+        while (!Thread.currentThread().isInterrupted()) {
+            mu.lockInterruptibly();
             try {
                 sb = (closed() || reconnecting());
                 if (sb) {
@@ -1368,7 +1376,7 @@ class ConnectionImpl implements Connection {
             }
         }
 
-        mu.lock();
+        mu.lockInterruptibly();
         try {
             parser.ps = null;
         } finally {
@@ -1557,8 +1565,8 @@ class ConnectionImpl implements Connection {
     // removeFlushEntry is needed when we need to discard queued up responses
     // for our pings as part of a flush call. This happens when we have a flush
     // call outstanding and we call close.
-    boolean removeFlushEntry(BlockingQueue<Boolean> ch) {
-        mu.lock();
+    boolean removeFlushEntry(BlockingQueue<Boolean> ch) throws InterruptedException {
+        mu.lockInterruptibly();
         try {
             if (pongs == null) {
                 return false;
@@ -1616,7 +1624,7 @@ class ConnectionImpl implements Connection {
 
             if (opts.getPingInterval() > 0) {
                 ptmr = createPingTimer();
-                tasks.add(ptmr);
+                tasks.put("pingtimer", ptmr);
             }
         } finally {
             mu.unlock();
@@ -1677,7 +1685,7 @@ class ConnectionImpl implements Connection {
     // This is the loop of the flusher thread
     protected void flusher() throws InterruptedException {
         // snapshot the bw and conn since they can change from underneath of us.
-        mu.lock();
+        mu.lockInterruptibly();
         final OutputStream bw = this.bw;
         final TcpConnection conn = this.conn;
         final BlockingQueue<Boolean> fch = this.fch;
@@ -1688,7 +1696,7 @@ class ConnectionImpl implements Connection {
         }
 
         while (fch.take()) {
-            mu.lock();
+            mu.lockInterruptibly();
             try {
                 // Check to see if we should bail out.
                 if (!connected() || connecting() || bw != this.bw || conn != this.conn) {
@@ -1702,7 +1710,7 @@ class ConnectionImpl implements Connection {
             } finally {
                 mu.unlock();
             }
-            sleepInterval(flushTimerInterval, flushTimerUnit);
+            Thread.sleep(flushTimerUnit.toMillis(flushTimerInterval));
         }
         logger.debug("flusher id:{} exiting", Thread.currentThread().getId());
     }
@@ -1713,13 +1721,13 @@ class ConnectionImpl implements Connection {
      * @see io.nats.client.AbstractConnection#flush(int)
      */
     @Override
-    public void flush(int timeout) throws IOException {
+    public void flush(int timeout) throws IOException, InterruptedException {
         if (timeout <= 0) {
             throw new IllegalArgumentException(ERR_BAD_TIMEOUT);
         }
 
         BlockingQueue<Boolean> ch = null;
-        mu.lock();
+        mu.lockInterruptibly();
         try {
             if (closed()) {
                 throw new IllegalStateException(ERR_CONNECTION_CLOSED);
@@ -1731,24 +1739,14 @@ class ConnectionImpl implements Connection {
             mu.unlock();
         }
 
-        Boolean rv = null;
-        try {
-            rv = ch.poll(timeout, TimeUnit.MILLISECONDS);
-            if (rv == null) {
-                throw new IOException(ERR_TIMEOUT);
-            } else if (rv) {
-                ch.clear();
-            } else {
-                throw new IllegalStateException(ERR_CONNECTION_CLOSED);
-            }
-        } catch (InterruptedException e) {
-            // Set interrupted flag.
-            logger.debug("flush was interrupted while waiting for PONG", e);
-            Thread.currentThread().interrupt();
-        } finally {
-            if (rv == null) {
-                this.removeFlushEntry(ch);
-            }
+        Boolean rv = ch.poll(timeout, TimeUnit.MILLISECONDS);
+        if (rv == null) {
+            this.removeFlushEntry(ch);
+            throw new IOException(ERR_TIMEOUT);
+        } else if (rv) {
+            ch.clear();
+        } else {
+            throw new IllegalStateException(ERR_CONNECTION_CLOSED);
         }
     }
 
@@ -1756,7 +1754,7 @@ class ConnectionImpl implements Connection {
     /// Flush will perform a round trip to the server and return when it
     /// receives the internal reply.
     @Override
-    public void flush() throws IOException {
+    public void flush() throws IOException, InterruptedException {
         // 60 second default.
         flush(60000);
     }
@@ -1962,7 +1960,7 @@ class ConnectionImpl implements Connection {
                 try {
                     bw.flush();
                 } catch (IOException e) {
-                    logger.error("I/O exception during flush", e);
+                    logger.error("I/O exception during flush");
                 }
                 if (pending.size() >= opts.getReconnectBufSize()) {
                     throw new IOException(ERR_RECONNECT_BUF_EXCEEDED);
@@ -2052,36 +2050,26 @@ class ConnectionImpl implements Connection {
 
     @Override
     public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
-            throws IOException {
+            throws IOException, InterruptedException {
         String inbox = newInbox();
         BlockingQueue<Message> ch = createMsgChannel(8);
 
-        Message msg = null;
-        if (Thread.currentThread().isInterrupted()) {
-            Thread.interrupted();
-        }
+
         try (SyncSubscription sub = (SyncSubscription) subscribe(inbox, null, null, ch)) {
             sub.autoUnsubscribe(1);
             publish(subject, inbox, data);
-            try {
-                msg = sub.nextMessage(timeout, unit);
-            } catch (InterruptedException e) {
-                // There is nothing a caller can do with this, so swallow it.
-                logger.debug("request() interrupted (and cleared)", e);
-                Thread.interrupted();
-            }
-            return msg;
+            return sub.nextMessage(timeout, unit);
         }
     }
 
     @Override
     public Message request(String subject, byte[] data, long timeout)
-            throws IOException {
+            throws IOException, InterruptedException {
         return request(subject, data, timeout, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    public Message request(String subject, byte[] data) throws IOException {
+    public Message request(String subject, byte[] data) throws IOException, InterruptedException {
         return request(subject, data, -1, TimeUnit.MILLISECONDS);
     }
 
@@ -2267,10 +2255,6 @@ class ConnectionImpl implements Connection {
 
     ByteArrayOutputStream getPending() {
         return this.pending;
-    }
-
-    protected void sleepInterval(long timeout, TimeUnit unit) throws InterruptedException {
-        unit.sleep(timeout);
     }
 
     void setOutputStream(OutputStream out) {
@@ -2533,7 +2517,6 @@ class ConnectionImpl implements Connection {
     static class Srv {
         URI url = null;
         int reconnects = 0;
-        long lastAttempt = 0L;
         long lastAttemptNanos = 0L;
         boolean implicit = false;
 
@@ -2549,7 +2532,6 @@ class ConnectionImpl implements Connection {
         // Mark the last attempt to connect to this Srv
         void updateLastAttempt() {
             lastAttemptNanos = System.nanoTime();
-            lastAttempt = System.currentTimeMillis();
         }
 
         // Returns time since last attempt, in msec
@@ -2558,12 +2540,9 @@ class ConnectionImpl implements Connection {
         }
 
         public String toString() {
-            SimpleDateFormat format = new SimpleDateFormat("MM/dd/yyyy hh:mm:ss");
-            String dateToStr = format.format(new Date(lastAttempt));
-
             return String.format(
-                    "{url=%s, reconnects=%d, lastAttempt=%s, timeSinceLastAttempt=%dms}",
-                    url.toString(), reconnects, dateToStr, timeSinceLastAttempt());
+                    "{url=%s, reconnects=%d, timeSinceLastAttempt=%dms}",
+                    url.toString(), reconnects, timeSinceLastAttempt());
         }
     }
 
@@ -2590,7 +2569,12 @@ class ConnectionImpl implements Connection {
             } finally {
                 mu.unlock();
                 if (stale) {
-                    processOpError(new IOException(ERR_STALE_CONNECTION));
+                    try {
+                        processOpError(new IOException(ERR_STALE_CONNECTION));
+                    } catch (InterruptedException e) {
+                        logger.warn("Interrupted");
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
         }

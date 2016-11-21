@@ -49,6 +49,8 @@ class ServerInfo {
     private transient String jsonString = null;
     private static final transient Gson gson = new GsonBuilder().create();
 
+    protected ServerInfo() {}
+
     ServerInfo(String id, String host, int port, String version, boolean authRequired,
                boolean tlsRequired, int maxPayload, final String[] connectUrls) {
 
@@ -87,17 +89,20 @@ class ServerInfo {
         return rv;
     }
 
-    /**
-     * Returns the server_id.
-     *
-     * @return the id
-     */
     String getId() {
         return id;
     }
 
     void setId(String id) {
         this.id = id;
+    }
+
+    String getGoVersion() {
+        return goVersion;
+    }
+
+    void setGoVersion(String goVersion) {
+        this.goVersion = goVersion;
     }
 
     /**
@@ -126,11 +131,6 @@ class ServerInfo {
         this.port = port;
     }
 
-    /**
-     * Returns the NATS server version.
-     *
-     * @return the gnatsd server version
-     */
     String getVersion() {
         return version;
     }
@@ -139,11 +139,6 @@ class ServerInfo {
         this.version = version;
     }
 
-    /**
-     * Returns whether or not authorization is required by the NATS server.
-     *
-     * @return the authRequired
-     */
     boolean isAuthRequired() {
         return authRequired;
     }
@@ -152,11 +147,6 @@ class ServerInfo {
         this.authRequired = authRequired;
     }
 
-    /**
-     * Returns whether or not TLS is required by the NATS server.
-     *
-     * @return the tlsRequired
-     */
     boolean isTlsRequired() {
         return tlsRequired;
     }
@@ -165,11 +155,22 @@ class ServerInfo {
         this.tlsRequired = tlsRequired;
     }
 
-    /**
-     * Returns the max payload size enforced by the NATS server.
-     *
-     * @return the maxPayload
-     */
+    boolean isSslRequired() {
+        return sslRequired;
+    }
+
+    void setSslRequired(boolean sslRequired) {
+        this.sslRequired = sslRequired;
+    }
+
+    boolean isTlsVerify() {
+        return tlsVerify;
+    }
+
+    void setTlsVerify(boolean tlsVerify) {
+        this.tlsVerify = tlsVerify;
+    }
+
     long getMaxPayload() {
         return maxPayload;
     }
@@ -195,10 +196,6 @@ class ServerInfo {
         return rv;
     }
 
-    public byte[] toProtoBytes() {
-        return (toString() + "\r\n").getBytes();
-    }
-
     public static boolean compare(String str1, String str2) {
         return (str1 == null ? str2 == null : str1.equals(str2));
     }
@@ -215,14 +212,15 @@ class ServerInfo {
 
         ServerInfo other = (ServerInfo) obj;
 
-        return (Boolean.compare(authRequired, other.authRequired) == 0
-                && Arrays.equals(connectUrls, other.connectUrls)
+        return (compare(id, other.id) && compare(version, other.version)
                 && compare(goVersion, other.goVersion) && compare(host, other.host)
-                && compare(id, other.id) && Long.compare(maxPayload, other.maxPayload) == 0
                 && Integer.compare(port, other.port) == 0
+                && Boolean.compare(authRequired, other.authRequired) == 0
                 && Boolean.compare(sslRequired, other.sslRequired) == 0
                 && Boolean.compare(tlsRequired, other.tlsRequired) == 0
-                && compare(version, other.version));
+                && Boolean.compare(tlsVerify, other.tlsVerify) == 0
+                && Long.compare(maxPayload, other.maxPayload) == 0
+                && Arrays.equals(connectUrls, other.connectUrls));
     }
 
     @Override

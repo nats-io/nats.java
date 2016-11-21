@@ -6,6 +6,7 @@
 
 package io.nats.client;
 
+import static io.nats.client.Nats.connect;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -61,7 +62,7 @@ class UnitTestUtilities {
     }
 
     static synchronized Connection newDefaultConnection() throws IOException {
-        return Nats.connect(Nats.DEFAULT_URL);
+        return connect(Nats.DEFAULT_URL);
     }
 
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf)
@@ -72,10 +73,6 @@ class UnitTestUtilities {
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf, Options opts)
             throws IOException {
         return new Options.Builder(opts).factory(tcf).build().connect();
-    }
-
-    static Connection newMockedConnection() throws IOException {
-        return newMockedConnection(null);
     }
 
     static TcpConnection newMockedTcpConnection() throws IOException {
@@ -106,7 +103,7 @@ class UnitTestUtilities {
         doAnswer(new Answer<Void>() {
             @Override
             public Void answer(InvocationOnMock invocation) throws Throwable {
-                setTcpConnState(tcpConnMock, true);
+                closed.set(false);
                 return null;
             }
         }).when(tcpConnMock).open(any(String.class), anyInt());
@@ -145,6 +142,7 @@ class UnitTestUtilities {
                 }
 
                 String lastWrite = queue.poll(500, TimeUnit.MILLISECONDS);
+//                String lastWrite = queue.poll();
                 if (lastWrite != null && lastWrite.equals("PING")) {
                     System.arraycopy(pongBytes, 0, buf, 0, pongBytes.length);
                     return pongBytes.length;
@@ -158,21 +156,23 @@ class UnitTestUtilities {
         doAnswer(new Answer<Void>() {
             @Override
             public Void answer(InvocationOnMock invocation) throws Throwable {
-                closed.set(true);
-                setTcpConnState(tcpConnMock, false);
+                try {
+                    closed.set(true);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 return null;
             }
         }).when(tcpConnMock).close();
 
-        return tcpConnMock;
-    }
+        doAnswer(new Answer<Boolean>() {
+            @Override
+            public Boolean answer(InvocationOnMock invocation) {
+                return closed.get();
+            }
+        }).when(tcpConnMock).isClosed();
 
-    static void setTcpConnState(TcpConnection mock, boolean open) {
-        logger.trace("\n\nChanging state, connection ({}) = {}\n", mock, (open ? "open" :
-                "closed"));
-        logger.trace("old status, isClosed={}", mock.isClosed());
-        doReturn(!open).when(mock).isClosed();
-        logger.trace("new status, isClosed={}", mock.isClosed());
+        return tcpConnMock;
     }
 
     static TcpConnectionFactory newMockedTcpConnectionFactory() {
@@ -196,6 +196,16 @@ class UnitTestUtilities {
         return tcf;
     }
 
+    static Connection newMockedConnection() throws IOException {
+        return newMockedConnection((Options) null);
+    }
+
+    static Connection newMockedConnection(String url) throws IOException {
+        Options opts = Nats.defaultOptions();
+        opts.url = url;
+        return newMockedConnection(opts);
+    }
+
     static Connection newMockedConnection(Options opts)
             throws IOException {
         Options options = null;
@@ -213,8 +223,7 @@ class UnitTestUtilities {
         } else {
             options = new Options.Builder(opts).build();
         }
-
-        return options.connect();
+        return Nats.connect(options.url, options);
     }
 
     static synchronized void startDefaultServer() {

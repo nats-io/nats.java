@@ -20,8 +20,8 @@ cd ${TARG}
 #
 # Clone gh-pages branch
 #
-echo Executing 'git clone --quiet --branch=gh-pages https://github.com/nats-io/jnats.git gh-pages > /dev/null'
-git clone --quiet --branch=gh-pages https://github.com/nats-io/jnats.git gh-pages > /dev/null
+echo Executing 'git clone --quiet --branch=gh-pages https://github.com/nats-io/java-nats.git gh-pages > /dev/null'
+git clone --quiet --branch=gh-pages https://github.com/nats-io/java-nats.git gh-pages > /dev/null
 
 # Copy javadoc, Commit and Push the Changes
 cd gh-pages
@@ -31,7 +31,7 @@ git rm -rf .
 git add -f .
 git commit -m "Latest javadoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"
 
-git remote add pages ssh://git@github.com/nats-io/jnats.git
+git remote add pages ssh://git@github.com/nats-io/java-nats.git
 git push -fq pages gh-pages > /dev/null
 
 echo "Latest javadoc on successful travis build $TRAVIS_BUILD_NUMBER auto-pushed to gh-pages"

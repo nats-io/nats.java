@@ -20,7 +20,7 @@
 
     <name>jnats</name>
     <description>Java client library for NATS Messaging System</description>
-    <url>https://github.com/nats-io/jnats</url>
+    <url>https://github.com/nats-io/java-nats</url>
     <inceptionYear>2015</inceptionYear>
     <organization>
         <url>http://nats.io</url>
@@ -43,18 +43,18 @@
     <modules/>
 
     <scm>
-        <url>https://github.com/nats-io/jnats</url>
-        <connection>scm:git:https://github.com/nats-io/jnats.git</connection>
-        <developerConnection>scm:git:git@github.com:nats-io/jnats.git</developerConnection>
+        <url>https://github.com/nats-io/java-nats</url>
+        <connection>scm:git:https://github.com/nats-io/java-nats.git</connection>
+        <developerConnection>scm:git:git@github.com:nats-io/java-nats.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
     <issueManagement>
-        <url>https://github.com/nats-io/jnats/issues/</url>
+        <url>https://github.com/nats-io/java-nats/issues/</url>
         <system>GitHub Issues</system>
     </issueManagement>
     <ciManagement>
         <system>travis-ci</system>
-        <url>https://travis-ci.org/nats-io/jnats/</url>
+        <url>https://travis-ci.org/nats-io/java-nats/</url>
     </ciManagement>
 
     <dependencyManagement/>

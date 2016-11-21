@@ -54,10 +54,8 @@ class ClientConnectInfo {
     private static final transient Gson gson = new GsonBuilder().create();
 
     static ClientConnectInfo createFromWire(String connectString) {
-        ClientConnectInfo rv = null;
         String jsonString = connectString.replaceFirst("^CONNECT ", "").trim();
-        rv = gson.fromJson(jsonString, ClientConnectInfo.class);
-        return rv;
+        return gson.fromJson(jsonString, ClientConnectInfo.class);
     }
 
     boolean isVerbose() {
