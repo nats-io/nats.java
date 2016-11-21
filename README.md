@@ -3,10 +3,10 @@
 A [Java](http://www.java.com) client for the [NATS messaging system](https://nats.io).
 
 [![License MIT](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
-[![Build Status](https://travis-ci.org/nats-io/jnats.svg?branch=master)](http://travis-ci.org/nats-io/jnats)
-[![Coverage Status](https://coveralls.io/repos/nats-io/jnats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/jnats?branch=master)
+[![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=master)](http://travis-ci.org/nats-io/java-nats)
+[![Coverage Status](https://coveralls.io/repos/nats-io/java-nats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/java-nats?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
-[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg)](http://javadoc.io/doc/io.nats/java-nats-streaming)
+[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg)](http://javadoc.io/doc/io.nats/jnats)
 
 [![Dependency Status](https://www.versioneye.com/user/projects/57c07fac968d640039516937/badge.svg?style=flat-square)](https://www.versioneye.com/user/projects/57c07fac968d640039516937)
 [![Reference Status](https://www.versioneye.com/java/io.nats:jnats/reference_badge.svg?style=flat-square)](https://www.versioneye.com/java/io.nats:jnats/references)
@@ -51,8 +51,8 @@ mvn install
 
 Now clone, compile, and install in your local maven repository (or copy the artifacts from the `target/` directory to wherever you need them):
 ```
-git clone git@github.com:nats-io/jnats.git
-cd jnats
+git clone git@github.com:nats-io/java-nats.git
+cd java-nats
 mvn install
 ```
 
