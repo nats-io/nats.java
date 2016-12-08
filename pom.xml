@@ -9,7 +9,7 @@
     <parent>
         <groupId>io.nats</groupId>
         <artifactId>nats-parent</artifactId>
-        <version>1.10-SNAPSHOT</version>
+        <version>1.12-SNAPSHOT</version>
         <relativePath/>
     </parent>
 
@@ -92,7 +92,6 @@
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy-all</artifactId>
-            <version>${groovy-version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
