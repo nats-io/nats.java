@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -472,6 +473,57 @@ public class ITBasicTest {
                     } catch (Exception e) {
                         fail("Request failed: " + e.getMessage());
                     }
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testRequestMulti() throws Exception {
+        final byte[] response = "I will help you.".getBytes();
+        try (NatsServer srv = runDefaultServer()) {
+            try (final Connection c = newDefaultConnection()) {
+                sleep(100);
+                LinkedList<AsyncSubscription> subscriptions = new LinkedList<>();
+                for (int i = 0; i < 3; i++) {
+                    subscriptions.add(c.subscribe("ping", new MessageHandler() {
+                        public void onMessage(Message msg) {
+                            try {
+                                c.publish(msg.getReplyTo(), response);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }));
+                }
+
+                sleep(100);
+                final byte[] request = "pong".getBytes();
+
+                for (int i = 0; i < 3; i++) {
+                    try {
+                        List<Message> msgs = c.requestMulti("ping", request, 5, TimeUnit.SECONDS);
+                        assertNotNull(msgs);
+                        assertEquals("Received invalid count of messages", 3, msgs.size());
+                        assertArrayEquals("Received invalid response",
+                            response,
+                            msgs.get(0).getData()
+                        );
+                        assertArrayEquals("Received invalid response",
+                            response,
+                            msgs.get(1).getData()
+                        );
+                        assertArrayEquals("Received invalid response",
+                            response,
+                            msgs.get(2).getData()
+                        );
+                    } catch (Exception e) {
+                        fail("Request failed: " + e.getMessage());
+                    }
+                }
+
+                for (AsyncSubscription asyncSubscription : subscriptions) {
+                    asyncSubscription.close();
                 }
             }
         }

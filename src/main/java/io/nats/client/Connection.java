@@ -7,6 +7,7 @@
 package io.nats.client;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -126,4 +127,35 @@ public interface Connection extends AbstractConnection {
      *                              receive a response
      */
     Message request(String subject, byte[] data) throws IOException, InterruptedException;
+
+    /**
+     * Publishes a request message to the specified subject, waiting up to {@code timeout} msec for
+     * a responses.
+     *
+     * @param subject the subject to publish the request message to
+     * @param data    the request message payload
+     * @param timeout how long to wait for a response message (in msec)
+     * @return the response messages, or empty list if timed out
+     * @throws IOException          if a connection-related error occurs
+     * @throws InterruptedException if {@link Thread#interrupt() interrupted} while waiting to
+     *                              receive a response
+     */
+    List<Message> requestMulti(String subject, byte[] data, long timeout)
+        throws IOException, InterruptedException;
+
+    /**
+     * Publishes a request message to the specified subject, waiting up to {@code timeout} msec for
+     * a responses.
+     *
+     * @param subject the subject to publish the request message to
+     * @param data    the request message payload
+     * @param timeout how long to wait for a response message (in msec)
+     * @param unit    how long to wait for a response message (in msec)
+     * @return the response messages, or empty list if timed out
+     * @throws IOException          if a connection-related error occurs
+     * @throws InterruptedException if {@link Thread#interrupt() interrupted} while waiting to
+     *                              receive a response
+     */
+    List<Message> requestMulti(String subject, byte[] data, long timeout, TimeUnit unit)
+        throws IOException, InterruptedException;
 }

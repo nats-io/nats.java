@@ -43,6 +43,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -1124,6 +1125,19 @@ public class ConnectionImplTest {
 
         exThrown = false;
         try {
+            nc.requestMulti("foo", null, TimeUnit.SECONDS.toMillis(1));
+            assertTrue(nc.isClosed());
+        } catch (Exception e) {
+            assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
+                e instanceof IllegalStateException);
+            assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
+            exThrown = true;
+        } finally {
+            assertTrue("Didn't throw an exception", exThrown);
+        }
+
+        exThrown = false;
+        try {
             sub.nextMessage();
         } catch (Exception e) {
             assertTrue("Expected IllegalStateException, got " + e.getClass().getSimpleName(),
@@ -1761,6 +1775,29 @@ public class ConnectionImplTest {
 
             msg = c.request("foo", null, 500);
             assertEquals(replyMsg, msg);
+        }
+    }
+
+    @Test
+    public void testRequestMulti() throws Exception {
+        final String inbox = "_INBOX.DEADBEEF";
+        // SyncSubscriptionImpl mockSub = mock(SyncSubscriptionImpl.class);
+        Message replyMsg = new Message();
+        replyMsg.setData("answer".getBytes());
+        replyMsg.setSubject(inbox);
+        when(syncSubMock.nextMessage(any(long.class), any(TimeUnit.class))).thenReturn(replyMsg);
+        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection())) {
+            doReturn(inbox).when(c).newInbox();
+            doReturn(mchMock).when(c).createMsgChannel(anyInt());
+            doReturn(syncSubMock).when(c).subscribe(inbox, null, null, mchMock);
+            List<Message> msgs = c.requestMulti("foo", null, 500);
+            verify(syncSubMock, atLeastOnce()).nextMessage(any(long.class), same(TimeUnit.MILLISECONDS));
+            assertFalse(msgs.isEmpty());
+            assertEquals(replyMsg, msgs.get(0));
+
+            msgs = c.requestMulti("foo", null, 1, TimeUnit.SECONDS);
+            assertFalse(msgs.isEmpty());
+            assertEquals(replyMsg, msgs.get(0));
         }
     }
 

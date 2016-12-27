@@ -46,6 +46,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -2071,6 +2072,38 @@ class ConnectionImpl implements Connection {
     @Override
     public Message request(String subject, byte[] data) throws IOException, InterruptedException {
         return request(subject, data, -1, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public List<Message> requestMulti(String subject, byte[] data, long timeout)
+        throws IOException, InterruptedException {
+        return requestMulti(subject, data, timeout, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public List<Message> requestMulti(String subject, byte[] data, long timeout, TimeUnit unit)
+        throws IOException, InterruptedException {
+        String inbox = newInbox();
+        BlockingQueue<Message> ch = createMsgChannel(8);
+
+
+        try (SyncSubscription sub = (SyncSubscription) subscribe(inbox, null, null, ch)) {
+            LinkedList<Message> messages = new LinkedList<>();
+            publish(subject, inbox, data);
+            long startTime = System.currentTimeMillis();
+            long timeoutMillis = unit.toMillis(timeout);
+            long gone = 0;
+            while (!Thread.currentThread().isInterrupted() && gone < timeoutMillis) {
+                Message message = sub.nextMessage(timeoutMillis - gone, TimeUnit.MILLISECONDS);
+                if (message != null) {
+                    messages.add(message);
+                    gone = System.currentTimeMillis() - startTime;
+                } else {
+                    return messages;
+                }
+            }
+            return messages;
+        }
     }
 
     @Override
