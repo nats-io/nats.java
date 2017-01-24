@@ -9,7 +9,7 @@
     <parent>
         <groupId>io.nats</groupId>
         <artifactId>nats-parent</artifactId>
-        <version>1.12-SNAPSHOT</version>
+        <version>1.13</version>
         <relativePath/>
     </parent>
 
@@ -119,7 +119,7 @@
         <skip.unit.tests>false</skip.unit.tests>
 
         <!-- Used for downloading and installing a server binary for tests -->
-        <server.version>0.9.4</server.version>
+        <server.version>0.9.6</server.version>
         <server.exec.name>gnatsd</server.exec.name>
         <server.exec.pkg>${server.exec.name}-v${server.version}-${nats.os}-${nats.arch}
         </server.exec.pkg>
