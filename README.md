@@ -51,7 +51,7 @@ mvn install
 
 ## Platform Notes
 ### Linux
-We use RNG to generate unique inbox names. A peculiarity of the JDK on Linux (see [JDK-6202721] (https://bugs.openjdk.java.net/browse/JDK-6202721) and [JDK-6521844](https://bugs.openjdk.java.net/browse/JDK-6521844)) causes Java to use `/dev/random` even when `/dev/urandom` is called for. The net effect is that successive calls to `newInbox()`, either directly or through calling `request()` will become very slow, on the order of seconds, making many applications unusuable if the issue is not addressed. A simple workaround would be to use the following jvm args.
+We use RNG to generate unique inbox names. A peculiarity of the JDK on Linux (see [JDK-6202721] (https://bugs.openjdk.java.net/browse/JDK-6202721) and [JDK-6521844](https://bugs.openjdk.java.net/browse/JDK-6521844)) causes Java to use `/dev/random` even when `/dev/urandom` is called for. The net effect is that successive calls to `newInbox()`, either directly or through calling `request()` will become very slow, on the order of seconds, making many applications unusable if the issue is not addressed. A simple workaround would be to use the following jvm args.
 
 `-Djava.security.egd=file:/dev/./urandom`
 
