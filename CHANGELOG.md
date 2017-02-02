@@ -1,8 +1,8 @@
 Change Log
 ==========
 
-## Version 1.0-RC-SNAPSHOT
-_2016-11-15_  [GitHub Diff](https://github.com/nats-io/java-nats/compare/0.7.3...HEAD)
+## Version 1.0
+_2017-02-02_  [GitHub Diff](https://github.com/nats-io/java-nats/compare/0.7.3...1.0)
 
  * [ADDED] `Nats.connect()` and variants have been added as a preferred method for connecting to NATS. `ConnectionFactory.createConnection()` will also continue to be supported.
  * [ADDED] `Connection#getServers()` and `Connection#getDiscoveredServers()` APIs to match Go client
