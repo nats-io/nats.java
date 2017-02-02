@@ -9,7 +9,7 @@ before_install:
 install:
 - sudo apt-get install -y gnupg2
 script:
-- mvn --settings .travis/settings.xml clean verify -B -U
+- mvn --settings .travis/settings.xml clean test -B -U
 after_success:
 - mvn --settings .travis/settings.xml coveralls:report
 cache:

@@ -42,14 +42,7 @@ If you don't already have your pom.xml configured for using Maven snapshots, you
 
 ```
 #### Building from source code (this repository)
-First, download and install the parent POM:
-```
-git clone git@github.com:nats-io/nats-parent-pom.git
-cd nats-parent-pom
-mvn install
-```
-
-Now clone, compile, and install in your local maven repository (or copy the artifacts from the `target/` directory to wherever you need them):
+To clone, compile, and install in your local maven repository (or copy the artifacts from the `target/` directory to wherever you need them):
 ```
 git clone git@github.com:nats-io/java-nats.git
 cd java-nats
