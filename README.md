@@ -2,7 +2,7 @@
 # NATS - Java client
 A [Java](http://www.java.com) client for the [NATS messaging system](https://nats.io).
 
-[![License MIT](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
+[![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)](http://opensource.org/licenses/MIT)
 [![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=master)](http://travis-ci.org/nats-io/java-nats)
 [![Coverage Status](https://coveralls.io/repos/nats-io/java-nats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/java-nats?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
