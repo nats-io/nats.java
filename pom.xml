@@ -1,21 +1,19 @@
 <!--
   ~  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying materials are made available under the terms of the MIT License (MIT) which accompanies this distribution, and is available at http://opensource.org/licenses/MIT
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>io.nats</groupId>
         <artifactId>nats-parent</artifactId>
         <version>1.13</version>
-        <relativePath/>
+        <relativePath />
     </parent>
 
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
     <packaging>bundle</packaging>
 
     <name>jnats</name>
@@ -33,20 +31,20 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-    <developers/>
-    <contributors/>
+    <developers />
+    <contributors />
 
-    <mailingLists/>
+    <mailingLists />
 
-    <prerequisites/>
+    <prerequisites />
 
-    <modules/>
+    <modules />
 
     <scm>
         <url>https://github.com/nats-io/java-nats</url>
         <connection>scm:git:https://github.com/nats-io/java-nats.git</connection>
         <developerConnection>scm:git:git@github.com:nats-io/java-nats.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>1.0</tag>
     </scm>
     <issueManagement>
         <url>https://github.com/nats-io/java-nats/issues/</url>
@@ -57,7 +55,7 @@
         <url>https://travis-ci.org/nats-io/java-nats/</url>
     </ciManagement>
 
-    <dependencyManagement/>
+    <dependencyManagement />
     <dependencies>
 
         <dependency>
@@ -101,8 +99,8 @@
         </dependency>
     </dependencies>
 
-    <repositories/>
-    <pluginRepositories/>
+    <repositories />
+    <pluginRepositories />
 
     <properties>
         <gmaven-version>1.4</gmaven-version>
@@ -197,27 +195,16 @@
                         <id>prepare</id>
                         <phase>pre-integration-test</phase>
                         <configuration>
-                            <target xmlns:unless="ant:unless" xmlns:if="ant:if"
-                                    name="copy-server-exec" unless:true="${server.installed}">
+                            <target xmlns:unless="ant:unless" xmlns:if="ant:if" name="copy-server-exec" unless:true="${server.installed}">
                                 <condition property="server.installed" else="false">
-                                    <available file="${server.exec.name}"
-                                               filepath="${project.build.directory}" type="file"/>
+                                    <available file="${server.exec.name}" filepath="${project.build.directory}" type="file" />
                                 </condition>
-                                <echo if:true="${server.installed}"
-                                      message="${server.exec.name} is already installed. Skipping download..."/>
-                                <echo unless:true="${server.installed}"
-                                      message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..."/>
-                                <get unless:true="${server.installed}" src="${server.exec.pkg.url}"
-                                     dest="${project.build.directory}" skipexisting="true"/>
-                                <unzip unless:true="${server.installed}"
-                                       src="${project.build.directory}/${server.exec.pkg}.zip"
-                                       dest="${project.build.directory}" overwrite="false"/>
-                                <move unless:true="${server.installed}"
-                                      file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}"
-                                      tofile="${project.build.directory}/${server.exec.name}"
-                                      overwrite="false"/>
-                                <chmod perm="+x"
-                                       file="${project.build.directory}/${server.exec.name}"/>
+                                <echo if:true="${server.installed}" message="${server.exec.name} is already installed. Skipping download..." />
+                                <echo unless:true="${server.installed}" message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
+                                <get unless:true="${server.installed}" src="${server.exec.pkg.url}" dest="${project.build.directory}" skipexisting="true" />
+                                <unzip unless:true="${server.installed}" src="${project.build.directory}/${server.exec.pkg}.zip" dest="${project.build.directory}" overwrite="false" />
+                                <move unless:true="${server.installed}" file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}" tofile="${project.build.directory}/${server.exec.name}" overwrite="false" />
+                                <chmod perm="+x" file="${project.build.directory}/${server.exec.name}" />
                             </target>
                         </configuration>
                         <goals>
