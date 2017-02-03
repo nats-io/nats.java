@@ -329,9 +329,16 @@ public interface AbstractConnection extends AutoCloseable {
     ServerInfo getConnectedServerInfo();
 
     /**
-     * Returns the name associated with this connection.
+     * Returns the last exception registered on the connection.
      *
-     * @return the name associated with this connection
+     * @return the last exception registered on this connection
+     */
+    Exception getLastException();
+
+    /**
+     * Returns the name of this Connection.
+     *
+     * @return the name of this Connection
      */
     String getName();
 

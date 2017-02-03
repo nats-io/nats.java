@@ -2242,7 +2242,9 @@ class ConnectionImpl implements Connection {
     }
 
     @Override
-    public String getName() { return opts.connectionName; }
+    public String getName() {
+        return opts.connectionName;
+    }
 
     Options getOptions() {
         return this.opts;
