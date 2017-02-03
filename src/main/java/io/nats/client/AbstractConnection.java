@@ -329,11 +329,11 @@ public interface AbstractConnection extends AutoCloseable {
     ServerInfo getConnectedServerInfo();
 
     /**
-     * Returns the last exception registered on the connection.
+     * Returns the name associated with this connection.
      *
-     * @return the last exception registered on this connection
+     * @return the name associated with this connection
      */
-    Exception getLastException();
+    String getName();
 
     /**
      * Returns the number of valid bytes in the pending output buffer. This buffer is only used

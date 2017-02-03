@@ -2241,6 +2241,9 @@ class ConnectionImpl implements Connection {
         this.lastEx = err;
     }
 
+    @Override
+    public String getName() { return opts.connectionName; }
+
     Options getOptions() {
         return this.opts;
     }
