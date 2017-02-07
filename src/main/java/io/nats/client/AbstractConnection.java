@@ -336,6 +336,13 @@ public interface AbstractConnection extends AutoCloseable {
     Exception getLastException();
 
     /**
+     * Returns the name of this Connection.
+     *
+     * @return the name of this Connection
+     */
+    String getName();
+
+    /**
      * Returns the number of valid bytes in the pending output buffer. This buffer is only used
      * during disconnect/reconnect sequences to buffer messages that are published during a
      * temporary disconnection.

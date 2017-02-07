@@ -1,6 +1,9 @@
+dist: trusty
+sudo: required
 language: java
 jdk:
 - oraclejdk8
+- openjdk8
 before_install:
 - openssl aes-256-cbc -K $encrypted_d472159ded8f_key -iv $encrypted_d472159ded8f_iv
   -in .travis/keyrings/deploy_key.pem.enc -out .travis/keyrings/deploy_key.pem -d
