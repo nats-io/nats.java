@@ -94,7 +94,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockingDetails;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
