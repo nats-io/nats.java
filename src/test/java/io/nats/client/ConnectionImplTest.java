@@ -26,11 +26,9 @@ import static io.nats.client.Nats.ERR_TIMEOUT;
 import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.defaultInfo;
-import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnection;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnectionFactory;
-import static io.nats.client.UnitTestUtilities.runDefaultServer;
 import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -887,6 +885,16 @@ public class ConnectionImplTest {
             ServerInfo actual = nc.getConnectedServerInfo();
             assertEquals("Wrong server INFO.", expected, actual.toString());
             assertTrue(actual.equals(ServerInfo.createFromWire(expected)));
+        }
+    }
+
+    @Test
+    public void testGetName() throws Exception {
+        final String name = "foobar";
+        Options opts = new Options.Builder().name(name).build();
+        try (Connection nc = newMockedConnection(opts)) {
+            assertTrue(!nc.isClosed());
+            assertEquals(name, nc.getName());
         }
     }
 
