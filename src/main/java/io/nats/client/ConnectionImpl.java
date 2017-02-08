@@ -91,8 +91,8 @@ class ConnectionImpl implements Connection {
     protected static final int FLUSH_CHAN_SIZE = 1;
 
     // The number of msec the flusher will wait between flushes
-    private long flushTimerInterval = 1;
-    private TimeUnit flushTimerUnit = TimeUnit.MICROSECONDS;
+    private long flushTimerInterval = 100;
+    private TimeUnit flushTimerUnit = TimeUnit.MILLISECONDS;
 
 
     protected static final String CRLF = "\r\n";
@@ -1710,7 +1710,7 @@ class ConnectionImpl implements Connection {
             } finally {
                 mu.unlock();
             }
-            Thread.sleep(flushTimerUnit.toMillis(flushTimerInterval));
+            flushTimerUnit.sleep(flushTimerInterval);
         }
         logger.debug("flusher id:{} exiting", Thread.currentThread().getId());
     }
