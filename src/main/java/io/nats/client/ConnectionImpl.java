@@ -90,8 +90,8 @@ class ConnectionImpl implements Connection {
     // The buffered size of the flush "kick" channel
     protected static final int FLUSH_CHAN_SIZE = 1;
 
-    // The number of msec the flusher will wait between flushes
-    private long flushTimerInterval = 100;
+    // The interval the flusher will wait after each flush of the buffered output stream
+    private long flushTimerInterval = 1;
     private TimeUnit flushTimerUnit = TimeUnit.MILLISECONDS;
 
 
