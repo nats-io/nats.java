@@ -5,6 +5,7 @@ Change Log
 _2017-02-09_  [GitHub Diff](https://github.com/nats-io/java-nats/compare/1.0...HEAD)
 
 * [FIXED] Flush wait interval (the amount of time the flusher waits before checking the flush queue) is once again set at 1ms.
+* [FIXED] Do not shuffle entire pool when adding URL from INFO
 * [ADDED] Connection name can now be accessed using `Connection#getName()`
 * [CHANGED] CI tests now run against both Oracle JDK 8 and OpenJDK 8
 
