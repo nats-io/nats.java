@@ -44,6 +44,7 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -764,18 +765,21 @@ class ConnectionImpl implements Connection {
             return;
         }
         setConnectedServerInfo(ServerInfo.createFromWire(infoString));
-        boolean updated = false;
 
         if (info.getConnectUrls() != null) {
-            for (String s : info.getConnectUrls()) {
-                if (!urls.containsKey(s)) {
-                    this.addUrlToPool(String.format("nats://%s", s), true);
-                    updated = true;
+            ArrayList<String> connectUrls = new ArrayList<>(Arrays.asList(info.getConnectUrls()));
+            if (connectUrls.size() > 0) {
+                // If randomization is allowed, shuffle the received array, not the
+                // entire pool. We want to preserve the pool's order up to this point
+                // (this would otherwise be problematic for the (re)connect loop).
+                if (!opts.isNoRandomize()) {
+                    Collections.shuffle(connectUrls);
                 }
             }
-
-            if (updated && !opts.isNoRandomize()) {
-                Collections.shuffle(srvPool);
+            for (String s : connectUrls) {
+                if (!urls.containsKey(s)) {
+                    this.addUrlToPool(String.format("nats://%s", s), true);
+                }
             }
         }
     }
