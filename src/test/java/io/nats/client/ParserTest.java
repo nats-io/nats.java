@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +76,10 @@ public class ParserTest {
         verifier.teardown();
         setLogLevel(Level.INFO);
     }
+
+    private static final String[] testServers = {"nats://localhost:1222", "nats://localhost:1223",
+            "nats://localhost:1224", "nats://localhost:1225", "nats://localhost:1226",
+            "nats://localhost:1227", "nats://localhost:1228"};
 
     @Test
     public void testParseControl() throws Exception {
@@ -623,6 +628,10 @@ public class ParserTest {
             ServerInfo expectedServer = new ServerInfo("test", "localhost", 4222, "1.2.3", true,
                     true, 2 * 1024 * 1024, new String[] {"localhost:5222", "localhost:6222"});
 
+            // Set NoRandomize so that the check with expectedServer info
+            // matches.
+            conn.setOptions(new Options.Builder().dontRandomize().build());
+
             String jsonString = expectedServer.toString();
             String infoString = String.format("%s\r\n", jsonString);
             // System.err.println(infoString);
@@ -685,19 +694,20 @@ public class ParserTest {
             conn.setupServerPool();
             // Reinitialize the parser
             parser.ps = new Parser.ParseState();
+
             info = "INFO {\"connect_urls\":[\"localhost:5222\"]}\r\n".getBytes();
             parser.parse(info);
 
             // Pool now should contain localhost:4222 (the default URL) and localhost:5222
             String[] srvList = {"localhost:4222", "localhost:5222"};
-            checkPool(conn, Arrays.asList(srvList));
+            checkPool(conn, true, Arrays.asList(srvList));
 
             // Make sure that if client receives the same, it is not added again.
             parser.parse(info, info.length);
             assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool should still contain localhost:4222 (the default URL) and localhost:5222
-            checkPool(conn, Arrays.asList(srvList));
+            checkPool(conn, true, Arrays.asList(srvList));
 
             // Receive a new URL
             info = "INFO {\"connect_urls\":[\"localhost:6222\"]}\r\n".getBytes();
@@ -707,7 +717,7 @@ public class ParserTest {
             // Pool now should contain localhost:4222 (the default URL) localhost:5222 and
             // localhost:6222
             srvList = new String[] {"localhost:4222", "localhost:5222", "localhost:6222"};
-            checkPool(conn, Arrays.asList(srvList));
+            checkPool(conn, true, Arrays.asList(srvList));
 
             // Receive more than 1 URL at once
             info = "INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\"]}\r\n"
@@ -716,13 +726,15 @@ public class ParserTest {
             assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222,
-            // localhost:6222
-            // localhost:7222 and localhost:8222
+            // localhost:6222, localhost:7222 and localhost:8222
             srvList = new String[] {"localhost:4222", "localhost:5222", "localhost:6222",
                     "localhost:7222", "localhost:8222"};
-            checkPool(conn, Arrays.asList(srvList));
+            checkPool(conn, true, Arrays.asList(srvList));
 
-            // Test with pool randomization now
+            // Test with pool randomization now. Note that with randomization,
+            // the initial pool is randomized, then each array of urls that the
+            // client gets from the INFO protocol is randomized, but added to
+            // the end of the pool.
             conn.getOptions().noRandomize = false;
             conn.setupServerPool();
 
@@ -732,14 +744,14 @@ public class ParserTest {
 
             // Pool now should contain localhost:4222 (the default URL) and localhost:5222
             srvList = new String[] {"localhost:4222", "localhost:5222"};
-            checkPool(conn, Arrays.asList(srvList));
+            checkPool(conn, true, Arrays.asList(srvList));
 
             // Make sure that if client receives the same, it is not added again.
             parser.parse(info, info.length);
             assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool should still contain localhost:4222 (the default URL) and localhost:5222
-            checkPool(conn, Arrays.asList(srvList));
+            checkPool(conn, true, Arrays.asList(srvList));
 
             // Receive a new URL
             info = "INFO {\"connect_urls\":[\"localhost:6222\"]}\r\n".getBytes();
@@ -749,24 +761,28 @@ public class ParserTest {
             // Pool now should contain localhost:4222 (the default URL) localhost:5222 and
             // localhost:6222
             srvList = new String[] {"localhost:4222", "localhost:5222", "localhost:6222"};
-            checkPool(conn, Arrays.asList(srvList));
+            checkPool(conn, true, Arrays.asList(srvList));
 
-            // Receive more than 1 URL at once
-            info = "INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\"]}\r\n"
+            // Receive more than 1 URL at once. Add more than 2 to increase the chance of
+            // the array being shuffled.
+            info = ("INFO {\"connect_urls\":[\"localhost:7222\", \"localhost:8222\", " +
+                    "\"localhost:9222\",\"localhost:10222\",\"localhost:11222\"]}\r\n")
                     .getBytes();
             parser.parse(info);
             assertEquals(parser.ps.state, NatsOp.OP_START);
 
             // Pool now should contain localhost:4222 (the default URL) localhost:5222,
-            // localhost:6222
-            // localhost:7222 and localhost:8222
+            // localhost:6222, localhost:7222, localhost:8222, localhost:9222, localhost:10222
+            // and localhost:11222
             srvList = new String[] {"localhost:4222", "localhost:5222", "localhost:6222",
-                    "localhost:7222", "localhost:8222"};
-            checkPool(conn, Arrays.asList(srvList));
+                    "localhost:7222", "localhost:8222", "localhost:9222", "localhost:10222",
+                    "localhost:11222"};
+            checkPool(conn, false, Arrays.asList(srvList));
 
-            // Finally, check that the pool should be randomized.
+            // Finally, check that (part of) the pool should be randomized.
             String[] allUrls = new String[] {"localhost:4222", "localhost:5222", "localhost:6222",
-                    "localhost:7222", "localhost:8222"};
+                    "localhost:7222", "localhost:8222", "localhost:9222", "localhost:10222",
+                    "localhost:11222"};
             int same = 0;
             int i = 0;
             for (Srv s : ConnectionAccessor.getSrvPool(conn)) {
@@ -776,10 +792,41 @@ public class ParserTest {
                 i++;
             }
             assertNotEquals("Pool does not seem to be randomized", same, allUrls.length);
+
+            // Check that pool may be randomized on setup, but new URLs are always
+            // added at end of pool.
+            Options opts = new Options.Builder().build();
+            opts.servers = Nats.processUrlArray(testServers);
+            conn.setOptions(opts); // default is randomize
+
+            // Reset the pool
+            conn.setupServerPool();
+
+            // Reinitialize the parser
+            parser.ps = new Parser.ParseState();
+
+            // Capture the pool sequence after randomization
+            List<String> urlsAfterPoolSetup = new ArrayList<>();
+            for (Srv srv : conn.getServerPool()) {
+                urlsAfterPoolSetup.add(srv.url.toString());
+            }
+            String[] newUrls =  { "localhost:6222", "localhost:7222", "localhost:8222",
+                    "localhost:9222", "localhost:10222", "localhost:11222", "localhost:12222"};
+
+            for (String newUrl : newUrls) {
+                info = ("INFO {\"connect_urls\":[\"" + newUrl + "\"]}\r\n").getBytes();
+                parser.parse(info);
+                assertEquals(parser.ps.state, NatsOp.OP_START);
+                // Check that pool order does not change up to the new addition(s).
+                List<Srv> srvPool = conn.getServerPool();
+                for (i = 0; i < urlsAfterPoolSetup.size(); i++) {
+                    assertEquals(srvPool.get(i).url.toString(), urlsAfterPoolSetup.get(i));
+                }
+            }
         }
     }
 
-    private void checkPool(ConnectionImpl conn, List<String> urls) {
+    private void checkPool(ConnectionImpl conn, boolean inThatOrder, List<String> urls) {
         // Check booth pool and urls map
         List<Srv> srvPool = ConnectionAccessor.getSrvPool(conn);
         if (srvPool.size() != urls.size()) {
@@ -795,7 +842,7 @@ public class ParserTest {
 
         for (int i = 0; i < urls.size(); i++) {
             String url = urls.get(i);
-            if (conn.getOptions().isNoRandomize()) {
+            if (inThatOrder) {
                 if (!srvPool.get(i).url.getAuthority().equals(url)) {
                     fail(String.format("Pool should have %s at index %d, has %s", url, i,
                             srvPool.get(i).url.getAuthority()));
