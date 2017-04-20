@@ -1721,7 +1721,7 @@ class ConnectionImpl implements Connection {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see io.nats.client.AbstractConnection#flush(int)
      */
     @Override
@@ -2004,8 +2004,12 @@ class ConnectionImpl implements Connection {
             stats.incrementOutBytes(msgSize);
 
             if (forceFlush) {
-                bw.flush();
-                stats.incrementFlushes();
+                try {
+                    bw.flush();
+                    stats.incrementFlushes();
+                } catch (IOException e) {
+                    logger.error("I/O exception during force flush");
+                }
             } else {
                 // Opportunistic flush
                 if (fch.isEmpty()) {
