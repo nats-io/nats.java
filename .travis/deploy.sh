@@ -13,6 +13,7 @@ else
     echo "not on a tag -> keep snapshot version in pom.xml"
 fi
 
-mvn deploy --settings .travis/settings.xml -Pnats-release -Dskip.unit.tests=true -B
+# Temporarily disabled due to credential issues.
+# mvn deploy --settings .travis/settings.xml -Pnats-release -Dskip.unit.tests=true -B
 
 ${TRAVIS_BUILD_DIR}/.travis/publish-javadoc.sh
