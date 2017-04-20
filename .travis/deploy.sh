@@ -16,4 +16,4 @@ fi
 # openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/secring.gpg.enc -out $GPG_DIR/secring.gpg -d
 # mvn deploy --settings .travis/settings.xml -Pnats-release -Dskip.unit.tests=true -B
 
-${TRAVIS_BUILD_DIR}/.travis/publish-javadoc.sh
+# ${TRAVIS_BUILD_DIR}/.travis/publish-javadoc.sh
