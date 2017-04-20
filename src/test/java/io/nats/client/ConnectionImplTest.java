@@ -926,6 +926,17 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testPublishForceFlushError() throws Exception {
+        OutputStream os = mock(OutputStream.class);
+        doThrow(new IOException("test")).when(os).flush();
+        try (ConnectionImpl connection = (ConnectionImpl) newMockedConnection()) {
+            connection.setOutputStream(os);
+            connection.publish("foo", null, null, true);
+            verifier.verifyLogMsgEquals(Level.ERROR, "I/O exception during force flush");
+        }
+    }
+
+    @Test
     public void testPublishReconnectingPendingBufferTooLarge()
             throws Exception {
         thrown.expect(IOException.class);
