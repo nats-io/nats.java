@@ -212,6 +212,8 @@ class ConnectionImpl implements Connection {
     // The flusher signalling channel
     private BlockingQueue<Boolean> fch;
 
+	private ExecutorService dispatchPool;
+
 //    ConnectionImpl() {
 //    }
 
@@ -227,6 +229,7 @@ class ConnectionImpl implements Connection {
         } else {
             tcf = new TcpConnectionFactory();
         }
+        this.dispatchPool = Executors.newSingleThreadExecutor();
     }
 
     ScheduledExecutorService createScheduler() {
@@ -1471,7 +1474,7 @@ class ConnectionImpl implements Connection {
 
             // Doing message create outside of the sub's lock to reduce contention.
             // It's possible that we end up not using the message, but that's ok.
-            Message msg = new Message(parser.ps.ma, sub, data, offset, length);
+           final Message msg = new Message(parser.ps.ma, sub, data, offset, length);
 
             sub.lock();
             try {
@@ -1489,16 +1492,29 @@ class ConnectionImpl implements Connection {
                         || (sub.pBytesLimit > 0 && sub.pBytes > sub.pBytesLimit)) {
                     handleSlowConsumer(sub, msg);
                 } else {
-                    // We use mch for everything, unlike Go client
-                    if (sub.getChannel() != null) {
-                        if (sub.getChannel().add(msg)) {
-                            sub.pCond.signal();
-                            // Clear Slow Consumer status
-                            sub.setSlowConsumer(false);
-                        } else {
-                            handleSlowConsumer(sub, msg);
-                        }
-                    }
+                	
+                	if (sub instanceof AsyncSubscriptionImpl) {
+                		AsyncSubscriptionImpl asyncSub = (AsyncSubscriptionImpl) sub;
+                		final MessageHandler messageHandler = asyncSub.getMessageHandler();
+                		dispatchPool.submit(new Runnable() {
+							@Override
+							public void run() {
+		                				messageHandler.onMessage(msg);						
+							}
+                		});
+
+                	} else {
+	                    // We use mch for everything, unlike Go client
+	                    if (sub.getChannel() != null) {
+	                        if (sub.getChannel().add(msg)) {
+	                            sub.pCond.signal();
+	                            // Clear Slow Consumer status
+	                            sub.setSlowConsumer(false);
+	                        } else {
+	                            handleSlowConsumer(sub, msg);
+	                        }
+	                    }
+                	}
                 }
             } finally {
                 sub.unlock();
@@ -1832,16 +1848,9 @@ class ConnectionImpl implements Connection {
                 // If we have an async callback, start up a sub specific Runnable to deliver the
                 // messages
                 logger.debug("Starting subscription for subject '{}'", subject);
-                subexec.submit(new Runnable() {
-                    public void run() {
-                        try {
-                            waitForMsgs((AsyncSubscriptionImpl) sub);
-                        } catch (InterruptedException e) {
-                            logger.debug("Interrupted in waitForMsgs");
-                            Thread.currentThread().interrupt();
-                        }
-                    }
-                });
+                
+                                
+                
             } else {
                 sub = new SyncSubscriptionImpl(this, subject, queue);
                 sub.setChannel(ch);
