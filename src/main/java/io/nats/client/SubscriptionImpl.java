@@ -162,6 +162,10 @@ abstract class SubscriptionImpl implements Subscription {
             // Just log and ignore. This is for AutoCloseable.
             logger.debug("Exception while calling unsubscribe from AutoCloseable.close()", e);
         }
+        mu.lock();
+        this.closed = true;
+        this.pCond.signalAll();
+        mu.unlock();
     }
 
     long getSid() {
