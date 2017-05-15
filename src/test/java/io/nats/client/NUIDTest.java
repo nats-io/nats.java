@@ -22,15 +22,12 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Locale;
 
 public class NUIDTest {
-    private final Logger logger = LoggerFactory.getLogger(NUIDTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -129,7 +126,7 @@ public class NUIDTest {
             nuid.next();
         }
         long elapsedNsec = System.nanoTime() - start;
-        logger.info("Average generation time for {} NUIDs was {}ns",
+        System.out.printf("Average generation time for %d NUIDs was %d ns\n",
                 NumberFormat.getNumberInstance(Locale.US).format(count),
                 (double) elapsedNsec / count);
 
@@ -146,7 +143,7 @@ public class NUIDTest {
             nuid.next();
         }
         long elapsedNsec = System.nanoTime() - start;
-        logger.info("Average generation time for {} global NUIDs was {}ns",
+        System.out.printf("Average generation time for %d global NUIDs was %d ns\n",
                 NumberFormat.getNumberInstance(Locale.US).format(count),
                 (double) elapsedNsec / count);
     }

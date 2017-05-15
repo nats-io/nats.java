@@ -6,16 +6,13 @@
 
 package io.nats.client;
 
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.mock;
 
-import ch.qos.logback.classic.Level;
 import io.nats.client.Parser.MsgArg;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -25,22 +22,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 @Category(UnitTest.class)
 public class MessageTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(MessageTest.class);
-
-    private static final LogVerifier verifier = new LogVerifier();
 
     @Mock
     private AsyncSubscriptionImpl subMock;
@@ -62,13 +52,10 @@ public class MessageTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        verifier.setup();
     }
 
     @After
     public void tearDown() throws Exception {
-        verifier.teardown();
-        setLogLevel(Level.INFO);
     }
 
     @Test

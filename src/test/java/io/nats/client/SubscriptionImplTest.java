@@ -7,7 +7,6 @@
 package io.nats.client;
 
 import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -21,8 +20,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import ch.qos.logback.classic.Level;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -33,18 +30,12 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 
 @Category(UnitTest.class)
 public class SubscriptionImplTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(SubscriptionImplTest.class);
-
-    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
@@ -72,13 +63,10 @@ public class SubscriptionImplTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        verifier.setup();
     }
 
     @After
     public void tearDown() throws Exception {
-        verifier.teardown();
-        setLogLevel(Level.INFO);
     }
 
     @Test

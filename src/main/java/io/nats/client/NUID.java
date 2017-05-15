@@ -11,15 +11,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Random;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A highly performant unique identifier generator.
  */
 public final class NUID {
 
-    private static final Logger logger = LoggerFactory.getLogger(NUID.class);
 
     /*
      * NUID needs to be very fast to generate and truly unique, all while being entropy pool
@@ -66,7 +63,7 @@ public final class NUID {
             srand = SecureRandom.getInstance("SHA1PRNG");
             seed = bytesToLong(srand.generateSeed(8)); // seed with 8 bytes (64 bits)
         } catch (NoSuchAlgorithmException e) {
-            logger.error("nats: nuid algorithm not found", e);
+            // IGNORE - FIXME:  This should error up somehow.
         }
 
         if (seed != 0L) {

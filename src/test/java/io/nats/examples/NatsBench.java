@@ -8,22 +8,7 @@ package io.nats.examples;
 
 import io.nats.benchmark.Benchmark;
 import io.nats.benchmark.Sample;
-import io.nats.client.AsyncSubscription;
-import io.nats.client.ClosedCallback;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionEvent;
-import io.nats.client.DisconnectedCallback;
-import io.nats.client.ExceptionHandler;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.NATSException;
-import io.nats.client.NUID;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.nats.client.*;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -49,7 +34,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * A utility class for measuring NATS performance.
  */
 public class NatsBench {
-    static final Logger log = LoggerFactory.getLogger(NatsBench.class);
 
     final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();
 
@@ -159,22 +143,22 @@ public class NatsBench {
             nc.setDisconnectedCallback(new DisconnectedCallback() {
                 @Override
                 public void onDisconnect(ConnectionEvent ev) {
-                    log.error("Subscriber disconnected after {} msgs", received.get());
+                    System.err.printf("Subscriber disconnected after %d msgs\n", received.get());
                 }
             });
             nc.setClosedCallback(new ClosedCallback() {
                 @Override
                 public void onClose(ConnectionEvent ev) {
-                    log.error("Subscriber connection closed after {} msgs", received.get());
+                    System.err.printf("Subscriber connection closed after %d msgs\n", received.get());
                 }
             });
             nc.setExceptionHandler(new ExceptionHandler() {
                 @Override
                 public void onException(NATSException ex) {
-                    log.error("Subscriber connection exception", ex);
+                    System.err.println("Subscriber connection exception: " + ex);
                     AsyncSubscription sub = (AsyncSubscription) ex.getSubscription();
-                    log.error("Sent={}, Received={}", sent.get(), received.get());
-                    log.error("Messages dropped (total) = {}", sub.getDropped());
+                    System.err.printf("Sent=%d, Received=%d\n", sent.get(), received.get());
+                    System.err.printf("Messages dropped (total) = %d\n", sub.getDropped());
                     System.exit(-1);
                 }
             });
@@ -232,7 +216,10 @@ public class NatsBench {
                 }
                 nc.flush();
                 bench.addPubSample(new Sample(numMsgs, size, start, System.nanoTime(), nc));
-                log.info("NATS connection statistics: {}", nc.getStats());
+                Statistics s = nc.getStats();
+                System.out.println("NATS publish connection statistics:");
+                System.out.printf("   Bytes out: %d\n", s.getOutBytes());
+                System.out.printf("   Msgs  out: %d\n", s.getOutMsgs());
             }
         }
     }
@@ -278,7 +265,7 @@ public class NatsBench {
 
         if (!errorQueue.isEmpty()) {
             Throwable error = errorQueue.take();
-            log.error(error.getMessage());
+            System.err.printf(error.getMessage());
             throw new RuntimeException(error);
         }
 
@@ -416,7 +403,7 @@ public class NatsBench {
                 new NatsBench(args).run();
             }
         } catch (Exception e) {
-            log.error("Exception:", e);
+            System.err.println("Exception: " + e);
             System.exit(-1);
         }
         System.exit(0);

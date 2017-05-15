@@ -39,11 +39,8 @@ import static io.nats.client.Parser.NatsOp.OP_START;
 
 import java.nio.ByteBuffer;
 import java.text.ParseException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class Parser {
-    static final Logger logger = LoggerFactory.getLogger(Parser.class);
 
     static final int MAX_CONTROL_LINE_SIZE = 1024;
     static final int MAX_MSG_ARGS = 4;
@@ -550,9 +547,6 @@ class Parser {
                 }
                 // FIXME, check max len
             } catch (IndexOutOfBoundsException e) {
-                logger.error("state = {}, i = {}, buf(len:{}) = [{}], ps.argBuf = {}, ps.as = {},"
-                                + " i - ps.as = {}",
-                        ps.state, i, len, new String(buf, 0, len), ps.argBuf, ps.as, i - ps.as, e);
                 nc.processErr(ps.argBuf);
             }
         }
@@ -585,16 +579,12 @@ class Parser {
                     // Can throw BufferOverflowException if lrem > ps.msgBuf.remaining
                     ps.msgBuf.put(buf, ps.as, lrem);
                 } catch (Exception e) {
-                    logger.error("state = {}, i = {}, buf(len:{}) = [{}], ps.msgBuf = {}, ps.as ="
-                                    + " {}, lrem = {}",
-                            ps.state, i, len, new String(buf, 0, len), ps.msgBuf, ps.as, lrem, e);
                     nc.processErr(ps.msgBuf);
                 }
             } else {
                 ps.msgBuf = ByteBuffer.wrap(ps.msgBufStore);
                 // copy body
                 if (len - ps.as > 0) {
-                    logger.info("Putting buf from {} for {} bytes", ps.as, len - ps.as);
                     ps.msgBuf.put(buf, ps.as, len - ps.as);
                 }
             }

@@ -31,8 +31,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,10 +47,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Category(IntegrationTest.class)
 public class ITConnectionTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(ITConnectionTest.class);
-
-    static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();

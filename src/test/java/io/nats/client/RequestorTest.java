@@ -11,14 +11,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import ch.qos.logback.classic.Logger;
-import io.nats.examples.Publisher;
 import io.nats.examples.Replier;
 import io.nats.examples.Requestor;
 
-import io.nats.examples.Subscriber;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.junit.After;
@@ -29,7 +25,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,10 +33,6 @@ import java.util.List;
 
 @Category(IntegrationTest.class)
 public class RequestorTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = (Logger) LoggerFactory.getLogger(RequestorTest.class);
-
-    static final LogVerifier verifier = new LogVerifier();
 
     final ExecutorService service = Executors.newCachedThreadPool();
 

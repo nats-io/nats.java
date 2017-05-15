@@ -92,11 +92,6 @@ public class NatsThreadTest implements Runnable {
 
         assertTrue(NatsThread.getThreadsAlive() > 0);
         assertTrue(NatsThread.getThreadsCreated() > 0);
-        NatsThread.setDebug(true);
-        assertEquals(true, NatsThread.getDebug());
-        NatsThread.setDebug(false);
-        assertEquals(false, NatsThread.getDebug());
-        NatsThread.setDebug(true);
         try {
             for (int i = 0; i < NUM_THREADS; i++) {
                 {
@@ -123,16 +118,4 @@ public class NatsThreadTest implements Runnable {
     // public void testGetThreadsAlive() {
     // fail("Not yet implemented"); // TODO
     // }
-    //
-    // @Test
-    // public void testGetDebug() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testSetDebug() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-
 }

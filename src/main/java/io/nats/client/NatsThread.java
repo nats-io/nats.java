@@ -8,8 +8,6 @@ package io.nats.client;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * NatsThread. <p/> Custom thread base class
@@ -18,12 +16,10 @@ import org.slf4j.LoggerFactory;
  */
 class NatsThread extends Thread {
     public static final String DEFAULT_NAME = "NatsThread";
-    private static volatile boolean debugLifecycle = false;
     private static final AtomicInteger created = new AtomicInteger();
     private static final AtomicInteger alive = new AtomicInteger();
     private CountDownLatch startSignal = null;
     private CountDownLatch doneSignal = null;
-    private final Logger logger = LoggerFactory.getLogger(NatsThread.class);
 
     public NatsThread(Runnable r) {
         this(r, DEFAULT_NAME);
@@ -33,7 +29,7 @@ class NatsThread extends Thread {
         super(runnable, name + "-" + created.incrementAndGet());
         setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             public void uncaughtException(Thread t, Throwable e) {
-                logger.debug("UNCAUGHT in thread {}", t.getName(), e);
+               e.printStackTrace();
             }
         });
     }
@@ -46,11 +42,6 @@ class NatsThread extends Thread {
     }
 
     public void run() {
-        // Copy debug flag to ensure consistent value throughout.
-        boolean debug = debugLifecycle;
-        if (debug) {
-            logger.trace("Created {}", getName());
-        }
         try {
             if (startSignal != null) {
                 startSignal.await();
@@ -58,16 +49,11 @@ class NatsThread extends Thread {
             alive.incrementAndGet();
             super.run();
         } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            logger.trace("Interrupted: ", e);
         } finally {
             if (this.doneSignal != null) {
                 this.doneSignal.countDown();
             }
             alive.decrementAndGet();
-            if (debug) {
-                logger.trace("Exiting {}", getName());
-            }
         }
     }
 
@@ -77,13 +63,5 @@ class NatsThread extends Thread {
 
     public static int getThreadsAlive() {
         return alive.get();
-    }
-
-    public static boolean getDebug() {
-        return debugLifecycle;
-    }
-
-    public static void setDebug(boolean b) {
-        debugLifecycle = b;
     }
 }

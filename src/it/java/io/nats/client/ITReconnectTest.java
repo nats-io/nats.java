@@ -23,8 +23,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
@@ -36,7 +34,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Category(IntegrationTest.class)
 public class ITReconnectTest {
-    private static final Logger logger = LoggerFactory.getLogger(ITReconnectTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -148,7 +145,6 @@ public class ITReconnectTest {
         cf.setDisconnectedCallback(new DisconnectedCallback() {
             public void onDisconnect(ConnectionEvent event) {
                 dcLatch.countDown();
-                logger.debug("dcb triggered");
             }
         });
         final String testString = "bar";
@@ -165,23 +161,18 @@ public class ITReconnectTest {
 
                 c.flush();
 
-                logger.debug("Shutting down ns1");
                 ns1.shutdown();
                 // server is stopped here...
 
-                logger.debug("Waiting for disconnect callback");
                 assertTrue("Did not get the disconnected callback on time", await(dcLatch));
 
                 UnitTestUtilities.sleep(50);
-                logger.debug("Publishing test message");
                 c.publish("foo", testString.getBytes());
 
                 // restart the server.
-                logger.debug("Spinning up ns2");
                 try (NatsServer ns2 = runServerOnPort(22222)) {
                     c.setClosedCallback(null);
                     c.setDisconnectedCallback(null);
-                    logger.debug("Flushing connection");
                     c.flush(5000);
                     assertTrue("Did not receive our message", await(latch));
                     assertEquals("Wrong number of reconnects.", 1, c.getStats().getReconnects());

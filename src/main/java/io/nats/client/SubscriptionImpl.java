@@ -14,12 +14,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 abstract class SubscriptionImpl implements Subscription {
-
-    static final Logger logger = LoggerFactory.getLogger(SubscriptionImpl.class);
 
     /**
      * Default maximum pending/undelivered messages on a subscription.
@@ -160,7 +156,6 @@ abstract class SubscriptionImpl implements Subscription {
             unsubscribe(true);
         } catch (Exception e) {
             // Just log and ignore. This is for AutoCloseable.
-            logger.debug("Exception while calling unsubscribe from AutoCloseable.close()", e);
         }
         mu.lock();
         this.closed = true;

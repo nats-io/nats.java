@@ -8,12 +8,10 @@ package io.nats.client;
 
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import ch.qos.logback.classic.Level;
 import io.nats.examples.NatsBench;
 
 import org.junit.After;
@@ -25,8 +23,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -54,10 +50,6 @@ import javax.net.SocketFactory;
 @Category(PerfTest.class)
 public class NatsBenchTest {
     ExecutorService service;
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(NatsBenchTest.class);
-
-    static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -82,7 +74,6 @@ public class NatsBenchTest {
     public void setUp() throws Exception {
         service = Executors.newCachedThreadPool(new NatsThreadFactory("natsbench"));
         MockitoAnnotations.initMocks(this);
-        verifier.setup();
     }
 
     /**
@@ -93,8 +84,6 @@ public class NatsBenchTest {
     @After
     public void tearDown() throws Exception {
         service.shutdownNow();
-        verifier.teardown();
-        setLogLevel(Level.INFO);
     }
 
     @Test
@@ -143,7 +132,8 @@ public class NatsBenchTest {
                     }
                     published.incrementAndGet();
                 } catch (IOException e) {
-                    logger.error("Oops, got an exception on msg {}: {}", i, e.getMessage());
+                    // TODO throw this?
+                    System.err.printf("Got an exception on msg %d: %s\n", i, e.getMessage());
                     break;
                 }
             }
@@ -152,7 +142,7 @@ public class NatsBenchTest {
             long bytesPerSec =
                     (published.get() * buf.length) / TimeUnit.NANOSECONDS.toSeconds(elapsed);
             String secString = String.format("%.2f", (double) elapsed / 1000000000.0);
-            logger.info("Published {} msgs in {} sec (rate: {} msg/sec, {} bytes/sec)",
+            System.out.printf("Published %s msgs in %s sec (rate: %s msg/sec, %s bytes/sec)\n",
                     NumberFormat.getNumberInstance(Locale.US).format(published.get()), secString,
                     NumberFormat.getNumberInstance(Locale.US).format(msgPerSec),
                     NumberFormat.getNumberInstance(Locale.US).format(bytesPerSec));
@@ -201,7 +191,7 @@ public class NatsBenchTest {
                         bw.write(buf, 0, buf.length);
                         published.incrementAndGet();
                     } catch (Exception e) {
-                        System.err.printf("Oops, got an exception on msg %d: %s\n", i,
+                        System.err.printf("Exception on msg %d: %s\n", i,
                                 e.getMessage());
                         break;
                     }
@@ -212,7 +202,7 @@ public class NatsBenchTest {
                 long bytesPerSec =
                         (published.get() * buf.length) / TimeUnit.NANOSECONDS.toSeconds(elapsed);
                 String secString = String.format("%.2f", (double) elapsed / 1000000000.0);
-                logger.info("Published {} msgs in {} sec (rate: {} msg/sec, {} bytes/sec)",
+                System.out.printf("Published %s msgs in %s sec (rate: %s msg/sec, %s bytes/sec)",
                         NumberFormat.getNumberInstance(Locale.US).format(published.get()),
                         secString, NumberFormat.getNumberInstance(Locale.US).format(msgPerSec),
                         NumberFormat.getNumberInstance(Locale.US).format(bytesPerSec));
@@ -252,7 +242,7 @@ public class NatsBenchTest {
                 bw.flush();
                 if (reader.ready()) {
                     String response = reader.readLine();
-                    logger.error(response);
+                    System.err.println(response);
                 }
                 String payload = "";
                 String control = String.format("PUB foo %d\r\n%s\r\n", payload.length(), payload);
@@ -270,7 +260,7 @@ public class NatsBenchTest {
                                     done.countDown();
                                 }
                             } catch (Exception e) {
-                                System.err.printf("Oops, got an exception on msg %d: %s\n",
+                                System.err.printf("Exception on msg %d: %s\n",
                                         published.get(), e.getMessage());
                             }
                         }
@@ -279,7 +269,7 @@ public class NatsBenchTest {
                 done.await();
                 bw.flush();
                 long t1 = System.nanoTime();
-                logger.info(perfString(t0, t1, published.get(), published.get() * buf.length));
+                System.out.println(perfString(t0, t1, published.get(), published.get() * buf.length));
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -327,13 +317,18 @@ public class NatsBenchTest {
                     ch.take();
                 }
                 final long elapsed = System.nanoTime() - t0;
-                logger.info("requestor connection stats: {}", nc.getStats());
-                logger.info("elapsed time: {}sec",
+                Statistics s = nc.getStats();
+                System.out.println("requestor connection stats:");
+                System.out.printf("    Bytes  in:  %d\n", s.getInBytes());
+                System.out.printf("    Msgs   in:  %d\n", s.getInMsgs());
+                System.out.printf("    Bytes out:  %d\n", s.getOutBytes());
+                System.out.printf("    Msgs  out:  %d\n", s.getOutMsgs());
+                System.out.printf("elapsed time: %s sec\n",
                         String.format("%.2f", (double) elapsed / 1000000000));
-                logger.info("req-rep average round trip: {}ms", String.format("%.2f",
-                        (double) TimeUnit.NANOSECONDS.toMillis(elapsed) / count));
-                logger.info("req/sec: {}", String.format("%.2f",
-                        (double) count / TimeUnit.NANOSECONDS.toSeconds(elapsed)));
+                System.out.printf("req-rep average round trip: %.2f ms\n",
+                        (double) TimeUnit.NANOSECONDS.toMillis(elapsed) / count);
+                System.out.printf("req/sec: %.2f\n",
+                        (double) count / TimeUnit.NANOSECONDS.toSeconds(elapsed));
                 sub.close();
             }
         }
@@ -392,21 +387,11 @@ public class NatsBenchTest {
                 } else {
                     fail("Test not long enough to produce meaningful stats.");
                 }
-                logger.info("publisher connection stats: {}", c.getStats());
+                Statistics s = c.getStats();
+                System.out.println("publisher connection stats:");
+                System.out.printf("    Bytes out:  %d\n", s.getOutBytes());
+                System.out.printf("    Msgs  out:  %d\n", s.getOutMsgs());
             }
         }
     }
-
-    // @Test
-    // @Category(PerfTest.class)
-    // public void testManyConnections() throws Exception {
-    // try (NatsServer s = new NatsServer()) {
-    // List<Connection> conns = new ArrayList<Connection>();
-    // for (int i = 0; i < 10000; i++) {
-    // Connection conn = newDefaultConnection();
-    // conns.add(conn);
-    // System.err.printf("Created %d connections\n", i);
-    // }
-    // }
-    // }
 }
