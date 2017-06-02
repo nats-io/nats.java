@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -545,6 +546,22 @@ class ConnectionImpl implements Connection {
         pongs = null;
     }
 
+    // Clear any pending request calls.
+    private synchronized void clearPendingRequestCalls() {
+        if (respMap == null) {
+            return;
+        }
+        Iterator<Map.Entry<String, BlockingQueue<Message>>> iter = respMap.entrySet().iterator();
+        while (iter.hasNext()) {
+            Map.Entry<String, BlockingQueue<Message>> entry = iter.next();
+            try {
+                entry.getValue().put(null);
+            } catch (InterruptedException ignored) {
+            }
+            iter.remove();
+        }
+    }
+
     @Override
     public void close() {
         close(CLOSED, true);
@@ -577,6 +594,9 @@ class ConnectionImpl implements Connection {
         try {
             // Clear any queued pongs, e.g. pending flush calls.
             clearPendingFlushCalls();
+
+            // Clear any queued and blocking requests.
+            clearPendingRequestCalls();
 
             // Go ahead and make sure we have flushed the outbound
             if (conn != null) {
