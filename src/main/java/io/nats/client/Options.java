@@ -33,6 +33,7 @@ import static io.nats.client.Nats.PROP_SERVERS;
 import static io.nats.client.Nats.PROP_TLS_DEBUG;
 import static io.nats.client.Nats.PROP_URL;
 import static io.nats.client.Nats.PROP_USERNAME;
+import static io.nats.client.Nats.PROP_USE_OLD_REQUEST_STYLE;
 import static io.nats.client.Nats.PROP_VERBOSE;
 
 import java.io.IOException;
@@ -81,6 +82,7 @@ public class Options {
     final int connectionTimeout;
     final long pingInterval;
     final int maxPingsOut;
+    final boolean useOldRequestStyle;
     // Connection handlers
     public ClosedCallback closedCb;
     public DisconnectedCallback disconnectedCb;
@@ -122,6 +124,7 @@ public class Options {
         this.connectionTimeout = builder.connectionTimeout;
         this.pingInterval = builder.pingInterval;
         this.maxPingsOut = builder.maxPingsOut;
+        this.useOldRequestStyle = builder.useOldRequestStyle;
         this.sslContext = builder.sslContext;
         this.tlsDebug = builder.tlsDebug;
         this.disconnectedCb = builder.disconnectedCb;
@@ -160,6 +163,7 @@ public class Options {
                 && Integer.compare(connectionTimeout, other.connectionTimeout) == 0
                 && Long.compare(pingInterval, other.pingInterval) == 0
                 && Integer.compare(maxPingsOut, other.maxPingsOut) == 0
+                && Boolean.compare(useOldRequestStyle, other.useOldRequestStyle) == 0
                 && (sslContext == null ? other.sslContext == null : sslContext.equals(other
                 .sslContext))
                 && Boolean.compare(tlsDebug, other.tlsDebug) == 0
@@ -177,7 +181,7 @@ public class Options {
     public int hashCode() {
         return Objects.hash(url, username, password, token, servers, noRandomize, connectionName,
                 verbose, pedantic, secure, allowReconnect, maxReconnect, reconnectBufSize,
-                reconnectWait, connectionTimeout, pingInterval, maxPingsOut, sslContext, tlsDebug,
+                reconnectWait, connectionTimeout, pingInterval, maxPingsOut, useOldRequestStyle, sslContext, tlsDebug,
                 factory, disconnectedCb, closedCb, reconnectedCb, asyncErrorCb);
     }
 
@@ -288,6 +292,8 @@ public class Options {
         return maxPingsOut;
     }
 
+    public boolean isUseOldRequestStyle() { return useOldRequestStyle; }
+
     public ExceptionHandler getExceptionHandler() {
         return asyncErrorCb;
     }
@@ -342,12 +348,13 @@ public class Options {
         private boolean pedantic;
         private boolean secure;
         private boolean allowReconnect = true;
-        private int maxReconnect = Nats.DEFAULT_MAX_RECONNECT;
-        private int reconnectBufSize = Nats.DEFAULT_RECONNECT_BUF_SIZE;
-        private long reconnectWait = Nats.DEFAULT_RECONNECT_WAIT;
-        private int connectionTimeout = Nats.DEFAULT_TIMEOUT;
-        private long pingInterval = Nats.DEFAULT_PING_INTERVAL;
-        private int maxPingsOut = Nats.DEFAULT_MAX_PINGS_OUT;
+        private int maxReconnect = DEFAULT_MAX_RECONNECT;
+        private int reconnectBufSize = DEFAULT_RECONNECT_BUF_SIZE;
+        private long reconnectWait = DEFAULT_RECONNECT_WAIT;
+        private int connectionTimeout = DEFAULT_TIMEOUT;
+        private long pingInterval = DEFAULT_PING_INTERVAL;
+        private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
+        private boolean useOldRequestStyle;
         private SSLContext sslContext;
         private boolean tlsDebug;
         private TcpConnectionFactory factory;
@@ -388,6 +395,7 @@ public class Options {
             this.reconnectedCb = template.reconnectedCb;
             this.asyncErrorCb = template.asyncErrorCb;
             this.factory = template.factory;
+            this.useOldRequestStyle = template.useOldRequestStyle;
         }
 
         public Builder() {
@@ -485,6 +493,10 @@ public class Options {
                 this.maxPingsOut = Integer.parseInt(
                         props.getProperty(PROP_MAX_PINGS, Integer.toString(DEFAULT_MAX_PINGS_OUT)));
             }
+            // PROP_USE_OLD_REQUEST_STYLE
+            if (props.containsKey(PROP_USE_OLD_REQUEST_STYLE)) {
+                this.useOldRequestStyle = Boolean.parseBoolean(props.getProperty(PROP_USE_OLD_REQUEST_STYLE));
+            }
             // PROP_EXCEPTION_HANDLER
             if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
                 Object instance;
@@ -551,6 +563,11 @@ public class Options {
 
         public Builder maxPingsOut(int maxPingsOut) {
             this.maxPingsOut = maxPingsOut;
+            return this;
+        }
+
+        public Builder useOldRequestStyle(boolean useOldRequestStyle) {
+            this.useOldRequestStyle = useOldRequestStyle;
             return this;
         }
 

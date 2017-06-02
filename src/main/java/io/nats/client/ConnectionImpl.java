@@ -33,6 +33,7 @@ import static io.nats.client.Nats.TLS_SCHEME;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
@@ -52,6 +53,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.TimerTask;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -66,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +78,8 @@ class ConnectionImpl implements Connection {
     private String version = null;
 
     private static final String INBOX_PREFIX = "_INBOX.";
+    private static final int NUID_SIZE = 22;
+    private static final int RESP_INBOX_PREFIX_LEN = INBOX_PREFIX.length() + NUID_SIZE + 1;
 
     private ConnState status = DISCONNECTED;
 
@@ -94,6 +99,11 @@ class ConnectionImpl implements Connection {
     // The interval the flusher will wait after each flush of the buffered output stream
     private long flushTimerInterval = 1;
     private TimeUnit flushTimerUnit = TimeUnit.MILLISECONDS;
+
+    // New style response handler
+    private String respSub;                                            // The wildcard subject
+    private Subscription respMux;                                      // A single response subscription
+    private ConcurrentHashMap<String, BlockingQueue<Message>> respMap; // Request map for the response msg queues
 
 
     protected static final String CRLF = "\r\n";
@@ -429,7 +439,7 @@ class ConnectionImpl implements Connection {
                     // Cancel out default connection refused, will trigger the
                     // No servers error conditional
                     if (e.getMessage() != null && e.getMessage().contains("Connection refused")) {
-                            setLastError(null);
+                        setLastError(null);
                     }
                 }
             } // for
@@ -2059,15 +2069,32 @@ class ConnectionImpl implements Connection {
     @Override
     public Message request(String subject, byte[] data, long timeout, TimeUnit unit)
             throws IOException, InterruptedException {
-        String inbox = newInbox();
-        BlockingQueue<Message> ch = createMsgChannel(8);
-
-
-        try (SyncSubscription sub = (SyncSubscription) subscribe(inbox, null, null, ch)) {
-            sub.autoUnsubscribe(1);
-            publish(subject, inbox, data);
-            return sub.nextMessage(timeout, unit);
+        if (opts.useOldRequestStyle) {
+            return oldRequest(subject, data, timeout, unit);
         }
+
+        // Make sure scoped subscription is setup at least once on first call to request().
+        // Will handle duplicates in createRespMux.
+        createRespMux();
+
+        // Create literal Inbox and map to a queue.
+        BlockingQueue<Message> queue = new ArrayBlockingQueue<>(1);
+        String respInbox = newRespInbox();
+        String token = respToken(respInbox);
+        respMap.put(token, queue);
+
+        publish(subject, respInbox, data);
+        Message response;
+        if (timeout < 0) {
+            response = queue.take();
+        } else {
+            response = queue.poll(timeout, unit);
+            if (response == null) {
+                // Timed out, cleanup queue.
+                respMap.remove(token);
+            }
+        }
+        return response;
     }
 
     @Override
@@ -2079,6 +2106,72 @@ class ConnectionImpl implements Connection {
     @Override
     public Message request(String subject, byte[] data) throws IOException, InterruptedException {
         return request(subject, data, -1, TimeUnit.MILLISECONDS);
+    }
+
+    // Creates the response subscription we will use for all new style responses. This will be on an _INBOX with an
+    // additional terminal token. The subscription will be on a wildcard.
+    private synchronized void createRespMux() {
+        if (respMap != null) {
+            // Already setup for responses.
+            return;
+        }
+
+        // _INBOX wildcard
+        respSub = String.format("%s.*", newInbox());
+        respMux = subscribe(respSub, new RespHandler());
+        respMap = new ConcurrentHashMap<>();
+    }
+
+    // Creates a new literal response subject that will trigger the global subscription handler.
+    private String newRespInbox() {
+        byte[] b = new byte[RESP_INBOX_PREFIX_LEN + NUID_SIZE];
+        byte[] respSubBytes = respSub.getBytes();
+        System.arraycopy(respSubBytes, 0, b, 0, RESP_INBOX_PREFIX_LEN);
+        byte[] nuid = NUID.nextGlobal().getBytes();
+        System.arraycopy(nuid, 0, b, RESP_INBOX_PREFIX_LEN, nuid.length);
+        return new String(b);
+    }
+
+    private String respToken(String respInbox) {
+        return respInbox.substring(RESP_INBOX_PREFIX_LEN);
+    }
+
+    /**
+     * RespHandler is the global response handler. It will look up the appropriate queue based on the last token and
+     * place the message on the queue if possible.
+     */
+    private final class RespHandler implements MessageHandler {
+        @Override
+        public void onMessage(Message msg) {
+            String token = respToken(msg.getSubject());
+
+            // Just return if closed.
+            if (isClosed()) {
+                return;
+            }
+
+            BlockingQueue<Message> queue = respMap.get(token);
+            if (queue == null) {
+                // No response queue, drop the message.
+                return;
+            }
+
+            // Delete the key regardless, one response only.
+            respMap.remove(token);
+            queue.offer(msg);
+        }
+    }
+
+    private Message oldRequest(String subject, byte[] data, long timeout, TimeUnit unit)
+            throws IOException, InterruptedException {
+        String inbox = newInbox();
+        BlockingQueue<Message> ch = createMsgChannel(8);
+
+        try (SyncSubscription sub = (SyncSubscription) subscribe(inbox, null, null, ch)) {
+            sub.autoUnsubscribe(1);
+            publish(subject, inbox, data);
+            return sub.nextMessage(timeout, unit);
+        }
     }
 
     @Override
