@@ -12,7 +12,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import ch.qos.logback.classic.Logger;
 import io.nats.examples.Publisher;
 import io.nats.examples.Subscriber;
 
@@ -24,7 +23,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -36,10 +34,6 @@ import java.util.concurrent.Executors;
 
 @Category(IntegrationTest.class)
 public class SubscriberTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = (Logger) LoggerFactory.getLogger(SubscriberTest.class);
-
-    static final LogVerifier verifier = new LogVerifier();
 
     final ExecutorService service = Executors.newCachedThreadPool();
 

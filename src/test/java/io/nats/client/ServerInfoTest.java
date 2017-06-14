@@ -19,13 +19,10 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 @Category(UnitTest.class)
 public class ServerInfoTest {
-    final Logger logger = LoggerFactory.getLogger(ServerInfoTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);

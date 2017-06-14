@@ -27,15 +27,12 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /*
  * Convenience class representing the TCP connection to prevent managing two variables throughout
  * the NATS client code.
  */
 class TcpConnection implements TransportConnection, AutoCloseable {
-    private final Logger logger = LoggerFactory.getLogger(TcpConnection.class);
 
     // TODO: Test various scenarios for efficiency. Is a
     // BufferedReader directly over a network stream really
@@ -52,14 +49,12 @@ class TcpConnection implements TransportConnection, AutoCloseable {
     private BufferedOutputStream bos = null;
 
     private int timeout = 0;
-    private boolean tlsDebug = false;
 
     TcpConnection() {
     }
 
     @Override
     public void open(String url, int timeout) throws IOException {
-        logger.trace("TcpConnection.open({},{})", url, timeout);
         URI uri = URI.create(url);
         String host = uri.getHost();
         int port = uri.getPort();
@@ -71,10 +66,6 @@ class TcpConnection implements TransportConnection, AutoCloseable {
             client.setReceiveBufferSize(2 * 1024 * 1024);
             client.setSendBufferSize(2 * 1024 * 1024);
             client.connect(new InetSocketAddress(host, port), timeout);
-
-            logger.debug("socket tcp_nodelay: {}", client.getTcpNoDelay());
-            logger.debug("socket recv buf size: {}", client.getReceiveBufferSize());
-            logger.debug("socket send buf size: {}", client.getSendBufferSize());
 
             writeStream = client.getOutputStream();
             readStream = client.getInputStream();
@@ -139,13 +130,6 @@ class TcpConnection implements TransportConnection, AutoCloseable {
         return bos;
     }
 
-    OutputStream getOutputStream() {
-        // if (bos == null) {
-        // bos = new BufferedOutputStream(writeStream, size);
-        // }
-        return writeStream;
-    }
-
     @Override
     public boolean isConnected() {
         return client != null && client.isConnected();
@@ -185,13 +169,7 @@ class TcpConnection implements TransportConnection, AutoCloseable {
         SSLSocket sslSocket = (SSLSocket) sslSf.createSocket(client,
                 client.getInetAddress().getHostAddress(), client.getPort(), true);
 
-        if (isTlsDebug()) {
-            sslSocket.addHandshakeCompletedListener(new HandshakeListener());
-        }
-
-        logger.trace("Starting TLS handshake");
         sslSocket.startHandshake();
-        logger.trace("TLS handshake complete");
         this.bisr = null;
         this.readStream = sslSocket.getInputStream();
         bis = null;
@@ -206,14 +184,6 @@ class TcpConnection implements TransportConnection, AutoCloseable {
         } finally {
             mu.unlock();
         }
-    }
-
-    boolean isTlsDebug() {
-        return tlsDebug;
-    }
-
-    void setTlsDebug(boolean tlsDebug) {
-        this.tlsDebug = tlsDebug;
     }
 
     @Override
@@ -254,27 +224,5 @@ class TcpConnection implements TransportConnection, AutoCloseable {
 
     protected int getTimeout() {
         return timeout;
-    }
-
-    class HandshakeListener implements HandshakeCompletedListener {
-        public void handshakeCompleted(javax.net.ssl.HandshakeCompletedEvent event) {
-            SSLSession session = event.getSession();
-            logger.trace("Handshake Completed with peer {}", session.getPeerHost());
-            logger.trace("   cipher: {}", session.getCipherSuite());
-            Certificate[] certs;
-            try {
-                certs = session.getPeerCertificates();
-            } catch (SSLPeerUnverifiedException puv) {
-                certs = null;
-            }
-            if (certs != null) {
-                logger.trace("   peer certificates:");
-                for (int z = 0; z < certs.length; z++) {
-                    logger.trace("      certs[{}]: {}", z, certs[z]);
-                }
-            } else {
-                logger.trace("No peer certificates presented");
-            }
-        }
     }
 }

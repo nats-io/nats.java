@@ -25,15 +25,12 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Category(UnitTest.class)
 public class BenchmarkFunctionalTest {
-    static final Logger logger = LoggerFactory.getLogger(BenchmarkFunctionalTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);

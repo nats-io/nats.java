@@ -6,13 +6,10 @@
 
 package io.nats.client;
 
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -24,15 +21,9 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Category(UnitTest.class)
 public class AsyncSubscriptionImplTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(AsyncSubscriptionImplTest.class);
-
-    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -56,14 +47,7 @@ public class AsyncSubscriptionImplTest {
 
     @Before
     public void setUp() throws Exception {
-        verifier.setup();
         MockitoAnnotations.initMocks(this);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        verifier.teardown();
-        setLogLevel(Level.INFO);
     }
 
     @Test

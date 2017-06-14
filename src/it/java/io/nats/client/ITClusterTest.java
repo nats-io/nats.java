@@ -11,7 +11,6 @@ import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.runServerOnPort;
 import static io.nats.client.UnitTestUtilities.runServerWithConfig;
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -19,7 +18,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import ch.qos.logback.classic.Level;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
@@ -29,8 +27,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,7 +44,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Category(IntegrationTest.class)
 public class ITClusterTest {
-    static final Logger logger = LoggerFactory.getLogger(ITClusterTest.class);
 
     @Rule
     public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
@@ -173,7 +168,6 @@ public class ITClusterTest {
                 final CountDownLatch rcLatch = new CountDownLatch(1);
                 opts.reconnectedCb = new ReconnectedCallback() {
                     public void onReconnect(ConnectionEvent event) {
-                        logger.info("rcb called");
                         rcLatch.countDown();
                     }
                 };
