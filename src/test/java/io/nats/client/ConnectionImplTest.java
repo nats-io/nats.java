@@ -29,7 +29,6 @@ import static io.nats.client.UnitTestUtilities.defaultInfo;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnection;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnectionFactory;
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -52,7 +51,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.internal.verification.VerificationModeFactory.atLeast;
 
-import ch.qos.logback.classic.Level;
 import io.nats.client.ConnectionImpl.Control;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -93,16 +91,10 @@ import org.mockito.Mock;
 import org.mockito.MockingDetails;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Category(UnitTest.class)
 @RunWith(MockitoJUnitRunner.class)
 public class ConnectionImplTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    private static final Logger logger = LoggerFactory.getLogger(ConnectionImplTest.class);
-
-    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
@@ -175,7 +167,6 @@ public class ConnectionImplTest {
     @Before
     public void setUp() throws Exception {
         //MockitoAnnotations.initMocks(this);
-        verifier.setup();
     }
 
     /**
@@ -183,8 +174,6 @@ public class ConnectionImplTest {
      */
     @After
     public void tearDown() throws Exception {
-        verifier.teardown();
-        setLogLevel(Level.WARN);
     }
 
 //    @SuppressWarnings("resource")
@@ -233,7 +222,6 @@ public class ConnectionImplTest {
         doThrow(new IOException("fake I/O exception")).when(is).read(any(byte[].class));
 
         conn.getProperties(is);
-        verifier.verifyLogMsgEquals(Level.WARN, "nats: error loading properties from InputStream");
 
         Properties props = conn.getProperties((InputStream) null);
         assertNull(props);
@@ -333,7 +321,6 @@ public class ConnectionImplTest {
             assertEquals(pingProtoBytesLen, c.getPendingByteCount());
             c.setOutputStream(bwMock);
             c.flushReconnectPendingItems();
-            verifier.verifyLogMsgEquals(Level.ERROR, "Error flushing pending items");
             verify(baos, times(2)).toByteArray();
             verify(bwMock, times(2)).write(eq(pingProtoBytes), eq(0), eq(pingProtoBytesLen));
         }
@@ -518,8 +505,6 @@ public class ConnectionImplTest {
             conn.getTcpConnection().close();
 
             assertTrue(latch.await(5, TimeUnit.SECONDS));
-
-            verifier.verifyLogMsgEquals(Level.WARN, "Error flushing output stream", atLeastOnce());
         }
     }
 
@@ -569,7 +554,6 @@ public class ConnectionImplTest {
                     .processExpectedInfo();
             conn.doReconnect();
             verify(conn, times(1)).processConnectInit();
-            verifier.verifyLogMsgMatches(Level.WARN, "couldn't connect to .+$");
         }
     }
 
@@ -743,7 +727,6 @@ public class ConnectionImplTest {
             ConnectionAccessor.setState(conn, CONNECTED);
 
             conn.processOpError(new Exception("foo"));
-            verifier.verifyLogMsgEquals(Level.WARN, "I/O error during flush");
         }
     }
 
@@ -921,7 +904,6 @@ public class ConnectionImplTest {
             connection.setFlushChannel(fch);
             ConnectionAccessor.setState(connection, RECONNECTING);
             connection.publish("foo", null);
-            verifier.verifyLogMsgEquals(Level.ERROR, "I/O exception during flush");
         }
     }
 
@@ -932,7 +914,6 @@ public class ConnectionImplTest {
         try (ConnectionImpl connection = (ConnectionImpl) newMockedConnection()) {
             connection.setOutputStream(os);
             connection.publish("foo", null, null, true);
-            verifier.verifyLogMsgEquals(Level.ERROR, "I/O exception during force flush");
         }
     }
 
@@ -949,7 +930,6 @@ public class ConnectionImplTest {
             when(pendingMock.size()).thenReturn(conn.getOptions().getReconnectBufSize() + 10);
             ConnectionAccessor.setState(conn, RECONNECTING);
             conn.publish("foo", null);
-            verifier.verifyLogMsgEquals(Level.ERROR, "I/O exception during flush");
         }
     }
 
@@ -963,8 +943,6 @@ public class ConnectionImplTest {
             c.setOutputStream(bwMock);
             c.setPending(pendingMock);
             c.publish("foo", null);
-            verifier.verifyLogMsgEquals(Level.WARN,
-                    "nats: reallocating publish buffer due to overflow");
         }
     }
 
@@ -1026,7 +1004,6 @@ public class ConnectionImplTest {
                     .thenReturn(new Srv(URI.create("nats://localhost:4222"), false));
             c.createConn();
             verify(bwMock, times(1)).flush();
-            verifier.verifyLogMsgEquals(Level.WARN, Nats.ERR_TCP_FLUSH_FAILED);
         }
     }
 
@@ -1042,9 +1019,7 @@ public class ConnectionImplTest {
             TcpConnection conn = tcf.createConnection();
             doThrow(new IOException(ERR_NO_SERVERS)).when(conn).open(anyString(), anyInt());
             doReturn(conn).when(tcf).createConnection();
-            setLogLevel(Level.DEBUG);
             nc.createConn();
-            verifier.verifyLogMsgMatches(Level.DEBUG, "Couldn't establish connection to .+$");
         }
     }
 
@@ -1920,8 +1895,6 @@ public class ConnectionImplTest {
             doThrow(new IOException("test")).when(bwMock).write(any(byte[].class));
             c.sendSubscriptionMessage(mockSub);
             verify(bwMock).write(any(byte[].class));
-            verifier.verifyLogMsgEquals(Level.WARN,
-                    "nats: I/O exception while sending subscription message");
         }
     }
 

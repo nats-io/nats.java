@@ -13,9 +13,6 @@ import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.Subscription;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -24,7 +21,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Subscriber {
-    static final Logger log = LoggerFactory.getLogger(Subscriber.class);
 
     private String url = Nats.DEFAULT_URL;
     private String subject;
@@ -55,7 +51,6 @@ public class Subscriber {
         final AtomicInteger delivered = new AtomicInteger();
 
         try (final Connection nc = Nats.connect(url)) {
-            // System.out.println("Connected successfully to " + cf.getNatsUrl());
             try (final Subscription sub = nc.subscribe(subject, qgroup, new MessageHandler() {
                 @Override
                 public void onMessage(Message m) {
@@ -74,12 +69,12 @@ public class Subscriber {
                 Thread hook = new Thread(new Runnable() {
                     @Override
                     public void run() {
-                        System.err.println("\nCaught CTRL-C, shutting down gracefully...\n");
+                        System.err.println("\nCaught CTRL-C, shutting down gracefully...");
                         try {
                             sub.unsubscribe();
                             nc.close();
                         } catch (Exception e) {
-                            log.error("Problem unsubscribing", e);
+                            System.err.println("Problem unsubscribing:" + e);
                         }
                         done.countDown();
                     }

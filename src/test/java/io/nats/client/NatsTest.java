@@ -14,17 +14,11 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Created by larry on 11/15/16.
  */
 public class NatsTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    private static final Logger logger = LoggerFactory.getLogger(NatsTest.class);
-
-    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();

@@ -12,7 +12,6 @@ import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -26,8 +25,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import ch.qos.logback.classic.Level;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -37,8 +34,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -55,10 +50,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Category(IntegrationTest.class)
 public class ITBasicTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(ITBasicTest.class);
-
-    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
@@ -80,7 +71,6 @@ public class ITBasicTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        verifier.setup();
     }
 
     /**
@@ -88,8 +78,6 @@ public class ITBasicTest {
      */
     @After
     public void tearDown() throws Exception {
-        verifier.teardown();
-        setLogLevel(Level.INFO);
     }
 
     @Test

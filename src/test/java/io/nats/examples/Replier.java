@@ -13,9 +13,6 @@ import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.Subscription;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,7 +23,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Replier {
-    static final Logger log = LoggerFactory.getLogger(Replier.class);
 
     private String url = Nats.DEFAULT_URL;
     private String subject;
@@ -91,7 +87,7 @@ public class Replier {
                             sub.unsubscribe();
                             nc.close();
                         } catch (Exception e) {
-                            log.error("Problem unsubscribing", e);
+                            System.err.println("Problem unsubscribing: " + e);
                         }
                         done.countDown();
                     }

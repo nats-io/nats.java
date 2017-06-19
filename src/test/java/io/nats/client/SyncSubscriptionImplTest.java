@@ -9,7 +9,6 @@ package io.nats.client;
 import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
 import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -19,8 +18,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -32,8 +29,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
@@ -44,10 +39,6 @@ import java.util.concurrent.locks.Condition;
 
 @Category(UnitTest.class)
 public class SyncSubscriptionImplTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(SyncSubscriptionImplTest.class);
-
-    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
@@ -83,7 +74,6 @@ public class SyncSubscriptionImplTest {
     public void setUp() throws Exception {
         exec = Executors.newCachedThreadPool();
         MockitoAnnotations.initMocks(this);
-        verifier.setup();
     }
 
     /**
@@ -94,8 +84,6 @@ public class SyncSubscriptionImplTest {
     @After
     public void tearDown() throws Exception {
         exec.shutdownNow();
-        verifier.teardown();
-        setLogLevel(Level.INFO);
     }
 
     @Test

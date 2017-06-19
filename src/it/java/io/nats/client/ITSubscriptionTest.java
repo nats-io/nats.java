@@ -12,15 +12,12 @@ import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.newDefaultConnection;
 import static io.nats.client.UnitTestUtilities.runDefaultServer;
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static io.nats.client.UnitTestUtilities.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-
-import ch.qos.logback.classic.Level;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -30,8 +27,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -43,10 +38,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Category(IntegrationTest.class)
 public class ITSubscriptionTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    private static final Logger logger = LoggerFactory.getLogger(ITSubscriptionTest.class);
-
-    static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
@@ -84,7 +75,6 @@ public class ITSubscriptionTest {
      */
     @After
     public void tearDown() throws Exception {
-        setLogLevel(Level.INFO);
         if (!exec.isShutdown()) {
             exec.shutdownNow();
         }
@@ -300,7 +290,6 @@ public class ITSubscriptionTest {
                     exec.execute(new Runnable() {
                         public void run() {
                             long t0 = 0L;
-                            long elapsed = 0L;
                             while (true) {
                                 // The first to reach the max delivered will cause the
                                 // subscription to be removed, which will kick out all
@@ -315,9 +304,6 @@ public class ITSubscriptionTest {
                                         break;
                                     }
                                 } catch (IOException | InterruptedException e) {
-                                    elapsed = System.nanoTime() - t0;
-                                    logger.debug("Thread {} interrupted: '{}'",
-                                            Thread.currentThread().getId(), e.getMessage());
                                     break;
                                 }
                             }

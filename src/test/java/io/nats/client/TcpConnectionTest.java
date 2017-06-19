@@ -6,7 +6,6 @@
 
 package io.nats.client;
 
-import static io.nats.client.UnitTestUtilities.setLogLevel;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -18,8 +17,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import ch.qos.logback.classic.Level;
-import io.nats.client.TcpConnection.HandshakeListener;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -31,8 +28,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,21 +35,13 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.Certificate;
 
 import javax.net.SocketFactory;
-import javax.net.ssl.HandshakeCompletedEvent;
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 @Category(UnitTest.class)
 public class TcpConnectionTest {
-    static final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    static final Logger logger = LoggerFactory.getLogger(TcpConnectionTest.class);
-
-    private static final LogVerifier verifier = new LogVerifier();
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
@@ -79,13 +66,10 @@ public class TcpConnectionTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        verifier.setup();
     }
 
     @After
     public void tearDown() throws Exception {
-        verifier.teardown();
-        setLogLevel(Level.INFO);
     }
 
     @SuppressWarnings("resource")
@@ -146,7 +130,6 @@ public class TcpConnectionTest {
         try (TcpConnection conn = new TcpConnection()) {
             SSLSocketFactory sslSf = mock(SSLSocketFactory.class);
             conn.setSocketFactory(sslSf);
-            conn.setTlsDebug(true);
             InetAddress addr = mock(InetAddress.class);
             Socket sock = mock(SSLSocket.class);
             when(sock.getInetAddress()).thenReturn(addr);
@@ -191,38 +174,6 @@ public class TcpConnectionTest {
     }
 
     @Test
-    public void testHandshakeListener() throws SSLPeerUnverifiedException {
-        try (TcpConnection conn = new TcpConnection()) {
-            final HandshakeListener hcb = conn.new HandshakeListener();
-            HandshakeCompletedEvent event = mock(HandshakeCompletedEvent.class);
-            Certificate[] certs = new Certificate[2];
-            certs[0] = mock(Certificate.class);
-            certs[1] = mock(Certificate.class);
-
-            SSLSession session = mock(SSLSession.class);
-            when(event.getSession()).thenReturn(session);
-            when(session.getPeerHost()).thenReturn("127.0.0.1");
-            when(session.getCipherSuite()).thenReturn("TEST_TEST");
-            when(session.getPeerCertificates()).thenReturn(certs);
-
-            hcb.handshakeCompleted(event);
-        }
-    }
-    // @Test
-    // public void testGetBufferedInputStreamReader() {
-    // }
-    //
-    // @Test
-    // public void testGetReadBufferedStream() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testGetWriteBufferedStream() {
-    // fail("Not yet implemented"); // TODO
-    // }
-
-    @Test
     public void testIsConnected() {
         try (TcpConnection conn = new TcpConnection()) {
             Socket sock = null;
@@ -232,28 +183,4 @@ public class TcpConnectionTest {
             fail(e.getMessage());
         }
     }
-
-    // @Test
-    // public void testSetSocketFactory() {
-    // fail("Not yet implemented"); // TODO
-    // }
-    //
-    // @Test
-    // public void testMakeTLS() {
-    // fail("Not yet implemented"); // TODO
-    // }
-
-    @Test
-    public void testSetTlsDebug() {
-        try (TcpConnection conn = new TcpConnection()) {
-            assertFalse(conn.isTlsDebug());
-            conn.setTlsDebug(true);
-            assertTrue(conn.isTlsDebug());
-            conn.setTlsDebug(false);
-            assertFalse(conn.isTlsDebug());
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
-    }
-
 }

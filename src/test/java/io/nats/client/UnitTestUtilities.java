@@ -15,7 +15,6 @@ import static org.mockito.Mockito.mock;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -36,8 +35,6 @@ class UnitTestUtilities {
     // final Object mu = new Object();
     static NatsServer defaultServer = null;
     Process authServerProcess = null;
-
-    static final org.slf4j.Logger logger = LoggerFactory.getLogger(UnitTestUtilities.class);
 
     static final String defaultInfo =
             "INFO {\"server_id\":\"a1c9cf0c66c3ea102c600200d441ad8e\",\"version\":\"0.7.2\",\"go\":"
@@ -96,7 +93,6 @@ class UnitTestUtilities {
         final AtomicBoolean closed = new AtomicBoolean(false);
         final BlockingQueue<String> queue = new LinkedBlockingDeque<String>();
         // First lines are always INFO and then PONG
-        logger.trace("\n\nSetting up new TCP Connection mock: {}", tcpConnMock);
         doReturn(serverInfo.toString(), new String(pongBytes).trim()).when(bufferedReaderMock)
                 .readLine();
 
@@ -186,7 +182,6 @@ class UnitTestUtilities {
                 @Override
                 public TcpConnection answer(InvocationOnMock invocationOnMock) throws Throwable {
                     TcpConnection conn = newMockedTcpConnection(info);
-                    logger.trace("\n\nCreated new TcpConnection mock: {}\n", conn);
                     return conn;
                 }
             }).when(tcf).createConnection();
@@ -387,16 +382,6 @@ class UnitTestUtilities {
             /* NOOP */
         }
         return val;
-    }
-
-    static synchronized void setLogLevel(ch.qos.logback.classic.Level level) {
-        ch.qos.logback.classic.Logger lbLog =
-                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger("io.nats.client");
-        lbLog.setLevel(level);
-    }
-
-    static void processServerConfigFile(String configFile) {
-
     }
 
     static StackTraceElement[] getStackTraceByName(String threadName) {
