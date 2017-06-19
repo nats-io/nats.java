@@ -60,6 +60,8 @@ We use RNG to generate unique inbox names. A peculiarity of the JDK on Linux (se
 ```java
 import io.nats.client.*;
 
+// ...
+
 // Connect to default URL ("nats://localhost:4222")
 Connection nc = Nats.connect();
 
@@ -68,30 +70,36 @@ nc.publish("foo", "Hello World".getBytes());
 
 // Simple Async Subscriber
 nc.subscribe("foo", m -> {
-    System.out.println("Received a message: %s\n", new String(m.getData()));
+    System.out.printf("Received a message: %s\n", new String(m.getData()));
 });
 
 // Simple Sync Subscriber
-Subscription sub = nc.subscribeSync("foo");
-Message m = sub.nextMsg(timeout);
+int timeout = 1000;
+SyncSubscription sub = nc.subscribeSync("foo");
+Message msg = sub.nextMessage(timeout);
 
 // Unsubscribing
 sub = nc.subscribe("foo");
 sub.unsubscribe();
 
 // Requests
-msg = nc.request("help", "help me", 10000);
+msg = nc.request("help", "help me".getBytes(), 10000);
 
 // Replies
-nc.subscribe("help", m -> {
-    nc.publish(m.getReplyTo(), "I can help!");
+nc.subscribe("help", reply -> {
+    try {
+        nc.publish(reply.getReplyTo(), "I can help!".getBytes());
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
 });
 
+// ...
+
 // Close connection
-Connect nc = Nats.connect("nats://localhost:4222");
-...
 nc.close();
 ```
+
 ## TLS
 
 TLS/SSL connections may be configured through the use of an [SSLContext](https://docs.oracle.com/javase/8/docs/api/javax/net/ssl/SSLContext.html).
