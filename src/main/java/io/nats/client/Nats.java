@@ -201,6 +201,10 @@ public final class Nats {
      * This property is defined as String {@value #PROP_URL}.
      */
     public static final String PROP_URL = PFX + "url";
+    /**
+     * This property is defined as String {@value #PROP_USE_OLD_REQUEST_STYLE}.
+     */
+    public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
 
     /*
      * Constants

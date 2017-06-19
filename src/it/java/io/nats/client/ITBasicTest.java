@@ -418,8 +418,17 @@ public class ITBasicTest {
 
     @Test
     public void testRequestTimeout() throws Exception {
+        testRequestTimeout(false);
+    }
+
+    @Test
+    public void testOldRequestTimeout() throws Exception {
+        testRequestTimeout(true);
+    }
+
+    private void testRequestTimeout(boolean useOldStyle) throws Exception {
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = useOldStyle ? new Options.Builder().useOldRequestStyle(true).build().connect() : newDefaultConnection()) {
                 assertFalse(c.isClosed());
                 assertNull("should time out", c.request("foo", "help".getBytes(), 10));
             }
@@ -428,9 +437,18 @@ public class ITBasicTest {
 
     @Test
     public void testRequest() throws Exception {
+        testRequest(false);
+    }
+
+    @Test
+    public void testOldRequest() throws Exception {
+        testRequest(true);
+    }
+
+    private void testRequest(boolean useOldStyle) throws Exception {
         final byte[] response = "I will help you.".getBytes();
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection c = newDefaultConnection()) {
+            try (Connection c = useOldStyle ? new Options.Builder().useOldRequestStyle(true).build().connect() : newDefaultConnection()) {
                 sleep(100);
                 try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     public void onMessage(Message msg) {

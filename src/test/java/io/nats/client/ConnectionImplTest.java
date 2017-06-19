@@ -1734,14 +1734,14 @@ public class ConnectionImplTest {
     }
 
     @Test
-    public void testRequest() throws Exception {
+    public void testOldRequest() throws Exception {
         final String inbox = "_INBOX.DEADBEEF";
-        // SyncSubscriptionImpl mockSub = mock(SyncSubscriptionImpl.class);
         Message replyMsg = new Message();
         replyMsg.setData("answer".getBytes());
         replyMsg.setSubject(inbox);
         when(syncSubMock.nextMessage(any(long.class), any(TimeUnit.class))).thenReturn(replyMsg);
-        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection())) {
+        Options opts = new Options.Builder().useOldRequestStyle(true).build();
+        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection(opts))) {
             doReturn(inbox).when(c).newInbox();
             doReturn(mchMock).when(c).createMsgChannel(anyInt());
             doReturn(syncSubMock).when(c).subscribe(inbox, null, null,
@@ -1759,11 +1759,12 @@ public class ConnectionImplTest {
     }
 
     @Test
-    public void testRequestErrors() throws Exception {
+    public void testOldRequestErrors() throws Exception {
         final String errMsg = "testRequestErrors()";
         thrown.expect(IOException.class);
         thrown.expectMessage(errMsg);
-        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
+        Options opts = new Options.Builder().useOldRequestStyle(true).build();
+        try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection(opts))) {
             when(nc.subscribeSync("foo", null)).thenReturn(syncSubMock);
             doThrow(new IOException(errMsg)).when(nc).publish(anyString(), anyString(),
                     any(byte[].class));
