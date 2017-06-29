@@ -86,9 +86,9 @@ sub.unsubscribe();
 msg = nc.request("help", "help me".getBytes(), 10000);
 
 // Replies
-nc.subscribe("help", reply -> {
+nc.subscribe("help", message -> {
     try {
-        nc.publish(reply.getReplyTo(), "I can help!".getBytes());
+        nc.publish(message.getReplyTo(), "I can help!".getBytes());
     } catch (Exception e) {
         e.printStackTrace();
     }
