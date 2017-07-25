@@ -88,8 +88,9 @@ class NatsServer implements Runnable, AutoCloseable {
     }
 
     private ProcessStartInfo createProcessStartInfo() {
-        String path = Paths.get("target", "/", GNATSD).toAbsolutePath().toString();
-        psInfo = new ProcessStartInfo(path);
+
+        // The NATS server must be on the path.
+        psInfo = new ProcessStartInfo(GNATSD);
 
         if (debug) {
             psInfo.addArgument("-DV");
@@ -106,15 +107,26 @@ class NatsServer implements Runnable, AutoCloseable {
                 System.err.println("Inheriting IO, psInfo =" + psInfo);
                 pb.inheritIO();
             } else {
-                pb.redirectError(new File("/dev/null"));
-                pb.redirectOutput(new File("/dev/null"));
+                // All NATS server output goes to stderr
+                String errFile = "/dev/null";
+
+                String osName = System.getProperty("os.name");
+                if (osName != null && osName.contains("Windows")) {
+                    // Windows uses the "nul" file.
+                    errFile = "nul";
+                }
+
+                pb.redirectError(new File(errFile));
             }
             p = pb.start();
             if (debug) {
                 System.out.println("Started [" + psInfo + "]");
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Unable to start [" + psInfo + "]. The NATS server " +
+                    "must be installed and found in the path.\n" +
+                    "See https://github.com/nats-io/gnatsd");
+            System.out.println(e.getMessage());
         }
     }
 
