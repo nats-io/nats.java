@@ -100,15 +100,6 @@
         <!-- Only unit tests are run by default. -->
         <skip.integration.tests>true</skip.integration.tests>
         <skip.unit.tests>false</skip.unit.tests>
-
-        <!-- Used for downloading and installing a server binary for tests -->
-        <server.version>0.9.6</server.version>
-        <server.exec.name>gnatsd</server.exec.name>
-        <server.exec.pkg>${server.exec.name}-v${server.version}-${nats.os}-${nats.arch}
-        </server.exec.pkg>
-        <server.exec.pkg.url>
-            https://github.com/nats-io/${server.exec.name}/releases/download/v${server.version}/${server.exec.pkg}.zip
-        </server.exec.pkg.url>
     </properties>
 
     <build>
@@ -177,21 +168,6 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>prepare</id>
-                        <phase>pre-integration-test</phase>
-                        <configuration>
-                            <target xmlns:unless="ant:unless" xmlns:if="ant:if" name="copy-server-exec" unless:true="${server.installed}">
-                                <condition property="server.installed" else="false">
-                                    <available file="${server.exec.name}" filepath="${project.build.directory}" type="file" />
-                                </condition>
-                                <echo if:true="${server.installed}" message="${server.exec.name} is already installed. Skipping download..." />
-                                <echo unless:true="${server.installed}" message="Installing ${server.exec.pkg} as ${project.build.directory}/${server.exec.name}..." />
-                                <get unless:true="${server.installed}" src="${server.exec.pkg.url}" dest="${project.build.directory}" skipexisting="true" />
-                                <unzip unless:true="${server.installed}" src="${project.build.directory}/${server.exec.pkg}.zip" dest="${project.build.directory}" overwrite="false" />
-                                <move unless:true="${server.installed}" file="${project.build.directory}/${server.exec.pkg}/${server.exec.name}" tofile="${project.build.directory}/${server.exec.name}" overwrite="false" />
-                                <chmod perm="+x" file="${project.build.directory}/${server.exec.name}" />
-                            </target>
-                        </configuration>
                         <goals>
                             <goal>run</goal>
                         </goals>
