@@ -313,7 +313,7 @@ public class Options {
         return disconnectedCb;
     }
     
-    public ExecutorService getSubscriptionDispatch() {
+    public ExecutorService getSubscriptionDispatchPool() {
         return subscriptionDispatchPool;
     }
 
