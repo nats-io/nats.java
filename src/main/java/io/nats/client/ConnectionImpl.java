@@ -25,7 +25,6 @@ import static io.nats.client.Nats.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Nats.ERR_SECURE_CONN_WANTED;
 import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
 import static io.nats.client.Nats.ERR_STALE_CONNECTION;
-import static io.nats.client.Nats.ERR_TCP_FLUSH_FAILED;
 import static io.nats.client.Nats.ERR_TIMEOUT;
 import static io.nats.client.Nats.PERMISSIONS_ERR;
 import static io.nats.client.Nats.TLS_SCHEME;
@@ -56,6 +55,7 @@ import java.util.Random;
 import java.util.TimerTask;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -92,6 +92,11 @@ class ConnectionImpl implements Connection {
 
     // The buffered size of the flush "kick" channel
     protected static final int FLUSH_CHAN_SIZE = 1;
+
+    static final CompletableFuture<Void> COMPLETED = new CompletableFuture();
+    static {
+        COMPLETED.complete(null);
+    }
 
     // The interval the flusher will wait after each flush of the buffered output stream
     private long flushTimerInterval = 1;
@@ -219,6 +224,8 @@ class ConnectionImpl implements Connection {
     // The flusher signalling channel
     private BlockingQueue<Boolean> fch;
 
+    private final ExecutorService subscriptionDispatchPool;
+
 //    ConnectionImpl() {
 //    }
 
@@ -234,6 +241,20 @@ class ConnectionImpl implements Connection {
         } else {
             tcf = new TcpConnectionFactory();
         }
+        ExecutorService subscriptionPool = opts.subscriptionDispatchPool;
+        if (subscriptionPool == null && props.contains(Nats.PROP_SUBSCRIPTION_CONCURRENCY)) {
+            try {
+                int concurrency = Integer.parseInt(props.getProperty(Nats.PROP_SUBSCRIPTION_CONCURRENCY));
+                if (concurrency > 0) {
+                    subscriptionPool = /* JDK 8: Executors.newWorkStealingPool(concurrency) */
+                            Executors.newFixedThreadPool(concurrency);
+                }
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("Value for subscription concurrency is not a number: "
+                    + props.getProperty(Nats.PROP_SUBSCRIPTION_CONCURRENCY));
+            }
+        }
+        this.subscriptionDispatchPool = subscriptionPool;
     }
 
     ScheduledExecutorService createScheduler() {
@@ -1441,52 +1462,62 @@ class ConnectionImpl implements Connection {
      * @param offset the offset within this buffer of the beginning of the message body
      * @param length the length of the message body
      */
-    void processMsg(byte[] data, int offset, int length) {
-        SubscriptionImpl sub;
-
+    Future<?> processMsg(byte[] data, int offset, int length) {
         mu.lock();
         try {
             stats.incrementInMsgs();
             stats.incrementInBytes(length);
 
-            sub = subs.get(parser.ps.ma.sid);
+            final SubscriptionImpl sub = subs.get(parser.ps.ma.sid);
             if (sub == null) {
-                return;
+                return COMPLETED;
             }
 
             // Doing message create outside of the sub's lock to reduce contention.
             // It's possible that we end up not using the message, but that's ok.
-            Message msg = new Message(parser.ps.ma, sub, data, offset, length);
-
-            sub.lock();
-            try {
-                sub.pMsgs++;
-                if (sub.pMsgs > sub.pMsgsMax) {
-                    sub.pMsgsMax = sub.pMsgs;
-                }
-                sub.pBytes += (msg.getData() == null ? 0 : msg.getData().length);
-                if (sub.pBytes > sub.pBytesMax) {
-                    sub.pBytesMax = sub.pBytes;
-                }
-
-                // Check for a Slow Consumer
-                if ((sub.pMsgsLimit > 0 && sub.pMsgs > sub.pMsgsLimit)
-                        || (sub.pBytesLimit > 0 && sub.pBytes > sub.pBytesLimit)) {
-                    handleSlowConsumer(sub, msg);
-                } else {
-                    // We use mch for everything, unlike Go client
-                    if (sub.getChannel() != null) {
-                        if (sub.getChannel().add(msg)) {
-                            sub.pCond.signal();
-                            // Clear Slow Consumer status
-                            sub.setSlowConsumer(false);
-                        } else {
-                            handleSlowConsumer(sub, msg);
+            final Message msg = new Message(parser.ps.ma, sub, data, offset, length);
+            Runnable run = new Runnable() {
+                @Override
+                public void run() {
+                    mu.lock();
+                    sub.lock();
+                    try {
+                        sub.pMsgs++;
+                        if (sub.pMsgs > sub.pMsgsMax) {
+                            sub.pMsgsMax = sub.pMsgs;
                         }
+                        sub.pBytes += (msg.getData() == null ? 0 : msg.getData().length);
+                        if (sub.pBytes > sub.pBytesMax) {
+                            sub.pBytesMax = sub.pBytes;
+                        }
+
+                        // Check for a Slow Consumer
+                        if ((sub.pMsgsLimit > 0 && sub.pMsgs > sub.pMsgsLimit)
+                                || (sub.pBytesLimit > 0 && sub.pBytes > sub.pBytesLimit)) {
+                            handleSlowConsumer(sub, msg);
+                        } else {
+                            // We use mch for everything, unlike Go client
+                            if (sub.getChannel() != null) {
+                                if (sub.getChannel().add(msg)) {
+                                    sub.pCond.signal();
+                                    // Clear Slow Consumer status
+                                    sub.setSlowConsumer(false);
+                                } else {
+                                    handleSlowConsumer(sub, msg);
+                                }
+                            }
+                        }
+                    } finally {
+                        sub.unlock();
+                        mu.unlock();
                     }
                 }
-            } finally {
-                sub.unlock();
+            };
+            if (subscriptionDispatchPool != null && sub instanceof AsyncSubscription) {
+                return subscriptionDispatchPool.submit(run);
+            } else {
+                run.run();
+                return COMPLETED;
             }
         } finally {
             mu.unlock();

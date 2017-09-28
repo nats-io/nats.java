@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 /**
  * <img src="{@docRoot}/resources/large-logo.png" alt="NATS logo">
@@ -379,6 +380,7 @@ public final class Nats {
 
     static final String PROP_PROPERTIES_FILENAME = "jnats.properties";
     static final String PROP_CLIENT_VERSION = "client.version";
+    static final String PROP_SUBSCRIPTION_CONCURRENCY = "subscription.concurrency";
 
     // Server error strings
     protected static final String SERVER_ERR_PARSER = "'Parser Error'";
@@ -439,7 +441,7 @@ public final class Nats {
      * @return the default {@link Options}
      */
     public static Options defaultOptions() {
-        return new Options.Builder().build();
+        return new Options.Builder().subscriptionDispatchPool(Executors.newFixedThreadPool(4)).build();
     }
 
     static List<URI> processUrlString(String url) {
