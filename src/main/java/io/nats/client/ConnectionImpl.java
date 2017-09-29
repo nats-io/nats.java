@@ -205,6 +205,8 @@ class ConnectionImpl implements Connection {
     private ExecutorService cbexec;
     static final String CB_EXEC_NAME = "jnats-callbacks";
 
+    static final String DISPATCH_EXEC_NAME = "jnats-disptach";
+
     // The ping timer task
     private ScheduledFuture<?> ptmr = null;
     static final String PINGTIMER = "pingtimer";
@@ -224,7 +226,7 @@ class ConnectionImpl implements Connection {
     private final ExecutorService subscriptionDispatchPool;
     private final AsyncDeliveryQueue asyncQueue;
     private final int subscriptionConcurrency;
-
+    private final boolean dispatchPoolCreatedLocally;
 //    ConnectionImpl() {
 //    }
 
@@ -242,10 +244,12 @@ class ConnectionImpl implements Connection {
         }
         ExecutorService subscriptionPool = opts.subscriptionDispatchPool;
         int concurrency = -1;
+        boolean createdPool = false;
         if (props.contains(Nats.PROP_SUBSCRIPTION_CONCURRENCY)) {
             try {
                 concurrency = Integer.parseInt(props.getProperty(Nats.PROP_SUBSCRIPTION_CONCURRENCY));
                 if (concurrency > 0 && subscriptionPool == null) {
+                    createdPool = true;
                     subscriptionPool = Executors.newFixedThreadPool(concurrency);
                 }
             } catch (NumberFormatException ex) {
@@ -260,6 +264,7 @@ class ConnectionImpl implements Connection {
                 concurrency = Runtime.getRuntime().availableProcessors();
             }
         }
+        dispatchPoolCreatedLocally = createdPool;
         subscriptionConcurrency = Math.max(concurrency, 1);
         this.subscriptionDispatchPool = subscriptionPool;
         asyncQueue = subscriptionPool == null ? null : new AsyncDeliveryQueue();
@@ -684,6 +689,10 @@ class ConnectionImpl implements Connection {
 
             if (subexec != null) {
                 shutdownAndAwaitTermination(subexec, SUB_EXEC_NAME);
+            }
+
+            if (dispatchPoolCreatedLocally) {
+                shutdownAndAwaitTermination(subscriptionDispatchPool, DISPATCH_EXEC_NAME);
             }
 
         } finally {
@@ -1406,7 +1415,7 @@ class ConnectionImpl implements Connection {
     }
 
     void fetchAndDispatchAsyncMessages(int index) throws InterruptedException {
-        Thread.currentThread().setName("NATS async subscription thread " + index + " for " + opts.connectionName);
+        Thread.currentThread().setName(DISPATCH_EXEC_NAME + " " + index + " for " + opts.connectionName);
         List<MessageBatch> batches = new LinkedList<>();
         for (;;) {
             asyncQueue.get(batches);
