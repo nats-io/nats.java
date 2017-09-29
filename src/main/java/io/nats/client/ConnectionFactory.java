@@ -12,6 +12,7 @@ import static io.nats.client.Nats.DEFAULT_RECONNECT_BUF_SIZE;
 import static io.nats.client.Nats.NATS_SCHEME;
 import static io.nats.client.Nats.PROP_HOST;
 import static io.nats.client.Nats.PROP_PORT;
+import static io.nats.client.Nats.PROP_SUBSCRIPTION_CONCURRENCY;
 import static io.nats.client.Nats.TCP_SCHEME;
 import static io.nats.client.Nats.TLS_SCHEME;
 
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 import javax.net.ssl.SSLContext;
 
 /**
@@ -56,6 +58,7 @@ public class ConnectionFactory {
     private ReconnectedCallback reconnectedCallback;
     private String urlString = null;
     private boolean tlsDebug;
+    private int subscriptionConcurrency = -1;
 
     /**
      * Constructs a new connection factory from a {@link Properties} object.
@@ -75,7 +78,9 @@ public class ConnectionFactory {
             this.port =
                     Integer.parseInt(props.getProperty(PROP_PORT, Integer.toString(DEFAULT_PORT)));
         }
-
+        if (props.containsKey(PROP_SUBSCRIPTION_CONCURRENCY)) {
+            this.subscriptionConcurrency = Integer.parseInt(props.getProperty(PROP_SUBSCRIPTION_CONCURRENCY, "-1"));
+        }
         this.urlString = opts.url;
         this.url = URI.create(opts.url);
         this.username = opts.username;
@@ -279,9 +284,15 @@ public class ConnectionFactory {
         result = result.factory(factory).maxReconnect(maxReconnect).reconnectWait(reconnectWait)
                 .reconnectBufSize(reconnectBufSize).name(connectionName).timeout(connectionTimeout)
                 .pingInterval(pingInterval).maxPingsOut(maxPingsOut).sslContext(sslContext)
+                .subscriptionDispatchPool(subscriptionDispatchPool)
                 .closedCb(closedCallback).disconnectedCb(disconnectedCallback)
                 .reconnectedCb(reconnectedCallback).errorCb(exceptionHandler);
         return result.build();
+    }
+
+    private ExecutorService subscriptionDispatchPool;
+    public final void setSubscriptionDispatchPool(ExecutorService svc) {
+        this.subscriptionDispatchPool = svc;
     }
 
     /**

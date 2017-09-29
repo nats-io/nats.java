@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
 
@@ -89,6 +90,8 @@ public class Options {
     public ReconnectedCallback reconnectedCb;
     public ExceptionHandler asyncErrorCb;
 
+    ExecutorService subscriptionDispatchPool;
+
     // Size of the backing ByteArrayOutputStream buffer during reconnect.
     // Once this has been exhausted publish operations will error.
     final int reconnectBufSize;
@@ -131,7 +134,7 @@ public class Options {
         this.closedCb = builder.closedCb;
         this.reconnectedCb = builder.reconnectedCb;
         this.asyncErrorCb = builder.asyncErrorCb;
-
+        this.subscriptionDispatchPool = builder.subscriptionDispatchPool;
     }
 
     @Override
@@ -310,6 +313,10 @@ public class Options {
         return disconnectedCb;
     }
 
+    public ExecutorService getSubscriptionDispatchPool() {
+        return subscriptionDispatchPool;
+    }
+
     // public void addCertificate(X509Certificate cert) {
     // if (cert==null)
     // throw new IllegalArgumentException("Null certificate");
@@ -362,6 +369,7 @@ public class Options {
         ClosedCallback closedCb;
         ReconnectedCallback reconnectedCb;
         ExceptionHandler asyncErrorCb;
+        ExecutorService subscriptionDispatchPool;
 
         /**
          * Constructs a {@link Builder} instance based on the supplied {@link Options} instance.
@@ -641,6 +649,11 @@ public class Options {
             if (sslContext != null) {
                 this.secure = true;
             }
+            return this;
+        }
+
+        public Builder subscriptionDispatchPool(ExecutorService threadPool) {
+            this.subscriptionDispatchPool = threadPool;
             return this;
         }
 

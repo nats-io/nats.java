@@ -27,6 +27,7 @@ import java.net.URL;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -64,12 +65,12 @@ class UnitTestUtilities {
 
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf)
             throws IOException {
-        return new Options.Builder().factory(tcf).build().connect();
+        return new Options.Builder().subscriptionDispatchPool(Executors.newFixedThreadPool(4)).factory(tcf).build().connect();
     }
 
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf, Options opts)
             throws IOException {
-        return new Options.Builder(opts).factory(tcf).build().connect();
+        return new Options.Builder(opts).subscriptionDispatchPool(Executors.newFixedThreadPool(4)).factory(tcf).build().connect();
     }
 
     static TcpConnection newMockedTcpConnection() throws IOException {
@@ -196,7 +197,7 @@ class UnitTestUtilities {
     }
 
     static Connection newMockedConnection(String url) throws IOException {
-        Options opts = Nats.defaultOptions();
+        Options opts = new Options.Builder().subscriptionDispatchPool(Executors.newFixedThreadPool(4)).build();
         opts.url = url;
         return newMockedConnection(opts);
     }
@@ -211,12 +212,13 @@ class UnitTestUtilities {
         if (opts == null) {
             options = new Options.Builder(Nats.defaultOptions())
                     .factory(tcfMock)
+                    .subscriptionDispatchPool(Executors.newFixedThreadPool(4))
                     .build();
             options.url = Nats.DEFAULT_URL;
         } else if (opts.getFactory() == null) {
-            options = new Options.Builder(opts).factory(tcfMock).build();
+            options = new Options.Builder(opts).subscriptionDispatchPool(Executors.newFixedThreadPool(4)).factory(tcfMock).build();
         } else {
-            options = new Options.Builder(opts).build();
+            options = new Options.Builder(opts).subscriptionDispatchPool(Executors.newFixedThreadPool(4)).build();
         }
         return Nats.connect(options.url, options);
     }

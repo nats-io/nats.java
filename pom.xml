@@ -272,6 +272,11 @@
                     <excludes>
                         <exclude>**/IT*.java</exclude>
                     </excludes>
+                    <systemPropertyVariables>
+                        <forkNumber>${surefire.forkNumber}</forkNumber>
+                        <unit.test>true</unit.test>
+                    </systemPropertyVariables>
+                    
                 </configuration>
                 <executions>
                     <execution>
