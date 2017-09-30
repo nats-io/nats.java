@@ -59,20 +59,9 @@ final class AsyncDeliveryQueue {
      * @param subscriberId The subscriber id
      * @param message The message
      */
-    void add(long subscriberId, Message message) {
+    synchronized void add(long subscriberId, Message message) {
         addIfNotNull(messagesForSubscriber.putIfAbsent(subscriberId, new Messages().add(message)), message);
         signalOneThread();
-    }
-
-    /**
-     * Pre-create a messages queue for a subscriber id, ensuring that contains()
-     * tests for that id will return true.
-     *
-     * @param subscriberId The subscriber ide
-     * @return True if the subscriber id was not already present
-     */
-    boolean touch(long subscriberId) {
-        return messagesForSubscriber.putIfAbsent(subscriberId, new Messages()) == null;
     }
 
     /**
@@ -172,7 +161,11 @@ final class AsyncDeliveryQueue {
             // e.getValue() is still the one actually in the map - another thread may
             // have been in this method concurrently and claimed it, in which case we
             // skip this key - another thread already has its messages
-            if (messagesForSubscriber.replace(e.getKey(), e.getValue(), new Messages())) {
+            boolean addToBatch;
+            synchronized (this) {
+                addToBatch = messagesForSubscriber.replace(e.getKey(), e.getValue(), new Messages());
+            }
+            if (addToBatch) {
                 long[] totalBytes = new long[1];
                 List<Message> msgs = e.getValue().drain(totalBytes);
                 if (!msgs.isEmpty()) {
@@ -195,7 +188,7 @@ final class AsyncDeliveryQueue {
 
     private void signalOneThread() {
         synchronized (this) {
-            notify();
+            notifyAll();
         }
     }
 
@@ -334,9 +327,9 @@ final class AsyncDeliveryQueue {
 
         public List<Message> drain(long[] totalBytes) {
             assert totalBytes != null && totalBytes.length == 1;
-            if (count == 0) {
-                return Collections.emptyList();
-            }
+//            if (count == 0) {
+//                return Collections.emptyList();
+//            }
             // Do the minimal amount under the lock
             MessageEntry oldTail;
             synchronized (this) {

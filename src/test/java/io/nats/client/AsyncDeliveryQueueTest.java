@@ -54,15 +54,17 @@ import org.junit.Test;
 public class AsyncDeliveryQueueTest {
 
     private final AsyncDeliveryQueue q = new AsyncDeliveryQueue();
+    static final AtomicLong IDS = new AtomicLong();
+    static final AtomicLong MESSAGE_IDS = new AtomicLong();
 
-    private final SubscriberKey keyA = new SubscriberKey("a");
-    private final SubscriberKey keyB = new SubscriberKey("b");
-    private final SubscriberKey keyC = new SubscriberKey("c");
-    private final SubscriberKey keyD = new SubscriberKey("d");
-    private final SubscriberKey keyE = new SubscriberKey("e");
-    private final SubscriberKey keyF = new SubscriberKey("f");
-    private final SubscriberKey keyG = new SubscriberKey("g");
-    private final SubscriberKey[] keys = new SubscriberKey[]{keyA, keyB, keyC, keyD, keyE, keyF, keyG};
+    static final SubscriberKey keyA = new SubscriberKey("a");
+    static final SubscriberKey keyB = new SubscriberKey("b");
+    static final SubscriberKey keyC = new SubscriberKey("c");
+    static final SubscriberKey keyD = new SubscriberKey("d");
+    static final SubscriberKey keyE = new SubscriberKey("e");
+    static final SubscriberKey keyF = new SubscriberKey("f");
+    static final SubscriberKey keyG = new SubscriberKey("g");
+    static final SubscriberKey[] keys = new SubscriberKey[]{keyA, keyB, keyC, keyD, keyE, keyF, keyG};
 
     @Test
     public void testSimpleReadWrite() throws Throwable {
@@ -335,7 +337,7 @@ public class AsyncDeliveryQueueTest {
         }
     }
 
-    private static List<Message> messageBatch(SubscriberKey key, int size) {
+    static List<Message> messageBatch(SubscriberKey key, int size) {
         List<Message> result = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             result.add(message(key, result));
@@ -343,14 +345,10 @@ public class AsyncDeliveryQueueTest {
         return result;
     }
 
-    private static final Message message(SubscriberKey key, List<? super Message> addTo) {
+    static final Message message(SubscriberKey key, List<? super Message> addTo) {
         Message message = new Message(key.name, null, bytes());
         return message;
     }
-
-    static final AtomicLong IDS = new AtomicLong();
-
-    static final AtomicLong MESSAGE_IDS = new AtomicLong();
 
     static List<ComparableMessageWrapper> toWrappers(List<? extends Message> msgs) {
         List<ComparableMessageWrapper> result = new ArrayList<>(msgs.size());
@@ -371,7 +369,7 @@ public class AsyncDeliveryQueueTest {
     // bytes and gives us a string representation that's helpful in error messages
     static class ComparableMessageWrapper implements Comparable<ComparableMessageWrapper> {
 
-        private final Message message;
+        final Message message;
 
         public ComparableMessageWrapper(Message message) {
             this.message = message;
