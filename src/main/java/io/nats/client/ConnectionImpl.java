@@ -1412,6 +1412,9 @@ class ConnectionImpl implements Connection {
         List<MessageBatch> batches = new LinkedList<>();
         for (;;) {
             asyncQueue.get(batches);
+            if (Thread.interrupted()) {
+                return;
+            }
             for (MessageBatch batch : batches) {
                 try {
                     AsyncSubscriptionImpl sub = (AsyncSubscriptionImpl) subs.get(batch.subscriberId());

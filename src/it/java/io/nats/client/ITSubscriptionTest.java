@@ -684,6 +684,12 @@ public class ITSubscriptionTest {
 
                     // Make sure dropped stats is correct
                     int dropped = toSend - limit;
+                    // XXX - with async subcriptions, the number we get here is going to
+                    // be dependent on the behavior of the thread scheduler - messages
+                    // are retrieved in batches, and what a batch contains is timing-dependent
+                    // In this test, we may be blocked in the blocker, but the maximum
+                    // is tested and the list of messages to deliver trimmed before *batch* delivery
+                    // commences
                     assertEquals(String.format("Expected dropped to be %d, but was actually %d\n",
                             dropped, sub.getDropped()), dropped, sub.getDropped());
                     int ae = aeCalled.get();
