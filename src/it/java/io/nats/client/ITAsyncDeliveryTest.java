@@ -72,15 +72,25 @@ public class ITAsyncDeliveryTest {
     public void tearDown() throws Exception {
     }
 
+    private static final boolean LOG = Boolean.getBoolean("test.log");
+    static void log(String s) {
+        if (LOG) {
+            System.out.println(s);
+        }
+    }
+
     @Test(timeout = 480000)
     public void testThreadPerSubscription() throws Throwable {
         boolean batched = false;
-        System.out.println("\n\n\n**************** testThreadPerSubscription *********************\n\n\n");
-        EH errors = new EH();
+        log("\n\n\n**************** testThreadPerSubscription *********************\n\n\n");
+        TestExceptionHandler errors = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
             try (ConnectionImpl conn = (ConnectionImpl) connection(batched, errors)) {
                 String msgPrefix = batched ? "batched-mode " : "thread-per-subscriber ";
+                long start = System.currentTimeMillis();
                 testAsyncDelivery(conn, msgPrefix, errors);
+                long elapsed = System.currentTimeMillis() - start;
+                log("Completed in " + elapsed + "ms");
                 errors.rethrow();
             }
         }
@@ -89,52 +99,18 @@ public class ITAsyncDeliveryTest {
     @Test(timeout = 480000)
     public void testBatchedSubscriptions() throws Throwable {
         boolean batched = true;
-        System.out.println("\n\n\n**************** testBatchedSubscriptions *********************\n\n\n");
-        EH errors = new EH();
+        log("\n\n\n**************** testBatchedSubscriptions *********************\n\n\n");
+        TestExceptionHandler errors = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
             try (ConnectionImpl conn = (ConnectionImpl) connection(batched, errors)) {
                 String msgPrefix = batched ? "batched-mode " : "thread-per-subscriber ";
+                long start = System.currentTimeMillis();
                 testAsyncDelivery(conn, msgPrefix, errors);
+                long elapsed = System.currentTimeMillis() - start;
+                log("Completed in " + elapsed + "ms");
                 errors.rethrow();
             }
         }
-    }
-
-    static class EH implements ExceptionHandler {
-
-        Throwable thrown = null;
-
-        synchronized void rethrow() throws Throwable {
-            if (thrown != null) {
-                throw thrown;
-            }
-        }
-
-        volatile Thread testThread;
-
-        void pickUpTestThread() {
-            testThread = Thread.currentThread();
-        }
-
-        @Override
-        public synchronized void onException(NATSException ex) {
-            Throwable t = ex;
-            while (t.getCause() != null) {
-                t = t.getCause();
-                if (t.getCause() == null) {
-                    break;
-                }
-            }
-            if (thrown != null) {
-                thrown.addSuppressed(t);
-            } else {
-                thrown = t;
-            }
-            if (testThread != null) {
-                testThread.interrupt();
-            }
-        }
-
     }
 
     static Connection connection(boolean batched, ExceptionHandler errors) throws IOException {
@@ -158,8 +134,8 @@ public class ITAsyncDeliveryTest {
         AsyncDeliveryQueueTest.keyF,
         AsyncDeliveryQueueTest.keyG,};
 
-    void testAsyncDelivery(Connection conn, String msgPrefix, EH errors) throws Throwable {
-        System.out.println("TEST DELIVERY " + msgPrefix);
+    void testAsyncDelivery(Connection conn, String msgPrefix, TestExceptionHandler errors) throws Throwable {
+        log("TEST DELIVERY " + msgPrefix);
         List<Message> messages = new CopyOnWriteArrayList<>();
         List<MsgHandler> handlers = new ArrayList<>();
         int numMessagesPerKey = 151;
@@ -186,19 +162,19 @@ public class ITAsyncDeliveryTest {
                 Thread.sleep(50);
             }
             if (i % 300 == 0) {
-                System.out.println("...published " + i + " so far...");
+                log("...published " + i + " so far...");
             }
             if (Thread.interrupted()) {
                 errors.rethrow();
             }
         }
-        System.out.println("Published " + messages.size() + " messages");
+        log("Published " + messages.size() + " messages");
         allProcessed.await(120, TimeUnit.SECONDS);
         errors.rethrow();
         Thread.sleep(1200);
-        System.out.println("Exit wait on subscribers");
+        log("Exit wait on subscribers");
         for (MsgHandler h : handlers) {
-            System.out.println(h.sub + " RECEIVED " + h.deliveredCount());
+            log(h.sub + " RECEIVED " + h.deliveredCount());
         }
 
         int total = 0;
@@ -235,7 +211,7 @@ public class ITAsyncDeliveryTest {
         @Override
         public void onMessage(Message msg) {
             if (order.isEmpty()) {
-                System.out.println(pfx + "Received first: " + msg.getSubject());
+                log(pfx + "Received first: " + msg.getSubject());
             }
             if (sub != null) {
                 // Error handler will catch
@@ -245,7 +221,7 @@ public class ITAsyncDeliveryTest {
             order.put(TOTAL_ORDER.getAndIncrement(), msg);
             latch.countDown();
             if (order.size() % 200 == 0) {
-                System.out.println(pfx + "Received " + order.size() + " for " + msg.getSubject());
+                log(pfx + "Received " + order.size() + " for " + msg.getSubject());
             }
         }
 

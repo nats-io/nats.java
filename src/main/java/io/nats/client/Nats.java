@@ -445,7 +445,7 @@ public final class Nats {
      * @return the default {@link Options}
      */
     public static Options defaultOptions() {
-        return new Options.Builder().build();
+        return new Options.Builder().subscriptionConcurrency(4).build();
     }
 
     static List<URI> processUrlString(String url) {

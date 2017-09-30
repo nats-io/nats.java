@@ -243,23 +243,14 @@ class ConnectionImpl implements Connection {
             tcf = new TcpConnectionFactory();
         }
         ExecutorService subscriptionPool = opts.subscriptionDispatchPool;
-        int concurrency = -1;
+        int concurrency = opts.getSubscriptionConcurrency();
         boolean createdPool = false;
-        if (props.contains(Nats.PROP_SUBSCRIPTION_CONCURRENCY)) {
-            try {
-                concurrency = Integer.parseInt(props.getProperty(Nats.PROP_SUBSCRIPTION_CONCURRENCY));
-                if (concurrency > 0 && subscriptionPool == null) {
-                    createdPool = true;
-                    subscriptionPool = Executors.newFixedThreadPool(concurrency);
-                }
-            } catch (NumberFormatException ex) {
-                throw new IllegalArgumentException("Value for subscription concurrency is not a number: "
-                    + props.getProperty(Nats.PROP_SUBSCRIPTION_CONCURRENCY));
-            }
-        } else {
-            subscriptionPool = opts.subscriptionDispatchPool;
+        if (concurrency > 0 && subscriptionPool == null) {
+            createdPool = true;
+            subscriptionPool = Executors.newFixedThreadPool(concurrency);
+        } else if (concurrency < 0 && subscriptionPool != null) {
             if (subscriptionPool instanceof ThreadPoolExecutor) {
-                concurrency = ((ThreadPoolExecutor) subscriptionPool).getCorePoolSize();
+                concurrency = Math.max(16, ((ThreadPoolExecutor) subscriptionPool).getCorePoolSize());
             } else {
                 concurrency = Runtime.getRuntime().availableProcessors();
             }
@@ -600,7 +591,9 @@ class ConnectionImpl implements Connection {
      */
     private void close(ConnState closeState, boolean doCBs) {
         final ConnectionImpl nc = this;
-
+        for (Future<?> f : dispatchFutures) {
+            f.cancel(true);
+        }
         mu.lock();
         try {
             if (closed()) {
@@ -692,7 +685,7 @@ class ConnectionImpl implements Connection {
             }
 
             if (dispatchPoolCreatedLocally) {
-                shutdownAndAwaitTermination(subscriptionDispatchPool, DISPATCH_EXEC_NAME);
+                subscriptionDispatchPool.shutdownNow();
             }
 
         } finally {
@@ -1914,9 +1907,10 @@ class ConnectionImpl implements Connection {
         return subscriptionDispatchPool == null;
     }
 
-    void startDispatchPool() {
+    private final List<Future<?>> dispatchFutures = new LinkedList<>();
+    private final void startDispatchPool() {
         for (int i = 0; i < subscriptionConcurrency; i++) {
-            this.subscriptionDispatchPool.submit(new AsyncMessageDispatch(i));
+            dispatchFutures.add(this.subscriptionDispatchPool.submit(new AsyncMessageDispatch(i)));
         }
     }
 

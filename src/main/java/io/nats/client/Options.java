@@ -30,6 +30,7 @@ import static io.nats.client.Nats.PROP_RECONNECT_BUF_SIZE;
 import static io.nats.client.Nats.PROP_RECONNECT_WAIT;
 import static io.nats.client.Nats.PROP_SECURE;
 import static io.nats.client.Nats.PROP_SERVERS;
+import static io.nats.client.Nats.PROP_SUBSCRIPTION_CONCURRENCY;
 import static io.nats.client.Nats.PROP_TLS_DEBUG;
 import static io.nats.client.Nats.PROP_URL;
 import static io.nats.client.Nats.PROP_USERNAME;
@@ -102,6 +103,7 @@ public class Options {
 
     // TODO Allow users to set a custom "dialer" like Go. For now keep package-private
     final TcpConnectionFactory factory;
+    final int subscriptionConcurrency;
 
     // private List<X509Certificate> certificates =
     // new ArrayList<X509Certificate>();
@@ -135,6 +137,7 @@ public class Options {
         this.reconnectedCb = builder.reconnectedCb;
         this.asyncErrorCb = builder.asyncErrorCb;
         this.subscriptionDispatchPool = builder.subscriptionDispatchPool;
+        this.subscriptionConcurrency = builder.subscriptionConcurrency;
     }
 
     @Override
@@ -291,6 +294,10 @@ public class Options {
         return pingInterval;
     }
 
+    public int getSubscriptionConcurrency() {
+        return subscriptionConcurrency;
+    }
+
     public int getMaxPingsOut() {
         return maxPingsOut;
     }
@@ -365,6 +372,7 @@ public class Options {
         private SSLContext sslContext;
         private boolean tlsDebug;
         private TcpConnectionFactory factory;
+        private int subscriptionConcurrency = -1;
         DisconnectedCallback disconnectedCb;
         ClosedCallback closedCb;
         ReconnectedCallback reconnectedCb;
@@ -557,6 +565,10 @@ public class Options {
                 }
                 this.reconnectedCb = (ReconnectedCallback) instance;
             }
+            // PROP_SUBSCRIPTION_CONCURRENCY
+            if (props.containsKey(PROP_SUBSCRIPTION_CONCURRENCY)) {
+                this.subscriptionConcurrency = Integer.parseInt(props.getProperty(PROP_SUBSCRIPTION_CONCURRENCY, "-1"));
+            }
         }
 
         public Builder dontRandomize() {
@@ -654,6 +666,11 @@ public class Options {
 
         public Builder subscriptionDispatchPool(ExecutorService threadPool) {
             this.subscriptionDispatchPool = threadPool;
+            return this;
+        }
+
+        public Builder subscriptionConcurrency(int concurrency) {
+            this.subscriptionConcurrency = concurrency;
             return this;
         }
 

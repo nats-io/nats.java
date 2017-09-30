@@ -81,9 +81,10 @@ public class ITSubscriptionTest {
     }
 
     @Test
-    public void testServerAutoUnsub() throws Exception {
+    public void testServerAutoUnsub() throws Throwable {
+        final TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 assertFalse(c.isClosed());
                 final AtomicLong received = new AtomicLong(0L);
                 int max = 10;
@@ -107,7 +108,7 @@ public class ITSubscriptionTest {
                     }
 
                     sleep(100);
-
+                    onError.rethrow();
                     assertEquals(max, received.get());
                     assertFalse("Expected subscription to be invalid after hitting max",
                             s.isValid());
@@ -118,8 +119,9 @@ public class ITSubscriptionTest {
 
     @Test
     public void testClientSyncAutoUnsub() throws Exception {
+        final TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer s = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 assertFalse(c.isClosed());
 
                 long received = 0;
@@ -169,9 +171,10 @@ public class ITSubscriptionTest {
                 received.getAndIncrement();
             }
         };
+        final TestExceptionHandler onError = new TestExceptionHandler();
 
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 assertFalse(c.isClosed());
 
                 int max = 10;
@@ -199,6 +202,8 @@ public class ITSubscriptionTest {
 
     @Test
     public void testAutoUnsubAndReconnect() throws Exception {
+        final TestExceptionHandler onError = new TestExceptionHandler();
+
         try (NatsServer srv = runDefaultServer()) {
             sleep(500);
             final CountDownLatch latch = new CountDownLatch(1);
@@ -206,6 +211,7 @@ public class ITSubscriptionTest {
             final int max = 10;
 
             ConnectionFactory cf = new ConnectionFactory();
+            cf.setExceptionHandler(onError);
             cf.setReconnectWait(50);
             cf.setReconnectAllowed(true);
             cf.setReconnectedCallback(new ReconnectedCallback() {
@@ -266,9 +272,12 @@ public class ITSubscriptionTest {
 
     @Test
     public void testAutoUnsubWithParallelNextMsgCalls() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         final CountDownLatch rcbLatch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
             ConnectionFactory cf = new ConnectionFactory();
+            cf.setSubscriptionConcurrency(-1);
+            cf.setExceptionHandler(onError);
             cf.setReconnectWait(50);
             try (final Connection nc = cf.createConnection()) {
                 nc.setReconnectedCallback(new ReconnectedCallback() {
@@ -298,7 +307,7 @@ public class ITSubscriptionTest {
                                 Message msg;
                                 try {
                                     t0 = System.nanoTime();
-                                    msg = sub.nextMessage(3, TimeUnit.SECONDS);
+                                    msg = sub.nextMessage(10, TimeUnit.SECONDS);
                                     assertNotNull(msg);
                                     if (received.incrementAndGet() >= max) {
                                         break;
@@ -346,8 +355,9 @@ public class ITSubscriptionTest {
 
     @Test
     public void testAutoUnsubscribeFromCallback() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection nc = newDefaultConnection()) {
+            try (final Connection nc = newDefaultConnection(onError)) {
                 try (SyncSubscription s = nc.subscribeSync("foo")) {
                     int max = 10;
                     final long resetUnsubMark = (long) max / 2;
@@ -615,9 +625,10 @@ public class ITSubscriptionTest {
     public void testAsyncErrHandler() throws Exception {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
+        TestExceptionHandler onError = new TestExceptionHandler();
 
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection nc = newDefaultConnection()) {
+            try (Connection nc = newDefaultConnection(onError)) {
                 final String subj = "async_test";
                 final CountDownLatch blocker = new CountDownLatch(1);
 
@@ -693,9 +704,10 @@ public class ITSubscriptionTest {
     @Test
     public void testAsyncSubscriberStarvation() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
+        TestExceptionHandler onError = new TestExceptionHandler();
 
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection c = newDefaultConnection()) {
+            try (final Connection c = newDefaultConnection(onError)) {
                 // Helper
                 try (AsyncSubscription helper = c.subscribe("helper", new MessageHandler() {
                     public void onMessage(Message msg) {
@@ -757,8 +769,9 @@ public class ITSubscriptionTest {
             }
         };
 
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection nc = newDefaultConnection()) {
+            try (Connection nc = newDefaultConnection(onError)) {
                 try (AsyncSubscription sub = nc.subscribe("foo", mh)) {
                     for (int i = 0; i < toSend; i++) {
                         nc.publish("foo", "Hello World!".getBytes());
@@ -798,8 +811,9 @@ public class ITSubscriptionTest {
 
     @Test
     public void testAsyncSubscriptionPending() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection nc = newDefaultConnection()) {
+            try (final Connection nc = newDefaultConnection(onError)) {
                 // Send some messages to ourselves.
                 int total = 100;
                 byte[] msg = "0123456789".getBytes();
@@ -922,9 +936,10 @@ public class ITSubscriptionTest {
     public void testAsyncSubscriptionPendingDrain() throws Exception {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
+        TestExceptionHandler onError = new TestExceptionHandler();
 
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection nc = newDefaultConnection()) {
+            try (final Connection nc = newDefaultConnection(onError)) {
                 // Send some messages to ourselves.
                 int total = 100;
                 byte[] msg = "0123456789".getBytes();
@@ -1083,8 +1098,9 @@ public class ITSubscriptionTest {
 
     @Test
     public void testSetPendingLimits() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection nc = newDefaultConnection()) {
+            try (final Connection nc = newDefaultConnection(onError)) {
                 final byte[] payload = "hello".getBytes();
                 final int payloadLen = payload.length;
                 final int toSend = 100;
@@ -1180,9 +1196,10 @@ public class ITSubscriptionTest {
     @Test
     public void testManyRequests() throws Exception {
         final int numRequests = 1000;
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection conn = newDefaultConnection()) {
-                try (final Connection pub = newDefaultConnection()) {
+            try (final Connection conn = newDefaultConnection(onError)) {
+                try (final Connection pub = newDefaultConnection(onError)) {
                     try (Subscription sub = conn.subscribe("foo", "bar", new MessageHandler() {
                         public void onMessage(Message message) {
                             try {

@@ -59,6 +59,7 @@ public class ConnectionFactory {
     private String urlString = null;
     private boolean tlsDebug;
     private int subscriptionConcurrency = -1;
+    private ExecutorService subscriptionDispatchPool;
 
     /**
      * Constructs a new connection factory from a {@link Properties} object.
@@ -80,6 +81,8 @@ public class ConnectionFactory {
         }
         if (props.containsKey(PROP_SUBSCRIPTION_CONCURRENCY)) {
             this.subscriptionConcurrency = Integer.parseInt(props.getProperty(PROP_SUBSCRIPTION_CONCURRENCY, "-1"));
+        } else {
+            this.subscriptionConcurrency = opts.subscriptionConcurrency;
         }
         this.urlString = opts.url;
         this.url = URI.create(opts.url);
@@ -188,6 +191,7 @@ public class ConnectionFactory {
         this.reconnectedCallback = cf.reconnectedCallback;
         this.urlString = cf.urlString;
         this.tlsDebug = cf.tlsDebug;
+        this.subscriptionConcurrency = subscriptionConcurrency;
     }
 
     @Override
@@ -196,7 +200,7 @@ public class ConnectionFactory {
                 connectionName, verbose, pedantic, secure, reconnectAllowed, maxReconnect,
                 reconnectBufSize, reconnectWait, connectionTimeout, pingInterval, maxPingsOut,
                 sslContext, exceptionHandler, closedCallback, disconnectedCallback,
-                reconnectedCallback, urlString, tlsDebug);
+                reconnectedCallback, urlString, tlsDebug, subscriptionConcurrency);
     }
 
     @Override
@@ -286,11 +290,24 @@ public class ConnectionFactory {
                 .pingInterval(pingInterval).maxPingsOut(maxPingsOut).sslContext(sslContext)
                 .subscriptionDispatchPool(subscriptionDispatchPool)
                 .closedCb(closedCallback).disconnectedCb(disconnectedCallback)
+                .subscriptionConcurrency(subscriptionConcurrency)
+                .subscriptionDispatchPool(subscriptionDispatchPool)
                 .reconnectedCb(reconnectedCallback).errorCb(exceptionHandler);
         return result.build();
     }
 
-    private ExecutorService subscriptionDispatchPool;
+    /**
+     * Provide a thread pool for delivering messages to async subscribers.
+     * Setting an executor service here disables the default one-thread-per-subscriber
+     * behavior.  Use <code>setSubscriptionConcurrency()</code> to determine how
+     * many runnables will be dispatched to the thread pool passed here; if not
+     * set, the number of threads is determined by the pool's core size (if it is
+     * a <code>ThreadPoolExecutor</code> instance), or by
+     * <code>Runtime.getRuntime().availableProcessors()</code>.in the case the
+     * thread pool size cannot be determined.
+     *
+     * @param svc An executor service
+     */
     public final void setSubscriptionDispatchPool(ExecutorService svc) {
         this.subscriptionDispatchPool = svc;
     }
@@ -512,6 +529,24 @@ public class ConnectionFactory {
                 }
             }
         }
+    }
+
+   /**
+    * Set the subscription concurrency for async subscribers.  There are two
+    * modes - the default, which is one thread per subscriber, and concurrency
+    * using a thread pool to limit the number of threads in the case of large
+    * numbers of subscribers.  If the value is &lt;=0 you get the default
+    * behavior; &gt;0 and a thread pool will be used.  If you also call
+    * setSubscriptionDispatchPool(), this determines the number of runnables
+    * that will be dispatched to it; if not, the thread pool's core size
+    * or <code>Runtime.getRuntime().availableProcessors()</code> will determine
+    * the concurrency if you provide a thread pool but this value is not set.
+    *
+    * @param concurrency The number of threads to use; zero or less in the
+    * absence of a provided thread pool means one thread per subscriber
+    */
+    public final void setSubscriptionConcurrency(int concurrency) {
+        this.subscriptionConcurrency = concurrency;
     }
 
     /**

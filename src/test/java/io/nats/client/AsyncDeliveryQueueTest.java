@@ -76,12 +76,12 @@ public class AsyncDeliveryQueueTest {
             q.add(4, m);
         }
         assertEquals(80, q.estimatedSize());
-        assertTrue(q.contains(1));
-        assertTrue(q.contains(2));
-        assertTrue(q.contains(3));
-        assertTrue(q.contains(4));
+        assertTrue(q.containsMessagesFor(1));
+        assertTrue(q.containsMessagesFor(2));
+        assertTrue(q.containsMessagesFor(3));
+        assertTrue(q.containsMessagesFor(4));
         q.remove(3);
-        assertFalse(q.contains(3));
+        assertFalse(q.containsMessagesFor(3));
         List<Message> removed = q.removeAndCollect(4);
         assertEquals(batch, removed);
 

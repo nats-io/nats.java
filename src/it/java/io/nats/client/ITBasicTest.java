@@ -198,10 +198,11 @@ public class ITBasicTest {
     @Test
     public void testAsyncSubscribe() throws Exception {
         final byte[] omsg = "Hello World".getBytes();
+        TestExceptionHandler onError = new TestExceptionHandler();
 
         final CountDownLatch latch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     @Override
                     public void onMessage(Message msg) {
@@ -223,18 +224,20 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testSyncSubscribe() throws Exception {
+    public void testSyncSubscribe() throws Throwable {
         final byte[] omsg = "Hello World".getBytes();
         int timeoutMsec = 1000;
+        TestExceptionHandler onError = new TestExceptionHandler();
 
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 try (SyncSubscription s = c.subscribeSync("foo")) {
                     try {
                         Thread.sleep(100);
                         c.publish("foo", omsg);
                         Message msg = s.nextMessage(timeoutMsec);
                         assertArrayEquals("Messages are not equal.", omsg, msg.getData());
+                        onError.rethrow();
                     } catch (InterruptedException e) {
                         /* swallow */
                     }
@@ -244,9 +247,10 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testPubSubWithReply() throws Exception {
+    public void testPubSubWithReply() throws Throwable {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 try (SyncSubscription s = c.subscribeSync("foo")) {
                     final byte[] omsg = "Hello World".getBytes();
                     c.publish("foo", "reply", omsg);
@@ -255,6 +259,7 @@ public class ITBasicTest {
                         Thread.sleep(100);
                         Message msg = s.nextMessage(10000);
                         assertArrayEquals("Message received does not match: ", omsg, msg.getData());
+                        onError.rethrow();
                     } catch (InterruptedException e) {
                         /* swallow */
                     }
@@ -265,9 +270,10 @@ public class ITBasicTest {
 
     @Test
     public void testFlush() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         final byte[] omsg = "Hello World".getBytes();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 c.subscribeSync("foo");
                 c.publish("foo", "reply", omsg);
                 c.flush();
@@ -277,8 +283,9 @@ public class ITBasicTest {
 
     @Test
     public void testQueueSubscriber() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 SyncSubscription s1 = c.subscribeSync("foo", "bar");
                 SyncSubscription s2 = c.subscribeSync("foo", "bar");
                 final byte[] omsg = "Hello World".getBytes();
@@ -324,12 +331,13 @@ public class ITBasicTest {
     }
 
     @Test
-    public void testReplyArg() throws Exception {
+    public void testReplyArg() throws Throwable {
         final String replyExpected = "bar";
+        TestExceptionHandler onError = new TestExceptionHandler();
 
         final CountDownLatch latch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     @Override
                     public void onMessage(Message msg) {
@@ -340,16 +348,18 @@ public class ITBasicTest {
                     sleep(200);
                     c.publish("foo", "bar", null);
                     assertTrue("Message not received.", await(latch));
+                    onError.rethrow();
                 }
             }
         }
     }
 
     @Test
-    public void testSyncReplyArg() throws Exception {
+    public void testSyncReplyArg() throws Throwable {
+        TestExceptionHandler onError = new TestExceptionHandler();
         String replyExpected = "bar";
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 try (SyncSubscription s = c.subscribeSync("foo")) {
                     sleep(500);
                     c.publish("foo", replyExpected, null);
@@ -360,18 +370,21 @@ public class ITBasicTest {
                         fail("Received an err on nextMsg(): " + e.getMessage());
                     }
                     assertEquals(replyExpected, m.getReplyTo());
+                    onError.rethrow();
                 }
             }
         }
     }
 
     @Test
-    public void testUnsubscribe() throws Exception {
+    public void testUnsubscribe() throws Throwable {
+        TestExceptionHandler onError = new TestExceptionHandler();
+
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicInteger count = new AtomicInteger(0);
         final int max = 20;
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 try (final AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     @Override
                     public void onMessage(Message m) {
@@ -398,6 +411,7 @@ public class ITBasicTest {
                         assertFalse(s.isValid());
                     }
                     assertEquals(max, count.get());
+                    onError.rethrow();
                 }
             }
         }
@@ -405,9 +419,10 @@ public class ITBasicTest {
 
     @Test
     public void testDoubleUnsubscribe() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         thrown.expect(IllegalStateException.class);
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 try (SyncSubscription s = c.subscribeSync("foo")) {
                     s.unsubscribe();
                     s.unsubscribe();
@@ -427,8 +442,10 @@ public class ITBasicTest {
     }
 
     private void testRequestTimeout(boolean useOldStyle) throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = useOldStyle ? new Options.Builder().useOldRequestStyle(true).build().connect() : newDefaultConnection()) {
+            try (Connection c = useOldStyle ? new Options.Builder().errorCb(onError)
+                    .useOldRequestStyle(true).build().connect() : newDefaultConnection(onError)) {
                 assertFalse(c.isClosed());
                 assertNull("should time out", c.request("foo", "help".getBytes(), 10));
             }
@@ -446,9 +463,11 @@ public class ITBasicTest {
     }
 
     private void testRequest(boolean useOldStyle) throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         final byte[] response = "I will help you.".getBytes();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = useOldStyle ? new Options.Builder().useOldRequestStyle(true).build().connect() : newDefaultConnection()) {
+            try (Connection c = useOldStyle ? new Options.Builder().useOldRequestStyle(true).errorCb(onError).build().connect()
+                    : newDefaultConnection(onError)) {
                 sleep(100);
                 try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     public void onMessage(Message msg) {
@@ -485,9 +504,10 @@ public class ITBasicTest {
 
     @Test
     public void testRequestNoBody() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         final byte[] response = "I will help you.".getBytes();
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection c = newDefaultConnection()) {
+            try (final Connection c = newDefaultConnection(onError)) {
                 try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     public void onMessage(Message msg) {
                         try {
@@ -511,9 +531,10 @@ public class ITBasicTest {
 
     @Test
     public void testFlushInHandler() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         final CountDownLatch mcbLatch = new CountDownLatch(1);
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 try (AsyncSubscription s = c.subscribe("foo", new MessageHandler() {
                     @Override
                     public void onMessage(Message msg) {
@@ -537,10 +558,10 @@ public class ITBasicTest {
     public void testReleaseFlush() throws Exception {
         thrown.expect(IllegalStateException.class);
         thrown.expectMessage(Nats.ERR_CONNECTION_CLOSED);
-
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
             Options opts = new Options.Builder().noReconnect().build();
-            try (final ConnectionImpl nc = (ConnectionImpl) spy(newDefaultConnection())) {
+            try (final ConnectionImpl nc = (ConnectionImpl) spy(newDefaultConnection(onError))) {
                 for (int i = 0; i < 1000; i++) {
                     nc.publish("foo", "Hello".getBytes());
                 }
@@ -589,8 +610,9 @@ public class ITBasicTest {
 
     @Test
     public void testStats() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 byte[] data = "The quick brown fox jumped over the lazy dog".getBytes();
                 int iter = 10;
 
@@ -629,8 +651,9 @@ public class ITBasicTest {
 
     @Test
     public void testRaceSafeStats() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 executor.execute(new Runnable() {
                     public void run() {
                         try {
@@ -648,8 +671,9 @@ public class ITBasicTest {
 
     @Test
     public void testLargeMessage() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (final Connection c = newDefaultConnection()) {
+            try (final Connection c = newDefaultConnection(onError)) {
                 int msgSize = 51200;
                 final byte[] omsg = new byte[msgSize];
                 for (int i = 0; i < msgSize; i++) {
@@ -680,8 +704,9 @@ public class ITBasicTest {
 
     @Test
     public void testSendAndRecv() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 final CountDownLatch mhLatch = new CountDownLatch(1);
                 final AtomicInteger received = new AtomicInteger();
                 final int count = 1000;
@@ -706,8 +731,9 @@ public class ITBasicTest {
 
     @Test
     public void testLargeSubjectAndReply() throws Exception {
+        TestExceptionHandler onError = new TestExceptionHandler();
         try (NatsServer srv = runDefaultServer()) {
-            try (Connection c = newDefaultConnection()) {
+            try (Connection c = newDefaultConnection(onError)) {
                 int size = 1066;
                 byte[] subjBytes = new byte[size];
                 for (int i = 0; i < size; i++) {
@@ -760,10 +786,11 @@ public class ITBasicTest {
     public void testManyRequests() throws Exception {
         int numMsgs = 500;
         // setLogLevel(Level.TRACE);
+        TestExceptionHandler onError = new TestExceptionHandler();
 
         try (NatsServer srv = runDefaultServer()) {
             Options opts = new Options.Builder().noReconnect().build();
-            try (final Connection conn = newDefaultConnection()) {
+            try (final Connection conn = newDefaultConnection(onError)) {
                 try (Subscription s = conn.subscribe("foo", new MessageHandler() {
                     public void onMessage(Message message) {
                         try {

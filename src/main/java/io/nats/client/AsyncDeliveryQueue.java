@@ -24,33 +24,43 @@
 package io.nats.client;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.function.UnaryOperator;
 
 /**
- * Asynchronous queue for delivering messages to async subscribers. Uses atomic
- * operations on ConcurrentHashMap in place of global locks where possible.
+ * Asynchronous queue for delivering messages to async subscribers.
+ * Uses AtomicReferenceArrays rather than traditional locks to manage
+ * concurrency.  Internally, manages a list of such arrays - since
+ * subscriber ids increase monotonically, despite the fact that they are
+ * long-indexed, the common case is a fairly small number, the array
+ * offset can be the index mapping.
  *
  * @author Tim Boudreau
  */
 final class AsyncDeliveryQueue {
 
-    private final ConcurrentMap<Long, Messages> messagesForSubscriber;
-    private final Map<Long, Thread> threadAffinity;
+    private final int arraySize;
+    private final List<AtomicReferenceArray<Messages>> arrays = new CopyOnWriteArrayList<>();
+    private final List<AtomicLongArray> threads = new CopyOnWriteArrayList<>();
 
     AsyncDeliveryQueue() {
-        this(10000, 0.75F, 16);
+        this(64);
     }
 
-    AsyncDeliveryQueue(int initialSize, float loadFactor, int concurrency) {
-        messagesForSubscriber = new ConcurrentHashMap<>(initialSize, loadFactor, concurrency);
-        threadAffinity = new ConcurrentHashMap<>(initialSize, loadFactor, concurrency);
+    AsyncDeliveryQueue(int arraySize) {
+        if (arraySize <= 0) {
+            throw new IllegalStateException("Invalid array size " + arraySize);
+        }
+        this.arraySize = arraySize;
     }
 
     /**
@@ -59,31 +69,75 @@ final class AsyncDeliveryQueue {
      * @param subscriberId The subscriber id
      * @param message The message
      */
-    synchronized void add(long subscriberId, Message message) {
-        addIfNotNull(messagesForSubscriber.putIfAbsent(subscriberId, new Messages().add(message)), message);
+    void add(long subscriberId, Message msg) {
+        int index = (int) (subscriberId / arraySize);
+        int offset = (int) (subscriberId % arraySize);
+        if (index >= arrays.size()) {
+            // Intentional double-checked locking here - we need
+            // an atomic size check + possible add in one shot
+            synchronized (arrays) {
+                if (index >= arrays.size()) {
+                    Messages nue = new Messages(msg);
+                    // Create a new array to contain messages for subscriberIds
+                    // starting at arrays.size() * arraySize
+                    AtomicReferenceArray<Messages> arr = new AtomicReferenceArray<>(arraySize);
+                    // Create a new long array to hold the thread id of any thread
+                    // that has exclusive claim on a particular subscriber id because
+                    // it is delivering messages for it (this state is cleared in
+                    // MessageBatch.close()).
+                    threads.add(new AtomicLongArray(arraySize));
+                    // Pre-populate it - the array must always contain a queue
+                    // ready to receive messages - the queues are lightweight
+                    for (int i = 0; i < arraySize; i++) {
+                        if (i == offset) {
+                            arr.set(i, nue);
+                        } else {
+                            arr.set(i, new Messages());
+                        }
+                    }
+                    arrays.add(arr);
+                    return;
+                }
+            }
+        }
+        AtomicReferenceArray<Messages> array = arrays.get(index);
+        array.get(offset).add(msg);
         signalOneThread();
     }
 
     /**
-     * Remove a subscriber id
+     * Remove a subscriber id.  Clears any pending mesesages
+     * (an entry remains).
      *
      * @param subscriberId The id
      */
     void remove(long subscriberId) {
-        messagesForSubscriber.remove(subscriberId);
-        threadAffinity.remove(subscriberId);
+        int index = (int) (subscriberId / arraySize);
+        int offset = (int) (subscriberId % arraySize);
+        if (index < arrays.size()) {
+            arrays.get(index).set(offset, new Messages());
+        }
+        threads.get(index).set(offset, 0L);
     }
 
     /**
-     * Remove a susbcriber id, retrieving any remaining messages
+     * Remove a susbcriber id, retrieving any remaining messages.
+     * Clears any pending mesesages (an entry remains).
      *
      * @param subscriberId The id
      * @return A list of messages
      */
     List<Message> removeAndCollect(long subscriberId) {
-        Messages m = messagesForSubscriber.remove(subscriberId);
-        threadAffinity.remove(subscriberId);
-        return m.drain(new long[1]);
+        int index = (int) (subscriberId / arraySize);
+        int offset = (int) (subscriberId % arraySize);
+        threads.get(index).set(offset, 0L);
+        if (index < arrays.size()) {
+            Messages old = arrays.get(index).getAndSet(offset, new Messages());
+            if (old != null) {
+                return old.drain(new long[1]);
+            }
+        }
+        return Collections.emptyList();
     }
 
     /**
@@ -92,16 +146,27 @@ final class AsyncDeliveryQueue {
      * @param subscriberId The subscriber id
      * @return true if it is present
      */
-    boolean contains(long subscriberId) {
-        return messagesForSubscriber.containsKey(subscriberId);
-    }
-
-    private void addIfNotNull(Messages msgs, Message message) {
-        if (msgs != null) {
-            msgs.add(message);
+    boolean containsMessagesFor(long subscriberId) {
+        int index = (int) (subscriberId / arraySize);
+        int offset = (int) (subscriberId % arraySize);
+        if (index < arrays.size()) {
+            Messages msgs = arrays.get(index).get(offset);
+            return msgs != null && !msgs.isEmpty();
         }
+        return false;
     }
 
+    /**
+     * Fetch messages, blocking for the specified timeout while waiting
+     * for them.
+     *
+     * @param into A list to put batches of messages into
+     * @param timeout The timeout
+     * @param unit The timeout time unit
+     * @return The total number of <i>Messages</i> retrieved in all
+     * MessageBatches added to the list
+     * @throws InterruptedException If the thread pool is shut down
+     */
     public int get(List<? super MessageBatch> into, long timeout, TimeUnit unit) throws InterruptedException {
         // If messages immediately available, return them without waiting
         if (drain(into) > 0) {
@@ -115,17 +180,25 @@ final class AsyncDeliveryQueue {
         return drain(into);
     }
 
+    /**
+     * Fetch messages, blocking until messages are available.
+     *
+     * @param into A list to put batches of messages into
+     * @param timeout The timeout
+     * @param unit The timeout time unit
+     * @return The total number of <i>Messages</i> retrieved in all
+     * MessageBatches added to the list
+     * @throws InterruptedException If the thread pool is shut down
+     */
     public int get(List<? super MessageBatch> into) throws InterruptedException {
         // If messages immediately available, return them without waiting
-        if (drain(into) > 0) {
-            return into.size();
-        }
+        drain(into);
         // wait for signal
         while (into.isEmpty()) {
-            // It *is* possible to have messages waiting which we will never
-            // be signalled for, so this needs to be a slow busywait.  That
-            // should only happen under heavy contention.
-            get(into, 250, TimeUnit.MILLISECONDS);
+            synchronized(this) {
+                wait();
+            }
+            drain(into);
         }
         return into.size();
     }
@@ -136,43 +209,41 @@ final class AsyncDeliveryQueue {
         }
         // Give a chance at message collection
         Thread.yield();
-        messagesForSubscriber.clear();
-        threadAffinity.clear();
+        arrays.clear();
+        threads.clear();
     }
 
     private int drain(List<? super MessageBatch> batch) {
         int result = 0;
         boolean resignal = false;
         Thread currentThread = Thread.currentThread();
-        for (Map.Entry<Long, Messages> e : messagesForSubscriber.entrySet()) {
-            // Ensure that only this thread can read messages for this key, until
-            // the batch for that key is closed.
-            Thread threadForKey = threadAffinity.putIfAbsent(e.getKey(), currentThread);
-            if (threadForKey != null && threadForKey != currentThread) {
-                // Some other thread is currently dispatching messages for
-                // this subscriber, so we won't take any
-                // But note it and signal another thread (would be nicer to have a
-                // per-long condition so we could signal the exact thread, but you can't have
-                // atomic operations across two maps without a lock)
-                resignal |= e.getValue().count > 0;
-                continue;
-            }
-            // Atomically swap in a new Messages, *if* the messages object returned by
-            // e.getValue() is still the one actually in the map - another thread may
-            // have been in this method concurrently and claimed it, in which case we
-            // skip this key - another thread already has its messages
-            boolean addToBatch;
-            synchronized (this) {
-                addToBatch = messagesForSubscriber.replace(e.getKey(), e.getValue(), new Messages());
-            }
-            if (addToBatch) {
-                long[] totalBytes = new long[1];
-                List<Message> msgs = e.getValue().drain(totalBytes);
+        int as = arrays.size();
+        final long[] totalBytes = new long[1];
+        for (int i = 0; i < as; i++) {
+            AtomicReferenceArray<Messages> arr = arrays.get(i);
+            for (int j = 0; j < arraySize; j++) {
+                long subscriberId = (long) (i * arraySize) + j;
+                boolean alreadyClaimed = !threads.get(i).compareAndSet(j, 0, currentThread.getId());
+                // Ensure that only this thread can read messages for this key, until
+                // the batch for that key is closed.
+                if (alreadyClaimed) {
+                    // Some other thread is currently dispatching messages for
+                    // this subscriber, so we won't take any
+                    // But note it and signal another thread (would be nicer to have a
+                    // per-long condition so we could signal the exact thread, but you can't have
+                    // atomic operations across two maps without a lock)
+                    Messages m = arr.get(j);
+                    resignal |= m != null && !m.isEmpty();
+                    continue;
+                }
+                Messages m = arr.get(j);
+                totalBytes[0] = 0L;
+                List<Message> msgs = m == null ? Collections.<Message>emptyList() : m.drain(totalBytes);
                 if (!msgs.isEmpty()) {
                     result += msgs.size();
-                    batch.add(new MessageBatchImpl(e.getKey(), msgs, currentThread, totalBytes[0]));
+                    batch.add(new MessageBatchImpl(subscriberId, msgs, currentThread, totalBytes[0]));
                 } else {
-                    threadAffinity.remove(e.getKey());
+                    threads.get(i).compareAndSet(j, currentThread.getId(), 0);
                 }
             }
         }
@@ -186,22 +257,52 @@ final class AsyncDeliveryQueue {
         return result;
     }
 
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < arrays.size(); i++) {
+            AtomicReferenceArray<Messages> arr = arrays.get(i);
+            for (int j = 0; j < arraySize; j++) {
+                Messages m = arr.get(i);
+                if (!m.isEmpty()) {
+                    int sid = (i * arraySize) + j;
+                    sb.append(sid).append(":").append(m);
+                }
+            }
+        }
+        return sb.toString();
+    }
+
     private void signalOneThread() {
         synchronized (this) {
-            notifyAll();
+            notify();
         }
     }
 
     int estimatedSize() {
         int result = 0;
-        for (Messages m : messagesForSubscriber.values()) {
-            result += m.count;
+        for (AtomicReferenceArray<Messages> a : arrays) {
+            for (int i = 0; i < arraySize; i++) {
+                Messages m = a.get(i);
+                if (m != null) {
+                    result += a.get(i).size();
+                }
+            }
         }
         return result;
     }
 
     Set<Long> lockedKeys() {
-        return threadAffinity.keySet();
+        Set<Long> result = new HashSet<>();
+        for (int i = 0; i < threads.size(); i++) {
+            AtomicLongArray a = threads.get(i);
+            for (int j = 0; j < arraySize; j++) {
+                long val = a.get(j);
+                if (val != 0L) {
+                    result.add((long) (i * arraySize) + j);
+                }
+            }
+        }
+        return result;
     }
 
     /**
@@ -279,8 +380,10 @@ final class AsyncDeliveryQueue {
             closed = true;
             // Ensure we don't remove a the wrong thread in the case close() is
             // not called from the same thread we have here
-            if (!wasClosed && threadAffinity.get(subscriberId) == creatingThread) {
-                threadAffinity.remove(subscriberId);
+            int index = (int) subscriberId / arraySize;
+            int offset = (int) subscriberId % arraySize;
+            if (!wasClosed) {
+                threads.get(index).compareAndSet(offset, creatingThread.getId(), 0);
             }
         }
 
@@ -303,40 +406,52 @@ final class AsyncDeliveryQueue {
 
         // A basic linked list structure, where the head is found by
         // iterating backwards
-        MessageEntry tail;
-        // Safe for atomic reads without a lock
-        private volatile int count;
+        AtomicReference<MessageEntry> tail;
+
+        Messages(Message message) {
+            tail = new AtomicReference<>(new MessageEntry(null, message));
+        }
+
+        Messages() {
+            tail = new AtomicReference<>();
+        }
 
         // Using plain synchronization here - a java.util.concurrent lock
         // doesn't buy us anything;  and we create these frequently and throw
         // them away, to have a new value if needed for atomic operations,
         // so the cheaper construction is, the better, and you already
         // get a synchronization monitor with every Java object
-        public Messages add(Message message) {
-            synchronized (this) {
-                count++;
-                // Replace the tail
-                if (tail == null) {
-                    tail = new MessageEntry(null, message);
+        public Messages add(final Message message) {
+            tail.getAndUpdate(new Applier(message));
+            return this;
+        }
+
+        // This is a JDK-8ism - if we're stuck on JDK 7,
+        // just synchronize in add and drain instead, but
+        // this gives us an atomic replacement of the tail
+        // without the overhead of a lock
+        static class Applier implements UnaryOperator<MessageEntry> {
+
+            private final Message message;
+
+            public Applier(Message message) {
+                this.message = message;
+            }
+
+            @Override
+            public MessageEntry apply(MessageEntry t) {
+                if (t == null) {
+                    return new MessageEntry(null, message);
                 } else {
-                    tail = new MessageEntry(tail, message);
+                    return new MessageEntry(t, message);
                 }
             }
-            return this;
         }
 
         public List<Message> drain(long[] totalBytes) {
             assert totalBytes != null && totalBytes.length == 1;
-//            if (count == 0) {
-//                return Collections.emptyList();
-//            }
             // Do the minimal amount under the lock
-            MessageEntry oldTail;
-            synchronized (this) {
-                oldTail = tail;
-                count = 0;
-                tail = null;
-            }
+            MessageEntry oldTail = tail.getAndSet(null);
             // Populate the list iterating backwards from the tail
             if (oldTail != null) {
                 if (oldTail.prev == null) {
@@ -352,6 +467,36 @@ final class AsyncDeliveryQueue {
             return Collections.emptyList();
         }
 
+        public boolean isEmpty() {
+            return tail.get() == null;
+        }
+
+        public int size() {
+            MessageEntry tail = this.tail.get();
+            int result = 0;
+            while (tail != null) {
+                result++;
+                tail = tail.prev;
+            }
+            return result;
+        }
+
+        public String toString() {
+            StringBuilder sb = new StringBuilder("Messages: ");
+            MessageEntry tail = this.tail.get();
+            while (tail != null) {
+                if (sb.length() > 0) {
+                    sb.append(", ");
+                }
+                sb.append(tail.message);
+                tail = tail.prev;
+            }
+            return sb.toString();
+        }
+
+        /**
+         * A single linked list entry in the queue
+         */
         static final class MessageEntry {
 
             private MessageEntry prev;
@@ -363,11 +508,14 @@ final class AsyncDeliveryQueue {
             }
 
             void drainTo(List<? super Message> messages, long[] totalBytes) {
+                // Iterate backwards populating the list of messages,
+                // and also collect the total byte count
                 MessageEntry e = this;
                 while (e != null) {
                     messages.add(0, e.message);
-                    if (e.message.getData() != null) {
-                        totalBytes[0] += e.message.getData().length;
+                    byte[] data = e.message.getData();
+                    if (data != null) {
+                        totalBytes[0] += data.length;
                     }
                     e = e.prev;
                 }

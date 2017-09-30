@@ -67,7 +67,6 @@ import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -187,7 +186,7 @@ public class ConnectionImplTest {
 //    }
 
     static Options defaultOptions() {
-        return new Options.Builder().subscriptionDispatchPool(Executors.newFixedThreadPool(4)).build();
+        return new Options.Builder().subscriptionConcurrency(4).build();
     }
 
     @Test
