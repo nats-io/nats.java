@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -20,10 +20,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -35,13 +32,10 @@ import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 
 @Category(UnitTest.class)
-public class SubscriptionImplTest {
+public class SubscriptionImplTest extends BaseUnitTest {
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @Mock
     private ConnectionImpl connMock;
@@ -52,21 +46,10 @@ public class SubscriptionImplTest {
     @Mock
     private MessageHandler mcbMock;
 
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
     @Before
     public void setUp() throws Exception {
+        super.setUp();
         MockitoAnnotations.initMocks(this);
-    }
-
-    @After
-    public void tearDown() throws Exception {
     }
 
     @Test
@@ -348,11 +331,11 @@ public class SubscriptionImplTest {
         when(mchMock.size()).thenReturn(count);
         try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
             sub.pMsgs = count;
-            assertEquals(count, sub.getQueuedMessageCount());
+            assertEquals(count, sub.getPendingMsgs());
         }
 
         try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getQueuedMessageCount();
+            sub.getPendingMsgs();
         }
     }
 

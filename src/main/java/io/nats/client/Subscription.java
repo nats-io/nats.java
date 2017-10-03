@@ -70,7 +70,7 @@ public interface Subscription extends AutoCloseable {
      * Returns the number of messages delivered to, but not processed, by this Subscription.
      *
      * @return the number of delivered messages.
-     * @deprecated use getPending instead
+     * @deprecated use {@link #getPendingMsgs()} instead
      */
     @Deprecated
     int getQueuedMessageCount();

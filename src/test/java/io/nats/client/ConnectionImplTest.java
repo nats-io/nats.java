@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -94,13 +94,10 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @Category(UnitTest.class)
 @RunWith(MockitoJUnitRunner.class)
-public class ConnectionImplTest {
+public class ConnectionImplTest extends BaseUnitTest {
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @InjectMocks
     ConnectionImpl connection;
@@ -146,35 +143,6 @@ public class ConnectionImplTest {
 
     @Mock
     private SyncSubscriptionImpl syncSubMock;
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @Before
-    public void setUp() throws Exception {
-        //MockitoAnnotations.initMocks(this);
-    }
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @After
-    public void tearDown() throws Exception {
-    }
 
 //    @SuppressWarnings("resource")
 //    @Test
@@ -1965,11 +1933,11 @@ public class ConnectionImplTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void testResetPingTimer() throws Exception {
         try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
             ScheduledFuture ptmrMock = mock(ScheduledFuture.class);
-            //noinspection unchecked
             when(nc.createPingTimer()).thenReturn(ptmrMock);
 
             // Test for ptmr already exists

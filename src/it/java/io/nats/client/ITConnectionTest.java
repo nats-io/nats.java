@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -23,16 +23,11 @@ import static org.junit.Assert.fail;
 
 import io.nats.client.ConnectionImpl.Srv;
 import org.hamcrest.core.IsNot;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,31 +41,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Category(IntegrationTest.class)
-public class ITConnectionTest {
-
+public class ITConnectionTest extends ITBaseTest {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
-
     ExecutorService executor = Executors.newFixedThreadPool(5);
-
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
-    @Before
-    public void setUp() throws Exception {
-    }
-
-    @After
-    public void tearDown() throws Exception {
-    }
 
     @Test
     public void testDefaultConnection() throws Exception {

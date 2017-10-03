@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -20,40 +20,30 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Category(IntegrationTest.class)
-public class ITSubscriptionTest {
-
+public class ITSubscriptionTest extends ITBaseTest {
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
 
     private ExecutorService exec;
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
-
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
 
     /**
      * Per-test-case setup.
@@ -62,9 +52,7 @@ public class ITSubscriptionTest {
      */
     @Before
     public void setUp() throws Exception {
-        // if (Thread.interrupted()) {
-        // Thread.interrupted();
-        // }
+        super.setUp();
         exec = Executors.newCachedThreadPool(new NatsThreadFactory("nats-test-thread"));
     }
 
@@ -75,6 +63,7 @@ public class ITSubscriptionTest {
      */
     @After
     public void tearDown() throws Exception {
+        super.tearDown();
         if (!exec.isShutdown()) {
             exec.shutdownNow();
         }
@@ -768,7 +757,7 @@ public class ITSubscriptionTest {
                     nc.close();
 
                     // Release callbacks
-                    for (int i = 1; i < toSend; i++) {
+                    for (int i = 0; i < toSend; i++) {
                         mcbLatch.countDown();
                     }
 
@@ -1145,14 +1134,20 @@ public class ITSubscriptionTest {
 
                             // Send messages
                             send(nc, subj, payload, toSend);
+                            // Wait for message to be received
+                            assertTrue("Did not get our message", await(recv));
+                            recv = new CountDownLatch(1);
+
                             expectedBytes = limitBytes;
                             expectedCount = limitBytes / payload.length;
                             checkPending(sub3, limitCount, limitBytes, expectedCount, expectedBytes,
                                     payload.length);
-                            sub3.unsubscribe();
-                            nc.flush();
 
-                            subj = "baz";
+                            // Release callback
+                            block.countDown();
+                            block = new CountDownLatch(1);
+
+                            subj = "boz";
                             try (Subscription sub4 = nc.subscribe(subj, new MyCb(recv, block))) {
                                 limitCount = -1;
                                 limitBytes = (toSend / 2) * payload.length;
@@ -1160,12 +1155,16 @@ public class ITSubscriptionTest {
 
                                 // Send messages
                                 send(nc, subj, payload, toSend);
+                                // Wait for message to be received
+                                assertTrue("Did not get our message", await(recv));
+
                                 expectedBytes = limitBytes;
                                 expectedCount = limitBytes / payload.length;
                                 checkPending(sub4, limitCount, limitBytes, expectedCount,
                                         expectedBytes, payload.length);
-                                sub4.unsubscribe();
-                                nc.flush();
+
+                                // Release callback
+                                block.countDown();
                             }
 
                         }
@@ -1198,6 +1197,234 @@ public class ITSubscriptionTest {
                                     pub.request("foo", "blah".getBytes(), 5000));
                         } // for
                     } // Subscription
+                } // pub
+            } // conn
+        } // server
+    }
+
+    @Test
+    public void testExceptionInOnMessage() throws Exception {
+        // Shutdown message delivery pool if set.
+        Nats.shutdownMsgDeliveryThreadPool();
+
+        final byte[] payload = "hello".getBytes();
+
+        for (int tests=0; tests<2; tests++) {
+            final CountDownLatch latch = new CountDownLatch(1);
+            try (NatsServer srv = runDefaultServer()) {
+                try (final Connection conn = newDefaultConnection()) {
+                    try (final Connection pub = newDefaultConnection()) {
+                        try (Subscription sub = conn.subscribe("foo", new MessageHandler() {
+                            private int count = 0;
+
+                            public void onMessage(Message message) {
+                                if (this.count++ == 0) {
+                                    throw new RuntimeException("On purpose");
+                                } else {
+                                    latch.countDown();
+                                }
+                            }
+                        })) {
+                            conn.flush();
+                            // We send 2 messages, and the callback throws an exception when
+                            // getting the first message. We should still receive the second.
+                            send(pub, "foo", payload, 2);
+                            // Wait for the second message to be received.
+                            if (!latch.await(2, TimeUnit.SECONDS)) {
+                                fail("Failed to continue receiving messages after exception in message callback");
+                            }
+                        } // Subscription
+                    } // pub
+                } // conn
+            } // server
+
+            // Repeat the test with message delivery pool
+            Nats.setMsgDeliveryThreadPoolSize(1);
+        }
+    }
+
+    @Test
+    public void testCheckMsgDispatchedFromGlobalMsgDeliveryThreadPool() throws Exception {
+        // Ensure we are running with a message delivery thread pool.
+        Nats.setMsgDeliveryThreadPoolSize(1);
+
+        final byte[] payload = "hello".getBytes();
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        final BlockingQueue<String> error = new LinkedBlockingQueue<String>(1);
+        try (NatsServer srv = runDefaultServer()) {
+            try (final Connection conn = newDefaultConnection()) {
+                try (final Connection pub = newDefaultConnection()) {
+                    try (Subscription sub = conn.subscribe("foo", new MessageHandler() {
+                        public void onMessage(Message message) {
+                            boolean ok = false;
+                            try {
+                                StackTraceElement[] myStacks = Thread.currentThread().getStackTrace();
+                                for (int i=0; i<myStacks.length; i++) {
+                                    String mn = myStacks[i].getClassName();
+                                    if (mn.equals(MsgDeliveryWorker.class.getName())) {
+                                        ok = true;
+                                        break;
+                                    }
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            } finally {
+                                if (!ok) {
+                                    error.add("Does not appear to be running from message delivery thread pool");
+                                }
+                                latch.countDown();
+                            }
+                        }
+                    })) {
+                        conn.flush();
+                        send(pub, "foo", payload, 1);
+                        latch.await();
+                        if (!error.isEmpty()) {
+                            fail(error.poll());
+                        }
+                    } // Subscription
+                } // pub
+            } // conn
+        } // server
+    }
+
+    @Test
+    public void testAsyncSubsSharingSameGlobalMsgDeliveryThread() throws Exception {
+        // For this test, manually control the msg delivery pool
+        Nats.shutdownMsgDeliveryThreadPool();
+        // Set size 1.
+        Nats.setMsgDeliveryThreadPoolSize(1);
+
+        final byte[] payload = "hello".getBytes();
+        final CountDownLatch latch = new CountDownLatch(3);
+
+        final class closure {
+            Lock mu = new ReentrantLock();
+            int count = 0;
+            long firstMsgTime;
+            long secondMsgTime;
+            long sub3MsgTime;
+        }
+
+        final Options noPoolOpts = new Options.Builder()
+            .useGlobalMsgDelivery(false)
+            .build();
+
+        try (NatsServer srv = runDefaultServer()) {
+            try (final Connection conn = newDefaultConnection()) {
+                try (final Connection noPoolSubConn = Nats.connect(Nats.DEFAULT_URL, noPoolOpts)) {
+                    try (final Connection pub = newDefaultConnection()) {
+
+                        final closure cl = new closure();
+
+                        MessageHandler mcb = new MessageHandler() {
+                            public void onMessage(Message message) {
+                                boolean doSleep = false;
+                                cl.mu.lock();
+                                cl.count++;
+                                if (cl.count == 1) {
+                                    cl.firstMsgTime = System.currentTimeMillis();
+                                    doSleep = true;
+                                } else {
+                                    cl.secondMsgTime = System.currentTimeMillis();
+                                }
+                                cl.mu.unlock();
+                                if (doSleep) {
+                                    sleep(100, TimeUnit.MILLISECONDS);
+                                }
+                                latch.countDown();
+                            }
+                        };
+
+                        Subscription sub1 = conn.subscribe("foo", mcb);
+                        Subscription sub2 = conn.subscribe("foo", mcb);
+                        // This one uses its own thread for dispatch
+                        Subscription sub3 = noPoolSubConn.subscribe("foo", new MessageHandler() {
+                            public void onMessage(Message message) {
+                                cl.mu.lock();
+                                cl.sub3MsgTime = System.currentTimeMillis();
+                                cl.mu.unlock();
+                                latch.countDown();
+                            }
+                        });
+                        conn.flush();
+                        pub.publish("foo", payload);
+                        pub.flush();
+
+                        latch.await();
+                        // The second message should have been received at around 100ms of the first.
+                        if (cl.secondMsgTime-cl.firstMsgTime < 90) {
+                            fail("Second callback not triggered sequentially");
+                        }
+                        // However, message received by sub3 should have been processed at around the
+                        // same time than the first message processed by sub1 or sub2.
+                        if (cl.sub3MsgTime > cl.firstMsgTime+50) {
+                            fail("Sub3 should have not been blocked by sub1 and sub2");
+                        }
+
+                        sub1.unsubscribe();
+                        sub2.unsubscribe();
+                        sub3.unsubscribe();
+                    } // pub
+                } // noPoolSubConn
+            } // conn
+        } // server
+    }
+
+    @Test
+    public void testAsyncSubsWithGlobalMsgDeliveryPool() throws Exception {
+        // For this test, manually control the msg delivery pool
+        Nats.shutdownMsgDeliveryThreadPool();
+        // Set size 2
+        Nats.setMsgDeliveryThreadPoolSize(2);
+
+        final CountDownLatch latch = new CountDownLatch(2);
+        final int toSend = 10000;
+        final BlockingQueue<String> errors = new LinkedBlockingQueue<String>(2);
+
+        class MyCB implements MessageHandler {
+            private Lock mu      = new ReentrantLock();
+            private int  lastSeq = 0;
+
+            public void onMessage(Message message) {
+                final int seq = Integer.parseInt(new String(message.getData()));
+                this.mu.lock();
+                final int expectedSeq = this.lastSeq+1;
+                this.lastSeq = seq;
+                this.mu.unlock();
+                if (expectedSeq != seq) {
+                    errors.add("Expected sequence " + expectedSeq + " got " + seq);
+                    try { message.getSubscription().unsubscribe(); } catch (Exception e) {}
+                    latch.countDown();
+                    return;
+                }
+                if (seq == toSend) {
+                    latch.countDown();
+                }
+            }
+        };
+
+        try (NatsServer srv = runDefaultServer()) {
+            try (final Connection conn = newDefaultConnection()) {
+                try (final Connection pub = newDefaultConnection()) {
+                    try (final Subscription sub1 = conn.subscribe("foo", new MyCB())) {
+                        try (final Subscription sub2 = conn.subscribe("foo", new MyCB())) {
+                            conn.flush();
+
+                            for (int i=0; i<toSend; i++) {
+                                final byte[] payload = ("" + (i+1)).getBytes();
+                                pub.publish("foo", payload);
+                            }
+                            pub.flush();
+
+                            latch.await();
+                            // Check for errors
+                            if (!errors.isEmpty()) {
+                                fail(errors.poll());
+                            }
+                        } // sub
+                    } // sub
                 } // pub
             } // conn
         } // server

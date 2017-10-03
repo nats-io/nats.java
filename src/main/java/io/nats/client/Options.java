@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -34,6 +34,7 @@ import static io.nats.client.Nats.PROP_TLS_DEBUG;
 import static io.nats.client.Nats.PROP_URL;
 import static io.nats.client.Nats.PROP_USERNAME;
 import static io.nats.client.Nats.PROP_USE_OLD_REQUEST_STYLE;
+import static io.nats.client.Nats.PROP_USE_GLOBAL_MSG_DELIVERY;
 import static io.nats.client.Nats.PROP_VERBOSE;
 
 import java.io.IOException;
@@ -83,6 +84,7 @@ public class Options {
     final long pingInterval;
     final int maxPingsOut;
     final boolean useOldRequestStyle;
+    final boolean useGlobalMsgDelivery;
     // Connection handlers
     public ClosedCallback closedCb;
     public DisconnectedCallback disconnectedCb;
@@ -125,6 +127,7 @@ public class Options {
         this.pingInterval = builder.pingInterval;
         this.maxPingsOut = builder.maxPingsOut;
         this.useOldRequestStyle = builder.useOldRequestStyle;
+        this.useGlobalMsgDelivery = builder.useGlobalMsgDelivery;
         this.sslContext = builder.sslContext;
         this.tlsDebug = builder.tlsDebug;
         this.disconnectedCb = builder.disconnectedCb;
@@ -164,6 +167,7 @@ public class Options {
                 && Long.compare(pingInterval, other.pingInterval) == 0
                 && Integer.compare(maxPingsOut, other.maxPingsOut) == 0
                 && Boolean.compare(useOldRequestStyle, other.useOldRequestStyle) == 0
+                && Boolean.compare(useGlobalMsgDelivery, other.useGlobalMsgDelivery) == 0
                 && (sslContext == null ? other.sslContext == null : sslContext.equals(other
                 .sslContext))
                 && Boolean.compare(tlsDebug, other.tlsDebug) == 0
@@ -181,7 +185,7 @@ public class Options {
     public int hashCode() {
         return Objects.hash(url, username, password, token, servers, noRandomize, connectionName,
                 verbose, pedantic, secure, allowReconnect, maxReconnect, reconnectBufSize,
-                reconnectWait, connectionTimeout, pingInterval, maxPingsOut, useOldRequestStyle, sslContext, tlsDebug,
+                reconnectWait, connectionTimeout, pingInterval, maxPingsOut, useOldRequestStyle, useGlobalMsgDelivery, sslContext, tlsDebug,
                 factory, disconnectedCb, closedCb, reconnectedCb, asyncErrorCb);
     }
 
@@ -294,6 +298,8 @@ public class Options {
 
     public boolean isUseOldRequestStyle() { return useOldRequestStyle; }
 
+    public boolean isUsingGlobalMsgDelivery() { return useGlobalMsgDelivery; }
+
     public ExceptionHandler getExceptionHandler() {
         return asyncErrorCb;
     }
@@ -355,6 +361,7 @@ public class Options {
         private long pingInterval = DEFAULT_PING_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
         private boolean useOldRequestStyle;
+        private boolean useGlobalMsgDelivery = (Nats.getMsgDeliveryThreadPool() != null);
         private SSLContext sslContext;
         private boolean tlsDebug;
         private TcpConnectionFactory factory;
@@ -396,6 +403,7 @@ public class Options {
             this.asyncErrorCb = template.asyncErrorCb;
             this.factory = template.factory;
             this.useOldRequestStyle = template.useOldRequestStyle;
+            this.useGlobalMsgDelivery = template.useGlobalMsgDelivery;
         }
 
         public Builder() {
@@ -496,6 +504,10 @@ public class Options {
             // PROP_USE_OLD_REQUEST_STYLE
             if (props.containsKey(PROP_USE_OLD_REQUEST_STYLE)) {
                 this.useOldRequestStyle = Boolean.parseBoolean(props.getProperty(PROP_USE_OLD_REQUEST_STYLE));
+            }
+            // PROP_USE_GLOBAL_MSG_DELIVERY
+            if (props.containsKey(PROP_USE_GLOBAL_MSG_DELIVERY)) {
+                this.useGlobalMsgDelivery = Boolean.parseBoolean(props.getProperty(PROP_USE_GLOBAL_MSG_DELIVERY));
             }
             // PROP_EXCEPTION_HANDLER
             if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
@@ -691,6 +703,11 @@ public class Options {
 
         public Builder reconnectedCb(ReconnectedCallback cb) {
             this.reconnectedCb = cb;
+            return this;
+        }
+
+        public Builder useGlobalMsgDelivery(boolean use) {
+            this.useGlobalMsgDelivery = use;
             return this;
         }
 

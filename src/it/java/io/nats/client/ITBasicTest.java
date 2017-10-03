@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -25,10 +25,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -49,35 +46,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Category(IntegrationTest.class)
-public class ITBasicTest {
-
+public class ITBasicTest extends ITBaseTest {
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
     UnitTestUtilities utils = new UnitTestUtilities();
 
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
     @Before
     public void setUp() throws Exception {
+        super.setUp();
         MockitoAnnotations.initMocks(this);
-    }
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @After
-    public void tearDown() throws Exception {
     }
 
     @Test
@@ -285,17 +264,17 @@ public class ITBasicTest {
                 c.publish("foo", omsg);
                 c.flush();
 
-                int r1 = s1.getQueuedMessageCount();
-                int r2 = s2.getQueuedMessageCount();
+                int r1 = s1.getPendingMsgs();
+                int r2 = s2.getPendingMsgs();
                 assertEquals("Received too many messages for multiple queue subscribers", 1,
                         r1 + r2);
 
                 // Drain the messages.
                 s1.nextMessage(250, TimeUnit.MILLISECONDS);
-                assertEquals(0, s1.getQueuedMessageCount());
+                assertEquals(0, s1.getPendingMsgs());
 
                 s2.nextMessage(250, TimeUnit.MILLISECONDS);
-                assertEquals(0, s2.getQueuedMessageCount());
+                assertEquals(0, s2.getPendingMsgs());
 
                 int total = 1000;
                 for (int i = 0; i < total; i++) {
@@ -308,8 +287,8 @@ public class ITBasicTest {
                 assertEquals(total, si1.getChannel().size() + si2.getChannel().size());
 
                 final int variance = (int) (total * 0.15);
-                r1 = s1.getQueuedMessageCount();
-                r2 = s2.getQueuedMessageCount();
+                r1 = s1.getPendingMsgs();
+                r2 = s2.getPendingMsgs();
                 assertEquals("Incorrect total number of messages: ", total, r1 + r2);
 
                 double expected = total / 2;

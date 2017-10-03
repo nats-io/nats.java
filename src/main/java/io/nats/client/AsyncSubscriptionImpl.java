@@ -16,7 +16,12 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
 
     AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue,
                           MessageHandler cb) {
-        super(nc, subj, queue);
+        this(nc, subj, queue, cb, false);
+    }
+
+    AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue,
+                          MessageHandler cb, boolean useMsgDlvPool) {
+        super(nc, subj, queue, DEFAULT_MAX_PENDING_MSGS, DEFAULT_MAX_PENDING_BYTES, useMsgDlvPool);
         this.msgHandler = cb;
     }
 
