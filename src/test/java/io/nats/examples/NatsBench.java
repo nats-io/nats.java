@@ -253,15 +253,18 @@ public class NatsBench {
         phaser.arriveAndAwaitAdvance();
 
         // Now publishers
-        int totalPubMsgs = 0;
+        int remaining = numMsgs;
         int perPubMsgs = numMsgs / numPubs;
         for (int i = 0; i < numPubs; i++) {
             phaser.register();
+            // For the last publisher, make sure we ask it to send the remaining
+            // number of messages (with 1,000,000 msgs and 9 publishers, it means
+            // that 8 will send  111111 messages while the last will send 111112).
             if (i == numPubs - 1) {
-                perPubMsgs = numMsgs - totalPubMsgs;
+                perPubMsgs = remaining;
             }
             exec.execute(new PubWorker(phaser, perPubMsgs, size));
-            totalPubMsgs += perPubMsgs;
+            remaining -= perPubMsgs;
         }
 
         System.out.printf("Starting benchmark [msgs=%d, msgsize=%d, pubs=%d, subs=%d]\n", numMsgs,
