@@ -1429,4 +1429,70 @@ public class ITSubscriptionTest extends ITBaseTest {
             } // conn
         } // server
     }
+
+
+    @Test
+    public void testAsyncSubWithGlobalMsgDeliveryPoolConnectionCloseInMsgCallback() throws Throwable {
+        // For this test, manually control the msg delivery pool
+        Nats.shutdownMsgDeliveryThreadPool();
+        // Set size 2
+        Nats.setMsgDeliveryThreadPoolSize(2);
+
+        final byte[] payload = "hello".getBytes();
+        final AtomicInteger received = new AtomicInteger(0);
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection conn = newDefaultConnection()) {
+                try (Subscription sub = conn.subscribe("foo", new MessageHandler(){
+                    public void onMessage(Message message) {
+                        if (received.incrementAndGet() == 1) {
+                            conn.close();
+                        }
+                    }
+                })) {
+                    for (int i=0; i<10; i++) {
+                        conn.publish("foo", payload);
+                    }
+                    // Wait a bit...
+                    Thread.sleep(100);
+                    // Check that we received only 1 message.
+                    if (received.get() != 1) {
+                        fail("Should have received only 1 message, got " + received.get());
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testAsyncSubWithGlobalMsgDeliveryPoolUnsubscribeInMsgCallback() throws Throwable {
+        // For this test, manually control the msg delivery pool
+        Nats.shutdownMsgDeliveryThreadPool();
+        // Set size 2
+        Nats.setMsgDeliveryThreadPoolSize(2);
+
+        final byte[] payload = "hello".getBytes();
+        final AtomicInteger received = new AtomicInteger(0);
+        try (NatsServer srv = runDefaultServer()) {
+            try (Connection conn = newDefaultConnection()) {
+                try (Subscription sub = conn.subscribe("foo", new MessageHandler(){
+                    public void onMessage(Message message) {
+                        if (received.incrementAndGet() == 1) {
+                            try { message.getSubscription().unsubscribe(); } catch (Exception e) {}
+                        }
+                    }
+                })) {
+                    for (int i=0; i<10; i++) {
+                        conn.publish("foo", payload);
+                    }
+                    // Wait a bit...
+                    Thread.sleep(100);
+                    // Check that we received only 1 message.
+                    if (received.get() != 1) {
+                        fail("Should have received only 1 message, got " + received.get());
+                    }
+                }
+            }
+        }
+    }
+
 }
