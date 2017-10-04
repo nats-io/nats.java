@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -124,6 +125,8 @@ public class NatsBench {
     }
 
     class SubWorker extends Worker {
+        private int count = 0;
+
         SubWorker(Phaser phaser, int numMsgs, int size) {
             super(phaser, numMsgs, size);
         }
@@ -143,13 +146,13 @@ public class NatsBench {
             nc.setDisconnectedCallback(new DisconnectedCallback() {
                 @Override
                 public void onDisconnect(ConnectionEvent ev) {
-                    System.err.printf("Subscriber disconnected after %d msgs\n", received.get());
+                    System.err.printf("Subscriber disconnected after %d msgs\n", count);
                 }
             });
             nc.setClosedCallback(new ClosedCallback() {
                 @Override
                 public void onClose(ConnectionEvent ev) {
-                    System.err.printf("Subscriber connection closed after %d msgs\n", received.get());
+                    System.err.printf("Subscriber connection closed after %d msgs\n", count);
                 }
             });
             nc.setExceptionHandler(new ExceptionHandler() {
@@ -157,31 +160,32 @@ public class NatsBench {
                 public void onException(NATSException ex) {
                     System.err.println("Subscriber connection exception: " + ex);
                     AsyncSubscription sub = (AsyncSubscription) ex.getSubscription();
-                    System.err.printf("Sent=%d, Received=%d\n", sent.get(), received.get());
+                    System.err.printf("Received=%d\n", count);
                     System.err.printf("Messages dropped (total) = %d\n", sub.getDropped());
                     System.exit(-1);
                 }
             });
 
+            final CountDownLatch latch = new CountDownLatch(1);
             final long start = System.nanoTime();
             Subscription sub = nc.subscribe(subject, new MessageHandler() {
                 @Override
                 public void onMessage(Message msg) {
                     received.incrementAndGet();
-                    if (received.get() >= numMsgs) {
-                        bench.addSubSample(new Sample(numMsgs, size, start, System.nanoTime(), nc));
+                    if (++count >= num) {
+                        bench.addSubSample(new Sample(num, size, start, System.nanoTime(), nc));
                         phaser.arrive();
                         nc.setDisconnectedCallback(null);
                         nc.setClosedCallback(null);
                         nc.close();
+                        latch.countDown();
                     }
                 }
             });
-            sub.setPendingLimits(10000000, 1000000000);
+            sub.setPendingLimits(-1, -1);
             nc.flush();
             phaser.arrive();
-            while (received.get() < numMsgs) {
-            }
+            latch.await();
         }
     }
 
@@ -194,9 +198,9 @@ public class NatsBench {
         public void run() {
             try {
                 runPublisher();
-                phaser.arrive();
             } catch (Exception e) {
                 errorQueue.add(e);
+            } finally {
                 phaser.arrive();
             }
         }
@@ -210,12 +214,12 @@ public class NatsBench {
 
                 final long start = System.nanoTime();
 
-                for (int i = 0; i < numMsgs; i++) {
+                for (int i = 0; i < num; i++) {
                     sent.incrementAndGet();
                     nc.publish(subject, payload);
                 }
                 nc.flush();
-                bench.addPubSample(new Sample(numMsgs, size, start, System.nanoTime(), nc));
+                bench.addPubSample(new Sample(num, size, start, System.nanoTime(), nc));
                 Statistics s = nc.getStats();
                 System.out.println("NATS publish connection statistics:");
                 System.out.printf("   Bytes out: %d\n", s.getOutBytes());
@@ -249,9 +253,18 @@ public class NatsBench {
         phaser.arriveAndAwaitAdvance();
 
         // Now publishers
+        int remaining = numMsgs;
+        int perPubMsgs = numMsgs / numPubs;
         for (int i = 0; i < numPubs; i++) {
             phaser.register();
-            exec.execute(new PubWorker(phaser, numMsgs, size));
+            // For the last publisher, make sure we ask it to send the remaining
+            // number of messages (with 1,000,000 msgs and 9 publishers, it means
+            // that 8 will send  111111 messages while the last will send 111112).
+            if (i == numPubs - 1) {
+                perPubMsgs = remaining;
+            }
+            exec.execute(new PubWorker(phaser, perPubMsgs, size));
+            remaining -= perPubMsgs;
         }
 
         System.out.printf("Starting benchmark [msgs=%d, msgsize=%d, pubs=%d, subs=%d]\n", numMsgs,
