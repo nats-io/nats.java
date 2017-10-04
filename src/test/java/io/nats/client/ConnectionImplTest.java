@@ -40,7 +40,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -1492,7 +1491,7 @@ public class ConnectionImplTest {
             sub.pCond = mock(Condition.class);
 
             parser.ps.ma.size = length;
-            c.processMsg(data, offset, length);
+            c.processMsg(data, offset, length).get();
 
             // InMsgs should be incremented by 1
             assertEquals(1, c.getStats().getInMsgs());
@@ -1531,7 +1530,7 @@ public class ConnectionImplTest {
             assertEquals(1, sub.getPendingMsgsLimit());
             assertEquals(1, sub.pMsgs);
 
-            c.processMsg(data, offset, length);
+            c.processMsg(data, offset, length).get();
 
             // InMsgs should be incremented by 1, even if the sub stats don't increase
             assertEquals(1, c.getStats().getInMsgs());
@@ -1567,7 +1566,7 @@ public class ConnectionImplTest {
 
             sub.pCond = mock(Condition.class);
 
-            c.processMsg(data, offset, length);
+            c.processMsg(data, offset, length).get();
 
             // InMsgs should be incremented by 1, even if the sub stats don't increase
             assertEquals(1, c.getStats().getInMsgs());
