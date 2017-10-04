@@ -103,7 +103,7 @@ public class Benchmark extends Sample {
             sb.append(String.format("%s%sPub stats: %s\n", indent, maybeTitle, pubs));
             if (pubs.getSamples().size() > 1) {
                 for (Sample stat : pubs.getSamples()) {
-                    sb.append(String.format("%s [%d] %s (%d msgs)\n", indent,
+                    sb.append(String.format("%s [%2d] %s (%d msgs)\n", indent,
                             pubs.getSamples().indexOf(stat) + 1, stat, stat.jobMsgCnt));
                 }
                 sb.append(String.format("%s %s\n", indent, pubs.statistics()));
@@ -114,7 +114,7 @@ public class Benchmark extends Sample {
             sb.append(String.format("%s%sSub stats: %s\n", indent, maybeTitle, subs));
             if (subs.getSamples().size() > 1) {
                 for (Sample stat : subs.getSamples()) {
-                    sb.append(String.format("%s [%d] %s (%d msgs)\n", indent,
+                    sb.append(String.format("%s [%2d] %s (%d msgs)\n", indent,
                             subs.getSamples().indexOf(stat) + 1, stat, stat.jobMsgCnt));
                 }
                 sb.append(String.format("%s %s\n", indent, subs.statistics()));
