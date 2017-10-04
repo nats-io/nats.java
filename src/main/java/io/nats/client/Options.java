@@ -30,6 +30,7 @@ import static io.nats.client.Nats.PROP_RECONNECT_BUF_SIZE;
 import static io.nats.client.Nats.PROP_RECONNECT_WAIT;
 import static io.nats.client.Nats.PROP_SECURE;
 import static io.nats.client.Nats.PROP_SERVERS;
+import static io.nats.client.Nats.PROP_SUBSCRIPTION_CONCURRENCY;
 import static io.nats.client.Nats.PROP_TLS_DEBUG;
 import static io.nats.client.Nats.PROP_URL;
 import static io.nats.client.Nats.PROP_USERNAME;
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
 
@@ -89,6 +91,8 @@ public class Options {
     public ReconnectedCallback reconnectedCb;
     public ExceptionHandler asyncErrorCb;
 
+    ExecutorService subscriptionDispatchPool;
+
     // Size of the backing ByteArrayOutputStream buffer during reconnect.
     // Once this has been exhausted publish operations will error.
     final int reconnectBufSize;
@@ -99,6 +103,7 @@ public class Options {
 
     // TODO Allow users to set a custom "dialer" like Go. For now keep package-private
     final TcpConnectionFactory factory;
+    final int subscriptionConcurrency;
 
     // private List<X509Certificate> certificates =
     // new ArrayList<X509Certificate>();
@@ -131,7 +136,8 @@ public class Options {
         this.closedCb = builder.closedCb;
         this.reconnectedCb = builder.reconnectedCb;
         this.asyncErrorCb = builder.asyncErrorCb;
-
+        this.subscriptionDispatchPool = builder.subscriptionDispatchPool;
+        this.subscriptionConcurrency = builder.subscriptionConcurrency;
     }
 
     @Override
@@ -288,6 +294,10 @@ public class Options {
         return pingInterval;
     }
 
+    public int getSubscriptionConcurrency() {
+        return subscriptionConcurrency;
+    }
+
     public int getMaxPingsOut() {
         return maxPingsOut;
     }
@@ -308,6 +318,10 @@ public class Options {
 
     public DisconnectedCallback getDisconnectedCallback() {
         return disconnectedCb;
+    }
+
+    public ExecutorService getSubscriptionDispatchPool() {
+        return subscriptionDispatchPool;
     }
 
     // public void addCertificate(X509Certificate cert) {
@@ -358,10 +372,12 @@ public class Options {
         private SSLContext sslContext;
         private boolean tlsDebug;
         private TcpConnectionFactory factory;
+        private int subscriptionConcurrency = -1;
         DisconnectedCallback disconnectedCb;
         ClosedCallback closedCb;
         ReconnectedCallback reconnectedCb;
         ExceptionHandler asyncErrorCb;
+        ExecutorService subscriptionDispatchPool;
 
         /**
          * Constructs a {@link Builder} instance based on the supplied {@link Options} instance.
@@ -549,6 +565,10 @@ public class Options {
                 }
                 this.reconnectedCb = (ReconnectedCallback) instance;
             }
+            // PROP_SUBSCRIPTION_CONCURRENCY
+            if (props.containsKey(PROP_SUBSCRIPTION_CONCURRENCY)) {
+                this.subscriptionConcurrency = Integer.parseInt(props.getProperty(PROP_SUBSCRIPTION_CONCURRENCY, "-1"));
+            }
         }
 
         public Builder dontRandomize() {
@@ -641,6 +661,16 @@ public class Options {
             if (sslContext != null) {
                 this.secure = true;
             }
+            return this;
+        }
+
+        public Builder subscriptionDispatchPool(ExecutorService threadPool) {
+            this.subscriptionDispatchPool = threadPool;
+            return this;
+        }
+
+        public Builder subscriptionConcurrency(int concurrency) {
+            this.subscriptionConcurrency = concurrency;
             return this;
         }
 

@@ -206,6 +206,12 @@ public final class Nats {
      */
     public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
 
+    /**
+     * The number of threads to use for async subscription dispatch.
+     * If not set or set to &lt;1, the original behavior of one thread per
+     * subscriber is used.
+     */
+    public static final String PROP_SUBSCRIPTION_CONCURRENCY = PFX + "subscription.concurrency";
     /*
      * Constants
      */
@@ -439,7 +445,7 @@ public final class Nats {
      * @return the default {@link Options}
      */
     public static Options defaultOptions() {
-        return new Options.Builder().build();
+        return new Options.Builder().subscriptionConcurrency(4).build();
     }
 
     static List<URI> processUrlString(String url) {

@@ -62,14 +62,18 @@ class UnitTestUtilities {
         return connect(Nats.DEFAULT_URL);
     }
 
+    static synchronized Connection newDefaultConnection(ExceptionHandler onError) throws IOException {
+        return connect(Nats.DEFAULT_URL, new Options.Builder().errorCb(onError).build());
+    }
+
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf)
             throws IOException {
-        return new Options.Builder().factory(tcf).build().connect();
+        return new Options.Builder().subscriptionConcurrency(4).factory(tcf).build().connect();
     }
 
     static synchronized Connection newDefaultConnection(TcpConnectionFactory tcf, Options opts)
             throws IOException {
-        return new Options.Builder(opts).factory(tcf).build().connect();
+        return new Options.Builder(opts).subscriptionConcurrency(4).factory(tcf).build().connect();
     }
 
     static TcpConnection newMockedTcpConnection() throws IOException {
@@ -196,7 +200,7 @@ class UnitTestUtilities {
     }
 
     static Connection newMockedConnection(String url) throws IOException {
-        Options opts = Nats.defaultOptions();
+        Options opts = new Options.Builder().subscriptionConcurrency(4).build();
         opts.url = url;
         return newMockedConnection(opts);
     }
@@ -211,12 +215,13 @@ class UnitTestUtilities {
         if (opts == null) {
             options = new Options.Builder(Nats.defaultOptions())
                     .factory(tcfMock)
+                    .subscriptionConcurrency(4)
                     .build();
             options.url = Nats.DEFAULT_URL;
         } else if (opts.getFactory() == null) {
-            options = new Options.Builder(opts).factory(tcfMock).build();
+            options = new Options.Builder(opts).subscriptionConcurrency(4).factory(tcfMock).build();
         } else {
-            options = new Options.Builder(opts).build();
+            options = new Options.Builder(opts).subscriptionConcurrency(4).build();
         }
         return Nats.connect(options.url, options);
     }
@@ -371,7 +376,7 @@ class UnitTestUtilities {
     }
 
     static boolean await(CountDownLatch latch) {
-        return await(latch, 5, TimeUnit.SECONDS);
+        return await(latch, 15, TimeUnit.SECONDS);
     }
 
     static boolean await(CountDownLatch latch, long timeout, TimeUnit unit) {

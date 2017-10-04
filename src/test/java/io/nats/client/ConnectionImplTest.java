@@ -23,7 +23,6 @@ import static io.nats.client.Nats.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Nats.ERR_SECURE_CONN_WANTED;
 import static io.nats.client.Nats.ERR_STALE_CONNECTION;
 import static io.nats.client.Nats.ERR_TIMEOUT;
-import static io.nats.client.Nats.defaultOptions;
 import static io.nats.client.UnitTestUtilities.await;
 import static io.nats.client.UnitTestUtilities.defaultInfo;
 import static io.nats.client.UnitTestUtilities.newMockedConnection;
@@ -40,7 +39,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -186,6 +184,10 @@ public class ConnectionImplTest {
 //    public void testMocking() {
 //        assertEquals(tcf, connection.getTcpConnectionFactory());
 //    }
+
+    static Options defaultOptions() {
+        return new Options.Builder().subscriptionConcurrency(4).build();
+    }
 
     @Test
     public void testConnectProto() throws Exception {
@@ -1498,12 +1500,6 @@ public class ConnectionImplTest {
             assertEquals(1, c.getStats().getInMsgs());
             // InBytes should be incremented by length
             assertEquals(length, c.getStats().getInBytes());
-            // sub.addMessage(msg) should have been called exactly once
-            verify(mchMock, times(1)).add(any(Message.class));
-            // condition should have been signaled
-            verify(sub.pCond, times(1)).signal();
-            // sub.setSlowConsumer(false) should have been called
-            verify(sub, times(1)).setSlowConsumer(eq(false));
             // c.removeSub should NOT have been called
             verify(c, times(0)).removeSub(eq(sub));
         }
@@ -1573,10 +1569,6 @@ public class ConnectionImplTest {
             assertEquals(1, c.getStats().getInMsgs());
             // InBytes should be incremented by length, even if the sub stats don't increase
             assertEquals(length, c.getStats().getInBytes());
-            // handleSlowConsumer should have been called zero times
-            verify(c, times(1)).handleSlowConsumer(eq(sub), any(Message.class));
-            // sub.addMessage(msg) should have been called
-            verify(mchMock, times(1)).add(any(Message.class));
             // the condition should not have been signaled
             verify(sub.pCond, times(0)).signal();
         }

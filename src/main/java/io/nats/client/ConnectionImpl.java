@@ -25,7 +25,6 @@ import static io.nats.client.Nats.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Nats.ERR_SECURE_CONN_WANTED;
 import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
 import static io.nats.client.Nats.ERR_STALE_CONNECTION;
-import static io.nats.client.Nats.ERR_TCP_FLUSH_FAILED;
 import static io.nats.client.Nats.ERR_TIMEOUT;
 import static io.nats.client.Nats.PERMISSIONS_ERR;
 import static io.nats.client.Nats.TLS_SCHEME;
@@ -33,6 +32,7 @@ import static io.nats.client.Nats.TLS_SCHEME;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
+import io.nats.client.AsyncDeliveryQueue.MessageBatch;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -49,6 +49,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -65,6 +66,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
@@ -203,6 +205,8 @@ class ConnectionImpl implements Connection {
     private ExecutorService cbexec;
     static final String CB_EXEC_NAME = "jnats-callbacks";
 
+    static final String DISPATCH_EXEC_NAME = "jnats-disptach";
+
     // The ping timer task
     private ScheduledFuture<?> ptmr = null;
     static final String PINGTIMER = "pingtimer";
@@ -219,6 +223,10 @@ class ConnectionImpl implements Connection {
     // The flusher signalling channel
     private BlockingQueue<Boolean> fch;
 
+    private final ExecutorService subscriptionDispatchPool;
+    private final AsyncDeliveryQueue asyncQueue;
+    private final int subscriptionConcurrency;
+    private final boolean dispatchPoolCreatedLocally;
 //    ConnectionImpl() {
 //    }
 
@@ -233,6 +241,26 @@ class ConnectionImpl implements Connection {
             tcf = opts.getFactory();
         } else {
             tcf = new TcpConnectionFactory();
+        }
+        ExecutorService subscriptionPool = opts.subscriptionDispatchPool;
+        int concurrency = opts.getSubscriptionConcurrency();
+        boolean createdPool = false;
+        if (concurrency > 0 && subscriptionPool == null) {
+            createdPool = true;
+            subscriptionPool = Executors.newFixedThreadPool(concurrency);
+        } else if (concurrency < 0 && subscriptionPool != null) {
+            if (subscriptionPool instanceof ThreadPoolExecutor) {
+                concurrency = Math.max(16, ((ThreadPoolExecutor) subscriptionPool).getCorePoolSize());
+            } else {
+                concurrency = Runtime.getRuntime().availableProcessors();
+            }
+        }
+        dispatchPoolCreatedLocally = createdPool;
+        subscriptionConcurrency = Math.max(concurrency, 1);
+        this.subscriptionDispatchPool = subscriptionPool;
+        asyncQueue = subscriptionPool == null ? null : new AsyncDeliveryQueue();
+        if (subscriptionPool != null) {
+            startDispatchPool();
         }
     }
 
@@ -563,7 +591,9 @@ class ConnectionImpl implements Connection {
      */
     private void close(ConnState closeState, boolean doCBs) {
         final ConnectionImpl nc = this;
-
+        for (Future<?> f : dispatchFutures) {
+            f.cancel(true);
+        }
         mu.lock();
         try {
             if (closed()) {
@@ -652,6 +682,10 @@ class ConnectionImpl implements Connection {
 
             if (subexec != null) {
                 shutdownAndAwaitTermination(subexec, SUB_EXEC_NAME);
+            }
+
+            if (dispatchPoolCreatedLocally) {
+                subscriptionDispatchPool.shutdownNow();
             }
 
         } finally {
@@ -1373,6 +1407,89 @@ class ConnectionImpl implements Connection {
         }
     }
 
+    void fetchAndDispatchAsyncMessages(int index) throws InterruptedException {
+        Thread.currentThread().setName(DISPATCH_EXEC_NAME + " " + index + " for " + opts.connectionName);
+        List<MessageBatch> batches = new LinkedList<>();
+        for (;;) {
+            asyncQueue.get(batches);
+            if (Thread.interrupted()) {
+                return;
+            }
+            for (MessageBatch batch : batches) {
+                try {
+                    AsyncSubscriptionImpl sub = (AsyncSubscriptionImpl) subs.get(batch.subscriberId());
+                    if (sub != null) {
+                        MessageHandler handler = sub.getMessageHandler();
+                        List<Message> messages = batch.toList();
+                        boolean closed;
+                        long max;
+                        long delivered = 0L;
+                        long totalBytes = batch.totalBytes();
+                        sub.lock();
+                        try {
+                            max = sub.max;
+                            closed = sub.isClosed();
+                            if (!closed) {
+                                if (sub.delivered + messages.size() >= sub.max) {
+                                    messages = messages.subList(0, (int) (sub.max - sub.delivered));
+                                    totalBytes = 0;
+                                    for (Message msg : messages) {
+                                        if (msg.getData() != null) {
+                                            totalBytes += msg.getData().length;
+                                        }
+                                    }
+                                }
+                                delivered = sub.delivered += messages.size();
+                            }
+                            // The next two lines should probably be inside if (!closed)
+                            // but in the original code this is updated regardless, so
+                            // emulating that
+                            sub.pMsgs -= batch.size();
+                            sub.pBytes -= totalBytes;
+                        } finally {
+                            sub.unlock();
+                        }
+                        if (closed) {
+                            continue;
+                        }
+                        for (Message message : batch) {
+                            try {
+                                handler.onMessage(message);
+                            } catch (RuntimeException ex) {
+                                if (opts.asyncErrorCb != null) {
+                                    opts.asyncErrorCb.onException(new NATSException(ex, ConnectionImpl.this, sub));
+                                } else {
+                                    // This seems like a supremely bad idea, since it will abort message
+                                    // delivery, and eventually exit all the threads in the thread pool.
+                                    // Nonetheless, that is what the original code does.
+                                    throw ex;
+                                }
+                            }
+                        }
+                        if (max > 0 && delivered >= max) {
+                            mu.lock();
+                            try {
+                                removeSub(sub);
+                            } finally {
+                                mu.unlock();
+                            }
+                            break;
+                        }
+                    }
+                } finally {
+                    // This must be called to enable delivery of further messages
+                    // on threads other than this one - to ensure one batch of
+                    // messages doesn't get ahead of another one, AsyncDeliveryQueue
+                    // tracks the thread most recently given a batch of messages
+                    // and will not give further messages for the same subscriber 
+                    // to any other thread until close() is called on the
+                    // resulting batch
+                    batch.close();
+                }
+            }
+            batches.clear();
+        }
+    }
     /**
      * waitForMsgs waits on the conditional shared with readLoop and processMsg. It is used to
      * deliver messages to asynchronous subscribers.
@@ -1475,7 +1592,9 @@ class ConnectionImpl implements Connection {
                     handleSlowConsumer(sub, msg);
                 } else {
                     // We use mch for everything, unlike Go client
-                    if (sub.getChannel() != null) {
+                    if (sub instanceof AsyncSubscriptionImpl && !isThreadPerSubscriber()) {
+                        asyncQueue.add(parser.ps.ma.sid, msg);
+                    } else if (sub.getChannel() != null) {
                         if (sub.getChannel().add(msg)) {
                             sub.pCond.signal();
                             // Clear Slow Consumer status
@@ -1787,6 +1906,40 @@ class ConnectionImpl implements Connection {
         }
     }
 
+    boolean isThreadPerSubscriber() {
+        return subscriptionDispatchPool == null;
+    }
+
+    private final List<Future<?>> dispatchFutures = new LinkedList<>();
+    private final void startDispatchPool() {
+        for (int i = 0; i < subscriptionConcurrency; i++) {
+            dispatchFutures.add(this.subscriptionDispatchPool.submit(new AsyncMessageDispatch(i)));
+        }
+    }
+
+    final class AsyncMessageDispatch implements Runnable {
+
+        private final int index;
+        AsyncMessageDispatch(int index) {
+            this.index = index;
+        }
+        public void run() {
+            try {
+                fetchAndDispatchAsyncMessages(index);
+            } catch (InterruptedException ex) {
+                // This is not actually a good idea, but is what the original
+                // code did.  In fact, setting the interrupted flag will do
+                // nothing, since all that happens from here is the thread
+                // exits and terminates.  But, for compatibility...
+                Thread.currentThread().interrupt();
+                // The point is, there is no way to guarantee that the *only*
+                // way this thread can become interrupted is because it
+                // *should* exit (which could break all asynchronous listening).
+                // It calls out to client code, so anything can happen.
+            }
+        }
+    }
+
     /**
      * subscribe is the internal subscribe function that indicates interest in a subject.
      *
@@ -1798,6 +1951,16 @@ class ConnectionImpl implements Connection {
      */
     SubscriptionImpl subscribe(String subject, String queue, MessageHandler cb,
                                BlockingQueue<Message> ch) {
+        if (!isThreadPerSubscriber() && cb != null && opts.asyncErrorCb == null
+                && !Boolean.getBoolean("unit.test")) {
+            throw new IllegalStateException("An async error callback must be set to "
+                    + "use async message delivery with a shared thread pool");
+        }
+        if (ch != null && cb != null) {
+            throw new IllegalArgumentException("Passed a queue for an asynchronous "
+                    + "subscription.  It will not be used and should be null if "
+                    + "a MessageHandler is passed.");
+        }
         final SubscriptionImpl sub;
         mu.lock();
         try {
@@ -1812,17 +1975,19 @@ class ConnectionImpl implements Connection {
 
             if (cb != null) {
                 sub = new AsyncSubscriptionImpl(this, subject, queue, cb);
-                // If we have an async callback, start up a sub specific Runnable to deliver the
-                // messages
-                subexec.submit(new Runnable() {
-                    public void run() {
-                        try {
-                            waitForMsgs((AsyncSubscriptionImpl) sub);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
+                if (isThreadPerSubscriber()) {
+                    // If we have an async callback, start up a sub specific Runnable to deliver the
+                    // messages
+                    subexec.submit(new Runnable() {
+                        public void run() {
+                            try {
+                                waitForMsgs((AsyncSubscriptionImpl) sub);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
                         }
-                    }
-                });
+                    });
+                }
             } else {
                 sub = new SyncSubscriptionImpl(this, subject, queue);
                 sub.setChannel(ch);
