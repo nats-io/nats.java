@@ -35,7 +35,8 @@ public class MsgDeliveryPoolTest extends BaseUnitTest {
         assertEquals(7, pool.getSize());
 
         final AtomicInteger received = new AtomicInteger(0);
-        ConnectionImpl nc = mock(ConnectionImpl.class);
+        Options opts = Nats.defaultOptions();
+        ConnectionImpl nc = new ConnectionImpl(opts);
         AsyncSubscriptionImpl sub1 = new AsyncSubscriptionImpl(nc, "foo", null, new MessageHandler() {
             public void onMessage(Message msg) {
                 received.incrementAndGet();

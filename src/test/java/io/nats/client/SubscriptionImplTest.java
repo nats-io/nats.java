@@ -52,29 +52,25 @@ public class SubscriptionImplTest extends BaseUnitTest {
         MockitoAnnotations.initMocks(this);
     }
 
+    private SubscriptionImpl createSub(int idx, ConnectionImpl nc, String subj, String queue) {
+        return (idx == 0 ? new SyncSubscriptionImpl(nc, subj, queue) : new AsyncSubscriptionImpl(nc, subj, queue, mcbMock));
+    }
+
     @Test
     public void testSubscriptionImplConnectionImplStringString() {
         String subj = "foo";
         String queue = "bar";
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue)) {
-            assertEquals(nc, s.getConnection());
-            assertEquals(subj, s.getSubject());
-            assertEquals(queue, s.getQueue());
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl s = this.createSub(i, nc, subj, queue)) {
+                assertEquals(nc, s.getConnection());
+                assertEquals(subj, s.getSubject());
+                assertEquals(queue, s.getQueue());
+                assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
+                assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
+            }
         }
-
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, subj, queue, mcbMock)) {
-            assertEquals(nc, s.getConnection());
-            assertEquals(subj, s.getSubject());
-            assertEquals(queue, s.getQueue());
-            assertEquals(mcbMock, s.getMessageHandler());
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
-        }
-
     }
 
     @Test
@@ -101,20 +97,22 @@ public class SubscriptionImplTest extends BaseUnitTest {
         // Make sure the connection opts aren't null
         when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-            int maxMsgs = 44;
-            int maxBytes = 44 * 1024;
-            sub.setPendingMsgsMax(maxMsgs);
-            assertEquals(maxMsgs, sub.getPendingMsgsMax());
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, nc, "foo", "bar")) {
+                int maxMsgs = 44;
+                int maxBytes = 44 * 1024;
+                sub.setPendingMsgsMax(maxMsgs);
+                assertEquals(maxMsgs, sub.getPendingMsgsMax());
 
-            sub.setPendingBytesMax(maxBytes);
-            assertEquals(maxBytes, sub.getPendingBytesMax());
+                sub.setPendingBytesMax(maxBytes);
+                assertEquals(maxBytes, sub.getPendingBytesMax());
 
-            sub.clearMaxPending();
-            assertEquals(0, sub.getPendingMsgsMax());
-            assertEquals(0, sub.getPendingBytesMax());
+                sub.clearMaxPending();
+                assertEquals(0, sub.getPendingMsgsMax());
+                assertEquals(0, sub.getPendingBytesMax());
 
-            assertEquals(nc, sub.getConnection());
+                assertEquals(nc, sub.getConnection());
+            }
         }
     }
 
@@ -169,19 +167,20 @@ public class SubscriptionImplTest extends BaseUnitTest {
         int maxBytes = 4000000;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            sub.setPendingBytesLimit(maxBytes);
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, sub.getPendingMsgsLimit());
-            assertEquals(maxBytes, sub.getPendingBytesLimit());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, nc, subj, queue)) {
+                sub.setPendingBytesLimit(maxBytes);
+                assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, sub.getPendingMsgsLimit());
+                assertEquals(maxBytes, sub.getPendingBytesLimit());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            maxBytes = -400;
-            sub.setPendingBytesLimit(maxBytes);
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, sub.getPendingMsgsLimit());
-            assertEquals(-400, sub.getPendingBytesLimit());
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                maxBytes = -400;
+                sub.setPendingBytesLimit(maxBytes);
+                assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, sub.getPendingMsgsLimit());
+                assertEquals(-400, sub.getPendingBytesLimit());
+            }
         }
-
     }
 
     @Test
@@ -194,30 +193,32 @@ public class SubscriptionImplTest extends BaseUnitTest {
         int maxBytes = 4000000;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            sub.setPendingLimits(maxMsgsDefaultLimit, maxBytesDefaultLimit);
-            assertEquals(maxMsgsDefaultLimit, sub.getPendingMsgsLimit());
-            assertEquals(maxBytesDefaultLimit, sub.getPendingBytesLimit());
-            sub.setPendingLimits(maxMsgs, maxBytes);
-            assertEquals(maxMsgs, sub.getPendingMsgsLimit());
-            assertEquals(maxBytes, sub.getPendingBytesLimit());
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, nc, subj, queue)) {
+                sub.setPendingLimits(maxMsgsDefaultLimit, maxBytesDefaultLimit);
+                assertEquals(maxMsgsDefaultLimit, sub.getPendingMsgsLimit());
+                assertEquals(maxBytesDefaultLimit, sub.getPendingBytesLimit());
+                sub.setPendingLimits(maxMsgs, maxBytes);
+                assertEquals(maxMsgs, sub.getPendingMsgsLimit());
+                assertEquals(maxBytes, sub.getPendingBytesLimit());
 
-            boolean exThrown = false;
-            try {
-                sub.setPendingLimits(0, 1);
-            } catch (IllegalArgumentException e) {
-                exThrown = true;
-            } finally {
-                assertTrue("Setting limit with 0 should fail", exThrown);
-            }
+                boolean exThrown = false;
+                try {
+                    sub.setPendingLimits(0, 1);
+                } catch (IllegalArgumentException e) {
+                    exThrown = true;
+                } finally {
+                    assertTrue("Setting limit with 0 should fail", exThrown);
+                }
 
-            exThrown = false;
-            try {
-                sub.setPendingLimits(1, 0);
-            } catch (IllegalArgumentException e) {
-                exThrown = true;
-            } finally {
-                assertTrue("Setting limit with 0 should fail", exThrown);
+                exThrown = false;
+                try {
+                    sub.setPendingLimits(1, 0);
+                } catch (IllegalArgumentException e) {
+                    exThrown = true;
+                } finally {
+                    assertTrue("Setting limit with 0 should fail", exThrown);
+                }
             }
         }
     }
@@ -228,9 +229,11 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String queue = "bar";
         int max = 20;
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.autoUnsubscribe(max);
-            verify(connMock, times(1)).unsubscribe(eq(sub), eq(max));
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.autoUnsubscribe(max);
+                verify(connMock, times(1)).unsubscribe(eq(sub), eq(max));
+            }
         }
     }
 
@@ -241,11 +244,11 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
 
-        ConnectionImpl nc = null;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            sub.autoUnsubscribe(1);
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.autoUnsubscribe(1);
+            }
         }
-
     }
 
     @Test
@@ -256,13 +259,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.delivered = count;
-            assertEquals(count, sub.getDelivered());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.delivered = count;
+                assertEquals(count, sub.getDelivered());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getDelivered();
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.getDelivered();
+            }
         }
     }
 
@@ -274,13 +279,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.dropped = count;
-            assertEquals(count, sub.getDropped());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.dropped = count;
+                assertEquals(count, sub.getDropped());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getDropped();
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.getDropped();
+            }
         }
     }
 
@@ -292,13 +299,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pBytesMax = count;
-            assertEquals(count, sub.getPendingBytesMax());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pBytesMax = count;
+                assertEquals(count, sub.getPendingBytesMax());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingBytesMax();
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.getPendingBytesMax();
+            }
         }
     }
 
@@ -310,13 +319,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pMsgsMax = count;
-            assertEquals(count, sub.getPendingMsgsMax());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pMsgsMax = count;
+                assertEquals(count, sub.getPendingMsgsMax());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingMsgsMax();
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.getPendingMsgsMax();
+            }
         }
     }
 
@@ -329,13 +340,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String queue = "bar";
         int count = 22;
         when(mchMock.size()).thenReturn(count);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pMsgs = count;
-            assertEquals(count, sub.getPendingMsgs());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pMsgs = count;
+                assertEquals(count, sub.getPendingMsgs());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingMsgs();
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.getPendingMsgs();
+            }
         }
     }
 
@@ -347,13 +360,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22 * 1024;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pBytes = count;
-            assertEquals(count, sub.getPendingBytes());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pBytes = count;
+                assertEquals(count, sub.getPendingBytes());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingBytes();
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.getPendingBytes();
+            }
         }
     }
 
@@ -365,13 +380,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pMsgs = count;
-            assertEquals(count, sub.getPendingMsgs());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pMsgs = count;
+                assertEquals(count, sub.getPendingMsgs());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingMsgs();
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.getPendingMsgs();
+            }
         }
     }
 
@@ -379,12 +396,14 @@ public class SubscriptionImplTest extends BaseUnitTest {
     public void testIsValid() {
         String subj = "foo";
         String queue = "bar";
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            assertTrue(sub.isValid());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                assertTrue(sub.isValid());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            assertFalse(sub.isValid());
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                assertFalse(sub.isValid());
+            }
         }
     }
 
@@ -444,13 +463,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.setPendingBytesMax(count);
-            assertEquals(count, sub.getPendingBytesMax());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.setPendingBytesMax(count);
+                assertEquals(count, sub.getPendingBytesMax());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.setPendingBytesMax(count);
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.setPendingBytesMax(count);
+            }
         }
     }
 
@@ -462,13 +483,15 @@ public class SubscriptionImplTest extends BaseUnitTest {
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.setPendingMsgsMax(count);
-            assertEquals(count, sub.getPendingMsgsMax());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.setPendingMsgsMax(count);
+                assertEquals(count, sub.getPendingMsgsMax());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.setPendingMsgsMax(count);
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                sub.setPendingMsgsMax(count);
+            }
         }
     }
 

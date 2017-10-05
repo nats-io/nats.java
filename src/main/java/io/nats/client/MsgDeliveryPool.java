@@ -42,7 +42,7 @@ class MsgDeliveryPool {
         return this.workers.size();
     }
 
-    synchronized void assignDeliveryWorker(SubscriptionImpl sub) {
+    synchronized void assignDeliveryWorker(AsyncSubscriptionImpl sub) {
         int idx = this.idx;
         if (++this.idx >= this.workers.size()) {
             this.idx = 0;
@@ -139,7 +139,12 @@ class MsgDeliveryWorker extends Thread {
             if ((max > 0) && (delivered >= max))
             {
                 // If we have hit the max for delivered msgs, remove sub.
-                nc.removeSub(sub);
+                nc.mu.lock();
+                try {
+                    nc.removeSub(sub);
+                } finally {
+                    nc.mu.unlock();
+                }
             }
 
             this.mu.lock();

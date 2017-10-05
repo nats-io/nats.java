@@ -51,10 +51,6 @@ abstract class SubscriptionImpl implements Subscription {
     BlockingQueue<Message> mch;
     Condition pCond;
 
-    // Ideally, this should be in AsyncSubscriptionImpl, but because of
-    // locking and to reduce code duplication, leave this here.
-    private MsgDeliveryWorker dlvWorker;
-
     // Pending stats, async subscriptions, high-speed etc.
     int pMsgs;
     int pBytes;
@@ -187,9 +183,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (conn == null) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
-            this.dlvWorkerLock();
             rv = dropped;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -204,9 +198,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (conn == null) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
-            this.dlvWorkerLock();
             rv = this.pMsgsMax;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -222,9 +214,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (conn == null) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
-            this.dlvWorkerLock();
             rv = this.pBytesMax;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -244,9 +234,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (pendingMsgsLimit == 0) {
                 throw new IllegalArgumentException("nats: pending message limit cannot be zero");
             }
-            this.dlvWorkerLock();
             pMsgsLimit = pendingMsgsLimit;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -258,9 +246,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (pendingBytesLimit == 0) {
                 throw new IllegalArgumentException("nats: pending message limit cannot be zero");
             }
-            this.dlvWorkerLock();
             pBytesLimit = pendingBytesLimit;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -272,9 +258,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (conn == null) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
-            this.dlvWorkerLock();
             pMsgsMax = (max <= 0) ? 0 : max;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -286,9 +270,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (conn == null) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
-            this.dlvWorkerLock();
             pBytesMax = (max <= 0) ? 0 : max;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -316,9 +298,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (conn == null) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
-            this.dlvWorkerLock();
             rv = delivered;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -333,9 +313,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (conn == null) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
-            this.dlvWorkerLock();
             rv = pBytes;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -346,9 +324,7 @@ abstract class SubscriptionImpl implements Subscription {
     public int getPendingBytesLimit() {
         int rv;
         mu.lock();
-        this.dlvWorkerLock();
         rv = pBytesLimit;
-        this.dlvWorkerUnlock();
         mu.unlock();
         return rv;
     }
@@ -361,9 +337,7 @@ abstract class SubscriptionImpl implements Subscription {
             if (conn == null) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
-            this.dlvWorkerLock();
             rv = pMsgs;
-            this.dlvWorkerUnlock();
         } finally {
             mu.unlock();
         }
@@ -374,9 +348,7 @@ abstract class SubscriptionImpl implements Subscription {
     public int getPendingMsgsLimit() {
         int rv;
         mu.lock();
-        this.dlvWorkerLock();
         rv = pMsgsLimit;
-        this.dlvWorkerUnlock();
         mu.unlock();
         return rv;
     }
@@ -418,25 +390,5 @@ abstract class SubscriptionImpl implements Subscription {
 
     void unlock() {
         mu.unlock();
-    }
-
-    private void dlvWorkerLock() {
-        if (this.dlvWorker != null) {
-            this.dlvWorker.lock();
-        }
-    }
-
-    private void dlvWorkerUnlock() {
-        if (this.dlvWorker != null) {
-            this.dlvWorker.unlock();
-        }
-    }
-
-    MsgDeliveryWorker getDeliveryWorker() {
-        return this.dlvWorker;
-    }
-
-    void setDeliveryWorker(MsgDeliveryWorker worker) {
-        this.dlvWorker = worker;
     }
 }

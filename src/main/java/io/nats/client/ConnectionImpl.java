@@ -1458,7 +1458,10 @@ class ConnectionImpl implements Connection {
             // It's possible that we end up not using the message, but that's ok.
             Message msg = new Message(parser.ps.ma, sub, data, offset, length);
 
-            final MsgDeliveryWorker mdw = sub.getDeliveryWorker();
+            MsgDeliveryWorker mdw = null;
+            if (sub instanceof AsyncSubscriptionImpl) {
+                mdw = ((AsyncSubscriptionImpl) sub).getDeliveryWorker();
+            }
             if (mdw != null) {
                 mdw.lock();
             } else {
@@ -1831,7 +1834,7 @@ class ConnectionImpl implements Connection {
 
                 sub = new AsyncSubscriptionImpl(this, subject, queue, cb, useDlvPool);
                 if (useDlvPool) {
-                    msgDlvPool.assignDeliveryWorker(sub);
+                    msgDlvPool.assignDeliveryWorker((AsyncSubscriptionImpl) sub);
                 } else {
                     // If we have an async callback, start up a sub specific Runnable to deliver the
                     // messages
