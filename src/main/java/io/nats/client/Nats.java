@@ -508,6 +508,7 @@ public final class Nats {
      * value than the previous call (but will not report any error).
      *
      * @param size the size of the thread pool
+     * @throws IllegalArgumentException if size is lower or equal to zero.
      */
     synchronized public static void setMsgDeliveryThreadPoolSize(int size) {
         if (size <= 0) {
