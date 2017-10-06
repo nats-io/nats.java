@@ -12,7 +12,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -54,6 +53,32 @@ public class SubscriptionImplTest extends BaseUnitTest {
 
     private SubscriptionImpl createSub(int idx, ConnectionImpl nc, String subj, String queue) {
         return (idx == 0 ? new SyncSubscriptionImpl(nc, subj, queue) : new AsyncSubscriptionImpl(nc, subj, queue, mcbMock));
+    }
+
+    private interface subMethodToRun {
+        public void run(SubscriptionImpl sub);
+    }
+
+    private class subMethodToRunWithCount implements subMethodToRun {
+        int count;
+
+        subMethodToRunWithCount(int count) {
+            this.count = count;
+        }
+
+        @Override
+        public void run(SubscriptionImpl sub) {};
+    }
+
+    private void checkBadSubscription(int i, subMethodToRun m) {
+        try {
+            try (SubscriptionImpl sub = this.createSub(i, null, "foo", "bar")) {
+                m.run(sub);
+            }
+        } catch (Throwable t) {
+            assertTrue(t instanceof IllegalStateException);
+            assertTrue(t.getMessage().equals(ERR_BAD_SUBSCRIPTION));
+        }
     }
 
     @Test
@@ -239,23 +264,20 @@ public class SubscriptionImplTest extends BaseUnitTest {
 
     @Test
     public void testAutoUnsubscribeConnNull() throws IOException {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-        String subj = "foo";
-        String queue = "bar";
-
         for (int i=0; i<2; i++) {
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.autoUnsubscribe(1);
-            }
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    try {
+                        sub.autoUnsubscribe(1);
+                    } catch (IOException e) {}
+                }
+            });
         }
     }
 
     @Test
     public void testGetDelivered() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
@@ -265,17 +287,17 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 assertEquals(count, sub.getDelivered());
             }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.getDelivered();
-            }
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getDelivered();
+                }
+            });
         }
     }
 
     @Test
     public void testGetDropped() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
@@ -285,17 +307,17 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 assertEquals(count, sub.getDropped());
             }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.getDropped();
-            }
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getDropped();
+                }
+            });
         }
     }
 
     @Test
     public void testGetPendingBytesMax() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
@@ -305,17 +327,17 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 assertEquals(count, sub.getPendingBytesMax());
             }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.getPendingBytesMax();
-            }
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getPendingBytesMax();
+                }
+            });
         }
     }
 
     @Test
     public void testGetPendingMsgsMax() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
@@ -325,17 +347,17 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 assertEquals(count, sub.getPendingMsgsMax());
             }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.getPendingMsgsMax();
-            }
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getPendingMsgsMax();
+                }
+            });
         }
     }
 
     @Test
     public void testGetQueuedMessageCount() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
@@ -343,20 +365,20 @@ public class SubscriptionImplTest extends BaseUnitTest {
         for (int i=0; i<2; i++) {
             try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
                 sub.pMsgs = count;
-                assertEquals(count, sub.getPendingMsgs());
+                assertEquals(count, sub.getQueuedMessageCount());
             }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.getPendingMsgs();
-            }
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getQueuedMessageCount();
+                }
+            });
         }
     }
 
     @Test
     public void testGetPendingBytes() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22 * 1024;
@@ -365,18 +387,20 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 sub.pBytes = count;
                 assertEquals(count, sub.getPendingBytes());
             }
+        }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.getPendingBytes();
-            }
+        for (int i=0; i<2; i++) {
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getPendingBytes();
+                }
+            });
         }
     }
 
     @Test
     public void testGetPendingMsgs() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
@@ -386,9 +410,12 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 assertEquals(count, sub.getPendingMsgs());
             }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.getPendingMsgs();
-            }
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getPendingMsgs();
+                }
+            });
         }
     }
 
@@ -457,9 +484,6 @@ public class SubscriptionImplTest extends BaseUnitTest {
 
     @Test
     public void testSetPendingBytesMax() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
@@ -469,17 +493,17 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 assertEquals(count, sub.getPendingBytesMax());
             }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.setPendingBytesMax(count);
-            }
+            checkBadSubscription(i, new subMethodToRunWithCount(count) {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.setPendingBytesMax(this.count);
+                }
+            });
         }
     }
 
     @Test
     public void testSetPendingMsgsMax() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
@@ -489,9 +513,12 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 assertEquals(count, sub.getPendingMsgsMax());
             }
 
-            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
-                sub.setPendingMsgsMax(count);
-            }
+            checkBadSubscription(i, new subMethodToRunWithCount(count) {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.setPendingMsgsMax(this.count);
+                }
+            });
         }
     }
 
@@ -515,16 +542,12 @@ public class SubscriptionImplTest extends BaseUnitTest {
 
     @Test
     public void testUnsubscribeConnectionNull() {
-        boolean exThrown = false;
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
-            s.unsubscribe();
-        } catch (IllegalStateException | IOException e) {
-            assertTrue("Exception should have been IllegalStateException",
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_BAD_SUBSCRIPTION, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Should have thrown IllegalStateException", exThrown);
+        for (int i=0; i<2; i++) {
+            checkBadSubscription(i, new subMethodToRun(){
+                public void run(SubscriptionImpl sub) {
+                    try { sub.unsubscribe(); } catch (IOException e) {}
+                }
+            });
         }
     }
 
@@ -536,18 +559,13 @@ public class SubscriptionImplTest extends BaseUnitTest {
 
             when(nc.isClosed()).thenReturn(true);
 
-            boolean exThrown = false;
-            try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-                doThrow(IllegalStateException.class).when(nc).unsubscribe(s, 0);
-                s.unsubscribe();
-                fail("Should have thrown IllegalStateException");
-            } catch (Exception e) {
-                assertTrue("Exception should have been IllegalStateException, got: "
-                        + e.getClass().getSimpleName(), e instanceof IllegalStateException);
-                // assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-                exThrown = true;
+            for (int i=0; i<2; i++) {
+                checkBadSubscription(i, new subMethodToRun(){
+                    public void run(SubscriptionImpl sub) {
+                        try { sub.unsubscribe(); } catch (IOException e) {}
+                    }
+                });
             }
-            assertTrue("Should have thrown IllegalStateException", exThrown);
         }
     }
 
