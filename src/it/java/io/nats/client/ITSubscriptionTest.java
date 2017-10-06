@@ -1213,28 +1213,26 @@ public class ITSubscriptionTest extends ITBaseTest {
             final CountDownLatch latch = new CountDownLatch(1);
             try (NatsServer srv = runDefaultServer()) {
                 try (final Connection conn = newDefaultConnection()) {
-                    try (final Connection pub = newDefaultConnection()) {
-                        try (Subscription sub = conn.subscribe("foo", new MessageHandler() {
-                            private int count = 0;
+                    try (Subscription sub = conn.subscribe("foo", new MessageHandler() {
+                        private int count = 0;
 
-                            public void onMessage(Message message) {
-                                if (this.count++ == 0) {
-                                    throw new RuntimeException("On purpose");
-                                } else {
-                                    latch.countDown();
-                                }
+                        public void onMessage(Message message) {
+                            if (this.count++ == 0) {
+                                throw new RuntimeException("On purpose");
+                            } else {
+                                latch.countDown();
                             }
-                        })) {
-                            conn.flush();
-                            // We send 2 messages, and the callback throws an exception when
-                            // getting the first message. We should still receive the second.
-                            send(pub, "foo", payload, 2);
-                            // Wait for the second message to be received.
-                            if (!latch.await(2, TimeUnit.SECONDS)) {
-                                fail("Failed to continue receiving messages after exception in message callback");
-                            }
-                        } // Subscription
-                    } // pub
+                        }
+                    })) {
+                        conn.flush();
+                        // We send 2 messages, and the callback throws an exception when
+                        // getting the first message. We should still receive the second.
+                        send(conn, "foo", payload, 2);
+                        // Wait for the second message to be received.
+                        if (!latch.await(2, TimeUnit.SECONDS)) {
+                            fail("Failed to continue receiving messages after exception in message callback");
+                        }
+                    } // Subscription
                 } // conn
             } // server
 
@@ -1254,37 +1252,35 @@ public class ITSubscriptionTest extends ITBaseTest {
         final BlockingQueue<String> error = new LinkedBlockingQueue<String>(1);
         try (NatsServer srv = runDefaultServer()) {
             try (final Connection conn = newDefaultConnection()) {
-                try (final Connection pub = newDefaultConnection()) {
-                    try (Subscription sub = conn.subscribe("foo", new MessageHandler() {
-                        public void onMessage(Message message) {
-                            boolean ok = false;
-                            try {
-                                StackTraceElement[] myStacks = Thread.currentThread().getStackTrace();
-                                for (int i=0; i<myStacks.length; i++) {
-                                    String mn = myStacks[i].getClassName();
-                                    if (mn.equals(MsgDeliveryWorker.class.getName())) {
-                                        ok = true;
-                                        break;
-                                    }
+                try (Subscription sub = conn.subscribe("foo", new MessageHandler() {
+                    public void onMessage(Message message) {
+                        boolean ok = false;
+                        try {
+                            StackTraceElement[] myStacks = Thread.currentThread().getStackTrace();
+                            for (int i=0; i<myStacks.length; i++) {
+                                String mn = myStacks[i].getClassName();
+                                if (mn.equals(MsgDeliveryWorker.class.getName())) {
+                                    ok = true;
+                                    break;
                                 }
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            } finally {
-                                if (!ok) {
-                                    error.add("Does not appear to be running from message delivery thread pool");
-                                }
-                                latch.countDown();
                             }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        } finally {
+                            if (!ok) {
+                                error.add("Does not appear to be running from message delivery thread pool");
+                            }
+                            latch.countDown();
                         }
-                    })) {
-                        conn.flush();
-                        send(pub, "foo", payload, 1);
-                        latch.await();
-                        if (!error.isEmpty()) {
-                            fail(error.poll());
-                        }
-                    } // Subscription
-                } // pub
+                    }
+                })) {
+                    conn.flush();
+                    send(conn, "foo", payload, 1);
+                    latch.await();
+                    if (!error.isEmpty()) {
+                        fail(error.poll());
+                    }
+                } // Subscription
             } // conn
         } // server
     }
@@ -1314,59 +1310,58 @@ public class ITSubscriptionTest extends ITBaseTest {
         try (NatsServer srv = runDefaultServer()) {
             try (final Connection conn = newDefaultConnection()) {
                 try (final Connection noPoolSubConn = Nats.connect(Nats.DEFAULT_URL, noPoolOpts)) {
-                    try (final Connection pub = newDefaultConnection()) {
 
-                        final closure cl = new closure();
+                    final closure cl = new closure();
 
-                        MessageHandler mcb = new MessageHandler() {
-                            public void onMessage(Message message) {
-                                boolean doSleep = false;
-                                cl.mu.lock();
-                                cl.count++;
-                                if (cl.count == 1) {
-                                    cl.firstMsgTime = System.currentTimeMillis();
-                                    doSleep = true;
-                                } else {
-                                    cl.secondMsgTime = System.currentTimeMillis();
-                                }
-                                cl.mu.unlock();
-                                if (doSleep) {
-                                    sleep(100, TimeUnit.MILLISECONDS);
-                                }
-                                latch.countDown();
+                    MessageHandler mcb = new MessageHandler() {
+                        public void onMessage(Message message) {
+                            boolean doSleep = false;
+                            cl.mu.lock();
+                            cl.count++;
+                            if (cl.count == 1) {
+                                cl.firstMsgTime = System.currentTimeMillis();
+                                doSleep = true;
+                            } else {
+                                cl.secondMsgTime = System.currentTimeMillis();
                             }
-                        };
-
-                        Subscription sub1 = conn.subscribe("foo", mcb);
-                        Subscription sub2 = conn.subscribe("foo", mcb);
-                        // This one uses its own thread for dispatch
-                        Subscription sub3 = noPoolSubConn.subscribe("foo", new MessageHandler() {
-                            public void onMessage(Message message) {
-                                cl.mu.lock();
-                                cl.sub3MsgTime = System.currentTimeMillis();
-                                cl.mu.unlock();
-                                latch.countDown();
+                            cl.mu.unlock();
+                            if (doSleep) {
+                                sleep(100, TimeUnit.MILLISECONDS);
                             }
-                        });
-                        conn.flush();
-                        pub.publish("foo", payload);
-                        pub.flush();
-
-                        latch.await();
-                        // The second message should have been received at around 100ms of the first.
-                        if (cl.secondMsgTime-cl.firstMsgTime < 90) {
-                            fail("Second callback not triggered sequentially");
+                            latch.countDown();
                         }
-                        // However, message received by sub3 should have been processed at around the
-                        // same time than the first message processed by sub1 or sub2.
-                        if (cl.sub3MsgTime > cl.firstMsgTime+50) {
-                            fail("Sub3 should have not been blocked by sub1 and sub2");
-                        }
+                    };
 
-                        sub1.unsubscribe();
-                        sub2.unsubscribe();
-                        sub3.unsubscribe();
-                    } // pub
+                    Subscription sub1 = conn.subscribe("foo", mcb);
+                    Subscription sub2 = conn.subscribe("foo", mcb);
+                    conn.flush();
+                    // This one uses its own thread for dispatch
+                    Subscription sub3 = noPoolSubConn.subscribe("foo", new MessageHandler() {
+                        public void onMessage(Message message) {
+                            cl.mu.lock();
+                            cl.sub3MsgTime = System.currentTimeMillis();
+                            cl.mu.unlock();
+                            latch.countDown();
+                        }
+                    });
+                    noPoolSubConn.flush();
+                    conn.publish("foo", payload);
+                    conn.flush();
+
+                    latch.await();
+                    // The second message should have been received at around 100ms of the first.
+                    if (cl.secondMsgTime-cl.firstMsgTime < 90) {
+                        fail("Second callback not triggered sequentially");
+                    }
+                    // However, message received by sub3 should have been processed at around the
+                    // same time than the first message processed by sub1 or sub2.
+                    if (cl.sub3MsgTime > cl.firstMsgTime+50) {
+                        fail("Sub3 should have not been blocked by sub1 and sub2");
+                    }
+
+                    sub1.unsubscribe();
+                    sub2.unsubscribe();
+                    sub3.unsubscribe();
                 } // noPoolSubConn
             } // conn
         } // server
@@ -1407,25 +1402,23 @@ public class ITSubscriptionTest extends ITBaseTest {
 
         try (NatsServer srv = runDefaultServer()) {
             try (final Connection conn = newDefaultConnection()) {
-                try (final Connection pub = newDefaultConnection()) {
-                    try (final Subscription sub1 = conn.subscribe("foo", new MyCB())) {
-                        try (final Subscription sub2 = conn.subscribe("foo", new MyCB())) {
-                            conn.flush();
+                try (final Subscription sub1 = conn.subscribe("foo", new MyCB())) {
+                    try (final Subscription sub2 = conn.subscribe("foo", new MyCB())) {
+                        conn.flush();
 
-                            for (int i=0; i<toSend; i++) {
-                                final byte[] payload = ("" + (i+1)).getBytes();
-                                pub.publish("foo", payload);
-                            }
-                            pub.flush();
+                        for (int i=0; i<toSend; i++) {
+                            final byte[] payload = ("" + (i+1)).getBytes();
+                            conn.publish("foo", payload);
+                        }
+                        conn.flush();
 
-                            latch.await();
-                            // Check for errors
-                            if (!errors.isEmpty()) {
-                                fail(errors.poll());
-                            }
-                        } // sub
+                        latch.await();
+                        // Check for errors
+                        if (!errors.isEmpty()) {
+                            fail(errors.poll());
+                        }
                     } // sub
-                } // pub
+                } // sub
             } // conn
         } // server
     }

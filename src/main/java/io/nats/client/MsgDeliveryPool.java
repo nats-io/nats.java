@@ -39,6 +39,9 @@ class MsgDeliveryPool {
     }
 
     synchronized int getSize() {
+        if (this.workers == null) {
+            return 0;
+        }
         return this.workers.size();
     }
 
@@ -46,6 +49,7 @@ class MsgDeliveryPool {
         int idx = this.idx;
         if (++this.idx >= this.workers.size()) {
             this.idx = 0;
+            idx = 0;
         }
         final MsgDeliveryWorker worker = this.workers.get(idx);
         sub.setDeliveryWorker(worker);
@@ -109,6 +113,10 @@ class MsgDeliveryWorker extends Thread {
 
             // Get subscription reference from message
             sub = (AsyncSubscriptionImpl) msg.getSubscription();
+            // If sub is closed, simply go back at beginning of loop.
+            if (sub.closed) {
+                continue;
+            }
 
             // Capture these under lock
             nc = (ConnectionImpl) sub.getConnection();
@@ -117,11 +125,6 @@ class MsgDeliveryWorker extends Thread {
 
             sub.pMsgs--;
             sub.pBytes -= (msg.getData() == null ? 0 : msg.getData().length);
-
-            // If sub is closed, simply go back at beginning of loop.
-            if (sub.closed) {
-                continue;
-            }
 
             delivered = ++(sub.delivered);
             this.mu.unlock();

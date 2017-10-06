@@ -492,7 +492,8 @@ public final class Nats {
      * Sets the message delivery thread pool size.
      *
      * By default, each asynchronous subscription has its own thread
-     * responsible to dispatch the subscription's messages.
+     * responsible for dispatching the messages.
+     *
      * If the application needs to create a high number of subscriptions,
      * this may not scale.
      *
@@ -501,6 +502,10 @@ public final class Nats {
      * thread pool still guarantees that messages from a given subscription
      * are dispatched in order. In other words, a subscription is bound
      * to a given thread in the pool.
+     *
+     * Currently, the pool can be expanded but will not shrink if you
+     * call {@link #setMsgDeliveryThreadPoolSize(int)} with a lower
+     * value than the previous call (but will not report any error).
      *
      * @param size the size of the thread pool
      */
@@ -530,10 +535,11 @@ public final class Nats {
     /**
      * Shuts down the message delivery thread pool.
      *
-     * This call will block until all messages have been dispatched.
-     * If called, this should be called only after all connections have been
-     * closed so that no new messages arrive and need to be dipatched, which would
-     * delay the shutdown of the thread pool.
+     * The pool is shared by all connections. You don't need to
+     * call {@link #shutdownMsgDeliveryThreadPool()}, but if you do,
+     * you should call this method only after all connections have been
+     * closed to ensure that no new message arrive and need to be
+     * dipatched, which would delay the shutdown of the thread pool.
      */
     synchronized public static void shutdownMsgDeliveryThreadPool() {
         if (globalMsgDeliveryPool == null) {

@@ -11,8 +11,10 @@ import io.nats.client.MsgDeliveryPool;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotEquals;
-import static org.mockito.Mockito.mock;
+import static org.junit.Assert.assertTrue;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Test;
@@ -23,8 +25,82 @@ import org.junit.experimental.categories.Category;
 public class MsgDeliveryPoolTest extends BaseUnitTest {
 
     @Test
+    public void testMsgDeliveryWorker() throws Exception {
+        final MsgDeliveryWorker worker = new MsgDeliveryWorker();
+        assertTrue(worker.getName().contains("delivery"));
+        worker.start();
+        final CountDownLatch latch = new CountDownLatch(1);
+        AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", null, new MessageHandler() {
+            public void onMessage(Message msg) {
+                latch.countDown();
+            }
+        });
+        sub.lock();
+        sub.setDeliveryWorker(worker);
+        sub.unlock();
+        worker.lock();
+        worker.postMsg(new Message("hello".getBytes(), "foo", null, sub));
+        worker.unlock();
+        latch.await();
+        worker.shutdown();
+    }
+
+    @Test
+    public void testMsgDeliveryWorkerShutdownFromCB() throws Exception {
+        final MsgDeliveryWorker worker = new MsgDeliveryWorker();
+        assertTrue(worker.getName().contains("delivery"));
+        worker.start();
+        final CountDownLatch latch = new CountDownLatch(1);
+        AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", null, new MessageHandler() {
+            public void onMessage(Message msg) {
+                latch.countDown();
+                worker.shutdown();
+            }
+        });
+        sub.lock();
+        sub.setDeliveryWorker(worker);
+        sub.unlock();
+        worker.lock();
+        worker.postMsg(new Message("hello".getBytes(), "foo", null, sub));
+        worker.unlock();
+        latch.await();
+        // Double shutdown is fine
+        worker.shutdown();
+    }
+
+    @Test
+    public void testMsgDeliveryWorkerExceptionInCB() throws Exception {
+        final MsgDeliveryWorker worker = new MsgDeliveryWorker();        
+        worker.start();
+        final CountDownLatch latch = new CountDownLatch(2);
+        AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", null, new MessageHandler() {
+            public void onMessage(Message msg) {
+                latch.countDown();
+                throw new RuntimeException("On purpose");
+            }
+        });
+        sub.lock();
+        sub.setDeliveryWorker(worker);
+        sub.unlock();
+        // Post 2 messages
+        worker.lock();
+        worker.postMsg(new Message("hello".getBytes(), "foo", null, sub));
+        worker.postMsg(new Message("hello".getBytes(), "foo", null, sub));
+        worker.unlock();
+        // Callback should be invoked twice, even if throwing exception
+        latch.await(2, TimeUnit.SECONDS);
+        worker.shutdown();
+    }
+
+    @Test
     public void testMsgDeliveryPool() throws Exception {
         MsgDeliveryPool pool = new MsgDeliveryPool();
+        // Check zero or negative size is ignored.
+        pool.setSize(-2);
+        assertEquals(0, pool.getSize());
+        pool.setSize(0);
+        assertEquals(0, pool.getSize());
+
         pool.setSize(5);
         assertEquals(5, pool.getSize());
         // We support only expand, so size should not change
@@ -98,5 +174,18 @@ public class MsgDeliveryPoolTest extends BaseUnitTest {
         // Shutdown
         pool.shutdown();
         assertEquals(0, pool.getSize());
+
+        // Double shutdown is ok
+        pool.shutdown();
+        assertEquals(0, pool.getSize());
+
+        // Set to size 1
+        pool.setSize(1);
+
+        // Add 2 subs
+        pool.assignDeliveryWorker(sub1);
+        pool.assignDeliveryWorker(sub2);
+        // Verify they share same thread.
+        assertEquals(sub1.getDeliveryWorker(), sub2.getDeliveryWorker());
     }
 }

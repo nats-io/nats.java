@@ -42,11 +42,9 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
     @Override
     public MessageHandler getMessageHandler() {
         this.dlvWorkerLock();
-        try {
-            return msgHandler;
-        } finally {
-            this.dlvWorkerUnlock();
-        }
+        MessageHandler mh = msgHandler;
+        this.dlvWorkerUnlock();
+        return mh;
     }
 
     @Override
