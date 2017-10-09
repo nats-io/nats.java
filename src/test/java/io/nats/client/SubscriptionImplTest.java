@@ -357,6 +357,7 @@ public class SubscriptionImplTest extends BaseUnitTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     public void testGetQueuedMessageCount() {
         String subj = "foo";
         String queue = "bar";

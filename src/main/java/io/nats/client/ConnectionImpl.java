@@ -1377,9 +1377,8 @@ class ConnectionImpl implements Connection {
      * deliver messages to asynchronous subscribers.
      *
      * @param sub the asynchronous subscriber
-     * @throws InterruptedException if the thread is interrupted
      */
-    void waitForMsgs(AsyncSubscriptionImpl sub) throws InterruptedException {
+    void waitForMsgs(AsyncSubscriptionImpl sub) {
         boolean closed;
         long delivered = 0L;
         long max;
@@ -1392,7 +1391,7 @@ class ConnectionImpl implements Connection {
             try {
                 mch = sub.getChannel();
                 while (mch.size() == 0 && !sub.isClosed()) {
-                    sub.pCond.await();
+                    try { sub.pCond.await(); } catch (InterruptedException e) {}
                 }
                 msg = mch.poll();
                 if (msg != null) {
@@ -1840,11 +1839,7 @@ class ConnectionImpl implements Connection {
                     // messages
                     subexec.submit(new Runnable() {
                         public void run() {
-                            try {
-                                waitForMsgs((AsyncSubscriptionImpl) sub);
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                            }
+                            waitForMsgs((AsyncSubscriptionImpl) sub);
                         }
                     });
                 }

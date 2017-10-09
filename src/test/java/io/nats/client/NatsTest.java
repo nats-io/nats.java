@@ -60,20 +60,22 @@ public class NatsTest extends BaseUnitTest {
 
 
     @Test
-    public void testMsgDeliveryThreadPoolSize() {
+    public void testMsgDeliveryThreadPool() {
         boolean ok = false;
-        try { Nats.setMsgDeliveryThreadPoolSize(-1); } catch (IllegalArgumentException e) { ok = true; }
+        try { Nats.createMsgDeliveryThreadPool(-1); } catch (IllegalArgumentException e) { ok = true; }
         assertTrue(ok);
         assertEquals(0, Nats.getMsgDeliveryThreadPoolSize());
 
-        Nats.setMsgDeliveryThreadPoolSize(3);
+        Nats.createMsgDeliveryThreadPool(3);
         int ps = Nats.getMsgDeliveryThreadPoolSize();
         assertEquals(3, ps);
 
-        // Since we don't support reducing size of the pool, size should remain at 3.
-        Nats.setMsgDeliveryThreadPoolSize(1);
-        ps = Nats.getMsgDeliveryThreadPoolSize();
-        assertEquals(3, ps);
+        // Trying to create again should fail
+        ok = false;
+        try { Nats.createMsgDeliveryThreadPool(5); } catch (IllegalStateException e) { ok = true; }
+        assertTrue(ok);
+        // Should still be of size 3.
+        assertEquals(3, Nats.getMsgDeliveryThreadPoolSize());
 
         // However, on shutdown, we want to clear the pool.
         Nats.shutdownMsgDeliveryThreadPool();
@@ -81,7 +83,7 @@ public class NatsTest extends BaseUnitTest {
         assertEquals(0, ps);
 
         // Restart pool
-        Nats.setMsgDeliveryThreadPoolSize(2);
+        Nats.createMsgDeliveryThreadPool(2);
         ps = Nats.getMsgDeliveryThreadPoolSize();
         assertEquals(2, ps);
 

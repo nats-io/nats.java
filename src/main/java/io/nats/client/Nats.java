@@ -397,19 +397,7 @@ public final class Nats {
     static final String TCP_SCHEME = "tcp";
     static final String TLS_SCHEME = "tls";
 
-    protected static final String SYSTEM_ENV_MSG_DELIVERY_THREAD_POOL_SIZE = "JNATS_MSG_DELIVERY_THREAD_POOL_SIZE";
     static private MsgDeliveryPool globalMsgDeliveryPool = null;
-
-    static {
-        final String msgDeliveryPoolSizeStr = System.getenv(SYSTEM_ENV_MSG_DELIVERY_THREAD_POOL_SIZE);
-        if (msgDeliveryPoolSizeStr != null) {
-            int poolSize = 0;
-            try { poolSize = Integer.parseInt(msgDeliveryPoolSizeStr); } catch (Exception e) {}
-            if (poolSize > 0) {
-                Nats.setMsgDeliveryThreadPoolSize(poolSize);
-            }
-        }
-    }
 
     /**
      * Creates a NATS connection using the default URL ({@value #DEFAULT_URL}) and default
@@ -489,36 +477,33 @@ public final class Nats {
     }
 
     /**
-     * Sets the message delivery thread pool size.
-     *
+     * Create a library scoped message delivery thread pool.
+     * <p>
      * By default, each asynchronous subscription has its own thread
      * responsible for dispatching the messages.
-     *
+     * <p>
      * If the application needs to create a high number of subscriptions,
      * this may not scale.
-     *
-     * Setting a message delivery thread pool size will limit the
+     * <p>
+     * Creating a message delivery thread pool will limit the
      * number of threads used for message delivery. The use of this
      * thread pool still guarantees that messages from a given subscription
      * are dispatched in order. In other words, a subscription is bound
      * to a given thread in the pool.
      *
-     * Currently, the pool can be expanded but will not shrink if you
-     * call {@link #setMsgDeliveryThreadPoolSize(int)} with a lower
-     * value than the previous call (but will not report any error).
-     *
      * @param size the size of the thread pool
      * @throws IllegalArgumentException if size is lower or equal to zero.
+     * @throws IllegalStateException if pool has already been created.
      */
-    synchronized public static void setMsgDeliveryThreadPoolSize(int size) {
+    synchronized public static void createMsgDeliveryThreadPool(int size) {
         if (size <= 0) {
             throw new IllegalArgumentException("Pool size cannot be set to a value lower than 1");
         }
-        // Create the pool only when calling with a size >= 1.
-        if (globalMsgDeliveryPool == null) {
-            globalMsgDeliveryPool = new MsgDeliveryPool();
+        if (globalMsgDeliveryPool != null) {
+            throw new IllegalStateException("Pool has already been created");
         }
-        globalMsgDeliveryPool.setSize(size);
+        // Create the pool only when calling with a size >= 1.
+        globalMsgDeliveryPool = new MsgDeliveryPool(size);
     }
 
     /**

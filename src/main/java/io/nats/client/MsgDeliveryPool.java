@@ -17,31 +17,17 @@ class MsgDeliveryPool {
     private int                     idx;
     private boolean                 shutdown;
 
-    // Expand the pool of workers.
-    // This call has no effect for a size lower to 1 or if given size
-    // is lower or equal to current pool size.
-    synchronized void setSize(int size) {
-        if (size <= 0) {
-            return;
-        }
-        if (this.workers == null) {
-            this.workers = new ArrayList<MsgDeliveryWorker>(size);
-        }
-        // We support only expansion of the pool at this point
-        if (size > this.workers.size()) {
-            final int added = size-this.workers.size();
-            for (int i=0; i<added; i++) {
-                MsgDeliveryWorker w = new MsgDeliveryWorker();
-                w.start();
-                this.workers.add(w);
-            }
+    // Size is guaranteed to be >= 1 by caller.
+    MsgDeliveryPool(int size) {
+        this.workers = new ArrayList<MsgDeliveryWorker>(size);
+        for (int i=0; i<size; i++) {
+            MsgDeliveryWorker w = new MsgDeliveryWorker();
+            w.start();
+            this.workers.add(w);
         }
     }
 
     synchronized int getSize() {
-        if (this.workers == null) {
-            return 0;
-        }
         return this.workers.size();
     }
 

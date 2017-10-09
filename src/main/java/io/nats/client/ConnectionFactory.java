@@ -892,7 +892,7 @@ public class ConnectionFactory {
      * Sets whether the connection's asynchronous subscriptions should
      * use the global message delivery thread pool.
      *
-     * See {@link Nats#setMsgDeliveryThreadPoolSize(int)} for more information.
+     * See {@link Nats#createMsgDeliveryThreadPool(int)} for more information.
      *
      * @param usePool whether to use the global thread pool or not.
      */

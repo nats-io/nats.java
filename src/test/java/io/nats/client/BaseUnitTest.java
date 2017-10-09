@@ -21,9 +21,7 @@ public class BaseUnitTest implements UnitTest {
     @BeforeClass
     public static void setUpBeforeClass() throws Exception {
         // For Unit tests, ensure that there is no global message delivery
-        // pool set, which could happen if user is running test suite and
-        // environment variable JNATS_MSG_DELIVERY_THREAD_POOL_SIZE happens
-        // to be set.
+        // pool set.
         Nats.shutdownMsgDeliveryThreadPool();
     }
 

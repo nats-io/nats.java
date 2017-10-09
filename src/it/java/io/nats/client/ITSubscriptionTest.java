@@ -1204,7 +1204,7 @@ public class ITSubscriptionTest extends ITBaseTest {
 
     @Test
     public void testExceptionInOnMessage() throws Exception {
-        // Shutdown message delivery pool if set.
+        // This test need to control when/if thread pool need to be created and if so what size.
         Nats.shutdownMsgDeliveryThreadPool();
 
         final byte[] payload = "hello".getBytes();
@@ -1236,15 +1236,18 @@ public class ITSubscriptionTest extends ITBaseTest {
                 } // conn
             } // server
 
-            // Repeat the test with message delivery pool
-            Nats.setMsgDeliveryThreadPoolSize(1);
+            if (tests == 0) {
+                // Repeat the test with message delivery pool
+                Nats.createMsgDeliveryThreadPool(1);
+            }
         }
     }
 
     @Test
     public void testCheckMsgDispatchedFromGlobalMsgDeliveryThreadPool() throws Exception {
-        // Ensure we are running with a message delivery thread pool.
-        Nats.setMsgDeliveryThreadPoolSize(1);
+        // Control existence/size of pool by shuting it down and create again.
+        Nats.shutdownMsgDeliveryThreadPool();
+        Nats.createMsgDeliveryThreadPool(1);
 
         final byte[] payload = "hello".getBytes();
 
@@ -1287,10 +1290,9 @@ public class ITSubscriptionTest extends ITBaseTest {
 
     @Test
     public void testAsyncSubsSharingSameGlobalMsgDeliveryThread() throws Exception {
-        // For this test, manually control the msg delivery pool
+        // Control existence/size of pool by shuting it down and create again.
         Nats.shutdownMsgDeliveryThreadPool();
-        // Set size 1.
-        Nats.setMsgDeliveryThreadPoolSize(1);
+        Nats.createMsgDeliveryThreadPool(1);
 
         final byte[] payload = "hello".getBytes();
         final CountDownLatch latch = new CountDownLatch(3);
@@ -1369,10 +1371,9 @@ public class ITSubscriptionTest extends ITBaseTest {
 
     @Test
     public void testAsyncSubsWithGlobalMsgDeliveryPool() throws Exception {
-        // For this test, manually control the msg delivery pool
+        // Control existence/size of pool by shuting it down and create again.
         Nats.shutdownMsgDeliveryThreadPool();
-        // Set size 2
-        Nats.setMsgDeliveryThreadPoolSize(2);
+        Nats.createMsgDeliveryThreadPool(2);
 
         final CountDownLatch latch = new CountDownLatch(2);
         final int toSend = 10000;
@@ -1426,10 +1427,9 @@ public class ITSubscriptionTest extends ITBaseTest {
 
     @Test
     public void testAsyncSubWithGlobalMsgDeliveryPoolConnectionCloseInMsgCallback() throws Throwable {
-        // For this test, manually control the msg delivery pool
+        // Control existence/size of pool by shuting it down and create again.
         Nats.shutdownMsgDeliveryThreadPool();
-        // Set size 2
-        Nats.setMsgDeliveryThreadPoolSize(2);
+        Nats.createMsgDeliveryThreadPool(2);
 
         final byte[] payload = "hello".getBytes();
         final AtomicInteger received = new AtomicInteger(0);
@@ -1458,10 +1458,9 @@ public class ITSubscriptionTest extends ITBaseTest {
 
     @Test
     public void testAsyncSubWithGlobalMsgDeliveryPoolUnsubscribeInMsgCallback() throws Throwable {
-        // For this test, manually control the msg delivery pool
+        // Control existence/size of pool by shuting it down and create again.
         Nats.shutdownMsgDeliveryThreadPool();
-        // Set size 2
-        Nats.setMsgDeliveryThreadPoolSize(2);
+        Nats.createMsgDeliveryThreadPool(2);
 
         final byte[] payload = "hello".getBytes();
         final AtomicInteger received = new AtomicInteger(0);

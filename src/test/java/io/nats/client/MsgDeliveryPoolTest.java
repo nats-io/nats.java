@@ -94,21 +94,8 @@ public class MsgDeliveryPoolTest extends BaseUnitTest {
 
     @Test
     public void testMsgDeliveryPool() throws Exception {
-        MsgDeliveryPool pool = new MsgDeliveryPool();
-        // Check zero or negative size is ignored.
-        pool.setSize(-2);
-        assertEquals(0, pool.getSize());
-        pool.setSize(0);
-        assertEquals(0, pool.getSize());
-
-        pool.setSize(5);
+        MsgDeliveryPool pool = new MsgDeliveryPool(5);
         assertEquals(5, pool.getSize());
-        // We support only expand, so size should not change
-        pool.setSize(2);
-        assertEquals(5, pool.getSize());
-        // expand
-        pool.setSize(7);
-        assertEquals(7, pool.getSize());
 
         final AtomicInteger received = new AtomicInteger(0);
         Options opts = Nats.defaultOptions();
@@ -179,13 +166,15 @@ public class MsgDeliveryPoolTest extends BaseUnitTest {
         pool.shutdown();
         assertEquals(0, pool.getSize());
 
-        // Set to size 1
-        pool.setSize(1);
+        // Recreate with size 1
+        pool = new MsgDeliveryPool(1);
 
         // Add 2 subs
         pool.assignDeliveryWorker(sub1);
         pool.assignDeliveryWorker(sub2);
         // Verify they share same thread.
         assertEquals(sub1.getDeliveryWorker(), sub2.getDeliveryWorker());
+        // Shutdown
+        pool.shutdown();
     }
 }

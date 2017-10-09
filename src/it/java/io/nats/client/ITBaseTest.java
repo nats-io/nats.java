@@ -26,13 +26,6 @@ public class ITBaseTest {
         if (prop != null) {
             msgDeliveryPoolSize = Integer.parseInt(prop);
         }
-        if (msgDeliveryPoolSize == 0) {
-            // If the system environment variable JNATS_MSG_DELIVERY_THREAD_POOL_SIZE
-            // exists (and number if positive), the library will create the thread
-            // pool. We need to shutdown the pool here. Individual tests may create
-            // the pool with the size they want.
-            Nats.shutdownMsgDeliveryThreadPool();
-        }
     }
 
     @AfterClass
@@ -46,7 +39,7 @@ public class ITBaseTest {
         // a resource in the message callback preventing the pool to
         // be shutdown.
         if (msgDeliveryPoolSize > 0) {
-            Nats.setMsgDeliveryThreadPoolSize(msgDeliveryPoolSize);
+            Nats.createMsgDeliveryThreadPool(msgDeliveryPoolSize);
         }
     }
 
