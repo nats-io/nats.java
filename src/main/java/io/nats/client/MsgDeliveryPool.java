@@ -105,8 +105,8 @@ class MsgDeliveryWorker extends Thread {
             }
 
             // Capture these under lock
-            nc = (ConnectionImpl) sub.getConnection();
-            mcb = sub.getMessageHandler();
+            nc = sub.conn;
+            mcb = sub.msgHandler;
             max = sub.max;
 
             sub.pMsgs--;

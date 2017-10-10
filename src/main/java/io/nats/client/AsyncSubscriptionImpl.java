@@ -12,8 +12,8 @@ package io.nats.client;
  */
 class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscription {
 
-    private MessageHandler    msgHandler;
-    private MsgDeliveryWorker dlvWorker;
+    MessageHandler    msgHandler;
+    MsgDeliveryWorker dlvWorker;
 
     AsyncSubscriptionImpl(ConnectionImpl nc, String subj, String queue,
                           MessageHandler cb) {
@@ -138,10 +138,20 @@ class AsyncSubscriptionImpl extends SubscriptionImpl implements AsyncSubscriptio
     }
 
     @Override
-    public void close() {
+    void setMax(long max) {
         this.dlvWorkerLock();
         try {
-            super.close();
+            super.setMax(max);
+        } finally {
+            this.dlvWorkerUnlock();
+        }
+    }
+
+    @Override
+    void close(boolean connClosed) {
+        this.dlvWorkerLock();
+        try {
+            super.close(connClosed);
         } finally {
             this.dlvWorkerUnlock();
         }

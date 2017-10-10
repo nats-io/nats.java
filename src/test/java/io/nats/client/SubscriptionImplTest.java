@@ -7,13 +7,11 @@
 package io.nats.client;
 
 import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_CONNECTION_CLOSED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -142,50 +140,6 @@ public class SubscriptionImplTest extends BaseUnitTest {
     }
 
     @Test
-    public void testCloseChannel() {
-        thrown.expect(NullPointerException.class);
-        thrown.expectMessage("testing");
-
-        ConnectionImpl nc = mock(ConnectionImpl.class);
-        // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(Nats.defaultOptions());
-
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-            sub.setChannel(mchMock);
-            assertNotNull(sub.getChannel());
-            sub.closeChannel();
-            assertNull(sub.getChannel());
-            verify(mchMock, times(1)).clear();
-        }
-
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
-            sub.setChannel(null);
-            assertNull(sub.getChannel());
-            sub.closeChannel();
-        }
-
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-            doThrow(new NullPointerException("testing")).when(mchMock).clear();
-            sub.setChannel(mchMock);
-            assertNotNull(sub.getChannel());
-            sub.closeChannel();
-        }
-    }
-
-    @Test
-    public void testCloseChannelNullConn() {
-        // ConnectionImpl nc = mock(ConnectionImpl.class);
-        // Make sure the connection opts aren't null
-        // when(nc.getOptions()).thenReturn(Nats.defaultOptions());
-
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
-            assertNotNull(sub.getChannel());
-            sub.closeChannel();
-            assertNull(sub.getChannel());
-        }
-    }
-
-    @Test
     public void testSetPendingBytesLimit() {
         String subj = "foo";
         String queue = "bar";
@@ -259,20 +213,6 @@ public class SubscriptionImplTest extends BaseUnitTest {
                 sub.autoUnsubscribe(max);
                 verify(connMock, times(1)).unsubscribe(eq(sub), eq(max));
             }
-        }
-    }
-
-    @Test
-    public void testAutoUnsubscribeConnNull() throws IOException {
-        for (int i=0; i<2; i++) {
-            checkBadSubscription(i, new subMethodToRun() {
-                @Override
-                public void run(SubscriptionImpl sub) {
-                    try {
-                        sub.autoUnsubscribe(1);
-                    } catch (IOException e) {}
-                }
-            });
         }
     }
 
@@ -542,30 +482,30 @@ public class SubscriptionImplTest extends BaseUnitTest {
     }
 
     @Test
-    public void testUnsubscribeConnectionNull() {
-        for (int i=0; i<2; i++) {
-            checkBadSubscription(i, new subMethodToRun(){
-                public void run(SubscriptionImpl sub) {
-                    try { sub.unsubscribe(); } catch (IOException e) {}
-                }
-            });
-        }
-    }
-
-    @Test
     public void testUnsubscribeConnectionClosed() {
         try (ConnectionImpl nc = mock(ConnectionImpl.class)) {
             // Make sure the connection opts aren't null
             when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
-            when(nc.isClosed()).thenReturn(true);
-
             for (int i=0; i<2; i++) {
-                checkBadSubscription(i, new subMethodToRun(){
-                    public void run(SubscriptionImpl sub) {
-                        try { sub.unsubscribe(); } catch (IOException e) {}
-                    }
-                });
+                final SubscriptionImpl sub = createSub(i, nc, "foo", "bar");
+
+                // This is a bad test... When a connection is closed,
+                // the connection is supposed to remove all subscriptions
+                // from its map and invoke sub.closed(true) on each. With
+                // this mock connection, this is not happening, so calling
+                // this here...
+                sub.close(true);
+
+                boolean exThrown = false;
+                try {
+                    sub.unsubscribe();
+                } catch (Exception e) {
+                    assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
+                    exThrown = true;
+                } finally {
+                    assertTrue(exThrown);
+                }
             }
         }
     }

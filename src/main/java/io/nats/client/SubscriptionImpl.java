@@ -7,6 +7,7 @@
 package io.nats.client;
 
 import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_CONNECTION_CLOSED;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
@@ -47,7 +48,7 @@ abstract class SubscriptionImpl implements Subscription {
     // slow consumer flag
     boolean sc;
 
-    private ConnectionImpl conn;
+    ConnectionImpl conn;
     BlockingQueue<Message> mch;
     Condition pCond;
 
@@ -77,18 +78,6 @@ abstract class SubscriptionImpl implements Subscription {
         pCond = mu.newCondition();
     }
 
-    void closeChannel() {
-        mu.lock();
-        try {
-            if (mch != null) {
-                mch.clear();
-                mch = null;
-            }
-        } finally {
-            mu.unlock();
-        }
-    }
-
     @Override
     public String getSubject() {
         return subject;
@@ -113,40 +102,51 @@ abstract class SubscriptionImpl implements Subscription {
         return closed;
     }
 
+    void close(boolean connClosed) {
+        this.mu.lock();
+        try {
+            if (!this.closed) {
+                this.closed = true;
+                this.connClosed = connClosed;
+                if (this.mch != null) {
+                    this.mch.clear();
+                    this.mch = null;
+                }
+                this.pCond.signalAll();
+            }
+        } finally {
+            this.mu.unlock();
+        }
+    }
+
     public boolean isValid() {
         mu.lock();
-        boolean valid = (conn != null);
+        boolean valid = (this.conn != null && !this.closed);
         mu.unlock();
         return valid;
     }
 
     @Override
     public void unsubscribe() throws IOException {
-        unsubscribe(false);
+        this.doUnsubscribe(0);
     }
-
-    public void unsubscribe(boolean ignoreInvalid) throws IOException {
-        ConnectionImpl conn;
-        mu.lock();
-        conn = this.conn;
-        mu.unlock();
-        if (conn == null) {
-            if (!ignoreInvalid) {
-                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
-            }
-        } else {
-            conn.unsubscribe(this, 0);
-        }
-    }
-
 
     @Override
     public void autoUnsubscribe(int max) throws IOException {
+        this.doUnsubscribe(max);
+    }
+
+    private void doUnsubscribe(int max) throws IOException {
         ConnectionImpl conn;
         mu.lock();
         conn = this.conn;
+        final boolean closed = this.closed;
+        final boolean connClosed = this.connClosed;
         mu.unlock();
-        if (conn == null) {
+        if (closed || connClosed) {
+            if (connClosed) {
+                throw new IllegalStateException(ERR_CONNECTION_CLOSED);
+            }
             throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
         }
         conn.unsubscribe(this, max);
@@ -154,15 +154,8 @@ abstract class SubscriptionImpl implements Subscription {
 
     @Override
     public void close() {
-        try {
-            unsubscribe(true);
-        } catch (Exception e) {
-            // Just log and ignore. This is for AutoCloseable.
-        }
-        mu.lock();
-        this.closed = true;
-        this.pCond.signalAll();
-        mu.unlock();
+        // This is for AutoCloseable, ignore thrown exception
+        try { this.doUnsubscribe(0); } catch (Exception e) {}
     }
 
     long getSid() {
@@ -180,7 +173,7 @@ abstract class SubscriptionImpl implements Subscription {
         int rv = 0;
         mu.lock();
         try {
-            if (conn == null) {
+            if (this.closed) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
             rv = dropped;
@@ -195,7 +188,7 @@ abstract class SubscriptionImpl implements Subscription {
         int rv = 0;
         mu.lock();
         try {
-            if (conn == null) {
+            if (this.closed) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
             rv = this.pMsgsMax;
@@ -211,7 +204,7 @@ abstract class SubscriptionImpl implements Subscription {
         int rv = 0;
         mu.lock();
         try {
-            if (conn == null) {
+            if (this.closed) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
             rv = this.pBytesMax;
@@ -255,7 +248,7 @@ abstract class SubscriptionImpl implements Subscription {
     void setPendingMsgsMax(int max) {
         mu.lock();
         try {
-            if (conn == null) {
+            if (this.closed) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
             pMsgsMax = (max <= 0) ? 0 : max;
@@ -267,7 +260,7 @@ abstract class SubscriptionImpl implements Subscription {
     void setPendingBytesMax(int max) {
         mu.lock();
         try {
-            if (conn == null) {
+            if (this.closed) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
             pBytesMax = (max <= 0) ? 0 : max;
@@ -286,16 +279,12 @@ abstract class SubscriptionImpl implements Subscription {
         return this.conn;
     }
 
-    void setConnection(ConnectionImpl conn) {
-        this.conn = conn;
-    }
-
     @Override
     public long getDelivered() {
         long rv = 0L;
         mu.lock();
         try {
-            if (conn == null) {
+            if (this.closed) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
             rv = delivered;
@@ -310,7 +299,7 @@ abstract class SubscriptionImpl implements Subscription {
         int rv = 0;
         mu.lock();
         try {
-            if (conn == null) {
+            if (this.closed) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
             rv = pBytes;
@@ -334,7 +323,7 @@ abstract class SubscriptionImpl implements Subscription {
         int rv = 0;
         mu.lock();
         try {
-            if (conn == null) {
+            if (this.closed) {
                 throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
             }
             rv = pMsgs;
@@ -377,7 +366,9 @@ abstract class SubscriptionImpl implements Subscription {
     }
 
     void setMax(long max) {
+        this.mu.lock();
         this.max = max;
+        this.mu.unlock();
     }
 
     long getMax() {

@@ -599,20 +599,8 @@ class ConnectionImpl implements Connection {
             // Close sync subscribers and release any pending nextMsg() calls.
             for (Map.Entry<Long, SubscriptionImpl> entry : subs.entrySet()) {
                 SubscriptionImpl sub = entry.getValue();
-                // for (Long key : subs.keySet()) {
-                // SubscriptionImpl sub = subs.get(key);
-                sub.lock();
-                try {
-                    sub.closeChannel();
-                    // Mark as invalid, for signaling to deliverMsgs
-                    sub.closed = true;
-                    // Mark connection closed in subscription
-                    sub.connClosed = true;
-                    // Terminate thread exec
-                    sub.close();
-                } finally {
-                    sub.unlock();
-                }
+                // Close subscription, indicate that connection is closing.
+                sub.close(true);
             }
             subs.clear();
 
@@ -1481,6 +1469,8 @@ class ConnectionImpl implements Connection {
                         || (sub.pBytesLimit > 0 && sub.pBytes > sub.pBytesLimit)) {
                     handleSlowConsumer(sub, msg);
                 } else {
+                    // Clear Slow Consumer status
+                    sub.setSlowConsumer(false);
                     if (mdw != null) {
                         mdw.postMsg(msg);
                     } else {
@@ -1488,8 +1478,6 @@ class ConnectionImpl implements Connection {
                         if (sub.getChannel() != null) {
                             if (sub.getChannel().add(msg)) {
                                 sub.pCond.signal();
-                                // Clear Slow Consumer status
-                                sub.setSlowConsumer(false);
                             } else {
                                 handleSlowConsumer(sub, msg);
                             }
@@ -1520,19 +1508,8 @@ class ConnectionImpl implements Connection {
 
     void removeSub(SubscriptionImpl sub) {
         subs.remove(sub.getSid());
-        sub.lock();
-        try {
-            if (sub.getChannel() != null) {
-                sub.mch.clear();
-                sub.mch = null;
-            }
-
-            // Mark as invalid
-            sub.setConnection(null);
-            sub.closed = true;
-        } finally {
-            sub.unlock();
-        }
+        // Close subscription, connection is not closing.
+        sub.close(false);
     }
 
     // processSlowConsumer will set SlowConsumer state and fire the
