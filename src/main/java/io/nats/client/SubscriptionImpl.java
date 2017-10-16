@@ -128,12 +128,20 @@ abstract class SubscriptionImpl implements Subscription {
         mu.lock();
         conn = this.conn;
         mu.unlock();
-        if (conn == null) {
-            if (!ignoreInvalid) {
-                throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+        try {
+            if (conn == null) {
+                if (!ignoreInvalid) {
+                    throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
+                }
+            } else {
+                conn.unsubscribe(this, 0);
             }
-        } else {
-            conn.unsubscribe(this, 0);
+        }
+        finally {
+            // after any subscription is closed, ensure message thread exits
+            mu.lock();
+            pCond.signal();
+            mu.unlock();
         }
     }
 
@@ -148,6 +156,10 @@ abstract class SubscriptionImpl implements Subscription {
             throw new IllegalStateException(ERR_BAD_SUBSCRIPTION);
         }
         conn.unsubscribe(this, max);
+        // after subscription is closed, ensure message thread exits
+        mu.lock();
+        pCond.signal();
+        mu.unlock();
     }
 
     @Override
