@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -25,7 +25,6 @@ import static io.nats.client.Nats.ERR_SECURE_CONN_REQUIRED;
 import static io.nats.client.Nats.ERR_SECURE_CONN_WANTED;
 import static io.nats.client.Nats.ERR_SLOW_CONSUMER;
 import static io.nats.client.Nats.ERR_STALE_CONNECTION;
-import static io.nats.client.Nats.ERR_TCP_FLUSH_FAILED;
 import static io.nats.client.Nats.ERR_TIMEOUT;
 import static io.nats.client.Nats.PERMISSIONS_ERR;
 import static io.nats.client.Nats.TLS_SCHEME;
@@ -600,20 +599,8 @@ class ConnectionImpl implements Connection {
             // Close sync subscribers and release any pending nextMsg() calls.
             for (Map.Entry<Long, SubscriptionImpl> entry : subs.entrySet()) {
                 SubscriptionImpl sub = entry.getValue();
-                // for (Long key : subs.keySet()) {
-                // SubscriptionImpl sub = subs.get(key);
-                sub.lock();
-                try {
-                    sub.closeChannel();
-                    // Mark as invalid, for signaling to deliverMsgs
-                    sub.closed = true;
-                    // Mark connection closed in subscription
-                    sub.connClosed = true;
-                    // Terminate thread exec
-                    sub.close();
-                } finally {
-                    sub.unlock();
-                }
+                // Close subscription, indicate that connection is closing.
+                sub.close(true);
             }
             subs.clear();
 
@@ -1378,9 +1365,8 @@ class ConnectionImpl implements Connection {
      * deliver messages to asynchronous subscribers.
      *
      * @param sub the asynchronous subscriber
-     * @throws InterruptedException if the thread is interrupted
      */
-    void waitForMsgs(AsyncSubscriptionImpl sub) throws InterruptedException {
+    void waitForMsgs(AsyncSubscriptionImpl sub) {
         boolean closed;
         long delivered = 0L;
         long max;
@@ -1393,7 +1379,7 @@ class ConnectionImpl implements Connection {
             try {
                 mch = sub.getChannel();
                 while (mch.size() == 0 && !sub.isClosed()) {
-                    sub.pCond.await();
+                    try { sub.pCond.await(); } catch (InterruptedException e) {}
                 }
                 msg = mch.poll();
                 if (msg != null) {
@@ -1417,7 +1403,8 @@ class ConnectionImpl implements Connection {
             }
             // Deliver the message.
             if (msg != null && (max <= 0 || delivered <= max)) {
-                mcb.onMessage(msg);
+                // Ignore any error thrown by the user
+                try { mcb.onMessage(msg); } catch (Throwable t) {}
             }
             // If we have hit the max for delivered msgs, remove sub.
             if (max > 0 && delivered >= max) {
@@ -1458,7 +1445,15 @@ class ConnectionImpl implements Connection {
             // It's possible that we end up not using the message, but that's ok.
             Message msg = new Message(parser.ps.ma, sub, data, offset, length);
 
-            sub.lock();
+            MsgDeliveryWorker mdw = null;
+            if (sub instanceof AsyncSubscriptionImpl) {
+                mdw = ((AsyncSubscriptionImpl) sub).getDeliveryWorker();
+            }
+            if (mdw != null) {
+                mdw.lock();
+            } else {
+                sub.lock();
+            }
             try {
                 sub.pMsgs++;
                 if (sub.pMsgs > sub.pMsgsMax) {
@@ -1474,19 +1469,27 @@ class ConnectionImpl implements Connection {
                         || (sub.pBytesLimit > 0 && sub.pBytes > sub.pBytesLimit)) {
                     handleSlowConsumer(sub, msg);
                 } else {
-                    // We use mch for everything, unlike Go client
-                    if (sub.getChannel() != null) {
-                        if (sub.getChannel().add(msg)) {
-                            sub.pCond.signal();
-                            // Clear Slow Consumer status
-                            sub.setSlowConsumer(false);
-                        } else {
-                            handleSlowConsumer(sub, msg);
+                    // Clear Slow Consumer status
+                    sub.setSlowConsumer(false);
+                    if (mdw != null) {
+                        mdw.postMsg(msg);
+                    } else {
+                        // We use mch for everything, unlike Go client
+                        if (sub.getChannel() != null) {
+                            if (sub.getChannel().add(msg)) {
+                                sub.pCond.signal();
+                            } else {
+                                handleSlowConsumer(sub, msg);
+                            }
                         }
                     }
                 }
             } finally {
-                sub.unlock();
+                if (mdw != null) {
+                    mdw.unlock();
+                } else {
+                    sub.unlock();
+                }
             }
         } finally {
             mu.unlock();
@@ -1505,19 +1508,8 @@ class ConnectionImpl implements Connection {
 
     void removeSub(SubscriptionImpl sub) {
         subs.remove(sub.getSid());
-        sub.lock();
-        try {
-            if (sub.getChannel() != null) {
-                sub.mch.clear();
-                sub.mch = null;
-            }
-
-            // Mark as invalid
-            sub.setConnection(null);
-            sub.closed = true;
-        } finally {
-            sub.unlock();
-        }
+        // Close subscription, connection is not closing.
+        sub.close(false);
     }
 
     // processSlowConsumer will set SlowConsumer state and fire the
@@ -1811,18 +1803,23 @@ class ConnectionImpl implements Connection {
             }
 
             if (cb != null) {
-                sub = new AsyncSubscriptionImpl(this, subject, queue, cb);
-                // If we have an async callback, start up a sub specific Runnable to deliver the
-                // messages
-                subexec.submit(new Runnable() {
-                    public void run() {
-                        try {
+                // Check if we should use the global message delivery pool or create our own thread.
+                MsgDeliveryPool msgDlvPool = null;
+                final boolean   useDlvPool = (this.opts.useGlobalMsgDelivery &&
+                                                ((msgDlvPool = Nats.getMsgDeliveryThreadPool()) != null));
+
+                sub = new AsyncSubscriptionImpl(this, subject, queue, cb, useDlvPool);
+                if (useDlvPool) {
+                    msgDlvPool.assignDeliveryWorker((AsyncSubscriptionImpl) sub);
+                } else {
+                    // If we have an async callback, start up a sub specific Runnable to deliver the
+                    // messages
+                    subexec.submit(new Runnable() {
+                        public void run() {
                             waitForMsgs((AsyncSubscriptionImpl) sub);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
                         }
-                    }
-                });
+                    });
+                }
             } else {
                 sub = new SyncSubscriptionImpl(this, subject, queue);
                 sub.setChannel(ch);
@@ -1856,24 +1853,24 @@ class ConnectionImpl implements Connection {
 
     @Override
     public AsyncSubscription subscribe(String subject, MessageHandler cb) {
-        return subscribe(subject, null, cb);
+        return (AsyncSubscription) subscribe(subject, null, cb);
     }
 
     @Override
     public AsyncSubscription subscribe(String subj, String queue, MessageHandler cb) {
-        return (AsyncSubscriptionImpl) subscribe(subj, queue, cb, null);
+        return (AsyncSubscription) subscribe(subj, queue, cb, null);
     }
 
     @Override
     @Deprecated
     public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb) {
-        return (AsyncSubscriptionImpl) subscribe(subject, queue, cb, null);
+        return (AsyncSubscription) subscribe(subject, queue, cb, null);
     }
 
     @Override
     @Deprecated
     public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) {
-        return subscribe(subj, null, cb);
+        return (AsyncSubscription) subscribe(subj, null, cb);
     }
 
     private void addSubscription(SubscriptionImpl sub) {

@@ -32,9 +32,6 @@ deploy:
     repo: nats-io/java-nats
     tags: true
     jdk: oraclejdk8
-notifications:
-  email:
-  - larry@apcera.com
 env:
   global:
   - GPG_DIR=${TRAVIS_BUILD_DIR}/.travis/keyrings

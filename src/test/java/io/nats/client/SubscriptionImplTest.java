@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -7,23 +7,17 @@
 package io.nats.client;
 
 import static io.nats.client.Nats.ERR_BAD_SUBSCRIPTION;
+import static io.nats.client.Nats.ERR_CONNECTION_CLOSED;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -35,13 +29,10 @@ import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 
 @Category(UnitTest.class)
-public class SubscriptionImplTest {
+public class SubscriptionImplTest extends BaseUnitTest {
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @Mock
     private ConnectionImpl connMock;
@@ -52,21 +43,40 @@ public class SubscriptionImplTest {
     @Mock
     private MessageHandler mcbMock;
 
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
     @Before
     public void setUp() throws Exception {
+        super.setUp();
         MockitoAnnotations.initMocks(this);
     }
 
-    @After
-    public void tearDown() throws Exception {
+    private SubscriptionImpl createSub(int idx, ConnectionImpl nc, String subj, String queue) {
+        return (idx == 0 ? new SyncSubscriptionImpl(nc, subj, queue) : new AsyncSubscriptionImpl(nc, subj, queue, mcbMock));
+    }
+
+    private interface subMethodToRun {
+        public void run(SubscriptionImpl sub);
+    }
+
+    private class subMethodToRunWithCount implements subMethodToRun {
+        int count;
+
+        subMethodToRunWithCount(int count) {
+            this.count = count;
+        }
+
+        @Override
+        public void run(SubscriptionImpl sub) {};
+    }
+
+    private void checkBadSubscription(int i, subMethodToRun m) {
+        try {
+            try (SubscriptionImpl sub = this.createSub(i, null, "foo", "bar")) {
+                m.run(sub);
+            }
+        } catch (Throwable t) {
+            assertTrue(t instanceof IllegalStateException);
+            assertTrue(t.getMessage().equals(ERR_BAD_SUBSCRIPTION));
+        }
     }
 
     @Test
@@ -75,23 +85,15 @@ public class SubscriptionImplTest {
         String queue = "bar";
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl s = new SyncSubscriptionImpl(nc, subj, queue)) {
-            assertEquals(nc, s.getConnection());
-            assertEquals(subj, s.getSubject());
-            assertEquals(queue, s.getQueue());
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl s = this.createSub(i, nc, subj, queue)) {
+                assertEquals(nc, s.getConnection());
+                assertEquals(subj, s.getSubject());
+                assertEquals(queue, s.getQueue());
+                assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
+                assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
+            }
         }
-
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, subj, queue, mcbMock)) {
-            assertEquals(nc, s.getConnection());
-            assertEquals(subj, s.getSubject());
-            assertEquals(queue, s.getQueue());
-            assertEquals(mcbMock, s.getMessageHandler());
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, s.getPendingMsgsLimit());
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_BYTES, s.getPendingBytesLimit());
-        }
-
     }
 
     @Test
@@ -118,64 +120,22 @@ public class SubscriptionImplTest {
         // Make sure the connection opts aren't null
         when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-            int maxMsgs = 44;
-            int maxBytes = 44 * 1024;
-            sub.setPendingMsgsMax(maxMsgs);
-            assertEquals(maxMsgs, sub.getPendingMsgsMax());
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, nc, "foo", "bar")) {
+                int maxMsgs = 44;
+                int maxBytes = 44 * 1024;
+                sub.setPendingMsgsMax(maxMsgs);
+                assertEquals(maxMsgs, sub.getPendingMsgsMax());
 
-            sub.setPendingBytesMax(maxBytes);
-            assertEquals(maxBytes, sub.getPendingBytesMax());
+                sub.setPendingBytesMax(maxBytes);
+                assertEquals(maxBytes, sub.getPendingBytesMax());
 
-            sub.clearMaxPending();
-            assertEquals(0, sub.getPendingMsgsMax());
-            assertEquals(0, sub.getPendingBytesMax());
+                sub.clearMaxPending();
+                assertEquals(0, sub.getPendingMsgsMax());
+                assertEquals(0, sub.getPendingBytesMax());
 
-            assertEquals(nc, sub.getConnection());
-        }
-    }
-
-    @Test
-    public void testCloseChannel() {
-        thrown.expect(NullPointerException.class);
-        thrown.expectMessage("testing");
-
-        ConnectionImpl nc = mock(ConnectionImpl.class);
-        // Make sure the connection opts aren't null
-        when(nc.getOptions()).thenReturn(Nats.defaultOptions());
-
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-            sub.setChannel(mchMock);
-            assertNotNull(sub.getChannel());
-            sub.closeChannel();
-            assertNull(sub.getChannel());
-            verify(mchMock, times(1)).clear();
-        }
-
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
-            sub.setChannel(null);
-            assertNull(sub.getChannel());
-            sub.closeChannel();
-        }
-
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-            doThrow(new NullPointerException("testing")).when(mchMock).clear();
-            sub.setChannel(mchMock);
-            assertNotNull(sub.getChannel());
-            sub.closeChannel();
-        }
-    }
-
-    @Test
-    public void testCloseChannelNullConn() {
-        // ConnectionImpl nc = mock(ConnectionImpl.class);
-        // Make sure the connection opts aren't null
-        // when(nc.getOptions()).thenReturn(Nats.defaultOptions());
-
-        try (AsyncSubscriptionImpl sub = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
-            assertNotNull(sub.getChannel());
-            sub.closeChannel();
-            assertNull(sub.getChannel());
+                assertEquals(nc, sub.getConnection());
+            }
         }
     }
 
@@ -186,19 +146,20 @@ public class SubscriptionImplTest {
         int maxBytes = 4000000;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            sub.setPendingBytesLimit(maxBytes);
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, sub.getPendingMsgsLimit());
-            assertEquals(maxBytes, sub.getPendingBytesLimit());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, nc, subj, queue)) {
+                sub.setPendingBytesLimit(maxBytes);
+                assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, sub.getPendingMsgsLimit());
+                assertEquals(maxBytes, sub.getPendingBytesLimit());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            maxBytes = -400;
-            sub.setPendingBytesLimit(maxBytes);
-            assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, sub.getPendingMsgsLimit());
-            assertEquals(-400, sub.getPendingBytesLimit());
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                maxBytes = -400;
+                sub.setPendingBytesLimit(maxBytes);
+                assertEquals(SubscriptionImpl.DEFAULT_MAX_PENDING_MSGS, sub.getPendingMsgsLimit());
+                assertEquals(-400, sub.getPendingBytesLimit());
+            }
         }
-
     }
 
     @Test
@@ -211,30 +172,32 @@ public class SubscriptionImplTest {
         int maxBytes = 4000000;
 
         ConnectionImpl nc = mock(ConnectionImpl.class);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            sub.setPendingLimits(maxMsgsDefaultLimit, maxBytesDefaultLimit);
-            assertEquals(maxMsgsDefaultLimit, sub.getPendingMsgsLimit());
-            assertEquals(maxBytesDefaultLimit, sub.getPendingBytesLimit());
-            sub.setPendingLimits(maxMsgs, maxBytes);
-            assertEquals(maxMsgs, sub.getPendingMsgsLimit());
-            assertEquals(maxBytes, sub.getPendingBytesLimit());
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, nc, subj, queue)) {
+                sub.setPendingLimits(maxMsgsDefaultLimit, maxBytesDefaultLimit);
+                assertEquals(maxMsgsDefaultLimit, sub.getPendingMsgsLimit());
+                assertEquals(maxBytesDefaultLimit, sub.getPendingBytesLimit());
+                sub.setPendingLimits(maxMsgs, maxBytes);
+                assertEquals(maxMsgs, sub.getPendingMsgsLimit());
+                assertEquals(maxBytes, sub.getPendingBytesLimit());
 
-            boolean exThrown = false;
-            try {
-                sub.setPendingLimits(0, 1);
-            } catch (IllegalArgumentException e) {
-                exThrown = true;
-            } finally {
-                assertTrue("Setting limit with 0 should fail", exThrown);
-            }
+                boolean exThrown = false;
+                try {
+                    sub.setPendingLimits(0, 1);
+                } catch (IllegalArgumentException e) {
+                    exThrown = true;
+                } finally {
+                    assertTrue("Setting limit with 0 should fail", exThrown);
+                }
 
-            exThrown = false;
-            try {
-                sub.setPendingLimits(1, 0);
-            } catch (IllegalArgumentException e) {
-                exThrown = true;
-            } finally {
-                assertTrue("Setting limit with 0 should fail", exThrown);
+                exThrown = false;
+                try {
+                    sub.setPendingLimits(1, 0);
+                } catch (IllegalArgumentException e) {
+                    exThrown = true;
+                } finally {
+                    assertTrue("Setting limit with 0 should fail", exThrown);
+                }
             }
         }
     }
@@ -245,150 +208,155 @@ public class SubscriptionImplTest {
         String queue = "bar";
         int max = 20;
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.autoUnsubscribe(max);
-            verify(connMock, times(1)).unsubscribe(eq(sub), eq(max));
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.autoUnsubscribe(max);
+                verify(connMock, times(1)).unsubscribe(eq(sub), eq(max));
+            }
         }
-    }
-
-    @Test
-    public void testAutoUnsubscribeConnNull() throws IOException {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-        String subj = "foo";
-        String queue = "bar";
-
-        ConnectionImpl nc = null;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(nc, subj, queue)) {
-            sub.autoUnsubscribe(1);
-        }
-
     }
 
     @Test
     public void testGetDelivered() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.delivered = count;
-            assertEquals(count, sub.getDelivered());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.delivered = count;
+                assertEquals(count, sub.getDelivered());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getDelivered();
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getDelivered();
+                }
+            });
         }
     }
 
     @Test
     public void testGetDropped() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.dropped = count;
-            assertEquals(count, sub.getDropped());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.dropped = count;
+                assertEquals(count, sub.getDropped());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getDropped();
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getDropped();
+                }
+            });
         }
     }
 
     @Test
     public void testGetPendingBytesMax() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pBytesMax = count;
-            assertEquals(count, sub.getPendingBytesMax());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pBytesMax = count;
+                assertEquals(count, sub.getPendingBytesMax());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingBytesMax();
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getPendingBytesMax();
+                }
+            });
         }
     }
 
     @Test
     public void testGetPendingMsgsMax() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pMsgsMax = count;
-            assertEquals(count, sub.getPendingMsgsMax());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pMsgsMax = count;
+                assertEquals(count, sub.getPendingMsgsMax());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingMsgsMax();
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getPendingMsgsMax();
+                }
+            });
         }
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     public void testGetQueuedMessageCount() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
         when(mchMock.size()).thenReturn(count);
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pMsgs = count;
-            assertEquals(count, sub.getQueuedMessageCount());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pMsgs = count;
+                assertEquals(count, sub.getQueuedMessageCount());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getQueuedMessageCount();
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getQueuedMessageCount();
+                }
+            });
         }
     }
 
     @Test
     public void testGetPendingBytes() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22 * 1024;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pBytes = count;
-            assertEquals(count, sub.getPendingBytes());
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pBytes = count;
+                assertEquals(count, sub.getPendingBytes());
+            }
         }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingBytes();
+        for (int i=0; i<2; i++) {
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getPendingBytes();
+                }
+            });
         }
     }
 
     @Test
     public void testGetPendingMsgs() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.pMsgs = count;
-            assertEquals(count, sub.getPendingMsgs());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.pMsgs = count;
+                assertEquals(count, sub.getPendingMsgs());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.getPendingMsgs();
+            checkBadSubscription(i, new subMethodToRun() {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.getPendingMsgs();
+                }
+            });
         }
     }
 
@@ -396,12 +364,14 @@ public class SubscriptionImplTest {
     public void testIsValid() {
         String subj = "foo";
         String queue = "bar";
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            assertTrue(sub.isValid());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                assertTrue(sub.isValid());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            assertFalse(sub.isValid());
+            try (SubscriptionImpl sub = this.createSub(i, null, subj, queue)) {
+                assertFalse(sub.isValid());
+            }
         }
     }
 
@@ -455,37 +425,41 @@ public class SubscriptionImplTest {
 
     @Test
     public void testSetPendingBytesMax() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.setPendingBytesMax(count);
-            assertEquals(count, sub.getPendingBytesMax());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.setPendingBytesMax(count);
+                assertEquals(count, sub.getPendingBytesMax());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.setPendingBytesMax(count);
+            checkBadSubscription(i, new subMethodToRunWithCount(count) {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.setPendingBytesMax(this.count);
+                }
+            });
         }
     }
 
     @Test
     public void testSetPendingMsgsMax() {
-        thrown.expect(IllegalStateException.class);
-        thrown.expectMessage(ERR_BAD_SUBSCRIPTION);
-
         String subj = "foo";
         String queue = "bar";
         int count = 22;
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(connMock, subj, queue)) {
-            sub.setPendingMsgsMax(count);
-            assertEquals(count, sub.getPendingMsgsMax());
-        }
+        for (int i=0; i<2; i++) {
+            try (SubscriptionImpl sub = this.createSub(i, connMock, subj, queue)) {
+                sub.setPendingMsgsMax(count);
+                assertEquals(count, sub.getPendingMsgsMax());
+            }
 
-        try (SyncSubscriptionImpl sub = new SyncSubscriptionImpl(null, subj, queue)) {
-            sub.setPendingMsgsMax(count);
+            checkBadSubscription(i, new subMethodToRunWithCount(count) {
+                @Override
+                public void run(SubscriptionImpl sub) {
+                    sub.setPendingMsgsMax(this.count);
+                }
+            });
         }
     }
 
@@ -508,40 +482,31 @@ public class SubscriptionImplTest {
     }
 
     @Test
-    public void testUnsubscribeConnectionNull() {
-        boolean exThrown = false;
-        try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(null, "foo", "bar", null)) {
-            s.unsubscribe();
-        } catch (IllegalStateException | IOException e) {
-            assertTrue("Exception should have been IllegalStateException",
-                    e instanceof IllegalStateException);
-            assertEquals(ERR_BAD_SUBSCRIPTION, e.getMessage());
-            exThrown = true;
-        } finally {
-            assertTrue("Should have thrown IllegalStateException", exThrown);
-        }
-    }
-
-    @Test
     public void testUnsubscribeConnectionClosed() {
         try (ConnectionImpl nc = mock(ConnectionImpl.class)) {
             // Make sure the connection opts aren't null
             when(nc.getOptions()).thenReturn(Nats.defaultOptions());
 
-            when(nc.isClosed()).thenReturn(true);
+            for (int i=0; i<2; i++) {
+                final SubscriptionImpl sub = createSub(i, nc, "foo", "bar");
 
-            boolean exThrown = false;
-            try (AsyncSubscriptionImpl s = new AsyncSubscriptionImpl(nc, "foo", "bar", null)) {
-                doThrow(IllegalStateException.class).when(nc).unsubscribe(s, 0);
-                s.unsubscribe();
-                fail("Should have thrown IllegalStateException");
-            } catch (Exception e) {
-                assertTrue("Exception should have been IllegalStateException, got: "
-                        + e.getClass().getSimpleName(), e instanceof IllegalStateException);
-                // assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
-                exThrown = true;
+                // This is a bad test... When a connection is closed,
+                // the connection is supposed to remove all subscriptions
+                // from its map and invoke sub.closed(true) on each. With
+                // this mock connection, this is not happening, so calling
+                // this here...
+                sub.close(true);
+
+                boolean exThrown = false;
+                try {
+                    sub.unsubscribe();
+                } catch (Exception e) {
+                    assertEquals(ERR_CONNECTION_CLOSED, e.getMessage());
+                    exThrown = true;
+                } finally {
+                    assertTrue(exThrown);
+                }
             }
-            assertTrue("Should have thrown IllegalStateException", exThrown);
         }
     }
 

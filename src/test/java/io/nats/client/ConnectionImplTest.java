@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -94,13 +94,10 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 @Category(UnitTest.class)
 @RunWith(MockitoJUnitRunner.class)
-public class ConnectionImplTest {
+public class ConnectionImplTest extends BaseUnitTest {
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
 
     @InjectMocks
     ConnectionImpl connection;
@@ -146,35 +143,6 @@ public class ConnectionImplTest {
 
     @Mock
     private SyncSubscriptionImpl syncSubMock;
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @Before
-    public void setUp() throws Exception {
-        //MockitoAnnotations.initMocks(this);
-    }
-
-    /**
-     * @throws java.lang.Exception if a problem occurs
-     */
-    @After
-    public void tearDown() throws Exception {
-    }
 
 //    @SuppressWarnings("resource")
 //    @Test
@@ -1583,6 +1551,68 @@ public class ConnectionImplTest {
     }
 
     @Test
+    public void testProcessMsgWithMsgDeliveryPool() throws Exception {
+        final byte[] data = "Hello, World!".getBytes();
+        final int offset = 0;
+        final int length = data.length;
+        final long sid = 4L;
+        final CountDownLatch latch = new CountDownLatch(1);
+        try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection())) {
+            Parser parser = c.getParser();
+            AsyncSubscriptionImpl sub = spy(new AsyncSubscriptionImpl(c, "foo", "bar", new MessageHandler(){
+                public void onMessage(Message msg) {
+                    latch.countDown();
+                }
+            }));
+            when(sub.getSid()).thenReturn(sid);
+            parser.ps.ma.sid = sid;
+            parser.ps.ma.size = length;
+            when(subsMock.get(eq(sid))).thenReturn(sub);
+            assertEquals(sub, subsMock.get(sid));
+            c.setSubs(subsMock);
+
+            MsgDeliveryWorker worker = spy(new MsgDeliveryWorker());
+            worker.start();
+            try {
+                when(sub.getDeliveryWorker()).thenReturn(worker);
+
+                c.processMsg(data, offset, length);
+
+                // InMsgs should be incremented by 1, even if the sub stats don't increase
+                assertEquals(1, c.getStats().getInMsgs());
+                // InBytes should be incremented by length, even if the sub stats don't increase
+                assertEquals(length, c.getStats().getInBytes());
+                // Wait for callback to return
+                latch.await();
+                // Sub max values should have been updated
+                assertEquals(1, sub.getPendingMsgsMax());
+                assertEquals(length, sub.getPendingBytesMax());
+                // Stats of sub should have gone down
+                assertEquals(0, sub.getPendingMsgs());
+                assertEquals(0, sub.getPendingBytes());
+            } finally {
+                worker.shutdown();
+            }
+        }
+    }
+
+    @Test
+    public void testSubscribeWithMsgDeliveryPool() throws Exception {
+        Nats.shutdownMsgDeliveryThreadPool();
+        Nats.createMsgDeliveryThreadPool(1);
+        try {
+            final Options opts = new Options.Builder().useGlobalMsgDelivery(true).build();
+            try (ConnectionImpl c = (ConnectionImpl) spy(newMockedConnection(opts))) {
+                AsyncSubscriptionImpl sub = (AsyncSubscriptionImpl) c.subscribe("foo", mcbMock);
+                assertNotNull(sub);
+                assertNotNull(sub.getDeliveryWorker());
+            }
+        } finally {
+            Nats.shutdownMsgDeliveryThreadPool();
+        }
+    }
+
+    @Test
     public void testProcessSlowConsumer()
             throws Exception {
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
@@ -1965,11 +1995,11 @@ public class ConnectionImplTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void testResetPingTimer() throws Exception {
         try (ConnectionImpl nc = (ConnectionImpl) spy(newMockedConnection())) {
             ScheduledFuture ptmrMock = mock(ScheduledFuture.class);
-            //noinspection unchecked
             when(nc.createPingTimer()).thenReturn(ptmrMock);
 
             // Test for ptmr already exists

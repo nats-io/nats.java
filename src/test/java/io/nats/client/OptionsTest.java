@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -27,16 +27,12 @@ import static io.nats.client.Nats.PROP_TLS_DEBUG;
 import static io.nats.client.Nats.PROP_URL;
 import static io.nats.client.Nats.PROP_USERNAME;
 import static io.nats.client.Nats.PROP_VERBOSE;
+import static io.nats.client.Nats.PROP_USE_GLOBAL_MSG_DELIVERY;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.util.concurrent.TimeUnit;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -48,26 +44,7 @@ import java.util.Properties;
 import javax.net.ssl.SSLContext;
 
 @Category(UnitTest.class)
-public class OptionsTest {
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
-
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
-    @Before
-    public void setUp() throws Exception {
-    }
-
-    @After
-    public void tearDown() throws Exception {
-    }
-
+public class OptionsTest extends BaseUnitTest {
     private static final String url = "nats://foobar:4122";
     static final String hostname = "foobar2";
     static final int port = 2323;
@@ -88,6 +65,7 @@ public class OptionsTest {
     private static final int timeout = 2000;
     private static final int pingInterval = 5000;
     private static final int maxPings = 4;
+    private static final boolean useGlobalMsgDelivery = true;
     static final Boolean tlsDebug = true;
 
     @Test
@@ -122,6 +100,7 @@ public class OptionsTest {
         props.setProperty(PROP_CLOSED_CB, ccb.getClass().getName());
         props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
         props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
+        props.setProperty(PROP_USE_GLOBAL_MSG_DELIVERY, Boolean.toString(useGlobalMsgDelivery));
 
         Options opts = new Options.Builder(props).build();
 
@@ -159,12 +138,7 @@ public class OptionsTest {
         String token = "alkjsdf09234ipoiasfasdf";
         List<URI> servers = Arrays.asList(URI.create("nats://foobar:1222"), URI.create
                 ("nats://localhost:2222"));
-        boolean noRandomize = true;
         String connectionName = "myConnection";
-        boolean verbose = true;
-        boolean pedantic = true;
-        boolean secure = true;
-        boolean allowReconnect = false;
         int maxReconnect = 20;
         int reconnectBufSize = 12345678;
         long reconnectWait = 742;
@@ -172,15 +146,11 @@ public class OptionsTest {
         long pingInterval = 200000;
         int maxPingsOut = 7;
         SSLContext sslContext = SSLContext.getInstance(Nats.DEFAULT_SSL_PROTOCOL);
-        boolean tlsDebug = true;
         TcpConnectionFactory factory = UnitTestUtilities.newMockedTcpConnectionFactory();
         DisconnectedCallback disconnectedCb = mock(DisconnectedCallback.class);
         ClosedCallback closedCb = mock(ClosedCallback.class);
         ReconnectedCallback reconnectedCb = mock(ReconnectedCallback.class);
         ExceptionHandler asyncErrorCb = mock(ExceptionHandler.class);
-
-        String host = "myhost";
-        int port = 2122;
 
         Options expected = new Options.Builder()
                 .userInfo(username, password)
@@ -204,6 +174,7 @@ public class OptionsTest {
                 .closedCb(closedCb)
                 .reconnectedCb(reconnectedCb)
                 .errorCb(asyncErrorCb)
+                .useGlobalMsgDelivery(true)
                 .build();
 
         expected.url = url;
@@ -242,5 +213,6 @@ public class OptionsTest {
     @Test
     public void testHashcode() {
         int hash = new Options.Builder().build().hashCode();
+        assertTrue(hash != 0);
     }
 }

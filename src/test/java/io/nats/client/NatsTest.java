@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying materials are made available under the terms of the MIT License (MIT) which accompanies this distribution, and is available at http://opensource.org/licenses/MIT
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying materials are made available under the terms of the MIT License (MIT) which accompanies this distribution, and is available at http://opensource.org/licenses/MIT
  */
 
 package io.nats.client;
@@ -9,38 +9,20 @@ import static org.junit.Assert.*;
 
 import java.net.URI;
 import java.util.List;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import org.junit.experimental.categories.Category;
+
+@Category(UnitTest.class)
 /**
  * Created by larry on 11/15/16.
  */
-public class NatsTest {
+public class NatsTest extends BaseUnitTest {
 
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
-
-    @Before
-    public void setUp() throws Exception {}
-
-    @After
-    public void tearDown() throws Exception {}
-
-//    @Test
-//    public void connect() throws Exception {
-//        Nats.connect();
-//    }
-
-//    @Test
-//    public void connectUrl() throws Exception {
-//        Nats.connect()
-//    }
 
     @Test
     public void connectUrlOptions() throws Exception {
@@ -76,4 +58,39 @@ public class NatsTest {
         assertEquals("nats://anotherhost:2222", uriList.get(1).toString());
     }
 
+
+    @Test
+    public void testMsgDeliveryThreadPool() {
+        boolean ok = false;
+        try { Nats.createMsgDeliveryThreadPool(-1); } catch (IllegalArgumentException e) { ok = true; }
+        assertTrue(ok);
+        assertEquals(0, Nats.getMsgDeliveryThreadPoolSize());
+
+        Nats.createMsgDeliveryThreadPool(3);
+        int ps = Nats.getMsgDeliveryThreadPoolSize();
+        assertEquals(3, ps);
+
+        // Trying to create again should fail
+        ok = false;
+        try { Nats.createMsgDeliveryThreadPool(5); } catch (IllegalStateException e) { ok = true; }
+        assertTrue(ok);
+        // Should still be of size 3.
+        assertEquals(3, Nats.getMsgDeliveryThreadPoolSize());
+
+        // However, on shutdown, we want to clear the pool.
+        Nats.shutdownMsgDeliveryThreadPool();
+        ps = Nats.getMsgDeliveryThreadPoolSize();
+        assertEquals(0, ps);
+
+        // Restart pool
+        Nats.createMsgDeliveryThreadPool(2);
+        ps = Nats.getMsgDeliveryThreadPoolSize();
+        assertEquals(2, ps);
+
+        // Shutdown
+        Nats.shutdownMsgDeliveryThreadPool();
+        ps = Nats.getMsgDeliveryThreadPoolSize();
+        assertEquals(0, ps);
+        assertNull(Nats.getMsgDeliveryThreadPool());
+    }
 }

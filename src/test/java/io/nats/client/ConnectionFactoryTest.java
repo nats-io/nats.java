@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -7,7 +7,6 @@
 package io.nats.client;
 
 import static io.nats.client.ConnectionImpl.Srv;
-import static io.nats.client.Nats.ConnState;
 import static io.nats.client.Nats.DEFAULT_SSL_PROTOCOL;
 import static io.nats.client.Nats.PROP_CLOSED_CB;
 import static io.nats.client.Nats.PROP_CONNECTION_NAME;
@@ -32,6 +31,7 @@ import static io.nats.client.Nats.PROP_TLS_DEBUG;
 import static io.nats.client.Nats.PROP_URL;
 import static io.nats.client.Nats.PROP_USERNAME;
 import static io.nats.client.Nats.PROP_VERBOSE;
+import static io.nats.client.Nats.PROP_USE_GLOBAL_MSG_DELIVERY;
 import static io.nats.client.UnitTestUtilities.newMockedTcpConnectionFactory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -41,10 +41,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -60,30 +56,11 @@ import java.util.Properties;
 import javax.net.ssl.SSLContext;
 
 @Category(UnitTest.class)
-public class ConnectionFactoryTest
+public class ConnectionFactoryTest extends BaseUnitTest
         implements ExceptionHandler, ClosedCallback, DisconnectedCallback, ReconnectedCallback {
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
-
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
-    @Before
-    public void setUp() throws Exception {
-    }
-
-    @After
-    public void tearDown() throws Exception {
-    }
 
     @Test(expected = IllegalArgumentException.class)
     public void testConnectionFactoryNullProperties() {
@@ -111,6 +88,7 @@ public class ConnectionFactoryTest
     static final int pingInterval = 5000;
     static final int maxPings = 4;
     static final Boolean tlsDebug = true;
+    static final Boolean useGlobalMsgDelivery = true;
 
     @Test
     public void testConnectionFactoryProperties() {
@@ -143,6 +121,7 @@ public class ConnectionFactoryTest
         props.setProperty(PROP_CLOSED_CB, ccb.getClass().getName());
         props.setProperty(PROP_DISCONNECTED_CB, dcb.getClass().getName());
         props.setProperty(PROP_RECONNECTED_CB, rcb.getClass().getName());
+        props.setProperty(PROP_USE_GLOBAL_MSG_DELIVERY, Boolean.toString(useGlobalMsgDelivery));
 
         ConnectionFactory cf = new ConnectionFactory(props);
         assertEquals(hostname, cf.getHost());
@@ -168,6 +147,7 @@ public class ConnectionFactoryTest
         assertEquals(ccb.getClass().getName(), cf.getClosedCallback().getClass().getName());
         assertEquals(dcb.getClass().getName(), cf.getDisconnectedCallback().getClass().getName());
         assertEquals(rcb.getClass().getName(), cf.getReconnectedCallback().getClass().getName());
+        assertEquals(useGlobalMsgDelivery, cf.isUsingGlobalMessageDelivery());
 
         ConnectionFactory cf2 = new ConnectionFactory(cf);
         assertTrue(cf2.equals(cf));
@@ -328,6 +308,7 @@ public class ConnectionFactoryTest
         boolean tlsDebug = true;
         SSLContext sslContext = null;
         TcpConnectionFactory tcf = newMockedTcpConnectionFactory();
+        boolean useGlobalMsgDeliveryPool = true;
 
 
         ReconnectedCallback rcb = new ReconnectedCallback() {
@@ -379,6 +360,7 @@ public class ConnectionFactoryTest
         cf.setClosedCallback(ccb);
         cf.setDisconnectedCallback(dcb);
         cf.setExceptionHandler(ecb);
+        cf.setUseGlobalMessageDelivery(useGlobalMsgDelivery);
 
         Options opts = cf.options();
         assertEquals(tcf, opts.getFactory());
@@ -400,6 +382,7 @@ public class ConnectionFactoryTest
         assertEquals(sslContext, opts.getSslContext());
         assertEquals(uri.toString(), cf.getUrlString());
         assertEquals(tlsDebug, opts.isTlsDebug());
+        assertEquals(useGlobalMsgDeliveryPool, opts.isUsingGlobalMsgDelivery());
 
         assertEquals(dcb, opts.getDisconnectedCallback());
         assertEquals(rcb, opts.getReconnectedCallback());
@@ -450,6 +433,7 @@ public class ConnectionFactoryTest
             e1.printStackTrace();
         }
         cf.setTlsDebug(true);
+        cf.setUseGlobalMessageDelivery(true);
 
         ConnectionFactory cf2 = null;
         cf2 = new ConnectionFactory(cf);
@@ -477,6 +461,7 @@ public class ConnectionFactoryTest
         assertEquals(cf.getReconnectedCallback(), cf2.getReconnectedCallback());
         assertEquals(cf.getUrlString(), cf2.getUrlString());
         assertEquals(cf.isTlsDebug(), cf2.isTlsDebug());
+        assertEquals(cf.isUsingGlobalMessageDelivery(), cf2.isUsingGlobalMessageDelivery());
     }
 
     @Test

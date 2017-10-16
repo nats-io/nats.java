@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -14,10 +14,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import io.nats.client.Parser.MsgArg;
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -30,7 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 @Category(UnitTest.class)
-public class MessageTest {
+public class MessageTest extends BaseUnitTest {
 
     @Mock
     private AsyncSubscriptionImpl subMock;
@@ -38,24 +35,10 @@ public class MessageTest {
     @Rule
     public final ExpectedException thrown = ExpectedException.none();
 
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
-
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
     @Before
     public void setUp() throws Exception {
+        super.setUp();
         MockitoAnnotations.initMocks(this);
-    }
-
-    @After
-    public void tearDown() throws Exception {
     }
 
     @Test

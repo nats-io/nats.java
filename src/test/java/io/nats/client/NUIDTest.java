@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -27,27 +27,7 @@ import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Locale;
 
-public class NUIDTest {
-
-    @Rule
-    public TestCasePrinterRule pr = new TestCasePrinterRule(System.out);
-
-    @BeforeClass
-    public static void setUpBeforeClass() throws Exception {
-    }
-
-    @AfterClass
-    public static void tearDownAfterClass() throws Exception {
-    }
-
-    @Before
-    public void setUp() throws Exception {
-    }
-
-    @After
-    public void tearDown() throws Exception {
-    }
-
+public class NUIDTest extends BaseUnitTest {
     @Test
     @Category(UnitTest.class)
     public void testDigits() {
@@ -126,7 +106,7 @@ public class NUIDTest {
             nuid.next();
         }
         long elapsedNsec = System.nanoTime() - start;
-        System.out.printf("Average generation time for %d NUIDs was %d ns\n",
+        System.out.printf("Average generation time for %s NUIDs was %f ns\n",
                 NumberFormat.getNumberInstance(Locale.US).format(count),
                 (double) elapsedNsec / count);
 
@@ -143,7 +123,7 @@ public class NUIDTest {
             nuid.next();
         }
         long elapsedNsec = System.nanoTime() - start;
-        System.out.printf("Average generation time for %d global NUIDs was %d ns\n",
+        System.out.printf("Average generation time for %s global NUIDs was %f ns\n",
                 NumberFormat.getNumberInstance(Locale.US).format(count),
                 (double) elapsedNsec / count);
     }

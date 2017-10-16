@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2015-2016 Apcera Inc. All rights reserved. This program and the accompanying
+ *  Copyright (c) 2015-2017 Apcera Inc. All rights reserved. This program and the accompanying
  *  materials are made available under the terms of the MIT License (MIT) which accompanies this
  *  distribution, and is available at http://opensource.org/licenses/MIT
  */
@@ -205,6 +205,10 @@ public final class Nats {
      * This property is defined as String {@value #PROP_USE_OLD_REQUEST_STYLE}.
      */
     public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
+    /**
+     * This property is defined as String {@value #PROP_USE_GLOBAL_MSG_DELIVERY}.
+     */
+    public static final String PROP_USE_GLOBAL_MSG_DELIVERY = PFX + "use.global.msg.delivery";
 
     /*
      * Constants
@@ -393,6 +397,7 @@ public final class Nats {
     static final String TCP_SCHEME = "tcp";
     static final String TLS_SCHEME = "tls";
 
+    static private MsgDeliveryPool globalMsgDeliveryPool = null;
 
     /**
      * Creates a NATS connection using the default URL ({@value #DEFAULT_URL}) and default
@@ -469,5 +474,68 @@ public final class Nats {
             }
         }
         return list;
+    }
+
+    /**
+     * Create a library scoped message delivery thread pool.
+     * <p>
+     * By default, each asynchronous subscription has its own thread
+     * responsible for dispatching the messages.
+     * <p>
+     * If the application needs to create a high number of subscriptions,
+     * this may not scale.
+     * <p>
+     * Creating a message delivery thread pool will limit the
+     * number of threads used for message delivery. The use of this
+     * thread pool still guarantees that messages from a given subscription
+     * are dispatched in order. In other words, a subscription is bound
+     * to a given thread in the pool.
+     *
+     * @param size the size of the thread pool
+     * @throws IllegalArgumentException if size is lower or equal to zero.
+     * @throws IllegalStateException if pool has already been created.
+     */
+    synchronized public static void createMsgDeliveryThreadPool(int size) {
+        if (size <= 0) {
+            throw new IllegalArgumentException("Pool size cannot be set to a value lower than 1");
+        }
+        if (globalMsgDeliveryPool != null) {
+            throw new IllegalStateException("Pool has already been created");
+        }
+        // Create the pool only when calling with a size >= 1.
+        globalMsgDeliveryPool = new MsgDeliveryPool(size);
+    }
+
+    /**
+     * Returns the message delivery thread pool size.
+     *
+     * @return the message delivery thread pool size or 0 if none is used.
+     */
+    synchronized public static int getMsgDeliveryThreadPoolSize() {
+        if (globalMsgDeliveryPool == null) {
+            return 0;
+        }
+        return globalMsgDeliveryPool.getSize();
+    }
+
+    /**
+     * Shuts down the message delivery thread pool.
+     *
+     * The pool is shared by all connections. You don't need to
+     * call {@link #shutdownMsgDeliveryThreadPool()}, but if you do,
+     * you should call this method only after all connections have been
+     * closed to ensure that no new message arrive and need to be
+     * dipatched, which would delay the shutdown of the thread pool.
+     */
+    synchronized public static void shutdownMsgDeliveryThreadPool() {
+        if (globalMsgDeliveryPool == null) {
+            return;
+        }
+        globalMsgDeliveryPool.shutdown();
+        globalMsgDeliveryPool = null;
+    }
+
+    synchronized protected static MsgDeliveryPool getMsgDeliveryThreadPool() {
+        return globalMsgDeliveryPool;
     }
 }

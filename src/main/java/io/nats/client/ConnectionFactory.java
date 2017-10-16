@@ -56,6 +56,7 @@ public class ConnectionFactory {
     private ReconnectedCallback reconnectedCallback;
     private String urlString = null;
     private boolean tlsDebug;
+    private boolean useGlobalMsgDelivery = false;
 
     /**
      * Constructs a new connection factory from a {@link Properties} object.
@@ -101,6 +102,7 @@ public class ConnectionFactory {
         this.disconnectedCallback = opts.disconnectedCb;
         this.reconnectedCallback = opts.reconnectedCb;
         this.factory = opts.factory;
+        this.useGlobalMsgDelivery = opts.useGlobalMsgDelivery;
     }
 
     /**
@@ -183,6 +185,7 @@ public class ConnectionFactory {
         this.reconnectedCallback = cf.reconnectedCallback;
         this.urlString = cf.urlString;
         this.tlsDebug = cf.tlsDebug;
+        this.useGlobalMsgDelivery = cf.useGlobalMsgDelivery;
     }
 
     @Override
@@ -191,7 +194,7 @@ public class ConnectionFactory {
                 connectionName, verbose, pedantic, secure, reconnectAllowed, maxReconnect,
                 reconnectBufSize, reconnectWait, connectionTimeout, pingInterval, maxPingsOut,
                 sslContext, exceptionHandler, closedCallback, disconnectedCallback,
-                reconnectedCallback, urlString, tlsDebug);
+                reconnectedCallback, urlString, tlsDebug, useGlobalMsgDelivery);
     }
 
     @Override
@@ -274,6 +277,9 @@ public class ConnectionFactory {
         }
         if (!reconnectAllowed) {
             result = result.noReconnect();
+        }
+        if (useGlobalMsgDelivery) {
+            result = result.useGlobalMsgDelivery(true);
         }
 
         result = result.factory(factory).maxReconnect(maxReconnect).reconnectWait(reconnectWait)
@@ -880,5 +886,27 @@ public class ConnectionFactory {
      */
     public final void setSSLContext(SSLContext ctx) {
         this.sslContext = ctx;
+    }
+
+    /**
+     * Sets whether the connection's asynchronous subscriptions should
+     * use the global message delivery thread pool.
+     *
+     * See {@link Nats#createMsgDeliveryThreadPool(int)} for more information.
+     *
+     * @param usePool whether to use the global thread pool or not.
+     */
+    public final void setUseGlobalMessageDelivery(boolean usePool) {
+        this.useGlobalMsgDelivery = usePool;
+    }
+
+    /**
+     * Indicates whether the connection's asynchronous subscriptions will use
+     * the global message delivery thread pool.
+     *
+     * @return {@code true} if using global message delivery, otherwise {@code false}
+     */
+    public final boolean isUsingGlobalMessageDelivery() {
+        return this.useGlobalMsgDelivery;
     }
 }
