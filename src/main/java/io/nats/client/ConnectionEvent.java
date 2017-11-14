@@ -13,7 +13,7 @@ package io.nats.client;
 public class ConnectionEvent {
     private final Connection nc;
 
-    ConnectionEvent(Connection conn) {
+    public ConnectionEvent(Connection conn) {
         if (conn == null) {
             throw new IllegalArgumentException("nats: connection cannot be null");
         }
@@ -25,7 +25,7 @@ public class ConnectionEvent {
      *
      * @return the {@link Connection}
      */
-    public final Connection getConnection() {
+    public Connection getConnection() {
         return nc;
     }
 
