@@ -482,6 +482,44 @@ public class ParserTest extends BaseUnitTest {
     } // testParserSplitMsg
 
     @Test
+    public void testParserSplitMsgArgs() throws Exception {
+        try (ConnectionImpl nc = new ConnectionImpl(defaultOptions())) {
+            Parser parser = ConnectionAccessor.getParser(nc);
+
+            parser.ps = new Parser.ParseState();
+            byte[] buf = "MSG a".getBytes();
+            parser.parse(buf);
+            assertEquals(Parser.NatsOp.MSG_ARG, parser.ps.state);
+            assertNotNull(parser.ps.argBuf);
+            String ab = new String(parser.ps.argBuf.array(), 0, parser.ps.argBuf.position());
+            assertEquals("a", ab);
+
+            buf = ".b".getBytes();
+            parser.parse(buf);
+            assertEquals(Parser.NatsOp.MSG_ARG, parser.ps.state);
+            assertNotNull(parser.ps.argBuf);
+            ab = new String(parser.ps.argBuf.array(), 0, parser.ps.argBuf.position());
+            assertEquals("a.b", ab);
+
+            buf = ".c 1 1\r".getBytes();
+            parser.parse(buf);
+            assertEquals(Parser.NatsOp.MSG_ARG, parser.ps.state);
+            assertNotNull(parser.ps.argBuf);
+            ab = new String(parser.ps.argBuf.array(), 0, parser.ps.argBuf.position());
+            assertEquals("a.b.c 1 1", ab);
+            assertEquals(1, parser.ps.drop);
+
+            buf = "\n".getBytes();
+            parser.parse(buf);
+            assertEquals(Parser.NatsOp.MSG_PAYLOAD, parser.ps.state);
+            assertEquals("a.b.c", new String(parser.ps.ma.subject.array(), 0, parser.ps.ma.subject.limit()));
+            assertEquals(1L, parser.ps.ma.sid);
+            assertNotNull(parser.ps.argBuf);
+        }
+    }
+
+
+    @Test
     public void testProcessMsgArgsErrors() {
         String tooFewArgsString = "foo bar";
         byte[] args = tooFewArgsString.getBytes();

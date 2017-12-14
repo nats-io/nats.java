@@ -166,7 +166,6 @@ class Parser {
                                 byte[] arg = ps.argBuf.array();
                                 int from = ps.argBuf.arrayOffset() + ps.argBuf.position();
                                 int to = ps.argBuf.arrayOffset() + ps.argBuf.limit();
-                                ps.argBuf = null;
                                 int length = to - from;
                                 processMsgArgs(arg, from, length);
                             } else {
@@ -536,15 +535,11 @@ class Parser {
         } // for
 
         // Check for split buffer scenarios
-        if ((ps.state == MSG_ARG || ps.state == MINUS_ERR_ARG) || ps.state == INFO_ARG && (ps
-                .argBuf == null)) {
+        if ((ps.state == MSG_ARG || ps.state == MINUS_ERR_ARG || ps.state == INFO_ARG)
+            && (ps.argBuf == null)) {
             try {
                 ps.argBuf = ByteBuffer.wrap(ps.argBufStore);
-                assert (ps.as >= 0);
-                assert ((i - ps.drop - ps.as) > 0);
-                if (i - ps.drop - ps.as > 0) {
-                    ps.argBuf.put(buf, ps.as, i - ps.drop - ps.as);
-                }
+                ps.argBuf.put(buf, ps.as, i - ps.drop - ps.as);
                 // FIXME, check max len
             } catch (IndexOutOfBoundsException e) {
                 nc.processErr(ps.argBuf);
