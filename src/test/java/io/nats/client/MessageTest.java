@@ -239,4 +239,12 @@ public class MessageTest extends BaseUnitTest {
                 + "<this is a really long message th60 more bytes>}", msg.toString());
     }
 
+    @Test
+    public void testDataOnlyToString() {
+        byte[] data = "hello".getBytes();
+        Message msg = new Message();
+        msg.setData(data);
+        assertEquals("{Subject=null;Reply=null;Payload=<hello>}", msg.toString());
+    }
+
 }
