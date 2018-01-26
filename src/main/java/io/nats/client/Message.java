@@ -102,7 +102,7 @@ public class Message {
      * @return the message subject
      */
     public String getSubject() {
-        if (subjectString == null) {
+        if (subjectString == null && subjectBytes != null) {
             subjectString = new String(subjectBytes, 0, subjectBytes.length);
         }
         return subjectString;
