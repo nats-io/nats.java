@@ -251,13 +251,6 @@ nc.setClosedCallback( event -> {
 });
 
 ```
-## Logging
-
-This library logs error, warning, and debug information using the [Simple Logging Facade for Java (SLF4J)](www.slf4j.org) API. 
-This gives you, the downstream user, flexibility to choose which (if any) logging implementation you prefer.
-### Q: Hey, what the heck is this `Failed to load class org.slf4j.impl.StaticLoggerBinder` exception?". 
-A: You're getting that message because slf4j can't find an actual logger implementation in your classpath. 
-Carefully reading [the link embedded in those exception messages](http://www.slf4j.org/codes.html#StaticLoggerBinder) is highly recommended! 
 
 ## License
 
