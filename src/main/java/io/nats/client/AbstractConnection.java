@@ -23,8 +23,9 @@ public interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject name contains illegal characters.
      * @throws NullPointerException     if the subject name is null
      * @throws IllegalStateException    if the connection is closed
+     * @throws IOException
      */
-    SyncSubscription subscribe(String subject);
+    SyncSubscription subscribe(String subject) throws IOException;
 
     /**
      * Creates a {@link SyncSubscription} with interest in a given subject. All subscribers with the
@@ -37,8 +38,9 @@ public interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException     if the subject name is null
      * @throws IllegalStateException    if the connection is closed
+     * @throws IOException
      */
-    SyncSubscription subscribe(String subject, String queue);
+    SyncSubscription subscribe(String subject, String queue) throws IOException;
 
     /**
      * Creates a {@code AsyncSubscription} with interest in a given subject, assign the callback,
@@ -51,8 +53,9 @@ public interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException     if the subject name is null
      * @throws IllegalStateException    if the connection is closed
+     * @throws IOException
      */
-    AsyncSubscription subscribe(String subject, MessageHandler cb);
+    AsyncSubscription subscribe(String subject, MessageHandler cb) throws IOException;
 
     /**
      * Creates an asynchronous queue subscriber on a given subject of interest. All subscribers with
@@ -64,8 +67,9 @@ public interface AbstractConnection extends AutoCloseable {
      * @param cb      a {@code MessageHandler} object used to process messages received by the
      *                {@code Subscription}
      * @return {@code Subscription}
+     * @throws IOException
      */
-    AsyncSubscription subscribe(String subject, String queue, MessageHandler cb);
+    AsyncSubscription subscribe(String subject, String queue, MessageHandler cb) throws IOException;
 
     /**
      * Creates a {@code AsyncSubscription} with interest in a given subject, assign the callback,
@@ -78,9 +82,10 @@ public interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException     if the subject name is null
      * @throws IllegalStateException    if the connection is closed
+     * @throws IOException
      * @deprecated As of release 0.6, use {@link #subscribe(String, MessageHandler)} instead
      */
-    AsyncSubscription subscribeAsync(String subject, MessageHandler cb);
+    AsyncSubscription subscribeAsync(String subject, MessageHandler cb) throws IOException;
 
     /**
      * Create an {@code AsyncSubscription} with interest in a given subject, assign the message
@@ -93,9 +98,10 @@ public interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException     if the subject name is null
      * @throws IllegalStateException    if the connection is closed
+     * @throws IOException
      * @deprecated As of release 0.6, use {@link #subscribe(String, String, MessageHandler)} instead
      */
-    AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb);
+    AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb) throws IOException;
 
     /**
      * Creates a synchronous queue subscriber on a given subject of interest. All subscribers with
@@ -109,8 +115,9 @@ public interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject (or queue) name contains illegal characters.
      * @throws NullPointerException     if the subject name is null
      * @throws IllegalStateException    if the connection is closed
+     * @throws IOException
      */
-    SyncSubscription subscribeSync(String subject, String queue);
+    SyncSubscription subscribeSync(String subject, String queue) throws IOException;
 
     /**
      * Creates a {@link SyncSubscription} with interest in a given subject. In order to receive
@@ -121,8 +128,9 @@ public interface AbstractConnection extends AutoCloseable {
      * @throws IllegalArgumentException if the subject name contains illegal characters.
      * @throws NullPointerException     if the subject name is null
      * @throws IllegalStateException    if the connection is closed
+     * @throws IOException
      */
-    SyncSubscription subscribeSync(String subject);
+    SyncSubscription subscribeSync(String subject) throws IOException;
 
     /**
      * Creates a new, uniquely named inbox with the prefix '_INBOX.'

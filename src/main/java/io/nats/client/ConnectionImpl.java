@@ -910,18 +910,14 @@ class ConnectionImpl implements Connection {
 
     // flushReconnectPending will push the pending items that were
     // gathered while we were in a RECONNECTING state to the socket.
-    void flushReconnectPendingItems() {
+    void flushReconnectPendingItems() throws IOException {
         if (pending == null) {
             return;
         }
 
         if (pending.size() > 0) {
-            try {
-                bw.write(pending.toByteArray(), 0, pending.size());
-                bw.flush();
-            } catch (IOException e) {
-                // NOOP
-            }
+            bw.write(pending.toByteArray(), 0, pending.size());
+            bw.flush();
         }
 
         pending = null;
@@ -1020,14 +1016,14 @@ class ConnectionImpl implements Connection {
                 // cur.didConnect = true;
                 cur.reconnects = 0;
 
-                // Send existing subscription state
-                resendSubscriptions();
-
-                // Now send off and clear pending buffer
-                flushReconnectPendingItems();
-
-                // Flush the buffer
                 try {
+                    // Send existing subscription state
+                    resendSubscriptions();
+
+                    // Now send off and clear pending buffer
+                    flushReconnectPendingItems();
+
+                    // Flush the buffer
                     getOutputStream().flush();
                 } catch (IOException e) {
                     setLastError(e);
@@ -1740,7 +1736,7 @@ class ConnectionImpl implements Connection {
 
     // resendSubscriptions will send our subscription state back to the
     // server. Used in reconnects
-    void resendSubscriptions() {
+    void resendSubscriptions() throws IOException {
         long adjustedMax = 0L;
         for (Map.Entry<Long, SubscriptionImpl> entry : subs.entrySet()) {
             SubscriptionImpl sub = entry.getValue();
@@ -1789,7 +1785,7 @@ class ConnectionImpl implements Connection {
      * @return the Subscription object
      */
     SubscriptionImpl subscribe(String subject, String queue, MessageHandler cb,
-                               BlockingQueue<Message> ch) {
+                               BlockingQueue<Message> ch) throws IOException {
         final SubscriptionImpl sub;
         mu.lock();
         try {
@@ -1830,7 +1826,12 @@ class ConnectionImpl implements Connection {
 
             // Send SUB proto
             if (!reconnecting()) {
-                sendSubscriptionMessage(sub);
+                try {
+                    sendSubscriptionMessage(sub);
+                } catch(IOException e) {
+                    removeSub(sub);
+                    throw e;
+                }
             }
 
             kickFlusher();
@@ -1842,34 +1843,34 @@ class ConnectionImpl implements Connection {
     }
 
     @Override
-    public SyncSubscription subscribe(String subject) {
+    public SyncSubscription subscribe(String subject) throws IOException {
         return subscribeSync(subject, null);
     }
 
     @Override
-    public SyncSubscription subscribe(String subject, String queue) {
+    public SyncSubscription subscribe(String subject, String queue) throws IOException {
         return subscribeSync(subject, queue);
     }
 
     @Override
-    public AsyncSubscription subscribe(String subject, MessageHandler cb) {
+    public AsyncSubscription subscribe(String subject, MessageHandler cb) throws IOException {
         return (AsyncSubscription) subscribe(subject, null, cb);
     }
 
     @Override
-    public AsyncSubscription subscribe(String subj, String queue, MessageHandler cb) {
+    public AsyncSubscription subscribe(String subj, String queue, MessageHandler cb) throws IOException {
         return (AsyncSubscription) subscribe(subj, queue, cb, null);
     }
 
     @Override
     @Deprecated
-    public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb) {
+    public AsyncSubscription subscribeAsync(String subject, String queue, MessageHandler cb) throws IOException {
         return (AsyncSubscription) subscribe(subject, queue, cb, null);
     }
 
     @Override
     @Deprecated
-    public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) {
+    public AsyncSubscription subscribeAsync(String subj, MessageHandler cb) throws IOException {
         return (AsyncSubscription) subscribe(subj, null, cb);
     }
 
@@ -1879,13 +1880,13 @@ class ConnectionImpl implements Connection {
     }
 
     @Override
-    public SyncSubscription subscribeSync(String subject, String queue) {
+    public SyncSubscription subscribeSync(String subject, String queue) throws IOException {
         return (SyncSubscription) subscribe(subject, queue, null,
                 createMsgChannel());
     }
 
     @Override
-    public SyncSubscription subscribeSync(String subject) {
+    public SyncSubscription subscribeSync(String subject) throws IOException {
         return (SyncSubscription) subscribe(subject, null, null,
                 createMsgChannel());
     }
@@ -2077,7 +2078,7 @@ class ConnectionImpl implements Connection {
 
     // Creates the response subscription we will use for all new style responses. This will be on an _INBOX with an
     // additional terminal token. The subscription will be on a wildcard.
-    private synchronized void createRespMux() {
+    private synchronized void createRespMux() throws IOException {
         if (respMap != null) {
             // Already setup for responses.
             return;
@@ -2162,17 +2163,13 @@ class ConnectionImpl implements Connection {
     }
 
     // Assumes already have the lock
-    void sendSubscriptionMessage(SubscriptionImpl sub) {
+    void sendSubscriptionMessage(SubscriptionImpl sub) throws IOException {
         // We will send these for all subs when we reconnect
         // so that we can suppress here.
         String queue = sub.getQueue();
         String subLine = String.format(SUB_PROTO, sub.getSubject(),
                 (queue != null && !queue.isEmpty()) ? " " + queue : "", sub.getSid());
-        try {
-            bw.write(subLine.getBytes());
-        } catch (IOException e) {
-            // Ignore - FIXME:  This should be thrown
-        }
+        bw.write(subLine.getBytes());
     }
 
     @Override
