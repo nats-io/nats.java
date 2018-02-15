@@ -259,6 +259,7 @@ public class ConnectionImplTest extends BaseUnitTest {
 
     @Test
     public void testFlushReconnectPendingItems() throws Exception {
+        thrown.expect(IOException.class);
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             byte[] pingProtoBytes = ConnectionImpl.PING_PROTO.getBytes();
             int pingProtoBytesLen = pingProtoBytes.length;
@@ -1913,6 +1914,7 @@ public class ConnectionImplTest extends BaseUnitTest {
 
     @Test
     public void testSendSubscriptionMessage() throws Exception {
+        thrown.expect(IOException.class);
         try (ConnectionImpl c = (ConnectionImpl) newMockedConnection()) {
             SubscriptionImpl mockSub = mock(SubscriptionImpl.class);
             String subject = doReturn("foo").when(mockSub).getSubject();

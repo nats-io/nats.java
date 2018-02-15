@@ -703,13 +703,18 @@ public class ITSubscriptionTest extends ITBaseTest {
                         public void onMessage(Message msg) {
                             // System.err.println("Responder");
                             String responseInbox = c.newInbox();
-                            c.subscribe(responseInbox, new MessageHandler() {
-                                public void onMessage(Message msg) {
-                                    // System.err.println("Internal subscriber.");
-                                    sleep(100);
-                                    latch.countDown();
-                                }
-                            });
+                            try {
+                                c.subscribe(responseInbox, new MessageHandler() {
+                                    public void onMessage(Message msg) {
+                                        // System.err.println("Internal subscriber.");
+                                        sleep(100);
+                                        latch.countDown();
+                                    }
+                                });
+                            } catch(IOException e) {
+                                e.printStackTrace();
+                            }
+
                             // System.err.println("starter subscribed");
                             sleep(100);
                             try {
