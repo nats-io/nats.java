@@ -26,7 +26,8 @@ deploy:
   script: ".travis/deploy.sh"
   on:
     repo: nats-io/java-nats
-    branch: master
+    all_branches: true
+#    branch: master
     jdk: oraclejdk8
 env:
   global:
