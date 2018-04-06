@@ -28,13 +28,6 @@ deploy:
     repo: nats-io/java-nats
     branch: master
     jdk: oraclejdk8
-- provider: script
-  skip_cleanup: true
-  script: ".travis/deploy.sh"
-  on:
-    repo: nats-io/java-nats
-    tags: true
-    jdk: oraclejdk8
 env:
   global:
   - GPG_DIR=${TRAVIS_BUILD_DIR}/.travis/keyrings
