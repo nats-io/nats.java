@@ -10,10 +10,9 @@ else
     echo "not on a tag -> keep snapshot version in pom.xml"
 fi
 
-# Temporarily disabled due to credential issues.
-# echo "decrypting keyrings"
-# openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/pubring.gpg.enc -out $GPG_DIR/pubring.gpg -d
-# openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/secring.gpg.enc -out $GPG_DIR/secring.gpg -d
-# mvn deploy --settings .travis/settings.xml -Pnats-release -Dskip.unit.tests=true -B
+echo "decrypting keyrings"
+openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/pubring.gpg.enc -out $GPG_DIR/pubring.gpg -d
+openssl aes-256-cbc -pass pass:$ENCRYPTION_PASSWORD -in $GPG_DIR/secring.gpg.enc -out $GPG_DIR/secring.gpg -d
+mvn deploy --settings .travis/settings.xml -Pnats-release -Dskip.unit.tests=true -B
 
 # ${TRAVIS_BUILD_DIR}/.travis/publish-javadoc.sh
