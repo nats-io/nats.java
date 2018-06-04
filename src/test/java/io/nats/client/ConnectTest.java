@@ -14,7 +14,7 @@ public class ConnectTest {
     
     @Test(expected = UnsupportedOperationException.class)
     public void testConnectionWithOptions() {
-        Options options = new Options();
+        Optionsg options = new Options();
         Connection nc = Nats.connect("foo", options);
     }
 }
