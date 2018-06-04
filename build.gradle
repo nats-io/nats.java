@@ -1,0 +1,50 @@
+
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api 'org.apache.commons:commons-math3:3.6.1'
+
+    implementation 'com.google.guava:guava:23.0'
+
+    testImplementation 'junit:junit:4.12'
+}
+
+repositories {
+    jcenter()
+}
+
+version = '0.1.0'
+
+jar {
+    manifest {
+        attributes('Implementation-Title': 'Java Nats',
+                   'Implementation-Version': '0.1.0')
+    }
+}
+
+apply plugin: 'java'
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java', 'src/main/javadoc']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+    }
+}
+
+javadoc {
+    options.overview = "src/main/javadoc/overview.html" // relative to source root
+    doLast {
+            copy {
+                from "src/main/javadoc/images"
+                into "$buildDir/docs/javadoc"
+            }
+        }
+}
