@@ -12,6 +12,7 @@ gnatsd.log
 *.exe
 *.o
 *.so
+/bin
 
 # Packages #
 ############
@@ -68,6 +69,9 @@ atlassian-ide-plugin.xml
 
 # NetBeans specific files/directories
 .nbattrs
+
+# VSCode
+.vscode/
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
