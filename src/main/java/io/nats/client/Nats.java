@@ -13,24 +13,31 @@
 
 package io.nats.client;
 
-// import io.nats.client.impl.*;
+import io.nats.client.impl.NatsImpl;
 
 public class Nats {
 
     public static Connection connect() {
-        throw new UnsupportedOperationException("Not implemented yet");
+        Options options = new Options.Builder().server(Options.DEFAULT_URL).build();
+        return createConnection(options);
     }
 
     public static Connection connect(String url) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        Options options = new Options.Builder().server(url).build();
+        return createConnection(options);
     }
 
     /**
      * 
-     * Options can be used to set callback handlers for various errors, and connection events.
+     * Options can be used to set the server URL, or multiple URLS,
+     * callback handlers for various errors, and connection events.
      */
-    public static Connection connect(String url, Options options) {
-        throw new UnsupportedOperationException("Not implemented yet");
+    public static Connection connect(Options options) {
+        return createConnection(options);
+    }
+
+    private static Connection createConnection(Options options) {
+        return NatsImpl.createConnection(options);
     }
 
     private Nats() {

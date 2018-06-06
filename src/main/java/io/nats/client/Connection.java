@@ -16,6 +16,7 @@ package io.nats.client;
 import java.time.Duration;
 import java.util.Collection;
 
+// TODO(sasbury): Statistics
 public interface Connection {
 
     public enum Status {

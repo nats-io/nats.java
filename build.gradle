@@ -39,6 +39,7 @@ sourceSets {
 
 javadoc {
     options.overview = "src/main/javadoc/overview.html" // relative to source root
+    //Do we need this? exclude "src/main/java/impl"
     doLast {
             copy {
                 from "src/main/javadoc/images"

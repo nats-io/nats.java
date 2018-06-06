@@ -18,17 +18,26 @@ import org.junit.Test;
 public class ConnectTests {
     @Test
     public void testDefaultConnection() {
-        Connection nc = Nats.connect();
+        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, true)) {
+            Connection  nc = Nats.connect();
+            nc.close();
+        }
     }
     
     @Test
     public void testConnection() {
-        Connection nc = Nats.connect("foo");
+        try (NatsTestServer ts = new NatsTestServer(true)) {
+            Connection nc = Nats.connect("nats://localhost:"+ts.getPort());
+            nc.close();
+        }
     }
     
     @Test
     public void testConnectionWithOptions() {
-        Options options = new Options.Builder().build();
-        Connection nc = Nats.connect("foo", options);
+        try (NatsTestServer ts = new NatsTestServer(true)) {
+            Options options = new Options.Builder().server("nats://localhost:"+ts.getPort()).build();
+            Connection nc = Nats.connect(options);
+            nc.close();
+        }
     }
 }
