@@ -81,7 +81,7 @@ public interface Connection {
      * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage} method to read messages
      * for this subscription.</p>
      * 
-     * <p><strong>TODO</strong> In the case of an error...</p>
+     * <p><strong>TODO(sasbury)</strong> In the case of an error...</p>
      * 
      * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for information about creating an asynchronous
      * subscription with callbacks.</p>
@@ -97,7 +97,7 @@ public interface Connection {
      * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage} method to read messages
      * for this subscription.</p>
      * 
-     * <p><strong>TODO</strong> In the case of an error...</p>
+     * <p><strong>TODO(sasbury)</strong> In the case of an error...</p>
      * 
      * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for information about creating an asynchronous
      * subscription with callbacks.</p>

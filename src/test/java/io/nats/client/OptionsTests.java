@@ -250,4 +250,16 @@ public class OptionsTests {
         assertEquals("property disconnect handler class", ((TestHandler)o.getReconnectHandler()).getCount(), 2);
         assertEquals("property close handler class", ((TestHandler)o.getCloseHandler()).getCount(), 3);
     }
+    
+    @Test
+    public void testChainOverridesProperties() throws NoSuchAlgorithmException {
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_TOKEN, "token");
+        props.setProperty(Options.PROP_CONNECTION_NAME, "name");
+
+        Options o = new Options.Builder(props).connectionName("newname").build();
+        assertEquals("default verbose", false, o.isVerbose()); // One from a different type
+        assertEquals("property token", "token", o.getToken());
+        assertEquals("property connection name", "newname", o.getConnectionName());
+    }
 }

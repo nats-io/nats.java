@@ -34,7 +34,7 @@ public interface Subscription {
     /**
      * Unsubscribe this subscription and stop listening for messages.
      * 
-     * <p><strong>TODO</strong> Timing on messages in the queue ...</p>
+     * <p><strong>TODO(sasbury)</strong> Timing on messages in the queue ...</p>
      */
     public void unsubscribe();
 
@@ -42,7 +42,7 @@ public interface Subscription {
      * Unsubscribe this subscription and stop listening for messages, after the specified number
      * of messages.
      * 
-     * <p><strong>TODO</strong> Timing on messages in the queue ...</p>
+     * <p><strong>TODO(sasbury)</strong> Timing on messages in the queue ...</p>
      * 
      * <p>Supports chaining so that you can do things like:</p>
      * <p><blockquote><pre>

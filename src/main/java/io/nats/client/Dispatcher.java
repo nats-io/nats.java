@@ -18,7 +18,7 @@ public interface Dispatcher {
     /**
      * Create a subscription to the specified subject under the control of this dispatcher.
      * 
-     * <p><strong>TODO</strong> In the case of an error...</p>
+     * <p><strong>TODO(sasbury)</strong> In the case of an error...</p>
      * 
      * <p>This call is a no-op if the dispatcher already has a subscription to the specified subject.</p>
      * 
@@ -30,7 +30,7 @@ public interface Dispatcher {
     /**
      * Create a subscription to the specified subject and queue under the control of this dispatcher.
      * 
-     * <p><strong>TODO</strong> In the case of an error...</p>
+     * <p><strong>TODO(sasbury)</strong> In the case of an error...</p>
      * 
      * <p>This call is a no-op if the dispatcher already has a subscription to the specified subject.</p>
      * 
@@ -43,7 +43,7 @@ public interface Dispatcher {
     /**
      * Unsubscribe from the specified subject, the queue is implicit.
      * 
-     * <p><strong>TODO</strong> Timing on messages in the queue ...</p>
+     * <p><strong>TODO(sasbury)</strong> Timing on messages in the queue ...</p>
      * 
      * @param subject The subject to unsubscribe from.
      * @return  The Dispatcher, so calls can be chained.
@@ -54,7 +54,7 @@ public interface Dispatcher {
      * Unsubscribe from the specified subject, the queue is implicit, after the specified number
      * of messages.
      * 
-     * <p><strong>TODO</strong> Timing on messages in the queue ...</p>
+     * <p><strong>TODO(sasbury)</strong> Timing on messages in the queue ...</p>
      * 
      * <p>For example, to get a single asynchronous message, you might do:</p>
      * <p><blockquote><pre>
