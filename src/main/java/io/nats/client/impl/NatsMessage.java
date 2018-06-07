@@ -13,18 +13,8 @@
 
 package io.nats.client.impl;
 
-import java.io.IOException;
+import io.nats.client.Message;
 
-import io.nats.client.Connection;
-import io.nats.client.Options;
-
-/**
- * Adapter to impl package to minimize access leakage.
- */
-public class NatsImpl {
-    public static Connection createConnection(Options options) throws IOException {
-        NatsConnection conn = new NatsConnection(options);
-        conn.connect();
-        return conn;
-    }
+class NatsMessage implements Message {
+    NatsMessage next; // for linked list
 }

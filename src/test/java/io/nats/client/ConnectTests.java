@@ -13,11 +13,13 @@
 
 package io.nats.client;
 
+import java.io.IOException;
+
 import org.junit.Test;
 
 public class ConnectTests {
     @Test
-    public void testDefaultConnection() {
+    public void testDefaultConnection() throws IOException {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, true)) {
             Connection  nc = Nats.connect();
             nc.close();
@@ -25,7 +27,7 @@ public class ConnectTests {
     }
     
     @Test
-    public void testConnection() {
+    public void testConnection() throws IOException {
         try (NatsTestServer ts = new NatsTestServer(true)) {
             Connection nc = Nats.connect("nats://localhost:"+ts.getPort());
             nc.close();
@@ -33,7 +35,7 @@ public class ConnectTests {
     }
     
     @Test
-    public void testConnectionWithOptions() {
+    public void testConnectionWithOptions() throws IOException {
         try (NatsTestServer ts = new NatsTestServer(true)) {
             Options options = new Options.Builder().server("nats://localhost:"+ts.getPort()).build();
             Connection nc = Nats.connect(options);

@@ -25,6 +25,7 @@ import java.util.Collection;
 
 import javax.net.ssl.SSLContext;
 
+// TODO(sasbury): Support for local address (inetaddress)
 /**
  * The Options class specifies the connection options for a new NATs connection.
  * 

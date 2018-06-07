@@ -15,7 +15,7 @@ package io.nats.client;
 
 public interface ErrorHandler {
 
-    // TODO(sasbury): Clean up unused error values
+    // TODO(sasbury): Clean up unused error values, and implement everything we can
     public enum Errors {
         ERR_CONNECTION_CLOSED      ("nats: connection closed"),
         ERR_SECURE_CONN_REQUIRED   ("nats: secure connection required"),
