@@ -37,7 +37,7 @@ class MessageQueue {
         this.lock.lock();
         try
         {
-            interrupted = true;
+            this.interrupted = true;
             this.condition.signalAll();
         } finally {
             this.lock.unlock();
@@ -48,7 +48,7 @@ class MessageQueue {
         this.lock.lock();
         try
         {
-            interrupted = false;
+            this.interrupted = false;
             this.condition.signalAll();
         } finally {
             this.lock.unlock();
@@ -80,12 +80,12 @@ class MessageQueue {
 
         lock.lock();
         try {
-            while (this.size == 0 && !interrupted) {
+            while (this.size == 0 && !this.interrupted) {
                 if (timeoutMillis < 0) {
                     return null;
                 } else if (start == 0) {
                     start = System.currentTimeMillis();
-                } else {
+                } else if (timeoutMillis > 0) { // If it is 0, keep going forever
                     // Keep the timeout up to date
                     long now = System.currentTimeMillis();
                     timeoutMillis = (timeoutMillis - (now-start));
@@ -99,7 +99,7 @@ class MessageQueue {
                 condition.await(timeoutMillis, TimeUnit.MILLISECONDS);
             }
             
-            if (interrupted) {
+            if (this.interrupted) {
                 return null;
             }
 
