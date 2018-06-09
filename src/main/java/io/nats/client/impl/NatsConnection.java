@@ -149,7 +149,7 @@ class NatsConnection implements Connection {
             this.serverInfo.set(info);
 
             this.sendConnect();
-            Future<Boolean> pongFuture = ping();
+            Future<Boolean> pongFuture = sendPing();
             pongFuture.get(connectTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             // Set connected status
@@ -274,7 +274,7 @@ class NatsConnection implements Connection {
         connectString.append(" ");
         String connectOptions = this.options.buildProtocolConnectOptionsString(info.isAuthRequired());
         connectString.append(connectOptions);
-        NatsMessage msg = new NatsMessage(connectString.toString()); // Will append \r\n
+        NatsMessage msg = new NatsMessage(connectString.toString());
         this.writer.queue(msg);
     }
 
@@ -282,12 +282,17 @@ class NatsConnection implements Connection {
     // futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns the wait will not return
     // without setting a timeout.
-    CompletableFuture<Boolean> ping() {
+    CompletableFuture<Boolean> sendPing() {
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(NatsConnection.OP_PING); // Will append \r\n
+        NatsMessage msg = new NatsMessage(NatsConnection.OP_PING);
         pongQueue.add(pongFuture);
         this.writer.queue(msg);
         return pongFuture;
+    }
+
+    void sendPong() {
+        NatsMessage msg = new NatsMessage(NatsConnection.OP_PONG);
+        this.writer.queue(msg);
     }
 
     // Called by the reader

@@ -152,6 +152,7 @@ class NatsConnectionReader implements Runnable {
             case NatsConnection.OP_ERR:
                 break;
             case NatsConnection.OP_PING:
+                this.connection.sendPong();
                 break;
             case NatsConnection.OP_PONG:
                 this.connection.handlePong();
