@@ -43,7 +43,13 @@ public class FakeNatsTestServer implements Closeable{
         SENT_INFO,
         GOT_CONNECT,
         GOT_PING,
-        SENT_PONG
+        SENT_PONG,
+        STARTED_CUSTOM_CODE,
+        COMPLETED_CUSTOM_CODE,
+    }
+
+    public interface Customizer {
+        public void customizeTest(FakeNatsTestServer ts, BufferedReader reader, PrintWriter writer);
     }
 
     private int port;
@@ -51,6 +57,7 @@ public class FakeNatsTestServer implements Closeable{
     private Progress progress;
     private boolean protocolFailure;
     private CompletableFuture<Boolean> waitForIt;
+    private Customizer customizer;
 
     public FakeNatsTestServer(ExitAt exitAt) {
         this(NatsTestServer.nextPort(), exitAt);
@@ -59,6 +66,17 @@ public class FakeNatsTestServer implements Closeable{
     public FakeNatsTestServer(int port, ExitAt exitAt) {
         this.port = port;
         this.exitAt = exitAt;
+        start();
+    }
+
+    public FakeNatsTestServer(Customizer custom) {
+        this.port = NatsTestServer.nextPort();
+        this.exitAt = ExitAt.NO_EXIT;
+        this.customizer = custom;
+        start();
+    }
+
+    private void start() {
         this.progress = Progress.NO_CLIENT;
         this.waitForIt = new CompletableFuture<>();
         Thread t = new Thread(() -> {accept();});
@@ -145,6 +163,12 @@ public class FakeNatsTestServer implements Closeable{
             this.progress = Progress.SENT_PONG;
             System.out.println("*** Fake Server @" + this.port + " sent pong...");
 
+            if (this.customizer != null) {
+                this.progress = Progress.STARTED_CUSTOM_CODE;
+                System.out.println("*** Fake Server @" + this.port + " starting custom code...");
+                this.customizer.customizeTest(this, reader, writer);
+                this.progress = Progress.COMPLETED_CUSTOM_CODE;
+            }
             waitForIt.get(); // Wait for the test to cancel us
 
         } catch (IOException io) {
