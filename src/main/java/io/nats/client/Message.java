@@ -14,4 +14,12 @@
 package io.nats.client;
 
 public interface Message {
+    
+	public String getSubject();
+
+	public String getReply();
+
+	public byte[] getData();
+
+	public Subscription getSubscription();
 }

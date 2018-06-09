@@ -15,10 +15,21 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.channels.SocketChannel;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
@@ -27,28 +38,58 @@ import io.nats.client.MessageHandler;
 import io.nats.client.Options;
 import io.nats.client.Subscription;
 
+// TODO(sasbury): connection and reconnect notifcations
 class NatsConnection implements Connection {
+    static final int MAX_PROTOCOL_LINE = 1024;
+    static final int BUFFER_SIZE = 4 * 1024;
+
+    static final byte CR = 0x0D;
+    static final byte LF = 0x0A;
+
+    static final String OP_CONNECT = "CONNECT";
+    static final String OP_INFO = "INFO";
+    static final String OP_MSG = "MSG";
+    static final String OP_PING = "PING";
+    static final String OP_PONG = "PONG";
+    static final String OP_OK = "+OK";
+    static final String OP_ERR = "-ERR";
+
     private Options options;
-    private Connection.Status status = Status.DISCONNECTED;
 
-    private Socket socket;
+    private Connection.Status status;
+    private ReentrantLock statusLock;
+
+    private CompletableFuture<SocketChannel> channelFuture;
+    private SocketChannel socketChannel;
+
     private NatsConnectionReader reader;
+    private NatsConnectionWriter writer;
 
-    private NatsServerInfo serverInfo;
+    private AtomicReference<NatsServerInfo> serverInfo;
+    private CompletableFuture<NatsServerInfo> serverInfoFuture;
+
+    private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
     NatsConnection(Options options) {
         this.options = options;
+        
+        this.status = Status.DISCONNECTED;
+        this.statusLock = new ReentrantLock();
+
+        this.serverInfo = new AtomicReference<>();
+        this.pongQueue = new ConcurrentLinkedDeque<>();
+
         this.reader = new NatsConnectionReader(this);
+        this.writer = new NatsConnectionWriter(this);
     }
 
-    void connect() throws IOException {
+    void connect() throws InterruptedException {
         if (options.getServers().size() == 0) {
             throw new IllegalArgumentException("No servers provided in options");
         }
 
-        // TODO(sasbury): Use getServers on the connection, it may have more choices
-        for (URI serverURI : options.getServers()) {
-            tryToConnect(serverURI, true);
+        for (String serverURI : getServers()) {
+            tryConnect(serverURI, true);
 
             if (status == Status.CONNECTED) {
                 break;
@@ -56,53 +97,138 @@ class NatsConnection implements Connection {
         }
     }
 
-    void tryToConnect(URI serverURI, boolean firstTime) throws IOException {
-       
-        this.reader.getLock().lock();
-        try {
-            this.socket = new Socket();
+    void reconnect() {
+        // TODO(sasbury): resend any subscriptions
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
 
+    void tryConnect(String serverURI, boolean firstTime) throws InterruptedException {
+        try {
+            Duration connectTimeout = options.getConnectionTimeout();
+
+            statusLock.lock();
             if (firstTime) {
                 this.status = Status.CONNECTING;
             } else {
                 this.status = Status.RECONNECTING;
             }
+            statusLock.unlock();
 
-            // TODO(sasbury): Bind to local address
+            // Wait for the reader to be ready, it is ready at creation and after stopping
+            this.reader.stop().get();
+            this.writer.stop().get();
 
-            this.socket.connect(new InetSocketAddress(serverURI.getHost(), serverURI.getPort()),
-                                                         (int) options.getConnectionTimeout().toMillis());
-        } finally {
-            this.reader.getCondition().signalAll();
-            this.reader.getLock().unlock();
-        }
+            // Create a new future for the SocketChannel, the reader/writer will use this
+            // to wait for the connect/failure.
+            this.channelFuture = new CompletableFuture<>();
+            // TODO(sasbury): should we cancel all the futures?
+            this.pongQueue.clear(); // No outstanding pings TODO(sasbury): Writer should clear pings when closed
+            this.serverInfoFuture = new CompletableFuture<>();
             
-        
-        // TODO(sasbury): Need to wait for info/connect messages and set connected status when we connect successfully
-        throw new UnsupportedOperationException("Not implemented yet");
+            // Start the reader, after we know it is stopped
+            this.reader.start(this.channelFuture);
+            this.writer.start(this.channelFuture);
+            
+            SocketChannel channel = SocketChannel.open();
 
+            // TODO(sasbury): Bind to local address, set other options
+
+            URI uri = new URI(serverURI);
+            channel.socket().connect(new InetSocketAddress(uri.getHost(), uri.getPort()),
+                                                         (int) options.getConnectionTimeout().toMillis());
+
+            // Notify the any threads waiting on the sockets
+            this.socketChannel = channel;
+            this.channelFuture.complete(this.socketChannel);
+
+            // Wait for the INFO message
+            // Reader will cancel this if told to reconnect due to an io exception
+            NatsServerInfo info = this.serverInfoFuture.get();
+            this.serverInfo.set(info);
+
+            this.sendConnect();
+            Future<Boolean> pongFuture = ping();
+            pongFuture.get(connectTimeout.toMillis(), TimeUnit.MILLISECONDS);
+
+            // Set connected status
+            statusLock.lock();
+            this.status = Status.CONNECTED;
+            statusLock.unlock();
+
+        } catch (IOException|TimeoutException|ExecutionException|URISyntaxException ex) {
+            handleCommunicationIssue(ex);
+        }
     }
 
-    void readWriteIOException(IOException io) {
+    // Can be called from reader/writer thread, or inside the connect code
+    void handleCommunicationIssue(Exception io) {
+        boolean disconnected = false;
+
+        statusLock.lock();
+        disconnected = (this.status == Status.DISCONNECTED);
+        statusLock.unlock();
+
+        if (disconnected) {
+            return; // we already did this stuff
+        }
+
+        boolean wasConnected = this.closeSocket();
+        
+        // Try to reconnect in a new thread
+        // This should only be true if the read/write thread call this method
+        // The connect thread will call this method but only before the status is
+        // set to connected, so connect won't force a reconnect
+        if (wasConnected) {
+            Thread t = new Thread(() -> {this.reconnect();});
+            t.start();
+        }
+    }
+
+    public void close() {
+        closeSocket();
+
+        // Reader and writer are stopped or stopping, wait for them to finish
+        try {
+            this.reader.stop().get(30, TimeUnit.SECONDS);
+        } catch(Exception ex) {
+            // Ignore these, issue with future so move on
+        }
+        try {
+            this.writer.stop().get(30, TimeUnit.SECONDS);
+        } catch(Exception ex) {
+            // Ignore these, issue with future so move on
+        }
+
+        statusLock.lock();
+        this.status = Status.CLOSED;
+        statusLock.unlock();
+    }
+
+    boolean closeSocket() {
+        boolean wasConnected = false;
+
+        statusLock.lock();
+        wasConnected = (this.status == Status.CONNECTED);
         this.status = Status.DISCONNECTED;
+        statusLock.unlock();
+
+        this.serverInfoFuture.cancel(true); //Stop the connect thread from waiting for this
+
+        this.reader.stop();
+        this.writer.stop();
+
+        // Close the current socket and cancel anyone waiting for it
+        this.channelFuture.cancel(true);
 
         try {
-            this.socket.close();
-        } catch (IOException exp) {
-            this.socket = null;
-            // Don't reset server info, we use it for the server list
-            // It will be replaced when we connect to a new server
-        }
-
-        // TODO(sasbury): reconnect
-    }
-
-    Socket getSocket() {
-        return this.socket;
-    }
-
-    Options getOptions() {
-        return this.options;
+            if (this.socketChannel != null) {
+                this.socketChannel.close();
+            }
+         } catch (IOException ex) {
+             // Issue closing the socket, but we will just move on
+         }
+         
+        return wasConnected;
     }
     
     public void publish(String subject, byte[] body) {
@@ -133,8 +259,49 @@ class NatsConnection implements Connection {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 
-    public void close() {
-        throw new UnsupportedOperationException("Not implemented yet");
+    void sendConnect() {
+        NatsServerInfo info = this.serverInfo.get();
+        StringBuilder connectString = new StringBuilder();
+        connectString.append(NatsConnection.OP_CONNECT);
+        connectString.append(" ");
+        String connectOptions = this.options.buildProtocolConnectOptionsString(info.isAuthRequired());
+        connectString.append(connectOptions);
+        NatsMessage msg = new NatsMessage(connectString.toString()); // Will append \r\n
+        this.writer.queue(msg);
+    }
+
+    // Send a ping request and push a pong future on the queue.
+    // futures are completed in order, keep this one if a thread wants to wait
+    // for a specific pong. Note, if no pong returns the wait will not return
+    // without setting a timeout.
+    CompletableFuture<Boolean> ping() {
+        CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
+        NatsMessage msg = new NatsMessage(NatsConnection.OP_PING); // Will append \r\n
+        pongQueue.add(pongFuture);
+        this.writer.queue(msg);
+        return pongFuture;
+    }
+
+    // Called by the reader
+    void handlePong() {
+        CompletableFuture<Boolean> pongFuture = pongQueue.pollFirst();
+        if (pongFuture!=null) {
+            pongFuture.complete(Boolean.TRUE);
+        }
+    }
+
+    void handleInfo(String infoJson) {
+        NatsServerInfo serverInfo = new NatsServerInfo(infoJson);
+        // More than one from the same server
+        if (this.serverInfoFuture.isDone()) {
+            this.serverInfo.set(serverInfo);
+        } else {
+            this.serverInfoFuture.complete(serverInfo);
+        }
+    }
+
+    Options getOptions() {
+        return this.options;
     }
 
     public Status getStatus() {
@@ -142,18 +309,25 @@ class NatsConnection implements Connection {
     }
 
     public long getMaxPayload() {
-        if (this.serverInfo == null) {
+        NatsServerInfo info = this.serverInfo.get();
+
+        if (info == null) {
             return -1;
         }
 
-        return this.serverInfo.getMaxPayload();
+        return info.getMaxPayload();
     }
 
     public Collection<String> getServers() {
-        throw new UnsupportedOperationException("Not implemented yet");
-    }
+        NatsServerInfo info = this.serverInfo.get();
+        ArrayList<String> servers = new ArrayList<String>();
 
-    void setServerInfo(NatsServerInfo serverInfo) {
-        this.serverInfo = serverInfo;
+        options.getServers().stream().forEach(x -> servers.add(x.toString()));
+        
+        if (info != null) {
+            servers.addAll(Arrays.asList(info.getConnectURLs()));
+        }
+        
+        return servers;
     }
 }

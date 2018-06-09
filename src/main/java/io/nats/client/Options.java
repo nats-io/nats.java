@@ -192,6 +192,56 @@ public class Options {
      */
     public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
 
+    /**
+     * Protocol key {@value #OPTION_VERBOSE}, see {@link Builder#verbose() verbose}.
+     */
+    public static final String OPTION_VERBOSE = "verbose";
+
+    /**
+     * Protocol key {@value #OPTION_PEDANTIC}, see {@link Builder#pedantic() pedantic}.
+     */
+    public static final String OPTION_PEDANTIC = "pedantic";
+
+    /**
+     * Protocol key {@value #OPTION_SSL_REQUIRED}, see {@link Builder#sslContext(SSLContext) sslContext}.
+     */
+    public static final String OPTION_SSL_REQUIRED = "ssl_required";
+
+    /**
+     * Protocol key {@value #OPTION_AUTH_TOKEN}, see {@link Builder#token(String) token}.
+     */
+    public static final String OPTION_AUTH_TOKEN = "auth_token";
+
+    /**
+     * Protocol key {@value #OPTION_USER}, see {@link Builder#userInfo(String, String) userInfo}.
+     */
+    public static final String OPTION_USER = "user";
+
+    /**
+     * Protocol key {@value #OPTION_PASSWORD}, see {@link Builder#userInfo(String, String) userInfo}.
+     */
+    public static final String OPTION_PASSWORD = "password";
+
+    /**
+     * Protocol key {@value #OPTION_NAME}, see {@link Builder#connectionName(String) connectionName}.
+     */
+    public static final String OPTION_NAME = "name";
+
+    /**
+     * Protocol key {@value #OPTION_LANG}, will be set to "Java".
+     */
+    public static final String OPTION_LANG = "lang";
+
+    /**
+     * Protocol key {@value #OPTION_VERSION}, will be set to {@link Nats#CLIENT_VERSION CLIENT_VERSION}.
+     */
+    public static final String OPTION_VERSION = "version";
+
+    /**
+     * Protocol key {@value #OPTION_PROTOCOL}, will be set to 1.
+     */
+    public static final String OPTION_PROTOCOL = "protocol";
+    
     private List<URI> servers;
     private final boolean noRandomize;
     private final String connectionName;
@@ -735,5 +785,61 @@ public class Options {
      */
     public boolean isOldRequestStyle() {
         return useOldRequestStyle;
+    }
+
+    /**
+     * Create the options string sent with a connect message.
+     * @return the options String, basically JSON
+     */
+    public String buildProtocolConnectOptionsString(boolean includeAuth) {
+        StringBuilder connectString = new StringBuilder();
+        connectString.append("{");
+
+        appendOption(connectString, Options.OPTION_LANG, "java", true, false);
+        appendOption(connectString, Options.OPTION_VERSION, Nats.CLIENT_VERSION, true, true);
+
+        if (this.connectionName != null) {
+            appendOption(connectString, Options.OPTION_NAME, this.connectionName, true, true);
+        }
+
+        appendOption(connectString, Options.OPTION_PROTOCOL, "1", false, true);
+        
+        appendOption(connectString, Options.OPTION_VERBOSE, String.valueOf(this.verbose), false, true);
+        appendOption(connectString, Options.OPTION_PEDANTIC, String.valueOf(this.pedantic), false, true);
+        appendOption(connectString, Options.OPTION_SSL_REQUIRED, String.valueOf(this.sslContext!=null), false, true);
+
+        if (includeAuth) {
+            if (this.username != null) {
+                appendOption(connectString, Options.OPTION_USER, this.username, true, true);
+            }
+            
+            if (this.password != null) {
+                appendOption(connectString, Options.OPTION_PASSWORD, this.password, true, true);
+            }
+            
+            if (this.token != null) {
+                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true, true);
+            }
+        }
+
+        connectString.append("}");
+        return connectString.toString();
+    }
+
+    private void appendOption(StringBuilder builder, String key, String value, boolean quotes, boolean comma) {
+        if (comma) {
+            builder.append(",");
+        }
+        builder.append("\"");
+        builder.append(key);
+        builder.append("\"");
+        builder.append(":");
+        if (quotes) {
+            builder.append("\"");
+        }
+        builder.append(value);
+        if (quotes) {
+            builder.append("\"");
+        }
     }
 }

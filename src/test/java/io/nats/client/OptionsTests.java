@@ -262,4 +262,33 @@ public class OptionsTests {
         assertEquals("property token", "token", o.getToken());
         assertEquals("property connection name", "newname", o.getConnectionName());
     }
+
+    @Test
+    public void testDefaultConnectOptions() {
+        Options o = new Options.Builder().build();
+        String expected = "{\"lang\":\"java\",\"version\":\""+Nats.CLIENT_VERSION+"\"" +
+                            ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false}";
+        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
+    }
+
+    @Test
+    public void testConnectOptionsWithNameAndContext() throws NoSuchAlgorithmException {
+        SSLContext ctx = SSLContext.getDefault();
+        Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
+        String expected = "{\"lang\":\"java\",\"version\":\""+Nats.CLIENT_VERSION+"\",\"name\":\"c1\"" +
+                            ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":true}";
+        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
+    }
+
+    @Test
+    public void testAuthConnectOptions() {
+        Options o = new Options.Builder().userInfo("hello", "world").token("token").build();
+        String expectedNoAuth = "{\"lang\":\"java\",\"version\":\""+Nats.CLIENT_VERSION+"\"" +
+                            ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false}";
+        String expectedWithAuth = "{\"lang\":\"java\",\"version\":\""+Nats.CLIENT_VERSION+"\"" +
+                            ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false" +
+                            ",\"user\":\"hello\",\"password\":\"world\",\"auth_token\":\"token\"}";
+        assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString(false));
+        assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString(true));
+    }
 }

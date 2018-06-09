@@ -14,41 +14,19 @@
 package io.nats.client.impl;
 
 import java.io.IOException;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
-import io.nats.client.Connection.Status;
-
 class NatsConnectionReader implements Runnable {
-
-    private static final int MAX_PROTOCOL_LINE = 1024;
-    private static final int BUFFER_SIZE = 4 * 1024;
-
-    private static final byte CR = 0x0D;
-    private static final byte LF = 0x0A;
-
-    private static final String OP_INFO = "info";
-    private static final String OP_MSG = "msg";
-    private static final String OP_PING = "ping";
-    private static final String OP_PONG = "pong";
-    private static final String OP_OK = "+ok";
-    private static final String OP_ERR = "-err";
-
     private final NatsConnection connection;
-    private final ReentrantLock socketLock;
-    private final Condition socketCondition;
-    
-    private Thread thread;
-
-    private final AtomicBoolean stopped;
 
     private ByteBuffer gatherer;
     private ByteBuffer protocolBuffer;
@@ -56,133 +34,132 @@ class NatsConnectionReader implements Runnable {
     private boolean gotCR;
     private Pattern space;
 
+    private Thread thread;
+    private CompletableFuture<Boolean> stopped;
+    private Future<SocketChannel> channelFuture;
+    private final AtomicBoolean running;
+
     NatsConnectionReader(NatsConnection connection) {
         this.connection = connection;
-        this.socketLock = new ReentrantLock();
-        this.socketCondition = this.socketLock.newCondition();
-        this.stopped = new AtomicBoolean(false);
 
-        this.gatherer = ByteBuffer.allocate(BUFFER_SIZE);
-        this.protocolBuffer = ByteBuffer.allocate(MAX_PROTOCOL_LINE);
+        this.running = new AtomicBoolean(false);
+        this.stopped = new CompletableFuture<>();
+        this.stopped.complete(Boolean.TRUE); // we are stopped on creation
+
+        this.gatherer = ByteBuffer.allocate(NatsConnection.BUFFER_SIZE);
+        this.protocolBuffer = ByteBuffer.allocate(NatsConnection.MAX_PROTOCOL_LINE);
         this.protocolMode = true;
         this.space = Pattern.compile(" ");
+    }
 
+    // Should only be called if the current thread has exited.
+    // Use the Future from stop() to determine if it is ok to call this.
+    // This method resets that future so mistiming can result in badness.
+    void start(Future<SocketChannel> channelFuture) {
+        this.channelFuture = channelFuture;
+        this.running.set(true);
+        this.stopped = new CompletableFuture<>(); // New future
         this.thread = new Thread(this);
         this.thread.start();
     }
 
-    ReentrantLock getLock() {
-        return this.socketLock;
-    }
-
-    Condition getCondition() {
-        return this.socketCondition;
-    }
-
-    void close() {
-        if (this.stopped.get()) {
-            return;
-        }
-
-        this.stopped.set(true);
+    // May be called several times on an error.
+    // Returns a future that is completed when the thread completes, not when this method does.
+    Future<Boolean> stop() {
+        this.running.set(false);
+        return stopped;
     }
 
     public void run() {
-        ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
-        
-        this.socketLock.lock(); // Always hold the lock - unless waiting on a signal
-        
+        ByteBuffer buffer = ByteBuffer.allocate(NatsConnection.BUFFER_SIZE);
         try {
-            while(!this.stopped.get()) {
-                try {
-                    try {
-                        Status status = this.connection.getStatus();
+            SocketChannel channel = this.channelFuture.get(); //Will wait for the future to complete
+            this.protocolMode = true;
 
-                        if (status == Status.DISCONNECTED || status == Status.CLOSED) {
-                            this.socketCondition.await(30, TimeUnit.SECONDS);
-                            continue; // Go back to the start of the loop, on signal or timeout
+            while (this.running.get()) {
+                int read = channel.read(buffer);
+                if (read > 0) {
+
+                    buffer.flip(); // Get ready to read
+
+                    while (buffer.hasRemaining()) {
+                        read = buffer.limit() - buffer.position(); // reset due to loop
+                        if (this.protocolMode) {
+                            this.gatherProtocol(buffer, read);
+                        } else {
+                            this.gather(buffer, read);
                         }
-
-                        Socket socket = this.connection.getSocket();
-                        SocketChannel channel = socket.getChannel();
-
-                        while (!this.stopped.get()) {
-                            int read = channel.read(buffer);
-                            if (read > 0) {
-
-                                buffer.flip(); // Get ready to read
-
-                                while (buffer.hasRemaining()) {
-                                    read = buffer.limit() - buffer.position(); // reset due to loop
-                                    if (this.protocolMode) {
-                                        this.gatherProtocol(buffer, read);
-                                    } else {
-                                        this.gather(buffer, read);
-                                    }
-                                }
-
-                                buffer.clear();
-                            }
-                        }
-                    } catch (IOException io) {
-                        this.connection.readWriteIOException(io);
                     }
-                } catch (InterruptedException exp) {
-                    this.stopped.set(true);
+
+                    buffer.clear();
                 }
             }
+        } catch (IOException io) {
+            this.connection.handleCommunicationIssue(io);
+        } catch (CancellationException|ExecutionException|InterruptedException ex) {
+            // Exit
         } finally {
-            this.socketLock.unlock();
+            this.running.set(false);
+            // Clear the buffers, since they are only used inside this try/catch
+            // We will reuse later
+            this.gatherer.clear();
+            this.protocolBuffer.clear();
+            stopped.complete(Boolean.TRUE);
+            this.thread = null;
         }
     }
     
     // Gather bytes for a protocol line
     void gatherProtocol(ByteBuffer bytes, int length) {
-        // protocol buffer has max capacity
+        // protocol buffer has max capacity, shouldn't need resizing
         for (int i=0; i<length; i++) {
             byte b = bytes.get();
             protocolBuffer.put(b); // Always push, but wait for the end of the line
 
             if (gotCR) {
-                if (b == LF) {
+                if (b == NatsConnection.LF) {
+                    protocolBuffer.flip();
                     parseProtocolMessage();
+                    protocolBuffer.clear();
                     gotCR = false;
                     break;
                 } else {
-                    //TODO(sasbury): This is a protocol error, what should we do
+                    //TODO(sasbury): This is a protocol error, what should we do - force reconnect
                 }
-            } else if (b == CR) {
+            } else if (b == NatsConnection.CR) {
                 gotCR = true;
             }
         }
     }
 
     void parseProtocolMessage() {
+        // TODO(sasbury): check performance with this code, and update if necessary
 
-        // TODO(sasbury): check performance with this code, especially the split, and update if necessary
-        String protocolLine = new String(protocolBuffer.array(), StandardCharsets.UTF_8);
+        String protocolLine =  StandardCharsets.UTF_8.decode(protocolBuffer).toString();
+        
+        protocolLine = protocolLine.trim();
+
         String msg[] = space.split(protocolLine);
-        String op = msg[0].toLowerCase();
+        String op = msg[0].toUpperCase();
 
         switch (op) {
-
-            case OP_MSG:
+            case NatsConnection.OP_MSG:
                 break;
-            case OP_OK:
+            case NatsConnection.OP_OK:
                 break;
-            case OP_ERR:
+            case NatsConnection.OP_ERR:
                 break;
-            case OP_PING:
+            case NatsConnection.OP_PING:
                 break;
-            case OP_PONG:
+            case NatsConnection.OP_PONG:
+                this.connection.handlePong();
                 break;
-            case OP_INFO:
+            case NatsConnection.OP_INFO:
                 // Recreate the original string and parse it
-                handleInfo(String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)));
+                this.connection.handleInfo(String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)));
                 break;
             default:
                 // BAD OP
-
         }
 
         // put the reader in non-protocol mode when waiting for the message body, if we get that type of protocol message
@@ -192,10 +169,6 @@ class NatsConnectionReader implements Runnable {
     // Gather bytes for a message body
     void gather(ByteBuffer bytes, int length) {
         // gatherer should be set up to the right capacity and limit
-    }
-
-    void handleInfo(String infoJson) {
-        NatsServerInfo serverInfo = new NatsServerInfo(infoJson);
-        this.connection.setServerInfo(serverInfo);
+        // limited by the info's max payload size
     }
 }

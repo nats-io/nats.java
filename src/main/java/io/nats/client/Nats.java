@@ -19,15 +19,22 @@ import io.nats.client.impl.NatsImpl;
 
 public class Nats {
 
+    /**
+     * Current version of the library - {@value #CLIENT_VERSION}
+     */
     public static final String CLIENT_VERSION = "2.0.0";
 
     // TODO(sasbury): can we support TLS just with URL protocol
-    public static Connection connect() throws IOException {
+    /**
+     * Connect to the default URL ({#value Options#DEFAULT_URL}) with all of the
+     * default options.
+     */
+    public static Connection connect() throws IOException, InterruptedException {
         Options options = new Options.Builder().server(Options.DEFAULT_URL).build();
         return createConnection(options);
     }
 
-    public static Connection connect(String url) throws IOException {
+    public static Connection connect(String url) throws IOException, InterruptedException {
         Options options = new Options.Builder().server(url).build();
         return createConnection(options);
     }
@@ -37,11 +44,11 @@ public class Nats {
      * Options can be used to set the server URL, or multiple URLS,
      * callback handlers for various errors, and connection events.
      */
-    public static Connection connect(Options options) throws IOException {
+    public static Connection connect(Options options) throws IOException, InterruptedException {
         return createConnection(options);
     }
 
-    private static Connection createConnection(Options options) throws IOException {
+    private static Connection createConnection(Options options) throws IOException, InterruptedException {
         return NatsImpl.createConnection(options);
     }
 

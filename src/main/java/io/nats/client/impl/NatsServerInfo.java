@@ -16,6 +16,8 @@ package io.nats.client.impl;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 class NatsServerInfo {
     
@@ -38,8 +40,10 @@ class NatsServerInfo {
     private boolean sslRequired;
     private long maxPayload;
     private String[] connectURLs;
+    private HashMap<String, Object> unexpected;
 
     public NatsServerInfo(String json) {
+        unexpected = new HashMap<>();
         parseInfo(json);
     }
 
@@ -87,6 +91,10 @@ class NatsServerInfo {
 	{
 		return this.connectURLs;
     }
+
+    public Map<String,Object> getUnknownInfo() {
+        return unexpected;
+    }
     
     void parseInfo(String jsonString) {
         char c;
@@ -122,7 +130,8 @@ class NatsServerInfo {
                                 this.host = str;
                                 break;
                             default:
-                                throw new IllegalArgumentException("String value without a valid key.");
+                                unexpected.put(currentKey, str);
+                                break;
                         }
 
                         currentKey = null;
@@ -135,14 +144,14 @@ class NatsServerInfo {
                     if (CONNECT_URLS.equals(currentKey)) {
                         this.connectURLs = currentList.toArray(new String[0]);
                     } else {
-                        throw new IllegalArgumentException("Array value without a valid key.");
+                        unexpected.put(currentKey, currentList.toArray(new String[0]));
                     }
                     currentList = null;
                     break;
                 case 't':
                     json.next(); json.next(); json.next(); // assumed r-u-e
                     
-                    if (currentKey == null) {
+                    if (currentList != null || currentKey == null) {
                         throw new IllegalArgumentException("Long value with a null key.");
                     }
 
@@ -154,7 +163,8 @@ class NatsServerInfo {
                             this.sslRequired = true;
                             break;
                         default:
-                            throw new IllegalArgumentException("Boolean value without a valid key.");
+                            unexpected.put(currentKey, Boolean.TRUE);
+                            break;
                     }
                     
                     currentKey = null;
@@ -162,7 +172,7 @@ class NatsServerInfo {
                 case'f':
                     json.next(); json.next(); json.next(); json.next(); // assumed a-l-s-e
                     
-                    if (currentKey == null) {
+                    if (currentList != null || currentKey == null) {
                         throw new IllegalArgumentException("Long value with a null key.");
                     }
 
@@ -174,7 +184,8 @@ class NatsServerInfo {
                             this.sslRequired = false;
                             break;
                         default:
-                            throw new IllegalArgumentException("Boolean value without a valid key.");
+                            unexpected.put(currentKey, Boolean.FALSE);
+                            break;
                     }
                     
                     currentKey = null;
@@ -189,7 +200,7 @@ class NatsServerInfo {
                     {
                         long value = readLong(json);
 
-                        if (currentKey == null) {
+                        if (currentList != null || currentKey == null) {
                             throw new IllegalArgumentException("Long value with a null key.");
                         }
 
@@ -201,7 +212,8 @@ class NatsServerInfo {
                                 this.maxPayload = value;
                                 break;
                             default:
-                                throw new IllegalArgumentException("Long value without a valid key.");
+                                unexpected.put(currentKey, Long.valueOf(value));
+                                break;
                         }
                         currentKey = null;
                         skipNext = true;//we read 1 too far on number

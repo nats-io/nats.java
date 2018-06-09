@@ -13,33 +13,41 @@
 
 package io.nats.client;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
 
 import org.junit.Test;
 
 public class ConnectTests {
     @Test
-    public void testDefaultConnection() throws IOException {
-        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, true)) {
+    public void testDefaultConnection() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Connection  nc = Nats.connect();
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             nc.close();
+            assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
     
     @Test
-    public void testConnection() throws IOException {
-        try (NatsTestServer ts = new NatsTestServer(true)) {
+    public void testConnection() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect("nats://localhost:"+ts.getPort());
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             nc.close();
+            assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
     
     @Test
-    public void testConnectionWithOptions() throws IOException {
-        try (NatsTestServer ts = new NatsTestServer(true)) {
+    public void testConnectionWithOptions() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server("nats://localhost:"+ts.getPort()).build();
             Connection nc = Nats.connect(options);
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             nc.close();
+            assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 }

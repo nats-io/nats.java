@@ -49,49 +49,65 @@ public class NatsServerInfoTests {
         assertTrue(Arrays.equals(info.getConnectURLs(), urls));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
+    public void testNonAsciiValue() {
+        String json = "{" +
+                        "\"server_id\":\"myserver\"" + "," +
+                        "\"version\":\"世界\"" +
+                       "}";
+        NatsServerInfo info = new NatsServerInfo(json);
+        assertEquals(info.getServerId(), "myserver");
+        assertEquals(info.getVersion(), "世界");
+    }
+
+    @Test
     public void testBadStringKey() {
         String json = "{" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"versionitis\":\"1.1.1\"" +
                        "}";
-        new NatsServerInfo(json);
+        NatsServerInfo info = new NatsServerInfo(json);
+        assertEquals(info.getUnknownInfo().size(), 1);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBadStringValue() {
         String json = "{" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"version\":222" +
                        "}";
-        new NatsServerInfo(json);
+        NatsServerInfo info = new NatsServerInfo(json);
+        assertEquals(info.getUnknownInfo().size(), 1);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBadLongKey() {
         String json = "{" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"max_payloads\":100000000000" +
                        "}";
-        new NatsServerInfo(json);
+        NatsServerInfo info = new NatsServerInfo(json);
+        assertEquals(info.getUnknownInfo().size(), 1);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBadBooleanKey() {
         String json = "{" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"auth_is_required\":false" +
                        "}";
-        new NatsServerInfo(json);
+        NatsServerInfo info = new NatsServerInfo(json);
+        assertEquals(info.getUnknownInfo().size(), 1);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBadArrayKey() {
         String json = "{" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"connect_urls_list\":[\"one\", \"two\"]" +
                        "}";
-        new NatsServerInfo(json);
+        NatsServerInfo info = new NatsServerInfo(json);
+        assertEquals(info.getUnknownInfo().size(), 1);
     }
 
     @Test(expected = IllegalArgumentException.class)
