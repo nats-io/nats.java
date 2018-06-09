@@ -44,7 +44,7 @@ public class MessageQueueBenchmark {
 
         System.out.printf("\n### Total time to perform %s operations was %s ms, %f ns/op\n",
             NumberFormat.getInstance().format(loops*msgPerLoop), 
-            NumberFormat.getInstance().format( (end-start)/100_000L),
+            NumberFormat.getInstance().format( (end-start)/1_000_000L),
             ((double)(end-start))/((double)(loops*msgPerLoop)));
         System.out.printf("### Each operation consists of a push/pop pair in groups of %s.\n\n",
             NumberFormat.getInstance().format(msgPerLoop));
