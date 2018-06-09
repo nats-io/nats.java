@@ -40,13 +40,17 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     public NatsTestServer(boolean debug) {
-        this(NatsTestServer.portCounter.incrementAndGet(), debug);
+        this(NatsTestServer.nextPort(), debug);
     }
 
     public NatsTestServer(int port, boolean debug) {
         this.port = port;
         this.debug = debug;
         start();
+    }
+
+    public static int nextPort() {
+        return NatsTestServer.portCounter.incrementAndGet();
     }
 
     public void start() {
@@ -65,7 +69,7 @@ public class NatsTestServer implements AutoCloseable {
             // TODO(sasbury): do we need to set this? pb.directory();
 
             if (debug) {
-                System.out.println("Starting [" + this.cmdLine + "] with redirected IO");
+                System.out.println("%%% Starting [" + this.cmdLine + "] with redirected IO");
                 pb.inheritIO();
             } else {
                 String errFile = null;
@@ -84,13 +88,13 @@ public class NatsTestServer implements AutoCloseable {
             this.process = pb.start();
 
             if (debug) {
-                System.out.println("Started [" + this.cmdLine + "]");
+                System.out.println("%%% Started [" + this.cmdLine + "]");
             }
         } catch (IOException ex) {
-            System.out.println("Failed to start [" + this.cmdLine + "] with message:");
+            System.out.println("%%% Failed to start [" + this.cmdLine + "] with message:");
             System.out.println("\t" + ex.getMessage());
-            System.out.println("Make sure that gnatsd is installed and in your PATH.");
-            System.out.println("See https://github.com/nats-io/gnatsd for information on installing gnatsd");
+            System.out.println("%%% Make sure that gnatsd is installed and in your PATH.");
+            System.out.println("%%% See https://github.com/nats-io/gnatsd for information on installing gnatsd");
         }
     }
 
@@ -106,7 +110,7 @@ public class NatsTestServer implements AutoCloseable {
         this.process.destroy();
         
         if (this.debug) {
-            System.out.println("Shut down ["+ this.cmdLine +"]");
+            System.out.println("%%% Shut down ["+ this.cmdLine +"]");
         }
 
         this.process = null;

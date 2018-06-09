@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
@@ -90,7 +91,6 @@ class NatsConnection implements Connection {
 
         for (String serverURI : getServers()) {
             tryConnect(serverURI, true);
-
             if (status == Status.CONNECTED) {
                 break;
             }
@@ -121,21 +121,23 @@ class NatsConnection implements Connection {
             // Create a new future for the SocketChannel, the reader/writer will use this
             // to wait for the connect/failure.
             this.channelFuture = new CompletableFuture<>();
-            // TODO(sasbury): should we cancel all the futures?
-            this.pongQueue.clear(); // No outstanding pings TODO(sasbury): Writer should clear pings when closed
             this.serverInfoFuture = new CompletableFuture<>();
+
+            this.cleanUpPongQueue();
             
             // Start the reader, after we know it is stopped
             this.reader.start(this.channelFuture);
             this.writer.start(this.channelFuture);
             
             SocketChannel channel = SocketChannel.open();
+            channel.configureBlocking(true);
 
             // TODO(sasbury): Bind to local address, set other options
 
             URI uri = new URI(serverURI);
             channel.socket().connect(new InetSocketAddress(uri.getHost(), uri.getPort()),
                                                          (int) options.getConnectionTimeout().toMillis());
+            channel.finishConnect();
 
             // Notify the any threads waiting on the sockets
             this.socketChannel = channel;
@@ -155,23 +157,13 @@ class NatsConnection implements Connection {
             this.status = Status.CONNECTED;
             statusLock.unlock();
 
-        } catch (IOException|TimeoutException|ExecutionException|URISyntaxException ex) {
+        } catch (IOException|CancellationException|TimeoutException|ExecutionException|URISyntaxException ex) {
             handleCommunicationIssue(ex);
         }
     }
 
     // Can be called from reader/writer thread, or inside the connect code
     void handleCommunicationIssue(Exception io) {
-        boolean disconnected = false;
-
-        statusLock.lock();
-        disconnected = (this.status == Status.DISCONNECTED);
-        statusLock.unlock();
-
-        if (disconnected) {
-            return; // we already did this stuff
-        }
-
         boolean wasConnected = this.closeSocket();
         
         // Try to reconnect in a new thread
@@ -206,11 +198,17 @@ class NatsConnection implements Connection {
 
     boolean closeSocket() {
         boolean wasConnected = false;
+        boolean wasDisconnected = false;
 
         statusLock.lock();
         wasConnected = (this.status == Status.CONNECTED);
+        wasDisconnected = (this.status == Status.DISCONNECTED);
         this.status = Status.DISCONNECTED;
         statusLock.unlock();
+
+        if (wasDisconnected) {
+            return wasConnected;
+        }
 
         this.serverInfoFuture.cancel(true); //Stop the connect thread from waiting for this
 
@@ -219,6 +217,8 @@ class NatsConnection implements Connection {
 
         // Close the current socket and cancel anyone waiting for it
         this.channelFuture.cancel(true);
+        
+        cleanUpPongQueue();
 
         try {
             if (this.socketChannel != null) {
@@ -229,6 +229,14 @@ class NatsConnection implements Connection {
          }
          
         return wasConnected;
+    }
+
+    void cleanUpPongQueue() {
+        Future<Boolean> b;
+        while ((b = pongQueue.poll()) != null) {
+            b.cancel(true);
+        }
+        pongQueue.clear();
     }
     
     public void publish(String subject, byte[] body) {

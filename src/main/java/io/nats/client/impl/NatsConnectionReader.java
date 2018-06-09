@@ -92,6 +92,8 @@ class NatsConnectionReader implements Runnable {
                     }
 
                     buffer.clear();
+                } else if (read < 0) {
+                    throw new IOException("Read channel closed.");
                 }
             }
         } catch (IOException io) {

@@ -66,6 +66,7 @@ class NatsConnectionWriter implements Runnable {
     // May be called several times on an error.
     // Returns a future that is completed when the thread completes, not when this method does.
     Future<Boolean> stop() {
+        // TODO(sasbury): Writer should clear pings when closed
         this.running.set(false);
         this.outgoing.interrupt();
         return stopped;
