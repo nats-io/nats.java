@@ -15,13 +15,9 @@ package io.nats.client.impl;
 
 import java.text.NumberFormat;
 
-import org.junit.Test;
-
 // TODO(sasbury): Create an issue to update to JMH.
 public class MessageQueueBenchmark {
-    @Test
-    public void pushPopBenchmark() throws InterruptedException {
-
+    public static void main(String args[]) throws InterruptedException {
         int loops = 1000;
         int msgPerLoop = 1_000_000;
         MessageQueue q = new MessageQueue();

@@ -58,6 +58,7 @@ public class FakeNatsTestServer implements Closeable{
     private boolean protocolFailure;
     private CompletableFuture<Boolean> waitForIt;
     private Customizer customizer;
+    private String customInfo;
 
     public FakeNatsTestServer(ExitAt exitAt) {
         this(NatsTestServer.nextPort(), exitAt);
@@ -73,6 +74,16 @@ public class FakeNatsTestServer implements Closeable{
         this.port = NatsTestServer.nextPort();
         this.exitAt = ExitAt.NO_EXIT;
         this.customizer = custom;
+        start();
+    }
+    
+    // CustomInfo is just the JSON string, not the full protocol string 
+    // or the \r\n.
+    public FakeNatsTestServer(Customizer custom, String customInfo) {
+        this.port = NatsTestServer.nextPort();
+        this.exitAt = ExitAt.NO_EXIT;
+        this.customizer = custom;
+        this.customInfo = customInfo;
         start();
     }
 
@@ -123,7 +134,11 @@ public class FakeNatsTestServer implements Closeable{
                 throw new Exception("exit");
             }
 
-            writer.write("INFO {\"server_id\":\"test\"}\r\n");
+            if (this.customInfo != null) {
+                writer.write("INFO " + customInfo + "\r\n");
+            } else {
+                writer.write("INFO {\"server_id\":\"test\"}\r\n");
+            }
             writer.flush();
             this.progress = Progress.SENT_INFO;
             System.out.println("*** Fake Server @" + this.port + " sent info...");

@@ -11,8 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -21,15 +22,47 @@ import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
 
+import io.nats.client.Connection;
+import io.nats.client.FakeNatsTestServer;
+import io.nats.client.Nats;
 import io.nats.client.FakeNatsTestServer.Progress;
 
-public class PingTests {
+public class InfoHandlerTests {
     @Test
-    public void testHandlingPing() throws IOException, InterruptedException,ExecutionException {
-        CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
+    public void testInitialInfo() throws IOException, InterruptedException {
+        String customInfo = "{\"server_id\":\"myid\"}";
 
-        FakeNatsTestServer.Customizer pingPongCustomizer = (ts, r,w) -> {
+        try (FakeNatsTestServer ts = new FakeNatsTestServer(null, customInfo)) {
+            Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertEquals("got custom info", "myid", ((NatsConnection)nc).getInfo().getServerId());
+            nc.close();
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            assertTrue("Progress", Progress.SENT_PONG == ts.getProgress());
+        }
+    }
+
+    @Test
+    public void testUnsolicitedInfo() throws IOException, InterruptedException, ExecutionException {
+        String customInfo = "{\"server_id\":\"myid\"}";
+        CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
+        CompletableFuture<Boolean> sendInfo = new CompletableFuture<>();
+
+        FakeNatsTestServer.Customizer infoCustomizer = (ts, r,w) -> {
             
+            // Wait for client to be ready.
+            try {
+                sendInfo.get();
+            } catch(Exception e) {
+                //return, we will fail the test
+                gotPong.cancel(true);
+                return;
+            }
+
+            System.out.println("*** Fake Server @" + ts.getPort() + " sending INFO ...");
+            w.write("INFO {\"server_id\":\"replacement\"}\r\n");
+            w.flush();
+
             System.out.println("*** Fake Server @" + ts.getPort() + " sending PING ...");
             w.write("PING\r\n");
             w.flush();
@@ -53,10 +86,15 @@ public class PingTests {
             }
         };
 
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(pingPongCustomizer)) {
+        try (FakeNatsTestServer ts = new FakeNatsTestServer(infoCustomizer, customInfo)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertTrue("Got pong.", gotPong.get().booleanValue());
+            assertEquals("got custom info", "myid", ((NatsConnection)nc).getInfo().getServerId());
+            sendInfo.complete(Boolean.TRUE);
+            
+            assertTrue("Got pong.", gotPong.get().booleanValue()); // Server round tripped so we should have new info
+            assertEquals("got replacement info", "replacement", ((NatsConnection)nc).getInfo().getServerId());
+
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             assertTrue("Progress", Progress.COMPLETED_CUSTOM_CODE == ts.getProgress());
