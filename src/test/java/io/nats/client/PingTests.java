@@ -30,13 +30,13 @@ public class PingTests {
 
         NatsServerProtocolMock.Customizer pingPongCustomizer = (ts, r,w) -> {
             
-            System.out.println("*** Fake Server @" + ts.getPort() + " sending PING ...");
+            System.out.println("*** Mock Server @" + ts.getPort() + " sending PING ...");
             w.write("PING\r\n");
             w.flush();
 
             String pong = "";
             
-            System.out.println("*** Fake Server @" + ts.getPort() + " waiting for PONG ...");
+            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
             try {
                 pong = r.readLine();
             } catch(Exception e) {
@@ -45,10 +45,10 @@ public class PingTests {
             }
 
             if (pong.startsWith("PONG")) {
-                System.out.println("*** Fake Server @" + ts.getPort() + " got PONG ...");
+                System.out.println("*** Mock Server @" + ts.getPort() + " got PONG ...");
                 gotPong.complete(Boolean.TRUE);
             } else {
-                System.out.println("*** Fake Server @" + ts.getPort() + " got something else... " + pong);
+                System.out.println("*** Mock Server @" + ts.getPort() + " got something else... " + pong);
                 gotPong.complete(Boolean.FALSE);
             }
         };

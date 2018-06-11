@@ -43,6 +43,7 @@ import io.nats.client.Subscription;
 class NatsConnection implements Connection {
     static final int MAX_PROTOCOL_LINE = 1024;
     static final int BUFFER_SIZE = 4 * 1024;
+    static final byte[] EMPTY_BODY = new byte[0];
 
     static final byte CR = 0x0D;
     static final byte LF = 0x0A;
@@ -240,11 +241,24 @@ class NatsConnection implements Connection {
     }
     
     public void publish(String subject, byte[] body) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        this.publish(subject, null, body);
     }
 
     public void publish(String subject, String replyTo, byte[] body) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (subject == null || subject.length()==0) {
+            throw new IllegalArgumentException("Subject is required in publish");
+        }
+
+        if (replyTo != null && replyTo.length()==0) {
+            throw new IllegalArgumentException("ReplyTo cannot be the empty string");
+        }
+
+        if (body == null) {
+            body = EMPTY_BODY;
+        }
+
+        NatsMessage msg = new NatsMessage(subject, replyTo, body);
+        this.writer.queue(msg);
     }
 
     public Subscription subscribe(String subject) {

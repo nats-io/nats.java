@@ -83,6 +83,8 @@ class NatsConnectionWriter implements Runnable {
             while (this.running.get()) {
                 NatsMessage msg = this.outgoing.pop(waitFor);
 
+                // TODO(sasbury): Batch messages!
+
                 if (msg == null) {
                     continue;
                 }
@@ -95,8 +97,41 @@ class NatsConnectionWriter implements Runnable {
                     protocolBuffer.put(NatsConnection.LF);
                     protocolBuffer.flip();
                     channel.write(protocolBuffer);
-                } else {
-                    // TODO(sasbury): Implement non-protocol sends
+                } else { // Assumes the connection checked the subject to be non-empty
+                    // TODO(sasbury): Look at the performance for this, this is simple but lots of allocs
+
+                    byte [] body = msg.getData();
+
+                    StringBuilder protocolString = new StringBuilder();
+                    protocolString.append("PUB ");
+                    protocolString.append(msg.getSubject());
+                    protocolString.append(" ");
+
+                    if (msg.getReplyTo() != null) {
+                        protocolString.append(msg.getReplyTo());
+                        protocolString.append(" ");
+                    }
+
+                    protocolString.append(String.valueOf(body.length));
+
+                    // Fill the buffer and go
+                    protocolBuffer.clear();
+                    protocolBuffer.put(protocolString.toString().getBytes(StandardCharsets.UTF_8));
+                    protocolBuffer.put(NatsConnection.CR);
+                    protocolBuffer.put(NatsConnection.LF);
+                    protocolBuffer.flip();
+
+                    //Fill the main buffer
+                    // TODO(sasbury): Check sizes
+                    sendBuffer.clear();
+                    sendBuffer.put(body);
+                    sendBuffer.put(NatsConnection.CR);
+                    sendBuffer.put(NatsConnection.LF);
+                    sendBuffer.flip();
+
+                    //Write to the socket
+                    channel.write(protocolBuffer);
+                    channel.write(sendBuffer);
                 }
                 
             }

@@ -17,7 +17,7 @@ public interface Message {
     
 	public String getSubject();
 
-	public String getReply();
+	public String getReplyTo();
 
 	public byte[] getData();
 

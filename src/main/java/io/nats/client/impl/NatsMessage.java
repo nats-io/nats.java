@@ -19,7 +19,7 @@ import io.nats.client.Subscription;
 class NatsMessage implements Message {
 
     private String subject;
-    private String reply;
+    private String replyTo;
     private byte[] data;
     private Subscription subscription;
     private String protocolMessage;
@@ -27,9 +27,13 @@ class NatsMessage implements Message {
     NatsMessage next; // for linked list
     NatsMessage prev; // for linked list
 
-    NatsMessage(String subject, String reply, byte[] data, Subscription subscription) {
+    NatsMessage(String subject, String replyTo, byte[] data) {
+        this(null, subject, replyTo, data);
+    }
+
+    NatsMessage(Subscription subscription, String subject, String replyTo, byte[] data) {
         this.subject = subject;
-        this.reply = reply;
+        this.replyTo = replyTo;
         this.data = data;
         this.subscription = subscription;
     }
@@ -51,9 +55,9 @@ class NatsMessage implements Message {
 		return this.subject;
 	}
 
-	public String getReply()
+	public String getReplyTo()
 	{
-		return this.reply;
+		return this.replyTo;
 	}
 
 	public byte[] getData()
