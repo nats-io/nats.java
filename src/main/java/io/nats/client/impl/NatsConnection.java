@@ -309,8 +309,12 @@ class NatsConnection implements Connection {
         if (this.serverInfoFuture.isDone()) {
             this.serverInfo.set(serverInfo);
         } else {
-            this.serverInfoFuture.complete(serverInfo);
+            this.serverInfoFuture.complete(serverInfo); // Will set in connect thread
         }
+    }
+
+    NatsServerInfo getInfo() {
+        return this.serverInfo.get();
     }
 
     Options getOptions() {
