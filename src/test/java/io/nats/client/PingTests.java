@@ -21,14 +21,14 @@ import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
 
-import io.nats.client.FakeNatsTestServer.Progress;
+import io.nats.client.NatsServerProtocolMock.Progress;
 
 public class PingTests {
     @Test
     public void testHandlingPing() throws IOException, InterruptedException,ExecutionException {
         CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
 
-        FakeNatsTestServer.Customizer pingPongCustomizer = (ts, r,w) -> {
+        NatsServerProtocolMock.Customizer pingPongCustomizer = (ts, r,w) -> {
             
             System.out.println("*** Fake Server @" + ts.getPort() + " sending PING ...");
             w.write("PING\r\n");
@@ -53,7 +53,7 @@ public class PingTests {
             }
         };
 
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(pingPongCustomizer)) {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(pingPongCustomizer)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertTrue("Got pong.", gotPong.get().booleanValue());

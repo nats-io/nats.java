@@ -23,16 +23,16 @@ import java.util.concurrent.ExecutionException;
 import org.junit.Test;
 
 import io.nats.client.Connection;
-import io.nats.client.FakeNatsTestServer;
+import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.Nats;
-import io.nats.client.FakeNatsTestServer.Progress;
+import io.nats.client.NatsServerProtocolMock.Progress;
 
 public class InfoHandlerTests {
     @Test
     public void testInitialInfo() throws IOException, InterruptedException {
         String customInfo = "{\"server_id\":\"myid\"}";
 
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(null, customInfo)) {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertEquals("got custom info", "myid", ((NatsConnection)nc).getInfo().getServerId());
@@ -48,7 +48,7 @@ public class InfoHandlerTests {
         CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
         CompletableFuture<Boolean> sendInfo = new CompletableFuture<>();
 
-        FakeNatsTestServer.Customizer infoCustomizer = (ts, r,w) -> {
+        NatsServerProtocolMock.Customizer infoCustomizer = (ts, r,w) -> {
             
             // Wait for client to be ready.
             try {
@@ -86,7 +86,7 @@ public class InfoHandlerTests {
             }
         };
 
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(infoCustomizer, customInfo)) {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertEquals("got custom info", "myid", ((NatsConnection)nc).getInfo().getServerId());

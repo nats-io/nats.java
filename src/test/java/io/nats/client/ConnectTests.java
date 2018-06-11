@@ -19,8 +19,8 @@ import java.io.IOException;
 
 import org.junit.Test;
 
-import io.nats.client.FakeNatsTestServer.ExitAt;
-import io.nats.client.FakeNatsTestServer.Progress;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.NatsServerProtocolMock.Progress;
 
 public class ConnectTests {
     @Test
@@ -56,7 +56,7 @@ public class ConnectTests {
 
     @Test
     public void testFullFakeConnect() throws IOException, InterruptedException {
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(ExitAt.NO_EXIT)) {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             nc.close();
@@ -67,7 +67,7 @@ public class ConnectTests {
 
     @Test
     public void testConnectExitBeforeInfo() throws IOException, InterruptedException {
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(ExitAt.EXIT_BEFORE_INFO)) {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_BEFORE_INFO)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
             nc.close();
@@ -78,7 +78,7 @@ public class ConnectTests {
 
     @Test
     public void testConnectExitAfterInfo() throws IOException, InterruptedException {
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(ExitAt.EXIT_AFTER_INFO)) {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_INFO)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
             nc.close();
@@ -89,7 +89,7 @@ public class ConnectTests {
 
     @Test
     public void testConnectExitAfterConnect() throws IOException, InterruptedException {
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(ExitAt.EXIT_AFTER_CONNECT)) {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_CONNECT)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
             nc.close();
@@ -100,7 +100,7 @@ public class ConnectTests {
 
     @Test
     public void testConnectExitAfterPing() throws IOException, InterruptedException {
-        try (FakeNatsTestServer ts = new FakeNatsTestServer(ExitAt.EXIT_AFTER_PING)) {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
             assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
             nc.close();
@@ -111,7 +111,7 @@ public class ConnectTests {
     
     @Test
     public void testConnectionFailureWithFallback() throws IOException, InterruptedException {
-        try (FakeNatsTestServer fake = new FakeNatsTestServer(ExitAt.EXIT_AFTER_PING);
+        try (NatsServerProtocolMock fake = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING);
                 NatsTestServer ts = new NatsTestServer(true)) {
             Options options = new Options.Builder().
                                 server("nats://localhost:"+fake.getPort()).

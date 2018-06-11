@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
  * Handles the begining of the connect sequence, all hard coded, but
  * is configurable to fail at specific points to allow client testing.
  */
-public class FakeNatsTestServer implements Closeable{
+public class NatsServerProtocolMock implements Closeable{
 
     // Default is to exit after pong
     public enum ExitAt {
@@ -49,7 +49,7 @@ public class FakeNatsTestServer implements Closeable{
     }
 
     public interface Customizer {
-        public void customizeTest(FakeNatsTestServer ts, BufferedReader reader, PrintWriter writer);
+        public void customizeTest(NatsServerProtocolMock ts, BufferedReader reader, PrintWriter writer);
     }
 
     private int port;
@@ -60,17 +60,17 @@ public class FakeNatsTestServer implements Closeable{
     private Customizer customizer;
     private String customInfo;
 
-    public FakeNatsTestServer(ExitAt exitAt) {
+    public NatsServerProtocolMock(ExitAt exitAt) {
         this(NatsTestServer.nextPort(), exitAt);
     }
 
-    public FakeNatsTestServer(int port, ExitAt exitAt) {
+    public NatsServerProtocolMock(int port, ExitAt exitAt) {
         this.port = port;
         this.exitAt = exitAt;
         start();
     }
 
-    public FakeNatsTestServer(Customizer custom) {
+    public NatsServerProtocolMock(Customizer custom) {
         this.port = NatsTestServer.nextPort();
         this.exitAt = ExitAt.NO_EXIT;
         this.customizer = custom;
@@ -79,7 +79,7 @@ public class FakeNatsTestServer implements Closeable{
     
     // CustomInfo is just the JSON string, not the full protocol string 
     // or the \r\n.
-    public FakeNatsTestServer(Customizer custom, String customInfo) {
+    public NatsServerProtocolMock(Customizer custom, String customInfo) {
         this.port = NatsTestServer.nextPort();
         this.exitAt = ExitAt.NO_EXIT;
         this.customizer = custom;
@@ -121,11 +121,11 @@ public class FakeNatsTestServer implements Closeable{
             serverSocket = new ServerSocket(this.port);
             serverSocket.setSoTimeout(5000);
 
-            System.out.println("*** Fake Server @" + this.port + " started...");
+            System.out.println("*** Mock Server @" + this.port + " started...");
             socket = serverSocket.accept();
             
             this.progress = Progress.CLIENT_CONNECTED;
-            System.out.println("*** Fake Server @" + this.port + " got client...");
+            System.out.println("*** Mock Server @" + this.port + " got client...");
 
             writer = new PrintWriter(socket.getOutputStream());
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -141,7 +141,7 @@ public class FakeNatsTestServer implements Closeable{
             }
             writer.flush();
             this.progress = Progress.SENT_INFO;
-            System.out.println("*** Fake Server @" + this.port + " sent info...");
+            System.out.println("*** Mock Server @" + this.port + " sent info...");
 
             if (exitAt == ExitAt.EXIT_AFTER_INFO) {
                 throw new Exception("exit");
@@ -151,7 +151,7 @@ public class FakeNatsTestServer implements Closeable{
 
             if (connect.startsWith("CONNECT")) {
                 this.progress = Progress.GOT_CONNECT;
-                System.out.println("*** Fake Server @" + this.port + " got connect...");
+                System.out.println("*** Mock Server @" + this.port + " got connect...");
             } else {
                 throw new IOException("First message wasn't CONNECT");
             }
@@ -164,7 +164,7 @@ public class FakeNatsTestServer implements Closeable{
 
             if (ping.startsWith("PING")) {
                 this.progress = Progress.GOT_PING;
-                System.out.println("*** Fake Server @" + this.port + " got ping...");
+                System.out.println("*** Mock Server @" + this.port + " got ping...");
             } else {
                 throw new IOException("Second message wasn't PING");
             }
@@ -176,11 +176,11 @@ public class FakeNatsTestServer implements Closeable{
             writer.write("PONG\r\n");
             writer.flush();
             this.progress = Progress.SENT_PONG;
-            System.out.println("*** Fake Server @" + this.port + " sent pong...");
+            System.out.println("*** Mock Server @" + this.port + " sent pong...");
 
             if (this.customizer != null) {
                 this.progress = Progress.STARTED_CUSTOM_CODE;
-                System.out.println("*** Fake Server @" + this.port + " starting custom code...");
+                System.out.println("*** Mock Server @" + this.port + " starting custom code...");
                 this.customizer.customizeTest(this, reader, writer);
                 this.progress = Progress.COMPLETED_CUSTOM_CODE;
             }
@@ -188,16 +188,16 @@ public class FakeNatsTestServer implements Closeable{
 
         } catch (IOException io) {
             protocolFailure = true;
-            System.out.println("\n*** Fake Server @" + this.port + " got exception "+io.getMessage());
+            System.out.println("\n*** Mock Server @" + this.port + " got exception "+io.getMessage());
         } catch (Exception ex) {
-            System.out.println("\n*** Fake Server @" + this.port + " got exception "+ex.getMessage());
+            System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
         }
         finally {
             if (serverSocket != null) {
                 try {
                     serverSocket.close();
                 } catch (IOException ex) {
-                    System.out.println("\n*** Fake Server @" + this.port + " got exception "+ex.getMessage());
+                    System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
                 }
             }
             if (socket != null) {
@@ -206,10 +206,10 @@ public class FakeNatsTestServer implements Closeable{
                     reader.close();
                     socket.close();
                 } catch (IOException ex) {
-                    System.out.println("\n*** Fake Server @" + this.port + " got exception "+ex.getMessage());
+                    System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
                 }
             }
         }
-        System.out.println("*** Fake Server @" + this.port + " completed...");
+        System.out.println("*** Mock Server @" + this.port + " completed...");
     }
 }
