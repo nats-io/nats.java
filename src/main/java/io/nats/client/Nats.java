@@ -24,6 +24,11 @@ public class Nats {
      */
     public static final String CLIENT_VERSION = "2.0.0";
 
+    /**
+     * Current language of the library - {@value #CLIENT_LANGUAGE}
+     */
+    public static final String CLIENT_LANGUAGE = "java";
+
     // TODO(sasbury): can we support TLS just with URL protocol
     /**
      * Connect to the default URL ({#value Options#DEFAULT_URL}) with all of the

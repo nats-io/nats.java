@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import java.nio.charset.StandardCharsets;
+
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
@@ -22,8 +24,9 @@ class NatsMessage implements Message {
     private String replyTo;
     private byte[] data;
     private Subscription subscription;
-    private String protocolMessage;
-
+    private byte[] protocolBytes;
+    
+    long size;
     NatsMessage next; // for linked list
     NatsMessage prev; // for linked list
 
@@ -32,22 +35,46 @@ class NatsMessage implements Message {
     }
 
     NatsMessage(Subscription subscription, String subject, String replyTo, byte[] data) {
+        StringBuilder protocolStringBuilder = new StringBuilder();
         this.subject = subject;
         this.replyTo = replyTo;
         this.data = data;
         this.subscription = subscription;
+
+        protocolStringBuilder.append("PUB");
+        protocolStringBuilder.append(" ");
+        protocolStringBuilder.append(subject);
+        protocolStringBuilder.append(" ");
+
+        if (replyTo != null) {
+            protocolStringBuilder.append(replyTo);
+            protocolStringBuilder.append(" ");
+        }
+
+        protocolStringBuilder.append(String.valueOf(data.length));
+
+        this.protocolBytes = protocolStringBuilder.toString().getBytes(StandardCharsets.UTF_8);
+        
+        this.size = this.protocolBytes.length + data.length + 4;//for 2x \r\n
+
+        // TODO(sasbury): handle invalid protocol strings (too long)
     }
 
     NatsMessage(String protocol) {
-        this.protocolMessage = protocol;
+        this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
+        this.size = this.protocolBytes.length + 2;//for \r\n
     }
 
     boolean isProtocol() {
-        return this.protocolMessage != null;
+        return this.subject == null;
     }
 
-    String getProtocolMessage() {
-        return this.protocolMessage;
+    byte[] getProtocolBytes() {
+        return this.protocolBytes;
+    }
+
+    long getSize() {
+        return size;
     }
 
 	public String getSubject()

@@ -795,7 +795,7 @@ public class Options {
         StringBuilder connectString = new StringBuilder();
         connectString.append("{");
 
-        appendOption(connectString, Options.OPTION_LANG, "java", true, false);
+        appendOption(connectString, Options.OPTION_LANG, Nats.CLIENT_LANGUAGE, true, false);
         appendOption(connectString, Options.OPTION_VERSION, Nats.CLIENT_VERSION, true, true);
 
         if (this.connectionName != null) {

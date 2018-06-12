@@ -56,7 +56,8 @@ public class NatsTestServer implements AutoCloseable {
     public void start() {
         ArrayList<String> cmd = new ArrayList<String>();
         cmd.add(NatsTestServer.GNATSD);
-        cmd.add("-p"); cmd.add(String.valueOf(port));
+        cmd.add("--port");
+        cmd.add(String.valueOf(port));
         
         if (debug) {
             cmd.add("-DV");
@@ -66,7 +67,7 @@ public class NatsTestServer implements AutoCloseable {
 
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd);
-            // TODO(sasbury): do we need to set this? pb.directory();
+            pb.directory(File.createTempFile("foo", "bar").getParentFile());
 
             if (debug) {
                 System.out.println("%%% Starting [" + this.cmdLine + "] with redirected IO");
@@ -86,6 +87,12 @@ public class NatsTestServer implements AutoCloseable {
             }
 
             this.process = pb.start();
+            
+            try {
+                Thread.sleep(100);
+            } catch (Exception exp) {
+                //Give the server time to get going
+            }
 
             if (debug) {
                 System.out.println("%%% Started [" + this.cmdLine + "]");

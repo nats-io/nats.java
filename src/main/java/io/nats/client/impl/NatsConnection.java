@@ -37,16 +37,18 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Options;
+import io.nats.client.Statistics;
 import io.nats.client.Subscription;
 
 // TODO(sasbury): connection and reconnect notifcations
 class NatsConnection implements Connection {
     static final int MAX_PROTOCOL_LINE = 1024;
-    static final int BUFFER_SIZE = 4 * 1024;
+    static final int BUFFER_SIZE = 32 * 1024;
     static final byte[] EMPTY_BODY = new byte[0];
 
     static final byte CR = 0x0D;
     static final byte LF = 0x0A;
+    static final byte[] CRLF = {CR, LF};
 
     static final String OP_CONNECT = "CONNECT";
     static final String OP_INFO = "INFO";
@@ -57,6 +59,8 @@ class NatsConnection implements Connection {
     static final String OP_ERR = "-ERR";
 
     private Options options;
+
+    private NatsStatistics statistics;
 
     private Connection.Status status;
     private ReentrantLock statusLock;
@@ -75,6 +79,8 @@ class NatsConnection implements Connection {
     NatsConnection(Options options) {
         this.options = options;
         
+        this.statistics = new NatsStatistics();
+
         this.status = Status.DISCONNECTED;
         this.statusLock = new ReentrantLock();
 
@@ -277,8 +283,20 @@ class NatsConnection implements Connection {
         throw new UnsupportedOperationException("Not implemented yet");
     }
 
-    public void flush(Duration timeout) {
-        throw new UnsupportedOperationException("Not implemented yet");
+    public void flush(Duration timeout) throws TimeoutException, InterruptedException {
+        Future<Boolean> waitForIt = sendPing();
+
+        try {
+            long millis = timeout.toMillis();
+
+            if (millis > 0) {
+                waitForIt.get(millis, TimeUnit.MILLISECONDS);
+            } else {
+                waitForIt.get();
+            }
+        } catch (ExecutionException e) {
+            throw new TimeoutException(e.getMessage());
+        }
     }
 
     void sendConnect() {
@@ -333,6 +351,14 @@ class NatsConnection implements Connection {
 
     Options getOptions() {
         return this.options;
+    }
+
+    public Statistics getStatistics() {
+        return statistics;
+    }
+
+    NatsStatistics getNatsStatistics() {
+        return statistics;
     }
 
     public Status getStatus() {

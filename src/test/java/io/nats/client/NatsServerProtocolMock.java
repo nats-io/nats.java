@@ -92,6 +92,11 @@ public class NatsServerProtocolMock implements Closeable{
         this.waitForIt = new CompletableFuture<>();
         Thread t = new Thread(() -> {accept();});
         t.start();
+        try {
+            Thread.sleep(100);
+        } catch (Exception exp) {
+            //Give the server time to get going
+        }
     }
 
     public int getPort() {

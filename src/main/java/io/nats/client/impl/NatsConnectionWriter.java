@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -35,7 +34,6 @@ class NatsConnectionWriter implements Runnable {
     private final AtomicBoolean running;
     
     private ByteBuffer sendBuffer;
-    private ByteBuffer protocolBuffer;
 
     private MessageQueue outgoing;
 
@@ -47,7 +45,6 @@ class NatsConnectionWriter implements Runnable {
         this.stopped.complete(Boolean.TRUE); // we are stopped on creation
 
         this.sendBuffer = ByteBuffer.allocate(NatsConnection.BUFFER_SIZE);
-        this.protocolBuffer = ByteBuffer.allocate(NatsConnection.MAX_PROTOCOL_LINE);
 
         outgoing = new MessageQueue();
     }
@@ -72,68 +69,45 @@ class NatsConnectionWriter implements Runnable {
         return stopped;
     }
 
-    // TODO(sasbury): Handle issue with fast writer that never releases the lock
+    // TODO(sasbury): Handle issue with fast writer that never releases the lock (look at MessageQUeue fair lock, that may be enough, may be perf hit)
     public void run() {
-        Duration waitFor = Duration.ofMinutes(1);
+        Duration waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
+        Duration waitForAccumulate = null;
+        long maxMessages = 1000;
 
         try {
             SocketChannel channel = this.channelFuture.get(); //Will wait for the future to complete
             this.outgoing.reset();
             
             while (this.running.get()) {
-                NatsMessage msg = this.outgoing.pop(waitFor);
-
-                // TODO(sasbury): Batch messages!
+                NatsMessage msg = this.outgoing.accumulate(NatsConnection.BUFFER_SIZE, maxMessages, waitForAccumulate, waitForMessage);
 
                 if (msg == null) {
                     continue;
                 }
 
-                if (msg.isProtocol()) {
-                    String protocolString = msg.getProtocolMessage();
-                    protocolBuffer.clear();
-                    protocolBuffer.put(protocolString.getBytes(StandardCharsets.UTF_8));
-                    protocolBuffer.put(NatsConnection.CR);
-                    protocolBuffer.put(NatsConnection.LF);
-                    protocolBuffer.flip();
-                    channel.write(protocolBuffer);
-                } else { // Assumes the connection checked the subject to be non-empty
-                    // TODO(sasbury): Look at the performance for this, this is simple but lots of allocs
+                // TODO(sasbury): Check max sizes
+                sendBuffer.clear();
 
-                    byte [] body = msg.getData();
+                long ma = 0;
+                while (msg != null) {
+                    ma++;
 
-                    StringBuilder protocolString = new StringBuilder();
-                    protocolString.append("PUB ");
-                    protocolString.append(msg.getSubject());
-                    protocolString.append(" ");
+                    sendBuffer.put(msg.getProtocolBytes());
+                    sendBuffer.put(NatsConnection.CRLF);
 
-                    if (msg.getReplyTo() != null) {
-                        protocolString.append(msg.getReplyTo());
-                        protocolString.append(" ");
+                    if (!msg.isProtocol()) {
+                        sendBuffer.put(msg.getData());
+                        sendBuffer.put(NatsConnection.CRLF);
                     }
-
-                    protocolString.append(String.valueOf(body.length));
-
-                    // Fill the buffer and go
-                    protocolBuffer.clear();
-                    protocolBuffer.put(protocolString.toString().getBytes(StandardCharsets.UTF_8));
-                    protocolBuffer.put(NatsConnection.CR);
-                    protocolBuffer.put(NatsConnection.LF);
-                    protocolBuffer.flip();
-
-                    //Fill the main buffer
-                    // TODO(sasbury): Check sizes
-                    sendBuffer.clear();
-                    sendBuffer.put(body);
-                    sendBuffer.put(NatsConnection.CR);
-                    sendBuffer.put(NatsConnection.LF);
-                    sendBuffer.flip();
-
-                    //Write to the socket
-                    channel.write(protocolBuffer);
-                    channel.write(sendBuffer);
+                    msg = msg.prev; // Work backward through accumulation
                 }
-                
+                connection.getNatsStatistics().registerAccumulate(ma);
+
+
+                //Write to the socket
+                sendBuffer.flip();
+                channel.write(sendBuffer);
             }
         } catch (IOException|BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);

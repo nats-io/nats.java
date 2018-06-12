@@ -15,8 +15,8 @@ package io.nats.client;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.concurrent.TimeoutException;
 
-// TODO(sasbury): Statistics
 public interface Connection {
 
     public enum Status {
@@ -143,7 +143,7 @@ public interface Connection {
      * 
      * @param timeout The time to wait for the flush to succeed, pass 0 to wait forever.
      */
-    public void flush(Duration timeout);
+    public void flush(Duration timeout) throws TimeoutException, InterruptedException ;
 
     /**
      * Close the connection and release all blocking calls like {@link #flush flush} and 
@@ -173,4 +173,9 @@ public interface Connection {
      * @return This connections list of known server URLs.
      */
     public Collection<String> getServers();
+    
+    /**
+     * Get some useful statistics about the client.
+     */
+    public Statistics getStatistics();
 }
