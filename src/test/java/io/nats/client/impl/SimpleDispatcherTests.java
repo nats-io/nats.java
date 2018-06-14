@@ -388,18 +388,17 @@ public class SimpleDispatcherTests {
     }
 
     @Test(expected=IllegalArgumentException.class)
-    public void testThrowOnNullSubject() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testThrowOnNullSubject() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
             Dispatcher d = nc.createDispatcher((msg) -> {});
-
             d.subscribe(null);
             assertFalse(true);
         }
     }
 
     @Test(expected=IllegalArgumentException.class)
-    public void testThrowOnEmptySubject() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testThrowOnEmptySubject() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
             Dispatcher d = nc.createDispatcher((msg) -> {});
@@ -410,23 +409,41 @@ public class SimpleDispatcherTests {
     }
 
     @Test(expected=IllegalArgumentException.class)
-    public void testThrowOnNullQueue() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testThrowOnNullQueue() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
             Dispatcher d = nc.createDispatcher((msg) -> {});
-
             d.subscribe("subject", null);
             assertFalse(true);
         }
     }
 
     @Test(expected=IllegalArgumentException.class)
-    public void testThrowOnEmptyQueue() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testThrowOnEmptyQueue() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
             Dispatcher d = nc.createDispatcher((msg) -> {});
-
             d.subscribe("subject", "");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullSubjectWithQueue() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe(null, "quque");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubjectWithQueue() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("", "quque");
             assertFalse(true);
         }
     }

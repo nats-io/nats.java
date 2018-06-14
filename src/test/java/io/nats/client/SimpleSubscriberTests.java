@@ -265,4 +265,58 @@ public class SimpleSubscriberTests {
             assertFalse(true);
         }
     }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullSubject() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            nc.subscribe(null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubject() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            nc.subscribe("");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullQueue() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            nc.subscribe("subject", null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptyQueue() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            nc.subscribe("subject", "");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullSubjectWithQueue() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            nc.subscribe(null, "quque");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubjectWithQueue() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            nc.subscribe("", "quque");
+            assertFalse(true);
+        }
+    }
 }
