@@ -20,4 +20,5 @@ public interface Statistics {
     public String buildHumanFriendlyString();
 
     public long getFlushCounter();
+    public long getOutstandingRequests();
 }

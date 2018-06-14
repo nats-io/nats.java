@@ -23,6 +23,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -37,6 +41,7 @@ import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
+import io.nats.client.NUID;
 import io.nats.client.Options;
 import io.nats.client.Statistics;
 import io.nats.client.Subscription;
@@ -47,6 +52,8 @@ class NatsConnection implements Connection {
     static final int MAX_PROTOCOL_LINE = 1024;
     static final int BUFFER_SIZE = 32 * 1024;
     static final byte[] EMPTY_BODY = new byte[0];
+
+    static final String INBOX_PREFIX = "_INBOX.";
 
     static final byte CR = 0x0D;
     static final byte LF = 0x0A;
@@ -81,7 +88,15 @@ class NatsConnection implements Connection {
     private ReentrantLock subscriberLock;
     private HashMap<String, NatsSubscription> subscribers;
     private ArrayList<NatsDispatcher> dispatchers;
+
+    private ReentrantLock responseLock;
+    private HashMap<String, CompletableFuture<Message>> responses;
+    private String mainInbox;
+    private Dispatcher inboxDispatcher;
+    private Timer responseCleanupTimer;
+
     private long nextSid;
+    private NUID nuid;
 
     private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
@@ -96,7 +111,12 @@ class NatsConnection implements Connection {
         this.subscriberLock = new ReentrantLock();
         this.subscribers = new HashMap<>();
         this.dispatchers = new ArrayList<>();
+        this.responses = new HashMap<>();
+        this.responseLock = new ReentrantLock();
         this.nextSid = 1;
+        this.nuid = new NUID();
+        this.mainInbox = createInbox() + ".*";
+        this.responseCleanupTimer = null;
 
         this.serverInfo = new AtomicReference<>();
         this.pongQueue = new ConcurrentLinkedDeque<>();
@@ -191,7 +211,7 @@ class NatsConnection implements Connection {
 
     // Can be called from reader/writer thread, or inside the connect code
     void handleCommunicationIssue(Exception io) {
-        boolean wasConnected = this.closeSocket();
+        boolean wasConnected = this.closeSocket(false);
 
         // Try to reconnect in a new thread
         // This should only be true if the read/write thread call this method
@@ -206,7 +226,7 @@ class NatsConnection implements Connection {
     }
 
     public void close() {
-        closeSocket();
+        closeSocket(true);
 
         // Reader and writer are stopped or stopping, wait for them to finish
         try {
@@ -233,22 +253,28 @@ class NatsConnection implements Connection {
             }
 
             this.subscribers.clear();
+            
+
+            if (responseCleanupTimer != null) {
+                responseCleanupTimer.cancel();
+            }
+
+            cleanResponses(true);
         } finally {
             subscriberLock.unlock();
         }
-        // TOOD(sasbury): Deal with dispatchers and subscriptions (workqueues)
 
         statusLock.lock();
         this.status = Status.CLOSED;
         statusLock.unlock();
     }
 
-    boolean closeSocket() {
+    boolean closeSocket(boolean closing) {
         boolean wasConnected = false;
         boolean wasDisconnected = false;
 
         statusLock.lock();
-        wasConnected = (this.status == Status.CONNECTED);
+        wasConnected = !closing && (this.status == Status.CONNECTED);
         wasDisconnected = (this.status == Status.DISCONNECTED);
         this.status = Status.DISCONNECTED;
         statusLock.unlock();
@@ -399,9 +425,119 @@ class NatsConnection implements Connection {
         return sub;
     }
 
-    public Future<Message> request(String subject, byte[] data, Duration timeout) {
-        // TODO(sasbury): Look at go client for inbox and old/new formats
-        throw new UnsupportedOperationException("Not implemented yet");
+    String createInbox() {
+        StringBuilder builder = new StringBuilder();
+        builder.append(INBOX_PREFIX);
+        builder.append(this.nuid.next());
+        return builder.toString();
+    }
+
+    static final int RESP_INBOX_PREFIX_LEN = INBOX_PREFIX.length() + 22 + 1; //22 for nuid, 1 for .
+
+    String createResponseInbox(String inbox) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(inbox.substring(0, RESP_INBOX_PREFIX_LEN)); // Get rid of the *
+        builder.append(this.nuid.next());
+        return builder.toString();
+    }
+
+    // If the inbox is long enough, pull out the end part, otherwise, just use the full thing
+    String getResponseToken(String responseInbox) {
+        if (responseInbox.length() <= RESP_INBOX_PREFIX_LEN) {
+            return responseInbox;
+        }
+        return responseInbox.substring(RESP_INBOX_PREFIX_LEN);
+    }
+
+    void cleanResponses(boolean cancelIfRunning) {
+
+        responseLock.lock();
+        try {
+            Iterator<Map.Entry<String,CompletableFuture<Message>>> it = responses.entrySet().iterator();
+            
+            while (it.hasNext()) {
+                Map.Entry<String, CompletableFuture<Message>> pair = it.next();
+                CompletableFuture<Message> f = pair.getValue();
+                if (f.isDone() || cancelIfRunning) {
+                    f.cancel(true); // does nothing if already done
+                    it.remove();
+                    statistics.decrementOutstandingRequests();
+                }
+            }
+        } finally {
+            responseLock.unlock();
+        }
+    }
+
+    public Future<Message> request(String subject, byte[] data) {
+        String responseInbox = null;
+        boolean oldStyle = options.isOldRequestStyle();
+
+        if (oldStyle) {
+            responseInbox = createInbox();
+        } else {
+            responseInbox = createResponseInbox(this.mainInbox);
+        }
+        
+        String responseToken = getResponseToken(responseInbox);
+        CompletableFuture<Message> future = new CompletableFuture<>();
+
+        this.subscriberLock.lock();
+        try {
+            if (this.inboxDispatcher == null) {
+
+                this.inboxDispatcher = this.createDispatcher((msg) -> {
+                    deliverRequest(msg);
+                });
+
+                this.inboxDispatcher.subscribe(this.mainInbox);
+
+                this.responseCleanupTimer = new Timer();
+                this.responseCleanupTimer.schedule(new TimerTask() {
+                    public void run() {
+                        cleanResponses(false);
+                    }
+                }, this.options.getRequestCleanupInterval().toMillis());
+            }
+        } finally {
+            this.subscriberLock.unlock();
+        }
+
+        responseLock.lock();
+        try {
+            responses.put(responseToken, future);
+        } finally {
+            responseLock.unlock();
+        }
+        statistics.incrementOutstandingRequests();
+
+        if (oldStyle) {
+            this.inboxDispatcher.subscribe(responseInbox).unsubscribe(responseInbox,1);
+        }
+        
+        publish(subject, responseInbox, data);
+        statistics.incrementRequestsSent();
+
+        return future;
+    }
+
+    void deliverRequest(Message msg) {
+        String subject = msg.getSubject();
+        String token = getResponseToken(subject);
+        CompletableFuture<Message> f = null;
+
+        responseLock.lock();
+        try {
+            f = responses.remove(token);
+        } finally {
+            responseLock.unlock();
+        }
+
+        if (f != null) {
+            statistics.decrementOutstandingRequests();
+            f.complete(msg);
+            statistics.incrementRepliesReceived();
+        }
     }
 
     public Dispatcher createDispatcher(MessageHandler handler) {
@@ -419,6 +555,10 @@ class NatsConnection implements Connection {
 
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
         Future<Boolean> waitForIt = sendPing();
+
+        if (timeout == null) {
+            timeout = Duration.ZERO;
+        }
 
         try {
             long millis = timeout.toMillis();

@@ -29,7 +29,7 @@ public class NatsStatisticsTests {
     public void testHumanReadableString() throws IOException, InterruptedException {
         // This test is purely for coverage, any test without a human is likely pedantic
         try (NatsTestServer ts = new NatsTestServer()) {
-            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             String str = nc.getStatistics().buildHumanFriendlyString();

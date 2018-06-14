@@ -109,6 +109,10 @@ public class NatsTestServer implements AutoCloseable {
         return this.port;
     }
 
+    public String getURI() {
+        return "nats://localhost:" + this.getPort();
+    }
+
     public void shutdown() {
         if (this.process == null) {
             return;

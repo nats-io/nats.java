@@ -25,15 +25,37 @@ class NatsStatistics implements Statistics {
     private LongSummaryStatistics accumulateStats;
 
     private AtomicLong flushCounter;
+    private AtomicLong outstandingRequests;
+    private AtomicLong requestsSent;
+    private AtomicLong repliesReceived;
 
     public NatsStatistics() {
         this.lock = new ReentrantLock();
         this.accumulateStats = new LongSummaryStatistics();
         this.flushCounter = new AtomicLong();
+        this.outstandingRequests = new AtomicLong();
+        this.requestsSent = new AtomicLong();
+        this.repliesReceived = new AtomicLong();
+    }
+
+    void incrementRequestsSent() {
+        this.requestsSent.incrementAndGet();
+    }
+
+    void incrementRepliesReceived() {
+        this.repliesReceived.incrementAndGet();
     }
 
     void incrementFlushCounter() {
         this.flushCounter.incrementAndGet();
+    }
+
+    void incrementOutstandingRequests() {
+        this.outstandingRequests.incrementAndGet();
+    }
+
+    void decrementOutstandingRequests() {
+        this.outstandingRequests.decrementAndGet();
     }
 
     void registerAccumulate(long msgCount) {
@@ -49,6 +71,10 @@ class NatsStatistics implements Statistics {
         return flushCounter.get();
     }
 
+    public long getOutstandingRequests() {
+        return outstandingRequests.get();
+    }
+
     public String buildHumanFriendlyString() {
         StringBuilder builder = new StringBuilder();
 
@@ -58,7 +84,19 @@ class NatsStatistics implements Statistics {
             builder.append("Successful Flush Calls:          ");
             builder.append(this.flushCounter.get());
             builder.append("\n");
-            builder.append("### Publisher ###\n");
+            builder.append("Requests Sent:                   ");
+            builder.append(this.requestsSent.get());
+            builder.append("\n");
+            builder.append("Replies Received:                ");
+            builder.append(this.repliesReceived.get());
+            builder.append("\n");
+            builder.append("Outstanding Request Futures:     ");
+            builder.append(this.outstandingRequests.get());
+            builder.append("\n");
+            builder.append("\n");
+            builder.append("### Reader ###\n");
+            builder.append("\n");
+            builder.append("### Writer ###\n");
             builder.append("Accumulation Calls:              ");
             builder.append(String.valueOf(accumulateStats.getCount()));
             builder.append("\n");

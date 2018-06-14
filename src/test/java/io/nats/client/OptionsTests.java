@@ -57,6 +57,7 @@ public class OptionsTests {
         assertEquals("default reconnect wait", Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait());
         assertEquals("default connection timeout", Options.DEFAULT_TIMEOUT, o.getConnectionTimeout());
         assertEquals("default ping interval", Options.DEFAULT_PING_INTERVAL, o.getPingInterval());
+        assertEquals("default cleanup interval", Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval());
 
         assertNull("error handler", o.getErrorHandler());
 
@@ -109,11 +110,13 @@ public class OptionsTests {
                             .reconnectWait(Duration.ofMillis(101))
                             .connectionTimeout(Duration.ofMillis(202))
                             .pingInterval(Duration.ofMillis(303))
+                            .requestCleanupInterval(Duration.ofMillis(404))
                             .build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("chained reconnect wait", Duration.ofMillis(101), o.getReconnectWait());
         assertEquals("chained connection timeout", Duration.ofMillis(202), o.getConnectionTimeout());
         assertEquals("chained ping interval", Duration.ofMillis(303), o.getPingInterval());
+        assertEquals("chained cleanup interval", Duration.ofMillis(404), o.getRequestCleanupInterval());
     }
 
     @Test
@@ -205,12 +208,14 @@ public class OptionsTests {
         props.setProperty(Options.PROP_RECONNECT_WAIT, "101");
         props.setProperty(Options.PROP_CONNECTION_TIMEOUT, "202");
         props.setProperty(Options.PROP_PING_INTERVAL, "303");
+        props.setProperty(Options.PROP_CLEANUP_INTERVAL, "404");
         
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertEquals("chained reconnect wait", Duration.ofMillis(101), o.getReconnectWait());
-        assertEquals("chained connection timeout", Duration.ofMillis(202), o.getConnectionTimeout());
-        assertEquals("chained ping interval", Duration.ofMillis(303), o.getPingInterval());
+        assertEquals("poperty reconnect wait", Duration.ofMillis(101), o.getReconnectWait());
+        assertEquals("poperty connection timeout", Duration.ofMillis(202), o.getConnectionTimeout());
+        assertEquals("poperty ping interval", Duration.ofMillis(303), o.getPingInterval());
+        assertEquals("poperty cleanup interval", Duration.ofMillis(404), o.getRequestCleanupInterval());
     }
     
     @Test

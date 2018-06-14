@@ -209,8 +209,11 @@ class NatsConnectionReader implements Runnable {
             protocolMode = false;
             break;
         case NatsConnection.OP_OK:
+            // TODO(sasbury): Implement op_ok
             break;
         case NatsConnection.OP_ERR:
+            // TODO(sasbury): Implement op_err
+            System.out.println(protocolLine);
             break;
         case NatsConnection.OP_PING:
             this.connection.sendPong();
@@ -223,7 +226,7 @@ class NatsConnectionReader implements Runnable {
             this.connection.handleInfo(String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)));
             break;
         default:
-            // BAD OP
+            // BAD OP TODO(sasbury): Reconnect?
             break;
         }
     }

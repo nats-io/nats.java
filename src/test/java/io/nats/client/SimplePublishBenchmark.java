@@ -20,7 +20,7 @@ import java.util.concurrent.CountDownLatch;
 
 public class SimplePublishBenchmark {
     public static void main(String args[]) throws InterruptedException {
-        int threads = 16;
+        int threads = 4;
         int msgsPerThrad = 1_000_000;
         int messageSize = 128;
         CountDownLatch latch = new CountDownLatch(threads);
@@ -33,7 +33,7 @@ public class SimplePublishBenchmark {
         }
 
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect("nats://localhost:"+ts.getPort());
+            Connection nc = Nats.connect(ts.getURI());
             for (int k = 0;k<threads;k++) {
                 Thread t = new Thread(() -> {
                     try {starter.get();}catch(Exception e){}

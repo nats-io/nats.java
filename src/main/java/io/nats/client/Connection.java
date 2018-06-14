@@ -153,11 +153,9 @@ public interface Connection {
      *                    The subject for the service that will handle the request.
      * @param data
      *                    The content of the message.
-     * @param timeout
-     *                    The maximum time to wait for a response.
-     * @return a Future for the response, which may be cancelled on error or timeout
+     * @return a Future for the response, which may be cancelled on error or timed out
      */
-    public Future<Message> request(String subject, byte[] data, Duration timeout);
+    public Future<Message> request(String subject, byte[] data);
 
     /**
      * Create a {@code Dispatcher} for this connection. The dispatcher can group one
@@ -188,7 +186,8 @@ public interface Connection {
 
     /**
      * Flush the connection's buffer of outgoing messages, including sending a
-     * protocol message to and from the server.
+     * protocol message to and from the server. Passing null is equivalent to
+     * passing 0, which will wait forever.
      * 
      * @param timeout
      *                    The time to wait for the flush to succeed, pass 0 to wait

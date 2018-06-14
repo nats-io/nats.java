@@ -86,6 +86,16 @@ public class Options {
      */
 
     public static final Duration DEFAULT_PING_INTERVAL = Duration.ofMinutes(2);
+
+    /**
+     * Default interval to clean up cancelled/timedout requests.
+     * A timer is used to clean up futures that were handed out but never completed
+     * via a message.
+     *
+     * <p>
+     * This property is defined as 5 seconds.
+     */
+    public static final Duration DEFAULT_REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
     /**
      * Default maximum number of pings that have not received a response.
      *
@@ -141,6 +151,11 @@ public class Options {
      * pingInterval}.
      */
     public static final String PROP_PING_INTERVAL = PFX + "pinginterval";
+    /**
+     * {@value #PROP_CLEANUP_INTERVAL}, see {@link Builder#reqestCleanupInterval(Duration)
+     * reqestCleanupInterval}.
+     */
+    public static final String PROP_CLEANUP_INTERVAL = PFX + "cleanupinterval";
     /**
      * {@value #PROP_CONNECTION_TIMEOUT}, see
      * {@link Builder#connectionTimeout(Duration) connectionTimeout}.
@@ -291,6 +306,7 @@ public class Options {
     private final Duration reconnectWait;
     private final Duration connectionTimeout;
     private final Duration pingInterval;
+    private final Duration requestCleanupInterval;
     private final int maxPingsOut;
     private final long reconnectBufferSize;
     private final String username;
@@ -316,6 +332,7 @@ public class Options {
         private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
         private Duration connectionTimeout = DEFAULT_TIMEOUT;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
+        private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
         private long reconnectBufferSize = DEFAULT_RECONNECT_BUF_SIZE;
         private String username = null;
@@ -432,6 +449,11 @@ public class Options {
             if (props.containsKey(PROP_PING_INTERVAL)) {
                 int ms = Integer.parseInt(props.getProperty(PROP_PING_INTERVAL, "-1"));
                 this.pingInterval = (ms < 0) ? DEFAULT_PING_INTERVAL : Duration.ofMillis(ms);
+            }
+
+            if (props.containsKey(PROP_CLEANUP_INTERVAL)) {
+                int ms = Integer.parseInt(props.getProperty(PROP_CLEANUP_INTERVAL, "-1"));
+                this.requestCleanupInterval = (ms < 0) ? DEFAULT_REQUEST_CLEANUP_INTERVAL : Duration.ofMillis(ms);
             }
 
             if (props.containsKey(PROP_MAX_PINGS)) {
@@ -605,6 +627,14 @@ public class Options {
         }
 
         /**
+         * Set the interval between cleaning passes on outstanding request futures.
+         */
+        public Builder requestCleanupInterval(Duration time) {
+            this.requestCleanupInterval = time;
+            return this;
+        }
+
+        /**
          * Set the maximum number of pings the client can have in flight.
          */
         public Builder maxPingsOut(int max) {
@@ -706,6 +736,7 @@ public class Options {
         this.reconnectWait = b.reconnectWait;
         this.connectionTimeout = b.connectionTimeout;
         this.pingInterval = b.pingInterval;
+        this.requestCleanupInterval = b.requestCleanupInterval;
         this.maxPingsOut = b.maxPingsOut;
         this.reconnectBufferSize = b.reconnectBufferSize;
         this.username = b.username;
@@ -822,6 +853,13 @@ public class Options {
      */
     public Duration getPingInterval() {
         return pingInterval;
+    }
+
+    /**
+     * @return the request cleanup interval
+     */
+    public Duration getRequestCleanupInterval() {
+        return requestCleanupInterval;
     }
 
     /**

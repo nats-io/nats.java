@@ -33,7 +33,7 @@ public class InfoHandlerTests {
         String customInfo = "{\"server_id\":\"myid\"}";
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
-            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
             nc.close();
@@ -87,7 +87,7 @@ public class InfoHandlerTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
-            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
             sendInfo.complete(Boolean.TRUE);

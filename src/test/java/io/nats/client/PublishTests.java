@@ -26,7 +26,7 @@ import org.junit.Test;
 
 import io.nats.client.NatsServerProtocolMock.Progress;
 
-public class SimplePublishTests {
+public class PublishTests {
 
     @Test(expected = IllegalArgumentException.class)
     public void testThrowsWithoutSubject() throws IOException, InterruptedException {
