@@ -23,43 +23,43 @@ public class MessageQueueBenchmark {
         MessageQueue q = new MessageQueue();
         NatsMessage[] msgs = new NatsMessage[msgPerLoop];
 
-        for (int j=0;j<msgPerLoop;j++) {
+        for (int j = 0; j < msgPerLoop; j++) {
             msgs[j] = new NatsMessage("PING");
         }
 
         long start = System.nanoTime();
-        for(int i = 0; i < loops; i++) {
-            for (int j = 0; j< msgPerLoop; j++) {
+        for (int i = 0; i < loops; i++) {
+            for (int j = 0; j < msgPerLoop; j++) {
                 q.push(msgs[j]);
             }
-            for (int j = 0; j< msgPerLoop; j++) {
+            for (int j = 0; j < msgPerLoop; j++) {
                 q.popNow();
             }
         }
         long end = System.nanoTime();
 
         System.out.printf("\n### Total time to perform %s push/pop operations was %s ms, %f ns/op\n",
-            NumberFormat.getInstance().format(loops*msgPerLoop), 
-            NumberFormat.getInstance().format( (end-start)/1_000_000L),
-            ((double)(end-start))/((double)(loops*msgPerLoop)));
-            
+                NumberFormat.getInstance().format(loops * msgPerLoop),
+                NumberFormat.getInstance().format((end - start) / 1_000_000L),
+                ((double) (end - start)) / ((double) (loops * msgPerLoop)));
+
         q = new MessageQueue();
 
         start = System.nanoTime();
-        for(int i = 0; i < loops; i++) {
-            for (int j = 0; j< msgPerLoop; j++) {
+        for (int i = 0; i < loops; i++) {
+            for (int j = 0; j < msgPerLoop; j++) {
                 q.push(msgs[j]);
             }
-            for (int j = 0; j< msgPerLoop/100; j++) {
-                q.accumulate(10000, msgPerLoop/100, Duration.ofMillis(5000), Duration.ofMillis(5000));
+            for (int j = 0; j < msgPerLoop / 100; j++) {
+                q.accumulate(10000, msgPerLoop / 100, Duration.ofMillis(5000), Duration.ofMillis(5000));
             }
         }
         end = System.nanoTime();
 
         System.out.printf("\n### Total time to perform %s push/accumulate operations was %s ms, %f ns/op\n",
-            NumberFormat.getInstance().format(loops*msgPerLoop), 
-            NumberFormat.getInstance().format( (end-start)/1_000_000L),
-            ((double)(end-start))/((double)(loops*msgPerLoop)));
+                NumberFormat.getInstance().format(loops * msgPerLoop),
+                NumberFormat.getInstance().format((end - start) / 1_000_000L),
+                ((double) (end - start)) / ((double) (loops * msgPerLoop)));
 
     }
 }

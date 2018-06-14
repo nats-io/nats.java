@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -41,6 +42,7 @@ import io.nats.client.Statistics;
 import io.nats.client.Subscription;
 
 // TODO(sasbury): connection and reconnect notifcations
+// TODO(sasbury): Throw exception on publish, etc. if not connected
 class NatsConnection implements Connection {
     static final int MAX_PROTOCOL_LINE = 1024;
     static final int BUFFER_SIZE = 32 * 1024;
@@ -48,10 +50,12 @@ class NatsConnection implements Connection {
 
     static final byte CR = 0x0D;
     static final byte LF = 0x0A;
-    static final byte[] CRLF = {CR, LF};
+    static final byte[] CRLF = { CR, LF };
 
     static final String OP_CONNECT = "CONNECT";
     static final String OP_INFO = "INFO";
+    static final String OP_SUB = "SUB";
+    static final String OP_UNSUB = "UNSUB";
     static final String OP_MSG = "MSG";
     static final String OP_PING = "PING";
     static final String OP_PONG = "PONG";
@@ -74,15 +78,25 @@ class NatsConnection implements Connection {
     private AtomicReference<NatsServerInfo> serverInfo;
     private CompletableFuture<NatsServerInfo> serverInfoFuture;
 
+    private ReentrantLock subscriberLock;
+    private HashMap<String, NatsSubscription> subscribers;
+    private ArrayList<NatsDispatcher> dispatchers;
+    private long nextSid;
+
     private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
     NatsConnection(Options options) {
         this.options = options;
-        
+
         this.statistics = new NatsStatistics();
 
         this.status = Status.DISCONNECTED;
         this.statusLock = new ReentrantLock();
+
+        this.subscriberLock = new ReentrantLock();
+        this.subscribers = new HashMap<>();
+        this.dispatchers = new ArrayList<>();
+        this.nextSid = 1;
 
         this.serverInfo = new AtomicReference<>();
         this.pongQueue = new ConcurrentLinkedDeque<>();
@@ -106,6 +120,12 @@ class NatsConnection implements Connection {
 
     void reconnect() {
         // TODO(sasbury): resend any subscriptions
+        // TODO(sasbury): What do we do with the reader while we try to reconnect?
+        // TODO(sasbury): Limit on publish buffer during reconnect
+        // TOOD(sasbury): Deal with dispatchers (esp if we can't reconnect, then they
+        // need to be closed)
+        // TODO(sasbury): LOTS OF TESTS during reconnect scenarios
+        this.close(); // for now to clean up
         throw new UnsupportedOperationException("Not implemented yet");
     }
 
@@ -131,11 +151,11 @@ class NatsConnection implements Connection {
             this.serverInfoFuture = new CompletableFuture<>();
 
             this.cleanUpPongQueue();
-            
+
             // Start the reader, after we know it is stopped
             this.reader.start(this.channelFuture);
             this.writer.start(this.channelFuture);
-            
+
             SocketChannel channel = SocketChannel.open();
             channel.configureBlocking(true);
 
@@ -143,7 +163,7 @@ class NatsConnection implements Connection {
 
             URI uri = new URI(serverURI);
             channel.socket().connect(new InetSocketAddress(uri.getHost(), uri.getPort()),
-                                                         (int) options.getConnectionTimeout().toMillis());
+                    (int) options.getConnectionTimeout().toMillis());
             channel.finishConnect();
 
             // Notify the any threads waiting on the sockets
@@ -164,7 +184,7 @@ class NatsConnection implements Connection {
             this.status = Status.CONNECTED;
             statusLock.unlock();
 
-        } catch (IOException|CancellationException|TimeoutException|ExecutionException|URISyntaxException ex) {
+        } catch (IOException | CancellationException | TimeoutException | ExecutionException | URISyntaxException ex) {
             handleCommunicationIssue(ex);
         }
     }
@@ -172,13 +192,15 @@ class NatsConnection implements Connection {
     // Can be called from reader/writer thread, or inside the connect code
     void handleCommunicationIssue(Exception io) {
         boolean wasConnected = this.closeSocket();
-        
+
         // Try to reconnect in a new thread
         // This should only be true if the read/write thread call this method
         // The connect thread will call this method but only before the status is
         // set to connected, so connect won't force a reconnect
         if (wasConnected) {
-            Thread t = new Thread(() -> {this.reconnect();});
+            Thread t = new Thread(() -> {
+                this.reconnect();
+            });
             t.start();
         }
     }
@@ -189,14 +211,32 @@ class NatsConnection implements Connection {
         // Reader and writer are stopped or stopping, wait for them to finish
         try {
             this.reader.stop().get(30, TimeUnit.SECONDS);
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             // Ignore these, issue with future so move on
         }
         try {
             this.writer.stop().get(30, TimeUnit.SECONDS);
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             // Ignore these, issue with future so move on
         }
+
+        subscriberLock.lock();
+        try {
+            for (NatsDispatcher d : this.dispatchers) {
+                d.stop();
+            }
+
+            this.dispatchers.clear();
+
+            for (NatsSubscription s : this.subscribers.values()) {
+                s.invalidate();
+            }
+
+            this.subscribers.clear();
+        } finally {
+            subscriberLock.unlock();
+        }
+        // TOOD(sasbury): Deal with dispatchers and subscriptions (workqueues)
 
         statusLock.lock();
         this.status = Status.CLOSED;
@@ -217,24 +257,24 @@ class NatsConnection implements Connection {
             return wasConnected;
         }
 
-        this.serverInfoFuture.cancel(true); //Stop the connect thread from waiting for this
+        this.serverInfoFuture.cancel(true); // Stop the connect thread from waiting for this
 
         this.reader.stop();
         this.writer.stop();
 
         // Close the current socket and cancel anyone waiting for it
         this.channelFuture.cancel(true);
-        
+
         cleanUpPongQueue();
 
         try {
             if (this.socketChannel != null) {
                 this.socketChannel.close();
             }
-         } catch (IOException ex) {
-             // Issue closing the socket, but we will just move on
-         }
-         
+        } catch (IOException ex) {
+            // Issue closing the socket, but we will just move on
+        }
+
         return wasConnected;
     }
 
@@ -245,17 +285,17 @@ class NatsConnection implements Connection {
         }
         pongQueue.clear();
     }
-    
+
     public void publish(String subject, byte[] body) {
         this.publish(subject, null, body);
     }
 
     public void publish(String subject, String replyTo, byte[] body) {
-        if (subject == null || subject.length()==0) {
+        if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in publish");
         }
 
-        if (replyTo != null && replyTo.length()==0) {
+        if (replyTo != null && replyTo.length() == 0) {
             throw new IllegalArgumentException("ReplyTo cannot be the empty string");
         }
 
@@ -268,19 +308,113 @@ class NatsConnection implements Connection {
     }
 
     public Subscription subscribe(String subject) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        return createSubscription(subject, null, null);
     }
 
     public Subscription subscribe(String subject, String queueName) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        if (queueName == null || queueName.length() == 0) {
+            throw new IllegalArgumentException("QueueName is required in subscribe");
+        }
+
+        return createSubscription(subject, queueName, null);
     }
 
-    public Message request(String subject, byte[] data, Duration timeout) {
+    void invalidate(NatsSubscription sub) {
+        String sid = sub.getSID();
+
+        subscriberLock.lock();
+        try {
+            subscribers.remove(sid);
+        } finally {
+            subscriberLock.unlock();
+        }
+
+        if (sub.getDispatcher() != null) {
+            sub.getDispatcher().remove(sub);
+        }
+
+        sub.invalidate();
+    }
+
+    void unsubscribe(NatsSubscription sub, int after) {
+        if (after <= 0) {
+            this.invalidate(sub); // Will clean it up
+        } else {
+            sub.setMax(after);
+
+            if (sub.reachedMax()) {
+                sub.invalidate();
+            }
+        }
+
+        String sid = sub.getSID();
+        StringBuilder protocolBuilder = new StringBuilder();
+        protocolBuilder.append(OP_UNSUB);
+        protocolBuilder.append(" ");
+        protocolBuilder.append(sid);
+
+        if (after > 0) {
+            protocolBuilder.append(" ");
+            protocolBuilder.append(String.valueOf(after));
+        }
+        NatsMessage unsubMsg = new NatsMessage(protocolBuilder.toString());
+        this.writer.queue(unsubMsg);
+    }
+
+    // Assumes the null/empty checks were handled elsewhere
+    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher) {
+        NatsSubscription sub = null;
+        subscriberLock.lock();
+        try {
+            String sid = String.valueOf(this.nextSid);
+            sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+            nextSid++;
+            subscribers.put(sid, sub);
+
+            StringBuilder protocolBuilder = new StringBuilder();
+            protocolBuilder.append(OP_SUB);
+            protocolBuilder.append(" ");
+            protocolBuilder.append(subject);
+
+            if (queueName != null) {
+                protocolBuilder.append(" ");
+                protocolBuilder.append(queueName);
+            }
+
+            protocolBuilder.append(" ");
+            protocolBuilder.append(sid);
+            NatsMessage subMsg = new NatsMessage(protocolBuilder.toString());
+            this.writer.queue(subMsg);
+        } finally {
+            subscriberLock.unlock();
+        }
+        return sub;
+    }
+
+    public Future<Message> request(String subject, byte[] data, Duration timeout) {
+        // TODO(sasbury): Look at go client for inbox and old/new formats
         throw new UnsupportedOperationException("Not implemented yet");
     }
 
     public Dispatcher createDispatcher(MessageHandler handler) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        NatsDispatcher dispatcher = null;
+        subscriberLock.lock();
+        try {
+            dispatcher = new NatsDispatcher(this, handler);
+            dispatchers.add(dispatcher);
+        } finally {
+            subscriberLock.unlock();
+        }
+        dispatcher.start();
+        return dispatcher;
     }
 
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
@@ -294,6 +428,8 @@ class NatsConnection implements Connection {
             } else {
                 waitForIt.get();
             }
+
+            this.statistics.incrementFlushCounter();
         } catch (ExecutionException e) {
             throw new TimeoutException(e.getMessage());
         }
@@ -330,7 +466,7 @@ class NatsConnection implements Connection {
     // Called by the reader
     void handlePong() {
         CompletableFuture<Boolean> pongFuture = pongQueue.pollFirst();
-        if (pongFuture!=null) {
+        if (pongFuture != null) {
             pongFuture.complete(Boolean.TRUE);
         }
     }
@@ -342,6 +478,31 @@ class NatsConnection implements Connection {
             this.serverInfo.set(serverInfo);
         } else {
             this.serverInfoFuture.complete(serverInfo); // Will set in connect thread
+        }
+    }
+
+    void deliverMessage(NatsMessage msg) {
+        NatsSubscription sub = null;
+
+        subscriberLock.lock();
+        try {
+            sub = subscribers.get(msg.getSID());
+        } finally {
+            subscriberLock.unlock();
+        }
+
+        if (sub != null) {
+            msg.setSubscription(sub);
+
+            NatsDispatcher d = sub.getDispatcher();
+            MessageQueue q = ((d == null) ? sub.getMessageQueue() : d.getMessageQueue());
+
+            if (q != null) {
+                q.push(msg);
+            }
+        } else {
+            // Drop messages we don't have a subscriber for (could be extras on an
+            // auto-unsub for example)
         }
     }
 
@@ -380,11 +541,11 @@ class NatsConnection implements Connection {
         ArrayList<String> servers = new ArrayList<String>();
 
         options.getServers().stream().forEach(x -> servers.add(x.toString()));
-        
+
         if (info != null) {
             servers.addAll(Arrays.asList(info.getConnectURLs()));
         }
-        
+
         return servers;
     }
 }

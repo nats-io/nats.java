@@ -2,6 +2,8 @@
 plugins {
     id 'java-library'
 }
+apply plugin: 'java'
+apply plugin: "jacoco"
 
 dependencies {
     api 'org.apache.commons:commons-math3:3.6.1'
@@ -21,8 +23,6 @@ jar {
                    'Implementation-Version': '0.1.0')
     }
 }
-
-apply plugin: 'java'
 
 sourceSets {
     main {
@@ -46,4 +46,12 @@ javadoc {
                 into "$buildDir/docs/javadoc"
             }
         }
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        csv.enabled false
+        html.enabled true
+    }
 }

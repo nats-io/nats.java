@@ -14,7 +14,7 @@
 package io.nats.client;
 
 public interface Message {
-    
+
 	public String getSubject();
 
 	public String getReplyTo();

@@ -31,6 +31,7 @@ class NatsConnectionReader implements Runnable {
     private ByteBuffer gatherer;
     private ByteBuffer protocolBuffer;
     private boolean protocolMode;
+
     private boolean gotCR;
     private Pattern space;
 
@@ -38,6 +39,9 @@ class NatsConnectionReader implements Runnable {
     private CompletableFuture<Boolean> stopped;
     private Future<SocketChannel> channelFuture;
     private final AtomicBoolean running;
+
+    private NatsMessage incoming;
+    private long incomingLength;
 
     NatsConnectionReader(NatsConnection connection) {
         this.connection = connection;
@@ -64,7 +68,8 @@ class NatsConnectionReader implements Runnable {
     }
 
     // May be called several times on an error.
-    // Returns a future that is completed when the thread completes, not when this method does.
+    // Returns a future that is completed when the thread completes, not when this
+    // method does.
     Future<Boolean> stop() {
         this.running.set(false);
         return stopped;
@@ -73,13 +78,12 @@ class NatsConnectionReader implements Runnable {
     public void run() {
         ByteBuffer buffer = ByteBuffer.allocate(NatsConnection.BUFFER_SIZE);
         try {
-            SocketChannel channel = this.channelFuture.get(); //Will wait for the future to complete
+            SocketChannel channel = this.channelFuture.get(); // Will wait for the future to complete
             this.protocolMode = true;
 
             while (this.running.get()) {
                 int read = channel.read(buffer);
                 if (read > 0) {
-
                     buffer.flip(); // Get ready to read
 
                     while (buffer.hasRemaining()) {
@@ -98,7 +102,7 @@ class NatsConnectionReader implements Runnable {
             }
         } catch (IOException io) {
             this.connection.handleCommunicationIssue(io);
-        } catch (CancellationException|ExecutionException|InterruptedException ex) {
+        } catch (CancellationException | ExecutionException | InterruptedException ex) {
             // Exit
         } finally {
             this.running.set(false);
@@ -110,68 +114,121 @@ class NatsConnectionReader implements Runnable {
             this.thread = null;
         }
     }
-    
+
     // Gather bytes for a protocol line
     void gatherProtocol(ByteBuffer bytes, int length) {
         // protocol buffer has max capacity, shouldn't need resizing
-        for (int i=0; i<length; i++) {
-            byte b = bytes.get();
-            protocolBuffer.put(b); // Always push, but wait for the end of the line
+        try {
+            for (int i = 0; i < length; i++) {
+                byte b = bytes.get();
 
-            if (gotCR) {
-                if (b == NatsConnection.LF) {
-                    protocolBuffer.flip();
-                    parseProtocolMessage();
-                    protocolBuffer.clear();
-                    gotCR = false;
-                    break;
+                if (gotCR) {
+                    if (b == NatsConnection.LF) {
+                        protocolBuffer.flip();
+                        parseProtocolMessage();
+                        protocolBuffer.clear();
+                        gotCR = false;
+                        break;
+                    } else {
+                        throw new IllegalStateException("Bad socket data, no LF after CR");
+                    }
+                } else if (b == NatsConnection.CR) {
+                    gotCR = true;
                 } else {
-                    //TODO(sasbury): This is a protocol error, what should we do - force reconnect
+                    protocolBuffer.put(b);
                 }
-            } else if (b == NatsConnection.CR) {
-                gotCR = true;
             }
+        } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
+            this.encounteredProtocolError(ex);
+        }
+    }
+
+    // Gather bytes for a message body
+    void gather(ByteBuffer bytes, int length) {
+        // TODO(sasbury): gatherer should be set up to the right capacity and limit
+        // limited by the info's max payload size
+        try {
+            for (int i = 0; i < length; i++) {
+                byte b = bytes.get();
+
+                if (incomingLength > 0) {
+                    gatherer.put(b);
+                    incomingLength--;
+                } else if (gotCR) {
+                    if (b == NatsConnection.LF) {
+                        gatherer.flip();
+                        byte[] data = new byte[gatherer.remaining()];
+                        gatherer.get(data);
+                        incoming.setData(data);
+                        this.connection.deliverMessage(incoming);
+                        gatherer.clear();
+                        incoming = null;
+                        incomingLength = 0;
+                        gotCR = false;
+                        protocolMode = true;
+                        break;
+                    } else {
+                        throw new IllegalStateException("Bad socket data, no LF after CR");
+                    }
+                } else if (b == NatsConnection.CR) {
+                    gotCR = true;
+                } else {
+                    throw new IllegalStateException("Bad socket data, no CRLF after data");
+                }
+            }
+        } catch (IllegalStateException | NullPointerException ex) {
+            this.encounteredProtocolError(ex);
         }
     }
 
     void parseProtocolMessage() {
         // TODO(sasbury): check performance with this code, and update if necessary
+        String protocolLine = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
 
-        String protocolLine =  StandardCharsets.UTF_8.decode(protocolBuffer).toString();
-        
         protocolLine = protocolLine.trim();
 
         String msg[] = space.split(protocolLine);
         String op = msg[0].toUpperCase();
 
         switch (op) {
-            case NatsConnection.OP_MSG:
-                break;
-            case NatsConnection.OP_OK:
-                break;
-            case NatsConnection.OP_ERR:
-                break;
-            case NatsConnection.OP_PING:
-                this.connection.sendPong();
-                break;
-            case NatsConnection.OP_PONG:
-                this.connection.handlePong();
-                break;
-            case NatsConnection.OP_INFO:
-                // Recreate the original string and parse it
-                this.connection.handleInfo(String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)));
-                break;
-            default:
-                // BAD OP
-        }
+        case NatsConnection.OP_MSG:
+            String subject = msg[1];
+            String sid = msg[2];
+            String replyTo = null;
+            String lengthString = null;
 
-        // put the reader in non-protocol mode when waiting for the message body, if we get that type of protocol message
-        // handle err and ok messages
+            if (msg.length == 5) {
+                replyTo = msg[3];
+                lengthString = msg[4];
+            } else {
+                lengthString = msg[3];
+            }
+
+            incoming = new NatsMessage(sid, subject, replyTo);
+            incomingLength = Long.parseLong(lengthString);
+            protocolMode = false;
+            break;
+        case NatsConnection.OP_OK:
+            break;
+        case NatsConnection.OP_ERR:
+            break;
+        case NatsConnection.OP_PING:
+            this.connection.sendPong();
+            break;
+        case NatsConnection.OP_PONG:
+            this.connection.handlePong();
+            break;
+        case NatsConnection.OP_INFO:
+            // Recreate the original string and parse it
+            this.connection.handleInfo(String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)));
+            break;
+        default:
+            // BAD OP
+            break;
+        }
     }
 
-    // Gather bytes for a message body
-    void gather(ByteBuffer bytes, int length) {
-        // gatherer should be set up to the right capacity and limit
-        // limited by the info's max payload size
+    void encounteredProtocolError(Exception ex) {
+        // TODO(sasbury): This is a protocol error, force reconnect
     }
 }

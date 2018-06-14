@@ -17,7 +17,8 @@ public interface MessageHandler {
     /**
      * Called to deliver a message to the handler.
      *
-     * @param msg - the received Message.
+     * @param msg
+     *                - the received Message.
      */
     void onMessage(Message msg);
 }

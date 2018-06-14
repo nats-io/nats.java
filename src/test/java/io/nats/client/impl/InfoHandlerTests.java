@@ -33,9 +33,9 @@ public class InfoHandlerTests {
         String customInfo = "{\"server_id\":\"myid\"}";
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
-            Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals("got custom info", "myid", ((NatsConnection)nc).getInfo().getServerId());
+            assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             assertTrue("Progress", Progress.SENT_PONG == ts.getProgress());
@@ -48,13 +48,13 @@ public class InfoHandlerTests {
         CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
         CompletableFuture<Boolean> sendInfo = new CompletableFuture<>();
 
-        NatsServerProtocolMock.Customizer infoCustomizer = (ts, r,w) -> {
-            
+        NatsServerProtocolMock.Customizer infoCustomizer = (ts, r, w) -> {
+
             // Wait for client to be ready.
             try {
                 sendInfo.get();
-            } catch(Exception e) {
-                //return, we will fail the test
+            } catch (Exception e) {
+                // return, we will fail the test
                 gotPong.cancel(true);
                 return;
             }
@@ -68,11 +68,11 @@ public class InfoHandlerTests {
             w.flush();
 
             String pong = "";
-            
+
             System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
             try {
                 pong = r.readLine();
-            } catch(Exception e) {
+            } catch (Exception e) {
                 gotPong.cancel(true);
                 return;
             }
@@ -87,13 +87,13 @@ public class InfoHandlerTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
-            Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals("got custom info", "myid", ((NatsConnection)nc).getInfo().getServerId());
+            assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
             sendInfo.complete(Boolean.TRUE);
-            
+
             assertTrue("Got pong.", gotPong.get().booleanValue()); // Server round tripped so we should have new info
-            assertEquals("got replacement info", "replacement", ((NatsConnection)nc).getInfo().getServerId());
+            assertEquals("got replacement info", "replacement", ((NatsConnection) nc).getInfo().getServerId());
 
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());

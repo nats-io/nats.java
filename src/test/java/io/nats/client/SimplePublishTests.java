@@ -27,9 +27,31 @@ import org.junit.Test;
 import io.nats.client.NatsServerProtocolMock.Progress;
 
 public class SimplePublishTests {
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testThrowsWithoutSubject() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:"+ts.getPort());
+            nc.publish(null, null);
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testThrowsWithoutReplyTo() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:"+ts.getPort());
+            nc.publish("subject", "", null);
+        }
+    }
+
     @Test
     public void testEmptyPublish() throws IOException, InterruptedException,ExecutionException {
         runSimplePublishTest("testsubemptybody", null, "");
+    }
+
+    @Test
+    public void testEmptyByDefaultPublish() throws IOException, InterruptedException,ExecutionException {
+        runSimplePublishTest("testsubemptybody", null, null);
     }
 
     @Test
@@ -70,11 +92,17 @@ public class SimplePublishTests {
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer)) {
             Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
-            byte[] bodyBytes = bodyString.getBytes(StandardCharsets.UTF_8);
+            byte[] bodyBytes = (bodyString != null) ? bodyString.getBytes(StandardCharsets.UTF_8) : null;
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             nc.publish(subject, replyTo, bodyBytes);
+
+            // This is used for the default test
+            if (bodyString == null) {
+                bodyBytes = new byte[0];
+                bodyString = "";
+            }
 
             assertTrue("Got pub.", gotPub.get().booleanValue()); //wait for receipt to close up
             nc.close();
@@ -88,6 +116,7 @@ public class SimplePublishTests {
                 expectedProtocol = "PUB "+subject+" "+replyTo+" "+bodyBytes.length;
             }
             assertEquals("Protocol matches", expectedProtocol, protocol.get());
+
             assertEquals("Body matches", bodyString, body.get());
         }
     }

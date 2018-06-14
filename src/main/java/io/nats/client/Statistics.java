@@ -18,4 +18,6 @@ package io.nats.client;
 public interface Statistics {
 
     public String buildHumanFriendlyString();
+
+    public long getFlushCounter();
 }

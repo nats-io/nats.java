@@ -15,10 +15,8 @@ package io.nats.client;
 
 public interface ConnectionHandler {
     public enum Events {
-        CONNECTION_CLOSED     ("nats: connection closed"),
-        DISCONNECTED          ("nats: connection disconnected"),
-        RECONNECTED           ("nats: connection reconnected"),
-        DISCOVERED_SERVERS    ("nats: discovered servers");
+        CONNECTION_CLOSED("nats: connection closed"), DISCONNECTED("nats: connection disconnected"), RECONNECTED(
+                "nats: connection reconnected"), DISCOVERED_SERVERS("nats: discovered servers");
 
         private String event;
 
@@ -32,11 +30,14 @@ public interface ConnectionHandler {
     }
 
     /**
-     * Connection related events that occur asynchronously in the client code are sent to a
-     * ConnectionHandler via a single method.
-     * The ConnectionHandler can use the event type to decide what to do about the problem.
-     * @param conn The connection associated with the error
-     * @param type The type of event that has occured
+     * Connection related events that occur asynchronously in the client code are
+     * sent to a ConnectionHandler via a single method. The ConnectionHandler can
+     * use the event type to decide what to do about the problem.
+     * 
+     * @param conn
+     *                 The connection associated with the error
+     * @param type
+     *                 The type of event that has occured
      */
     public void connectionEvent(Connection conn, Events type);
 }

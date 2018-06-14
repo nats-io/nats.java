@@ -25,14 +25,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class NatsConnectionWriter implements Runnable {
-    
+
     private final NatsConnection connection;
 
     private Thread thread;
     private CompletableFuture<Boolean> stopped;
     private Future<SocketChannel> channelFuture;
     private final AtomicBoolean running;
-    
+
     private ByteBuffer sendBuffer;
 
     private MessageQueue outgoing;
@@ -61,26 +61,30 @@ class NatsConnectionWriter implements Runnable {
     }
 
     // May be called several times on an error.
-    // Returns a future that is completed when the thread completes, not when this method does.
+    // Returns a future that is completed when the thread completes, not when this
+    // method does.
     Future<Boolean> stop() {
-        // TODO(sasbury): Writer should clear pings when closed
+        // TODO(sasbury): Writer should clear old pings when closed
         this.running.set(false);
         this.outgoing.interrupt();
         return stopped;
     }
 
-    // TODO(sasbury): Handle issue with fast writer that never releases the lock (look at MessageQUeue fair lock, that may be enough, may be perf hit)
+    // TODO(sasbury): Do we need to do more to the Handle issue with fast writer
+    // that never releases the lock (look at MessageQUeue fair lock, that may be
+    // enough, but is a big perf hit)
     public void run() {
         Duration waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
         Duration waitForAccumulate = null;
         long maxMessages = 1000;
 
         try {
-            SocketChannel channel = this.channelFuture.get(); //Will wait for the future to complete
+            SocketChannel channel = this.channelFuture.get(); // Will wait for the future to complete
             this.outgoing.reset();
-            
+
             while (this.running.get()) {
-                NatsMessage msg = this.outgoing.accumulate(NatsConnection.BUFFER_SIZE, maxMessages, waitForAccumulate, waitForMessage);
+                NatsMessage msg = this.outgoing.accumulate(NatsConnection.BUFFER_SIZE, maxMessages, waitForAccumulate,
+                        waitForMessage);
 
                 if (msg == null) {
                     continue;
@@ -104,14 +108,13 @@ class NatsConnectionWriter implements Runnable {
                 }
                 connection.getNatsStatistics().registerAccumulate(ma);
 
-
-                //Write to the socket
+                // Write to the socket
                 sendBuffer.flip();
                 channel.write(sendBuffer);
             }
-        } catch (IOException|BufferOverflowException io) {
+        } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);
-        } catch (CancellationException|ExecutionException|InterruptedException ex) {
+        } catch (CancellationException | ExecutionException | InterruptedException ex) {
             // Exit
         } finally {
             this.running.set(false);

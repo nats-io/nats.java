@@ -17,15 +17,23 @@ import io.nats.client.Statistics;
 
 import java.text.NumberFormat;
 import java.util.LongSummaryStatistics;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
-class NatsStatistics  implements Statistics {
+class NatsStatistics implements Statistics {
     private ReentrantLock lock;
     private LongSummaryStatistics accumulateStats;
+
+    private AtomicLong flushCounter;
 
     public NatsStatistics() {
         this.lock = new ReentrantLock();
         this.accumulateStats = new LongSummaryStatistics();
+        this.flushCounter = new AtomicLong();
+    }
+
+    void incrementFlushCounter() {
+        this.flushCounter.incrementAndGet();
     }
 
     void registerAccumulate(long msgCount) {
@@ -37,11 +45,19 @@ class NatsStatistics  implements Statistics {
         }
     }
 
+    public long getFlushCounter() {
+        return flushCounter.get();
+    }
+
     public String buildHumanFriendlyString() {
         StringBuilder builder = new StringBuilder();
 
         lock.lock();
         try {
+            builder.append("### Connection ###\n");
+            builder.append("Successful Flush Calls:          ");
+            builder.append(this.flushCounter.get());
+            builder.append("\n");
             builder.append("### Publisher ###\n");
             builder.append("Accumulation Calls:              ");
             builder.append(String.valueOf(accumulateStats.getCount()));

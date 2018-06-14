@@ -46,8 +46,8 @@ public class Nats {
 
     /**
      * 
-     * Options can be used to set the server URL, or multiple URLS,
-     * callback handlers for various errors, and connection events.
+     * Options can be used to set the server URL, or multiple URLS, callback
+     * handlers for various errors, and connection events.
      */
     public static Connection connect(Options options) throws IOException, InterruptedException {
         return createConnection(options);

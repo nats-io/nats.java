@@ -541,4 +541,43 @@ public class MessageQueueTests {
 
         t.join();
     }
+    
+    @Test
+    public void testLength() throws InterruptedException {
+        MessageQueue q = new MessageQueue();
+        NatsMessage msg1 = new NatsMessage("one");
+        NatsMessage msg2 = new NatsMessage("two");
+        NatsMessage msg3 = new NatsMessage("three");
+
+        q.push(msg1);
+        assertEquals(1, q.length());
+        q.push(msg2);
+        assertEquals(2, q.length());
+        q.push(msg3);
+        assertEquals(3, q.length());
+        q.popNow();
+        assertEquals(2, q.length());
+        q.accumulate(100,100, null, null);
+        assertEquals(0, q.length());
+    }
+    
+    @Test
+    public void testSizeInBytes() throws InterruptedException {
+        MessageQueue q = new MessageQueue();
+        NatsMessage msg1 = new NatsMessage("one");
+        NatsMessage msg2 = new NatsMessage("two");
+        NatsMessage msg3 = new NatsMessage("three");
+        long expected = 0;
+
+        q.push(msg1);    expected += msg1.getSize();
+        assertEquals(expected, q.sizeInBytes());
+        q.push(msg2);    expected += msg2.getSize();
+        assertEquals(expected, q.sizeInBytes());
+        q.push(msg3);    expected += msg3.getSize();
+        assertEquals(expected, q.sizeInBytes());
+        q.popNow();      expected -= msg1.getSize();
+        assertEquals(expected, q.sizeInBytes());
+        q.accumulate(100,100, null, null); expected = 0;
+        assertEquals(expected, q.sizeInBytes());
+    }
 }

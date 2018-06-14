@@ -20,26 +20,25 @@ import io.nats.client.Subscription;
 
 class NatsMessage implements Message {
 
+    // TODO(sasbury): Can we slim this down
+    private String sid;
     private String subject;
     private String replyTo;
     private byte[] data;
-    private Subscription subscription;
     private byte[] protocolBytes;
-    
+    private NatsSubscription subscription;
+
     long size;
     NatsMessage next; // for linked list
     NatsMessage prev; // for linked list
 
+    // Create a message to publish
     NatsMessage(String subject, String replyTo, byte[] data) {
-        this(null, subject, replyTo, data);
-    }
-
-    NatsMessage(Subscription subscription, String subject, String replyTo, byte[] data) {
+        // TODO(sasbury): Check performance
         StringBuilder protocolStringBuilder = new StringBuilder();
         this.subject = subject;
         this.replyTo = replyTo;
         this.data = data;
-        this.subscription = subscription;
 
         protocolStringBuilder.append("PUB");
         protocolStringBuilder.append(" ");
@@ -54,15 +53,24 @@ class NatsMessage implements Message {
         protocolStringBuilder.append(String.valueOf(data.length));
 
         this.protocolBytes = protocolStringBuilder.toString().getBytes(StandardCharsets.UTF_8);
-        
-        this.size = this.protocolBytes.length + data.length + 4;//for 2x \r\n
+
+        this.size = this.protocolBytes.length + data.length + 4;// for 2x \r\n
 
         // TODO(sasbury): handle invalid protocol strings (too long)
     }
 
+    // Create a protocol only message to publish
     NatsMessage(String protocol) {
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
-        this.size = this.protocolBytes.length + 2;//for \r\n
+        this.size = this.protocolBytes.length + 2;// for \r\n
+    }
+
+    // Create an incoming message for a subscriber
+    NatsMessage(String sid, String subject, String replyTo) {
+        this.sid = sid;
+        this.subject = subject;
+        this.replyTo = replyTo;
+        this.data = null; // will set after we read it
     }
 
     boolean isProtocol() {
@@ -77,23 +85,35 @@ class NatsMessage implements Message {
         return size;
     }
 
-	public String getSubject()
-	{
-		return this.subject;
-	}
+    String getSID() {
+        return this.sid;
+    }
 
-	public String getReplyTo()
-	{
-		return this.replyTo;
-	}
+    public String getSubject() {
+        return this.subject;
+    }
 
-	public byte[] getData()
-	{
-		return this.data;
-	}
+    public String getReplyTo() {
+        return this.replyTo;
+    }
 
-	public Subscription getSubscription()
-	{
-		return this.subscription;
-	}
+    void setData(byte[] data) {
+        this.data = data;
+    }
+
+    public byte[] getData() {
+        return this.data;
+    }
+
+    void setSubscription(NatsSubscription sub) {
+        this.subscription = sub;
+    }
+
+    public Subscription getSubscription() {
+        return this.subscription;
+    }
+
+    NatsSubscription getNatsSubscription() {
+        return this.subscription;
+    }
 }
