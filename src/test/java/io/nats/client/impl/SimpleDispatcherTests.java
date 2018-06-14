@@ -350,4 +350,118 @@ public class SimpleDispatcherTests {
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
+
+    @Test
+    public void testDispatchHandlesExceptionInHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            int msgCount = 100;
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                if (msg.getSubject().equals("done")) {
+                    done.complete(Boolean.TRUE);
+                } else {
+                    q.add(msg);
+                    throw new NumberFormatException();
+                }
+            });
+
+            d.subscribe("subject");
+            d.subscribe("done");
+
+            for (int i = 0; i < msgCount; i++) {
+                nc.publish("subject", new byte[16]);
+            }
+            nc.publish("done", new byte[16]);
+
+            nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+            done.get(200, TimeUnit.MILLISECONDS);
+            
+            assertEquals(msgCount, q.size());
+
+            nc.close();
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullSubject() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+
+            d.subscribe(null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubject() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+
+            d.subscribe("");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullQueue() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+
+            d.subscribe("subject", null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptyQueue() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+
+            d.subscribe("subject", "");
+            assertFalse(true);
+        }
+    }
+
+    @Test
+    public void testDoubleSubscribe() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            int msgCount = 100;
+            Connection nc = Nats.connect("nats://localhost:" + ts.getPort());
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                if (msg.getSubject().equals("done")) {
+                    done.complete(Boolean.TRUE);
+                } else {
+                    q.add(msg);
+                }
+            });
+
+            d.subscribe("subject").subscribe("subject").subscribe("subject").subscribe("done");
+
+            for (int i = 0; i < msgCount; i++) {
+                nc.publish("subject", new byte[16]);
+            }
+            nc.publish("done", new byte[16]);
+
+            nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+            done.get(200, TimeUnit.MILLISECONDS);
+            
+            assertEquals(msgCount, q.size()); // Shoudl only get one since all the extra subs do nothingß
+
+            nc.close();
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+        }
+    }
 }
