@@ -577,6 +577,16 @@ public class Options {
         }
 
         /**
+         * Set the SSL context to the {@link Options#DEFAULT_SSL_PROTOCOL default one}.
+         * 
+         * @throws NoSuchAlgorithmException If the default protocol is unavailable.
+         */
+        public Builder secure() throws NoSuchAlgorithmException {
+            this.sslContext = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
+            return this;
+        }
+
+        /**
          * Set the SSL context, requires that the server supports TLS connections and
          * the URI specifies TLS.
          */
@@ -590,6 +600,14 @@ public class Options {
          */
         public Builder tlsDebug() {
             this.tlsDebug = true;
+            return this;
+        }
+
+        /**
+         * Equivalent to calling maxReconnects with 0.
+         */
+        public Builder noReconnect() {
+            this.maxReconnect = 0;
             return this;
         }
 

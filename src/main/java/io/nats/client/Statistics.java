@@ -19,6 +19,9 @@ public interface Statistics {
 
     public String buildHumanFriendlyString();
 
-    public long getFlushCounter();
-    public long getOutstandingRequests();
+    public long getInMsgs();
+    public long getOutMsgs();
+
+    public long getInBytes();
+    public long getOutBytes();
 }

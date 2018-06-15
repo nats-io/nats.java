@@ -28,6 +28,10 @@ class NatsStatistics implements Statistics {
     private AtomicLong outstandingRequests;
     private AtomicLong requestsSent;
     private AtomicLong repliesReceived;
+    private AtomicLong inMsgs;
+    private AtomicLong outMsgs;
+    private AtomicLong inBytes;
+    private AtomicLong outBytes;
 
     public NatsStatistics() {
         this.lock = new ReentrantLock();
@@ -36,6 +40,10 @@ class NatsStatistics implements Statistics {
         this.outstandingRequests = new AtomicLong();
         this.requestsSent = new AtomicLong();
         this.repliesReceived = new AtomicLong();
+        this.inMsgs = new AtomicLong();
+        this.outMsgs = new AtomicLong();
+        this.inBytes = new AtomicLong();
+        this.outBytes = new AtomicLong();
     }
 
     void incrementRequestsSent() {
@@ -44,6 +52,22 @@ class NatsStatistics implements Statistics {
 
     void incrementRepliesReceived() {
         this.repliesReceived.incrementAndGet();
+    }
+
+    void incrementInMsgs() {
+        this.inMsgs.incrementAndGet();
+    }
+
+    void incrementOutMsgs() {
+        this.outMsgs.incrementAndGet();
+    }
+
+    void incrementInBytes(long bytes) {
+        this.inBytes.addAndGet(bytes);
+    }
+
+    void incrementOutBytes(long bytes) {
+        this.outBytes.addAndGet(bytes);
     }
 
     void incrementFlushCounter() {
@@ -65,6 +89,22 @@ class NatsStatistics implements Statistics {
         } finally {
             lock.unlock();
         }
+    }
+
+    public long getInMsgs() {
+        return this.inMsgs.get();
+    }
+
+    public long getOutMsgs() {
+        return this.outMsgs.get();
+    }
+
+    public long getInBytes() {
+        return this.inBytes.get();
+    }
+
+    public long getOutBytes() {
+        return this.outBytes.get();
     }
 
     public long getFlushCounter() {
@@ -95,8 +135,20 @@ class NatsStatistics implements Statistics {
             builder.append("\n");
             builder.append("\n");
             builder.append("### Reader ###\n");
+            builder.append("Messages in:     ");
+            builder.append(this.inMsgs.get());
+            builder.append("\n");
+            builder.append("Bytes in:     ");
+            builder.append(this.inBytes.get());
+            builder.append("\n");
             builder.append("\n");
             builder.append("### Writer ###\n");
+            builder.append("Messages out:     ");
+            builder.append(this.outMsgs.get());
+            builder.append("\n");
+            builder.append("Bytes out:     ");
+            builder.append(this.outBytes.get());
+            builder.append("\n");
             builder.append("Accumulation Calls:              ");
             builder.append(String.valueOf(accumulateStats.getCount()));
             builder.append("\n");

@@ -18,7 +18,7 @@ import java.util.Collection;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
-public interface Connection {
+public interface Connection extends AutoCloseable {
 
     public enum Status {
         /**

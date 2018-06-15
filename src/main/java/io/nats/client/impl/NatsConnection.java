@@ -328,8 +328,10 @@ class NatsConnection implements Connection {
         if (body == null) {
             body = EMPTY_BODY;
         }
-
+        
         NatsMessage msg = new NatsMessage(subject, replyTo, body);
+        this.statistics.incrementOutMsgs();
+        this.statistics.incrementOutBytes(msg.getSize());
         this.writer.queue(msg);
     }
 
@@ -515,7 +517,7 @@ class NatsConnection implements Connection {
             this.inboxDispatcher.subscribe(responseInbox).unsubscribe(responseInbox,1);
         }
         
-        publish(subject, responseInbox, data);
+        this.publish(subject, responseInbox, data);
         statistics.incrementRequestsSent();
 
         return future;
@@ -623,6 +625,9 @@ class NatsConnection implements Connection {
 
     void deliverMessage(NatsMessage msg) {
         NatsSubscription sub = null;
+
+        this.statistics.incrementInMsgs();
+        this.statistics.incrementInBytes(msg.getSize());
 
         subscriberLock.lock();
         try {

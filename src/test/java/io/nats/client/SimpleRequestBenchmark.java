@@ -104,13 +104,13 @@ public class SimpleRequestBenchmark {
             handlerC.close();
 
             long totalMessages = threads * msgsPerThread;
-            System.out.printf("\n### Total time to perform %s operations was %s ms, %f ns/op\n",
+            System.out.printf("\n### Total time to perform %s request-replies was %s ms, %f ns/op\n",
                     NumberFormat.getInstance().format(totalMessages),
                     NumberFormat.getInstance().format((end - start) / 1_000_000L),
                     ((double) (end - start)) / ((double) (totalMessages)));
             System.out.printf("### This is equivalent to %s request-replies/sec.\n",
                     NumberFormat.getInstance().format(1_000_000_000L * totalMessages / (end - start)));
-            System.out.printf("### Each operation consists of a request/reply of a msg of size %s.\n",
+            System.out.printf("### Messages were of size %s.\n",
                     NumberFormat.getInstance().format(messageSize));
             System.out.printf("### %s thread(s) were used. A single dispatcher handles all messages.\n",
                     NumberFormat.getInstance().format(threads));

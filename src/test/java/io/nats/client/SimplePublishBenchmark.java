@@ -20,8 +20,8 @@ import java.util.concurrent.CountDownLatch;
 
 public class SimplePublishBenchmark {
     public static void main(String args[]) throws InterruptedException {
-        int threads = 4;
-        int msgsPerThrad = 1_000_000;
+        int threads = 6;
+        int msgsPerThrad = 10_000_000;
         int messageSize = 128;
         CountDownLatch latch = new CountDownLatch(threads);
         CompletableFuture<Boolean> starter = new CompletableFuture<>();

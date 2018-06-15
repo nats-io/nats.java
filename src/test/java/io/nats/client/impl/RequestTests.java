@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -34,6 +34,7 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
 
 public class RequestTests {
     @Test
@@ -50,7 +51,7 @@ public class RequestTests {
             Future<Message> incoming = nc.request("subject", null);
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, nc.getStatistics().getOutstandingRequests());
+            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -78,7 +79,7 @@ public class RequestTests {
             }
 
             assertNull(msg);
-            assertEquals(1, nc.getStatistics().getOutstandingRequests());
+            assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
 
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -95,7 +96,7 @@ public class RequestTests {
             Future<Message> incoming = nc.request("subject", null);
             incoming.cancel(true);
 
-            assertEquals(1, nc.getStatistics().getOutstandingRequests());
+            assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
 
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -118,7 +119,7 @@ public class RequestTests {
             incoming.cancel(true);
 
             Thread.sleep(2 * cleanupInterval);
-            assertEquals(0, nc.getStatistics().getOutstandingRequests());
+            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
 
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -153,7 +154,7 @@ public class RequestTests {
             }
 
             assertTrue((end-start) > 2 * cleanupInterval * 1_000_000);
-            assertEquals(0, nc.getStatistics().getOutstandingRequests());
+            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
 
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -184,7 +185,7 @@ public class RequestTests {
                     assertEquals(1, msg.getData().length);
                 }
     
-                assertEquals(0, nc.getStatistics().getOutstandingRequests());
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
     
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -206,7 +207,7 @@ public class RequestTests {
             Future<Message> incoming = nc.request("subject", null);
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, nc.getStatistics().getOutstandingRequests());
+            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') == msg.getSubject().lastIndexOf('.'));

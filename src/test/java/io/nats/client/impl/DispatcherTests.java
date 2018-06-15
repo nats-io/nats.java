@@ -264,7 +264,7 @@ public class DispatcherTests {
             Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
 
-            assertEquals(1, nc.getStatistics().getFlushCounter());
+            assertEquals(1, ((NatsStatistics)(nc.getStatistics())).getFlushCounter());
 
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());

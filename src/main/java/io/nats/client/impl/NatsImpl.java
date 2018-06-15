@@ -17,6 +17,7 @@ import java.io.IOException;
 
 import io.nats.client.Connection;
 import io.nats.client.Options;
+import io.nats.client.Statistics;
 
 /**
  * Adapter to impl package to minimize access leakage.
@@ -26,5 +27,9 @@ public class NatsImpl {
         NatsConnection conn = new NatsConnection(options);
         conn.connect();
         return conn;
+    }
+
+    public static Statistics createEmptyStats() {
+        return new NatsStatistics();
     }
 }
