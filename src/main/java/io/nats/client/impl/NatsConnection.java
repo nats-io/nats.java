@@ -514,6 +514,10 @@ class NatsConnection implements Connection {
     }
 
     void unsubscribe(NatsSubscription sub, int after) {
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        }
+        
         if (after <= 0) {
             this.invalidate(sub); // Will clean it up
         } else {

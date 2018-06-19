@@ -39,6 +39,16 @@ import io.nats.client.Options;
 
 public class RequestTests {
     
+    @Test(expected = IllegalStateException.class)
+    public void throwsIfClosed() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            nc.close();
+            nc.request("subject", null);
+            assertFalse(true);
+        }
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void testThrowsWithoutSubject() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);

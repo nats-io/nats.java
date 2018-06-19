@@ -445,6 +445,33 @@ public class DispatcherTests {
     }
 
     @Test
+    public void testCloseFromCallback()
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            final Connection nc = Nats.connect(ts.getURI());
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            final Dispatcher d = nc.createDispatcher((msg) -> {
+                if (msg.getSubject().equals("done")) {
+                    nc.close();
+                    done.complete(Boolean.TRUE);
+                }
+            });
+
+            d.subscribe("done");
+            nc.publish("done", new byte[16]); // when we get this we know the others are dispatched
+            nc.flush(Duration.ofMillis(1000)); // Wait for the publish
+
+            done.get(200, TimeUnit.MILLISECONDS); // make sure we got them
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+
+            nc.close();
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+        }
+    }
+
+    @Test
     public void testDispatchHandlesExceptionInHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
@@ -537,6 +564,17 @@ public class DispatcherTests {
                     Connection nc = Nats.connect(ts.getURI())) {
             Dispatcher d = nc.createDispatcher((msg) -> {});
             d.subscribe("", "quque");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void throwsOnSubscribeIfClosed() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            nc.close();
+            d.subscribe("subject");
             assertFalse(true);
         }
     }

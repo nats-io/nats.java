@@ -319,4 +319,36 @@ public class SubscriberTests {
             assertFalse(true);
         }
     }
+
+    @Test(expected = IllegalStateException.class)
+    public void throwsOnSubscribeIfClosed() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            nc.close();
+            nc.subscribe("subject");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void throwsOnUnsubscribeIfClosed() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Subscription sub = nc.subscribe("subject");
+            nc.close();
+            sub.unsubscribe();
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void throwsOnAutoUnsubscribeIfClosed() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Subscription sub = nc.subscribe("subject");
+            nc.close();
+            sub.unsubscribe(1);
+            assertFalse(true);
+        }
+    }
 }

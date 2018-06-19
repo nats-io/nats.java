@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Test;
@@ -28,6 +29,25 @@ import org.junit.Test;
 import io.nats.client.NatsServerProtocolMock.Progress;
 
 public class PublishTests {
+    @Test(expected = IllegalStateException.class)
+    public void throwsIfClosedOnPublish() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            nc.close();
+            nc.publish("subject", "queue", null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void throwsIfClosedOnFlush() throws IOException, TimeoutException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            nc.close();
+            nc.flush(null);
+            assertFalse(true);
+        }
+    }
 
     @Test(expected = IllegalArgumentException.class)
     public void testThrowsWithoutSubject() throws IOException, InterruptedException {
