@@ -20,10 +20,7 @@ import io.nats.client.*;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,18 +28,25 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A utility class for measuring NATS performance.
  */
 public class NatsBench {
+    public enum TestType {
+        SYNC,
+        ASYNC,
+        RR,
+        OLD_RR
+    }
 
     final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();
 
@@ -54,27 +58,27 @@ public class NatsBench {
 
     private String urls = Options.DEFAULT_URL;
     private String subject;
-    private final AtomicInteger sent = new AtomicInteger();
-    private final AtomicInteger received = new AtomicInteger();
-    private String csvFileName;
+    private final AtomicLong sent = new AtomicLong();
+    private final AtomicLong received = new AtomicLong();
+    private final AtomicLong replies = new AtomicLong();
+    private boolean csv = false;
 
-    Options opts = null;
     private Thread shutdownHook;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
-    private boolean secure;
+    private boolean secure = false;
     private Benchmark bench;
 
     static final String usageString =
             "\nUsage: java NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
                     + "[-csv file] <subject>\n\nOptions:\n"
                     + "    -s   <urls>                    The nats server URLs (comma-separated)\n"
-                    + "    -tls                            Use TLS secure connection\n"
-                    + "    -np                             Number of concurrent publishers\n"
-                    + "    -ns                             Number of concurrent subscribers\n"
-                    + "    -n                              Number of messages to publish\n"
-                    + "    -ms                             Size of the message\n"
-                    + "    -csv                            Save bench data to csv file\n";
+                    + "    -tls                            Use TLS secure connection (false)\n"
+                    + "    -np                             Number of concurrent publishers (1)\n"
+                    + "    -ns                             Number of concurrent subscribers (0)\n"
+                    + "    -n                              Number of messages to publish (100,000)\n"
+                    + "    -ms                             Size of the message (128)\n"
+                    + "    -csv                            Print results to stdout as csv (false)\n";
 
     /**
      * Main constructor for NatsBench.
@@ -87,13 +91,6 @@ public class NatsBench {
             return;
         }
         parseArgs(args);
-
-        String[] servers = urls.split(",");
-        if (secure) {
-            opts = new Options.Builder().servers(servers).secure().noReconnect().build();
-        } else {
-            opts = new Options.Builder().servers(servers).noReconnect().build();
-        }
     }
 
     /**
@@ -101,7 +98,7 @@ public class NatsBench {
      *
      * @param properties configuration properties
      */
-    public NatsBench(Properties properties) {
+    public NatsBench(Properties properties) throws NoSuchAlgorithmException {
         urls = properties.getProperty("bench.nats.servers", urls);
         secure = Boolean.parseBoolean(
                 properties.getProperty("bench.nats.secure", Boolean.toString(secure)));
@@ -113,19 +110,41 @@ public class NatsBench {
                 .parseInt(properties.getProperty("bench.nats.pubs", Integer.toString(numPubs)));
         numSubs = Integer
                 .parseInt(properties.getProperty("bench.nats.subs", Integer.toString(numSubs)));
-        csvFileName = properties.getProperty("bench.nats.csv.filename", null);
+        csv = Boolean.parseBoolean(
+            properties.getProperty("bench.nats.csv", Boolean.toString(csv)));
         subject = properties.getProperty("bench.nats.subject", NUID.nextGlobal());
     }
 
-    class Worker implements Runnable {
-        final Phaser phaser;
-        final int num;
-        final int size;
+    Options prepareOptions(boolean secure, boolean oldStyleRequest) throws NoSuchAlgorithmException {
+        String[] servers = urls.split(",");
+        Options.Builder builder = new Options.Builder();
+        builder.noReconnect();
+        builder.servers(servers);
 
-        Worker(Phaser phaser, int numMsgs, int size) {
-            this.phaser = phaser;
-            this.num = numMsgs;
+        if (secure) {
+            builder.secure();
+        }
+
+        if(oldStyleRequest) {
+            builder.oldRequestStyle();
+        }
+
+        return builder.build();
+    }
+
+    class Worker implements Runnable {
+        final Future<Boolean> starter;
+        final Phaser finisher;
+        final int numMsgs;
+        final int size;
+        final boolean secure;
+
+        Worker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
+            this.starter = starter;
+            this.finisher = finisher;
+            this.numMsgs = numMsgs;
             this.size = size;
+            this.secure = secure;
         }
 
         @Override
@@ -133,108 +152,253 @@ public class NatsBench {
         }
     }
 
-    class SubWorker extends Worker {
+    class DispatchWorker extends Worker {
         private int count = 0;
 
-        SubWorker(Phaser phaser, int numMsgs, int size) {
-            super(phaser, numMsgs, size);
+        DispatchWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
+            super(starter, finisher, numMsgs, size, secure);
         }
 
         @Override
         public void run() {
             try {
-                runSubscriber();
-            } catch (Exception e) {
-                errorQueue.add(e);
-                phaser.arrive();
-            }
-        }
+                Options opts = prepareOptions(this.secure, false);
+                Connection nc = Nats.connect(opts);
+                nc.setConnectionHandler(new ConnectionHandler() {
+                    public void connectionEvent(Connection conn, Events type) {
+                        System.err.printf("Subscriber connection event %s", type);
+                    }
+                });
 
-        public void runSubscriber() throws Exception {
-            final Connection nc = Nats.connect(opts);
-            /* TODO(sasbury): Update to the new API
-            nc.setDisconnectedCallback(new DisconnectedCallback() {
-                @Override
-                public void onDisconnect(ConnectionEvent ev) {
-                    System.err.printf("Subscriber disconnected after %d msgs\n", count);
-                }
-            });
-            nc.setClosedCallback(new ClosedCallback() {
-                @Override
-                public void onClose(ConnectionEvent ev) {
-                    System.err.printf("Subscriber connection closed after %d msgs\n", count);
-                }
-            });
-            nc.setExceptionHandler(new ExceptionHandler() {
-                @Override
-                public void onException(NATSException ex) {
-                    System.err.println("Subscriber connection exception: " + ex);
-                    AsyncSubscription sub = (AsyncSubscription) ex.getSubscription();
-                    System.err.printf("Received=%d\n", count);
-                    System.err.printf("Messages dropped (total) = %d\n", sub.getDropped());
-                    System.exit(-1);
-                }
-            });*/
+                nc.setErrorHandler(new ErrorHandler() {
+                    @Override
+                    public void errorOccurred(Connection conn, Subscription sub, Errors type) {
+                        System.err.println("Subscriber connection error: " + type);
+                        System.err.printf("Received=%d\n", count);
+                        // TODO(sasbury): System.err.printf("Messages dropped (total) = %d\n", sub.getDropped());
+                        System.exit(-1);
+                    }
+                });
 
-            final CountDownLatch latch = new CountDownLatch(1);
-            final long start = System.nanoTime();
-            Dispatcher d = nc.createDispatcher(new MessageHandler() {
-                @Override
-                public void onMessage(Message msg) {
-                    received.incrementAndGet();
-                    if (++count >= num) {
-                        bench.addSubSample(new Sample(num, size, start, System.nanoTime(), nc.getStatistics()));
-                        phaser.arrive();
-                        // TODO(sasbury) nc.setDisconnectedCallback(null);
-                        // nc.setClosedCallback(null);
+                final CountDownLatch latch = new CountDownLatch(numMsgs);
+                final Dispatcher d = nc.createDispatcher(new MessageHandler() {
+                    @Override
+                    public void onMessage(Message msg) {
+                        received.incrementAndGet();
                         latch.countDown();
                     }
+                });
+
+                d.subscribe(subject);
+                nc.flush(null);
+
+                // Signal we are ready
+                finisher.arrive();
+
+                // Wait for the signal to start tracking time
+                starter.get(5000, TimeUnit.MICROSECONDS);
+
+                final long start = System.nanoTime();
+                latch.await();
+                bench.addSubSample(new Sample(numMsgs, size, start, System.nanoTime(), nc.getStatistics()));
+
+                // Clean up
+                d.unsubscribe(subject);
+                nc.setConnectionHandler(null);
+                nc.close();
+            } catch (Exception e) {
+                errorQueue.add(e);
+            } finally {
+                finisher.arrive();
+            }
+        }
+    }
+
+    class SyncSubWorker extends Worker {
+        private int count = 0;
+
+        SyncSubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
+            super(starter, finisher, numMsgs, size, secure);
+        }
+
+        @Override
+        public void run() {
+            try {
+                Options opts = prepareOptions(this.secure, false);
+                Connection nc = Nats.connect(opts);
+                nc.setConnectionHandler(new ConnectionHandler() {
+                    public void connectionEvent(Connection conn, Events type) {
+                        System.err.printf("Subscriber connection event %s", type);
+                    }
+                });
+
+                nc.setErrorHandler(new ErrorHandler() {
+                    @Override
+                    public void errorOccurred(Connection conn, Subscription sub, Errors type) {
+                        System.err.println("Subscriber connection error: " + type);
+                        System.err.printf("Received=%d\n", count);
+                        System.exit(-1);
+                    }
+                });
+
+                Subscription sub = nc.subscribe(subject);
+                nc.flush(null);
+
+                // Signal we are ready
+                finisher.arrive();
+
+                // Wait for the signal to start tracking time
+                starter.get(5000, TimeUnit.MICROSECONDS);
+
+                Duration timeout = Duration.ofMillis(500);
+
+                final long start = System.nanoTime();
+
+                for (int i=0;i<numMsgs;i++) {
+                    sub.nextMessage(timeout);
+                    received.incrementAndGet();
                 }
-            });
-            d.subscribe(subject);
-            // TODO(sasbury) sub.setPendingLimits(-1, -1);
-            nc.flush(null);
-            phaser.arrive();
-            latch.await();
-            nc.close();
+
+                bench.addSubSample(new Sample(numMsgs, size, start, System.nanoTime(), nc.getStatistics()));
+
+                // Clean up
+                sub.unsubscribe();
+                nc.setConnectionHandler(null);
+                nc.close();
+            } catch (Exception e) {
+                errorQueue.add(e);
+            } finally {
+                finisher.arrive();
+            }
         }
     }
 
     class PubWorker extends Worker {
-        PubWorker(Phaser phaser, int numMsgs, int size) {
-            super(phaser, numMsgs, size);
+        PubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
+            super(starter, finisher, numMsgs, size, secure);
         }
 
         @Override
         public void run() {
             try {
-                runPublisher();
-            } catch (Exception e) {
-                errorQueue.add(e);
-            } finally {
-                phaser.arrive();
-            }
-        }
-
-        public void runPublisher() throws Exception {
-            try (Connection nc = Nats.connect(opts)) {
+                Options opts = prepareOptions(this.secure, false);
+                Connection nc = Nats.connect(opts);
                 byte[] payload = null;
                 if (size > 0) {
                     payload = new byte[size];
                 }
 
-                final long start = System.nanoTime();
-
-                for (int i = 0; i < num; i++) {
+                 // Wait for the signal
+                starter.get(5000, TimeUnit.MICROSECONDS);
+                long start = System.nanoTime();
+                for (int i = 0; i < numMsgs; i++) {
                     sent.incrementAndGet();
                     nc.publish(subject, payload);
                 }
                 nc.flush(Duration.ZERO);
+                long end = System.nanoTime();
+
+                bench.addPubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
+                nc.close();
+            } catch (Exception e) {
+                errorQueue.add(e);
+            } finally {
+                finisher.arrive();
+            }
+        }
+    }
+
+    class RequestWorker extends Worker {
+        private boolean oldStyle;
+
+        RequestWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure, boolean oldStyle) {
+            super(starter, finisher, numMsgs, size, secure);
+            this.oldStyle = oldStyle;
+        }
+
+        @Override
+        public void run() {
+            try {
+                Options opts = prepareOptions(this.secure, this.oldStyle);
+                Connection nc = Nats.connect(opts);
                 Statistics s = nc.getStatistics();
-                bench.addPubSample(new Sample(num, size, start, System.nanoTime(), s));
-                System.out.println("NATS publish connection statistics:");
-                System.out.printf("   Bytes out: %d\n", s.getOutBytes());
-                System.out.printf("   Msgs  out: %d\n", s.getOutMsgs());
+                byte[] payload = null;
+                if (size > 0) {
+                    payload = new byte[size];
+                }
+
+                 // Wait for the signal
+                starter.get(5000, TimeUnit.MICROSECONDS);
+                final long start = System.nanoTime();
+
+                ArrayList<Future<Message>> msgs = new ArrayList<>();
+                for (int i = 0; i < numMsgs; i++) {
+                    sent.incrementAndGet();
+                    Future<Message> future = nc.request(subject, payload);
+                    msgs.add(future);
+                    
+                    if (i!=0 && i%100==0) {
+                        for (Future<Message> m : msgs) {
+                            m.get(500, TimeUnit.MILLISECONDS);
+                            received.incrementAndGet();
+                        }
+
+                        msgs.clear();
+                    }
+                }
+                
+                for (Future<Message> m : msgs) {
+                    m.get(500, TimeUnit.MILLISECONDS);
+                    received.incrementAndGet();
+                }
+
+                bench.addPubSample(new Sample(numMsgs, size, start, System.nanoTime(), s));
+                msgs.clear();
+                nc.close();
+            } catch (Exception e) {
+                errorQueue.add(e);
+            } finally {
+                finisher.arrive();
+            }
+        }
+    }
+
+    class ReplyWorker extends Worker {
+        ReplyWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
+            super(starter, finisher, numMsgs, size, secure);
+        }
+
+        @Override
+        public void run() {
+            try {
+                Options opts = prepareOptions(this.secure, false);
+                Connection nc = Nats.connect(opts);
+
+                Subscription sub = nc.subscribe(subject);
+                nc.flush(null);
+
+                // Signal we are ready
+                finisher.arrive();
+
+                // Wait for the signal to start tracking time
+                starter.get(5000, TimeUnit.MICROSECONDS);
+                Duration timeout = Duration.ofMillis(500);
+
+                for (int i=0;i<numMsgs;i++) {
+                    Message msg = sub.nextMessage(timeout);
+                    nc.publish(msg.getReplyTo(), null);
+                    replies.incrementAndGet();
+                }
+
+                nc.flush(Duration.ZERO);
+
+                // Clean up
+                sub.unsubscribe();
+                nc.close();
+            } catch (Exception e) {
+                errorQueue.add(e);
+            } finally {
+                finisher.arrive();
             }
         }
     }
@@ -244,62 +408,98 @@ public class NatsBench {
      *
      * @throws Exception if an exception occurs
      */
-    public void run() throws Exception {
-        ExecutorService exec = Executors.newCachedThreadPool();
-        final Phaser phaser = new Phaser();
-
+    public void start() throws Exception {
         installShutdownHook();
 
-        phaser.register();
+        System.out.println();
+        System.out.printf("Starting benchmark(s) [msgs=%d, msgsize=%d, pubs=%d, subs=%d]\n", numMsgs,
+                size, numPubs, numSubs);
+        System.out.println("Each pub and sub uses a separate thread and connection to the gnatsd.");
+        System.out.println("Use ctrl-C to cancel.");
+        System.out.println();
 
-        bench = new Benchmark("NATS", numSubs, numPubs);
+        runTest("Pub Only", this.numPubs, 0, TestType.SYNC);
+        runTest("Pub/Sub", this.numPubs, this.numSubs, TestType.SYNC);
+        runTest("Pub/Dispatch", this.numPubs, this.numSubs, TestType.ASYNC);
+        runTest("Request/Reply", this.numPubs, this.numSubs,TestType.RR);
+        //runTest("Old-Style Request/Reply", this.numPubs, this.numSubs, TestType.OLD_RR);
+
+        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+    }
+
+    public void runTest(String title, int pubCount, int subCount, TestType type) throws Exception {
+        final Phaser finisher = new Phaser();
+        final CompletableFuture<Boolean> starter = new CompletableFuture<>();
+        finisher.register();
+        sent.set(0);
+        received.set(0);
+
+        bench = new Benchmark(title);
 
         // Run Subscribers first
-        for (int i = 0; i < numSubs; i++) {
-            phaser.register();
-            exec.execute(new SubWorker(phaser, numMsgs, size));
+        for (int i = 0; i < subCount; i++) {
+            finisher.register();
+
+            if (type == TestType.OLD_RR || type == TestType.RR) {
+                new Thread(new ReplyWorker(starter, finisher, numMsgs, size, secure)).start();
+            } else if (type == TestType.ASYNC) {
+                new Thread(new DispatchWorker(starter, finisher, this.numMsgs, this.size, secure)).start();
+            } else {
+                new Thread(new SyncSubWorker(starter, finisher, this.numMsgs, this.size, secure)).start();
+            }
         }
 
         // Wait for subscribers threads to initialize
-        phaser.arriveAndAwaitAdvance();
-
-        // Now publishers
-        int remaining = numMsgs;
-        int perPubMsgs = numMsgs / numPubs;
-        for (int i = 0; i < numPubs; i++) {
-            phaser.register();
-            // For the last publisher, make sure we ask it to send the remaining
-            // number of messages (with 1,000,000 msgs and 9 publishers, it means
-            // that 8 will send  111111 messages while the last will send 111112).
-            if (i == numPubs - 1) {
-                perPubMsgs = remaining;
-            }
-            exec.execute(new PubWorker(phaser, perPubMsgs, size));
-            remaining -= perPubMsgs;
-        }
-
-        System.out.printf("Starting benchmark [msgs=%d, msgsize=%d, pubs=%d, subs=%d]\n", numMsgs,
-                size, numPubs, numSubs);
-
-        // Wait for subscribers and publishers to finish
-        phaser.arriveAndAwaitAdvance();
-
-        // We're done. Clean up and report.
-        Runtime.getRuntime().removeShutdownHook(shutdownHook);
+        finisher.arriveAndAwaitAdvance();
 
         if (!errorQueue.isEmpty()) {
             Throwable error = errorQueue.take();
             System.err.printf(error.getMessage());
+            error.printStackTrace();
+            throw new RuntimeException(error);
+        }
+
+        // Now publishers
+        int remaining = this.numMsgs;
+        int perPubMsgs = this.numMsgs / pubCount;
+        for (int i = 0; i < pubCount; i++) {
+            finisher.register();
+            if (i == numPubs - 1) {
+                perPubMsgs = remaining;
+            }
+            if (type == TestType.RR) {
+                new Thread(new RequestWorker(starter, finisher, numMsgs, size, secure, false)).start();
+            } else if (type == TestType.OLD_RR) {
+                new Thread(new RequestWorker(starter, finisher, numMsgs, size, secure, true)).start();
+            } else {
+                new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure)).start();
+            }
+            remaining -= perPubMsgs;
+        }
+
+        // Start everything running
+        starter.complete(Boolean.TRUE);
+
+        // Wait for subscribers and publishers to finish
+        finisher.arriveAndAwaitAdvance();
+
+        if (!errorQueue.isEmpty()) {
+            Throwable error = errorQueue.take();
+            System.err.printf("Error running test [%s]\n", error.getMessage());
+            System.err.printf("Latest test sent = %d\n", sent.get());
+            System.err.printf("Latest test received = %d\n", received.get());
+            System.err.printf("Latest test repies = %d\n", replies.get());
+            error.printStackTrace();
+            Runtime.getRuntime().removeShutdownHook(shutdownHook);
             throw new RuntimeException(error);
         }
 
         bench.close();
-        System.out.println(bench.report());
 
-        if (csvFileName != null) {
-            List<String> csv = bench.csv();
-            Path csvFile = Paths.get(csvFileName);
-            Files.write(csvFile, csv, Charset.forName("UTF-8"));
+        if (csv) {
+            System.out.println(bench.csv());
+        } else {
+            System.out.println(bench.report());
         }
     }
 
@@ -381,7 +581,6 @@ public class NatsBench {
                     }
                     it.remove();
                     size = Integer.parseInt(it.next());
-                    // hashModulo = numMsgs / 100;
                     it.remove();
                     continue;
                 case "-csv":
@@ -389,10 +588,8 @@ public class NatsBench {
                         usage();
                     }
                     it.remove();
-                    csvFileName = it.next();
-                    it.remove();
+                    csv = true;
                     continue;
-
                 default:
                     System.err.printf("Unexpected token: '%s'\n", arg);
                     usage();
@@ -422,12 +619,13 @@ public class NatsBench {
         try {
             if (args.length == 1 && args[0].endsWith(".properties")) {
                 properties = loadProperties(args[0]);
-                new NatsBench(properties).run();
+                new NatsBench(properties).start();
             } else {
-                new NatsBench(args).run();
+                new NatsBench(args).start();
             }
         } catch (Exception e) {
             System.err.println("Exception: " + e);
+            e.printStackTrace();
             System.exit(-1);
         }
         System.exit(0);

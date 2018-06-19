@@ -34,14 +34,14 @@ class NatsMessage implements Message {
 
     // Create a message to publish
     NatsMessage(String subject, String replyTo, byte[] data) {
-        // TODO(sasbury): Check performance
+        // Each call to this method takes about 100ns due to the string append
+        // possible performance improvement opportunity (perhaps at the cost of readability).
         StringBuilder protocolStringBuilder = new StringBuilder();
         this.subject = subject;
         this.replyTo = replyTo;
         this.data = data;
 
-        protocolStringBuilder.append("PUB");
-        protocolStringBuilder.append(" ");
+        protocolStringBuilder.append("PUB ");
         protocolStringBuilder.append(subject);
         protocolStringBuilder.append(" ");
 
@@ -52,25 +52,32 @@ class NatsMessage implements Message {
 
         protocolStringBuilder.append(String.valueOf(data.length));
 
-        this.protocolBytes = protocolStringBuilder.toString().getBytes(StandardCharsets.UTF_8);
+        String protocol = protocolStringBuilder.toString();
+        this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
+
+        if (this.protocolBytes.length > NatsConnection.MAX_PROTOCOL_LINE) {
+            throw new IllegalArgumentException("Protocol line is too long "+protocol);
+        }
 
         this.size = this.protocolBytes.length + data.length + 4;// for 2x \r\n
-
-        // TODO(sasbury): handle invalid protocol strings (too long)
     }
 
     // Create a protocol only message to publish
     NatsMessage(String protocol) {
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
         this.size = this.protocolBytes.length + 2;// for \r\n
+        if (this.protocolBytes.length > NatsConnection.MAX_PROTOCOL_LINE) {
+            throw new IllegalArgumentException("Protocol line is too long "+protocol);
+        }
     }
 
     // Create an incoming message for a subscriber
-    NatsMessage(String sid, String subject, String replyTo) {
+    NatsMessage(String sid, String subject, String replyTo, String protocol) {
         this.sid = sid;
         this.subject = subject;
         this.replyTo = replyTo;
-        this.data = null; // will set after we read it
+        this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
+        this.data = null; // will set data and size after we read it
     }
 
     boolean isProtocol() {
@@ -99,6 +106,7 @@ class NatsMessage implements Message {
 
     void setData(byte[] data) {
         this.data = data;
+        this.size = this.protocolBytes.length + data.length + 4;// for 2x \r\n
     }
 
     public byte[] getData() {

@@ -16,8 +16,6 @@
 package io.nats.benchmark;
 
 import io.nats.client.NUID;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -32,12 +30,8 @@ public class Benchmark extends Sample {
     private BlockingQueue<Sample> pubChannel;
     private BlockingQueue<Sample> subChannel;
 
-    public Benchmark() {
-        // TODO Auto-generated constructor stub
-    }
-
-    public Benchmark(String name, int subCnt, int pubCnt) {
-        this(name, NUID.nextGlobal(), subCnt, pubCnt);
+    public Benchmark(String name) {
+        this(name, NUID.nextGlobal());
     }
 
     /**
@@ -46,10 +40,8 @@ public class Benchmark extends Sample {
      *
      * @param name   a descriptive name for this test run
      * @param runId  a unique id for this test run (typically a guid)
-     * @param subCnt the number of subscribers
-     * @param pubCnt the number of publishers
      */
-    public Benchmark(String name, String runId, int subCnt, int pubCnt) {
+    public Benchmark(String name, String runId) {
         this.name = name;
         this.runId = runId;
         this.subChannel = new LinkedBlockingQueue<Sample>();
@@ -78,13 +70,14 @@ public class Benchmark extends Sample {
         if (subs.hasSamples()) {
             start = subs.getStart();
             end = subs.getEnd();
+
+            if (pubs.hasSamples()) {
+                end = Math.min(end, pubs.getEnd());
+            }
         } else {
             start = pubs.getStart();
             end = pubs.getEnd();
         }
-
-        end = Math.min(end, subs.getEnd());
-        end = Math.min(end, pubs.getEnd());
 
         msgBytes = pubs.msgBytes + subs.msgBytes;
         ioBytes = pubs.ioBytes + subs.ioBytes;
@@ -99,31 +92,30 @@ public class Benchmark extends Sample {
      */
     public final String report() {
         StringBuilder sb = new StringBuilder();
-        String indent = "";
-        if (pubs.hasSamples() && subs.hasSamples()) {
-            sb.append(String.format("%s Pub/Sub stats: %s\n", name, this));
-            indent += " ";
-        }
+        
+        sb.append(String.format("%s stats: %s\n", name, this));
+
         if (pubs.hasSamples()) {
-            String maybeTitle = "";
-            if (!subs.hasSamples()) {
-                maybeTitle = name + " ";
+            String indent = " ";
+            if (subs.hasSamples()) {
+                sb.append(String.format("%sPub stats: %s\n", indent, pubs));
+                indent = "  ";
             }
-            sb.append(String.format("%s%sPub stats: %s\n", indent, maybeTitle, pubs));
             if (pubs.getSamples().size() > 1) {
                 for (Sample stat : pubs.getSamples()) {
-                    sb.append(String.format("%s [%2d] %s (%d msgs)\n", indent,
+                    sb.append(String.format("%s[%2d] %s (%d msgs)\n", indent,
                             pubs.getSamples().indexOf(stat) + 1, stat, stat.jobMsgCnt));
                 }
                 sb.append(String.format("%s %s\n", indent, pubs.statistics()));
             }
         }
         if (subs.hasSamples()) {
-            String maybeTitle = "";
-            sb.append(String.format("%s%sSub stats: %s\n", indent, maybeTitle, subs));
+            String indent = " ";
+            sb.append(String.format("%sSub stats: %s\n", indent, subs));
+            indent = "  ";
             if (subs.getSamples().size() > 1) {
                 for (Sample stat : subs.getSamples()) {
-                    sb.append(String.format("%s [%2d] %s (%d msgs)\n", indent,
+                    sb.append(String.format("%s[%2d] %s (%d msgs)\n", indent,
                             subs.getSamples().indexOf(stat) + 1, stat, stat.jobMsgCnt));
                 }
                 sb.append(String.format("%s %s\n", indent, subs.statistics()));
@@ -133,31 +125,32 @@ public class Benchmark extends Sample {
     }
 
     /**
-     * Returns a list of text lines for output to a CSV file.
+     * Returns a string containing the report as series of CSV lines.
      *
-     * @return a list of text lines for output to a CSV file
+     * @return a string with multiple lines
      */
-    public final List<String> csv() {
-        List<String> lines = new ArrayList<String>();
+    public final String csv() {
+        StringBuilder sb = new StringBuilder();
         String header =
                 "#RunID, ClientID, MsgCount, MsgBytes, MsgsPerSec, BytesPerSec, DurationSecs";
-        lines.add(header);
-        SampleGroup[] groups = new SampleGroup[] {subs, pubs};
-        String pre = "S";
-        int i = 0;
-        for (SampleGroup grp : groups) {
-            if (i++ == 1) {
-                pre = "P";
-            }
-            int j = 0;
-            for (Sample stat : grp.getSamples()) {
-                String line = String.format("%s,%s%d,%d,%d,%d,%f,%f", runId, pre, j, stat.msgCnt,
-                        stat.msgBytes, stat.rate(), stat.throughput(),
-                        (double) stat.duration() / 1000000000.0);
-                lines.add(line);
-            }
+
+        sb.append(String.format("%s stats: %s\n", name, this));
+        sb.append(header); sb.append("\n");
+        sb.append(csvLines(subs,"S"));
+        sb.append(csvLines(pubs,"P"));
+        return sb.toString();
+    }
+
+    String csvLines(SampleGroup grp, String prefix) {
+        StringBuilder sb = new StringBuilder();
+        int j = 0;
+        for (Sample stat : grp.getSamples()) {
+            String line = String.format("%s,%s%d,%d,%d,%d,%f,%f", runId, prefix, j++, stat.msgCnt,
+                    stat.msgBytes, stat.rate(), stat.throughput(),
+                    (double) stat.duration() / 1000000000.0);
+                    sb.append(line); sb.append("\n");
         }
-        return lines;
+        return sb.toString();
     }
 
     public final String getName() {

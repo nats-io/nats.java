@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.nio.charset.StandardCharsets;
 
@@ -40,5 +41,31 @@ public class NatsMessageTests {
 
         assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSize());
         assertEquals("Size is correct", protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSize());
+    }
+    
+    @Test(expected=IllegalArgumentException.class)
+    public void testBigProtocolLineWithBody() {
+        byte[] body = new byte[10];
+        String subject = "subject";
+        String replyTo = "reply";
+
+        while (subject.length() <= NatsConnection.MAX_PROTOCOL_LINE) {
+            subject = subject + subject;
+        }
+
+        new NatsMessage(subject, replyTo, body);
+        assertFalse(true);
+    }
+    
+    @Test(expected=IllegalArgumentException.class)
+    public void testBigProtocolLineWithoutBody() {
+        String protocol = "subject";
+
+        while (protocol.length() <= NatsConnection.MAX_PROTOCOL_LINE) {
+            protocol = protocol + protocol;
+        }
+
+        new NatsMessage(protocol);
+        assertFalse(true);
     }
 }

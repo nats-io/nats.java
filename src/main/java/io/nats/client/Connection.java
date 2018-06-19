@@ -228,4 +228,14 @@ public interface Connection extends AutoCloseable {
      * Get some useful statistics about the client.
      */
     public Statistics getStatistics();
+
+    /**
+     * Set an object to be notified of errors in the connection.
+     */
+    public void setErrorHandler(ErrorHandler eh);
+
+    /**
+     * Set an object to be notified of connection events in the connection.
+     */
+    public void setConnectionHandler(ConnectionHandler ch);
 }

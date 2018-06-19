@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -38,7 +39,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import io.nats.client.Connection;
+import io.nats.client.ConnectionHandler;
 import io.nats.client.Dispatcher;
+import io.nats.client.ErrorHandler;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NUID;
@@ -46,9 +49,22 @@ import io.nats.client.Options;
 import io.nats.client.Statistics;
 import io.nats.client.Subscription;
 
-// TODO(sasbury): connection and reconnect notifcations
+// TODO(sasbury): connection and reconnect and error notifcations
 // TODO(sasbury): Throw exception on publish, etc. if not connected
+// TODO(sasbury): Ping timer w/tests maybe via stats
 class NatsConnection implements Connection {
+
+    public enum State {
+        UNCONNECTED,
+        CONNECTING,
+        CONNECTED,
+        DISCONNECTING,
+        DISCONNECTED,
+        CLOSING_SOCKET,
+        CLOSING,
+        CLOSED;
+    }
+
     static final int MAX_PROTOCOL_LINE = 1024;
     static final int BUFFER_SIZE = 32 * 1024;
     static final byte[] EMPTY_BODY = new byte[0];
@@ -73,11 +89,14 @@ class NatsConnection implements Connection {
 
     private NatsStatistics statistics;
 
-    private Connection.Status status;
+    private State state;
+    private Status status;
     private ReentrantLock statusLock;
 
     private CompletableFuture<SocketChannel> channelFuture;
     private SocketChannel socketChannel;
+    private String currentServerURI;
+    private CompletableFuture<Boolean> reconnectWaiter;
 
     private NatsConnectionReader reader;
     private NatsConnectionWriter writer;
@@ -100,13 +119,19 @@ class NatsConnection implements Connection {
 
     private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
+    private ConnectionHandler connectionHandler;
+    private ErrorHandler errorHandler;
+
     NatsConnection(Options options) {
         this.options = options;
 
         this.statistics = new NatsStatistics();
 
-        this.status = Status.DISCONNECTED;
         this.statusLock = new ReentrantLock();
+        this.state = State.UNCONNECTED;
+        this.status = Status.DISCONNECTED;
+        this.reconnectWaiter = new CompletableFuture<>();
+        this.reconnectWaiter.complete(Boolean.TRUE);
 
         this.subscriberLock = new ReentrantLock();
         this.subscribers = new HashMap<>();
@@ -125,50 +150,113 @@ class NatsConnection implements Connection {
         this.writer = new NatsConnectionWriter(this);
     }
 
+    // Connect is only called after creation
     void connect() throws InterruptedException {
         if (options.getServers().size() == 0) {
             throw new IllegalArgumentException("No servers provided in options");
         }
 
+        // Ensure we are only called when unconnected (the initial state)
+        if (!transitionState(State.UNCONNECTED, State.DISCONNECTED)) {
+            return;
+        }
+
         for (String serverURI : getServers()) {
-            tryConnect(serverURI, true);
-            if (status == Status.CONNECTED) {
+            // Throughout the loop, we can only try to connect, if we are disconnected
+            if (!transitionState(State.DISCONNECTED, State.CONNECTING)) {
                 break;
+            }
+
+            updateStatus(Status.CONNECTING);
+
+            tryToConnect(serverURI);
+
+            if (isConnected()) {
+                break;
+            } else {
+                transitionState(State.CONNECTING, State.DISCONNECTED);
+                updateStatus(Status.DISCONNECTED);
             }
         }
     }
 
+    // Reconnect can only be called when the connection is disconnected
     void reconnect() {
-        // TODO(sasbury): resend any subscriptions
-        // TODO(sasbury): What do we do with the reader while we try to reconnect?
-        // TODO(sasbury): Limit on publish buffer during reconnect
-        // TOOD(sasbury): Deal with dispatchers (esp if we can't reconnect, then they
-        // need to be closed)
         // TODO(sasbury): LOTS OF TESTS during reconnect scenarios
-        this.close(); // for now to clean up
-        throw new UnsupportedOperationException("Not implemented yet");
+        long maxTries = options.getMaxReconnect();
+        long tries = 0;
+        String lastServer = null;
+
+        if (maxTries == 0) {
+            this.close();
+            return;
+        }
+        
+        updateStatus(Status.RECONNECTING);
+
+        while (this.state == State.DISCONNECTED) {
+            Collection<String> serversToTry = buildReconnectList();
+
+            for (String server : serversToTry) {
+                if (server.equals(lastServer)) {
+                    reconnectWaiter = new CompletableFuture<>();
+                    waitForReconnectTimeout();
+                }
+
+                if (!transitionState(State.DISCONNECTED, State.CONNECTING)) {
+                    break;
+                }
+        
+                tryToConnect(server);
+                lastServer = server;
+                tries++;
+                
+                if (tries > maxTries && maxTries > 0) {
+                    break;
+                } else if (isConnected()) {
+                    break;
+                } else {
+                    transitionState(State.CONNECTING, State.DISCONNECTED);
+                    updateStatus(Status.RECONNECTING);
+                }
+            }
+        }
+
+        if (!isConnected()) {
+            this.close();
+            return;
+        }
+
+        // TODO(sasbury): NEED TO HANDLE FAILURE DURING resending subscriptions (may have issues like pub exception)
+
+        subscriberLock.lock();
+        try {
+            for (NatsSubscription sub : this.subscribers.values()) {
+                sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+            }
+
+            for (NatsDispatcher d : this.dispatchers) {
+                d.resendSubscriptions();
+            }
+        } finally {
+            subscriberLock.unlock();
+        }
     }
 
-    void tryConnect(String serverURI, boolean firstTime) throws InterruptedException {
+    // is called from reconnect and connect
+    // will wait for any previous attempt to complete, using the reader.stop and writer.stop
+    void tryToConnect(String serverURI) {
         try {
             Duration connectTimeout = options.getConnectionTimeout();
-
-            statusLock.lock();
-            if (firstTime) {
-                this.status = Status.CONNECTING;
-            } else {
-                this.status = Status.RECONNECTING;
-            }
-            statusLock.unlock();
-
-            // Wait for the reader to be ready, it is ready at creation and after stopping
-            this.reader.stop().get();
-            this.writer.stop().get();
 
             // Create a new future for the SocketChannel, the reader/writer will use this
             // to wait for the connect/failure.
             this.channelFuture = new CompletableFuture<>();
             this.serverInfoFuture = new CompletableFuture<>();
+ 
+            // Make sure the reader and writer are stopped
+            this.reader.stop().get();
+            this.writer.stop().get();
 
             this.cleanUpPongQueue();
 
@@ -200,45 +288,113 @@ class NatsConnection implements Connection {
             pongFuture.get(connectTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             // Set connected status
-            statusLock.lock();
-            this.status = Status.CONNECTED;
-            statusLock.unlock();
-
-        } catch (IOException | CancellationException | TimeoutException | ExecutionException | URISyntaxException ex) {
-            handleCommunicationIssue(ex);
+            transitionState(State.CONNECTING, State.CONNECTED);
+            updateStatus(Status.CONNECTED);
+            this.currentServerURI = serverURI;
+        } catch (IOException | InterruptedException | CancellationException | TimeoutException | ExecutionException | URISyntaxException ex) {
+            handleConnectIssue(ex);
         }
     }
 
-    // Can be called from reader/writer thread, or inside the connect code
+    // Called from connect threads
+    void handleConnectIssue(Exception io) {
+        // TODO(sasbury): Something with exceptions
+
+        // We can handle this in the connect thread
+        this.closeSocket(State.DISCONNECTED);
+        // Connect thread will deal with reconnect if necessary
+    }
+
+    // Called from reader/writer thread
     void handleCommunicationIssue(Exception io) {
-        boolean wasConnected = this.closeSocket(false);
+        // TODO(sasbury): Something with exceptions
 
-        // Try to reconnect in a new thread
-        // This should only be true if the read/write thread call this method
-        // The connect thread will call this method but only before the status is
-        // set to connected, so connect won't force a reconnect
-        if (wasConnected) {
-            Thread t = new Thread(() -> {
+        // Spawn a thread so we don't have timing issues with
+        // waiting on read/write threads
+        Thread t = new Thread(() -> {
+            if(this.closeSocket(State.DISCONNECTED)) {
                 this.reconnect();
-            });
-            t.start();
-        }
+            }
+        });
+        t.start();
     }
 
-    public void close() {
-        closeSocket(true);
+    // Close socket can perform three state transitions:
+    // * Connected -> Disconnecting
+    // * Connecting -> Disconnecting
+    // * ClosingSocket -> Closing
+    // The first of these leads to a reconnect attempt. The others do not.
+    // All other entry states (Closed, Disconnecting, Disconnected) result in a no-op.
+    boolean closeSocket(State exitState) {
+        boolean wasConnected = transitionState(State.CONNECTED, State.DISCONNECTING);
+        boolean wasConnectingOrDisconnecting = transitionState(State.CONNECTING, State.DISCONNECTING) || 
+                                                    transitionState(State.CLOSING_SOCKET, State.DISCONNECTING);
+ 
+        if (!wasConnected && !wasConnectingOrDisconnecting) {
+            return false;
+        }
 
-        // Reader and writer are stopped or stopping, wait for them to finish
+        this.currentServerURI = null;
+
+        this.serverInfoFuture.cancel(true); // Stop the connect thread from waiting for this
+
+        // Signal the reader and writer
+        this.reader.stop();
+        this.writer.stop();
+
+        // Close the current socket and cancel anyone waiting for it
+        this.channelFuture.cancel(true);
+
         try {
-            this.reader.stop().get(30, TimeUnit.SECONDS);
+            if (this.socketChannel != null) {
+                this.socketChannel.close();
+            }
+        } catch (IOException ex) {
+            // Issue closing the socket, but we will just move on
+        }
+
+        cleanUpPongQueue();
+
+        // We signalled now wait for them to stop
+        try {
+            this.reader.stop().get(10, TimeUnit.SECONDS);
         } catch (Exception ex) {
             // Ignore these, issue with future so move on
         }
         try {
-            this.writer.stop().get(30, TimeUnit.SECONDS);
+            this.writer.stop().get(10, TimeUnit.SECONDS);
         } catch (Exception ex) {
             // Ignore these, issue with future so move on
         }
+
+        transitionState(State.DISCONNECTING, exitState);
+        updateStatus(Status.DISCONNECTED);
+        
+        return wasConnected;
+    }
+
+    // Close performs 3 state transitions:
+    // * Connecting -> ClosingSocket
+    // * Connected -> ClosingSocket
+    // * Disconnected -> ClosingSocket
+    // Once complete, the socket close will put the state to Closing
+    // Once close completes the state will move to closed, and the status is updated
+    public void close() {
+        boolean notClosingOrClosed = transitionState(State.CONNECTING, State.CLOSING_SOCKET) || 
+                                                transitionState(State.CONNECTED, State.CLOSING_SOCKET) ||
+                                                transitionState(State.DISCONNECTING, State.CLOSING_SOCKET) ||
+                                                transitionState(State.DISCONNECTED, State.CLOSING_SOCKET);
+
+        if(!notClosingOrClosed) {
+            return;
+        }
+
+        // Stop the reconnect wait timer after we stop the writer/reader (only if we are really closing, not on errors)
+        if (this.reconnectWaiter != null) {
+            this.reconnectWaiter.cancel(true);
+        }
+
+        closeSocket(State.CLOSING);
 
         subscriberLock.lock();
         try {
@@ -265,49 +421,22 @@ class NatsConnection implements Connection {
         }
 
         statusLock.lock();
-        this.status = Status.CLOSED;
-        statusLock.unlock();
-    }
-
-    boolean closeSocket(boolean closing) {
-        boolean wasConnected = false;
-        boolean wasDisconnected = false;
-
-        statusLock.lock();
-        wasConnected = !closing && (this.status == Status.CONNECTED);
-        wasDisconnected = (this.status == Status.DISCONNECTED);
-        this.status = Status.DISCONNECTED;
-        statusLock.unlock();
-
-        if (wasDisconnected) {
-            return wasConnected;
-        }
-
-        this.serverInfoFuture.cancel(true); // Stop the connect thread from waiting for this
-
-        this.reader.stop();
-        this.writer.stop();
-
-        // Close the current socket and cancel anyone waiting for it
-        this.channelFuture.cancel(true);
-
-        cleanUpPongQueue();
-
         try {
-            if (this.socketChannel != null) {
-                this.socketChannel.close();
-            }
-        } catch (IOException ex) {
-            // Issue closing the socket, but we will just move on
+            this.state = State.CLOSED;
+            updateStatus(Status.CLOSED);
+        } finally {
+            statusLock.unlock();
         }
-
-        return wasConnected;
     }
 
     void cleanUpPongQueue() {
         Future<Boolean> b;
         while ((b = pongQueue.poll()) != null) {
-            b.cancel(true);
+            try {
+                b.cancel(true);
+            } catch (CancellationException e) {
+                // Ignore these
+            }
         }
         pongQueue.clear();
     }
@@ -317,6 +446,11 @@ class NatsConnection implements Connection {
     }
 
     public void publish(String subject, String replyTo, byte[] body) {
+
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        }
+
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in publish");
         }
@@ -327,9 +461,16 @@ class NatsConnection implements Connection {
 
         if (body == null) {
             body = EMPTY_BODY;
+        } else if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
+            throw new IllegalArgumentException("Message payload size exceed server configuraiton "+body.length+" vs "+this.getMaxPayload());
         }
         
         NatsMessage msg = new NatsMessage(subject, replyTo, body);
+
+        if (this.status == Status.RECONNECTING && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
+            throw new IllegalStateException("Unable to queue any more messages during reconnect, max buffer is "+getMaxPayload());
+        }
+
         this.statistics.incrementOutMsgs();
         this.statistics.incrementOutBytes(msg.getSize());
         this.writer.queue(msg);
@@ -383,6 +524,10 @@ class NatsConnection implements Connection {
             }
         }
 
+        if (this.state != State.CONNECTED) { 
+            return;// We will setup sub on reconnect or ignore
+        }
+
         String sid = sub.getSID();
         StringBuilder protocolBuilder = new StringBuilder();
         protocolBuilder.append(OP_UNSUB);
@@ -399,6 +544,10 @@ class NatsConnection implements Connection {
 
     // Assumes the null/empty checks were handled elsewhere
     NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher) {
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        }
+
         NatsSubscription sub = null;
         subscriberLock.lock();
         try {
@@ -406,25 +555,32 @@ class NatsConnection implements Connection {
             sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
             nextSid++;
             subscribers.put(sid, sub);
-
-            StringBuilder protocolBuilder = new StringBuilder();
-            protocolBuilder.append(OP_SUB);
-            protocolBuilder.append(" ");
-            protocolBuilder.append(subject);
-
-            if (queueName != null) {
-                protocolBuilder.append(" ");
-                protocolBuilder.append(queueName);
-            }
-
-            protocolBuilder.append(" ");
-            protocolBuilder.append(sid);
-            NatsMessage subMsg = new NatsMessage(protocolBuilder.toString());
-            this.writer.queue(subMsg);
+            sendSubscriptionMessage(sid, subject, queueName);
         } finally {
             subscriberLock.unlock();
         }
         return sub;
+    }
+
+    void sendSubscriptionMessage(String sid, String subject, String queueName) {
+        if (this.state != State.CONNECTED) { 
+            return;// We will setup sub on reconnect or ignore
+        }
+
+        StringBuilder protocolBuilder = new StringBuilder();
+        protocolBuilder.append(OP_SUB);
+        protocolBuilder.append(" ");
+        protocolBuilder.append(subject);
+
+        if (queueName != null) {
+            protocolBuilder.append(" ");
+            protocolBuilder.append(queueName);
+        }
+
+        protocolBuilder.append(" ");
+        protocolBuilder.append(sid);
+        NatsMessage subMsg = new NatsMessage(protocolBuilder.toString());
+        this.writer.queue(subMsg);
     }
 
     String createInbox() {
@@ -452,7 +608,6 @@ class NatsConnection implements Connection {
     }
 
     void cleanResponses(boolean cancelIfRunning) {
-
         responseLock.lock();
         try {
             Iterator<Map.Entry<String,CompletableFuture<Message>>> it = responses.entrySet().iterator();
@@ -471,9 +626,23 @@ class NatsConnection implements Connection {
         }
     }
 
-    public Future<Message> request(String subject, byte[] data) {
+    public Future<Message> request(String subject, byte[] body) {
         String responseInbox = null;
         boolean oldStyle = options.isOldRequestStyle();
+        
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        }
+
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in publish");
+        }
+
+        if (body == null) {
+            body = EMPTY_BODY;
+        } else if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
+            throw new IllegalArgumentException("Message payload size exceed server configuraiton "+body.length+" vs "+this.getMaxPayload());
+        }
 
         if (oldStyle) {
             responseInbox = createInbox();
@@ -517,7 +686,7 @@ class NatsConnection implements Connection {
             this.inboxDispatcher.subscribe(responseInbox).unsubscribe(responseInbox,1);
         }
         
-        this.publish(subject, responseInbox, data);
+        this.publish(subject, responseInbox, body);
         statistics.incrementRequestsSent();
 
         return future;
@@ -543,6 +712,10 @@ class NatsConnection implements Connection {
     }
 
     public Dispatcher createDispatcher(MessageHandler handler) {
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        }
+
         NatsDispatcher dispatcher = null;
         subscriberLock.lock();
         try {
@@ -556,6 +729,11 @@ class NatsConnection implements Connection {
     }
 
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
+
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        }
+
         Future<Boolean> waitForIt = sendPing();
 
         if (timeout == null) {
@@ -574,6 +752,11 @@ class NatsConnection implements Connection {
             this.statistics.incrementFlushCounter();
         } catch (ExecutionException e) {
             throw new TimeoutException(e.getMessage());
+        }
+
+        if (!waitForIt.isDone()) {
+            waitForIt.cancel(true);
+            throw new TimeoutException("Flush did not return in time");
         }
     }
 
@@ -671,6 +854,42 @@ class NatsConnection implements Connection {
         return this.status;
     }
 
+    void updateStatus(Status newStatus) {
+        statusLock.lock();
+        try {
+            this.status = newStatus;
+        } finally {
+            statusLock.unlock();
+        }
+    }
+
+    boolean transitionState(State from, State to) {
+        boolean retVal = false;
+        statusLock.lock();
+        try {
+            retVal = this.state == from;
+
+            if (retVal) {
+                this.state = to;
+            }
+        } finally {
+            statusLock.unlock();
+        }
+        return retVal;
+    }
+
+    boolean isClosingOrClosed() {
+        return (this.state == State.CLOSING) || (this.state == State.CLOSED) || (this.state == State.CLOSING_SOCKET);
+    }
+
+    boolean isClosed() {
+        return this.state == State.CLOSED;
+    }
+
+    boolean isConnected() {
+        return (this.state == State.CONNECTED);
+    }
+
     public long getMaxPayload() {
         NatsServerInfo info = this.serverInfo.get();
 
@@ -687,10 +906,56 @@ class NatsConnection implements Connection {
 
         options.getServers().stream().forEach(x -> servers.add(x.toString()));
 
-        if (info != null) {
+        if (info != null && info.getConnectURLs()!=null) {
             servers.addAll(Arrays.asList(info.getConnectURLs()));
         }
 
         return servers;
+    }
+
+    public void setErrorHandler(ErrorHandler eh) {
+        this.errorHandler = eh;
+    }
+
+    public void setConnectionHandler(ConnectionHandler ch) {
+        this.connectionHandler = ch;
+    }
+
+    public String getCurrentServerURI() {
+        return this.currentServerURI;
+    }
+
+    void waitForReconnectTimeout() {
+        Duration waitTime = options.getReconnectWait();
+        long currentWaitNanos = (waitTime != null) ? waitTime.toNanos() : -1;
+        long start = System.nanoTime();
+
+        while (currentWaitNanos > 0 && !isClosingOrClosed() &&
+                    !isConnected() && !this.reconnectWaiter.isDone()) {
+            try {
+                this.reconnectWaiter.get(currentWaitNanos, TimeUnit.NANOSECONDS);
+            } catch (Exception exp) {
+                // ignore, try to loop again
+            }
+            long now = System.nanoTime();
+            currentWaitNanos = currentWaitNanos - (now-start);
+            start = now;
+        }
+
+        this.reconnectWaiter.complete(Boolean.TRUE);
+    }
+
+    Collection<String> buildReconnectList() {
+        ArrayList<String> reconnectList = new ArrayList<>();
+
+        reconnectList.addAll(getServers());
+
+        if (options.isNoRandomize()) {
+            return reconnectList;
+        }
+
+        Collections.shuffle(reconnectList);
+
+        return reconnectList;
     }
 }

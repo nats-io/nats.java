@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 class MessageQueue {
     private long length;
@@ -273,5 +274,44 @@ class MessageQueue {
 
     long sizeInBytes() {
         return this.sizeInBytes;
+    }
+
+    void filter(Predicate<NatsMessage> p) {
+        lock.lock();
+        try {
+            NatsMessage cursor = head;
+
+            while (cursor != null) {
+                if (p.test(cursor)) {
+                    NatsMessage toRemove = cursor;
+                    cursor = cursor.next;
+
+                    if (toRemove == this.head) {
+                        this.head = toRemove.next;
+                    }
+
+                    if (toRemove == this.tail) {
+                        this.tail = toRemove.prev;
+                    }
+
+                    if (toRemove.prev != null) {
+                        toRemove.prev.next = toRemove.next;
+                    }
+
+                    if (toRemove.next != null) {
+                        toRemove.next.prev = toRemove.prev;
+                    }
+
+                    toRemove.prev = null;
+                    toRemove.next = null;
+                    this.length--;
+                } else {
+                    cursor = cursor.next;
+                }
+            }
+        } finally {
+            condition.signalAll();
+            lock.unlock();
+        }
     }
 }

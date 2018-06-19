@@ -98,6 +98,17 @@ class NatsDispatcher implements Dispatcher, Runnable {
         return incoming;
     }
 
+    void resendSubscriptions() {
+        this.subLock.lock();
+        try {
+            for (NatsSubscription sub : this.subscriptions.values()) {
+                this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+            }
+        } finally {
+            this.subLock.unlock();
+        }
+    }
+
     // Called by the connection when the subscription is removed
     void remove(NatsSubscription sub) {
         subLock.lock();

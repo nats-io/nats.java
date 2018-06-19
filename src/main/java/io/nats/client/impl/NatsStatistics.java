@@ -115,52 +115,42 @@ class NatsStatistics implements Statistics {
         return outstandingRequests.get();
     }
 
+    void appendNumberStat(StringBuilder builder, String name, long value) {
+        builder.append(name);
+        builder.append(NumberFormat.getNumberInstance().format(value));
+        builder.append("\n");
+    }
+
+    void appendNumberStat(StringBuilder builder, String name, double value) {
+        builder.append(name);
+        builder.append(NumberFormat.getNumberInstance().format(value));
+        builder.append("\n");
+    }
+
     public String buildHumanFriendlyString() {
         StringBuilder builder = new StringBuilder();
 
         lock.lock();
         try {
             builder.append("### Connection ###\n");
-            builder.append("Successful Flush Calls:          ");
-            builder.append(this.flushCounter.get());
+            appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
+            appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
             builder.append("\n");
-            builder.append("Requests Sent:                   ");
-            builder.append(this.requestsSent.get());
-            builder.append("\n");
-            builder.append("Replies Received:                ");
-            builder.append(this.repliesReceived.get());
-            builder.append("\n");
-            builder.append("Outstanding Request Futures:     ");
-            builder.append(this.outstandingRequests.get());
-            builder.append("\n");
+            appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
+            appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());
             builder.append("\n");
             builder.append("### Reader ###\n");
-            builder.append("Messages in:     ");
-            builder.append(this.inMsgs.get());
-            builder.append("\n");
-            builder.append("Bytes in:     ");
-            builder.append(this.inBytes.get());
-            builder.append("\n");
+            appendNumberStat(builder, "Messages in:                     ", this.inMsgs.get());
+            appendNumberStat(builder, "Bytes in:                        ", this.inBytes.get());
             builder.append("\n");
             builder.append("### Writer ###\n");
-            builder.append("Messages out:     ");
-            builder.append(this.outMsgs.get());
+            appendNumberStat(builder, "Messages out:                    ", this.outMsgs.get());
+            appendNumberStat(builder, "Bytes out:                       ", this.outBytes.get());
             builder.append("\n");
-            builder.append("Bytes out:     ");
-            builder.append(this.outBytes.get());
-            builder.append("\n");
-            builder.append("Accumulation Calls:              ");
-            builder.append(String.valueOf(accumulateStats.getCount()));
-            builder.append("\n");
-            builder.append("Average Messages Per Accumulate: ");
-            builder.append(NumberFormat.getNumberInstance().format(accumulateStats.getAverage()));
-            builder.append("\n");
-            builder.append("Min Messages Per Accumulate:     ");
-            builder.append(String.valueOf(accumulateStats.getMin()));
-            builder.append("\n");
-            builder.append("Max Messages Per Accumulate:     ");
-            builder.append(String.valueOf(accumulateStats.getMax()));
-            builder.append("\n");
+            appendNumberStat(builder, "Accumulation Calls:              ", accumulateStats.getCount());
+            appendNumberStat(builder, "Average Messages Per Accumulate: ", accumulateStats.getAverage());
+            appendNumberStat(builder, "Min Messages Per Accumulate:     ", accumulateStats.getMin());
+            appendNumberStat(builder, "Max Messages Per Accumulate:     ", accumulateStats.getMax());
         } finally {
             lock.unlock();
         }

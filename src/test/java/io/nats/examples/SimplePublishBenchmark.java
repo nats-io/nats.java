@@ -11,33 +11,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.examples;
 
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
+import io.nats.client.Connection;
+import io.nats.client.Nats;
+
 public class SimplePublishBenchmark {
     public static void main(String args[]) throws InterruptedException {
-        int threads = 6;
-        int msgsPerThrad = 10_000_000;
-        int messageSize = 128;
+        int threads = 1;
+        int msgsPerThread = 20_000_000;
+        int messageSize = 64;
+        long totalMessages = threads * msgsPerThread;
         CountDownLatch latch = new CountDownLatch(threads);
         CompletableFuture<Boolean> starter = new CompletableFuture<>();
 
+        System.out.println("###");
+        System.out.printf("### Running publish benchmark with %s %s byte messages across %s threads.\n",
+                                NumberFormat.getInstance().format(totalMessages),
+                                NumberFormat.getInstance().format(messageSize),
+                                NumberFormat.getInstance().format(threads));
+        System.out.println("###");
         byte[] body = new byte[messageSize];
 
         for(int i=0; i<messageSize; i++) {
             body[i] = 1;
         }
 
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try {
+            Connection nc = Nats.connect();
             for (int k = 0;k<threads;k++) {
                 Thread t = new Thread(() -> {
                     try {starter.get();}catch(Exception e){}
-                    for(int i = 0; i < msgsPerThrad; i++) {
+                    for(int i = 0; i < msgsPerThread; i++) {
                         nc.publish("publish_benchmark", body);
                     }
 
@@ -54,8 +64,7 @@ public class SimplePublishBenchmark {
 
             nc.close();
 
-            long totalMessages = threads * msgsPerThrad;
-            System.out.printf("\n### Total time to perform %s operations was %s ms, %f ns/op\n",
+            System.out.printf("### Total time to perform %s operations was %s ms, %f ns/op\n",
                 NumberFormat.getInstance().format(totalMessages), 
                 NumberFormat.getInstance().format((end-start)/1_000_000L),
                 ((double)(end-start))/((double)(totalMessages)));
@@ -63,9 +72,12 @@ public class SimplePublishBenchmark {
                 NumberFormat.getInstance().format(1_000_000_000L * totalMessages/(end-start)));
             System.out.printf("### Each operation consists of a publish of a msg of size %s.\n",
                 NumberFormat.getInstance().format(messageSize));
-            System.out.printf("### %s thread(s) were used.\n\n",
+            System.out.printf("### %s thread(s) were used.\n",
                 NumberFormat.getInstance().format(threads));
 
+            System.out.println("###");
+            System.out.println("### Overall Statistics");
+            System.out.println();
             System.out.print(nc.getStatistics().buildHumanFriendlyString());
         } catch (Exception ex) {
             System.out.println("Exception running benchmark.");

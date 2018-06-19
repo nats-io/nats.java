@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -30,17 +31,33 @@ public class PublishTests {
 
     @Test(expected = IllegalArgumentException.class)
     public void testThrowsWithoutSubject() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect("nats://localhost:"+ts.getPort());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             nc.publish(null, null);
+            assertFalse(true);
         }
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testThrowsWithoutReplyTo() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect("nats://localhost:"+ts.getPort());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             nc.publish("subject", "", null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testThrowsIfTooBig() throws IOException, InterruptedException {
+        String customInfo = "{\"server_id\":\"myid\",\"max_payload\": 1000}";
+
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            
+            byte[] body = new byte[1001];
+            nc.publish("subject", "", body);
+            assertFalse(true);
         }
     }
 

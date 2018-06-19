@@ -621,7 +621,7 @@ public class Options {
         }
 
         /**
-         * Set the time to wait between reconnect attempts.
+         * Set the time to wait between reconnect attempts to the same server.
          */
         public Builder reconnectWait(Duration time) {
             this.reconnectWait = time;
@@ -853,7 +853,7 @@ public class Options {
     }
 
     /**
-     * @return the reconnectWait, used between reconnect attempts
+     * @return the reconnectWait, used between reconnect attempts to the same server
      */
     public Duration getReconnectWait() {
         return reconnectWait;

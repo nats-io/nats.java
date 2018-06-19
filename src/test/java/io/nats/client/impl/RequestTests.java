@@ -33,10 +33,37 @@ import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Nats;
+import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 
 public class RequestTests {
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void testThrowsWithoutSubject() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
+            nc.request(null, null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testThrowsIfTooBig() throws IOException, InterruptedException {
+        String customInfo = "{\"server_id\":\"myid\",\"max_payload\":512}";
+
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
+                Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
+            assertEquals("got custom info", 512, ((NatsConnection) nc).getInfo().getMaxPayload());
+            
+            byte[] body = new byte[513];
+            nc.request("subject", body);
+            assertFalse(true);
+        }
+    }
+
     @Test
     public void testSimpleRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {

@@ -18,7 +18,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -579,5 +582,62 @@ public class MessageQueueTests {
         assertEquals(expected, q.sizeInBytes());
         q.accumulate(100,100, null, null); expected = 0;
         assertEquals(expected, q.sizeInBytes());
+    }
+
+    @Test
+    public void testFilterTail() throws InterruptedException, UnsupportedEncodingException {
+        MessageQueue q = new MessageQueue();
+        NatsMessage msg1 = new NatsMessage("one");
+        NatsMessage msg2 = new NatsMessage("two");
+        NatsMessage msg3 = new NatsMessage("three");
+        byte[] expected = "one".getBytes(StandardCharsets.UTF_8);
+
+        q.push(msg1);
+        q.push(msg2);
+        q.push(msg3);
+
+        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+
+        assertEquals(2,q.length());
+        assertEquals(q.popNow(), msg2);
+        assertEquals(q.popNow(), msg3);
+    }
+
+    @Test
+    public void testFilterHead() throws InterruptedException, UnsupportedEncodingException {
+        MessageQueue q = new MessageQueue();
+        NatsMessage msg1 = new NatsMessage("one");
+        NatsMessage msg2 = new NatsMessage("two");
+        NatsMessage msg3 = new NatsMessage("three");
+        byte[] expected = "three".getBytes(StandardCharsets.UTF_8);
+
+        q.push(msg1);
+        q.push(msg2);
+        q.push(msg3);
+
+        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+
+        assertEquals(2,q.length());
+        assertEquals(q.popNow(), msg1);
+        assertEquals(q.popNow(), msg2);
+    }
+
+    @Test
+    public void testFilterMiddle() throws InterruptedException, UnsupportedEncodingException {
+        MessageQueue q = new MessageQueue();
+        NatsMessage msg1 = new NatsMessage("one");
+        NatsMessage msg2 = new NatsMessage("two");
+        NatsMessage msg3 = new NatsMessage("three");
+        byte[] expected = "two".getBytes(StandardCharsets.UTF_8);
+
+        q.push(msg1);
+        q.push(msg2);
+        q.push(msg3);
+
+        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+
+        assertEquals(2,q.length());
+        assertEquals(q.popNow(), msg1);
+        assertEquals(q.popNow(), msg3);
     }
 }

@@ -133,8 +133,8 @@ public class SubscriberTests {
 
     @Test(expected = IllegalStateException.class)
     public void testUnsubscribe() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject");
@@ -151,8 +151,8 @@ public class SubscriberTests {
 
     @Test(expected = IllegalStateException.class)
     public void testAutoUnsubscribe() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject").unsubscribe(1);
@@ -168,10 +168,10 @@ public class SubscriberTests {
 
     @Test(expected = IllegalStateException.class)
     public void testMultiAutoUnsubscribe() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             int msgCount = 10;
             Message msg = null;
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject").unsubscribe(msgCount);
@@ -192,8 +192,8 @@ public class SubscriberTests {
 
     @Test(expected = IllegalStateException.class)
     public void testOnlyOneUnsubscribe() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject");
@@ -207,8 +207,8 @@ public class SubscriberTests {
 
     @Test(expected = IllegalStateException.class)
     public void testOnlyOneAutoUnsubscribe() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject").unsubscribe(1);
@@ -224,8 +224,8 @@ public class SubscriberTests {
 
     @Test(expected = IllegalStateException.class)
     public void testUnsubscribeInAnotherThread() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject");
@@ -242,9 +242,9 @@ public class SubscriberTests {
 
     @Test(expected = IllegalStateException.class)
     public void testAutoUnsubAfterMaxIsReached() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             int msgCount = 10;
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject");
@@ -268,8 +268,8 @@ public class SubscriberTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnNullSubject() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             nc.subscribe(null);
             assertFalse(true);
         }
@@ -277,8 +277,8 @@ public class SubscriberTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnEmptySubject() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             nc.subscribe("");
             assertFalse(true);
         }
@@ -286,8 +286,8 @@ public class SubscriberTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnNullQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             nc.subscribe("subject", null);
             assertFalse(true);
         }
@@ -295,8 +295,8 @@ public class SubscriberTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnEmptyQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             nc.subscribe("subject", "");
             assertFalse(true);
         }
@@ -304,8 +304,8 @@ public class SubscriberTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnNullSubjectWithQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             nc.subscribe(null, "quque");
             assertFalse(true);
         }
@@ -313,8 +313,8 @@ public class SubscriberTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnEmptySubjectWithQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             nc.subscribe("", "quque");
             assertFalse(true);
         }

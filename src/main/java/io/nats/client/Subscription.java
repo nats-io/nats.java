@@ -51,7 +51,7 @@ public interface Subscription {
      * @throws InterruptedException
      *                                   if one occurs while waiting for the message
      */
-    public Message nextMessage(Duration timeout) throws InterruptedException;
+    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
 
     /**
      * Unsubscribe this subscription and stop listening for messages.

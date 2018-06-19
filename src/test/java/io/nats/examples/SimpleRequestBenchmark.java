@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.examples;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -21,31 +21,44 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
+import io.nats.client.Message;
+import io.nats.client.Nats;
+import io.nats.client.Options;
+
 public class SimpleRequestBenchmark {
     public static void main(String args[]) throws InterruptedException {
-        int threads = 6;
-        int msgsPerThread = 10_000_000;
+        int threads = 4;
+        int msgsPerThread = 1_000_000;
         int messageSize = 8;
+        long totalMessages = threads * msgsPerThread;
         CountDownLatch latch = new CountDownLatch(threads);
         CompletableFuture<Boolean> starter = new CompletableFuture<>();
         AtomicLong msgsHandled = new AtomicLong();
         AtomicLong futureExceptions = new AtomicLong();
+
+        System.out.println("###");
+        System.out.printf("### Running request benchmark with %s %s byte messages across %s threads.\n",
+                                NumberFormat.getInstance().format(totalMessages),
+                                NumberFormat.getInstance().format(messageSize),
+                                NumberFormat.getInstance().format(threads));
+        System.out.println("###");
 
         byte[] body = new byte[messageSize];
         for (int i = 0; i < messageSize; i++) {
             body[i] = 1;
         }
 
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-
-            Connection handlerC = Nats.connect(ts.getURI());
+        try {
+            Connection handlerC = Nats.connect();
             Dispatcher d = handlerC.createDispatcher((msg) -> {
                 handlerC.publish(msg.getReplyTo(), null);
                 msgsHandled.incrementAndGet();
             });
             d.subscribe("request_benchmark");
 
-            Options options = new Options.Builder().server(ts.getURI()).build();//.oldRequestStyle().build();
+            Options options = new Options.Builder().build();
             Connection nc = Nats.connect(options);
 
             for (int k = 0; k < threads; k++) {
@@ -103,8 +116,7 @@ public class SimpleRequestBenchmark {
             nc.close();
             handlerC.close();
 
-            long totalMessages = threads * msgsPerThread;
-            System.out.printf("\n### Total time to perform %s request-replies was %s ms, %f ns/op\n",
+            System.out.printf("### Total time to perform %s request-replies was %s ms, %f ns/op\n",
                     NumberFormat.getInstance().format(totalMessages),
                     NumberFormat.getInstance().format((end - start) / 1_000_000L),
                     ((double) (end - start)) / ((double) (totalMessages)));
@@ -118,14 +130,14 @@ public class SimpleRequestBenchmark {
                     NumberFormat.getInstance().format(msgsHandled.get()));
             System.out.printf("### %s exceptions waiting on futures.\n",
                     NumberFormat.getInstance().format(futureExceptions.get()));
-            System.out.println();
 
-            System.out.println("#### Request connection stats ####");
-            System.out.println("");
+            System.out.println("###");
+            System.out.println("### Request connection stats ####");
+            System.out.println();
             System.out.print(nc.getStatistics().buildHumanFriendlyString());
-            System.out.println("");
-            System.out.println("");
-            System.out.println("#### Dispatcher connection stats ####");
+            System.out.println();
+            System.out.println("###");
+            System.out.println("### Dispatcher connection stats ####");
             System.out.println("");
             System.out.print(handlerC.getStatistics().buildHumanFriendlyString());
         } catch (Exception ex) {

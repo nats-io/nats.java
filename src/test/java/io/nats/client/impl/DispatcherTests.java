@@ -196,8 +196,8 @@ public class DispatcherTests {
     @Test(expected = IllegalStateException.class)
     public void testCantUnsubSubFromDispatcher()
             throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+                try (NatsTestServer ts = new NatsTestServer(false);
+                            Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
@@ -219,8 +219,8 @@ public class DispatcherTests {
     @Test(expected = IllegalStateException.class)
     public void testCantAutoUnsubSubFromDispatcher()
             throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+                try (NatsTestServer ts = new NatsTestServer(false);
+                            Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
@@ -482,8 +482,8 @@ public class DispatcherTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnNullSubject() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             Dispatcher d = nc.createDispatcher((msg) -> {});
             d.subscribe(null);
             assertFalse(true);
@@ -492,8 +492,8 @@ public class DispatcherTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnEmptySubject() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             Dispatcher d = nc.createDispatcher((msg) -> {});
 
             d.subscribe("");
@@ -503,8 +503,8 @@ public class DispatcherTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnNullQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             Dispatcher d = nc.createDispatcher((msg) -> {});
             d.subscribe("subject", null);
             assertFalse(true);
@@ -513,8 +513,8 @@ public class DispatcherTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnEmptyQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             Dispatcher d = nc.createDispatcher((msg) -> {});
             d.subscribe("subject", "");
             assertFalse(true);
@@ -523,8 +523,8 @@ public class DispatcherTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnNullSubjectWithQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             Dispatcher d = nc.createDispatcher((msg) -> {});
             d.subscribe(null, "quque");
             assertFalse(true);
@@ -533,8 +533,8 @@ public class DispatcherTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnEmptySubjectWithQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             Dispatcher d = nc.createDispatcher((msg) -> {});
             d.subscribe("", "quque");
             assertFalse(true);

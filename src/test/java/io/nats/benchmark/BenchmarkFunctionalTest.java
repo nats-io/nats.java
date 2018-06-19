@@ -162,7 +162,7 @@ public class BenchmarkFunctionalTest {
 
     @Test
     public void testBenchSetup() {
-        Benchmark bench = new Benchmark("test", 1, 1);
+        Benchmark bench = new Benchmark("test");
         bench.addPubSample(millionMessagesSecondSample(1));
         bench.addSubSample(millionMessagesSecondSample(1));
         bench.close();
@@ -183,7 +183,7 @@ public class BenchmarkFunctionalTest {
      * @return the created Benchmark
      */
     private Benchmark makeBench(int subs, int pubs) {
-        Benchmark bench = new Benchmark("test", subs, pubs);
+        Benchmark bench = new Benchmark("test");
         for (int i = 0; i < subs; i++) {
             bench.addSubSample(millionMessagesSecondSample(1));
         }
@@ -197,9 +197,10 @@ public class BenchmarkFunctionalTest {
     @Test
     public void testCsv() {
         Benchmark bench = makeBench(1, 1);
-        List<String> lines = bench.csv();
-        assertEquals("Expected 3 lines of output from csv()", 3, lines.size());
-        String[] fields = lines.get(1).split(",");
+        String csv = bench.csv();
+        String[] lines = csv.split("\n");
+        assertEquals("Expected 4 lines of output from csv()", 4, lines.length);
+        String[] fields = lines[1].split(","); // First line is a title, get the header
         assertEquals("Expected 7 fields", 7, fields.length);
     }
 

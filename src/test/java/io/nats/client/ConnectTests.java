@@ -68,7 +68,8 @@ public class ConnectTests {
     @Test
     public void testConnectExitBeforeInfo() throws IOException, InterruptedException {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_BEFORE_INFO)) {
-            Connection nc = Nats.connect(ts.getURI());
+            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            Connection nc = Nats.connect(opt);
             assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -79,7 +80,8 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterInfo() throws IOException, InterruptedException {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_INFO)) {
-            Connection nc = Nats.connect(ts.getURI());
+            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            Connection nc = Nats.connect(opt);
             assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -90,7 +92,8 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterConnect() throws IOException, InterruptedException {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_CONNECT)) {
-            Connection nc = Nats.connect(ts.getURI());
+            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            Connection nc = Nats.connect(opt);
             assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -101,7 +104,8 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterPing() throws IOException, InterruptedException {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
-            Connection nc = Nats.connect(ts.getURI());
+            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            Connection nc = Nats.connect(opt);
             assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());

@@ -101,7 +101,7 @@ class NatsSubscription implements Subscription {
         return this.queueName;
     }
 
-    public Message nextMessage(Duration timeout) throws InterruptedException {
+    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
         if (this.dispatcher != null) {
             throw new IllegalStateException(
                     "Subscriptions that belong to a dispatcher cannot respond to nextMessage directly.");

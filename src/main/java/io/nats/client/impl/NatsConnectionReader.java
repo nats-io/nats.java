@@ -87,7 +87,7 @@ class NatsConnectionReader implements Runnable {
                     buffer.flip(); // Get ready to read
 
                     while (buffer.hasRemaining()) {
-                        read = buffer.limit() - buffer.position(); // reset due to loop
+                        read = buffer.limit() - buffer.position(); // reset each time we use some
                         if (this.protocolMode) {
                             this.gatherProtocol(buffer, read);
                         } else {
@@ -110,7 +110,7 @@ class NatsConnectionReader implements Runnable {
             // We will reuse later
             this.gatherer.clear();
             this.protocolBuffer.clear();
-            stopped.complete(Boolean.TRUE);
+            this.stopped.complete(Boolean.TRUE);
             this.thread = null;
         }
     }
@@ -204,7 +204,7 @@ class NatsConnectionReader implements Runnable {
                 lengthString = msg[3];
             }
 
-            incoming = new NatsMessage(sid, subject, replyTo);
+            incoming = new NatsMessage(sid, subject, replyTo, protocolLine);
             incomingLength = Long.parseLong(lengthString);
             protocolMode = false;
             break;

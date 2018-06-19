@@ -11,9 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.examples;
 
 import java.text.NumberFormat;
+
+import io.nats.client.NUID;
 
 public class SimpleNUIDBenchmarks {
 
@@ -39,11 +41,10 @@ public class SimpleNUIDBenchmarks {
 
     public static void benchmarkGlobalNUIDSpeed() {
         long count = 10000000;
-        NUID nuid = NUID.getInstance();
 
         long start = System.nanoTime();
         for (int i = 0; i < count; i++) {
-            nuid.next();
+            NUID.nextGlobal();
         }
         long elapsedNsec = System.nanoTime() - start;
         System.out.printf("Average generation time for %s global NUIDs was %f ns\n",

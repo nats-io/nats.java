@@ -17,7 +17,9 @@ import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -64,38 +66,37 @@ class NatsConnectionWriter implements Runnable {
     // Returns a future that is completed when the thread completes, not when this
     // method does.
     Future<Boolean> stop() {
-        // TODO(sasbury): Writer should clear old pings when closed
         this.running.set(false);
         this.outgoing.interrupt();
-        return stopped;
+
+        // Clear old ping requests
+        byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
+        this.outgoing.filter((msg)->{return Arrays.equals(pingRequest, msg.getProtocolBytes());});
+        return this.stopped;
     }
 
-    // TODO(sasbury): Do we need to do more to the Handle issue with fast writer
-    // that never releases the lock (look at MessageQUeue fair lock, that may be
-    // enough, but is a big perf hit)
     public void run() {
-        Duration waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
+        Duration waitForMessage = Duration.ofMinutes(2); // This can be long since no one is sending
         Duration waitForAccumulate = null;
-        long maxMessages = 1000;
+        long maxMessages = 500;
 
         try {
             SocketChannel channel = this.channelFuture.get(); // Will wait for the future to complete
             this.outgoing.reset();
 
             while (this.running.get()) {
-                NatsMessage msg = this.outgoing.accumulate(NatsConnection.BUFFER_SIZE, maxMessages, waitForAccumulate,
+                NatsMessage msg = this.outgoing.accumulate(this.sendBuffer.capacity(), maxMessages, waitForAccumulate,
                         waitForMessage);
 
-                if (msg == null) {
+                if (msg == null) { // Make sure we are still running
                     continue;
                 }
 
-                // TODO(sasbury): Check max sizes
                 sendBuffer.clear();
 
-                long ma = 0;
+                long accumulated = 0;
                 while (msg != null) {
-                    ma++;
+                    accumulated++;
 
                     sendBuffer.put(msg.getProtocolBytes());
                     sendBuffer.put(NatsConnection.CRLF);
@@ -106,7 +107,7 @@ class NatsConnectionWriter implements Runnable {
                     }
                     msg = msg.prev; // Work backward through accumulation
                 }
-                connection.getNatsStatistics().registerAccumulate(ma);
+                connection.getNatsStatistics().registerAccumulate(accumulated);
 
                 // Write to the socket
                 sendBuffer.flip();
@@ -118,9 +119,13 @@ class NatsConnectionWriter implements Runnable {
             // Exit
         } finally {
             this.running.set(false);
-            stopped.complete(Boolean.TRUE);
+            this.stopped.complete(Boolean.TRUE);
             this.thread = null;
         }
+    }
+
+    boolean canQueue(NatsMessage msg, long maxSize) {
+        return (maxSize<=0 || (outgoing.sizeInBytes() + msg.getSize()) < maxSize);
     }
 
     void queue(NatsMessage msg) {
