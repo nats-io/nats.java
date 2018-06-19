@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.CancellationException;
@@ -37,7 +36,7 @@ class NatsConnectionReader implements Runnable {
 
     private Thread thread;
     private CompletableFuture<Boolean> stopped;
-    private Future<SocketChannel> channelFuture;
+    private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
 
     private NatsMessage incoming;
@@ -59,8 +58,8 @@ class NatsConnectionReader implements Runnable {
     // Should only be called if the current thread has exited.
     // Use the Future from stop() to determine if it is ok to call this.
     // This method resets that future so mistiming can result in badness.
-    void start(Future<SocketChannel> channelFuture) {
-        this.channelFuture = channelFuture;
+    void start(Future<DataPort> dataPortFuture) {
+        this.dataPortFuture = dataPortFuture;
         this.running.set(true);
         this.stopped = new CompletableFuture<>(); // New future
         this.thread = new Thread(this);
@@ -78,11 +77,11 @@ class NatsConnectionReader implements Runnable {
     public void run() {
         ByteBuffer buffer = ByteBuffer.allocate(NatsConnection.BUFFER_SIZE);
         try {
-            SocketChannel channel = this.channelFuture.get(); // Will wait for the future to complete
+            DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             this.protocolMode = true;
 
             while (this.running.get()) {
-                int read = channel.read(buffer);
+                int read = dataPort.read(buffer);
                 if (read > 0) {
                     buffer.flip(); // Get ready to read
 

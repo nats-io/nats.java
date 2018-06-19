@@ -832,6 +832,14 @@ public class Options {
     }
 
     /**
+     * Checks if we have an ssl context, and if so returns true.
+     * @return use ssl
+     */
+    public boolean isSSLRequired() {
+        return (this.sslContext != null);
+    }
+
+    /**
      * @return the sslContext
      */
     public SSLContext getSslContext() {
@@ -941,9 +949,9 @@ public class Options {
 
         appendOption(connectString, Options.OPTION_PROTOCOL, "1", false, true);
 
-        appendOption(connectString, Options.OPTION_VERBOSE, String.valueOf(this.verbose), false, true);
-        appendOption(connectString, Options.OPTION_PEDANTIC, String.valueOf(this.pedantic), false, true);
-        appendOption(connectString, Options.OPTION_SSL_REQUIRED, String.valueOf(this.sslContext != null), false, true);
+        appendOption(connectString, Options.OPTION_VERBOSE, String.valueOf(this.isVerbose()), false, true);
+        appendOption(connectString, Options.OPTION_PEDANTIC, String.valueOf(this.isPedantic()), false, true);
+        appendOption(connectString, Options.OPTION_SSL_REQUIRED, String.valueOf(this.isSSLRequired()), false, true);
 
         if (includeAuth) {
             if (this.username != null) {

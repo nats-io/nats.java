@@ -14,10 +14,6 @@
 package io.nats.client.impl;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.nio.channels.SocketChannel;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,12 +85,18 @@ class NatsConnection implements Connection {
 
     private NatsStatistics statistics;
 
+    // State is used internally to create a sort of state engine
+    // and insure the connection moves through reasonable transitions
+    // despite threading.
     private State state;
+
+    // Status is an external, simpler value than state, that is matches
+    // other NATS APIs.
     private Status status;
     private ReentrantLock statusLock;
 
-    private CompletableFuture<SocketChannel> channelFuture;
-    private SocketChannel socketChannel;
+    private CompletableFuture<DataPort> dataPortFuture;
+    private DataPort dataPort;
     private String currentServerURI;
     private CompletableFuture<Boolean> reconnectWaiter;
 
@@ -251,7 +253,7 @@ class NatsConnection implements Connection {
 
             // Create a new future for the SocketChannel, the reader/writer will use this
             // to wait for the connect/failure.
-            this.channelFuture = new CompletableFuture<>();
+            this.dataPortFuture = new CompletableFuture<>();
             this.serverInfoFuture = new CompletableFuture<>();
  
             // Make sure the reader and writer are stopped
@@ -261,27 +263,24 @@ class NatsConnection implements Connection {
             this.cleanUpPongQueue();
 
             // Start the reader, after we know it is stopped
-            this.reader.start(this.channelFuture);
-            this.writer.start(this.channelFuture);
+            this.reader.start(this.dataPortFuture);
+            this.writer.start(this.dataPortFuture);
 
-            SocketChannel channel = SocketChannel.open();
-            channel.configureBlocking(true);
-
-            // TODO(sasbury): Bind to local address, set other options
-
-            URI uri = new URI(serverURI);
-            channel.socket().connect(new InetSocketAddress(uri.getHost(), uri.getPort()),
-                    (int) options.getConnectionTimeout().toMillis());
-            channel.finishConnect();
+            // Create the data port - in the future this could be from options
+            // but at this point that is YAGNI code
+            DataPort newDataPort = new SocketChannelDataPort();
+            newDataPort.connect(serverURI, this);
 
             // Notify the any threads waiting on the sockets
-            this.socketChannel = channel;
-            this.channelFuture.complete(this.socketChannel);
+            this.dataPort = newDataPort;
+            this.dataPortFuture.complete(this.dataPort);
 
             // Wait for the INFO message
             // Reader will cancel this if told to reconnect due to an io exception
             NatsServerInfo info = this.serverInfoFuture.get();
             this.serverInfo.set(info);
+
+            upgradeToSecureIfNeeded();
 
             this.sendConnect();
             Future<Boolean> pongFuture = sendPing();
@@ -291,8 +290,23 @@ class NatsConnection implements Connection {
             transitionState(State.CONNECTING, State.CONNECTED);
             updateStatus(Status.CONNECTED);
             this.currentServerURI = serverURI;
-        } catch (IOException | InterruptedException | CancellationException | TimeoutException | ExecutionException | URISyntaxException ex) {
+        } catch (IOException | InterruptedException | CancellationException | TimeoutException | ExecutionException ex) {
             handleConnectIssue(ex);
+        }
+    }
+
+    void upgradeToSecureIfNeeded() throws IOException {
+        Options opts = getOptions();
+        NatsServerInfo info = getInfo();
+
+        if (opts.isSSLRequired() && !info.isSSLRequired()) {
+            throw new IOException("SSL connection wanted by client.");
+        } else if (!opts.isSSLRequired() && info.isSSLRequired()) {
+            throw new IOException("SSL required by server.");
+        }
+
+        if (opts.isSSLRequired()) {
+            this.dataPort.upgradeToSecure();
         }
     }
 
@@ -343,11 +357,11 @@ class NatsConnection implements Connection {
         this.writer.stop();
 
         // Close the current socket and cancel anyone waiting for it
-        this.channelFuture.cancel(true);
+        this.dataPortFuture.cancel(true);
 
         try {
-            if (this.socketChannel != null) {
-                this.socketChannel.close();
+            if (this.dataPort != null) {
+                this.dataPort.close();
             }
         } catch (IOException ex) {
             // Issue closing the socket, but we will just move on
@@ -517,7 +531,7 @@ class NatsConnection implements Connection {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         }
-        
+
         if (after <= 0) {
             this.invalidate(sub); // Will clean it up
         } else {
