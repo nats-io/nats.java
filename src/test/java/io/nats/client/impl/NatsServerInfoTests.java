@@ -29,7 +29,7 @@ public class NatsServerInfoTests {
                         "\"version\":\"1.1.1\"" + "," +
                         "\"go\": \"go1.9\"" + "," +
                         "\"host\": \"host\"" + "," +
-                        "\"ssl_required\": true" + "," +
+                        "\"tls_required\": true" + "," +
                         "\"auth_required\":false" + "," +
                         "\"port\": 7777" + "," +
                         "\"max_payload\":100000000000" + "," +
@@ -43,7 +43,7 @@ public class NatsServerInfoTests {
         assertEquals(info.getPort(), 7777);
         assertEquals(info.getMaxPayload(), 100_000_000_000L);
         assertEquals(info.isAuthRequired(), false);
-        assertEquals(info.isSSLRequired(), true);
+        assertEquals(info.isTLSRequired(), true);
 
         String[] urls = {"one", "two"};
         assertTrue(Arrays.equals(info.getConnectURLs(), urls));

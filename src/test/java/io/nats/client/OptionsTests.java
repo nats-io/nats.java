@@ -14,12 +14,15 @@
 package io.nats.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.net.URI;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Properties;
 
 import javax.net.ssl.SSLContext;
@@ -28,14 +31,18 @@ import org.junit.Test;
 
 import io.nats.client.ConnectionHandler.Events;
 import io.nats.client.ErrorHandler.Errors;
+import io.nats.client.utils.SmallBufferSocketChannelDataPort;
+import io.nats.client.impl.DataPort;
 
 public class OptionsTests {
     @Test
     public void testDefaultOptions() {
         Options o = new Options.Builder().build();
-        
-        assertEquals("default one server", 1,  o.getServers().size());
-        assertEquals("default url", Options.DEFAULT_URL,  o.getServers().toArray()[0].toString());
+
+        assertEquals("default one server", 1, o.getServers().size());
+        assertEquals("default url", Options.DEFAULT_URL, o.getServers().toArray()[0].toString());
+
+        assertEquals("default data port type", Options.DEFAULT_DATA_PORT_TYPE, o.getDataPortType());
 
         assertEquals("default verbose", false, o.isVerbose());
         assertEquals("default pedantic", false, o.isPedantic());
@@ -57,13 +64,11 @@ public class OptionsTests {
         assertEquals("default reconnect wait", Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait());
         assertEquals("default connection timeout", Options.DEFAULT_TIMEOUT, o.getConnectionTimeout());
         assertEquals("default ping interval", Options.DEFAULT_PING_INTERVAL, o.getPingInterval());
-        assertEquals("default cleanup interval", Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval());
+        assertEquals("default cleanup interval", Options.DEFAULT_REQUEST_CLEANUP_INTERVAL,
+                o.getRequestCleanupInterval());
 
         assertNull("error handler", o.getErrorHandler());
-
-        assertNull("disconnect handler", o.getDisconnectHandler());
-        assertNull("reconnect handler", o.getReconnectHandler());
-        assertNull("close handler", o.getCloseHandler());
+        assertNull("disconnect handler", o.getConnectionHandler());
     }
 
     @Test
@@ -76,7 +81,7 @@ public class OptionsTests {
         assertEquals("chained norandomize", true, o.isNoRandomize());
         assertEquals("chained oldstyle", true, o.isOldRequestStyle());
     }
-    
+
     @Test
     public void testChainedStringOptions() throws NoSuchAlgorithmException {
         Options o = new Options.Builder().userInfo("hello", "world").token("token").connectionName("name").build();
@@ -106,12 +111,9 @@ public class OptionsTests {
 
     @Test
     public void testChainedDurationOptions() {
-        Options o = new Options.Builder()
-                            .reconnectWait(Duration.ofMillis(101))
-                            .connectionTimeout(Duration.ofMillis(202))
-                            .pingInterval(Duration.ofMillis(303))
-                            .requestCleanupInterval(Duration.ofMillis(404))
-                            .build();
+        Options o = new Options.Builder().reconnectWait(Duration.ofMillis(101))
+                .connectionTimeout(Duration.ofMillis(202)).pingInterval(Duration.ofMillis(303))
+                .requestCleanupInterval(Duration.ofMillis(404)).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("chained reconnect wait", Duration.ofMillis(101), o.getReconnectWait());
         assertEquals("chained connection timeout", Duration.ofMillis(202), o.getConnectionTimeout());
@@ -121,7 +123,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedErrorHandler() {
-        ErrorHandler handler = (c,s,e) -> System.out.println(e);
+        ErrorHandler handler = (c, s, e) -> System.out.println(e);
         Options o = new Options.Builder().errorHandler(handler).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("chained error handler", handler, o.getErrorHandler());
@@ -129,18 +131,11 @@ public class OptionsTests {
 
     @Test
     public void testChainedConnectionHandler() {
-        ConnectionHandler dcHandler = (c,e) -> System.out.println("discconnected" + e);
-        ConnectionHandler rcHandler = (c,e) -> System.out.println("reconnected" + e);
-        ConnectionHandler cHandler = (c,e) -> System.out.println("closed" + e);
-        Options o = new Options.Builder().disconnectHandler(dcHandler).reconnectHandler(rcHandler).closeHandler(cHandler).build();
+        ConnectionHandler cHandler = (c, e) -> System.out.println("connection event" + e);
+        Options o = new Options.Builder().connectionHandler(cHandler).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertNull("error handler", o.getErrorHandler());
-        assertTrue("chained disconnect handler", dcHandler == o.getDisconnectHandler());
-        assertTrue("chained reconnect handler", rcHandler == o.getReconnectHandler());
-        assertTrue("chained close handler", cHandler == o.getCloseHandler());
-        assertTrue("chained close=disconnect", o.getCloseHandler() != o.getDisconnectHandler());
-        assertTrue("chained reconnect=disconnect", o.getReconnectHandler() != o.getDisconnectHandler());
-        assertTrue("chained close=reconnect", o.getReconnectHandler() != o.getCloseHandler());
+        assertTrue("chained connection handler", cHandler == o.getConnectionHandler());
     }
 
     @Test
@@ -160,7 +155,7 @@ public class OptionsTests {
         assertEquals("property norandomize", true, o.isNoRandomize());
         assertEquals("property oldstyle", true, o.isOldRequestStyle());
     }
-    
+
     @Test
     public void testPropertiesStringOptions() throws NoSuchAlgorithmException {
         Properties props = new Properties();
@@ -179,10 +174,10 @@ public class OptionsTests {
 
     @Test
     public void testPropertiesSSLOptions() throws NoSuchAlgorithmException {
-        
+
         Properties props = new Properties();
         props.setProperty(Options.PROP_SECURE, "true");
-        
+
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertNotNull("property context", o.getSslContext());
@@ -194,7 +189,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_MAX_RECONNECT, "100");
         props.setProperty(Options.PROP_MAX_PINGS, "200");
         props.setProperty(Options.PROP_RECONNECT_BUF_SIZE, "300");
-        
+
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("property max reconnect", 100, o.getMaxReconnect());
@@ -209,7 +204,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CONNECTION_TIMEOUT, "202");
         props.setProperty(Options.PROP_PING_INTERVAL, "303");
         props.setProperty(Options.PROP_CLEANUP_INTERVAL, "404");
-        
+
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("poperty reconnect wait", Duration.ofMillis(101), o.getReconnectWait());
@@ -217,45 +212,36 @@ public class OptionsTests {
         assertEquals("poperty ping interval", Duration.ofMillis(303), o.getPingInterval());
         assertEquals("poperty cleanup interval", Duration.ofMillis(404), o.getRequestCleanupInterval());
     }
-    
+
     @Test
     public void testPropertyErrorHandler() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_EXCEPTION_HANDLER, TestHandler.class.getCanonicalName());
-        
+
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertNotNull("property error handler", o.getErrorHandler());
 
         o.getErrorHandler().errorOccurred(null, null, Errors.ERR_BAD_SUBJECT);
-        assertEquals("property error handler class", ((TestHandler)o.getErrorHandler()).getCount(), 1);
+        assertEquals("property error handler class", ((TestHandler) o.getErrorHandler()).getCount(), 1);
     }
-    
+
     @Test
     public void testPropertyConnectionHandlers() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_DISCONNECTED_CB, TestHandler.class.getCanonicalName());
-        props.setProperty(Options.PROP_RECONNECTED_CB, TestHandler.class.getCanonicalName());
-        props.setProperty(Options.PROP_CLOSED_CB, TestHandler.class.getCanonicalName());
-        
+        props.setProperty(Options.PROP_CONNECTION_CB, TestHandler.class.getCanonicalName());
+
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertNotNull("property disconnect handler", o.getDisconnectHandler());
-        assertNotNull("property reconnect handler", o.getReconnectHandler());
-        assertNotNull("property close handler", o.getCloseHandler());
+        assertNotNull("property connection handler", o.getConnectionHandler());
 
-        o.getDisconnectHandler().connectionEvent(null, Events.DISCONNECTED);
-        o.getReconnectHandler().connectionEvent(null, Events.RECONNECTED);
-        o.getReconnectHandler().connectionEvent(null, Events.RECONNECTED);
-        o.getCloseHandler().connectionEvent(null, Events.CONNECTION_CLOSED);
-        o.getCloseHandler().connectionEvent(null, Events.CONNECTION_CLOSED);
-        o.getCloseHandler().connectionEvent(null, Events.CONNECTION_CLOSED);
+        o.getConnectionHandler().connectionEvent(null, Events.DISCONNECTED);
+        o.getConnectionHandler().connectionEvent(null, Events.RECONNECTED);
+        o.getConnectionHandler().connectionEvent(null, Events.CONNECTION_CLOSED);
 
-        assertEquals("property disconnect handler class", ((TestHandler)o.getDisconnectHandler()).getCount(), 1);
-        assertEquals("property disconnect handler class", ((TestHandler)o.getReconnectHandler()).getCount(), 2);
-        assertEquals("property close handler class", ((TestHandler)o.getCloseHandler()).getCount(), 3);
+        assertEquals("property connect handler class", ((TestHandler) o.getConnectionHandler()).getCount(), 3);
     }
-    
+
     @Test
     public void testChainOverridesProperties() throws NoSuchAlgorithmException {
         Properties props = new Properties();
@@ -271,8 +257,8 @@ public class OptionsTests {
     @Test
     public void testDefaultConnectOptions() {
         Options o = new Options.Builder().build();
-        String expected = "{\"lang\":\"java\",\"version\":\""+Nats.CLIENT_VERSION+"\"" +
-                            ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false}";
+        String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false}";
         assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
     }
 
@@ -280,20 +266,115 @@ public class OptionsTests {
     public void testConnectOptionsWithNameAndContext() throws NoSuchAlgorithmException {
         SSLContext ctx = SSLContext.getDefault();
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
-        String expected = "{\"lang\":\"java\",\"version\":\""+Nats.CLIENT_VERSION+"\",\"name\":\"c1\"" +
-                            ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":true}";
+        String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":true}";
         assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
     }
 
     @Test
     public void testAuthConnectOptions() {
         Options o = new Options.Builder().userInfo("hello", "world").token("token").build();
-        String expectedNoAuth = "{\"lang\":\"java\",\"version\":\""+Nats.CLIENT_VERSION+"\"" +
-                            ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false}";
-        String expectedWithAuth = "{\"lang\":\"java\",\"version\":\""+Nats.CLIENT_VERSION+"\"" +
-                            ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false" +
-                            ",\"user\":\"hello\",\"password\":\"world\",\"auth_token\":\"token\"}";
+        String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false}";
+        String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false"
+                + ",\"user\":\"hello\",\"pass\":\"world\",\"auth_token\":\"token\"}";
         assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString(false));
         assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString(true));
+    }
+
+    @Test
+    public void testDefaultDataPort() {
+        Options o = new Options.Builder().build();
+        DataPort dataPort = o.buildDataPort();
+
+        assertNotNull(dataPort);
+        assertEquals("default dataPort", Options.DEFAULT_DATA_PORT_TYPE, dataPort.getClass().getCanonicalName());
+    }
+
+    @Test
+    public void testPropertyDataPortType() {
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_DATA_PORT_TYPE, SmallBufferSocketChannelDataPort.class.getCanonicalName());
+
+        Options o = new Options.Builder(props).build();
+        assertEquals("default verbose", false, o.isVerbose()); // One from a different type
+
+        assertEquals("property data port class", SmallBufferSocketChannelDataPort.class.getCanonicalName(),
+                o.buildDataPort().getClass().getCanonicalName());
+    }
+
+    @Test
+    public void testUserPassInURL() {
+        Options o = new Options.Builder().server("nats://derek:password@localhost:2222").build();
+
+        assertNull(o.getToken());
+        assertEquals("user from url", "derek", o.getUsername());
+        assertEquals("password from url", "password", o.getPassword());
+    }
+
+    @Test
+    public void testTokenInURL() {
+        Options o = new Options.Builder().server("nats://alberto@localhost:2222").build();
+
+        assertNull(o.getUsername());
+        assertNull(o.getPassword());
+        assertEquals("token from url", "alberto", o.getToken());
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNoProps() throws NoSuchAlgorithmException {
+        new Options.Builder(null);
+        assertFalse(true);
+    }
+
+    @Test
+    public void testServerInProperties() {
+        Properties props = new Properties();
+        String url = "nats://localhost:8080";
+        props.setProperty(Options.PROP_URL, url);
+
+        Options o = new Options.Builder(props).build();
+        Collection<URI> servers = o.getServers();
+        URI[] serverArray = servers.toArray(new URI[0]);
+        assertEquals(1, serverArray.length);
+        assertEquals("property server", url, serverArray[0].toString());
+    }
+
+    @Test
+    public void testServersInProperties() {
+        Properties props = new Properties();
+        String url1 = "nats://localhost:8080";
+        String url2 = "nats://localhost:8081";
+        String urls = url1 + ", " + url2;
+        props.setProperty(Options.PROP_SERVERS, urls);
+
+        Options o = new Options.Builder(props).build();
+        Collection<URI> servers = o.getServers();
+        URI[] serverArray = servers.toArray(new URI[0]);
+        assertEquals(2, serverArray.length);
+        assertEquals("property server", url1, serverArray[0].toString());
+        assertEquals("property server", url2, serverArray[1].toString());
+    }
+
+    @Test
+    public void testServers() {
+        String url1 = "nats://localhost:8080";
+        String url2 = "nats://localhost:8081";
+        String[] serverUrls = {url1, url2};
+        Options o = new Options.Builder().servers(serverUrls).build();
+
+        Collection<URI> servers = o.getServers();
+        URI[] serverArray = servers.toArray(new URI[0]);
+        assertEquals(2, serverArray.length);
+        assertEquals("property server", url1, serverArray[0].toString());
+        assertEquals("property server", url2, serverArray[1].toString());
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testBadClassInPropertyConnectionHandlers() {
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_CONNECTION_CB, "foo");
+        new Options.Builder(props);
     }
 }

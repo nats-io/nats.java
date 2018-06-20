@@ -32,7 +32,8 @@ class NatsConnectionReader implements Runnable {
     private boolean protocolMode;
 
     private boolean gotCR;
-    private Pattern space;
+    
+    Pattern space;
 
     private Thread thread;
     private CompletableFuture<Boolean> stopped;
@@ -225,12 +226,12 @@ class NatsConnectionReader implements Runnable {
             this.connection.handleInfo(String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)));
             break;
         default:
-            // BAD OP TODO(sasbury): Reconnect?
+            encounteredProtocolError(null);
             break;
         }
     }
 
     void encounteredProtocolError(Exception ex) {
-        // TODO(sasbury): This is a protocol error, force reconnect
+        this.connection.handleCommunicationIssue(ex);
     }
 }

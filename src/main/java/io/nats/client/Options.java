@@ -25,6 +25,9 @@ import java.util.Collection;
 
 import javax.net.ssl.SSLContext;
 
+import io.nats.client.impl.DataPort;
+import io.nats.client.impl.SocketChannelDataPort;
+
 // TODO(sasbury): Support for local address (inetaddress)
 // TODO(sasbury): SUpport for accumulate timeout
 /**
@@ -120,23 +123,23 @@ public class Options {
      */
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
 
+    /**
+     * Default dataport class, which will use a socket channel and SSL engine as needed.
+     */
+    public static final String DEFAULT_DATA_PORT_TYPE = SocketChannelDataPort.class.getCanonicalName();
+
     static final String PFX = "io.nats.client.";
 
     /**
-     * {@value #PROP_RECONNECTED_CB}, see
-     * {@link Builder#reconnectHandler(ConnectionHandler) reconnectHandler}.
+     * {@value #PROP_CONNECTION_CB}, see
+     * {@link Builder#connectionHandler(ConnectionHandler) connectionHandler}.
      */
-    public static final String PROP_RECONNECTED_CB = PFX + "callback.reconnected";
+    public static final String PROP_CONNECTION_CB = PFX + "callback.connection";
     /**
-     * {@value #PROP_DISCONNECTED_CB}, see
-     * {@link Builder#disconnectHandler(ConnectionHandler) disconnectHandler}.
+     * {@value #PROP_DATA_PORT_TYPE}, see
+     * {@link Builder#dataPortType(String) dataPortType}.
      */
-    public static final String PROP_DISCONNECTED_CB = PFX + "callback.disconnected";
-    /**
-     * {@value #PROP_CLOSED_CB}, see {@link Builder#closeHandler(ConnectionHandler)
-     * closeHandler}.
-     */
-    public static final String PROP_CLOSED_CB = PFX + "callback.closed";
+    public static final String PROP_DATA_PORT_TYPE = PFX + "dataport.type";
     /**
      * {@value #PROP_EXCEPTION_HANDLER}, see
      * {@link Builder#errorHandler(ErrorHandler) errorHandler}.
@@ -271,7 +274,7 @@ public class Options {
      * Protocol key {@value #OPTION_PASSWORD}, see
      * {@link Builder#userInfo(String, String) userInfo}.
      */
-    public static final String OPTION_PASSWORD = "password";
+    public static final String OPTION_PASSWORD = "pass";
 
     /**
      * Protocol key {@value #OPTION_NAME}, see {@link Builder#connectionName(String)
@@ -315,9 +318,8 @@ public class Options {
     private final boolean useOldRequestStyle;
 
     private final ErrorHandler errorHandler;
-    private final ConnectionHandler disconnectHandler;
-    private final ConnectionHandler reconnectHandler;
-    private final ConnectionHandler closeHandler;
+    private final ConnectionHandler connectionHandler;
+    private final String dataPortType;
 
     public static class Builder {
 
@@ -341,9 +343,8 @@ public class Options {
         private boolean useOldRequestStyle = false;
 
         private ErrorHandler errorHandler = null;
-        private ConnectionHandler disconnectHandler = null;
-        private ConnectionHandler reconnectHandler = null;
-        private ConnectionHandler closeHandler = null;
+        private ConnectionHandler connectionHandler = null;
+        private String dataPortType = DEFAULT_DATA_PORT_TYPE;
 
         /**
          * Constructs a new Builder with the default values.
@@ -359,11 +360,15 @@ public class Options {
 
         /**
          * Constructs a new {@code Builder} from a {@link Properties} object.
+         * 
+         * If {@link Options#PROP_SECURE PROP_SECURE} is set, the builder will
+         * try to use the default SSLContext {@link SSLContext#getDefault()}. If that
+         * fails, no context is set and an IllegalArgumentException is thrown.
          *
          * @param props
          *                  the {@link Properties} object
          */
-        public Builder(Properties props) {
+        public Builder(Properties props) throws IllegalArgumentException {
             if (props == null) {
                 throw new IllegalArgumentException("Properties cannot be null");
             }
@@ -403,9 +408,10 @@ public class Options {
 
                 if (secure) {
                     try {
-                        this.sslContext = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
-                    } catch (NoSuchAlgorithmException nsae) {
-                        throw new IllegalArgumentException("Unable to create ssl context from default protocol", nsae);
+                        this.sslContext = SSLContext.getDefault();
+                    } catch (NoSuchAlgorithmException e) {
+                        this.sslContext = null;
+                        throw new IllegalArgumentException("Unable to retrieve default SSL context");
                     }
                 }
             }
@@ -466,27 +472,21 @@ public class Options {
             }
 
             if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
-                Object instance = createCallback(props.getProperty(PROP_EXCEPTION_HANDLER));
+                Object instance = createInstanceOf(props.getProperty(PROP_EXCEPTION_HANDLER));
                 this.errorHandler = (ErrorHandler) instance;
             }
 
-            if (props.containsKey(PROP_CLOSED_CB)) {
-                Object instance = createCallback(props.getProperty(PROP_CLOSED_CB));
-                this.closeHandler = (ConnectionHandler) instance;
+            if (props.containsKey(PROP_CONNECTION_CB)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_CONNECTION_CB));
+                this.connectionHandler = (ConnectionHandler) instance;
             }
 
-            if (props.containsKey(PROP_DISCONNECTED_CB)) {
-                Object instance = createCallback(props.getProperty(PROP_DISCONNECTED_CB));
-                this.disconnectHandler = (ConnectionHandler) instance;
-            }
-
-            if (props.containsKey(PROP_RECONNECTED_CB)) {
-                Object instance = createCallback(props.getProperty(PROP_RECONNECTED_CB));
-                this.reconnectHandler = (ConnectionHandler) instance;
+            if (props.containsKey(PROP_DATA_PORT_TYPE)) {
+                this.dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
             }
         }
 
-        private Object createCallback(String className) {
+        static Object createInstanceOf(String className) {
             Object instance = null;
             try {
                 Class<?> clazz = Class.forName(className);
@@ -582,7 +582,7 @@ public class Options {
          * @throws NoSuchAlgorithmException If the default protocol is unavailable.
          */
         public Builder secure() throws NoSuchAlgorithmException {
-            this.sslContext = SSLContext.getInstance(DEFAULT_SSL_PROTOCOL);
+            this.sslContext = SSLContext.getDefault();
             return this;
         }
 
@@ -705,38 +705,54 @@ public class Options {
          * @param handler
          *                    The new ConnectionHandler for this type of event.
          */
-        public Builder disconnectHandler(ConnectionHandler handler) {
-            this.disconnectHandler = handler;
+        public Builder connectionHandler(ConnectionHandler handler) {
+            this.connectionHandler = handler;
+            return this;
+        }
+
+        public Builder dataPortType(String dataPortClassName) {
+            this.dataPortType = dataPortClassName;
             return this;
         }
 
         /**
-         * Set the ConnectionHandler to receive asyncrhonous notifications of reconnect
-         * events.
-         * 
-         * @param handler
-         *                    The new ConnectionHandler for this type of event.
+         * If the Options builder was not provided with a server, a default one will be included
+         * {@link Options#DEFAULT_URL}. If only a single server URI is included, the builder
+         * will try a few things to make connecting easier:
+         *  * If there is no user/password is set but the URI has them, they will be used.
+         *  * If there is no token is set but the URI has one, it will be used.
+         *  * If the URI is of the form tls:// and no SSL context was assigned, the default one will
+         *  be used {@link SSLContext#getDefault()}.
          */
-        public Builder reconnectHandler(ConnectionHandler handler) {
-            this.reconnectHandler = handler;
-            return this;
-        }
-
-        /**
-         * Set the ConnectionHandler to receive asyncrhonous notifications of close
-         * events.
-         * 
-         * @param handler
-         *                    The new ConnectionHandler for this type of event.
-         */
-        public Builder closeHandler(ConnectionHandler handler) {
-            this.closeHandler = handler;
-            return this;
-        }
-
         public Options build() {
             if (servers.size() == 0) {
                 server(DEFAULT_URL);
+            } else if (servers.size() == 1) { // Allow some URI based configs
+                URI serverURI = servers.get(0);
+                
+                if (this.username==null && this.password==null && this.token == null) {
+                    String userInfo = serverURI.getUserInfo();
+
+                    if (userInfo != null) {
+                        String[] info = userInfo.split(":");
+
+                        if (info.length == 2) {
+                            this.username = info[0];
+                            this.password = info[1];
+                        } else {
+                            this.token = userInfo;
+                        }
+                    }
+                }
+
+                if ("tls".equals(serverURI.getScheme()) && this.sslContext == null)
+                {
+                    try {
+                        this.sslContext = SSLContext.getDefault();
+                    } catch (NoSuchAlgorithmException e) {
+                        this.sslContext = null;
+                    }
+                }
             }
             return new Options(this);
         }
@@ -763,9 +779,8 @@ public class Options {
         this.useOldRequestStyle = b.useOldRequestStyle;
 
         this.errorHandler = b.errorHandler;
-        this.disconnectHandler = b.disconnectHandler;
-        this.reconnectHandler = b.reconnectHandler;
-        this.closeHandler = b.closeHandler;
+        this.connectionHandler = b.connectionHandler;
+        this.dataPortType = b.dataPortType;
     }
 
     /**
@@ -776,24 +791,24 @@ public class Options {
     }
 
     /**
-     * @return The disconnect handler, or null.
+     * @return The connection handler, or null.
      */
-    public ConnectionHandler getDisconnectHandler() {
-        return this.disconnectHandler;
+    public ConnectionHandler getConnectionHandler() {
+        return this.connectionHandler;
     }
 
     /**
-     * @return The reconnect handler, or null.
+     * Returns the dataport type this options will create.
      */
-    public ConnectionHandler getCloseHandler() {
-        return this.closeHandler;
+    public String getDataPortType() {
+        return this.dataPortType;
     }
 
     /**
-     * @return The reconnect handler, or null.
+     * @return The data port described by these options, or the default type.
      */
-    public ConnectionHandler getReconnectHandler() {
-        return this.reconnectHandler;
+    public DataPort buildDataPort() {
+        return (DataPort) Options.Builder.createInstanceOf(dataPortType);
     }
 
     /**

@@ -569,6 +569,16 @@ public class DispatcherTests {
     }
 
     @Test(expected = IllegalStateException.class)
+    public void throwsOnCreateIfClosed() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            nc.close();
+            nc.createDispatcher((msg) -> {});
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
     public void throwsOnSubscribeIfClosed() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {

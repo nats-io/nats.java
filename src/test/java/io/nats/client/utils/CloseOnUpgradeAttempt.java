@@ -11,23 +11,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client.utils;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
-public interface DataPort {
-    public void connect(String serverURI, NatsConnection conn) throws IOException;
+import io.nats.client.impl.SocketChannelDataPort;
 
-    /**
-     * Upgrade the port to SSL. If it is already secured, this is a no-op.
-     * If the data port type doesn't support SSL it should throw an exception.
-     */
-    public void upgradeToSecure() throws IOException;
+public class CloseOnUpgradeAttempt extends SocketChannelDataPort {
+    public CloseOnUpgradeAttempt() {
+        super(); // Start with a very small buffer size
+    }
 
-    public int read(ByteBuffer dst) throws IOException;
-
-    public void write(ByteBuffer src) throws IOException;
-
-    public void close() throws IOException;
+    @Override
+    public void upgradeToSecure() throws IOException {
+        this.close();
+        super.upgradeToSecure();
+    }
 }

@@ -66,6 +66,10 @@ public class Sample {
      * @return throughput of bytes per second
      */
     public double throughput() {
+        if (duration() == 0) {
+            return 0;
+        }
+        
         return (double) msgBytes / (duration() / BILLION);
     }
 
@@ -75,6 +79,10 @@ public class Sample {
      * @return rate of messages in the job per second.
      */
     public long rate() {
+        if (duration() == 0) {
+            return 0;
+        }
+
         return (long) ((double) jobMsgCnt / (duration() / BILLION));
     }
 

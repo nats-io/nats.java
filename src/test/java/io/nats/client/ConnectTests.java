@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -115,15 +116,27 @@ public class ConnectTests {
 
     @Test
     public void testConnectionFailureWithFallback() throws IOException, InterruptedException {
-        try (NatsServerProtocolMock fake = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING);
-                NatsTestServer ts = new NatsTestServer(true)) {
-            Options options = new Options.Builder().server("nats://localhost:" + fake.getPort())
-                    .server(ts.getURI()).build();
-            Connection nc = Nats.connect(options);
+        
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            try (NatsServerProtocolMock fake = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
+                Options options = new Options.Builder().server(fake.getURI()).server(ts.getURI()).build();
+                Connection nc = Nats.connect(options);
+                assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());
+                nc.close();
+                assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
+                assertEquals("Progress", Progress.GOT_PING, fake.getProgress());
+            }
+        }
+    }
+
+    @Test
+    public void testConnectWithConfig() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/simple.conf", false)) {
+            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertEquals("Parsed port", 16222, ts.getPort());
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
-            assertTrue("Progress", Progress.GOT_PING == fake.getProgress());
         }
     }
 }

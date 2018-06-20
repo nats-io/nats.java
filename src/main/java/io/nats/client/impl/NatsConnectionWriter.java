@@ -70,14 +70,16 @@ class NatsConnectionWriter implements Runnable {
 
         // Clear old ping requests
         byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
-        this.outgoing.filter((msg)->{return Arrays.equals(pingRequest, msg.getProtocolBytes());});
+        this.outgoing.filter((msg) -> {
+            return Arrays.equals(pingRequest, msg.getProtocolBytes());
+        });
         return this.stopped;
     }
 
     public void run() {
         Duration waitForMessage = Duration.ofMinutes(2); // This can be long since no one is sending
         Duration waitForAccumulate = null;
-        long maxMessages = 500;
+        long maxMessages = 1000;
 
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
@@ -110,7 +112,10 @@ class NatsConnectionWriter implements Runnable {
 
                 // Write to the socket
                 sendBuffer.flip();
-                dataPort.write(sendBuffer);
+
+                while (sendBuffer.hasRemaining()) {
+                    dataPort.write(sendBuffer);
+                }
             }
         } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);
@@ -124,7 +129,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     boolean canQueue(NatsMessage msg, long maxSize) {
-        return (maxSize<=0 || (outgoing.sizeInBytes() + msg.getSize()) < maxSize);
+        return (maxSize <= 0 || (outgoing.sizeInBytes() + msg.getSize()) < maxSize);
     }
 
     void queue(NatsMessage msg) {

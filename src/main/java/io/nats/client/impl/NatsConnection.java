@@ -14,6 +14,8 @@
 package io.nats.client.impl;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -104,7 +106,6 @@ class NatsConnection implements Connection {
     private NatsConnectionWriter writer;
 
     private AtomicReference<NatsServerInfo> serverInfo;
-    private CompletableFuture<NatsServerInfo> serverInfoFuture;
 
     private ReentrantLock subscriberLock;
     private HashMap<String, NatsSubscription> subscribers;
@@ -154,6 +155,8 @@ class NatsConnection implements Connection {
 
     // Connect is only called after creation
     void connect() throws InterruptedException {
+        Duration connectTimeout = options.getConnectionTimeout();
+        
         if (options.getServers().size() == 0) {
             throw new IllegalArgumentException("No servers provided in options");
         }
@@ -164,6 +167,9 @@ class NatsConnection implements Connection {
         }
 
         for (String serverURI : getServers()) {
+            
+            this.waitForState(State.DISCONNECTED, this.options.getConnectionTimeout());
+            
             // Throughout the loop, we can only try to connect, if we are disconnected
             if (!transitionState(State.DISCONNECTED, State.CONNECTING)) {
                 break;
@@ -201,8 +207,10 @@ class NatsConnection implements Connection {
 
             for (String server : serversToTry) {
                 if (server.equals(lastServer)) {
-                    reconnectWaiter = new CompletableFuture<>();
+                    this.reconnectWaiter = new CompletableFuture<>();
                     waitForReconnectTimeout();
+                } else {
+                    this.waitForState(State.DISCONNECTED, this.options.getConnectionTimeout());
                 }
 
                 if (!transitionState(State.DISCONNECTED, State.CONNECTING)) {
@@ -254,7 +262,6 @@ class NatsConnection implements Connection {
             // Create a new future for the SocketChannel, the reader/writer will use this
             // to wait for the connect/failure.
             this.dataPortFuture = new CompletableFuture<>();
-            this.serverInfoFuture = new CompletableFuture<>();
  
             // Make sure the reader and writer are stopped
             this.reader.stop().get();
@@ -262,25 +269,22 @@ class NatsConnection implements Connection {
 
             this.cleanUpPongQueue();
 
-            // Start the reader, after we know it is stopped
-            this.reader.start(this.dataPortFuture);
-            this.writer.start(this.dataPortFuture);
-
-            // Create the data port - in the future this could be from options
-            // but at this point that is YAGNI code
-            DataPort newDataPort = new SocketChannelDataPort();
+            DataPort newDataPort = this.options.buildDataPort();
             newDataPort.connect(serverURI, this);
 
             // Notify the any threads waiting on the sockets
             this.dataPort = newDataPort;
             this.dataPortFuture.complete(this.dataPort);
 
-            // Wait for the INFO message
-            // Reader will cancel this if told to reconnect due to an io exception
-            NatsServerInfo info = this.serverInfoFuture.get();
-            this.serverInfo.set(info);
+            // Wait for the INFO message manually
+            // all other traffic will use the reader and writer
+            readInitialInfo();
 
             upgradeToSecureIfNeeded();
+            
+            // Start the reader and writer after we secured the connection, if necessary
+            this.reader.start(this.dataPortFuture);
+            this.writer.start(this.dataPortFuture);
 
             this.sendConnect();
             Future<Boolean> pongFuture = sendPing();
@@ -299,9 +303,9 @@ class NatsConnection implements Connection {
         Options opts = getOptions();
         NatsServerInfo info = getInfo();
 
-        if (opts.isSSLRequired() && !info.isSSLRequired()) {
+        if (opts.isSSLRequired() && !info.isTLSRequired()) {
             throw new IOException("SSL connection wanted by client.");
-        } else if (!opts.isSSLRequired() && info.isSSLRequired()) {
+        } else if (!opts.isSSLRequired() && info.isTLSRequired()) {
             throw new IOException("SSL required by server.");
         }
 
@@ -312,8 +316,9 @@ class NatsConnection implements Connection {
 
     // Called from connect threads
     void handleConnectIssue(Exception io) {
-        // TODO(sasbury): Something with exceptions
-
+        // TODO(sasbury): Something with exceptions if they are not null
+        // io.printStackTrace();
+            
         // We can handle this in the connect thread
         this.closeSocket(State.DISCONNECTED);
         // Connect thread will deal with reconnect if necessary
@@ -321,7 +326,8 @@ class NatsConnection implements Connection {
 
     // Called from reader/writer thread
     void handleCommunicationIssue(Exception io) {
-        // TODO(sasbury): Something with exceptions
+        // TODO(sasbury): Something with exceptions if they are not null
+        // io.printStackTrace();
 
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
@@ -349,8 +355,6 @@ class NatsConnection implements Connection {
         }
 
         this.currentServerURI = null;
-
-        this.serverInfoFuture.cancel(true); // Stop the connect thread from waiting for this
 
         // Signal the reader and writer
         this.reader.stop();
@@ -434,6 +438,8 @@ class NatsConnection implements Connection {
             subscriberLock.unlock();
         }
 
+        cleanUpPongQueue();
+
         statusLock.lock();
         try {
             this.state = State.CLOSED;
@@ -452,7 +458,6 @@ class NatsConnection implements Connection {
                 // Ignore these
             }
         }
-        pongQueue.clear();
     }
 
     public void publish(String subject, byte[] body) {
@@ -748,8 +753,8 @@ class NatsConnection implements Connection {
 
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
 
-        if (isClosed()) {
-            throw new IllegalStateException("Connection is Closed");
+        if (!isConnected()) {
+            throw new IllegalStateException("Not Connected");
         }
 
         Future<Boolean> waitForIt = sendPing();
@@ -814,14 +819,72 @@ class NatsConnection implements Connection {
         }
     }
 
+    void readInitialInfo() throws IOException {
+        ByteBuffer readBuffer = ByteBuffer.allocate(NatsConnection.MAX_PROTOCOL_LINE);
+        ByteBuffer protocolBuffer = ByteBuffer.allocate(NatsConnection.MAX_PROTOCOL_LINE);
+        boolean gotCRLF = false;
+        boolean gotCR = false;
+        int read = 0;
+
+        while (!gotCRLF) {
+            read = this.dataPort.read(readBuffer);
+
+            if (read < 0) {
+                break;
+            }
+
+            readBuffer.flip();
+
+            while (readBuffer.hasRemaining()) {
+                byte b = readBuffer.get();
+
+                if (gotCR) {
+                    if (b != LF) {
+                        throw new IOException("Missed LF after CR waiting for INFO.");
+                    } else if (readBuffer.hasRemaining()) {
+                        throw new IOException("Read past initial info message.");
+                    }
+
+                    gotCRLF = true;
+                    break;
+                }
+
+                if (b == CR) {
+                    gotCR = true;
+                } else {
+                    protocolBuffer.put(b);
+                }
+            }
+
+            readBuffer.clear();
+
+            if (gotCRLF) {
+                break;
+            }
+        }
+
+        if (!gotCRLF) {
+            throw new IOException("Failed to read initial info message.");
+        }
+
+        protocolBuffer.flip();
+
+        String infoJson = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
+        infoJson = infoJson.trim();
+        String msg[] = this.reader.space.split(infoJson);
+        String op = msg[0].toUpperCase();
+
+        if (!OP_INFO.equals(op)) {
+            throw new IOException("Received non-info initial message.");
+        }
+
+        NatsServerInfo newServerInfo = new NatsServerInfo(infoJson);
+        this.serverInfo.set(newServerInfo);
+    }
+
     void handleInfo(String infoJson) {
         NatsServerInfo serverInfo = new NatsServerInfo(infoJson);
-        // More than one from the same server
-        if (this.serverInfoFuture.isDone()) {
-            this.serverInfo.set(serverInfo);
-        } else {
-            this.serverInfoFuture.complete(serverInfo); // Will set in connect thread
-        }
+        this.serverInfo.set(serverInfo);
     }
 
     void deliverMessage(NatsMessage msg) {
@@ -861,11 +924,15 @@ class NatsConnection implements Connection {
     }
 
     public Statistics getStatistics() {
-        return statistics;
+        return this.statistics;
     }
 
     NatsStatistics getNatsStatistics() {
-        return statistics;
+        return this.statistics;
+    }
+
+    DataPort getDataPort() {
+        return this.dataPort;
     }
 
     public Status getStatus() {
@@ -941,6 +1008,24 @@ class NatsConnection implements Connection {
 
     public String getCurrentServerURI() {
         return this.currentServerURI;
+    }
+
+    boolean waitForState(State state, Duration timeout) {
+        long currentWaitNanos = (timeout != null) ? timeout.toNanos() : -1;
+        long start = System.nanoTime();
+
+        while (currentWaitNanos > 0 && this.state != state) {
+            try {
+                Thread.sleep(0, 100); // Short sleep
+            } catch (Exception exp) {
+                // ignore, try to loop again
+            }
+            long now = System.nanoTime();
+            currentWaitNanos = currentWaitNanos - (now-start);
+            start = now;
+        }
+
+        return this.state == state;
     }
 
     void waitForReconnectTimeout() {

@@ -77,6 +77,40 @@ public class ReconnectTests {
     }
 
     @Test
+    public void testMaxReconnects() throws InterruptedException, IOException {
+        Connection nc = null;
+
+        try {
+            try (NatsTestServer ts = new NatsTestServer()) {
+                Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    maxReconnects(1).
+                                    reconnectWait(Duration.ofMillis(10)).
+                                    build();
+                nc = Nats.connect(options);
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            }
+
+            try {
+                Thread.sleep(100); // Could be flaky
+                nc.flush(Duration.ofMillis(50)); //Trigger the reconnect
+            } catch (Exception exp) {
+                // exp.printStackTrace();
+            }
+            try {
+                Thread.sleep(100); // Could be flaky
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } finally {
+            if (nc != null) {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
+    @Test
     public void testReconnectToSecondServer() throws InterruptedException, IOException {
         NatsConnection nc = null;
 

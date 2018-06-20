@@ -153,8 +153,6 @@ public class NatsBench {
     }
 
     class DispatchWorker extends Worker {
-        private int count = 0;
-
         DispatchWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
             super(starter, finisher, numMsgs, size, secure);
         }
@@ -164,21 +162,6 @@ public class NatsBench {
             try {
                 Options opts = prepareOptions(this.secure, false);
                 Connection nc = Nats.connect(opts);
-                nc.setConnectionHandler(new ConnectionHandler() {
-                    public void connectionEvent(Connection conn, Events type) {
-                        System.err.printf("Subscriber connection event %s", type);
-                    }
-                });
-
-                nc.setErrorHandler(new ErrorHandler() {
-                    @Override
-                    public void errorOccurred(Connection conn, Subscription sub, Errors type) {
-                        System.err.println("Subscriber connection error: " + type);
-                        System.err.printf("Received=%d\n", count);
-                        // TODO(sasbury): System.err.printf("Messages dropped (total) = %d\n", sub.getDropped());
-                        System.exit(-1);
-                    }
-                });
 
                 final CountDownLatch latch = new CountDownLatch(numMsgs);
                 final Dispatcher d = nc.createDispatcher(new MessageHandler() {
@@ -215,8 +198,6 @@ public class NatsBench {
     }
 
     class SyncSubWorker extends Worker {
-        private int count = 0;
-
         SyncSubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
             super(starter, finisher, numMsgs, size, secure);
         }
@@ -226,20 +207,6 @@ public class NatsBench {
             try {
                 Options opts = prepareOptions(this.secure, false);
                 Connection nc = Nats.connect(opts);
-                nc.setConnectionHandler(new ConnectionHandler() {
-                    public void connectionEvent(Connection conn, Events type) {
-                        System.err.printf("Subscriber connection event %s", type);
-                    }
-                });
-
-                nc.setErrorHandler(new ErrorHandler() {
-                    @Override
-                    public void errorOccurred(Connection conn, Subscription sub, Errors type) {
-                        System.err.println("Subscriber connection error: " + type);
-                        System.err.printf("Received=%d\n", count);
-                        System.exit(-1);
-                    }
-                });
 
                 Subscription sub = nc.subscribe(subject);
                 nc.flush(null);
@@ -283,6 +250,7 @@ public class NatsBench {
             try {
                 Options opts = prepareOptions(this.secure, false);
                 Connection nc = Nats.connect(opts);
+
                 byte[] payload = null;
                 if (size > 0) {
                     payload = new byte[size];
@@ -321,6 +289,7 @@ public class NatsBench {
             try {
                 Options opts = prepareOptions(this.secure, this.oldStyle);
                 Connection nc = Nats.connect(opts);
+                
                 Statistics s = nc.getStatistics();
                 byte[] payload = null;
                 if (size > 0) {
@@ -489,7 +458,6 @@ public class NatsBench {
             System.err.printf("Latest test sent = %d\n", sent.get());
             System.err.printf("Latest test received = %d\n", received.get());
             System.err.printf("Latest test repies = %d\n", replies.get());
-            error.printStackTrace();
             Runtime.getRuntime().removeShutdownHook(shutdownHook);
             throw new RuntimeException(error);
         }
@@ -624,8 +592,7 @@ public class NatsBench {
                 new NatsBench(args).start();
             }
         } catch (Exception e) {
-            System.err.println("Exception: " + e);
-            e.printStackTrace();
+            System.err.printf("Exiting due to exception [%s]\n", e.getMessage());
             System.exit(-1);
         }
         System.exit(0);

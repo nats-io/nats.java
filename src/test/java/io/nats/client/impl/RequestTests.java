@@ -59,6 +59,15 @@ public class RequestTests {
     }
 
     @Test(expected = IllegalArgumentException.class)
+    public void testThrowsEmptySubject() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
+            nc.request("", null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
     public void testThrowsIfTooBig() throws IOException, InterruptedException {
         String customInfo = "{\"server_id\":\"myid\",\"max_payload\":512}";
 

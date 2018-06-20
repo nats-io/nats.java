@@ -3,7 +3,6 @@
 ##############
 gnatsd.log
 *.csv
-natsbench.properties
 
 # Compiled source #
 ###################

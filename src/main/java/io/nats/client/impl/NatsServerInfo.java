@@ -27,7 +27,7 @@ class NatsServerInfo {
     static final String HOST = "host";
     static final String PORT = "port";
     static final String AUTH = "auth_required";
-    static final String SSL = "ssl_required";
+    static final String TLS = "tls_required";
     static final String MAX_PAYLOAD = "max_payload";
     static final String CONNECT_URLS = "connect_urls";
 
@@ -37,7 +37,7 @@ class NatsServerInfo {
     private String host;
     private int port;
     private boolean authRequired;
-    private boolean sslRequired;
+    private boolean tlsRequired;
     private long maxPayload;
     private String[] connectURLs;
     private HashMap<String, Object> unexpected;
@@ -71,8 +71,8 @@ class NatsServerInfo {
         return this.authRequired;
     }
 
-    public boolean isSSLRequired() {
-        return this.sslRequired;
+    public boolean isTLSRequired() {
+        return this.tlsRequired;
     }
 
     public long getMaxPayload() {
@@ -150,8 +150,8 @@ class NatsServerInfo {
                 case AUTH:
                     this.authRequired = true;
                     break;
-                case SSL:
-                    this.sslRequired = true;
+                case TLS:
+                    this.tlsRequired = true;
                     break;
                 default:
                     unexpected.put(currentKey, Boolean.TRUE);
@@ -174,8 +174,8 @@ class NatsServerInfo {
                 case AUTH:
                     this.authRequired = false;
                     break;
-                case SSL:
-                    this.sslRequired = false;
+                case TLS:
+                    this.tlsRequired = false;
                     break;
                 default:
                     unexpected.put(currentKey, Boolean.FALSE);
