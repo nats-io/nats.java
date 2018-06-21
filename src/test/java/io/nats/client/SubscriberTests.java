@@ -28,8 +28,8 @@ import org.junit.Test;
 public class SubscriberTests {
     @Test
     public void testSingleMessage() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject");
@@ -41,16 +41,13 @@ public class SubscriberTests {
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testMultiMessage() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject");
@@ -70,21 +67,18 @@ public class SubscriberTests {
             assertNotNull(msg);
             msg = sub.nextMessage(Duration.ofMillis(100));
             assertNull(msg);
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testQueueSubscribers() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             int msgs = 100;
             int received = 0;
             int sub1Count = 0;
             int sub2Count = 0;
             Message msg;
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub1 = nc.subscribe("subject", "queue");
@@ -125,9 +119,6 @@ public class SubscriberTests {
 
             System.out.println("### Sub 1 " + sub1Count);
             System.out.println("### Sub 2 " + sub2Count);
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 

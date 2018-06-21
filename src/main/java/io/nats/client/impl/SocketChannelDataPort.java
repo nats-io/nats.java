@@ -62,8 +62,6 @@ public class SocketChannelDataPort implements DataPort {
             this.socketChannel = SocketChannel.open();
             this.socketChannel.configureBlocking(false);
 
-            // TODO(sasbury): Bind to local address, set other options
-
             URI uri = new URI(serverURI);
             long timeout = options.getConnectionTimeout().toNanos();
 

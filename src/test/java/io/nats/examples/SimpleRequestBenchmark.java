@@ -134,12 +134,12 @@ public class SimpleRequestBenchmark {
             System.out.println("###");
             System.out.println("### Request connection stats ####");
             System.out.println();
-            System.out.print(nc.getStatistics().buildHumanFriendlyString());
+            System.out.print(nc.getStatistics().toString());
             System.out.println();
             System.out.println("###");
             System.out.println("### Dispatcher connection stats ####");
             System.out.println("");
-            System.out.print(handlerC.getStatistics().buildHumanFriendlyString());
+            System.out.print(handlerC.getStatistics().toString());
         } catch (Exception ex) {
             System.out.println("Exception running benchmark.");
             ex.printStackTrace();

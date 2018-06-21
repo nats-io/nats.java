@@ -209,11 +209,11 @@ class NatsConnectionReader implements Runnable {
             protocolMode = false;
             break;
         case NatsConnection.OP_OK:
-            // TODO(sasbury): Implement op_ok
+            this.connection.getNatsStatistics().incrementOkCount();
             break;
         case NatsConnection.OP_ERR:
-            // TODO(sasbury): Implement op_err
-            System.out.println(protocolLine);
+            String errorText = String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)).replace("\'","");
+            this.connection.processError(errorText);
             break;
         case NatsConnection.OP_PING:
             this.connection.sendPong();

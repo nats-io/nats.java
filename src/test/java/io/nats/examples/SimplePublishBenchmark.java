@@ -78,7 +78,7 @@ public class SimplePublishBenchmark {
             System.out.println("###");
             System.out.println("### Overall Statistics");
             System.out.println();
-            System.out.print(nc.getStatistics().buildHumanFriendlyString());
+            System.out.print(nc.getStatistics().toString());
         } catch (Exception ex) {
             System.out.println("Exception running benchmark.");
             ex.printStackTrace();

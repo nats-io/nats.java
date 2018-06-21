@@ -40,8 +40,8 @@ import io.nats.client.NatsTestServer;
 public class DispatcherTests {
     @Test
     public void testSingleMessage() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
@@ -59,16 +59,13 @@ public class DispatcherTests {
             assertNotNull(msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testMultiSubject() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final CompletableFuture<Message> one = new CompletableFuture<>();
@@ -91,18 +88,15 @@ public class DispatcherTests {
             assertEquals("one", msg.getSubject());
             msg = two.get(500, TimeUnit.MILLISECONDS);
             assertEquals("two", msg.getSubject());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testMultiMessage() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
             int msgCount = 100;
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
@@ -126,16 +120,14 @@ public class DispatcherTests {
             done.get(200, TimeUnit.MILLISECONDS);
             
             assertEquals(msgCount, q.size());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
 
     @Test
     public void testQueueSubscribers() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                 Connection nc = Nats.connect(ts.getURI())) {
             int msgs = 100;
             AtomicInteger received = new AtomicInteger();
             AtomicInteger sub1Count = new AtomicInteger();
@@ -144,7 +136,6 @@ public class DispatcherTests {
             final CompletableFuture<Boolean> done1 = new CompletableFuture<>();
             final CompletableFuture<Boolean> done2 = new CompletableFuture<>();
 
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Dispatcher d1 = nc.createDispatcher((msg) -> {
@@ -187,9 +178,6 @@ public class DispatcherTests {
             // They won't be equal but print to make sure they are close (human testing)
             System.out.println("### Sub 1 " + sub1Count.get());
             System.out.println("### Sub 2 " + sub2Count.get());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
@@ -242,8 +230,8 @@ public class DispatcherTests {
     @Test
     public void testPublishAndFlushFromCallback()
             throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            final Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
@@ -265,19 +253,16 @@ public class DispatcherTests {
             assertNotNull(msg);
 
             assertEquals(1, ((NatsStatistics)(nc.getStatistics())).getFlushCounter());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testUnsub() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
             final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
             int msgCount = 10;
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
@@ -312,19 +297,16 @@ public class DispatcherTests {
             phase2.get(500, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(msgCount, q.size());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testAutoUnsub() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
             final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
             int msgCount = 10;
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
@@ -363,17 +345,14 @@ public class DispatcherTests {
             phase2.get(200, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(msgCount + 1, q.size());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testUnsubFromCallback() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
-            final Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
@@ -399,18 +378,15 @@ public class DispatcherTests {
             done.get(200, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(1, q.size());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testAutoUnsubFromCallback()
             throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
-            final Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
@@ -438,24 +414,24 @@ public class DispatcherTests {
             done.get(200, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(2, q.size());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
-    public void testCloseFromCallback()
-            throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+    public void testCloseFromCallback() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
-            final Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final Dispatcher d = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("done")) {
-                    nc.close();
-                    done.complete(Boolean.TRUE);
+                try {
+                    if (msg.getSubject().equals("done")) {
+                        nc.close();
+                        done.complete(Boolean.TRUE);
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             });
 
@@ -465,18 +441,15 @@ public class DispatcherTests {
 
             done.get(200, TimeUnit.MILLISECONDS); // make sure we got them
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
     @Test
     public void testDispatchHandlesExceptionInHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
             int msgCount = 100;
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
@@ -501,9 +474,6 @@ public class DispatcherTests {
             done.get(200, TimeUnit.MILLISECONDS);
             
             assertEquals(msgCount, q.size());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
@@ -591,10 +561,10 @@ public class DispatcherTests {
 
     @Test
     public void testDoubleSubscribe() throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
             int msgCount = 100;
-            Connection nc = Nats.connect(ts.getURI());
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
@@ -617,9 +587,6 @@ public class DispatcherTests {
             done.get(200, TimeUnit.MILLISECONDS);
             
             assertEquals(msgCount, q.size()); // Shoudl only get one since all the extra subs do nothing??
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 }

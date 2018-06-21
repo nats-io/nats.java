@@ -127,8 +127,8 @@ public class PublishTests {
             }
         };
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer)) {
-            Connection  nc = Nats.connect("nats://localhost:"+ts.getPort());
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
+                    Connection  nc = Nats.connect(ts.getURI())) {
             byte[] bodyBytes = (bodyString != null) ? bodyString.getBytes(StandardCharsets.UTF_8) : null;
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());

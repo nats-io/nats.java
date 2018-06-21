@@ -26,10 +26,9 @@ import java.util.Collection;
 import javax.net.ssl.SSLContext;
 
 import io.nats.client.impl.DataPort;
+import io.nats.client.impl.SSLUtils;
 import io.nats.client.impl.SocketChannelDataPort;
 
-// TODO(sasbury): Support for local address (inetaddress)
-// TODO(sasbury): SUpport for accumulate timeout
 /**
  * The Options class specifies the connection options for a new NATs connection.
  * 
@@ -41,6 +40,16 @@ import io.nats.client.impl.SocketChannelDataPort;
  * </p>
  */
 public class Options {
+    // NOTE TO DEVS
+    // To add an option, you have to:
+    // * add property
+    // * add field in builder
+    // * add field in options
+    // * addchainable method in builder
+    // * add update build
+    // * update constructor that takes properties
+    // * optional default in statics
+
     /**
      * Default server URL.
      *
@@ -179,10 +188,7 @@ public class Options {
      * maxReconnects}.
      */
     public static final String PROP_MAX_RECONNECT = PFX + "reconnect.max";
-    /**
-     * {@value #PROP_TLS_DEBUG}, see {@link Builder#tlsDebug() tlsDebug}.
-     */
-    public static final String PROP_TLS_DEBUG = PFX + "tls.debug";
+
     /**
      * {@value #PROP_PEDANTIC}, see {@link Builder#pedantic() pedantic}.
      */
@@ -225,16 +231,18 @@ public class Options {
     /**
      * {@value #PROP_SECURE}, see {@link Builder#sslContext(SSLContext) sslContext}.
      * 
-     * This property is a boolean flag, but it tells the options parser to create a
-     * default SSL context.
-     * 
-     * <p>
-     * This properties is provided to support property based secure connections, for
-     * more control, use properties to create the options and then override the
-     * default your preferred SSL context.
-     * </p>
+     * This property is a boolean flag, but it tells the options parser to use the
+     * default SSL context. Set the default context before creating the options.
      */
     public static final String PROP_SECURE = PFX + "secure";
+    /**
+     * {@value #PROP_OPENTLS}, see {@link Builder#sslContext(SSLContext) sslContext}.
+     * 
+     * This property is a boolean flag, but it tells the options parser to use the
+     * an SSL context that takes any server TLS certificate and does not provide
+     * its own. The server must have tls_verify turned OFF for this option to work.
+     */
+    public static final String PROP_OPENTLS = PFX + "opentls";
     /**
      * {@value #PROP_USE_OLD_REQUEST_STYLE}, see {@link Builder#oldRequestStyle()
      * oldRequestStyle}.
@@ -253,10 +261,10 @@ public class Options {
     public static final String OPTION_PEDANTIC = "pedantic";
 
     /**
-     * Protocol key {@value #OPTION_SSL_REQUIRED}, see
+     * Protocol key {@value #OPTION_TLS_REQUIRED}, see
      * {@link Builder#sslContext(SSLContext) sslContext}.
      */
-    public static final String OPTION_SSL_REQUIRED = "ssl_required";
+    public static final String OPTION_TLS_REQUIRED = "tls_required";
 
     /**
      * Protocol key {@value #OPTION_AUTH_TOKEN}, see {@link Builder#token(String)
@@ -304,7 +312,6 @@ public class Options {
     private final boolean verbose;
     private final boolean pedantic;
     private final SSLContext sslContext;
-    private final boolean tlsDebug;
     private final int maxReconnect;
     private final Duration reconnectWait;
     private final Duration connectionTimeout;
@@ -329,7 +336,6 @@ public class Options {
         private boolean verbose = false;
         private boolean pedantic = false;
         private SSLContext sslContext = null;
-        private boolean tlsDebug = false;
         private int maxReconnect = DEFAULT_MAX_RECONNECT;
         private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
         private Duration connectionTimeout = DEFAULT_TIMEOUT;
@@ -416,6 +422,19 @@ public class Options {
                 }
             }
 
+            if (props.containsKey(PROP_OPENTLS)) {
+                boolean tls = Boolean.parseBoolean(props.getProperty(PROP_OPENTLS));
+
+                if (tls) {
+                    try {
+                        this.sslContext = SSLUtils.createOpenTLSContext();
+                    } catch (Exception e) {
+                        this.sslContext = null;
+                        throw new IllegalArgumentException("Unable to create open SSL context");
+                    }
+                }
+            }
+
             if (props.containsKey(PROP_CONNECTION_NAME)) {
                 this.connectionName = props.getProperty(PROP_CONNECTION_NAME, null);
             }
@@ -426,10 +445,6 @@ public class Options {
 
             if (props.containsKey(PROP_PEDANTIC)) {
                 this.pedantic = Boolean.parseBoolean(props.getProperty(PROP_PEDANTIC));
-            }
-
-            if (props.containsKey(PROP_TLS_DEBUG)) {
-                this.tlsDebug = Boolean.parseBoolean(props.getProperty(PROP_TLS_DEBUG));
             }
 
             if (props.containsKey(PROP_MAX_RECONNECT)) {
@@ -501,8 +516,9 @@ public class Options {
         /**
          * Add a server to the list of known servers.
          * 
-         * @throws IllegalArgumentException
-         *                                      if the url is not formatted correctly.
+         * @param serverURL the URL for the server ot add
+         * @throws IllegalArgumentException if the url is not formatted correctly.
+         * @return the Builder for chaining
          */
         public Builder server(String serverURL) {
             try {
@@ -516,8 +532,9 @@ public class Options {
         /**
          * Add an array of servers to the list of known servers.
          * 
-         * @throws IllegalArgumentException
-         *                                      if any url is not formatted correctly.
+         * @param servers A list of server URIs
+         * @throws IllegalArgumentException if any url is not formatted correctly.
+         * @return the Builder for chaining
          */
         public Builder servers(String[] servers) {
             for (String s : servers) {
@@ -535,6 +552,7 @@ public class Options {
         /**
          * Turn on the old request style that uses a new inbox and subscriber for each
          * request.
+         * @return the Builder for chaining
          */
         public Builder oldRequestStyle() {
             this.useOldRequestStyle = true;
@@ -543,6 +561,7 @@ public class Options {
 
         /**
          * Turn off server pool randomization.
+         * @return the Builder for chaining
          */
         public Builder noRandomize() {
             this.noRandomize = true;
@@ -552,8 +571,8 @@ public class Options {
         /**
          * Set the connectionName.
          * 
-         * @param name
-         *                 the connections new name.
+         * @param name the connections new name.
+         * @return the Builder for chaining
          */
         public Builder connectionName(String name) {
             this.connectionName = name;
@@ -562,6 +581,7 @@ public class Options {
 
         /**
          * Turn on verbose mode.
+         * @return the Builder for chaining
          */
         public Builder verbose() {
             this.verbose = true;
@@ -570,6 +590,7 @@ public class Options {
 
         /**
          * Turn on pedantic mode.
+         * @return the Builder for chaining
          */
         public Builder pedantic() {
             this.pedantic = true;
@@ -580,15 +601,35 @@ public class Options {
          * Set the SSL context to the {@link Options#DEFAULT_SSL_PROTOCOL default one}.
          * 
          * @throws NoSuchAlgorithmException If the default protocol is unavailable.
+         * @throws IllegalArgumentException If there is no default SSL context.
+         * @return the Builder for chaining
          */
-        public Builder secure() throws NoSuchAlgorithmException {
+        public Builder secure() throws NoSuchAlgorithmException, IllegalArgumentException {
             this.sslContext = SSLContext.getDefault();
+
+            if(this.sslContext == null) {
+                throw new IllegalArgumentException("No Default SSL Context");
+            }
+            return this;
+        }
+
+        /**
+         * Set the SSL context to one that accespts any server certificate and has no client certificates.
+         * 
+         * @throws NoSuchAlgorithmException If the tls protocol is unavailable.
+         * @return the Builder for chaining
+         */
+        public Builder opentls() throws NoSuchAlgorithmException {
+            this.sslContext = SSLUtils.createOpenTLSContext();
             return this;
         }
 
         /**
          * Set the SSL context, requires that the server supports TLS connections and
          * the URI specifies TLS.
+         * 
+         * @param ctx the SSL Context to use for TLS connections
+         * @return the Builder for chaining
          */
         public Builder sslContext(SSLContext ctx) {
             this.sslContext = ctx;
@@ -596,15 +637,8 @@ public class Options {
         }
 
         /**
-         * Enable tls debugging during the connect phase
-         */
-        public Builder tlsDebug() {
-            this.tlsDebug = true;
-            return this;
-        }
-
-        /**
          * Equivalent to calling maxReconnects with 0.
+         * @return the Builder for chaining
          */
         public Builder noReconnect() {
             this.maxReconnect = 0;
@@ -614,6 +648,9 @@ public class Options {
         /**
          * Set the maximum number of reconnect attempts. Use 0 to turn off
          * auto-reconnect.
+         * 
+         * @param max the maximum reconnect attempts
+         * @return the Builder for chaining
          */
         public Builder maxReconnects(int max) {
             this.maxReconnect = max;
@@ -622,6 +659,9 @@ public class Options {
 
         /**
          * Set the time to wait between reconnect attempts to the same server.
+         * 
+         * @param time the time to wait
+         * @return the Builder for chaining
          */
         public Builder reconnectWait(Duration time) {
             this.reconnectWait = time;
@@ -630,6 +670,9 @@ public class Options {
 
         /**
          * Set the timeout for connection attempts.
+         * 
+         * @param time the time to wait
+         * @return the Builder for chaining
          */
         public Builder connectionTimeout(Duration time) {
             this.connectionTimeout = time;
@@ -638,6 +681,9 @@ public class Options {
 
         /**
          * Set the interval between attempts to ping the server.
+         * 
+         * @param the time between client to server pings
+         * @return the Builder for chaining
          */
         public Builder pingInterval(Duration time) {
             this.pingInterval = time;
@@ -646,6 +692,9 @@ public class Options {
 
         /**
          * Set the interval between cleaning passes on outstanding request futures.
+         * 
+         * @param time the cleaning interval
+         * @return the Builder for chaining
          */
         public Builder requestCleanupInterval(Duration time) {
             this.requestCleanupInterval = time;
@@ -654,6 +703,9 @@ public class Options {
 
         /**
          * Set the maximum number of pings the client can have in flight.
+         * 
+         * @param max the max pings
+         * @return the Builder for chaining
          */
         public Builder maxPingsOut(int max) {
             this.maxPingsOut = max;
@@ -663,6 +715,9 @@ public class Options {
         /**
          * Set the maximum number of bytes to buffer in the client when trying to
          * reconnect.
+         * 
+         * @param size the size in bytes
+         * @return the Builder for chaining
          */
         public Builder reconnectBufferSize(long size) {
             this.reconnectBufferSize = size;
@@ -671,6 +726,10 @@ public class Options {
 
         /**
          * Set the username and password for basic authentication.
+         * 
+         * @param userName a non-empty user name
+         * @param password the password, in plain text
+         * @return the Builder for chaining
          */
         public Builder userInfo(String userName, String password) {
             this.username = userName;
@@ -680,6 +739,9 @@ public class Options {
 
         /**
          * Set the token for token-based authentication.
+         * 
+         * @param token The token
+         * @return the Builder for chaining
          */
         public Builder token(String token) {
             this.token = token;
@@ -690,8 +752,8 @@ public class Options {
          * Set the ErrorHandler to receive asyncrhonous error events related to this
          * connection.
          * 
-         * @param handler
-         *                    The new ErrorHandler for this connection.
+         * @param handler The new ErrorHandler for this connection.
+         * @return the Builder for chaining
          */
         public Builder errorHandler(ErrorHandler handler) {
             this.errorHandler = handler;
@@ -702,14 +764,21 @@ public class Options {
          * Set the ConnectionHandler to receive asyncrhonous notifications of disconnect
          * events.
          * 
-         * @param handler
-         *                    The new ConnectionHandler for this type of event.
+         * @param handler The new ConnectionHandler for this type of event.
+         * @return the Builder for chaining
          */
         public Builder connectionHandler(ConnectionHandler handler) {
             this.connectionHandler = handler;
             return this;
         }
 
+        /**
+         * The class to use for this connections data port. This is an advanced setting
+         * and primarily useful for testing.
+         * 
+         * @param dataPortClassName a valid and accesible class name
+         * @return the Builder for chaining
+         */
         public Builder dataPortType(String dataPortClassName) {
             this.dataPortType = dataPortClassName;
             return this;
@@ -723,8 +792,19 @@ public class Options {
          *  * If there is no token is set but the URI has one, it will be used.
          *  * If the URI is of the form tls:// and no SSL context was assigned, the default one will
          *  be used {@link SSLContext#getDefault()}.
+         *  * If the URI is of the form opentls:// and no SSL context was assigned one will be created
+         * that does not check the servers certificate for validity. This is not secure and only provided
+         * for tests and development.
+         * 
+         * @return the nwe options object
+         * @throws IllegalStateException if there is a conflict in the options, like a token and a user/pass
          */
-        public Options build() {
+        public Options build() throws IllegalStateException {
+
+            if (this.username != null && this.token != null) {
+                throw new IllegalStateException("Options can't have token and username");
+            }
+            
             if (servers.size() == 0) {
                 server(DEFAULT_URL);
             } else if (servers.size() == 1) { // Allow some URI based configs
@@ -752,6 +832,9 @@ public class Options {
                     } catch (NoSuchAlgorithmException e) {
                         this.sslContext = null;
                     }
+                } else if ("opentls".equals(serverURI.getScheme()) && this.sslContext == null)
+                {
+                    this.sslContext = SSLUtils.createOpenTLSContext();
                 }
             }
             return new Options(this);
@@ -765,7 +848,6 @@ public class Options {
         this.verbose = b.verbose;
         this.pedantic = b.pedantic;
         this.sslContext = b.sslContext;
-        this.tlsDebug = b.tlsDebug;
         this.maxReconnect = b.maxReconnect;
         this.reconnectWait = b.reconnectWait;
         this.connectionTimeout = b.connectionTimeout;
@@ -798,7 +880,7 @@ public class Options {
     }
 
     /**
-     * Returns the dataport type this options will create.
+     * @return Returns the dataport type this options will create.
      */
     public String getDataPortType() {
         return this.dataPortType;
@@ -848,9 +930,9 @@ public class Options {
 
     /**
      * Checks if we have an ssl context, and if so returns true.
-     * @return use ssl
+     * @return use tls
      */
-    public boolean isSSLRequired() {
+    public boolean isTLSRequired() {
         return (this.sslContext != null);
     }
 
@@ -859,13 +941,6 @@ public class Options {
      */
     public SSLContext getSslContext() {
         return sslContext;
-    }
-
-    /**
-     * @return is tls debugging enabled
-     */
-    public boolean isTlsDebug() {
-        return tlsDebug;
     }
 
     /**
@@ -966,7 +1041,7 @@ public class Options {
 
         appendOption(connectString, Options.OPTION_VERBOSE, String.valueOf(this.isVerbose()), false, true);
         appendOption(connectString, Options.OPTION_PEDANTIC, String.valueOf(this.isPedantic()), false, true);
-        appendOption(connectString, Options.OPTION_SSL_REQUIRED, String.valueOf(this.isSSLRequired()), false, true);
+        appendOption(connectString, Options.OPTION_TLS_REQUIRED, String.valueOf(this.isTLSRequired()), false, true);
 
         if (includeAuth) {
             if (this.username != null) {

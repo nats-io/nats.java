@@ -24,7 +24,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
-public class SSLUtils {
+public class TestSSLUtils {
     public static String KEYSTORE_PATH = "src/test/resources/keystore.jks";
     public static String TRUSTSTORE_PATH = "src/test/resources/cacerts";
     public static String STORE_PASSWORD = "password";

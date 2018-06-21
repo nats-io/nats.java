@@ -28,9 +28,12 @@ public class ConnectTests {
     public void testDefaultConnection() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Connection nc = Nats.connect();
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 
@@ -38,9 +41,12 @@ public class ConnectTests {
     public void testConnection() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect(ts.getURI());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 
@@ -49,9 +55,12 @@ public class ConnectTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 
@@ -59,9 +68,12 @@ public class ConnectTests {
     public void testFullFakeConnect() throws IOException, InterruptedException {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Connection nc = Nats.connect(ts.getURI());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
             assertTrue("Progress", Progress.SENT_PONG == ts.getProgress());
         }
     }
@@ -71,9 +83,12 @@ public class ConnectTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_BEFORE_INFO)) {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
             Connection nc = Nats.connect(opt);
-            assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
             assertTrue("Progress", Progress.CLIENT_CONNECTED == ts.getProgress());
         }
     }
@@ -83,9 +98,12 @@ public class ConnectTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_INFO)) {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
             Connection nc = Nats.connect(opt);
-            assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
             assertTrue("Progress", Progress.SENT_INFO == ts.getProgress());
         }
     }
@@ -95,9 +113,12 @@ public class ConnectTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_CONNECT)) {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
             Connection nc = Nats.connect(opt);
-            assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
             assertTrue("Progress", Progress.GOT_CONNECT == ts.getProgress());
         }
     }
@@ -107,9 +128,12 @@ public class ConnectTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
             Connection nc = Nats.connect(opt);
-            assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
             assertTrue("Progress", Progress.GOT_PING == ts.getProgress());
         }
     }
@@ -121,9 +145,12 @@ public class ConnectTests {
             try (NatsServerProtocolMock fake = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
                 Options options = new Options.Builder().server(fake.getURI()).server(ts.getURI()).build();
                 Connection nc = Nats.connect(options);
-                assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());
-                nc.close();
-                assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
+                try {
+                    assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());
+                } finally {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
                 assertEquals("Progress", Progress.GOT_PING, fake.getProgress());
             }
         }
@@ -133,10 +160,13 @@ public class ConnectTests {
     public void testConnectWithConfig() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/simple.conf", false)) {
             Connection nc = Nats.connect(ts.getURI());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals("Parsed port", 16222, ts.getPort());
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertEquals("Parsed port", 16222, ts.getPort());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 }

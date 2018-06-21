@@ -42,58 +42,40 @@ public interface Subscription {
      * the subscription is unsubscribed or the client connection is closed.
      * </p>
      * 
-     * @param timeout
-     *                    The maximum time to wait.
+     * @param timeout The maximum time to wait.
      * @return The next message for this subscriber or null if there is a timeout.
-     * @throws IllegalStateException
-     *                                   if the subscription belongs to a
-     *                                   dispatcher, or is not active
-     * @throws InterruptedException
-     *                                   if one occurs while waiting for the message
+     * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
+     * @throws InterruptedException if one occurs while waiting for the message
      */
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
 
     /**
      * Unsubscribe this subscription and stop listening for messages.
      * 
-     * <p>
-     * <strong>TODO(sasbury)</strong> Timing on messages in the queue ...
-     * </p>
+     * <p>Stops messages to the subscription locally and notifies the server.</p>
      * 
-     * @throws IllegalStateException
-     *                                   if the subscription belongs to a
-     *                                   dispatcher, or is not active
+     * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
     public void unsubscribe();
 
     /**
      * Unsubscribe this subscription and stop listening for messages, after the
-     * specified number of messages.
+     * specified number of messages. Works with the server.
      * 
-     * <p>
-     * <strong>TODO(sasbury)</strong> Timing on messages in the queue ...
-     * </p>
+     * <p>If the subscription has already received <code>after</code> messages, it will not receive
+     * more. The provided limit is a lifetime total for the subscription, with the caveat
+     * that if the subscription already received more than <code>after</code> when unsubscribe is called
+     * the client will not travel back in time to stop them.</p>
      * 
-     * <p>
-     * Supports chaining so that you can do things like:
-     * </p>
-     * <p>
-     * <blockquote>
-     * 
-     * <pre>
+     * <p>Supports chaining so that you can do things like:</p>
+     * <p><blockquote><pre>
      * nc = Nats.connect()
      * m = nc.subscribe("hello").unsubscribe(1).nextMessage(Duration.ZERO);
-     * </pre>
+     * </pre></blockquote></p>
      * 
-     * </blockquote>
-     * </p>
-     * 
-     * @param after
-     *                  The number of messages to accept before unsubscribing
+     * @param after The number of messages to accept before unsubscribing
      * @return The subscription so that calls can be chained
-     * @throws IllegalStateException
-     *                                   if the subscription belongs to a
-     *                                   dispatcher, or is not active
+     * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
     public Subscription unsubscribe(int after);
 }

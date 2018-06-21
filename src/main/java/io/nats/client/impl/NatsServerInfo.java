@@ -13,11 +13,11 @@
 
 package io.nats.client.impl;
 
-import java.text.CharacterIterator;
-import java.text.StringCharacterIterator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 class NatsServerInfo {
 
@@ -88,177 +88,76 @@ class NatsServerInfo {
     }
 
     void parseInfo(String jsonString) {
-        char c;
-        boolean skipNext = false;
-        CharacterIterator json = new StringCharacterIterator(jsonString);
-        ArrayList<String> currentList = null;
-        String currentKey = null;
+        String grabString = "\\s*\"(.+?)\"";
+        String grabBoolean = "\\s*(true|false)";
+        String grabNumber = "\\s*(\\d+)";
+        String grabArray = "\\s*\\[(.+?)\\]";
 
-        while ((c = json.current()) != CharacterIterator.DONE) {
-            skipNext = false;
+        Pattern serverIdRE = Pattern.compile("\""+SERVER_ID+"\":" + grabString, Pattern.CASE_INSENSITIVE);
+        Pattern versionRE = Pattern.compile("\""+VERSION+"\":" + grabString, Pattern.CASE_INSENSITIVE);
+        Pattern goRE = Pattern.compile("\""+GO+"\":" + grabString, Pattern.CASE_INSENSITIVE);
+        Pattern hostRE = Pattern.compile("\""+HOST+"\":" + grabString, Pattern.CASE_INSENSITIVE);
+        Pattern authRE = Pattern.compile("\""+AUTH+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
+        Pattern tlsRE = Pattern.compile("\""+TLS+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
+        Pattern portRE = Pattern.compile("\""+PORT+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
+        Pattern maxRE = Pattern.compile("\""+MAX_PAYLOAD+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
+        Pattern connectRE = Pattern.compile("\""+CONNECT_URLS+"\":" + grabArray, Pattern.CASE_INSENSITIVE);
+        
+        Matcher m = serverIdRE.matcher(jsonString);
+        if (m.find()) {
+            this.serverId = unescapeString(m.group(1));
+        }
+        
+        m = versionRE.matcher(jsonString);
+        if (m.find()) {
+            this.version = unescapeString(m.group(1));
+        }
+        
+        m = goRE.matcher(jsonString);
+        if (m.find()) {
+            this.go = unescapeString(m.group(1));
+        }
+        
+        m = hostRE.matcher(jsonString);
+        if (m.find()) {
+            this.host = unescapeString(m.group(1));
+        }
+        
+        m = authRE.matcher(jsonString);
+        if (m.find()) {
+            this.authRequired = Boolean.parseBoolean(m.group(1));
+        }
+        
+        m = tlsRE.matcher(jsonString);
+        if (m.find()) {
+            this.tlsRequired = Boolean.parseBoolean(m.group(1));
+        }
+        
+        m = portRE.matcher(jsonString);
+        if (m.find()) {
+            this.port = Integer.parseInt(m.group(1));
+        }
+        
+        m = maxRE.matcher(jsonString);
+        if (m.find()) {
+            this.maxPayload = Long.parseLong(m.group(1));
+        }
 
-            switch (c) {
-            case '"':
-                String str = readString(json);
-                if (currentList != null) {
-                    currentList.add(str);
-                } else if (currentKey == null) {
-                    currentKey = str;
-                } else {
-                    switch (currentKey) {
-                    case SERVER_ID:
-                        this.serverId = str;
-                        break;
-                    case VERSION:
-                        this.version = str;
-                        break;
-                    case GO:
-                        this.go = str;
-                        break;
-                    case HOST:
-                        this.host = str;
-                        break;
-                    default:
-                        unexpected.put(currentKey, str);
-                        break;
-                    }
+        m = connectRE.matcher(jsonString);
+        if (m.find()) {
+            String arrayString = m.group(1);
+            String[] raw = arrayString.split(",");
+            ArrayList<String> urls = new ArrayList<>();
 
-                    currentKey = null;
+            for (String s : raw) {
+                String cleaned = s.trim().replace("\"", "");;
+                if (cleaned.length() > 0) {
+                    urls.add(cleaned);
                 }
-                break;
-            case '[':
-                currentList = new ArrayList<String>();
-                break;
-            case ']':
-                if (CONNECT_URLS.equals(currentKey)) {
-                    this.connectURLs = currentList.toArray(new String[0]);
-                } else {
-                    unexpected.put(currentKey, currentList.toArray(new String[0]));
-                }
-                currentList = null;
-                break;
-            case 't':
-                json.next();
-                json.next();
-                json.next(); // assumed r-u-e
-
-                if (currentList != null || currentKey == null) {
-                    throw new IllegalArgumentException("Long value with a null key.");
-                }
-
-                switch (currentKey) {
-                case AUTH:
-                    this.authRequired = true;
-                    break;
-                case TLS:
-                    this.tlsRequired = true;
-                    break;
-                default:
-                    unexpected.put(currentKey, Boolean.TRUE);
-                    break;
-                }
-
-                currentKey = null;
-                break;
-            case 'f':
-                json.next();
-                json.next();
-                json.next();
-                json.next(); // assumed a-l-s-e
-
-                if (currentList != null || currentKey == null) {
-                    throw new IllegalArgumentException("Long value with a null key.");
-                }
-
-                switch (currentKey) {
-                case AUTH:
-                    this.authRequired = false;
-                    break;
-                case TLS:
-                    this.tlsRequired = false;
-                    break;
-                default:
-                    unexpected.put(currentKey, Boolean.FALSE);
-                    break;
-                }
-
-                currentKey = null;
-                break;
-            case 'n':
-                json.next();
-                json.next();
-                json.next(); // assumed u-l-l
-                // All the defaults are null so no value to set
-                currentKey = null;
-                break;
-            default:
-                if (Character.isDigit(c) || c == '-') {
-                    long value = readLong(json);
-
-                    if (currentList != null || currentKey == null) {
-                        throw new IllegalArgumentException("Long value with a null key.");
-                    }
-
-                    switch (currentKey) {
-                    case PORT:
-                        this.port = (int) value;
-                        break;
-                    case MAX_PAYLOAD:
-                        this.maxPayload = value;
-                        break;
-                    default:
-                        unexpected.put(currentKey, Long.valueOf(value));
-                        break;
-                    }
-                    currentKey = null;
-                    skipNext = true;// we read 1 too far on number
-                }
-                break;
             }
 
-            if (!skipNext)
-                json.next();
+            this.connectURLs = urls.toArray(new String[0]);
         }
-    }
-
-    long readLong(CharacterIterator json) {
-        StringBuilder builder = new StringBuilder();
-        char c;
-
-        while ((c = json.current()) != CharacterIterator.DONE) {
-            if (!Character.isDigit(c) && c != '-') {
-                break;
-            }
-
-            builder.append(c);
-            json.next();
-        }
-
-        try {
-            return new Long(builder.toString()).longValue();
-        } catch (Exception exp) {
-            throw new IllegalArgumentException("Info contained invalid long");
-        }
-    }
-
-    String readString(CharacterIterator json) {
-        StringBuilder builder = new StringBuilder();
-        char c;
-
-        while ((c = json.next()) != CharacterIterator.DONE) {
-            if (c == '\"') {
-                break;
-            } else if (c == '\\')// escape
-            {
-                builder.append('\\');
-                c = json.next(); // skip at leat one char to avoid \"
-                builder.append(c);
-            } else {
-                builder.append(c);
-            }
-        }
-
-        return unescapeString(builder.toString());
     }
 
     // See https://gist.github.com/uklimaschewski/6741769, no license required

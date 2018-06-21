@@ -68,6 +68,8 @@ public class ReconnectTests {
                 }
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             }
+
+            assertEquals("reconnect count", 1, nc.getStatistics().getReconnects());
         } finally {
             if (nc != null) {
                 nc.close();
@@ -131,9 +133,11 @@ public class ReconnectTests {
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertEquals(nc.getCurrentServerURI(), ts.getURI());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+        } finally {
+            if (nc != null) {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 
@@ -144,7 +148,7 @@ public class ReconnectTests {
         try (NatsTestServer ts = new NatsTestServer()) {
             String customInfo = "{\"server_id\":\"myid\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
             try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
-                Options options = new Options.Builder().server(ts2.getURI()).server(ts.getURI()).maxReconnects(-1).build();
+                Options options = new Options.Builder().server(ts2.getURI()).maxReconnects(-1).build();
                 nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                 assertEquals(nc.getCurrentServerURI(), ts2.getURI());
@@ -159,9 +163,11 @@ public class ReconnectTests {
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertEquals(nc.getCurrentServerURI(), ts.getURI());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+        } finally {
+            if (nc != null) {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 

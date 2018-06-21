@@ -20,16 +20,11 @@ public interface Dispatcher {
      * dispatcher.
      * 
      * <p>
-     * <strong>TODO(sasbury)</strong> In the case of an error...
-     * </p>
-     * 
-     * <p>
      * This call is a no-op if the dispatcher already has a subscription to the
      * specified subject.
      * </p>
      * 
-     * @param subject
-     *                    The subject to subscribe to.
+     * @param subject The subject to subscribe to.
      * @return The Dispatcher, so calls can be chained.
      */
     public Dispatcher subscribe(String subject);
@@ -39,18 +34,12 @@ public interface Dispatcher {
      * this dispatcher.
      * 
      * <p>
-     * <strong>TODO(sasbury)</strong> In the case of an error...
-     * </p>
-     * 
-     * <p>
      * This call is a no-op if the dispatcher already has a subscription to the
      * specified subject (regardless of the queue name).
      * </p>
      * 
-     * @param subject
-     *                    The subject to subscribe to.
-     * @param queue
-     *                    The queue group to join.
+     * @param subject The subject to subscribe to.
+     * @param queue The queue group to join.
      * @return The Dispatcher, so calls can be chained.
      */
     public Dispatcher subscribe(String subject, String queue);
@@ -58,12 +47,9 @@ public interface Dispatcher {
     /**
      * Unsubscribe from the specified subject, the queue is implicit.
      * 
-     * <p>
-     * <strong>TODO(sasbury)</strong> Timing on messages in the queue ...
-     * </p>
+     * <p>Stops messages to the subscription locally and notifies the server.</p>
      * 
-     * @param subject
-     *                    The subject to unsubscribe from.
+     * @param subject The subject to unsubscribe from.
      * @return The Dispatcher, so calls can be chained.
      */
     public Dispatcher unsubscribe(String subject);
@@ -72,29 +58,20 @@ public interface Dispatcher {
      * Unsubscribe from the specified subject, the queue is implicit, after the
      * specified number of messages.
      * 
-     * <p>
-     * <strong>TODO(sasbury)</strong> Timing on messages in the queue ...
-     * </p>
+     * <p>If the subscription has already received <code>after</code> messages, it will not receive
+     * more. The provided limit is a lifetime total for the subscription, with the caveat
+     * that if the subscription already received more than <code>after</code> when unsubscribe is called
+     * the client will not travel back in time to stop them.</p>
      * 
-     * <p>
-     * For example, to get a single asynchronous message, you might do:
-     * </p>
-     * <p>
-     * <blockquote>
-     * 
-     * <pre>
+     * <p>For example, to get a single asynchronous message, you might do:
+     * <blockquote><pre>
      * nc = Nats.connect()
      * d = nc.createDispatcher(myHandler);
      * d.subscribe("hello").unsubscribe("hello", 1);
-     * </pre>
+     * </pre></blockquote></p>
      * 
-     * </blockquote>
-     * </p>
-     * 
-     * @param subject
-     *                    The subject to unsubscribe from.
-     * @param after
-     *                    The number of messages to accept before unsubscribing
+     * @param subject The subject to unsubscribe from.
+     * @param after The number of messages to accept before unsubscribing
      * @return The Dispatcher, so calls can be chained.
      */
     public Dispatcher unsubscribe(String subject, int after);

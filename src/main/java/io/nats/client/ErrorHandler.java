@@ -14,51 +14,13 @@
 package io.nats.client;
 
 public interface ErrorHandler {
-
-    // TODO(sasbury): Clean up unused error values, and implement everything we can
-    public enum Errors {
-        ERR_CONNECTION_CLOSED      ("nats: connection closed"),
-        ERR_SECURE_CONN_REQUIRED   ("nats: secure connection required"),
-        ERR_SECURE_CONN_WANTED     ("nats: secure connection not available"),
-        ERR_BAD_SUBSCRIPTION       ("nats: invalid subscription"),
-        ERR_TYPE_SUBSCRIPTION      ("nats: invalid subscription type"),
-        ERR_BAD_SUBJECT            ("nats: invalid subject"),
-        ERR_SLOW_CONSUMER          ("nats: slow consumer, messages dropped"),
-        ERR_TIMEOUT                ("nats: timeout"),
-        ERR_BAD_TIMEOUT            ("nats: timeout invalid"),
-        ERR_AUTHORIZATION          ("nats: authorization violation"),
-        ERR_NO_SERVERS             ("nats: no servers available for connection"),
-        ERR_JSON_PARSE             ("nats: connect message, json parse error"),
-        ERR_CHAN_ARG               ("nats: argument needs to be a channel type"),
-        ERR_MAX_PAYLOAD            ("nats: maximum payload exceeded"),
-        ERR_MAX_MESSAGES           ("nats: maximum messages delivered"),
-        ERR_SYNC_SUB_REQUIRED      ("nats: illegal call on an async subscription"),
-        ERR_MULTIPLE_TLS_CONFIGS   ("nats: multiple tls.Configs not allowed"),
-        ERR_NO_INFO_RECEIVED       ("nats: protocol exception, INFO not received"),
-        ERR_RECONNECT_BUF_EXCEEDED ("nats: outbound buffer limit exceeded"),
-        ERR_INVALID_CONNECTION     ("nats: invalid connection"),
-        ERR_INVALID_MSG            ("nats: invalid message or message nil"),
-        ERR_INVALID_ARG            ("nats: invalid argument"),
-        ERR_INVALID_CONTEXT        ("nats: invalid context"),
-        ERR_STALE_CONNECTION       ("nats: stale connection");
-
-        private String err;
-
-        Errors(String err) {
-            this.err = err;
-        }
-
-        public String getErr() {
-            return this.err;
-        }
-    }
-
+    
     /**
      * Errors that occur asynchronously in the client code are sent to an ErrorHandler via a single method.
-     * The ErrorHandler can use the error type to decide what to do about the problem.
+     * The ErrorHandler can use the error text to decide what to do about the problem.
+     * <p>The text for an error is described in the protcol doc at `https://nats.io/documentation/internals/nats-protocol`.</p>
      * @param conn The connection associated with the error
-     * @param sub The subscriber associated with the error, can be null
-     * @param type The type of error that has occured
+     * @param error The text of error that has occured, directly from the server
      */
-    public void errorOccurred(Connection conn, Subscription sub, Errors type);
+    public void errorOccurred(Connection conn, String error);
 }

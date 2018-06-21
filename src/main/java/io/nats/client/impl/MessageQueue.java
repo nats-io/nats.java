@@ -143,7 +143,6 @@ class MessageQueue {
         long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
         long accumulateNanos = (accumulateTimeout != null) ? accumulateTimeout.toNanos() : -1;
 
-        // TODO(sasbury): Options for accumulate timeout
         lock.lock();
         try {
 

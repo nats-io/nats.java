@@ -13,15 +13,12 @@
 
 package io.nats.client;
 
-// TODO(sasbury): Statistics to match other clients
-
 public interface Statistics {
-
-    public String buildHumanFriendlyString();
-
     public long getInMsgs();
     public long getOutMsgs();
 
     public long getInBytes();
     public long getOutBytes();
+
+    public long getReconnects();
 }

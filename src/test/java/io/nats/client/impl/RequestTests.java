@@ -85,8 +85,8 @@ public class RequestTests {
 
     @Test
     public void testSimpleRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             
             Dispatcher d = nc.createDispatcher((msg) -> {
@@ -101,9 +101,6 @@ public class RequestTests {
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
@@ -112,23 +109,25 @@ public class RequestTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            
-            Future<Message> incoming = nc.request("subject", null);
-            Message msg = null;
-            
             try {
-                incoming.get(100, TimeUnit.MILLISECONDS);
-                assertFalse(true);
-            } catch(TimeoutException e) {
-                assertTrue(true);
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                
+                Future<Message> incoming = nc.request("subject", null);
+                Message msg = null;
+                
+                try {
+                    incoming.get(100, TimeUnit.MILLISECONDS);
+                    assertFalse(true);
+                } catch(TimeoutException e) {
+                    assertTrue(true);
+                }
+
+                assertNull(msg);
+                assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-
-            assertNull(msg);
-            assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
@@ -137,38 +136,53 @@ public class RequestTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            
-            Future<Message> incoming = nc.request("subject", null);
-            incoming.cancel(true);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                
+                Future<Message> incoming = nc.request("subject", null);
+                incoming.cancel(true);
 
-            assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 
     @Test
     public void testCleanupTimerWorks() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            long cleanupInterval = 200;
+            long cleanupInterval = 50;
             Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            
-            Future<Message> incoming = nc.request("subject", null);
-            incoming.cancel(true);
-            incoming = nc.request("subject", null);
-            incoming.cancel(true);
-            incoming = nc.request("subject", null);
-            incoming.cancel(true);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                
+                Future<Message> incoming = nc.request("subject", null);
+                incoming.cancel(true);
+                incoming = nc.request("subject", null);
+                incoming.cancel(true);
+                incoming = nc.request("subject", null);
+                incoming.cancel(true);
 
-            Thread.sleep(2 * cleanupInterval);
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                Thread.sleep(2 * cleanupInterval);
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
 
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                // Make sure it is still running
+                incoming = nc.request("subject", null);
+                incoming.cancel(true);
+                incoming = nc.request("subject", null);
+                incoming.cancel(true);
+                incoming = nc.request("subject", null);
+                incoming.cancel(true);
+
+                Thread.sleep(2 * cleanupInterval);
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 
@@ -179,31 +193,33 @@ public class RequestTests {
             int msgCount = 100;
             Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), null);
-            });
-            d.subscribe("subject");
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    nc.publish(msg.getReplyTo(), null);
+                });
+                d.subscribe("subject");
 
-            long start = System.nanoTime();
-            long end = start;
+                long start = System.nanoTime();
+                long end = start;
 
-            while ((end-start) <= 2 * cleanupInterval * 1_000_000) {
-                for (int i=0;i<msgCount;i++) {
-                    Future<Message> incoming = nc.request("subject", null);
-                    Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
-                    assertNotNull(msg);
-                    assertEquals(0, msg.getData().length);
+                while ((end-start) <= 2 * cleanupInterval * 1_000_000) {
+                    for (int i=0;i<msgCount;i++) {
+                        Future<Message> incoming = nc.request("subject", null);
+                        Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+                        assertNotNull(msg);
+                        assertEquals(0, msg.getData().length);
+                    }
+                    end = System.nanoTime();
                 }
-                end = System.nanoTime();
+
+                assertTrue((end-start) > 2 * cleanupInterval * 1_000_000);
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-
-            assertTrue((end-start) > 2 * cleanupInterval * 1_000_000);
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
@@ -213,28 +229,30 @@ public class RequestTests {
                 int msgCount = 100;
                 ArrayList<Future<Message>> messages = new ArrayList<>();
                 Connection nc = Nats.connect(ts.getURI());
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    nc.publish(msg.getReplyTo(), new byte[1]);
-                });
-                d.subscribe("subject");
-    
-                for (int i=0;i<msgCount;i++) {
-                    Future<Message> incoming = nc.request("subject", null);
-                    messages.add(incoming);
-                }
+                try {
+                    assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                    
+                    Dispatcher d = nc.createDispatcher((msg) -> {
+                        nc.publish(msg.getReplyTo(), new byte[1]);
+                    });
+                    d.subscribe("subject");
+        
+                    for (int i=0;i<msgCount;i++) {
+                        Future<Message> incoming = nc.request("subject", null);
+                        messages.add(incoming);
+                    }
 
-                for (Future<Message> f : messages) {
-                    Message msg = f.get(500, TimeUnit.MILLISECONDS);
-                    assertNotNull(msg);
-                    assertEquals(1, msg.getData().length);
+                    for (Future<Message> f : messages) {
+                        Message msg = f.get(500, TimeUnit.MILLISECONDS);
+                        assertNotNull(msg);
+                        assertEquals(1, msg.getData().length);
+                    }
+        
+                    assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                } finally {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
                 }
-    
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
-    
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
     }
 
@@ -243,23 +261,25 @@ public class RequestTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), null);
-            });
-            d.subscribe("subject");
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    nc.publish(msg.getReplyTo(), null);
+                });
+                d.subscribe("subject");
 
-            Future<Message> incoming = nc.request("subject", null);
-            Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+                Future<Message> incoming = nc.request("subject", null);
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
-            assertNotNull(msg);
-            assertEquals(0, msg.getData().length);
-            assertTrue(msg.getSubject().indexOf('.') == msg.getSubject().lastIndexOf('.'));
-
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertNotNull(msg);
+                assertEquals(0, msg.getData().length);
+                assertTrue(msg.getSubject().indexOf('.') == msg.getSubject().lastIndexOf('.'));
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
         }
     }
 }

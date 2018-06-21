@@ -187,7 +187,6 @@ public class NatsBench {
 
                 // Clean up
                 d.unsubscribe(subject);
-                nc.setConnectionHandler(null);
                 nc.close();
             } catch (Exception e) {
                 errorQueue.add(e);
@@ -230,7 +229,6 @@ public class NatsBench {
 
                 // Clean up
                 sub.unsubscribe();
-                nc.setConnectionHandler(null);
                 nc.close();
             } catch (Exception e) {
                 errorQueue.add(e);

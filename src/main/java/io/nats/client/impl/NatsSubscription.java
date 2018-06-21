@@ -127,9 +127,7 @@ class NatsSubscription implements Subscription {
     /**
      * Unsubscribe this subscription and stop listening for messages.
      * 
-     * <p>
-     * <strong>TODO(sasbury)</strong> Timing on messages in the queue ...
-     * </p>
+     * <p>Messages are stopped locally and the server is notified.</p>
      */
     public void unsubscribe() {
         if (this.dispatcher != null) {
@@ -146,26 +144,18 @@ class NatsSubscription implements Subscription {
      * Unsubscribe this subscription and stop listening for messages, after the
      * specified number of messages.
      * 
-     * <p>
-     * <strong>TODO(sasbury)</strong> Timing on messages in the queue ...
-     * </p>
+     * <p>If the subscription has already received <code>after</code> messages, it will not receive
+     * more. The provided limit is a lifetime total for the subscription, with the caveat
+     * that if the subscription already received more than <code>after</code> when unsubscribe is called
+     * the client will not travel back in time to stop them.</p>
      * 
-     * <p>
-     * Supports chaining so that you can do things like:
-     * </p>
-     * <p>
-     * <blockquote>
-     * 
-     * <pre>
+     * <p>For example, to get a single asynchronous message, you might do:
+     * <blockquote><pre>
      * nc = Nats.connect()
      * m = nc.subscribe("hello").unsubscribe(1).nextMessage(Duration.ZERO);
-     * </pre>
+     * </pre></blockquote></p>
      * 
-     * </blockquote>
-     * </p>
-     * 
-     * @param after
-     *                  The number of messages to accept before unsubscribing
+     * @param after The number of messages to accept before unsubscribing
      * @return The subscription so that calls can be chained
      */
     public Subscription unsubscribe(int after) {

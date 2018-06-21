@@ -28,10 +28,13 @@ class NatsStatistics implements Statistics {
     private AtomicLong outstandingRequests;
     private AtomicLong requestsSent;
     private AtomicLong repliesReceived;
+    private AtomicLong reconnects;
     private AtomicLong inMsgs;
     private AtomicLong outMsgs;
     private AtomicLong inBytes;
     private AtomicLong outBytes;
+    private AtomicLong pingCount;
+    private AtomicLong okCount;
 
     public NatsStatistics() {
         this.lock = new ReentrantLock();
@@ -40,10 +43,21 @@ class NatsStatistics implements Statistics {
         this.outstandingRequests = new AtomicLong();
         this.requestsSent = new AtomicLong();
         this.repliesReceived = new AtomicLong();
+        this.reconnects = new AtomicLong();
         this.inMsgs = new AtomicLong();
         this.outMsgs = new AtomicLong();
         this.inBytes = new AtomicLong();
         this.outBytes = new AtomicLong();
+        this.pingCount = new AtomicLong();
+        this.okCount = new AtomicLong();
+    }
+
+    void incrementPingCount() {
+        this.pingCount.incrementAndGet();
+    }
+
+    void incrementOkCount() {
+        this.okCount.incrementAndGet();
     }
 
     void incrementRequestsSent() {
@@ -52,6 +66,10 @@ class NatsStatistics implements Statistics {
 
     void incrementRepliesReceived() {
         this.repliesReceived.incrementAndGet();
+    }
+
+    void incrementReconnects() {
+        this.reconnects.incrementAndGet();
     }
 
     void incrementInMsgs() {
@@ -91,6 +109,18 @@ class NatsStatistics implements Statistics {
         }
     }
 
+    public long getPings() {
+        return this.pingCount.get();
+    }
+
+    public long getOKs() {
+        return this.okCount.get();
+    }
+
+    public long getReconnects() {
+        return this.reconnects.get();
+    }
+
     public long getInMsgs() {
         return this.inMsgs.get();
     }
@@ -107,11 +137,11 @@ class NatsStatistics implements Statistics {
         return this.outBytes.get();
     }
 
-    public long getFlushCounter() {
+    long getFlushCounter() {
         return flushCounter.get();
     }
 
-    public long getOutstandingRequests() {
+    long getOutstandingRequests() {
         return outstandingRequests.get();
     }
 
@@ -127,14 +157,17 @@ class NatsStatistics implements Statistics {
         builder.append("\n");
     }
 
-    public String buildHumanFriendlyString() {
+    public String toString() {
         StringBuilder builder = new StringBuilder();
 
         lock.lock();
         try {
             builder.append("### Connection ###\n");
+            appendNumberStat(builder, "Reconnects:                      ", this.reconnects.get());
             appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
             appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
+            appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
+            appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
             builder.append("\n");
             appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
             appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());

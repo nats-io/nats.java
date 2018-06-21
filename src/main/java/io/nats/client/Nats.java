@@ -29,7 +29,6 @@ public class Nats {
      */
     public static final String CLIENT_LANGUAGE = "java";
 
-    // TODO(sasbury): can we support TLS just with URL protocol
     /**
      * Connect to the default URL ({#value Options#DEFAULT_URL}) with all of the
      * default options.
@@ -39,6 +38,19 @@ public class Nats {
         return createConnection(options);
     }
 
+    /**
+     * The Java client generally expects URLs of the form:
+     * <blockquote><pre>nats://hostname:port</pre></blockquote>
+     * but also allows urls with a user password:
+     * <blockquote><pre>nats://user:pass@hostname:port</pre></blockquote>
+     * or token in them:
+     * <blockquote><pre>nats://token@hostname:port</pre></blockquote>
+     * Moreover, you can initiate a TLS connection, by using the `tls` schema, whic
+     * will use the default SSLContext, or fail if one is not set.
+     * For testing and development, the `opentls` schema is support when the server is
+     * in non-verify mode. In this case, the client will accept any server certificate and
+     * will not provide one of its own.
+     */
     public static Connection connect(String url) throws IOException, InterruptedException {
         Options options = new Options.Builder().server(url).build();
         return createConnection(options);

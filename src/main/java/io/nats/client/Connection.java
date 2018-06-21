@@ -106,10 +106,6 @@ public interface Connection extends AutoCloseable {
      * </p>
      * 
      * <p>
-     * <strong>TODO(sasbury)</strong> In the case of an error...
-     * </p>
-     * 
-     * <p>
      * See {@link #createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
      * </p>
@@ -126,10 +122,6 @@ public interface Connection extends AutoCloseable {
      * <p>
      * Use the {@link Subscription#nextMessage(Duration) nextMessage} method to read
      * messages for this subscription.
-     * </p>
-     * 
-     * <p>
-     * <strong>TODO(sasbury)</strong> In the case of an error...
      * </p>
      * 
      * <p>
@@ -198,8 +190,10 @@ public interface Connection extends AutoCloseable {
     /**
      * Close the connection and release all blocking calls like {@link #flush flush}
      * and {@link Subscription#nextMessage(Duration) nextMessage}.
+     * 
+     * @throw InterruptedException if the thread, or one owned by the connection is interrupted during the close
      */
-    public void close();
+    public void close() throws InterruptedException ;
 
     /**
      * Returns the connections current status.
@@ -228,14 +222,4 @@ public interface Connection extends AutoCloseable {
      * Get some useful statistics about the client.
      */
     public Statistics getStatistics();
-
-    /**
-     * Set an object to be notified of errors in the connection.
-     */
-    public void setErrorHandler(ErrorHandler eh);
-
-    /**
-     * Set an object to be notified of connection events in the connection.
-     */
-    public void setConnectionHandler(ConnectionHandler ch);
 }

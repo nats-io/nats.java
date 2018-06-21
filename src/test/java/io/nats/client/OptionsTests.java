@@ -30,7 +30,6 @@ import javax.net.ssl.SSLContext;
 import org.junit.Test;
 
 import io.nats.client.ConnectionHandler.Events;
-import io.nats.client.ErrorHandler.Errors;
 import io.nats.client.utils.SmallBufferSocketChannelDataPort;
 import io.nats.client.impl.DataPort;
 
@@ -46,7 +45,6 @@ public class OptionsTests {
 
         assertEquals("default verbose", false, o.isVerbose());
         assertEquals("default pedantic", false, o.isPedantic());
-        assertEquals("default tlsDebug", false, o.isTlsDebug());
         assertEquals("default norandomize", false, o.isNoRandomize());
         assertEquals("default oldstyle", false, o.isOldRequestStyle());
 
@@ -73,22 +71,20 @@ public class OptionsTests {
 
     @Test
     public void testChainedBooleanOptions() throws NoSuchAlgorithmException {
-        Options o = new Options.Builder().verbose().pedantic().tlsDebug().noRandomize().oldRequestStyle().build();
+        Options o = new Options.Builder().verbose().pedantic().noRandomize().oldRequestStyle().build();
         assertNull("default username", o.getUsername());
         assertEquals("chained verbose", true, o.isVerbose());
         assertEquals("chained pedantic", true, o.isPedantic());
-        assertEquals("chained tlsDebug", true, o.isTlsDebug());
         assertEquals("chained norandomize", true, o.isNoRandomize());
         assertEquals("chained oldstyle", true, o.isOldRequestStyle());
     }
 
     @Test
     public void testChainedStringOptions() throws NoSuchAlgorithmException {
-        Options o = new Options.Builder().userInfo("hello", "world").token("token").connectionName("name").build();
+        Options o = new Options.Builder().userInfo("hello", "world").connectionName("name").build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("chained username", "hello", o.getUsername());
         assertEquals("chained password", "world", o.getPassword());
-        assertEquals("chained token", "token", o.getToken());
         assertEquals("chained connection name", "name", o.getConnectionName());
     }
 
@@ -123,7 +119,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedErrorHandler() {
-        ErrorHandler handler = (c, s, e) -> System.out.println(e);
+        ErrorHandler handler = (c, e) -> System.out.println(e);
         Options o = new Options.Builder().errorHandler(handler).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("chained error handler", handler, o.getErrorHandler());
@@ -143,7 +139,6 @@ public class OptionsTests {
         Properties props = new Properties();
         props.setProperty(Options.PROP_VERBOSE, "true");
         props.setProperty(Options.PROP_PEDANTIC, "true");
-        props.setProperty(Options.PROP_TLS_DEBUG, "true");
         props.setProperty(Options.PROP_NORANDOMIZE, "true");
         props.setProperty(Options.PROP_USE_OLD_REQUEST_STYLE, "true");
 
@@ -151,7 +146,6 @@ public class OptionsTests {
         assertNull("default username", o.getUsername());
         assertEquals("property verbose", true, o.isVerbose());
         assertEquals("property pedantic", true, o.isPedantic());
-        assertEquals("property tlsDebug", true, o.isTlsDebug());
         assertEquals("property norandomize", true, o.isNoRandomize());
         assertEquals("property oldstyle", true, o.isOldRequestStyle());
     }
@@ -161,14 +155,12 @@ public class OptionsTests {
         Properties props = new Properties();
         props.setProperty(Options.PROP_USERNAME, "hello");
         props.setProperty(Options.PROP_PASSWORD, "world");
-        props.setProperty(Options.PROP_TOKEN, "token");
         props.setProperty(Options.PROP_CONNECTION_NAME, "name");
 
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("property username", "hello", o.getUsername());
         assertEquals("property password", "world", o.getPassword());
-        assertEquals("property token", "token", o.getToken());
         assertEquals("property connection name", "name", o.getConnectionName());
     }
 
@@ -222,7 +214,7 @@ public class OptionsTests {
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertNotNull("property error handler", o.getErrorHandler());
 
-        o.getErrorHandler().errorOccurred(null, null, Errors.ERR_BAD_SUBJECT);
+        o.getErrorHandler().errorOccurred(null, "bad subject");
         assertEquals("property error handler class", ((TestHandler) o.getErrorHandler()).getCount(), 1);
     }
 
@@ -237,7 +229,7 @@ public class OptionsTests {
 
         o.getConnectionHandler().connectionEvent(null, Events.DISCONNECTED);
         o.getConnectionHandler().connectionEvent(null, Events.RECONNECTED);
-        o.getConnectionHandler().connectionEvent(null, Events.CONNECTION_CLOSED);
+        o.getConnectionHandler().connectionEvent(null, Events.CLOSED);
 
         assertEquals("property connect handler class", ((TestHandler) o.getConnectionHandler()).getCount(), 3);
     }
@@ -258,7 +250,7 @@ public class OptionsTests {
     public void testDefaultConnectOptions() {
         Options o = new Options.Builder().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false}";
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false}";
         assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
     }
 
@@ -267,18 +259,18 @@ public class OptionsTests {
         SSLContext ctx = SSLContext.getDefault();
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":true}";
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true}";
         assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
     }
 
     @Test
     public void testAuthConnectOptions() {
-        Options o = new Options.Builder().userInfo("hello", "world").token("token").build();
+        Options o = new Options.Builder().userInfo("hello", "world").build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false}";
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"ssl_required\":false"
-                + ",\"user\":\"hello\",\"pass\":\"world\",\"auth_token\":\"token\"}";
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false"
+                + ",\"user\":\"hello\",\"pass\":\"world\"}";
         assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString(false));
         assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString(true));
     }
@@ -376,5 +368,10 @@ public class OptionsTests {
         Properties props = new Properties();
         props.setProperty(Options.PROP_CONNECTION_CB, "foo");
         new Options.Builder(props);
+    }
+
+    @Test(expected=IllegalStateException.class)
+    public void testTokenAndUserThrows() {
+        new Options.Builder().token("foo").userInfo("foo", "bar").build();
     }
 }

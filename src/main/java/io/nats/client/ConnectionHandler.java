@@ -15,8 +15,10 @@ package io.nats.client;
 
 public interface ConnectionHandler {
     public enum Events {
-        CONNECTION_CLOSED("nats: connection closed"), DISCONNECTED("nats: connection disconnected"), RECONNECTED(
-                "nats: connection reconnected"), DISCOVERED_SERVERS("nats: discovered servers");
+        CLOSED("nats: connection closed"),
+        DISCONNECTED("nats: connection disconnected"), 
+        RECONNECTED("nats: connection reconnected"), 
+        DISCOVERED_SERVERS("nats: discovered servers");
 
         private String event;
 

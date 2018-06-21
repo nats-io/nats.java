@@ -13,30 +13,68 @@
 
 package io.nats.client.impl;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.junit.Test;
 
 import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
+import io.nats.client.Message;
 import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
 import io.nats.client.Nats;
 
 public class NatsStatisticsTests {
     @Test
     public void testHumanReadableString() throws IOException, InterruptedException {
         // This test is purely for coverage, any test without a human is likely pedantic
-        try (NatsTestServer ts = new NatsTestServer()) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
-            String str = nc.getStatistics().buildHumanFriendlyString();
+            String str = nc.getStatistics().toString();
             assertNotNull(str);
             assertTrue(str.length() > 0);
-            nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            assertTrue(str.contains("### Connection ###"));
+        }
+    }
+
+    @Test
+    public void testInOutOKRequestStats() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI()).verbose().build();
+            Connection nc = Nats.connect(options);
+            NatsStatistics stats = ((NatsConnection) nc).getNatsStatistics();
+
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    nc.publish(msg.getReplyTo(), new byte[16]);
+                });
+                d.subscribe("subject");
+
+                Future<Message> incoming = nc.request("subject", new byte[8]);
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+                assertNotNull(msg);
+                assertEquals("outstanding", 0, stats.getOutstandingRequests());
+                assertTrue("bytes in", stats.getInBytes() > 100);
+                assertTrue("bytes out", stats.getInBytes() > 100);
+                assertEquals("messages in", 2, stats.getInMsgs()); // reply & request
+                assertEquals("messages out", 2, stats.getOutMsgs()); // request & reply
+                assertEquals("oks", 5, stats.getOKs()); //sub, pub, msg, pub, msg
+            } finally {
+                nc.close();
+            }
         }
     }
 }

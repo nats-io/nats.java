@@ -13,18 +13,91 @@
 
 package io.nats.client;
 
+import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
+
 public class TestHandler implements ErrorHandler, ConnectionHandler {
-    private int count = 0;
-    
-    public void errorOccurred(Connection conn, Subscription sub, Errors type) {
-        this.count = this.count + 1;
+    private AtomicInteger count = new AtomicInteger();
+
+    private HashMap<Events,AtomicInteger> eventCounts = new HashMap<>();
+    private HashMap<String,AtomicInteger> errorCounts = new HashMap<>();
+    private ReentrantLock lock = new ReentrantLock();
+
+    public void errorOccurred(Connection conn, String type) {
+        this.count.incrementAndGet();
+
+        lock.lock();
+        try {
+            AtomicInteger counter = errorCounts.get(type);
+            if (counter == null) {
+                counter = new AtomicInteger();
+                errorCounts.put(type, counter);
+            }
+            counter.incrementAndGet();
+        } finally {
+            lock.unlock();
+        }
     }
 
     public void connectionEvent(Connection conn, Events type) {
-        this.count = this.count + 1;
+        this.count.incrementAndGet();
+
+        lock.lock();
+        try {
+            AtomicInteger counter = eventCounts.get(type);
+            if (counter == null) {
+                counter = new AtomicInteger();
+                eventCounts.put(type, counter);
+            }
+            counter.incrementAndGet();
+        } finally {
+            lock.unlock();
+        }
     }
 
     public int getCount() {
-        return this.count;
+        return this.count.get();
+    }
+
+    public int getEventCount(Events type) {
+        int retVal = 0;
+        lock.lock();
+        try {
+            AtomicInteger counter = eventCounts.get(type);
+            if (counter != null) {
+                retVal = counter.get();
+            }
+        } finally {
+            lock.unlock();
+        }
+        return retVal;
+    }
+
+    public int getErrorCount(String type) {
+        int retVal = 0;
+        lock.lock();
+        try {
+            AtomicInteger counter = errorCounts.get(type);
+            if (counter != null) {
+                retVal = counter.get();
+            }
+        } finally {
+            lock.unlock();
+        }
+        return retVal;
+    }
+
+    public void dumpErrorCountsToStdOut() {
+        lock.lock();
+        try {
+            System.out.println("#### Test Handler Error Counts ####");
+            for (String key : errorCounts.keySet()) {
+                int count = errorCounts.get(key).get();
+                System.out.println(key+": "+count);
+            }
+        } finally {
+            lock.unlock();
+        }
     }
 }

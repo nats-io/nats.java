@@ -198,8 +198,10 @@ public class NatsServerProtocolMock implements Closeable{
         } catch (IOException io) {
             protocolFailure = true;
             System.out.println("\n*** Mock Server @" + this.port + " got exception "+io.getMessage());
+            io.printStackTrace();
         } catch (Exception ex) {
             System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
+            ex.printStackTrace();
         }
         finally {
             if (serverSocket != null) {

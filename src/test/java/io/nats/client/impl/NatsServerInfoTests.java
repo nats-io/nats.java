@@ -21,7 +21,6 @@ import java.util.Arrays;
 import org.junit.Test;
 
 public class NatsServerInfoTests {
-
     @Test
     public void testValidInfoString() {
         String json = "{" +
@@ -61,96 +60,17 @@ public class NatsServerInfoTests {
     }
 
     @Test
-    public void testBadStringKey() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"versionitis\":\"1.1.1\"" +
-                       "}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getUnknownInfo().size(), 1);
-    }
-
-    @Test
-    public void testBadStringValue() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"version\":222" +
-                       "}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getUnknownInfo().size(), 1);
-    }
-
-    @Test
-    public void testBadLongKey() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"max_payloads\":100000000000" +
-                       "}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getUnknownInfo().size(), 1);
-    }
-
-    @Test
-    public void testBadBooleanKey() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"auth_is_required\":false" +
-                       "}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getUnknownInfo().size(), 1);
-    }
-
-    @Test
-    public void testBadArrayKey() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"connect_urls_list\":[\"one\", \"two\"]" +
-                       "}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getUnknownInfo().size(), 1);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testBadArrayContents() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"connect_urls\":[\"one\", \"two\", 3]" +
-                       "}";
-        new NatsServerInfo(json);
-    }
-
-    @Test
     public void testEncodingInString() {
         String json = "{" +
                         "\"server_id\":\"my\\tserver\"" + "," +
                         "\"go\":\"my\\u0021server\"" + "," +
                         "\"host\":\"my\\\\host\"" + "," +
-                        "\"version\":\"1.1.1\\\"1\"" +
+                        "\"version\":\"1.1.1\\t1\"" +
                        "}";
         NatsServerInfo info = new NatsServerInfo(json);
         assertEquals(info.getServerId(), "my\tserver");
         assertEquals(info.getGoVersion(), "my!server");
         assertEquals(info.getHost(), "my\\host");
-        assertEquals(info.getVersion(), "1.1.1\"1");
-    }
-
-    @Test
-    public void testNegativeLong() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"max_payload\":-100000000000" +
-                       "}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getServerId(), "myserver");
-        assertEquals(info.getMaxPayload(), -100_000_000_000L);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testDouble() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"max_payload\":1.1" +
-                       "}";
-        new NatsServerInfo(json);
+        assertEquals(info.getVersion(), "1.1.1\t1");
     }
 }
