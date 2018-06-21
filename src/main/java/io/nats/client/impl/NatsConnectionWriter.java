@@ -106,7 +106,7 @@ class NatsConnectionWriter implements Runnable {
                         sendBuffer.put(msg.getData());
                         sendBuffer.put(NatsConnection.CRLF);
                     }
-                    msg = msg.prev; // Work backward through accumulation
+                    msg = msg.next;
                 }
                 connection.getNatsStatistics().registerAccumulate(accumulated);
 

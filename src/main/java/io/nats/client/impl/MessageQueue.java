@@ -20,6 +20,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
 class MessageQueue {
+    // Linked list, but reversed so that the pointers go from the tail to the head
+    // Push adds to the head, pop and accumulate read from the tail.
     private long length;
     private long sizeInBytes;
     private NatsMessage head;
@@ -60,8 +62,7 @@ class MessageQueue {
             if (length == 0) {
                 this.head = this.tail = msg;
             } else {
-                this.head.prev = msg;
-                msg.next = this.head;
+                this.head.next = msg;
                 this.head = msg;
             }
             this.length++;
@@ -107,11 +108,10 @@ class MessageQueue {
             if (this.head == this.tail) {
                 this.head = this.tail = null;
             } else {
-                this.tail = this.tail.prev;
-                this.tail.next = null;
+                this.tail = this.tail.next;
             }
 
-            retVal.prev = null;
+            retVal.next = null;
 
             this.length--;
             this.sizeInBytes -= retVal.getSize();
@@ -202,19 +202,17 @@ class MessageQueue {
             if (this.head == this.tail || this.head == newestMessage) {
                 this.head = this.tail = null;
             } else {
-                this.tail = newestMessage.prev;
-                this.tail.next = null;
+                this.tail = newestMessage.next;
             }
 
-            newestMessage.prev = null;
-            oldestMessage.next = null;
+            newestMessage.next = null;
 
             // Update the length
             NatsMessage cursor = oldestMessage;
             while (cursor != null) {
                 this.length--;
                 this.sizeInBytes -= cursor.getSize();
-                cursor = cursor.prev;
+                cursor = cursor.next;
             }
         } finally {
             condition.signalAll();
@@ -238,11 +236,11 @@ class MessageQueue {
         long count = 1;
 
         while (cursor != null) {
-            if (cursor.prev != null) {
-                long s = cursor.prev.getSize();
+            if (cursor.next != null) {
+                long s = cursor.next.getSize();
 
                 if ((size + s) < maxSize) { // keep going
-                    cursor = cursor.prev;
+                    cursor = cursor.next;
                     size += s;
                     count++;
 
@@ -278,33 +276,32 @@ class MessageQueue {
     void filter(Predicate<NatsMessage> p) {
         lock.lock();
         try {
-            NatsMessage cursor = head;
+            NatsMessage cursor = tail;
+            NatsMessage previous = null;
 
             while (cursor != null) {
                 if (p.test(cursor)) {
                     NatsMessage toRemove = cursor;
-                    cursor = cursor.next;
 
                     if (toRemove == this.head) {
-                        this.head = toRemove.next;
+                        this.head = previous;
+
+                        if (previous != null) {
+                            previous.next = null;
+                        }
+                    } else if (toRemove == this.tail) {
+                        this.tail = toRemove.next;
+                    } else if (previous != null) {
+                        previous.next = toRemove.next;
                     }
 
-                    if (toRemove == this.tail) {
-                        this.tail = toRemove.prev;
-                    }
-
-                    if (toRemove.prev != null) {
-                        toRemove.prev.next = toRemove.next;
-                    }
-
-                    if (toRemove.next != null) {
-                        toRemove.next.prev = toRemove.prev;
-                    }
-
-                    toRemove.prev = null;
                     toRemove.next = null;
                     this.length--;
+
+                    previous = cursor;
+                    cursor = cursor.next;
                 } else {
+                    previous = cursor;
                     cursor = cursor.next;
                 }
             }

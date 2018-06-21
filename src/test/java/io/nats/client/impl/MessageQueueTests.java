@@ -40,24 +40,24 @@ public class MessageQueueTests {
         q.push(msg2);
         q.push(msg3);
 
-        assertTrue(msg1.prev == msg2); assertTrue(msg1.next == null);
-        assertTrue(msg2.prev == msg3); assertTrue(msg2.next == msg1);
-        assertTrue(msg3.prev == null); assertTrue(msg3.next == msg2);
+        assertTrue(msg2.next == msg3);
+        assertTrue(msg3.next == null);
+        assertTrue(msg1.next == msg2);
 
         NatsMessage msg = q.popNow();
         assertTrue(msg == msg1);
-        assertTrue(msg1.prev == null); assertTrue(msg1.next == null);
-        assertTrue(msg2.prev == msg3); assertTrue(msg2.next == null);
-        assertTrue(msg3.prev == null); assertTrue(msg3.next == msg2);
+        assertTrue(msg1.next == null);
+        assertTrue(msg2.next == msg3);
+        assertTrue(msg3.next == null);
 
         msg = q.popNow();
         assertTrue(msg == msg2);
-        assertTrue(msg2.prev == null); assertTrue(msg2.next == null);
-        assertTrue(msg3.prev == null); assertTrue(msg3.next == null);
+        assertTrue(msg2.next == null);
+        assertTrue(msg3.next == null);
         
         msg = q.popNow();
         assertTrue(msg == msg3);
-        assertTrue(msg3.prev == null); assertTrue(msg3.next == null);
+        assertTrue(msg3.next == null);
 
         msg = q.popNow();
         assertNull(msg);
@@ -74,21 +74,21 @@ public class MessageQueueTests {
         q.push(msg2);
         q.push(msg3);
 
-        assertTrue(msg1.prev == msg2); assertTrue(msg1.next == null);
-        assertTrue(msg2.prev == msg3); assertTrue(msg2.next == msg1);
-        assertTrue(msg3.prev == null); assertTrue(msg3.next == msg2);
+        assertTrue(msg1.next == msg2);
+        assertTrue(msg2.next == msg3);
+        assertTrue(msg3.next == null);
         assertTrue(q.length() == 3);
 
         NatsMessage msg = q.accumulate(1000, 2, null, null);
         assertTrue(msg == msg1);
-        assertTrue(msg1.prev == msg2); assertTrue(msg1.next == null);
-        assertTrue(msg2.prev == null); assertTrue(msg2.next == msg1);
-        assertTrue(msg3.prev == null); assertTrue(msg3.next == null);
+        assertTrue(msg1.next == msg2);
+        assertTrue(msg2.next == null);
+        assertTrue(msg3.next == null);
         assertTrue(q.length() == 1);
 
         msg = q.accumulate(1000, 2, null, null);
         assertTrue(msg == msg3);
-        assertTrue(msg3.prev == null); assertTrue(msg3.next == null);
+        assertTrue(msg3.next == null);
         assertTrue(q.length() == 0);
 
         msg = q.popNow();
@@ -317,7 +317,7 @@ public class MessageQueueTests {
     private void checkCount(NatsMessage first, int expected) {
         while (expected > 0) {
             assertNotNull(first);
-            first = first.prev;
+            first = first.next;
             expected--;
         }
 

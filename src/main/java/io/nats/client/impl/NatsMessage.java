@@ -19,8 +19,6 @@ import io.nats.client.Message;
 import io.nats.client.Subscription;
 
 class NatsMessage implements Message {
-
-    // TODO(sasbury): Can we slim this down
     private String sid;
     private String subject;
     private String replyTo;
@@ -30,7 +28,6 @@ class NatsMessage implements Message {
 
     long size;
     NatsMessage next; // for linked list
-    NatsMessage prev; // for linked list
 
     // Create a message to publish
     NatsMessage(String subject, String replyTo, byte[] data) {

@@ -14,8 +14,6 @@
 package io.nats.client.impl;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,10 +38,10 @@ class NatsServerInfo {
     private boolean tlsRequired;
     private long maxPayload;
     private String[] connectURLs;
-    private HashMap<String, Object> unexpected;
+    private String rawInfoJson;
 
     public NatsServerInfo(String json) {
-        unexpected = new HashMap<>();
+        this.rawInfoJson = json;
         parseInfo(json);
     }
 
@@ -83,8 +81,8 @@ class NatsServerInfo {
         return this.connectURLs;
     }
 
-    public Map<String, Object> getUnknownInfo() {
-        return unexpected;
+    public String getRawJson() {
+        return rawInfoJson;
     }
 
     void parseInfo(String jsonString) {
