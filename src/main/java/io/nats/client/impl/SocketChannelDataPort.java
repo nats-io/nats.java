@@ -44,7 +44,7 @@ public class SocketChannelDataPort implements DataPort {
     private ExecutorService executor;
 
     public SocketChannelDataPort() {
-        this(NatsConnection.BUFFER_SIZE);
+        this(Options.DEFAULT_BUFFER_SIZE);
     }
 
     public SocketChannelDataPort(int initialBufferSize) {
@@ -191,10 +191,7 @@ public class SocketChannelDataPort implements DataPort {
             break;
         case BUFFER_UNDERFLOW:
             if (this.readBuffer.limit() < engine.getSession().getPacketBufferSize()) {
-                ByteBuffer newReadBuffer = ByteBuffer.allocate(this.readBuffer.capacity() * 2);
-                this.readBuffer.flip();
-                newReadBuffer.put(this.readBuffer);
-                this.readBuffer = newReadBuffer;
+                this.readBuffer = this.connection.enlargeBuffer(this.readBuffer, 0);
             }
             break;
         case CLOSED:
@@ -283,10 +280,7 @@ public class SocketChannelDataPort implements DataPort {
                 break;
             case BUFFER_UNDERFLOW:
                 if (this.readBuffer.limit() < engine.getSession().getPacketBufferSize()) {
-                    ByteBuffer newReadBuffer = ByteBuffer.allocate(this.readBuffer.capacity() * 2);
-                    this.readBuffer.flip();
-                    newReadBuffer.put(this.readBuffer);
-                    this.readBuffer = newReadBuffer;
+                    this.readBuffer = this.connection.enlargeBuffer(this.readBuffer, 0);
                 }
 
                 int tmpRead = this.socketChannel.read(this.readBuffer); // will append to what we have

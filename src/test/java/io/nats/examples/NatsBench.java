@@ -353,7 +353,7 @@ public class NatsBench {
 
                 for (int i=0;i<numMsgs;i++) {
                     Message msg = sub.nextMessage(timeout);
-                    nc.publish(msg.getReplyTo(), null);
+                    nc.publish(msg.getReplyTo(), msg.getData());
                     replies.incrementAndGet();
                 }
 

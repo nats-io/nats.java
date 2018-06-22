@@ -14,17 +14,57 @@
 package io.nats.client;
 
 import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class TestHandler implements ErrorHandler, ConnectionHandler {
+public class TestHandler implements ErrorListener, ConnectionListener {
     private AtomicInteger count = new AtomicInteger();
 
     private HashMap<Events,AtomicInteger> eventCounts = new HashMap<>();
     private HashMap<String,AtomicInteger> errorCounts = new HashMap<>();
     private ReentrantLock lock = new ReentrantLock();
 
+    private AtomicInteger exceptionCount = new AtomicInteger();
+
+    private CompletableFuture<Boolean> statusChanged;
+    private Events eventToWaitFor;
+
+    private Connection connection;
+
+    public void prepForStatusChange(Events waitFor) {
+        lock.lock();
+        try {
+            statusChanged = new CompletableFuture<>();
+            eventToWaitFor = waitFor;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void waitForStatusChange(long timeout, TimeUnit units) {
+        try {
+            this.statusChanged.get(timeout, units);
+        } catch (TimeoutException | ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void exceptionOccurred(Connection conn, Exception exp) {
+        this.connection = conn;
+        this.count.incrementAndGet();
+        this.exceptionCount.incrementAndGet();
+
+        if( exp != null ){
+            exp.printStackTrace();
+        }
+    }
+
     public void errorOccurred(Connection conn, String type) {
+        this.connection = conn;
         this.count.incrementAndGet();
 
         lock.lock();
@@ -41,6 +81,7 @@ public class TestHandler implements ErrorHandler, ConnectionHandler {
     }
 
     public void connectionEvent(Connection conn, Events type) {
+        this.connection = conn;
         this.count.incrementAndGet();
 
         lock.lock();
@@ -51,6 +92,10 @@ public class TestHandler implements ErrorHandler, ConnectionHandler {
                 eventCounts.put(type, counter);
             }
             counter.incrementAndGet();
+
+            if (statusChanged != null && type == eventToWaitFor) {
+                statusChanged.complete(Boolean.TRUE);
+            }
         } finally {
             lock.unlock();
         }
@@ -58,6 +103,10 @@ public class TestHandler implements ErrorHandler, ConnectionHandler {
 
     public int getCount() {
         return this.count.get();
+    }
+
+    public int getExceptionCount() {
+        return this.exceptionCount.get();
     }
 
     public int getEventCount(Events type) {
@@ -99,5 +148,9 @@ public class TestHandler implements ErrorHandler, ConnectionHandler {
         } finally {
             lock.unlock();
         }
+    }
+
+    public Connection getConnection() {
+        return this.connection;
     }
 }

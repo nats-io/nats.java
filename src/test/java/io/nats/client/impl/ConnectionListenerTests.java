@@ -11,17 +11,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
-import io.nats.client.ConnectionHandler.Events;
+import io.nats.client.ConnectionListener.Events;
+import io.nats.client.BadHandler;
+import io.nats.client.Connection;
+import io.nats.client.Nats;
+import io.nats.client.NatsServerProtocolMock;
+import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
+import io.nats.client.TestHandler;
 
-public class ConnectionHandlerTests {
+public class ConnectionListenerTests {
 
     @Test
     public void testCloseCount() throws Exception {
@@ -29,7 +37,7 @@ public class ConnectionHandlerTests {
             TestHandler handler = new TestHandler();
             Options options = new Options.Builder().
                                 server(ts.getURI()).
-                                connectionHandler(handler).
+                                connectionListener(handler).
                                 build();
             Connection nc = Nats.connect(options);
             try {
@@ -43,7 +51,7 @@ public class ConnectionHandlerTests {
     }
 
     @Test
-    public void testDiscoveredServersCountAndHandlerInOptions() throws Exception {
+    public void testDiscoveredServersCountAndListenerInOptions() throws Exception {
 
         try (NatsTestServer ts = new NatsTestServer()) {
             String customInfo = "{\"server_id\":\"myid\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
@@ -52,7 +60,7 @@ public class ConnectionHandlerTests {
                 Options options = new Options.Builder().
                                     server(ts2.getURI()).
                                     maxReconnects(0).
-                                    connectionHandler(handler).
+                                    connectionListener(handler).
                                     build();
                 Connection nc = Nats.connect(options);
                 try {
@@ -69,26 +77,30 @@ public class ConnectionHandlerTests {
     @Test
     public void testDisconnectReconnectCount() throws Exception {
         Connection nc = null;
+        TestHandler handler = new TestHandler();
         try {
-            TestHandler handler = new TestHandler();
             int port;
             try (NatsTestServer ts = new NatsTestServer(false)) {
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     reconnectWait(Duration.ofMillis(100)).
-                                    connectionHandler(handler).
+                                    maxReconnects(-1).
+                                    connectionListener(handler).
                                     build();
                 port = ts.getPort();
                 nc = Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
             try {
-                Thread.sleep(100); // Could be flaky
-            } catch (Exception e) {
-                e.printStackTrace();
+                nc.flush(Duration.ofMillis(50));
+            } catch (Exception exp) {
             }
-            assertTrue(handler.getEventCount(Events.DISCONNECTED) > 1);
+    
+            handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
+
+            assertTrue(handler.getEventCount(Events.DISCONNECTED) >= 1);
 
 
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
@@ -102,6 +114,25 @@ public class ConnectionHandlerTests {
             }
         } finally {
             nc.close();
+        }
+    }
+
+    @Test
+    public void testExceptionInConnectionListener() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            BadHandler handler = new BadHandler();
+            Options options = new Options.Builder().
+                                server(ts.getURI()).
+                                connectionListener(handler).
+                                build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+            assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
         }
     }
 }

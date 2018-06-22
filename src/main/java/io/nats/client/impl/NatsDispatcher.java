@@ -65,7 +65,7 @@ class NatsDispatcher implements Dispatcher, Runnable {
                     try {
                         handler.onMessage(msg);
                     } catch (Exception exp) {
-                        // TODO(sasbury): Notify error handler or something
+                        this.connection.processException(exp);
                     }
                     
                     sub.incrementMessageCount();
@@ -76,7 +76,7 @@ class NatsDispatcher implements Dispatcher, Runnable {
                 }
             }
         } catch (InterruptedException exp) {
-            // TODO(sasbury): Notify error handler or something
+            this.connection.processException(exp);
         } finally {
             this.running.set(false);
             this.thread = null;

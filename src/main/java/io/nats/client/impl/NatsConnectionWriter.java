@@ -45,7 +45,7 @@ class NatsConnectionWriter implements Runnable {
         this.stopped = new CompletableFuture<>();
         this.stopped.complete(Boolean.TRUE); // we are stopped on creation
 
-        this.sendBuffer = ByteBuffer.allocate(NatsConnection.BUFFER_SIZE);
+        this.sendBuffer = ByteBuffer.allocate(connection.getOptions().getBufferSize());
 
         outgoing = new MessageQueue();
     }
@@ -68,10 +68,11 @@ class NatsConnectionWriter implements Runnable {
         this.running.set(false);
         this.outgoing.interrupt();
 
-        // Clear old ping requests
+        // Clear old ping/pong requests
         byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
+        byte[] pongRequest = NatsConnection.OP_PONG.getBytes(StandardCharsets.UTF_8);
         this.outgoing.filter((msg) -> {
-            return Arrays.equals(pingRequest, msg.getProtocolBytes());
+            return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());
         });
         return this.stopped;
     }
@@ -98,6 +99,10 @@ class NatsConnectionWriter implements Runnable {
                 long accumulated = 0;
                 while (msg != null) {
                     accumulated++;
+
+                    while (this.sendBuffer.remaining() < msg.getSize()) {
+                        this.sendBuffer = this.connection.enlargeBuffer(this.sendBuffer, 0);
+                    }
 
                     sendBuffer.put(msg.getProtocolBytes());
                     sendBuffer.put(NatsConnection.CRLF);

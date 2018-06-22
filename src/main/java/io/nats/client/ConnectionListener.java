@@ -13,8 +13,9 @@
 
 package io.nats.client;
 
-public interface ConnectionHandler {
+public interface ConnectionListener {
     public enum Events {
+        CONNECTED("nats: connection opened"),
         CLOSED("nats: connection closed"),
         DISCONNECTED("nats: connection disconnected"), 
         RECONNECTED("nats: connection reconnected"), 
@@ -33,7 +34,7 @@ public interface ConnectionHandler {
 
     /**
      * Connection related events that occur asynchronously in the client code are
-     * sent to a ConnectionHandler via a single method. The ConnectionHandler can
+     * sent to a ConnectionListener via a single method. The ConnectionListener can
      * use the event type to decide what to do about the problem.
      * 
      * @param conn

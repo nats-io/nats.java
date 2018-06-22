@@ -111,7 +111,7 @@ class NatsSubscription implements Subscription {
 
         Message msg = incoming.pop(timeout);
 
-        if (this.incoming == null) { // We were unsubscribed while waiting TODO(sasbury): Make a test for this
+        if (this.incoming == null) { // We were unsubscribed while waiting
             throw new IllegalStateException("This subscription is inactive.");
         }
 

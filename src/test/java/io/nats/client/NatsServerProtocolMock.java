@@ -60,6 +60,8 @@ public class NatsServerProtocolMock implements Closeable{
     private Customizer customizer;
     private String customInfo;
 
+    private boolean customInfoIsFullInfo = false;
+
     public NatsServerProtocolMock(ExitAt exitAt) {
         this(NatsTestServer.nextPort(), exitAt);
     }
@@ -97,6 +99,10 @@ public class NatsServerProtocolMock implements Closeable{
         } catch (Exception exp) {
             //Give the server time to get going
         }
+    }
+
+    public void useCustomInfoAsFullInfo() {
+        customInfoIsFullInfo = true;
     }
 
     public int getPort() {
@@ -144,7 +150,11 @@ public class NatsServerProtocolMock implements Closeable{
             }
 
             if (this.customInfo != null) {
-                writer.write("INFO " + customInfo + "\r\n");
+                if (customInfoIsFullInfo) {
+                    writer.write(customInfo);
+                } else {
+                    writer.write("INFO " + customInfo + "\r\n");
+                }
             } else {
                 writer.write("INFO {\"server_id\":\"test\"}\r\n");
             }
@@ -158,7 +168,7 @@ public class NatsServerProtocolMock implements Closeable{
 
             String connect = reader.readLine();
 
-            if (connect.startsWith("CONNECT")) {
+            if (connect != null && connect.startsWith("CONNECT")) {
                 this.progress = Progress.GOT_CONNECT;
                 System.out.println("*** Mock Server @" + this.port + " got connect...");
             } else {

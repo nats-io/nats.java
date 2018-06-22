@@ -76,7 +76,7 @@ public class PublishTests {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             
             byte[] body = new byte[1001];
-            nc.publish("subject", "", body);
+            nc.publish("subject", null, body);
             assertFalse(true);
         }
     }

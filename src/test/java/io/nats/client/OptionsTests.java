@@ -29,7 +29,7 @@ import javax.net.ssl.SSLContext;
 
 import org.junit.Test;
 
-import io.nats.client.ConnectionHandler.Events;
+import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.SmallBufferSocketChannelDataPort;
 import io.nats.client.impl.DataPort;
 
@@ -65,8 +65,8 @@ public class OptionsTests {
         assertEquals("default cleanup interval", Options.DEFAULT_REQUEST_CLEANUP_INTERVAL,
                 o.getRequestCleanupInterval());
 
-        assertNull("error handler", o.getErrorHandler());
-        assertNull("disconnect handler", o.getConnectionHandler());
+        assertNull("error handler", o.getErrorListener());
+        assertNull("disconnect handler", o.getConnectionListener());
     }
 
     @Test
@@ -119,19 +119,19 @@ public class OptionsTests {
 
     @Test
     public void testChainedErrorHandler() {
-        ErrorHandler handler = (c, e) -> System.out.println(e);
-        Options o = new Options.Builder().errorHandler(handler).build();
+        TestHandler handler = new TestHandler();
+        Options o = new Options.Builder().errorListener(handler).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertEquals("chained error handler", handler, o.getErrorHandler());
+        assertEquals("chained error handler", handler, o.getErrorListener());
     }
 
     @Test
-    public void testChainedConnectionHandler() {
-        ConnectionHandler cHandler = (c, e) -> System.out.println("connection event" + e);
-        Options o = new Options.Builder().connectionHandler(cHandler).build();
+    public void testChainedConnectionListener() {
+        ConnectionListener cHandler = (c, e) -> System.out.println("connection event" + e);
+        Options o = new Options.Builder().connectionListener(cHandler).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertNull("error handler", o.getErrorHandler());
-        assertTrue("chained connection handler", cHandler == o.getConnectionHandler());
+        assertNull("error handler", o.getErrorListener());
+        assertTrue("chained connection handler", cHandler == o.getConnectionListener());
     }
 
     @Test
@@ -141,6 +141,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_PEDANTIC, "true");
         props.setProperty(Options.PROP_NORANDOMIZE, "true");
         props.setProperty(Options.PROP_USE_OLD_REQUEST_STYLE, "true");
+        props.setProperty(Options.PROP_OPENTLS, "true");
 
         Options o = new Options.Builder(props).build();
         assertNull("default username", o.getUsername());
@@ -148,6 +149,7 @@ public class OptionsTests {
         assertEquals("property pedantic", true, o.isPedantic());
         assertEquals("property norandomize", true, o.isNoRandomize());
         assertEquals("property oldstyle", true, o.isOldRequestStyle());
+        assertNotNull("property opentls", o.getSslContext());
     }
 
     @Test
@@ -181,12 +183,14 @@ public class OptionsTests {
         props.setProperty(Options.PROP_MAX_RECONNECT, "100");
         props.setProperty(Options.PROP_MAX_PINGS, "200");
         props.setProperty(Options.PROP_RECONNECT_BUF_SIZE, "300");
+        props.setProperty(Options.PROP_MAX_CONTROL_LINE, "400");
 
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("property max reconnect", 100, o.getMaxReconnect());
         assertEquals("property ping max", 200, o.getMaxPingsOut());
         assertEquals("property reconnect buffer size", 300, o.getReconnectBufferSize());
+        assertEquals("property max control line", 400, o.getMaxControlLine());
     }
 
     @Test
@@ -208,30 +212,30 @@ public class OptionsTests {
     @Test
     public void testPropertyErrorHandler() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_EXCEPTION_HANDLER, TestHandler.class.getCanonicalName());
+        props.setProperty(Options.PROP_ERROR_LISTENER, TestHandler.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertNotNull("property error handler", o.getErrorHandler());
+        assertNotNull("property error handler", o.getErrorListener());
 
-        o.getErrorHandler().errorOccurred(null, "bad subject");
-        assertEquals("property error handler class", ((TestHandler) o.getErrorHandler()).getCount(), 1);
+        o.getErrorListener().errorOccurred(null, "bad subject");
+        assertEquals("property error handler class", ((TestHandler) o.getErrorListener()).getCount(), 1);
     }
 
     @Test
-    public void testPropertyConnectionHandlers() {
+    public void testPropertyConnectionListeners() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_CONNECTION_CB, TestHandler.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertNotNull("property connection handler", o.getConnectionHandler());
+        assertNotNull("property connection handler", o.getConnectionListener());
 
-        o.getConnectionHandler().connectionEvent(null, Events.DISCONNECTED);
-        o.getConnectionHandler().connectionEvent(null, Events.RECONNECTED);
-        o.getConnectionHandler().connectionEvent(null, Events.CLOSED);
+        o.getConnectionListener().connectionEvent(null, Events.DISCONNECTED);
+        o.getConnectionListener().connectionEvent(null, Events.RECONNECTED);
+        o.getConnectionListener().connectionEvent(null, Events.CLOSED);
 
-        assertEquals("property connect handler class", ((TestHandler) o.getConnectionHandler()).getCount(), 3);
+        assertEquals("property connect handler class", ((TestHandler) o.getConnectionListener()).getCount(), 3);
     }
 
     @Test
@@ -364,7 +368,7 @@ public class OptionsTests {
     }
 
     @Test(expected=IllegalArgumentException.class)
-    public void testBadClassInPropertyConnectionHandlers() {
+    public void testBadClassInPropertyConnectionListeners() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_CONNECTION_CB, "foo");
         new Options.Builder(props);
@@ -373,5 +377,18 @@ public class OptionsTests {
     @Test(expected=IllegalStateException.class)
     public void testTokenAndUserThrows() {
         new Options.Builder().token("foo").userInfo("foo", "bar").build();
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnBadServerURI() {
+        new Options.Builder().server("foo:/bar\\:blammer").build();
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnBadServersURI() {
+        String url1 = "nats://localhost:8080";
+        String url2 = "foo:/bar\\:blammer";
+        String[] serverUrls = {url1, url2};
+        new Options.Builder().servers(serverUrls).build();
     }
 }

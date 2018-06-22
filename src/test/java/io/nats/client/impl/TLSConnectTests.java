@@ -32,7 +32,9 @@ import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.TestHandler;
 import io.nats.client.TestSSLUtils;
+import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.SmallBufferSocketChannelDataPort;
 
@@ -171,6 +173,7 @@ public class TLSConnectTests {
     @Test
     public void testTLSOnReconnect() throws InterruptedException, Exception {
         Connection nc = null;
+        TestHandler handler = new TestHandler();
 
         try {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
@@ -179,25 +182,19 @@ public class TLSConnectTests {
                                     server(ts.getURI()).
                                     maxReconnects(-1).
                                     sslContext(ctx).
+                                    connectionListener(handler).
                                     reconnectWait(Duration.ofMillis(10)).
                                     build();
                 nc = Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue("Correct data port class", ((NatsConnection)nc).getDataPort() instanceof SocketChannelDataPort);
+                handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
-            try {
-                Thread.sleep(200); // Could be flaky
-                nc.flush(Duration.ofMillis(50)); //Trigger the reconnect
-            } catch (Exception exp) {
-                // exp.printStackTrace();
-            }
-            try {
-                Thread.sleep(200); // Could be flaky
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            assertTrue("Reconnecting status", Connection.Status.RECONNECTING == nc.getStatus());
+            ReconnectTests.flushAndWait(nc, handler);
+            assertTrue("Reconnecting status", Connection.Status.RECONNECTING == nc.getStatus() || 
+                                                    Connection.Status.DISCONNECTED == nc.getStatus() || 
+                                                    Connection.Status.CONNECTING == nc.getStatus());
 
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
                 try {

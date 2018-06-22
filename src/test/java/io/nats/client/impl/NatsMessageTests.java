@@ -16,10 +16,18 @@ package io.nats.client.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
+
+import io.nats.client.Connection;
+import io.nats.client.Nats;
+import io.nats.client.NatsServerProtocolMock;
+import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
 
 public class NatsMessageTests {
     @Test
@@ -44,28 +52,67 @@ public class NatsMessageTests {
     }
     
     @Test(expected=IllegalArgumentException.class)
-    public void testBigProtocolLineWithBody() {
+    public void testCustomMaxControlLine() throws Exception {
+        byte[] body = new byte[10];
+        String subject = "subject";
+        String replyTo = "reply";
+        int maxControlLine = 100;
+
+        while (subject.length() <= maxControlLine) {
+            subject = subject + subject;
+        }
+
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        maxControlLine(maxControlLine).
+                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                nc.publish(subject, replyTo, body);
+                assertFalse(true);
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+    
+    @Test(expected=IllegalArgumentException.class)
+    public void testBigProtocolLineWithoutBody() throws Exception {
+        String subject = "subject";
+
+        while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
+            subject = subject + subject;
+        }
+
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            
+            nc.subscribe(subject);
+            assertFalse(true);
+        }
+    }
+    
+    @Test(expected=IllegalArgumentException.class)
+    public void testBigProtocolLineWithBody() throws Exception {
         byte[] body = new byte[10];
         String subject = "subject";
         String replyTo = "reply";
 
-        while (subject.length() <= NatsConnection.MAX_PROTOCOL_LINE) {
+        while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
             subject = subject + subject;
         }
 
-        new NatsMessage(subject, replyTo, body);
-        assertFalse(true);
-    }
-    
-    @Test(expected=IllegalArgumentException.class)
-    public void testBigProtocolLineWithoutBody() {
-        String protocol = "subject";
-
-        while (protocol.length() <= NatsConnection.MAX_PROTOCOL_LINE) {
-            protocol = protocol + protocol;
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            
+            nc.publish(subject, replyTo, body);
+            assertFalse(true);
         }
-
-        new NatsMessage(protocol);
-        assertFalse(true);
     }
 }

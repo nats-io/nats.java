@@ -81,6 +81,7 @@ class NatsServerInfo {
         return this.connectURLs;
     }
 
+    // If parsing succeeds this is the JSON, if not this may be the full protocol line
     public String getRawJson() {
         return rawInfoJson;
     }
@@ -90,6 +91,7 @@ class NatsServerInfo {
         String grabBoolean = "\\s*(true|false)";
         String grabNumber = "\\s*(\\d+)";
         String grabArray = "\\s*\\[(.+?)\\]";
+        String grabObject = "\\{(.+?)\\}";
 
         Pattern serverIdRE = Pattern.compile("\""+SERVER_ID+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern versionRE = Pattern.compile("\""+VERSION+"\":" + grabString, Pattern.CASE_INSENSITIVE);
@@ -100,8 +102,23 @@ class NatsServerInfo {
         Pattern portRE = Pattern.compile("\""+PORT+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
         Pattern maxRE = Pattern.compile("\""+MAX_PAYLOAD+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
         Pattern connectRE = Pattern.compile("\""+CONNECT_URLS+"\":" + grabArray, Pattern.CASE_INSENSITIVE);
-        
-        Matcher m = serverIdRE.matcher(jsonString);
+        Pattern infoObject = Pattern.compile(grabObject, Pattern.CASE_INSENSITIVE);
+
+        Matcher m = infoObject.matcher(jsonString);
+        if (m.find()) {
+            jsonString = m.group(0);
+            this.rawInfoJson = jsonString;
+        } else {
+            jsonString = "";
+        }
+
+        if (jsonString.length() < 2) {
+            throw new IllegalArgumentException("Server info requires at least {}.");
+        } else if (jsonString.charAt(0) != '{' || jsonString.charAt(jsonString.length()-1) != '}') {
+            throw new IllegalArgumentException("Server info should be JSON wrapped with { and }.");
+        }
+
+        m = serverIdRE.matcher(jsonString);
         if (m.find()) {
             this.serverId = unescapeString(m.group(1));
         }

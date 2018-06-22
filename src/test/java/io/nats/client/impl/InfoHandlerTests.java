@@ -37,6 +37,7 @@ public class InfoHandlerTests {
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                 assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
+                assertEquals(customInfo, ((NatsConnection) nc).getInfo().getRawJson());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());

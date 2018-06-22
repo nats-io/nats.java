@@ -18,7 +18,6 @@ package io.nats.client;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Random;
 
 /**
@@ -162,12 +161,6 @@ public final class NUID {
         return val;
     }
 
-    static byte[] longToBytes(long x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
-        buffer.putLong(x);
-        return buffer.array();
-    }
-
     static long bytesToLong(byte[] bytes) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
         buffer.put(bytes);
@@ -180,16 +173,6 @@ public final class NUID {
      */
     char[] getPre() {
         return pre;
-    }
-
-    /**
-     * Sets the prefix.
-     *
-     * @param pre
-     *                the pre to set
-     */
-    void setPre(char[] pre) {
-        this.pre = Arrays.copyOf(pre, pre.length);
     }
 
     /**
@@ -209,24 +192,5 @@ public final class NUID {
      */
     void setSeq(long seq) {
         this.seq = seq;
-    }
-
-    /**
-     * Return the current increment.
-     *
-     * @return the inc
-     */
-    long getInc() {
-        return inc;
-    }
-
-    /**
-     * Set the increment to the supplied value.
-     *
-     * @param inc
-     *                the inc to set
-     */
-    void setInc(long inc) {
-        this.inc = inc;
     }
 }

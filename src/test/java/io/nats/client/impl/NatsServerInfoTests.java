@@ -62,15 +62,15 @@ public class NatsServerInfoTests {
     @Test
     public void testEncodingInString() {
         String json = "{" +
-                        "\"server_id\":\"my\\tserver\"" + "," +
+                        "\"server_id\":\"\\\\\\b\\f\\n\\r\\t\"" + "," +
                         "\"go\":\"my\\u0021server\"" + "," +
                         "\"host\":\"my\\\\host\"" + "," +
                         "\"version\":\"1.1.1\\t1\"" +
                        "}";
         NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getServerId(), "my\tserver");
-        assertEquals(info.getGoVersion(), "my!server");
-        assertEquals(info.getHost(), "my\\host");
-        assertEquals(info.getVersion(), "1.1.1\t1");
+        assertEquals("\\\b\f\n\r\t", info.getServerId());
+        assertEquals("my!server", info.getGoVersion());
+        assertEquals("my\\host", info.getHost());
+        assertEquals("1.1.1\t1", info.getVersion());
     }
 }

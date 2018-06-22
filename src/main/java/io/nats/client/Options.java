@@ -133,15 +133,27 @@ public class Options {
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
 
     /**
+     * The default length, {@value #DEFAULT_MAX_CONTROL_LINE} bytes, the client will allow in an outgoing protocol control line.
+     * 
+     * <p>This value is configurable on the server, and should be set to match here.</p>
+     */
+    public static final int DEFAULT_MAX_CONTROL_LINE = 1024;
+
+    /**
      * Default dataport class, which will use a socket channel and SSL engine as needed.
      */
     public static final String DEFAULT_DATA_PORT_TYPE = SocketChannelDataPort.class.getCanonicalName();
+
+    /**
+     * Default size for buffers in the connection, not as available as other settings, this is primarily changed for testing.
+     */
+    public static final int DEFAULT_BUFFER_SIZE = 32 * 1024;
 
     static final String PFX = "io.nats.client.";
 
     /**
      * {@value #PROP_CONNECTION_CB}, see
-     * {@link Builder#connectionHandler(ConnectionHandler) connectionHandler}.
+     * {@link Builder#ConnectionListener(ConnectionListener) ConnectionListener}.
      */
     public static final String PROP_CONNECTION_CB = PFX + "callback.connection";
     /**
@@ -150,10 +162,10 @@ public class Options {
      */
     public static final String PROP_DATA_PORT_TYPE = PFX + "dataport.type";
     /**
-     * {@value #PROP_EXCEPTION_HANDLER}, see
-     * {@link Builder#errorHandler(ErrorHandler) errorHandler}.
+     * {@value #PROP_ERROR_LISTENER}, see
+     * {@link Builder#ErrorListener(ErrorListener) ErrorListener}.
      */
-    public static final String PROP_EXCEPTION_HANDLER = PFX + "callback.exception";
+    public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
     /**
      * {@value #PROP_MAX_PINGS}, see {@link Builder#maxPingsOut(int) maxPingsOut}.
      */
@@ -248,6 +260,11 @@ public class Options {
      * oldRequestStyle}.
      */
     public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
+    /**
+     * {@value #PROP_MAX_CONTROL_LINE}, see {@link Builder#maxControlLine()
+     * maxControlLine}.
+     */
+    public static final String PROP_MAX_CONTROL_LINE = "max.control.line";
 
     /**
      * Protocol key {@value #OPTION_VERBOSE}, see {@link Builder#verbose() verbose}.
@@ -313,6 +330,7 @@ public class Options {
     private final boolean pedantic;
     private final SSLContext sslContext;
     private final int maxReconnect;
+    private final int maxControlLine;
     private final Duration reconnectWait;
     private final Duration connectionTimeout;
     private final Duration pingInterval;
@@ -323,9 +341,10 @@ public class Options {
     private final String password;
     private final String token;
     private final boolean useOldRequestStyle;
+    private final int bufferSize;
 
-    private final ErrorHandler errorHandler;
-    private final ConnectionHandler connectionHandler;
+    private final ErrorListener errorListener;
+    private final ConnectionListener connectionListener;
     private final String dataPortType;
 
     public static class Builder {
@@ -336,6 +355,7 @@ public class Options {
         private boolean verbose = false;
         private boolean pedantic = false;
         private SSLContext sslContext = null;
+        private int maxControlLine = DEFAULT_MAX_CONTROL_LINE;
         private int maxReconnect = DEFAULT_MAX_RECONNECT;
         private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
         private Duration connectionTimeout = DEFAULT_TIMEOUT;
@@ -347,9 +367,10 @@ public class Options {
         private String password = null;
         private String token = null;
         private boolean useOldRequestStyle = false;
+        private int bufferSize = DEFAULT_BUFFER_SIZE;
 
-        private ErrorHandler errorHandler = null;
-        private ConnectionHandler connectionHandler = null;
+        private ErrorListener errorListener = null;
+        private ConnectionListener connectionListener = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
 
         /**
@@ -467,6 +488,11 @@ public class Options {
                 this.connectionTimeout = (ms < 0) ? DEFAULT_TIMEOUT : Duration.ofMillis(ms);
             }
 
+            if (props.containsKey(PROP_MAX_CONTROL_LINE)) {
+                int bytes = Integer.parseInt(props.getProperty(PROP_MAX_CONTROL_LINE, "-1"));
+                this.maxControlLine = (bytes < 0) ? DEFAULT_MAX_CONTROL_LINE : bytes;
+            }
+
             if (props.containsKey(PROP_PING_INTERVAL)) {
                 int ms = Integer.parseInt(props.getProperty(PROP_PING_INTERVAL, "-1"));
                 this.pingInterval = (ms < 0) ? DEFAULT_PING_INTERVAL : Duration.ofMillis(ms);
@@ -486,14 +512,14 @@ public class Options {
                 this.useOldRequestStyle = Boolean.parseBoolean(props.getProperty(PROP_USE_OLD_REQUEST_STYLE));
             }
 
-            if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
-                Object instance = createInstanceOf(props.getProperty(PROP_EXCEPTION_HANDLER));
-                this.errorHandler = (ErrorHandler) instance;
+            if (props.containsKey(PROP_ERROR_LISTENER)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_ERROR_LISTENER));
+                this.errorListener = (ErrorListener) instance;
             }
 
             if (props.containsKey(PROP_CONNECTION_CB)) {
                 Object instance = createInstanceOf(props.getProperty(PROP_CONNECTION_CB));
-                this.connectionHandler = (ConnectionHandler) instance;
+                this.connectionListener = (ConnectionListener) instance;
             }
 
             if (props.containsKey(PROP_DATA_PORT_TYPE)) {
@@ -669,6 +695,17 @@ public class Options {
         }
 
         /**
+         * Set the maximum length of a control line sent by this connection.
+         * 
+         * @param bytes the max byte count
+         * @return the Builder for chaining
+         */
+        public Builder maxControlLine(int bytes) {
+            this.maxControlLine = bytes;
+            return this;
+        }
+
+        /**
          * Set the timeout for connection attempts.
          * 
          * @param time the time to wait
@@ -713,6 +750,14 @@ public class Options {
         }
 
         /**
+         * Sets the initial size for buffers in the conneciton, primarily for testing.
+         */
+        public Builder bufferSize(int size) {
+            this.bufferSize = size;
+            return this;
+        }
+
+        /**
          * Set the maximum number of bytes to buffer in the client when trying to
          * reconnect.
          * 
@@ -749,26 +794,26 @@ public class Options {
         }
 
         /**
-         * Set the ErrorHandler to receive asyncrhonous error events related to this
+         * Set the ErrorListener to receive asyncrhonous error events related to this
          * connection.
          * 
-         * @param handler The new ErrorHandler for this connection.
+         * @param listener The new ErrorListener for this connection.
          * @return the Builder for chaining
          */
-        public Builder errorHandler(ErrorHandler handler) {
-            this.errorHandler = handler;
+        public Builder errorListener(ErrorListener listener) {
+            this.errorListener = listener;
             return this;
         }
 
         /**
-         * Set the ConnectionHandler to receive asyncrhonous notifications of disconnect
+         * Set the ConnectionListener to receive asyncrhonous notifications of disconnect
          * events.
          * 
-         * @param handler The new ConnectionHandler for this type of event.
+         * @param listener The new ConnectionListener for this type of event.
          * @return the Builder for chaining
          */
-        public Builder connectionHandler(ConnectionHandler handler) {
-            this.connectionHandler = handler;
+        public Builder connectionListener(ConnectionListener listener) {
+            this.connectionListener = listener;
             return this;
         }
 
@@ -859,24 +904,26 @@ public class Options {
         this.password = b.password;
         this.token = b.token;
         this.useOldRequestStyle = b.useOldRequestStyle;
+        this.maxControlLine = b.maxControlLine;
+        this.bufferSize = b.bufferSize;
 
-        this.errorHandler = b.errorHandler;
-        this.connectionHandler = b.connectionHandler;
+        this.errorListener = b.errorListener;
+        this.connectionListener = b.connectionListener;
         this.dataPortType = b.dataPortType;
     }
 
     /**
-     * @return The error handler, or null.
+     * @return The error listener, or null.
      */
-    public ErrorHandler getErrorHandler() {
-        return this.errorHandler;
+    public ErrorListener getErrorListener() {
+        return this.errorListener;
     }
 
     /**
-     * @return The connection handler, or null.
+     * @return The connection listener, or null.
      */
-    public ConnectionHandler getConnectionHandler() {
-        return this.connectionHandler;
+    public ConnectionListener getConnectionListener() {
+        return this.connectionListener;
     }
 
     /**
@@ -926,6 +973,13 @@ public class Options {
      */
     public boolean isPedantic() {
         return pedantic;
+    }
+
+    /**
+     * @return the maximum length of a control line
+     */
+    public int getMaxControlLine() {
+        return maxControlLine;
     }
 
     /**
@@ -991,6 +1045,13 @@ public class Options {
      */
     public long getReconnectBufferSize() {
         return reconnectBufferSize;
+    }
+
+    /**
+     * @return the default size for buffers in the connection code
+     */
+    public int getBufferSize() {
+        return bufferSize;
     }
 
     /**

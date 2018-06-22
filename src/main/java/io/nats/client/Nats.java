@@ -35,38 +35,92 @@ public class Nats {
      */
     public static Connection connect() throws IOException, InterruptedException {
         Options options = new Options.Builder().server(Options.DEFAULT_URL).build();
-        return createConnection(options);
+        return createConnection(options, false);
     }
 
     /**
-     * The Java client generally expects URLs of the form:
-     * <blockquote><pre>nats://hostname:port</pre></blockquote>
-     * but also allows urls with a user password:
-     * <blockquote><pre>nats://user:pass@hostname:port</pre></blockquote>
-     * or token in them:
-     * <blockquote><pre>nats://token@hostname:port</pre></blockquote>
-     * Moreover, you can initiate a TLS connection, by using the `tls` schema, whic
-     * will use the default SSLContext, or fail if one is not set.
-     * For testing and development, the `opentls` schema is support when the server is
-     * in non-verify mode. In this case, the client will accept any server certificate and
-     * will not provide one of its own.
+     * The Java client generally expects URLs of the form: <blockquote>
+     * 
+     * <pre>
+     * nats://hostname:port
+     * </pre>
+     * 
+     * </blockquote> but also allows urls with a user password: <blockquote>
+     * 
+     * <pre>
+     * nats://user:pass@hostname:port
+     * </pre>
+     * 
+     * </blockquote> or token in them: <blockquote>
+     * 
+     * <pre>
+     * nats://token@hostname:port
+     * </pre>
+     * 
+     * </blockquote> Moreover, you can initiate a TLS connection, by using the `tls`
+     * schema, whic will use the default SSLContext, or fail if one is not set. For
+     * testing and development, the `opentls` schema is support when the server is
+     * in non-verify mode. In this case, the client will accept any server
+     * certificate and will not provide one of its own.
      */
     public static Connection connect(String url) throws IOException, InterruptedException {
         Options options = new Options.Builder().server(url).build();
-        return createConnection(options);
+        return createConnection(options, false);
     }
 
     /**
-     * 
      * Options can be used to set the server URL, or multiple URLS, callback
      * handlers for various errors, and connection events.
      */
     public static Connection connect(Options options) throws IOException, InterruptedException {
-        return createConnection(options);
+        return createConnection(options, false);
     }
 
-    private static Connection createConnection(Options options) throws IOException, InterruptedException {
-        return NatsImpl.createConnection(options);
+    /**
+     * Try to connect in another thread, a connection listener is required to get
+     * the connection.
+     * 
+     * <p>
+     * Normally connect will loop through the available servers one time. If
+     * reconnectOnConnect is true, the connection attempt will repeat based on the
+     * settings in options, including indefinitely.
+     * </p>
+     * 
+     * <p>
+     * If there is an exception before a connection is created, and the error
+     * listener is set, it will be notified with a null connection.
+     * </p>
+     * 
+     * @param options            the connection options
+     * @param reconnectOnConnect if true, the connection will treat the initial
+     *                           connection as any other and attempt reconnects on
+     *                           failure
+     * 
+     * @throws IllegalArgumentException if no connection listener is set in the
+     *                                  options
+     */
+    public static void connectAsychronously(Options options, boolean reconnectOnConnect)
+            throws IOException, InterruptedException {
+
+        if (options.getConnectionListener() == null) {
+            throw new IllegalArgumentException("Connection Listener required in connectAsychronously");
+        }
+
+        Thread t = new Thread(() -> {
+            try {
+                NatsImpl.createConnection(options, reconnectOnConnect);
+            } catch (Exception ex) {
+                if (options.getErrorListener() != null) {
+                    options.getErrorListener().exceptionOccurred(null, ex);
+                }
+            }
+        });
+        t.start();
+    }
+
+    private static Connection createConnection(Options options, boolean reconnectOnConnect)
+            throws IOException, InterruptedException {
+        return NatsImpl.createConnection(options, reconnectOnConnect);
     }
 
     private Nats() {

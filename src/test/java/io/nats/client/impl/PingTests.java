@@ -13,12 +13,16 @@
 
 package io.nats.client.impl;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
@@ -76,19 +80,18 @@ public class PingTests {
     @Test
     public void testPingTimer() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).pingInterval(Duration.ofMillis(10)).build();
+            Options options = new Options.Builder().server(ts.getURI()).pingInterval(Duration.ofMillis(5)).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
             NatsStatistics stats = nc.getNatsStatistics();
 
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                 try {
-                    Thread.sleep(120); // should get 10+ pings
+                    Thread.sleep(200); // should get 10+ pings
                 } catch (Exception exp)
                 {
                     //Ignore
                 }
-
                 assertTrue("got pings", stats.getPings() > 10);
             } finally {
                 nc.close();
@@ -96,10 +99,9 @@ public class PingTests {
             }
         }
     }
-    
 
     @Test
-    public void testMaxPings() throws IOException, InterruptedException {
+    public void testPingFailsWhenClosed() throws Exception {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Options options = new Options.Builder().
                                             server(ts.getURI()).
@@ -108,19 +110,60 @@ public class PingTests {
                                             maxReconnects(0).
                                             build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
-            NatsStatistics stats = nc.getNatsStatistics();
 
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+            }
+
+            Future<Boolean> pong = nc.sendPing();
+
+            assertFalse(pong.get(10,TimeUnit.MILLISECONDS));
+        }
+    }
+
+    @Test
+    public void testMaxPingsOut() throws Exception {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            Options options = new Options.Builder().
+                                            server(ts.getURI()).
+                                            pingInterval(Duration.ofSeconds(10)). // Avoid auto pings
+                                            maxPingsOut(2).
+                                            maxReconnects(0).
+                                            build();
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                nc.sendPing();
+                nc.sendPing();
+                assertNull("No future returned when past max", nc.sendPing());
+            } finally {
+                nc.close();
+            }
+        }
+    }
+
+    @Test
+    public void testFlushTimeout() throws Exception {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            Options options = new Options.Builder().
+                                            server(ts.getURI()).
+                                            maxReconnects(0).
+                                            build();
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                // fake server so flush will timeout
+
                 try {
-                    Thread.sleep(120); // should get 10+ pings
-                } catch (Exception exp)
-                {
-                    //Ignore
+                    nc.flush(Duration.ofMillis(50));
+                    assertFalse(true); // should timeout
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-                // Should close because we exceeded and can't reconnect
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
-                assertTrue("got pings", stats.getPings() >= 1);
             } finally {
                 nc.close();
             }

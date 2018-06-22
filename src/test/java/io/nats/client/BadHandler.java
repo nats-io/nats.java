@@ -11,25 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client;
 
-import java.io.IOException;
-
-import io.nats.client.Connection;
-import io.nats.client.Options;
-import io.nats.client.Statistics;
-
-/**
- * Adapter to impl package to minimize access leakage.
- */
-public class NatsImpl {
-    public static Connection createConnection(Options options, boolean reconnectOnConnect) throws IOException, InterruptedException {
-        NatsConnection conn = new NatsConnection(options);
-        conn.connect(reconnectOnConnect);
-        return conn;
+public class BadHandler implements ErrorListener, ConnectionListener {
+    public void exceptionOccurred(Connection conn, Exception exp) {
+        throw new IllegalStateException("Its good to be bad");
     }
 
-    public static Statistics createEmptyStats() {
-        return new NatsStatistics();
+    public void errorOccurred(Connection conn, String type) {
+        throw new IllegalStateException("Its good to be bad");
+    }
+
+    public void connectionEvent(Connection conn, Events type) {
+        throw new IllegalStateException("Its good to be bad");
     }
 }

@@ -50,8 +50,8 @@ class NatsConnectionReader implements Runnable {
         this.stopped = new CompletableFuture<>();
         this.stopped.complete(Boolean.TRUE); // we are stopped on creation
 
-        this.gatherer = ByteBuffer.allocate(NatsConnection.BUFFER_SIZE);
-        this.protocolBuffer = ByteBuffer.allocate(NatsConnection.MAX_PROTOCOL_LINE);
+        this.gatherer = ByteBuffer.allocate(connection.getOptions().getBufferSize());
+        this.protocolBuffer = ByteBuffer.allocate(connection.getOptions().getMaxControlLine());
         this.protocolMode = true;
         this.space = Pattern.compile(" ");
     }
@@ -76,7 +76,7 @@ class NatsConnectionReader implements Runnable {
     }
 
     public void run() {
-        ByteBuffer buffer = ByteBuffer.allocate(NatsConnection.BUFFER_SIZE);
+        ByteBuffer buffer = ByteBuffer.allocate(connection.getOptions().getBufferSize());
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             this.protocolMode = true;
@@ -116,7 +116,7 @@ class NatsConnectionReader implements Runnable {
     }
 
     // Gather bytes for a protocol line
-    void gatherProtocol(ByteBuffer bytes, int length) {
+    void gatherProtocol(ByteBuffer bytes, int length) throws IOException {
         // protocol buffer has max capacity, shouldn't need resizing
         try {
             for (int i = 0; i < length; i++) {
@@ -135,6 +135,9 @@ class NatsConnectionReader implements Runnable {
                 } else if (b == NatsConnection.CR) {
                     gotCR = true;
                 } else {
+                    if (!protocolBuffer.hasRemaining()) {
+                        this.protocolBuffer = this.connection.enlargeBuffer(this.protocolBuffer, 0); // just double it
+                    }
                     protocolBuffer.put(b);
                 }
             }
@@ -144,14 +147,14 @@ class NatsConnectionReader implements Runnable {
     }
 
     // Gather bytes for a message body
-    void gather(ByteBuffer bytes, int length) {
-        // TODO(sasbury): gatherer should be set up to the right capacity and limit
-        // limited by the info's max payload size
+    void gather(ByteBuffer bytes, int length) throws IOException {
         try {
             for (int i = 0; i < length; i++) {
                 byte b = bytes.get();
-
                 if (incomingLength > 0) {
+                    if (!gatherer.hasRemaining()) {
+                        this.gatherer = this.connection.enlargeBuffer(this.gatherer, 0); // just double it
+                    }
                     gatherer.put(b);
                     incomingLength--;
                 } else if (gotCR) {
@@ -181,8 +184,7 @@ class NatsConnectionReader implements Runnable {
         }
     }
 
-    void parseProtocolMessage() {
-        // TODO(sasbury): check performance with this code, and update if necessary
+    void parseProtocolMessage() throws IOException {
         String protocolLine = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
 
         protocolLine = protocolLine.trim();
@@ -209,7 +211,7 @@ class NatsConnectionReader implements Runnable {
             protocolMode = false;
             break;
         case NatsConnection.OP_OK:
-            this.connection.getNatsStatistics().incrementOkCount();
+            this.connection.processOK();
             break;
         case NatsConnection.OP_ERR:
             String errorText = String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)).replace("\'","");
@@ -231,7 +233,7 @@ class NatsConnectionReader implements Runnable {
         }
     }
 
-    void encounteredProtocolError(Exception ex) {
-        this.connection.handleCommunicationIssue(ex);
+    void encounteredProtocolError(Exception ex) throws IOException {
+        throw new IOException(ex);
     }
 }

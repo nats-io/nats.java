@@ -16,60 +16,164 @@ package io.nats.client.impl;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
 import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
+import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.Subscription;
+import io.nats.client.TestHandler;
+import io.nats.client.ConnectionListener.Events;
 
 public class ReconnectTests {
+
+    static void flushAndWait(Connection nc, TestHandler handler) {
+        try {
+            nc.flush(Duration.ofMillis(50));
+        } catch (Exception exp) {
+        }
+
+        handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
+    }
+
+    void checkReconnectingStatus(Connection nc) {
+        Connection.Status status = nc.getStatus();
+        assertTrue("Reconnecting status", Connection.Status.RECONNECTING == status ||
+                                            Connection.Status.DISCONNECTED == status);
+    }
+
     @Test
-    public void testSimpleReconnect() throws InterruptedException, IOException {
-        Connection nc = null;
+    public void testSimpleReconnect() throws Exception { //Includes test for subscriptions and dispatchers across reconnect
+        NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
         int port;
+        Subscription sub;
 
         try {
             try (NatsTestServer ts = new NatsTestServer()) {
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(-1).
-                                    reconnectWait(Duration.ofMillis(10)).
+                                    reconnectWait(Duration.ofMillis(20)).
+                                    connectionListener(handler).
                                     build();
                                     port = ts.getPort();
-                nc = Nats.connect(options);
+                nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+                sub = nc.subscribe("subsubject");
+                
+                final NatsConnection nnc = nc;
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    nnc.publish(msg.getReplyTo(), msg.getData());
+                });
+                d.subscribe("dispatchSubject");
+
+                Future<Message> inc = nc.request("dispatchSubject", "test".getBytes(StandardCharsets.UTF_8));
+                Message msg = inc.get();
+                assertNotNull(msg);
+
+                nc.publish("subsubject", null);
+                msg = sub.nextMessage(Duration.ofMillis(100));
+                assertNotNull(msg);
+
+                handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
-            try {
-                Thread.sleep(200); // Could be flaky
-                nc.flush(Duration.ofMillis(50)); //Trigger the reconnect
-            } catch (Exception exp) {
-                // exp.printStackTrace();
-            }
-            try {
-                Thread.sleep(200); // Could be flaky
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            flushAndWait(nc, handler);
+            checkReconnectingStatus(nc);
 
-            assertTrue("Reconnecting status", Connection.Status.RECONNECTING == nc.getStatus());
+            handler.prepForStatusChange(Events.RECONNECTED);
 
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                try {
-                    Thread.sleep(200);
-                } catch (Exception e) {
-                }
+                handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+                // Make sure dispatcher and subscription are still there
+                Future<Message> inc = nc.request("dispatchSubject", "test".getBytes(StandardCharsets.UTF_8));
+                Message msg = inc.get();
+                assertNotNull(msg);
+
+                // make sure the subscription survived
+                nc.publish("subsubject", null);
+                msg = sub.nextMessage(Duration.ofMillis(100));
+                assertNotNull(msg);
             }
 
-            assertEquals("reconnect count", 1, nc.getStatistics().getReconnects());
+            assertEquals("reconnect count", 1, nc.getNatsStatistics().getReconnects());
+            assertTrue("exception count", nc.getNatsStatistics().getExceptions() > 0);
+        } finally {
+            if (nc != null) {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
+
+    @Test
+    public void testSubscribeDuringReconnect() throws Exception {
+        NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
+        int port;
+        Subscription sub;
+
+        try {
+            try (NatsTestServer ts = new NatsTestServer()) {
+                Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    maxReconnects(-1).
+                                    reconnectWait(Duration.ofMillis(20)).
+                                    connectionListener(handler).
+                                    build();
+                                    port = ts.getPort();
+                nc = (NatsConnection) Nats.connect(options);
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                handler.prepForStatusChange(Events.DISCONNECTED);
+            }
+
+            flushAndWait(nc, handler);
+            checkReconnectingStatus(nc);
+
+            sub = nc.subscribe("subsubject");
+                
+            final NatsConnection nnc = nc;
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                nnc.publish(msg.getReplyTo(), msg.getData());
+            });
+            d.subscribe("dispatchSubject");
+
+            handler.prepForStatusChange(Events.RECONNECTED);
+
+            try (NatsTestServer ts = new NatsTestServer(port, false)) {
+                handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+                // Make sure dispatcher and subscription are still there
+                Future<Message> inc = nc.request("dispatchSubject", "test".getBytes(StandardCharsets.UTF_8));
+                Message msg = inc.get();
+                assertNotNull(msg);
+
+                // make sure the subscription survived
+                nc.publish("subsubject", null);
+                msg = sub.nextMessage(Duration.ofMillis(100));
+                assertNotNull(msg);
+            }
+
+            assertEquals("reconnect count", 1, nc.getNatsStatistics().getReconnects());
+            assertTrue("exception count", nc.getNatsStatistics().getExceptions() > 0);
         } finally {
             if (nc != null) {
                 nc.close();
@@ -79,31 +183,24 @@ public class ReconnectTests {
     }
 
     @Test
-    public void testMaxReconnects() throws InterruptedException, IOException {
+    public void testMaxReconnects() throws Exception {
         Connection nc = null;
+        TestHandler handler = new TestHandler();
 
         try {
             try (NatsTestServer ts = new NatsTestServer()) {
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(1).
+                                    connectionListener(handler).
                                     reconnectWait(Duration.ofMillis(10)).
                                     build();
                 nc = Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                handler.prepForStatusChange(Events.RECONNECTED);
             }
 
-            try {
-                Thread.sleep(100); // Could be flaky
-                nc.flush(Duration.ofMillis(50)); //Trigger the reconnect
-            } catch (Exception exp) {
-                // exp.printStackTrace();
-            }
-            try {
-                Thread.sleep(100); // Could be flaky
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            flushAndWait(nc, handler);
         } finally {
             if (nc != null) {
                 nc.close();
@@ -113,23 +210,58 @@ public class ReconnectTests {
     }
 
     @Test
-    public void testReconnectToSecondServer() throws InterruptedException, IOException {
+    public void testReconnectToSecondServer() throws Exception {
         NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
 
         try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
-                Options options = new Options.Builder().server(ts2.getURI()).server(ts.getURI()).maxReconnects(-1).build();
+                Options options = new Options.Builder().
+                                            server(ts2.getURI()).
+                                            server(ts.getURI()).
+                                            connectionListener(handler).
+                                            maxReconnects(-1).
+                                            build();
                 nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                 assertEquals(nc.getCurrentServerURI(), ts2.getURI());
+                handler.prepForStatusChange(Events.RECONNECTED);
             }
 
-            try {
-                Thread.sleep(200); // Could be flaky
-                nc.flush(Duration.ofMillis(50)); //Trigger the reconnect
-                Thread.sleep(200); // Could be flaky
-            } catch (Exception e) {
+            flushAndWait(nc, handler);
+
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertEquals(nc.getCurrentServerURI(), ts.getURI());
+        } finally {
+            if (nc != null) {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
+        }
+    }
+
+
+    @Test
+    public void testNoRandomizeReconnectToSecondServer() throws Exception {
+        NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
+
+        try (NatsTestServer ts = new NatsTestServer()) {
+            try (NatsTestServer ts2 = new NatsTestServer()) {
+                Options options = new Options.Builder().
+                                            server(ts2.getURI()).
+                                            server(ts.getURI()).
+                                            connectionListener(handler).
+                                            maxReconnects(-1).
+                                            noRandomize().
+                                            build();
+                nc = (NatsConnection) Nats.connect(options);
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertEquals(nc.getCurrentServerURI(), ts2.getURI());
+                handler.prepForStatusChange(Events.RECONNECTED);
+            }
+
+            flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertEquals(nc.getCurrentServerURI(), ts.getURI());
@@ -142,24 +274,25 @@ public class ReconnectTests {
     }
 
     @Test
-    public void testReconnectToSecondServerFromInfo() throws InterruptedException, IOException {
+    public void testReconnectToSecondServerFromInfo() throws Exception {
         NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
 
         try (NatsTestServer ts = new NatsTestServer()) {
             String customInfo = "{\"server_id\":\"myid\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
             try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
-                Options options = new Options.Builder().server(ts2.getURI()).maxReconnects(-1).build();
+                Options options = new Options.Builder().
+                                            server(ts2.getURI()).
+                                            connectionListener(handler).
+                                            maxReconnects(-1).
+                                            build();
                 nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                 assertEquals(nc.getCurrentServerURI(), ts2.getURI());
+                handler.prepForStatusChange(Events.RECONNECTED);
             }
 
-            try {
-                Thread.sleep(200); // Could be flaky
-                nc.flush(Duration.ofMillis(50)); //Trigger the reconnect
-                Thread.sleep(200); // Could be flaky
-            } catch (Exception e) {
-            }
+            flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             assertEquals(nc.getCurrentServerURI(), ts.getURI());
@@ -172,33 +305,67 @@ public class ReconnectTests {
     }
 
     @Test(expected=IllegalStateException.class)
-    public void testOverflowReconnectBuffer() throws InterruptedException, IOException {
+    public void testOverflowReconnectBuffer() throws Exception {
         Connection nc = null;
+        TestHandler handler = new TestHandler();
+        
         try {
             try (NatsTestServer ts = new NatsTestServer()) {
                 Options options = new Options.Builder().
                                         server(ts.getURI()).
                                         maxReconnects(-1).
+                                        connectionListener(handler).
                                         reconnectBufferSize(8*512).
                                         reconnectWait(Duration.ofSeconds(10)).
                                         build();
                 nc = Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
-            try {
-                Thread.sleep(200); // Could be flaky
-                nc.flush(Duration.ofMillis(50)); //Trigger the reconnect
-                Thread.sleep(200); // Could be flaky
-            } catch (Exception e) {
-            }
-            assertTrue("Reconnecting status", Connection.Status.RECONNECTING == nc.getStatus());
+            flushAndWait(nc, handler);
+            checkReconnectingStatus(nc);
 
-            for (int i=0;i<9;i++) {
+            for (int i=0;i<10;i++) {
                 nc.publish("test", new byte[512]);// Should blow up by the 9th message
             }
 
             assertFalse(true);
+        } finally {
+            if (nc != null) {
+                nc.close();
+            }
+        }
+    }
+
+    @Test
+    public void testInfiniteReconnectBuffer() throws Exception {
+        Connection nc = null;
+        TestHandler handler = new TestHandler();
+        
+        try {
+            try (NatsTestServer ts = new NatsTestServer()) {
+                Options options = new Options.Builder().
+                                        server(ts.getURI()).
+                                        maxReconnects(-1).
+                                        connectionListener(handler).
+                                        reconnectBufferSize(-1).
+                                        reconnectWait(Duration.ofSeconds(10)).
+                                        build();
+                nc = Nats.connect(options);
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                handler.prepForStatusChange(Events.DISCONNECTED);
+            }
+
+            flushAndWait(nc, handler);
+            checkReconnectingStatus(nc);
+
+            //write 20 mb
+            for (int i=0;i<20_000;i++) {
+                nc.publish("test", new byte[1024]);
+            }
+
+            assertTrue(true);
         } finally {
             if (nc != null) {
                 nc.close();

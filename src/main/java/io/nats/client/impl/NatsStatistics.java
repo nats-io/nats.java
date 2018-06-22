@@ -35,6 +35,8 @@ class NatsStatistics implements Statistics {
     private AtomicLong outBytes;
     private AtomicLong pingCount;
     private AtomicLong okCount;
+    private AtomicLong errCount;
+    private AtomicLong exceptionCount;
 
     public NatsStatistics() {
         this.lock = new ReentrantLock();
@@ -50,6 +52,8 @@ class NatsStatistics implements Statistics {
         this.outBytes = new AtomicLong();
         this.pingCount = new AtomicLong();
         this.okCount = new AtomicLong();
+        this.errCount = new AtomicLong();
+        this.exceptionCount = new AtomicLong();
     }
 
     void incrementPingCount() {
@@ -58,6 +62,14 @@ class NatsStatistics implements Statistics {
 
     void incrementOkCount() {
         this.okCount.incrementAndGet();
+    }
+
+    void incrementErrCount() {
+        this.errCount.incrementAndGet();
+    }
+
+    void incrementExceptionCount() {
+        this.exceptionCount.incrementAndGet();
     }
 
     void incrementRequestsSent() {
@@ -117,6 +129,14 @@ class NatsStatistics implements Statistics {
         return this.okCount.get();
     }
 
+    public long getErrs() {
+        return this.errCount.get();
+    }
+
+    public long getExceptions() {
+        return this.exceptionCount.get();
+    }
+
     public long getReconnects() {
         return this.reconnects.get();
     }
@@ -168,6 +188,8 @@ class NatsStatistics implements Statistics {
             appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
             appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
             appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
+            appendNumberStat(builder, "-Errs Received:                  ", this.errCount.get());
+            appendNumberStat(builder, "Handled Exceptions:              ", this.exceptionCount.get());
             builder.append("\n");
             appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
             appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());

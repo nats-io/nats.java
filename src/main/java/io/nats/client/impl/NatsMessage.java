@@ -52,10 +52,6 @@ class NatsMessage implements Message {
         String protocol = protocolStringBuilder.toString();
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
 
-        if (this.protocolBytes.length > NatsConnection.MAX_PROTOCOL_LINE) {
-            throw new IllegalArgumentException("Protocol line is too long "+protocol);
-        }
-
         this.size = this.protocolBytes.length + data.length + 4;// for 2x \r\n
     }
 
@@ -63,12 +59,10 @@ class NatsMessage implements Message {
     NatsMessage(String protocol) {
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
         this.size = this.protocolBytes.length + 2;// for \r\n
-        if (this.protocolBytes.length > NatsConnection.MAX_PROTOCOL_LINE) {
-            throw new IllegalArgumentException("Protocol line is too long "+protocol);
-        }
     }
 
     // Create an incoming message for a subscriber
+    // Doesn't check controlline size, since the server sent us the message
     NatsMessage(String sid, String subject, String replyTo, String protocol) {
         this.sid = sid;
         this.subject = subject;
@@ -83,6 +77,10 @@ class NatsMessage implements Message {
 
     byte[] getProtocolBytes() {
         return this.protocolBytes;
+    }
+
+    int getControlLineLength() {
+        return this.protocolBytes.length + 2;
     }
 
     long getSize() {

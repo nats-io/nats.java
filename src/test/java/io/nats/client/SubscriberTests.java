@@ -336,10 +336,33 @@ public class SubscriberTests {
     public void throwsOnAutoUnsubscribeIfClosed() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             Subscription sub = nc.subscribe("subject");
             nc.close();
             sub.unsubscribe(1);
             assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testUnsubscribeWhileWaiting() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            Subscription sub = nc.subscribe("subject");
+            nc.flush(null);
+
+            Thread t = new Thread(()->{
+                try {
+                    Thread.sleep(100);
+                }catch(Exception e){}
+                sub.unsubscribe();
+            });
+            t.start();
+
+            sub.nextMessage(Duration.ofMillis(500)); // Should throw
+            assertTrue(false);
         }
     }
 }

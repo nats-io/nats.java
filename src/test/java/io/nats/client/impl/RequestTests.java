@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
@@ -36,6 +37,8 @@ import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.Subscription;
+import io.nats.client.TestHandler;
 
 public class RequestTests {
     
@@ -101,6 +104,29 @@ public class RequestTests {
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+        }
+    }
+
+
+    @Test
+    public void testManualRequestReply() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                nc.publish(msg.getReplyTo(), msg.getData());
+            });
+            d.subscribe("request");
+
+            Subscription sub = nc.subscribe("reply");
+
+            nc.publish("request", "reply", "hello".getBytes(StandardCharsets.UTF_8));
+
+            Message msg = sub.nextMessage(Duration.ofMillis(400));
+
+            assertNotNull(msg);
+            assertEquals("hello", new String(msg.getData(), StandardCharsets.UTF_8));
         }
     }
 
@@ -276,6 +302,46 @@ public class RequestTests {
                 assertNotNull(msg);
                 assertEquals(0, msg.getData().length);
                 assertTrue(msg.getSubject().indexOf('.') == msg.getSubject().lastIndexOf('.'));
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
+    @Test
+    public void testBuffersResize() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            int initialSize = 128;
+            int messageSize = 1024;
+            TestHandler handler = new TestHandler(); // will print exceptions for us
+            Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    errorListener(handler).
+                                    bufferSize(initialSize).
+                                    build();
+
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    nc.publish(msg.getReplyTo(), msg.getData());
+                });
+                d.subscribe("subject");
+
+                Future<Message> incoming = nc.request("subject", new byte[messageSize]); // force the buffers to resize
+                Message msg = null;
+
+                try {
+                    msg = incoming.get(500, TimeUnit.MILLISECONDS);
+                } catch (Exception exp) {
+                    exp.printStackTrace();
+                }
+
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertNotNull(msg);
+                assertEquals(messageSize, msg.getData().length);
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
