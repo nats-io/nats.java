@@ -79,14 +79,14 @@ public class MessageQueueTests {
         assertTrue(msg3.next == null);
         assertTrue(q.length() == 3);
 
-        NatsMessage msg = q.accumulate(1000, 2, null, null);
+        NatsMessage msg = q.accumulate(1000, 2, null);
         assertTrue(msg == msg1);
         assertTrue(msg1.next == msg2);
         assertTrue(msg2.next == null);
         assertTrue(msg3.next == null);
         assertTrue(q.length() == 1);
 
-        msg = q.accumulate(1000, 2, null, null);
+        msg = q.accumulate(1000, 2, null);
         assertTrue(msg == msg3);
         assertTrue(msg3.next == null);
         assertTrue(q.length() == 0);
@@ -292,7 +292,7 @@ public class MessageQueueTests {
     @Test
     public void testEmptyAccumulate() throws InterruptedException {
         MessageQueue q = new MessageQueue();
-        NatsMessage msg = q.accumulate(1,1,null,null);
+        NatsMessage msg = q.accumulate(1,1,null);
         assertNull(msg);
     }
 
@@ -300,7 +300,7 @@ public class MessageQueueTests {
     public void testSingleAccumulate() throws InterruptedException {
         MessageQueue q = new MessageQueue();
         q.push(new NatsMessage("PING"));
-        NatsMessage msg = q.accumulate(100,1,null,null);
+        NatsMessage msg = q.accumulate(100,1,null);
         assertNotNull(msg);
     }
 
@@ -310,7 +310,7 @@ public class MessageQueueTests {
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
-        NatsMessage msg = q.accumulate(100,3,null,null);
+        NatsMessage msg = q.accumulate(100,3,null);
         assertNotNull(msg);
     }
 
@@ -331,10 +331,10 @@ public class MessageQueueTests {
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
-        NatsMessage msg = q.accumulate(100,3,null,null);
+        NatsMessage msg = q.accumulate(100,3,null);
         checkCount(msg, 3);
 
-        msg = q.accumulate(100, 3, null, null); // should only get the last one
+        msg = q.accumulate(100, 3, null); // should only get the last one
         checkCount(msg, 1);
     }
 
@@ -347,13 +347,13 @@ public class MessageQueueTests {
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
-        NatsMessage msg = q.accumulate(100,2,null,null);
+        NatsMessage msg = q.accumulate(100,2,null);
         checkCount(msg, 2);
 
-        msg = q.accumulate(100, 2, null, null);
+        msg = q.accumulate(100, 2, null);
         checkCount(msg, 2);
 
-        msg = q.accumulate(100, 2, null, null);
+        msg = q.accumulate(100, 2, null);
         checkCount(msg, 2);
     }
     
@@ -365,10 +365,10 @@ public class MessageQueueTests {
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
-        NatsMessage msg = q.accumulate(20,100,null,null); // each one is 6 so 20 should be 3 messages
+        NatsMessage msg = q.accumulate(20,100,null); // each one is 6 so 20 should be 3 messages
         checkCount(msg, 3);
 
-        msg = q.accumulate(20,100, null, null); // should only get the last one
+        msg = q.accumulate(20,100, null); // should only get the last one
         checkCount(msg, 1);
     }
 
@@ -381,13 +381,13 @@ public class MessageQueueTests {
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
-        NatsMessage msg = q.accumulate(14,100,null,null); // each one is 6 so 14 should be 2 messages
+        NatsMessage msg = q.accumulate(14,100,null); // each one is 6 so 14 should be 2 messages
         checkCount(msg, 2);
 
-        msg = q.accumulate(14,100, null, null);
+        msg = q.accumulate(14,100, null);
         checkCount(msg, 2);
 
-        msg = q.accumulate(14,100, null, null);
+        msg = q.accumulate(14,100, null);
         checkCount(msg, 2);
     }
     
@@ -398,13 +398,13 @@ public class MessageQueueTests {
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
         q.push(new NatsMessage("PING"));
-        NatsMessage msg = q.accumulate(100,3,null,null);
+        NatsMessage msg = q.accumulate(100,3,null);
         checkCount(msg, 3);
 
         msg = q.popNow();
         checkCount(msg, 1);
 
-        msg = q.accumulate(100, 3, null, null); // should be empty
+        msg = q.accumulate(100, 3, null); // should be empty
         checkCount(msg, 0);
     }
 
@@ -426,7 +426,7 @@ public class MessageQueueTests {
         }
 
         for (int i=0;i<threads;i++) {
-            NatsMessage msg = q.accumulate(100, 5, Duration.ofMillis(5000), Duration.ofMillis(5000));
+            NatsMessage msg = q.accumulate(100, 5, Duration.ofMillis(5000));
             checkCount(msg, 5);
         }
         
@@ -454,7 +454,7 @@ public class MessageQueueTests {
         for (int i=0;i<threads * 2;i++) {
             Thread t = new Thread(() -> {
                                     try{
-                                        NatsMessage msg = q.accumulate(100 * msgPerThread, msgPerThread/2, Duration.ofMillis(5000), Duration.ofMillis(5000));
+                                        NatsMessage msg = q.accumulate(100 * msgPerThread, msgPerThread/2, Duration.ofMillis(5000));
                                         checkCount(msg, msgPerThread/2);
                                         count.getAndAdd(msgPerThread/2);
                                         latch.countDown();
@@ -472,77 +472,13 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testAccumulateTimeouts() throws InterruptedException {
-        long waitTime = 500;
-        MessageQueue q = new MessageQueue();
-        long start = System.nanoTime();
-        NatsMessage msg = q.accumulate(100, 100, Duration.ofMillis(waitTime), Duration.ofMillis(waitTime));
-        long end = System.nanoTime();
-        long actual = (end - start) / 1_000_000L;
-
-        // Time out should occur within 50% of the expected
-        // This could be a flaky test, how can we fix it?
-        // Using wide boundary to try to help.
-        assertTrue(actual > (waitTime * 0.5) && actual < (waitTime * 1.5));
-        assertNull(msg);
-    }
-
-    @Test
-    public void testAccumulateTimeoutShorterThanTimeout() throws InterruptedException {
-        long waitTime = 500;
-        MessageQueue q = new MessageQueue();
-        long start = System.nanoTime();
-        NatsMessage msg = q.accumulate(100, 100, Duration.ofMillis(waitTime / 10), Duration.ofMillis(waitTime));
-        long end = System.nanoTime();
-        long actual = (end - start) / 1_000_000L;
-
-        // Time out should occur within 50% of the expected
-        // This could be a flaky test, how can we fix it?
-        // Using wide boundary to try to help.
-        assertTrue(actual > (waitTime * 0.5) && actual < (waitTime * 1.5));
-        assertNull(msg);
-    }
-
-    @Test
     public void testInteruptAccumulate() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue();
         Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){} q.interrupt();});
         t.start();
-        NatsMessage msg = q.accumulate(100,100, Duration.ZERO, Duration.ZERO);
+        NatsMessage msg = q.accumulate(100,100, Duration.ZERO);
         assertNull(msg);
-    }
-
-    @Test
-    public void testAccumulateOnTimeout() throws InterruptedException {
-        // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue();
-
-        Thread t = new Thread(() -> {
-            try {
-                Thread.sleep(200);
-                q.push(new NatsMessage("test"));
-                Thread.sleep(200);
-                q.push(new NatsMessage("test"));
-                Thread.sleep(200);
-                q.push(new NatsMessage("test"));
-            } catch (Exception exp) {
-                // eat the exception, test will fail
-                exp.printStackTrace();
-            }
-        });
-        t.start();
-
-        // Thread timing, so could be flaky
-        NatsMessage msg = q.accumulate(100, 10, Duration.ofMillis(20), Duration.ofMillis(30));
-        assertNull(msg);
-
-        // Only wait long enough for 1 to accumulate
-        msg = q.accumulate(100, 10, Duration.ofMillis(20), Duration.ofMillis(200));
-        assertNotNull(msg);
-        checkCount(msg, 1);
-
-        t.join();
     }
     
     @Test
@@ -560,7 +496,7 @@ public class MessageQueueTests {
         assertEquals(3, q.length());
         q.popNow();
         assertEquals(2, q.length());
-        q.accumulate(100,100, null, null);
+        q.accumulate(100,100, null);
         assertEquals(0, q.length());
     }
     
@@ -580,7 +516,7 @@ public class MessageQueueTests {
         assertEquals(expected, q.sizeInBytes());
         q.popNow();      expected -= msg1.getSize();
         assertEquals(expected, q.sizeInBytes());
-        q.accumulate(100,100, null, null); expected = 0;
+        q.accumulate(100,100, null); expected = 0;
         assertEquals(expected, q.sizeInBytes());
     }
 

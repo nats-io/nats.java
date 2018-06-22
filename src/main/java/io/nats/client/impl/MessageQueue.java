@@ -20,8 +20,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
 class MessageQueue {
-    // Linked list, but reversed so that the pointers go from the tail to the head
-    // Push adds to the head, pop and accumulate read from the tail.
+    // Dev notes (sasbury)
+    // I tried this with semaphore and ConcurrentLinkedDeque.
+    // Neither version was an improvement on this version and
+    // both had some issues, including spin locking with a very short
+    // thread sleep. The lock/condition is currently a performance
+    // bottleneck, that should be continuously investigated.
     private long length;
     private long sizeInBytes;
     private NatsMessage head;
@@ -31,9 +35,11 @@ class MessageQueue {
     private boolean interrupted;
 
     MessageQueue() {
-        this.lock = new ReentrantLock(false); // Look at fairness vs some other way to avoid fast writers
+        this.lock = new ReentrantLock(false);
         this.condition = lock.newCondition();
         this.interrupted = false;
+        this.length = 0;
+        this.sizeInBytes = 0;
     }
 
     void interrupt() {
@@ -59,14 +65,14 @@ class MessageQueue {
     void push(NatsMessage msg) {
         lock.lock();
         try {
-            if (length == 0) {
+            if (this.length == 0) {
                 this.head = this.tail = msg;
             } else {
                 this.head.next = msg;
                 this.head = msg;
             }
-            this.length++;
-            this.sizeInBytes += msg.getSize();
+            this.length = this.length + 1;
+            this.sizeInBytes = this.sizeInBytes + msg.getSize();
         } finally {
             condition.signalAll();
             lock.unlock();
@@ -108,13 +114,12 @@ class MessageQueue {
             if (this.head == this.tail) {
                 this.head = this.tail = null;
             } else {
-                this.tail = this.tail.next;
+                this.tail = retVal.next;
             }
 
             retVal.next = null;
-
             this.length--;
-            this.sizeInBytes -= retVal.getSize();
+            this.sizeInBytes = this.sizeInBytes - retVal.getSize();
         } finally {
             condition.signalAll();
             lock.unlock();
@@ -128,25 +133,18 @@ class MessageQueue {
     // Use the prev field to read the entire set accumulated.
     // maxSize and maxMessages are both checked and if either is exceeded
     // the method returns.
-    // accumulateTimeout sets how long to wait for the max condition AFTER the first
-    // message appears
-    // The accumulate timeout may be unneeded, since the thread contention will act
-    // as an accumulator of sorts
     //
     // A timeout of 0 will wait indefinitely
-    NatsMessage accumulate(long maxSize, long maxMessages, Duration accumulateTimeout, Duration timeout)
+    NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
             throws InterruptedException {
         NatsMessage oldestMessage = null;
         NatsMessage newestMessage = null; // first, but these should be read in reverse order, with this one last
         long now = System.nanoTime();
         long start = now;
         long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
-        long accumulateNanos = (accumulateTimeout != null) ? accumulateTimeout.toNanos() : -1;
 
         lock.lock();
         try {
-
-            // First wait for any messages - using the timeout
             if (timeoutNanos >= 0) {
                 while ((this.length == 0) && !this.interrupted) {
                     if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
@@ -160,29 +158,6 @@ class MessageQueue {
                     }
 
                     condition.await(timeoutNanos, TimeUnit.NANOSECONDS);
-                }
-            }
-
-            if (this.interrupted || (this.length == 0)) {
-                return null;
-            }
-
-            // Wait up to the accumulate timeout, or we get the max condition
-            start = System.nanoTime();
-
-            if (accumulateNanos >= 0) {
-                while ((findMax(this.tail, maxSize, maxMessages) == null) && !this.interrupted) {
-                    if (accumulateNanos > 0) { // Same as timeout, reduce if > 0 for time served
-                        now = System.nanoTime();
-                        accumulateNanos = accumulateNanos - (now - start);
-                        start = now;
-
-                        if (accumulateNanos <= 0) { // equals in case we happen to hit it exactly
-                            break;
-                        }
-                    }
-
-                    condition.await(accumulateNanos, TimeUnit.NANOSECONDS);
                 }
             }
 
@@ -211,7 +186,7 @@ class MessageQueue {
             NatsMessage cursor = oldestMessage;
             while (cursor != null) {
                 this.length--;
-                this.sizeInBytes -= cursor.getSize();
+                this.sizeInBytes = this.sizeInBytes - cursor.getSize();
                 cursor = cursor.next;
             }
         } finally {

@@ -79,7 +79,6 @@ class NatsConnectionWriter implements Runnable {
 
     public void run() {
         Duration waitForMessage = Duration.ofMinutes(2); // This can be long since no one is sending
-        Duration waitForAccumulate = null;
         long maxMessages = 1000;
 
         try {
@@ -87,8 +86,7 @@ class NatsConnectionWriter implements Runnable {
             this.outgoing.reset();
 
             while (this.running.get()) {
-                NatsMessage msg = this.outgoing.accumulate(this.sendBuffer.capacity(), maxMessages, waitForAccumulate,
-                        waitForMessage);
+                NatsMessage msg = this.outgoing.accumulate(this.sendBuffer.capacity(), maxMessages, waitForMessage);
 
                 if (msg == null) { // Make sure we are still running
                     continue;

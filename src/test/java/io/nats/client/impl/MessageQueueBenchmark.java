@@ -18,48 +18,148 @@ import java.time.Duration;
 
 public class MessageQueueBenchmark {
     public static void main(String args[]) throws InterruptedException {
-        int loops = 10_000;
-        int msgPerLoop = 10_000;
-        MessageQueue q = new MessageQueue();
-        NatsMessage[] msgs = new NatsMessage[msgPerLoop];
+        int msgCount = 10_000_000;
+        NatsMessage[] msgs = new NatsMessage[msgCount];
+        long start, end;
 
-        for (int j = 0; j < msgPerLoop; j++) {
-            msgs[j] = new NatsMessage("PING");
+        System.out.printf("Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
+        for (int j = 0; j < msgCount; j++) {
+            msgs[j] = new NatsMessage("a");
         }
 
-        long start = System.nanoTime();
-        for (int i = 0; i < loops; i++) {
-            for (int j = 0; j < msgPerLoop; j++) {
-                q.push(msgs[j]);
-            }
-            for (int j = 0; j < msgPerLoop; j++) {
-                q.popNow();
-            }
-        }
-        long end = System.nanoTime();
-
-        System.out.printf("\n### Total time to perform %s push/pop operations was %s ms, %f ns/op\n",
-                NumberFormat.getInstance().format(loops * msgPerLoop),
-                NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (loops * msgPerLoop)));
-
-        q = new MessageQueue();
-
+        MessageQueue pushPop = new MessageQueue();
         start = System.nanoTime();
-        for (int i = 0; i < loops; i++) {
-            for (int j = 0; j < msgPerLoop; j++) {
-                q.push(msgs[j]);
-            }
-            for (int j = 0; j < msgPerLoop / 100; j++) {
-                q.accumulate(10000, msgPerLoop / 100, Duration.ofMillis(5000), Duration.ofMillis(5000));
-            }
+        for (int i = 0; i < msgCount; i++) {
+            pushPop.push(msgs[i]);
+        }
+        for (int i = 0; i < msgCount; i++) {
+            pushPop.popNow();
         }
         end = System.nanoTime();
 
-        System.out.printf("\n### Total time to perform %s push/accumulate operations was %s ms, %f ns/op\n",
-                NumberFormat.getInstance().format(loops * msgPerLoop),
+        System.out.printf("\nTotal time to perform %s push/popnow operations was %s ms, %f ns/op\n",
+                NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (loops * msgPerLoop)));
+                ((double) (end - start)) / ((double) (msgCount)));
+        System.out.printf("\tor %s op/s\n",
+                NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
+        MessageQueue accumulateQueue = new MessageQueue();
+        start = System.nanoTime();
+        for (int i = 0; i < msgCount; i++) {
+            accumulateQueue.push(msgs[i]);
+        }
+        while(accumulateQueue.length() > 0) { // works for single thread, but not multi
+            accumulateQueue.accumulate(10_000, 100, Duration.ofMillis(500));
+        }
+        end = System.nanoTime();
+
+        System.out.printf("\nTotal time to perform %s push/accumulate operations was %s ms, %f ns/op\n",
+                NumberFormat.getInstance().format(msgCount),
+                NumberFormat.getInstance().format((end - start) / 1_000_000L),
+                ((double) (end - start)) / ((double) (msgCount)));
+            System.out.printf("\tor %s op/s\n",
+                    NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
+        
+        final MessageQueue pushPopThreadQueue = new MessageQueue();
+        final Duration timeout = Duration.ofMillis(10);
+        Thread pusher = new Thread(() -> {
+            for (int i = 0; i < msgCount; i++) {
+                pushPopThreadQueue.push(msgs[i]);
+            }
+        });
+
+        Thread popper = new Thread(() -> {
+            try {
+                for (int i = 0; i < msgCount; i++) {
+                    pushPopThreadQueue.pop(timeout);
+                }
+            } catch (Exception exp) {
+                exp.printStackTrace();
+            }
+        });
+
+        start = System.nanoTime();
+        pusher.start();
+        popper.start();
+        pusher.join();
+        popper.join();
+        end = System.nanoTime();
+
+        System.out.printf("\nTotal time to perform %s pushes in one thread and pop with timeout in another was %s ms, %f ns/op\n",
+                NumberFormat.getInstance().format(msgCount),
+                NumberFormat.getInstance().format((end - start) / 1_000_000L),
+                ((double) (end - start)) / ((double) (msgCount)));
+            System.out.printf("\tor %s op/s\n",
+                    NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
+        
+
+
+        final MessageQueue pushPopNowThreadQueue = new MessageQueue();
+        pusher = new Thread(() -> {
+            for (int i = 0; i < msgCount; i++) {
+                pushPopNowThreadQueue.push(msgs[i]);
+            }
+        });
+
+        popper = new Thread(() -> {
+            try {
+                for (int i = 0; i < msgCount; i++) {
+                    pushPopNowThreadQueue.popNow();
+                }
+            } catch (Exception exp) {
+                exp.printStackTrace();
+            }
+        });
+
+        start = System.nanoTime();
+        pusher.start();
+        popper.start();
+        pusher.join();
+        popper.join();
+        end = System.nanoTime();
+
+        System.out.printf("\nTotal time to perform %s pushes in one thread and pop nows in another was %s ms, %f ns/op\n",
+                NumberFormat.getInstance().format(msgCount),
+                NumberFormat.getInstance().format((end - start) / 1_000_000L),
+                ((double) (end - start)) / ((double) (msgCount)));
+            System.out.printf("\tor %s op/s\n",
+                    NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
+                    
+        final MessageQueue pushAccumulateThreadQueue = new MessageQueue();
+        pusher = new Thread(() -> {
+            for (int i = 0; i < msgCount; i++) {
+                pushAccumulateThreadQueue.push(msgs[i]);
+            }
+        });
+
+        popper = new Thread(() -> {
+            try {
+                int remaining = msgCount;
+                while (remaining > 0) {
+                    NatsMessage cursor = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
+                    while (cursor != null) {
+                        remaining--;
+                        cursor = cursor.next;
+                    }
+                }
+            } catch (Exception exp) {
+                exp.printStackTrace();
+            }
+        });
+
+        start = System.nanoTime();
+        pusher.start();
+        popper.start();
+        pusher.join();
+        popper.join();
+        end = System.nanoTime();
+
+        System.out.printf("\nTotal time to perform %s pushes in one thread and accumlates in another was %s ms, %f ns/op\n",
+                NumberFormat.getInstance().format(msgCount),
+                NumberFormat.getInstance().format((end - start) / 1_000_000L),
+                ((double) (end - start)) / ((double) (msgCount)));
+            System.out.printf("\tor %s op/s\n",
+                    NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
     }
 }
