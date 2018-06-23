@@ -36,7 +36,6 @@ import io.nats.client.TestHandler;
 import io.nats.client.TestSSLUtils;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
-import io.nats.client.utils.SmallBufferSocketChannelDataPort;
 
 public class TLSConnectTests {
     @Test
@@ -101,7 +100,7 @@ public class TLSConnectTests {
     @Test
     public void testURISchemeTLSConnection() throws Exception {
         SSLContext.setDefault(TestSSLUtils.createTestSSLContext());
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", true)) {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             Options options = new Options.Builder().
                                 server("tls://localhost:"+ts.getPort()).
                                 maxReconnects(0).
@@ -118,7 +117,7 @@ public class TLSConnectTests {
 
     @Test
     public void testURISchemeOpenTLSConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", true)) {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             Options options = new Options.Builder().
                                 server("opentls://localhost:"+ts.getPort()).
                                 maxReconnects(0).
@@ -187,7 +186,7 @@ public class TLSConnectTests {
                                     build();
                 nc = Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertTrue("Correct data port class", ((NatsConnection)nc).getDataPort() instanceof SocketChannelDataPort);
+                assertTrue("Correct data port class", ((NatsConnection)nc).getDataPort() instanceof SocketDataPort);
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
@@ -205,26 +204,6 @@ public class TLSConnectTests {
             }
         } finally {
             if (nc != null) {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
-            }
-        }
-    }
-
-    @Test
-    public void testTLSBufferResize() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                dataPortType(SmallBufferSocketChannelDataPort.class.getCanonicalName()).
-                                sslContext(ctx).
-                                build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }

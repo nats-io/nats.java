@@ -508,13 +508,13 @@ public class MessageQueueTests {
         NatsMessage msg3 = new NatsMessage("three");
         long expected = 0;
 
-        q.push(msg1);    expected += msg1.getSize();
+        q.push(msg1);    expected += msg1.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.push(msg2);    expected += msg2.getSize();
+        q.push(msg2);    expected += msg2.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.push(msg3);    expected += msg3.getSize();
+        q.push(msg3);    expected += msg3.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.popNow();      expected -= msg1.getSize();
+        q.popNow();      expected -= msg1.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
         q.accumulate(100,100, null); expected = 0;
         assertEquals(expected, q.sizeInBytes());

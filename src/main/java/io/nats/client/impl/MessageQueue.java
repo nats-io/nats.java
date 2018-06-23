@@ -72,7 +72,7 @@ class MessageQueue {
                 this.head = msg;
             }
             this.length = this.length + 1;
-            this.sizeInBytes = this.sizeInBytes + msg.getSize();
+            this.sizeInBytes = this.sizeInBytes + msg.getSizeInBytes();
         } finally {
             condition.signalAll();
             lock.unlock();
@@ -119,7 +119,7 @@ class MessageQueue {
 
             retVal.next = null;
             this.length--;
-            this.sizeInBytes = this.sizeInBytes - retVal.getSize();
+            this.sizeInBytes = this.sizeInBytes - retVal.getSizeInBytes();
         } finally {
             condition.signalAll();
             lock.unlock();
@@ -186,7 +186,7 @@ class MessageQueue {
             NatsMessage cursor = oldestMessage;
             while (cursor != null) {
                 this.length--;
-                this.sizeInBytes = this.sizeInBytes - cursor.getSize();
+                this.sizeInBytes = this.sizeInBytes - cursor.getSizeInBytes();
                 cursor = cursor.next;
             }
         } finally {
@@ -207,12 +207,12 @@ class MessageQueue {
         }
 
         NatsMessage cursor = start;
-        long size = start.getSize();
+        long size = start.getSizeInBytes();
         long count = 1;
 
         while (cursor != null) {
             if (cursor.next != null) {
-                long s = cursor.next.getSize();
+                long s = cursor.next.getSizeInBytes();
 
                 if ((size + s) < maxSize) { // keep going
                     cursor = cursor.next;

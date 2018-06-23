@@ -33,10 +33,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
@@ -51,18 +54,6 @@ import io.nats.client.Subscription;
 import io.nats.client.ConnectionListener.Events;
 
 class NatsConnection implements Connection {
-
-    public enum State {
-        UNCONNECTED,
-        CONNECTING,
-        CONNECTED,
-        DISCONNECTING,
-        DISCONNECTED,
-        CLOSING_SOCKET,
-        CLOSING,
-        CLOSED;
-    }
-
     static final byte[] EMPTY_BODY = new byte[0];
 
     static final String INBOX_PREFIX = "_INBOX.";
@@ -85,10 +76,10 @@ class NatsConnection implements Connection {
 
     private NatsStatistics statistics;
 
-    // State is used internally to create a sort of state engine
-    // and insure the connection moves through reasonable transitions
-    // despite threading.
-    private State state;
+    private boolean connecting; // you can only connect in one thread
+    private boolean closing; // you can only close in one thread
+    private Exception exceptionDuringCloseOrConnect; // an exception occured in another thread while closing or connecting
+    private CompletableFuture<Void> closingFuture;
 
     // Status is an external, simpler value than state, that is matches
     // other NATS APIs.
@@ -105,7 +96,7 @@ class NatsConnection implements Connection {
 
     private AtomicReference<NatsServerInfo> serverInfo;
 
-    private ReentrantLock subscriberLock;
+    private ReentrantReadWriteLock subscriberLock;
     private HashMap<String, NatsSubscription> subscribers;
     private ArrayList<NatsDispatcher> dispatchers;
 
@@ -115,7 +106,7 @@ class NatsConnection implements Connection {
     private Dispatcher inboxDispatcher;
     private Timer timer;
 
-    private long nextSid;
+    private AtomicLong nextSid;
     private NUID nuid;
 
     private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
@@ -128,17 +119,16 @@ class NatsConnection implements Connection {
         this.statistics = new NatsStatistics();
 
         this.statusLock = new ReentrantLock();
-        this.state = State.UNCONNECTED;
         this.status = Status.DISCONNECTED;
         this.reconnectWaiter = new CompletableFuture<>();
         this.reconnectWaiter.complete(Boolean.TRUE);
 
-        this.subscriberLock = new ReentrantLock();
+        this.subscriberLock = new ReentrantReadWriteLock();
         this.subscribers = new HashMap<>();
         this.dispatchers = new ArrayList<>();
         this.responses = new HashMap<>();
         this.responseLock = new ReentrantLock();
-        this.nextSid = 1;
+        this.nextSid = new AtomicLong(1);
         this.nuid = new NUID();
         this.mainInbox = createInbox() + ".*";
 
@@ -157,16 +147,9 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("No servers provided in options");
         }
 
-        // Ensure we are only called when unconnected (the initial state)
-        if (!transitionState(State.UNCONNECTED, State.DISCONNECTED)) {
-            return;
-        }
-
         for (String serverURI : getServers()) {
-            this.waitForState(State.DISCONNECTED, this.options.getConnectionTimeout());
-            
-            // Throughout the loop, we can only try to connect, if we are disconnected
-            if (!transitionState(State.DISCONNECTED, State.CONNECTING)) {
+
+            if (isClosed()) {
                 break;
             }
 
@@ -177,12 +160,11 @@ class NatsConnection implements Connection {
             if (isConnected()) {
                 break;
             } else {
-                transitionState(State.CONNECTING, State.DISCONNECTED);
                 updateStatus(Status.DISCONNECTED);
             }
         }
 
-        if (!isConnected() && reconnectOnConnect) {
+        if (!isConnected() && reconnectOnConnect && !isClosed()) {
             reconnect();
         }
     }
@@ -202,21 +184,19 @@ class NatsConnection implements Connection {
             return;
         }
 
-        while (this.state == State.DISCONNECTED) {
+        while (!isConnected() && !isClosed()) {
             Collection<String> serversToTry = buildReconnectList();
 
             for (String server : serversToTry) {
+                if (isClosed()) {
+                    break;
+                }
+                
                 if (server.equals(lastServer)) {
                     this.reconnectWaiter = new CompletableFuture<>();
                     waitForReconnectTimeout();
-                } else {
-                    this.waitForState(State.DISCONNECTED, this.options.getConnectionTimeout());
                 }
-
-                if (!transitionState(State.DISCONNECTED, State.CONNECTING)) {
-                    break;
-                }
-        
+                
                 updateStatus(Status.RECONNECTING);
                 tryToConnect(server);
                 lastServer = server;
@@ -227,8 +207,6 @@ class NatsConnection implements Connection {
                 } else if (isConnected()) {
                     this.statistics.incrementReconnects();
                     break;
-                } else {
-                    transitionState(State.CONNECTING, State.DISCONNECTED);
                 }
             }
         }
@@ -238,7 +216,7 @@ class NatsConnection implements Connection {
             return;
         }
 
-        subscriberLock.lock();
+        subscriberLock.readLock().lock();
         try {
             for (NatsSubscription sub : this.subscribers.values()) {
                 sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
@@ -248,7 +226,7 @@ class NatsConnection implements Connection {
                 d.resendSubscriptions();
             }
         } finally {
-            subscriberLock.unlock();
+            subscriberLock.readLock().unlock();
         }
     }
 
@@ -256,9 +234,19 @@ class NatsConnection implements Connection {
     // will wait for any previous attempt to complete, using the reader.stop and writer.stop
     void tryToConnect(String serverURI) {
         try {
+            statusLock.lock();
+            try{
+                if (this.connecting) {
+                    return;
+                }
+                this.connecting = true;
+            } finally {
+                statusLock.unlock();
+            }
+            
             Duration connectTimeout = options.getConnectionTimeout();
 
-            // Create a new future for the SocketChannel, the reader/writer will use this
+            // Create a new future for the dataport, the reader/writer will use this
             // to wait for the connect/failure.
             this.dataPortFuture = new CompletableFuture<>();
  
@@ -314,11 +302,37 @@ class NatsConnection implements Connection {
             }
 
             // Set connected status
-            transitionState(State.CONNECTING, State.CONNECTED);
-            updateStatus(Status.CONNECTED);
-            this.currentServerURI = serverURI;
-        } catch (IOException | InterruptedException | CancellationException | TimeoutException | ExecutionException ex) {
-            handleConnectIssue(ex);
+            statusLock.lock();
+            try{
+                this.connecting = false;
+
+                if (this.exceptionDuringCloseOrConnect != null) {
+                    throw this.exceptionDuringCloseOrConnect;
+                }
+
+                updateStatus(Status.CONNECTED);
+                this.currentServerURI = serverURI;
+            } finally {
+                statusLock.unlock();
+            }
+        } catch (RuntimeException exp) { // runtime exceptions, like illegalArgs
+            processException(exp);
+            throw exp;
+        }  catch (Exception exp) { // every thing else
+            processException(exp);
+            
+            try {
+                this.closeSocket(false);
+            } catch(InterruptedException e) {
+                processException(e);
+            }
+        } finally {
+            statusLock.lock();
+            try{
+                this.connecting = false;
+            } finally {
+                statusLock.unlock();
+            }
         }
     }
 
@@ -337,26 +351,26 @@ class NatsConnection implements Connection {
         }
     }
 
-    // Called from connect threads
-    void handleConnectIssue(Exception io) {
-        processException(io);
-            
-        // We can handle this in the connect thread
-        this.closeSocket(State.DISCONNECTED);
-        // Connect thread will deal with reconnect if necessary
-    }
-
     // Called from reader/writer thread
     void handleCommunicationIssue(Exception io) {
+        // If we are connecting or closing, note exception and leave
+        statusLock.lock();
+        try{
+            if (this.connecting || this.closing) {
+                this.exceptionDuringCloseOrConnect = io;
+                return;
+            }
+        } finally {
+            statusLock.unlock();
+        }
+
         processException(io);
 
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
         Thread t = new Thread(() -> {
             try {
-                if(this.closeSocket(State.DISCONNECTED)) {
-                    this.reconnect();
-                }
+                this.closeSocket(true);
             } catch(InterruptedException e) {
                 processException(e);
             }
@@ -364,22 +378,136 @@ class NatsConnection implements Connection {
         t.start();
     }
 
-    // Close socket can perform three state transitions:
-    // * Connected -> Disconnecting
-    // * Connecting -> Disconnecting
-    // * ClosingSocket -> Closing
-    // The first of these leads to a reconnect attempt. The others do not.
-    // All other entry states (Closed, Disconnecting, Disconnected) result in a no-op.
-    boolean closeSocket(State exitState) {
-        boolean wasConnected = transitionState(State.CONNECTED, State.DISCONNECTING);
-        boolean validState = transitionState(State.CONNECTING, State.DISCONNECTING) || 
-                                                transitionState(State.CLOSING, State.DISCONNECTING) || 
-                                                transitionState(State.CLOSING_SOCKET, State.DISCONNECTING);
- 
-        if (!(wasConnected || validState)) {
-            return false;
+    void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
+        boolean wasConnected = false;
+        boolean exitOrWait = false;
+
+        statusLock.lock();
+        try{
+            if (isClosingOrClosed()) {
+                exitOrWait = true;
+            } else {
+                this.closing = true;
+                this.exceptionDuringCloseOrConnect = null;
+                wasConnected = (this.status == Status.CONNECTED);
+                closingFuture = new CompletableFuture<>();
+            }
+        } finally {
+            statusLock.unlock();
+        }
+        
+        if (exitOrWait) {
+            try {
+                this.closingFuture.get();
+            } catch (ExecutionException e) {
+            }
+            return;
         }
 
+        closeSocketImpl();
+        
+        statusLock.lock();
+        try{
+            updateStatus(Status.DISCONNECTED);
+            this.closing = false;
+        } finally {
+            statusLock.unlock();
+        }
+
+        if (wasConnected && tryReconnectIfConnected) {
+            reconnect();
+        }
+    }
+
+    public void close() throws InterruptedException {
+        
+        boolean exitOrWait = false;
+
+        statusLock.lock();
+        try{
+            if (isClosingOrClosed()) {
+                exitOrWait = true;
+            } else {
+                this.closing = true;
+                this.exceptionDuringCloseOrConnect = null;
+                closingFuture = new CompletableFuture<>();
+            }
+        } finally {
+            statusLock.unlock();
+        }
+        
+        if (exitOrWait) {
+            try {
+                this.closingFuture.get();
+            } catch (ExecutionException e) {
+            }
+            return;
+        }
+
+        // Stop the reconnect wait timer after we stop the writer/reader (only if we are really closing, not on errors)
+        if (this.reconnectWaiter != null) {
+            this.reconnectWaiter.cancel(true);
+        }
+
+        closeSocketImpl();
+
+        subscriberLock.writeLock().lock();
+        try {
+            for (NatsDispatcher d : this.dispatchers) {
+                d.stop();
+            }
+
+            this.dispatchers.clear();
+
+            for (NatsSubscription s : this.subscribers.values()) {
+                s.invalidate();
+            }
+
+            this.subscribers.clear();
+            
+            if (timer != null) {
+                timer.cancel();
+                timer = null;
+            }
+
+            cleanResponses(true);
+        } finally {
+            subscriberLock.writeLock().unlock();
+        }
+
+        cleanUpPongQueue();
+
+        statusLock.lock();
+        try {
+            updateStatus(Status.CLOSED);
+
+            if (exceptionDuringCloseOrConnect != null) {
+                processException(exceptionDuringCloseOrConnect);
+                exceptionDuringCloseOrConnect = null;
+            }
+        } finally {
+            statusLock.unlock();
+        }
+        
+        // Stop the error handler code
+        callbackRunner.shutdown();
+        try {
+            callbackRunner.awaitTermination(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+        } finally {
+            callbackRunner.shutdownNow();
+        }
+        
+        statusLock.lock();
+        try{
+            this.closing = false;
+            closingFuture.complete(null);
+        } finally {
+            statusLock.unlock();
+        }
+    }
+
+    // Should only be called from closeSocket or close
+    void closeSocketImpl() {
         this.currentServerURI = null;
 
         // Signal the reader and writer
@@ -409,83 +537,6 @@ class NatsConnection implements Connection {
             this.writer.stop().get(10, TimeUnit.SECONDS);
         } catch (Exception ex) {
             processException(ex);
-        }
-
-        transitionState(State.DISCONNECTING, exitState);
-        updateStatus(Status.DISCONNECTED);
-        
-        return wasConnected;
-    }
-
-    // Close performs 3 state transitions:
-    // * Connecting -> ClosingSocket
-    // * Connected -> ClosingSocket
-    // * Disconnected -> ClosingSocket
-    // Once complete, the socket close will put the state to Closing
-    // Once close completes the state will move to closed, and the status is updated
-    public void close() throws InterruptedException {
-        boolean validState = transitionState(State.CONNECTING, State.CLOSING_SOCKET) || 
-                                                transitionState(State.CONNECTED, State.CLOSING_SOCKET) ||
-                                                transitionState(State.DISCONNECTING, State.CLOSING_SOCKET) ||
-                                                transitionState(State.DISCONNECTED, State.CLOSING_SOCKET) ||
-                                                transitionState(State.CLOSING_SOCKET, State.CLOSING_SOCKET);
-
-        if(!validState) {
-            // Some thread initiated the close, sync them up
-            // in case this thread is called from the app, but don't
-            // wait forever.
-            waitForState(State.CLOSED, options.getConnectionTimeout());
-            return;
-        }
-        
-        // Stop the reconnect wait timer after we stop the writer/reader (only if we are really closing, not on errors)
-        if (this.reconnectWaiter != null) {
-            this.reconnectWaiter.cancel(true);
-        }
-
-        closeSocket(State.CLOSING);
-
-        subscriberLock.lock();
-        try {
-            for (NatsDispatcher d : this.dispatchers) {
-                d.stop();
-            }
-
-            this.dispatchers.clear();
-
-            for (NatsSubscription s : this.subscribers.values()) {
-                s.invalidate();
-            }
-
-            this.subscribers.clear();
-            
-            if (timer != null) {
-                timer.cancel();
-                timer = null;
-            }
-
-            cleanResponses(true);
-        } finally {
-            subscriberLock.unlock();
-        }
-
-        cleanUpPongQueue();
-
-        statusLock.lock();
-        try {
-            this.state = State.CLOSED;
-            updateStatus(Status.CLOSED);
-        } finally {
-            statusLock.unlock();
-        }
-        
-        // Stop the error handler code
-        callbackRunner.shutdown();
-        
-        try {
-            callbackRunner.awaitTermination(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
-        } finally {
-            callbackRunner.shutdownNow();
         }
     }
 
@@ -531,7 +582,7 @@ class NatsConnection implements Connection {
         }
 
         this.statistics.incrementOutMsgs();
-        this.statistics.incrementOutBytes(msg.getSize());
+        this.statistics.incrementOutBytes(msg.getSizeInBytes());
         queueOutgoing(msg);
     }
 
@@ -558,11 +609,11 @@ class NatsConnection implements Connection {
     void invalidate(NatsSubscription sub) {
         String sid = sub.getSID();
 
-        subscriberLock.lock();
+        subscriberLock.writeLock().lock();
         try {
             subscribers.remove(sid);
         } finally {
-            subscriberLock.unlock();
+            subscriberLock.writeLock().unlock();
         }
 
         if (sub.getDispatcher() != null) {
@@ -587,7 +638,7 @@ class NatsConnection implements Connection {
             }
         }
 
-        if (this.state != State.CONNECTED) { 
+        if (!isConnected()) { 
             return;// We will setup sub on reconnect or ignore
         }
 
@@ -612,21 +663,23 @@ class NatsConnection implements Connection {
         }
 
         NatsSubscription sub = null;
-        subscriberLock.lock();
+        long sidL = nextSid.getAndIncrement();
+        String sid = String.valueOf(sidL);
+
+        subscriberLock.writeLock().lock();
         try {
-            String sid = String.valueOf(this.nextSid);
             sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
-            nextSid++;
             subscribers.put(sid, sub);
-            sendSubscriptionMessage(sid, subject, queueName);
         } finally {
-            subscriberLock.unlock();
+            subscriberLock.writeLock().unlock();
         }
+
+        sendSubscriptionMessage(sid, subject, queueName);
         return sub;
     }
 
     void sendSubscriptionMessage(String sid, String subject, String queueName) {
-        if (this.state != State.CONNECTED) { 
+        if (!isConnected()) { 
             return;// We will setup sub on reconnect or ignore
         }
 
@@ -716,7 +769,7 @@ class NatsConnection implements Connection {
         String responseToken = getResponseToken(responseInbox);
         CompletableFuture<Message> future = new CompletableFuture<>();
 
-        this.subscriberLock.lock();
+        this.subscriberLock.writeLock().lock();
         try {
             if (this.inboxDispatcher == null) {
 
@@ -727,7 +780,7 @@ class NatsConnection implements Connection {
                 this.inboxDispatcher.subscribe(this.mainInbox);
             }
         } finally {
-            this.subscriberLock.unlock();
+            this.subscriberLock.writeLock().unlock();
         }
 
         responseLock.lock();
@@ -773,12 +826,12 @@ class NatsConnection implements Connection {
         }
 
         NatsDispatcher dispatcher = null;
-        subscriberLock.lock();
+        subscriberLock.writeLock().lock();
         try {
             dispatcher = new NatsDispatcher(this, handler);
             dispatchers.add(dispatcher);
         } finally {
-            subscriberLock.unlock();
+            subscriberLock.writeLock().unlock();
         }
         dispatcher.start();
         return dispatcher;
@@ -916,7 +969,7 @@ class NatsConnection implements Connection {
 
         String infoJson = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
         infoJson = infoJson.trim();
-        String msg[] = this.reader.space.split(infoJson);
+        String msg[] = infoJson.split(" ");
         String op = msg[0].toUpperCase();
 
         if (!OP_INFO.equals(op)) {
@@ -947,13 +1000,13 @@ class NatsConnection implements Connection {
         NatsSubscription sub = null;
 
         this.statistics.incrementInMsgs();
-        this.statistics.incrementInBytes(msg.getSize());
+        this.statistics.incrementInBytes(msg.getSizeInBytes());
 
-        subscriberLock.lock();
+        subscriberLock.readLock().lock();
         try {
             sub = subscribers.get(msg.getSID());
         } finally {
-            subscriberLock.unlock();
+            subscriberLock.readLock().unlock();
         }
 
         if (sub != null) {
@@ -981,13 +1034,17 @@ class NatsConnection implements Connection {
         this.statistics.incrementExceptionCount();
 
         if (handler != null  && !this.callbackRunner.isShutdown()) {
-            this.callbackRunner.execute(() -> {
-                try {
-                    handler.exceptionOccurred(this, exp);
-                } catch (Exception ex) {
-                    this.statistics.incrementExceptionCount();
-                }
-            });
+            try {
+                this.callbackRunner.execute(() -> {
+                    try {
+                        handler.exceptionOccurred(this, exp);
+                    } catch (Exception ex) {
+                        this.statistics.incrementExceptionCount();
+                    }
+                });
+            } catch(RejectedExecutionException re) {
+                // Timing with shutdown, let it go
+            }
         }
     }
 
@@ -997,13 +1054,17 @@ class NatsConnection implements Connection {
         this.statistics.incrementErrCount();
 
         if (handler != null  && !this.callbackRunner.isShutdown()) {
-            this.callbackRunner.execute(() -> {
-                try {
-                    handler.errorOccurred(this, errorText);
-                } catch (Exception ex) {
-                    this.statistics.incrementExceptionCount();
-                }
-            });
+            try {
+                this.callbackRunner.execute(() -> {
+                    try {
+                        handler.errorOccurred(this, errorText);
+                    } catch (Exception ex) {
+                        this.statistics.incrementExceptionCount();
+                    }
+                });
+            } catch(RejectedExecutionException re) {
+                // Timing with shutdown, let it go
+            }
         }
     }
 
@@ -1011,13 +1072,17 @@ class NatsConnection implements Connection {
         ConnectionListener handler = this.options.getConnectionListener();
 
         if (handler != null && !this.callbackRunner.isShutdown()) {
-            this.callbackRunner.execute(() -> {
-                try {
-                    handler.connectionEvent(this, type);
-                } catch (Exception ex) {
-                    this.statistics.incrementExceptionCount();
-                }
-            });
+            try {
+                this.callbackRunner.execute(() -> {
+                    try {
+                        handler.connectionEvent(this, type);
+                    } catch (Exception ex) {
+                        this.statistics.incrementExceptionCount();
+                    }
+                });
+            } catch(RejectedExecutionException re) {
+                // Timing with shutdown, let it go
+            }
         }
     }
 
@@ -1068,24 +1133,6 @@ class NatsConnection implements Connection {
         return this.currentServerURI;
     }
 
-    boolean waitForState(State state, Duration timeout) {
-        long currentWaitNanos = (timeout != null) ? timeout.toNanos() : -1;
-        long start = System.nanoTime();
-
-        while (currentWaitNanos > 0 && this.state != state) {
-            try {
-                Thread.sleep(0, 100); // Short sleep, 100 ns
-            } catch (Exception exp) {
-                // ignore, try to loop again
-            }
-            long now = System.nanoTime();
-            currentWaitNanos = currentWaitNanos - (now-start);
-            start = now;
-        }
-
-        return this.state == state;
-    }
-
     public Status getStatus() {
         return this.status;
     }
@@ -1095,6 +1142,9 @@ class NatsConnection implements Connection {
 
         statusLock.lock();
         try {
+            if (oldStatus == Status.CLOSED) {
+                return;
+            }
             this.status = newStatus;
         } finally {
             statusLock.unlock();
@@ -1111,35 +1161,30 @@ class NatsConnection implements Connection {
         } 
     }
 
-    boolean transitionState(State from, State to) {
-        boolean retVal = false;
-        statusLock.lock();
-        try {
-            retVal = this.state == from;
-
-            if (retVal) {
-                this.state = to;
-            }
-        } finally {
-            statusLock.unlock();
-        }
-        return retVal;
-    }
-
-    boolean isClosingOrClosed() {
-        return (this.state == State.CLOSING) || (this.state == State.CLOSED) || (this.state == State.CLOSING_SOCKET);
-    }
-
     boolean isClosed() {
-        return this.state == State.CLOSED;
+        return this.status == Status.CLOSED;
     }
 
     boolean isConnected() {
-        return (this.state == State.CONNECTED);
+        return this.status == Status.CONNECTED;
     }
 
     boolean isConnectedOrConnecting() {
-        return (this.state == State.CONNECTED) || (this.state == State.CONNECTING);
+        statusLock.lock();
+        try {
+            return this.status == Status.CONNECTED || this.connecting;
+        } finally {
+            statusLock.unlock();
+        }
+    }
+
+    boolean isClosingOrClosed() {
+        statusLock.lock();
+        try {
+            return this.status == Status.CLOSED || this.closing;
+        } finally {
+            statusLock.unlock();
+        }
     }
 
     void waitForReconnectTimeout() {

@@ -162,14 +162,14 @@ public class NatsBench {
 
                 Duration timeout = Duration.ofMillis(500);
 
-                final long start = System.nanoTime();
-
+                long start = System.nanoTime();
                 for (int i=0;i<numMsgs;i++) {
                     sub.nextMessage(timeout);
                     received.incrementAndGet();
                 }
+                long end = System.nanoTime();
 
-                bench.addSubSample(new Sample(numMsgs, size, start, System.nanoTime(), nc.getStatistics()));
+                bench.addSubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
 
                 // Clean up
                 sub.unsubscribe();
@@ -233,7 +233,7 @@ public class NatsBench {
         System.out.println("Use ctrl-C to cancel.");
         System.out.println();
 
-        //runTest("Pub Only", this.numPubs, 0);
+        runTest("Pub Only", this.numPubs, 0);
         runTest("Pub/Sub", this.numPubs, this.numSubs);
 
         Runtime.getRuntime().removeShutdownHook(shutdownHook);
@@ -415,13 +415,6 @@ public class NatsBench {
      * @param args command line arguments
      */
     public static void main(String[] args) {
-
-        try {
-            System.out.println("HURRY ...");
-            Thread.sleep(10*1000);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
         Properties properties = null;
         try {
             if (args.length == 1 && args[0].endsWith(".properties")) {
@@ -433,12 +426,6 @@ public class NatsBench {
         } catch (Exception e) {
             System.err.printf("Exiting due to exception [%s]\n", e.getMessage());
             System.exit(-1);
-        }
-        try {
-            System.out.println("Take your time ...");
-            Thread.sleep(20*60*60*1000);
-        } catch (Exception e) {
-            e.printStackTrace();
         }
         System.exit(0);
     }

@@ -342,6 +342,7 @@ public class ReconnectTests {
     public void testInfiniteReconnectBuffer() throws Exception {
         Connection nc = null;
         TestHandler handler = new TestHandler();
+        handler.setPrintExceptions(false);
         
         try {
             try (NatsTestServer ts = new NatsTestServer()) {

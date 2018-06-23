@@ -26,7 +26,7 @@ class NatsMessage implements Message {
     private byte[] protocolBytes;
     private NatsSubscription subscription;
 
-    long size;
+    long sizeInBytes;
     NatsMessage next; // for linked list
 
     // Create a message to publish
@@ -52,22 +52,22 @@ class NatsMessage implements Message {
         String protocol = protocolStringBuilder.toString();
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
 
-        this.size = this.protocolBytes.length + data.length + 4;// for 2x \r\n
+        this.sizeInBytes = this.protocolBytes.length + data.length + 4;// for 2x \r\n
     }
 
     // Create a protocol only message to publish
     NatsMessage(String protocol) {
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
-        this.size = this.protocolBytes.length + 2;// for \r\n
+        this.sizeInBytes = this.protocolBytes.length + 2;// for \r\n
     }
 
     // Create an incoming message for a subscriber
     // Doesn't check controlline size, since the server sent us the message
-    NatsMessage(String sid, String subject, String replyTo, String protocol) {
+    NatsMessage(String sid, String subject, String replyTo, int protocolLength) {
         this.sid = sid;
         this.subject = subject;
         this.replyTo = replyTo;
-        this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
+        this.sizeInBytes = protocolLength + 2;
         this.data = null; // will set data and size after we read it
     }
 
@@ -75,16 +75,17 @@ class NatsMessage implements Message {
         return this.subject == null;
     }
 
+    // Will be null on an incoming message
     byte[] getProtocolBytes() {
         return this.protocolBytes;
     }
 
     int getControlLineLength() {
-        return this.protocolBytes.length + 2;
+        return (this.protocolBytes != null) ? this.protocolBytes.length + 2 : -1;
     }
 
-    long getSize() {
-        return size;
+    long getSizeInBytes() {
+        return sizeInBytes;
     }
 
     String getSID() {
@@ -99,9 +100,10 @@ class NatsMessage implements Message {
         return this.replyTo;
     }
 
+    // Only for incoming messages, with no protocol bytes
     void setData(byte[] data) {
         this.data = data;
-        this.size = this.protocolBytes.length + data.length + 4;// for 2x \r\n
+        this.sizeInBytes += data.length + 2;// for \r\n, we already set the length for the protocol bytes in the constructor
     }
 
     public byte[] getData() {

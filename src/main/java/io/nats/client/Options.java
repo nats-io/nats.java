@@ -27,7 +27,7 @@ import javax.net.ssl.SSLContext;
 
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.SSLUtils;
-import io.nats.client.impl.SocketChannelDataPort;
+import io.nats.client.impl.SocketDataPort;
 
 /**
  * The Options class specifies the connection options for a new NATs connection.
@@ -140,9 +140,9 @@ public class Options {
     public static final int DEFAULT_MAX_CONTROL_LINE = 1024;
 
     /**
-     * Default dataport class, which will use a socket channel and SSL engine as needed.
+     * Default dataport class, which will use a TCP socket.
      */
-    public static final String DEFAULT_DATA_PORT_TYPE = SocketChannelDataPort.class.getCanonicalName();
+    public static final String DEFAULT_DATA_PORT_TYPE = SocketDataPort.class.getCanonicalName();
 
     /**
      * Default size for buffers in the connection, not as available as other settings, this is primarily changed for testing.

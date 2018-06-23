@@ -15,14 +15,13 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Pattern;
 
 class NatsConnectionReader implements Runnable {
     private final NatsConnection connection;
@@ -33,8 +32,6 @@ class NatsConnectionReader implements Runnable {
 
     private boolean gotCR;
     
-    Pattern space;
-
     private Thread thread;
     private CompletableFuture<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
@@ -53,7 +50,6 @@ class NatsConnectionReader implements Runnable {
         this.gatherer = ByteBuffer.allocate(connection.getOptions().getBufferSize());
         this.protocolBuffer = ByteBuffer.allocate(connection.getOptions().getMaxControlLine());
         this.protocolMode = true;
-        this.space = Pattern.compile(" ");
     }
 
     // Should only be called if the current thread has exited.
@@ -184,29 +180,52 @@ class NatsConnectionReader implements Runnable {
         }
     }
 
+    public String grabNext(CharBuffer buffer) {
+        if (!buffer.hasRemaining()) {
+            return null;
+        }
+
+        int start = buffer.position();
+
+        while (buffer.hasRemaining()) {
+            char c = buffer.get();
+
+            if (c == ' ') {
+                int end = buffer.position();
+                buffer.position(start);
+                CharBuffer slice = buffer.subSequence(0, end-start-1); //don't grab the space
+                buffer.position(end);
+                return slice.toString();
+            }
+        }
+
+        buffer.position(start);
+        String retVal = buffer.toString();
+        buffer.position(buffer.limit());
+        return retVal;
+    }
+
+    public String grabTheRest(CharBuffer buffer) {
+        return buffer.toString();
+    }
+
     void parseProtocolMessage() throws IOException {
-        String protocolLine = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
-
-        protocolLine = protocolLine.trim();
-
-        String msg[] = space.split(protocolLine);
-        String op = msg[0].toUpperCase();
+        int protocolLength = protocolBuffer.remaining();
+        CharBuffer protocolChars = StandardCharsets.UTF_8.decode(protocolBuffer);
+        String op = grabNext(protocolChars);
 
         switch (op) {
         case NatsConnection.OP_MSG:
-            String subject = msg[1];
-            String sid = msg[2];
-            String replyTo = null;
-            String lengthString = null;
+            String subject = grabNext(protocolChars);
+            String sid = grabNext(protocolChars);
+            String replyTo = grabNext(protocolChars);
+            String lengthString = grabNext(protocolChars);
 
-            if (msg.length == 5) {
-                replyTo = msg[3];
-                lengthString = msg[4];
-            } else {
-                lengthString = msg[3];
+            if (lengthString == null) {
+                lengthString = replyTo;
+                replyTo = null;
             }
-
-            incoming = new NatsMessage(sid, subject, replyTo, protocolLine);
+            incoming = new NatsMessage(sid, subject, replyTo, protocolLength);
             incomingLength = Long.parseLong(lengthString);
             protocolMode = false;
             break;
@@ -214,7 +233,10 @@ class NatsConnectionReader implements Runnable {
             this.connection.processOK();
             break;
         case NatsConnection.OP_ERR:
-            String errorText = String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)).replace("\'","");
+            String errorText = grabTheRest(protocolChars);
+            if (errorText != null) {
+                errorText = errorText.replace("\'", "");
+            }
             this.connection.processError(errorText);
             break;
         case NatsConnection.OP_PING:
@@ -224,12 +246,11 @@ class NatsConnectionReader implements Runnable {
             this.connection.handlePong();
             break;
         case NatsConnection.OP_INFO:
-            // Recreate the original string and parse it
-            this.connection.handleInfo(String.join(" ", Arrays.copyOfRange(msg, 1, msg.length)));
+            String info = grabTheRest(protocolChars);
+            this.connection.handleInfo(info);
             break;
         default:
-            encounteredProtocolError(null);
-            break;
+            throw new IllegalStateException("Unknown protocol operation "+op);
         }
     }
 

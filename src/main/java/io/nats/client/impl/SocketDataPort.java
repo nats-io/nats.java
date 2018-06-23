@@ -1,0 +1,115 @@
+// Copyright 2015-2018 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package io.nats.client.impl;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+
+import io.nats.client.Options;
+
+public class SocketDataPort implements DataPort {
+
+    private NatsConnection connection;
+    private String host;
+    private int port;
+    private Socket socket;
+    private SSLSocket sslSocket;
+
+    private ReadableByteChannel in;
+    private WritableByteChannel out;
+    private BufferedOutputStream outBuffer;
+
+    public void connect(String serverURI, NatsConnection conn) throws IOException {
+        try {
+            this.connection = conn;
+
+            Options options = this.connection.getOptions();
+            URI uri = new URI(serverURI);
+            long timeout = options.getConnectionTimeout().toMillis();
+
+            this.host = uri.getHost();
+            this.port = uri.getPort();
+
+            this.socket = new Socket();
+
+            socket.connect(new InetSocketAddress(host, port), (int) timeout);
+
+            in = Channels.newChannel(new BufferedInputStream(socket.getInputStream()));
+            outBuffer = new BufferedOutputStream(socket.getOutputStream());
+            out = Channels.newChannel(outBuffer);
+        } catch (Exception ex) {
+            throw new IOException(ex);
+        }
+    }
+
+    /**
+     * Upgrade the port to SSL. If it is already secured, this is a no-op.
+     * If the data port type doesn't support SSL it should throw an exception.
+     */
+    public void upgradeToSecure() throws IOException {
+        SSLSocketFactory factory = this.connection.getOptions().getSslContext().getSocketFactory();
+        Duration timeout = this.connection.getOptions().getConnectionTimeout();
+
+        this.sslSocket = (SSLSocket) factory.createSocket(socket, null, true);
+        this.sslSocket.setUseClientMode(true);
+
+        final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
+        this.sslSocket.addHandshakeCompletedListener((evt) -> {
+            waitForHandshake.complete(null);
+        });
+
+        this.sslSocket.startHandshake();
+
+        try {
+            waitForHandshake.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        } catch (Exception ex) {
+            this.connection.handleCommunicationIssue(ex);
+        }
+
+        in = Channels.newChannel(new BufferedInputStream(sslSocket.getInputStream()));
+        outBuffer = new BufferedOutputStream(sslSocket.getOutputStream());
+        out = Channels.newChannel(outBuffer);
+    }
+
+    public int read(ByteBuffer dst) throws IOException {
+        return in.read(dst);
+    }
+
+    public void write(ByteBuffer src) throws IOException {
+        out.write(src);
+        outBuffer.flush();
+    }
+
+    public void close() throws IOException {
+        if (sslSocket != null) {
+            sslSocket.close(); // autocloses the underlying socket
+        } else {
+            socket.close();
+        }
+    }
+}

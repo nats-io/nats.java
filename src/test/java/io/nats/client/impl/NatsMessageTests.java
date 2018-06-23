@@ -34,8 +34,8 @@ public class NatsMessageTests {
     public void testSizeOnProtocolMessage() {
         NatsMessage msg = new NatsMessage("PING");
 
-        assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + 2, msg.getSize());
-        assertEquals("Size is correct", "PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSize());
+        assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + 2, msg.getSizeInBytes());
+        assertEquals("Size is correct", "PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes());
     }
     
     @Test
@@ -47,8 +47,8 @@ public class NatsMessageTests {
 
         NatsMessage msg = new NatsMessage(subject, replyTo, body);
 
-        assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSize());
-        assertEquals("Size is correct", protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSize());
+        assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes());
+        assertEquals("Size is correct", protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes());
     }
     
     @Test(expected=IllegalArgumentException.class)

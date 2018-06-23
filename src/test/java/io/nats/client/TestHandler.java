@@ -35,6 +35,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     private Connection connection;
 
+    private boolean printExceptions = true;
+
     public void prepForStatusChange(Events waitFor) {
         lock.lock();
         try {
@@ -49,7 +51,9 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         try {
             this.statusChanged.get(timeout, units);
         } catch (TimeoutException | ExecutionException | InterruptedException e) {
-            e.printStackTrace();
+            if (printExceptions) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -58,7 +62,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         this.count.incrementAndGet();
         this.exceptionCount.incrementAndGet();
 
-        if( exp != null ){
+        if( exp != null && this.printExceptions){
             exp.printStackTrace();
         }
     }
@@ -152,5 +156,9 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public Connection getConnection() {
         return this.connection;
+    }
+
+    public void setPrintExceptions(boolean tf) {
+        this.printExceptions = tf;
     }
 }

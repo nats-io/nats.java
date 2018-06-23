@@ -15,9 +15,9 @@ package io.nats.client.utils;
 
 import java.io.IOException;
 
-import io.nats.client.impl.SocketChannelDataPort;
+import io.nats.client.impl.SocketDataPort;
 
-public class CloseOnUpgradeAttempt extends SocketChannelDataPort {
+public class CloseOnUpgradeAttempt extends SocketDataPort {
     public CloseOnUpgradeAttempt() {
         super(); // Start with a very small buffer size
     }

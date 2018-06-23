@@ -30,8 +30,8 @@ import javax.net.ssl.SSLContext;
 import org.junit.Test;
 
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.utils.SmallBufferSocketChannelDataPort;
 import io.nats.client.impl.DataPort;
+import io.nats.client.utils.CloseOnUpgradeAttempt;
 
 public class OptionsTests {
     @Test
@@ -291,12 +291,12 @@ public class OptionsTests {
     @Test
     public void testPropertyDataPortType() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_DATA_PORT_TYPE, SmallBufferSocketChannelDataPort.class.getCanonicalName());
+        props.setProperty(Options.PROP_DATA_PORT_TYPE, CloseOnUpgradeAttempt.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
 
-        assertEquals("property data port class", SmallBufferSocketChannelDataPort.class.getCanonicalName(),
+        assertEquals("property data port class", CloseOnUpgradeAttempt.class.getCanonicalName(),
                 o.buildDataPort().getClass().getCanonicalName());
     }
 

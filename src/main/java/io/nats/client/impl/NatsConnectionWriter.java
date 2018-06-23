@@ -98,7 +98,7 @@ class NatsConnectionWriter implements Runnable {
                 while (msg != null) {
                     accumulated++;
 
-                    while (this.sendBuffer.remaining() < msg.getSize()) {
+                    while (this.sendBuffer.remaining() < msg.getSizeInBytes()) {
                         this.sendBuffer = this.connection.enlargeBuffer(this.sendBuffer, 0);
                     }
 
@@ -132,7 +132,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     boolean canQueue(NatsMessage msg, long maxSize) {
-        return (maxSize <= 0 || (outgoing.sizeInBytes() + msg.getSize()) < maxSize);
+        return (maxSize <= 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < maxSize);
     }
 
     void queue(NatsMessage msg) {
