@@ -413,23 +413,33 @@ public class MessageQueueTests {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue();
         int threads = 7;
+        int msgPerThread = 30;
+        int msgCount = threads * msgPerThread;
+        int tries = msgCount;
+        AtomicInteger count = new AtomicInteger(0);
 
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
-                q.push(new NatsMessage("test"));
-                q.push(new NatsMessage("test"));
-                q.push(new NatsMessage("test"));
-                q.push(new NatsMessage("test"));
-                q.push(new NatsMessage("test"));
+                for (int j=0;j<msgPerThread;j++) {
+                    q.push(new NatsMessage("test"));
+                };
             });
             t.start();
         }
 
-        for (int i=0;i<threads;i++) {
+
+        while (count.get() < msgCount && tries > 0 ) {
             NatsMessage msg = q.accumulate(100, 5, Duration.ofMillis(5000));
-            checkCount(msg, 5);
+
+            while (msg != null) {
+                count.incrementAndGet();
+                msg = msg.next;
+            }
+            tries--;
         }
         
+        assertEquals(msgCount, count.get());
+
         NatsMessage msg = q.popNow();
         assertNull(msg);
     }
@@ -440,6 +450,7 @@ public class MessageQueueTests {
         MessageQueue q = new MessageQueue();
         int threads = 5;
         int msgPerThread = 30;
+        int msgCount = threads * msgPerThread;
         AtomicInteger count = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(threads * 2);
 
@@ -453,10 +464,17 @@ public class MessageQueueTests {
 
         for (int i=0;i<threads * 2;i++) {
             Thread t = new Thread(() -> {
+                                    int tries = msgPerThread;
                                     try{
-                                        NatsMessage msg = q.accumulate(100 * msgPerThread, msgPerThread/2, Duration.ofMillis(5000));
-                                        checkCount(msg, msgPerThread/2);
-                                        count.getAndAdd(msgPerThread/2);
+                                        while (count.get() < msgCount && tries > 0 ) {
+                                            NatsMessage msg = q.accumulate(100, 5, Duration.ofMillis(100));
+                                
+                                            while (msg != null) {
+                                                count.incrementAndGet();
+                                                msg = msg.next;
+                                            }
+                                            tries--;
+                                        }
                                         latch.countDown();
                                     }catch(Exception e){
                                     }

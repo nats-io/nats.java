@@ -25,8 +25,8 @@ class NatsMessage implements Message {
     private byte[] data;
     private byte[] protocolBytes;
     private NatsSubscription subscription;
-
-    long sizeInBytes;
+    private long sizeInBytes;
+    
     NatsMessage next; // for linked list
 
     // Create a message to publish

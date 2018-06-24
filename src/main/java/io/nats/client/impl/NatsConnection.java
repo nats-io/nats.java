@@ -116,7 +116,7 @@ class NatsConnection implements Connection {
     NatsConnection(Options options) {
         this.options = options;
 
-        this.statistics = new NatsStatistics();
+        this.statistics = new NatsStatistics(this.options.isTrackAdvancedStats());
 
         this.statusLock = new ReentrantLock();
         this.status = Status.DISCONNECTED;

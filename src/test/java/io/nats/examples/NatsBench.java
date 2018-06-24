@@ -43,7 +43,7 @@ public class NatsBench {
     final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();
 
     // Default test values
-    private int numMsgs = 100000;
+    private int numMsgs = 5_000_000;
     private int numPubs = 1;
     private int numSubs = 0;
     private int size = 128;
@@ -52,7 +52,6 @@ public class NatsBench {
     private String subject;
     private final AtomicLong sent = new AtomicLong();
     private final AtomicLong received = new AtomicLong();
-    private final AtomicLong replies = new AtomicLong();
     private boolean csv = false;
 
     private Thread shutdownHook;
@@ -60,6 +59,7 @@ public class NatsBench {
 
     private boolean secure = false;
     private Benchmark bench;
+    private boolean includeStats = true;
 
     static final String usageString =
             "\nUsage: java NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
@@ -112,6 +112,7 @@ public class NatsBench {
         Options.Builder builder = new Options.Builder();
         builder.noReconnect();
         builder.servers(servers);
+        builder.turnOnAdvancedStats();
 
         if (secure) {
             builder.secure();
@@ -152,6 +153,7 @@ public class NatsBench {
                 Connection nc = Nats.connect(opts);
 
                 Subscription sub = nc.subscribe(subject);
+                sub.enableSingleReaderThreadMode();
                 nc.flush(null);
 
                 // Signal we are ready
@@ -164,8 +166,9 @@ public class NatsBench {
 
                 long start = System.nanoTime();
                 for (int i=0;i<numMsgs;i++) {
-                    sub.nextMessage(timeout);
-                    received.incrementAndGet();
+                    if(sub.nextMessage(timeout) != null) {
+                        received.incrementAndGet();
+                    }
                 }
                 long end = System.nanoTime();
 
@@ -174,6 +177,15 @@ public class NatsBench {
                 // Clean up
                 sub.unsubscribe();
                 nc.close();
+
+                if (numSubs == 1 && includeStats) {
+                    System.out.println("#########################");
+                    System.out.println("### Subscriber stats ####");
+                    System.out.println("#########################");
+                    System.out.println();
+                    System.out.print(nc.getStatistics().toString());
+                    System.out.println();
+                }
             } catch (Exception e) {
                 errorQueue.add(e);
             } finally {
@@ -202,14 +214,22 @@ public class NatsBench {
                 starter.get(5000, TimeUnit.MICROSECONDS);
                 long start = System.nanoTime();
                 for (int i = 0; i < numMsgs; i++) {
-                    sent.incrementAndGet();
                     nc.publish(subject, payload);
+                    sent.incrementAndGet();
                 }
                 nc.flush(Duration.ZERO);
                 long end = System.nanoTime();
 
                 bench.addPubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
                 nc.close();
+                if (numPubs == 1 && includeStats) {
+                    System.out.println("########################");
+                    System.out.println("### Publisher stats ####");
+                    System.out.println("########################");
+                    System.out.println();
+                    System.out.print(nc.getStatistics().toString());
+                    System.out.println();
+                }
             } catch (Exception e) {
                 errorQueue.add(e);
             } finally {
@@ -289,9 +309,12 @@ public class NatsBench {
             System.err.printf("Error running test [%s]\n", error.getMessage());
             System.err.printf("Latest test sent = %d\n", sent.get());
             System.err.printf("Latest test received = %d\n", received.get());
-            System.err.printf("Latest test repies = %d\n", replies.get());
             Runtime.getRuntime().removeShutdownHook(shutdownHook);
             throw new RuntimeException(error);
+        }
+
+        if (subCount>0 && sent.get() != received.get()) {
+            System.out.println("#### Error - sent and received are not equal "+sent.get() + " != "+received.get());
         }
 
         bench.close();

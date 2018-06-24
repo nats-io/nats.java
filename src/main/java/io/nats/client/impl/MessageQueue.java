@@ -26,6 +26,8 @@ class MessageQueue {
     // both had some issues, including spin locking with a very short
     // thread sleep. The lock/condition is currently a performance
     // bottleneck, that should be continuously investigated.
+    // Primary consideration is ordering, we can't lose order which
+    // something like disruptor could do with multiple readers.
     private long length;
     private long sizeInBytes;
     private NatsMessage head;
@@ -34,12 +36,23 @@ class MessageQueue {
     private Condition condition;
     private boolean interrupted;
 
+    private boolean singleThreadedReader;
+    private NatsMessage nextMessage;
+
     MessageQueue() {
         this.lock = new ReentrantLock(false);
         this.condition = lock.newCondition();
         this.interrupted = false;
         this.length = 0;
         this.sizeInBytes = 0;
+    }
+
+    void enableSingleReaderMode() {
+        singleThreadedReader = true;
+    }
+
+    boolean isSingleReaderMode() {
+        return singleThreadedReader;
     }
 
     void interrupt() {
@@ -79,19 +92,15 @@ class MessageQueue {
         }
     }
 
-    // Returns a message or waits up to the timeout, returns null if timed out
-    // A timeout of 0 will wait indefinitely
-    NatsMessage pop(Duration timeout) throws InterruptedException {
-        NatsMessage retVal = null;
+    void waitForTimeout(long timeoutNanos) throws InterruptedException {
         long now = System.nanoTime();
         long start = now;
-        long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
 
         lock.lock();
         try {
             if (timeoutNanos >= 0) {
                 while ((this.length == 0) && !this.interrupted) {
-                    if (timeoutNanos > 0) { // If it is 0, keep it, otherwise reduce for time elapsed
+                    if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
                         now = System.nanoTime();
                         timeoutNanos = timeoutNanos - (now - start);
                         start = now;
@@ -104,6 +113,42 @@ class MessageQueue {
                     condition.await(timeoutNanos, TimeUnit.NANOSECONDS);
                 }
             }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    NatsMessage pop(Duration timeout) throws InterruptedException {
+        NatsMessage msg = null;
+        if (this.singleThreadedReader && !this.interrupted) {
+            if (this.nextMessage != null) {
+                msg = this.nextMessage;
+                nextMessage = this.nextMessage.next;
+                msg.next = null;
+            } else {
+                this.nextMessage = accumulate(-1, 500, timeout);
+    
+                if (this.nextMessage!=null) {
+                    msg = this.nextMessage;
+                    this.nextMessage = msg.next;
+                    msg.next = null;
+                }
+            }
+        } else {
+            msg = safePop(timeout);
+        }
+        return msg;
+    }
+
+    // Returns a message or waits up to the timeout, returns null if timed out
+    // A timeout of 0 will wait indefinitely
+    NatsMessage safePop(Duration timeout) throws InterruptedException {
+        NatsMessage retVal = null;
+        long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
+
+        lock.lock();
+        try {
+            waitForTimeout(timeoutNanos);
 
             if (this.interrupted || (this.length == 0)) {
                 return null;
@@ -139,27 +184,11 @@ class MessageQueue {
             throws InterruptedException {
         NatsMessage oldestMessage = null;
         NatsMessage newestMessage = null; // first, but these should be read in reverse order, with this one last
-        long now = System.nanoTime();
-        long start = now;
         long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
 
         lock.lock();
         try {
-            if (timeoutNanos >= 0) {
-                while ((this.length == 0) && !this.interrupted) {
-                    if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
-                        now = System.nanoTime();
-                        timeoutNanos = timeoutNanos - (now - start);
-                        start = now;
-
-                        if (timeoutNanos <= 0) { // just in case we hit it exactly
-                            break;
-                        }
-                    }
-
-                    condition.await(timeoutNanos, TimeUnit.NANOSECONDS);
-                }
-            }
+            waitForTimeout(timeoutNanos);
 
             if (this.interrupted || (this.length == 0)) {
                 return null;
@@ -214,7 +243,7 @@ class MessageQueue {
             if (cursor.next != null) {
                 long s = cursor.next.getSizeInBytes();
 
-                if ((size + s) < maxSize) { // keep going
+                if (maxSize<0 || (size + s) < maxSize) { // keep going
                     cursor = cursor.next;
                     size += s;
                     count++;

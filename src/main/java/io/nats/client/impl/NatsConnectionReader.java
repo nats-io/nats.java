@@ -80,6 +80,7 @@ class NatsConnectionReader implements Runnable {
             while (this.running.get()) {
                 int read = dataPort.read(buffer);
                 if (read > 0) {
+                    connection.getNatsStatistics().registerRead(read);
                     buffer.flip(); // Get ready to read
 
                     while (buffer.hasRemaining()) {
@@ -94,6 +95,8 @@ class NatsConnectionReader implements Runnable {
                     buffer.clear();
                 } else if (read < 0) {
                     throw new IOException("Read channel closed.");
+                } else {
+                    connection.getNatsStatistics().registerRead(read); // track the 0
                 }
             }
         } catch (IOException io) {
@@ -145,12 +148,15 @@ class NatsConnectionReader implements Runnable {
     // Gather bytes for a message body
     void gather(ByteBuffer bytes, int length) throws IOException {
         try {
+            int remaining = gatherer.remaining();
+
+            if (remaining < length) {
+                this.gatherer = this.connection.enlargeBuffer(this.gatherer, remaining + length);
+            }
+
             for (int i = 0; i < length; i++) {
                 byte b = bytes.get();
                 if (incomingLength > 0) {
-                    if (!gatherer.hasRemaining()) {
-                        this.gatherer = this.connection.enlargeBuffer(this.gatherer, 0); // just double it
-                    }
                     gatherer.put(b);
                     incomingLength--;
                 } else if (gotCR) {
@@ -181,14 +187,17 @@ class NatsConnectionReader implements Runnable {
     }
 
     public String grabNext(CharBuffer buffer) {
-        if (!buffer.hasRemaining()) {
+        int remaining = buffer.remaining();
+
+        if (remaining <= 0) {
             return null;
         }
 
         int start = buffer.position();
 
-        while (buffer.hasRemaining()) {
+        while (remaining > 0) {
             char c = buffer.get();
+            remaining--;
 
             if (c == ' ') {
                 int end = buffer.position();

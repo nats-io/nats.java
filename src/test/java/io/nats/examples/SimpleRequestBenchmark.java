@@ -26,12 +26,13 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import io.nats.client.TestHandler;
 
 public class SimpleRequestBenchmark {
     public static void main(String args[]) throws InterruptedException {
-        int threads = 4;
-        int msgsPerThread = 1_000_000;
-        int messageSize = 8;
+        int threads = 1;
+        int msgsPerThread = 5_000_000;
+        int messageSize = 256;
         long totalMessages = threads * msgsPerThread;
         CountDownLatch latch = new CountDownLatch(threads);
         CompletableFuture<Boolean> starter = new CompletableFuture<>();
@@ -51,15 +52,23 @@ public class SimpleRequestBenchmark {
         }
 
         try {
-            Connection handlerC = Nats.connect();
+            Options o = new Options.Builder().
+                        server(Options.DEFAULT_URL).
+                        turnOnAdvancedStats().
+                        build();
+
+            Connection handlerC = Nats.connect(o);
             Dispatcher d = handlerC.createDispatcher((msg) -> {
-                handlerC.publish(msg.getReplyTo(), null);
-                msgsHandled.incrementAndGet();
+                try {
+                    handlerC.publish(msg.getReplyTo(), msg.getData());
+                    msgsHandled.incrementAndGet();
+                } catch (Exception exp) {
+                    exp.printStackTrace();
+                }
             });
             d.subscribe("request_benchmark");
 
-            Options options = new Options.Builder().build();
-            Connection nc = Nats.connect(options);
+            Connection nc = Nats.connect(o);
 
             for (int k = 0; k < threads; k++) {
                 Thread t = new Thread(() -> {
@@ -131,13 +140,15 @@ public class SimpleRequestBenchmark {
             System.out.printf("### %s exceptions waiting on futures.\n",
                     NumberFormat.getInstance().format(futureExceptions.get()));
 
-            System.out.println("###");
+            System.out.println("#################################");
             System.out.println("### Request connection stats ####");
+            System.out.println("#################################");
             System.out.println();
             System.out.print(nc.getStatistics().toString());
             System.out.println();
-            System.out.println("###");
+            System.out.println("####################################");
             System.out.println("### Dispatcher connection stats ####");
+            System.out.println("####################################");
             System.out.println("");
             System.out.print(handlerC.getStatistics().toString());
         } catch (Exception ex) {

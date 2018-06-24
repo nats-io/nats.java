@@ -98,7 +98,9 @@ class NatsConnectionWriter implements Runnable {
                 while (msg != null) {
                     accumulated++;
 
-                    while (this.sendBuffer.remaining() < msg.getSizeInBytes()) {
+                    long size = msg.getSizeInBytes();
+
+                    while (this.sendBuffer.remaining() < size) {
                         this.sendBuffer = this.connection.enlargeBuffer(this.sendBuffer, 0);
                     }
 
@@ -116,9 +118,11 @@ class NatsConnectionWriter implements Runnable {
                 // Write to the socket
                 sendBuffer.flip();
 
+                int toWrite = sendBuffer.remaining();
                 while (sendBuffer.hasRemaining()) {
                     dataPort.write(sendBuffer);
                 }
+                connection.getNatsStatistics().registerWrite(toWrite);
             }
         } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);

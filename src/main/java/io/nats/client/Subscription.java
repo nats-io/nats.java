@@ -28,6 +28,9 @@ public interface Subscription {
 
     public String getQueueName();
 
+    public boolean isSingleReaderThreadMode();
+    public void enableSingleReaderThreadMode();
+
     /**
      * Read the next message for a subscription, or block until one is available.
      * While useful in some situations, i.e. tests and simple examples, using a

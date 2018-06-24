@@ -37,6 +37,7 @@ class NatsDispatcher implements Dispatcher, Runnable {
         this.connection = conn;
         this.handler = handler;
         this.incoming = new MessageQueue();
+        this.incoming.enableSingleReaderMode();
         this.subscriptions = new HashMap<>();
         this.subLock = new ReentrantLock();
         this.running = new AtomicBoolean(false);

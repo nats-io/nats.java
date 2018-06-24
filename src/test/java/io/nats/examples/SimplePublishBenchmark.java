@@ -25,7 +25,7 @@ public class SimplePublishBenchmark {
     public static void main(String args[]) throws InterruptedException {
         int threads = 1;
         int msgsPerThread = 20_000_000;
-        int messageSize = 64;
+        int messageSize = 256;
         long totalMessages = threads * msgsPerThread;
         CountDownLatch latch = new CountDownLatch(threads);
         CompletableFuture<Boolean> starter = new CompletableFuture<>();

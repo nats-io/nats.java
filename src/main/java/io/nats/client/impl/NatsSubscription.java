@@ -93,6 +93,14 @@ class NatsSubscription implements Subscription {
         return this.incoming;
     }
 
+    public void enableSingleReaderThreadMode() {
+        incoming.enableSingleReaderMode();
+    }
+
+    public boolean isSingleReaderThreadMode() {
+        return incoming.isSingleReaderMode();
+    }
+
     public String getSubject() {
         return this.subject;
     }
@@ -109,7 +117,7 @@ class NatsSubscription implements Subscription {
             throw new IllegalStateException("This subscription is inactive.");
         }
 
-        Message msg = incoming.pop(timeout);
+        NatsMessage msg = incoming.pop(timeout);
 
         if (this.incoming == null) { // We were unsubscribed while waiting
             throw new IllegalStateException("This subscription is inactive.");

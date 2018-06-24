@@ -23,6 +23,8 @@ import java.util.concurrent.locks.ReentrantLock;
 class NatsStatistics implements Statistics {
     private ReentrantLock lock;
     private LongSummaryStatistics accumulateStats;
+    private LongSummaryStatistics readStats;
+    private LongSummaryStatistics writeStats;
 
     private AtomicLong flushCounter;
     private AtomicLong outstandingRequests;
@@ -37,10 +39,15 @@ class NatsStatistics implements Statistics {
     private AtomicLong okCount;
     private AtomicLong errCount;
     private AtomicLong exceptionCount;
+    final private boolean trackAdvanced;
 
-    public NatsStatistics() {
-        this.lock = new ReentrantLock();
+    public NatsStatistics(boolean trackAdvanced) {
+        this.trackAdvanced = trackAdvanced;
         this.accumulateStats = new LongSummaryStatistics();
+        this.readStats = new LongSummaryStatistics();
+        this.writeStats = new LongSummaryStatistics();
+
+        this.lock = new ReentrantLock();
         this.flushCounter = new AtomicLong();
         this.outstandingRequests = new AtomicLong();
         this.requestsSent = new AtomicLong();
@@ -113,9 +120,36 @@ class NatsStatistics implements Statistics {
     }
 
     void registerAccumulate(long msgCount) {
+        if(!trackAdvanced) {
+            return;
+        }
         lock.lock();
         try {
             accumulateStats.accept(msgCount);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    void registerRead(long bytes) {
+        if(!trackAdvanced) {
+            return;
+        }
+        lock.lock();
+        try {
+            readStats.accept(bytes);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    void registerWrite(long bytes) {
+        if(!trackAdvanced) {
+            return;
+        }
+        lock.lock();
+        try {
+            writeStats.accept(bytes);
         } finally {
             lock.unlock();
         }
@@ -184,28 +218,43 @@ class NatsStatistics implements Statistics {
         try {
             builder.append("### Connection ###\n");
             appendNumberStat(builder, "Reconnects:                      ", this.reconnects.get());
-            appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
-            appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
-            appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
-            appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
-            appendNumberStat(builder, "-Errs Received:                  ", this.errCount.get());
-            appendNumberStat(builder, "Handled Exceptions:              ", this.exceptionCount.get());
-            builder.append("\n");
-            appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
-            appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());
+            if (this.trackAdvanced) {
+                appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
+                appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
+                appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
+                appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
+                appendNumberStat(builder, "-Errs Received:                  ", this.errCount.get());
+                appendNumberStat(builder, "Handled Exceptions:              ", this.exceptionCount.get());
+                appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
+                appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());
+            }
             builder.append("\n");
             builder.append("### Reader ###\n");
             appendNumberStat(builder, "Messages in:                     ", this.inMsgs.get());
             appendNumberStat(builder, "Bytes in:                        ", this.inBytes.get());
             builder.append("\n");
+            if (this.trackAdvanced) {
+                appendNumberStat(builder, "Socket Reads:                    ", readStats.getCount());
+                appendNumberStat(builder, "Average Bytes Per Read:          ", readStats.getAverage());
+                appendNumberStat(builder, "Min Bytes Per Read:              ", readStats.getMin());
+                appendNumberStat(builder, "Max Bytes Per Read:              ", readStats.getMax());
+            }
+            builder.append("\n");
             builder.append("### Writer ###\n");
             appendNumberStat(builder, "Messages out:                    ", this.outMsgs.get());
             appendNumberStat(builder, "Bytes out:                       ", this.outBytes.get());
             builder.append("\n");
-            appendNumberStat(builder, "Accumulation Calls:              ", accumulateStats.getCount());
-            appendNumberStat(builder, "Average Messages Per Accumulate: ", accumulateStats.getAverage());
-            appendNumberStat(builder, "Min Messages Per Accumulate:     ", accumulateStats.getMin());
-            appendNumberStat(builder, "Max Messages Per Accumulate:     ", accumulateStats.getMax());
+            if (this.trackAdvanced) {
+                appendNumberStat(builder, "Socket Writes:                   ", writeStats.getCount());
+                appendNumberStat(builder, "Average Bytes Per Write:         ", writeStats.getAverage());
+                appendNumberStat(builder, "Min Bytes Per Write:             ", writeStats.getMin());
+                appendNumberStat(builder, "Max Bytes Per Write:             ", writeStats.getMax());
+                builder.append("\n");
+                appendNumberStat(builder, "Accumulation Calls:              ", accumulateStats.getCount());
+                appendNumberStat(builder, "Average Messages Per Accumulate: ", accumulateStats.getAverage());
+                appendNumberStat(builder, "Min Messages Per Accumulate:     ", accumulateStats.getMin());
+                appendNumberStat(builder, "Max Messages Per Accumulate:     ", accumulateStats.getMax());
+            }
         } finally {
             lock.unlock();
         }

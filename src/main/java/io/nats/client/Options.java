@@ -347,6 +347,8 @@ public class Options {
     private final ConnectionListener connectionListener;
     private final String dataPortType;
 
+    private final boolean trackAdvancedStats;
+
     public static class Builder {
 
         private ArrayList<URI> servers = new ArrayList<URI>();
@@ -368,6 +370,7 @@ public class Options {
         private String token = null;
         private boolean useOldRequestStyle = false;
         private int bufferSize = DEFAULT_BUFFER_SIZE;
+        private boolean trackAdvancedStats = false;
 
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
@@ -620,6 +623,15 @@ public class Options {
          */
         public Builder pedantic() {
             this.pedantic = true;
+            return this;
+        }
+
+        /**
+         * Turn on advanced stats, primarily for test/benchmarks.
+         * @return the Builder for chaining
+         */
+        public Builder turnOnAdvancedStats() {
+            this.trackAdvancedStats = true;
             return this;
         }
 
@@ -910,6 +922,7 @@ public class Options {
         this.errorListener = b.errorListener;
         this.connectionListener = b.connectionListener;
         this.dataPortType = b.dataPortType;
+        this.trackAdvancedStats = b.trackAdvancedStats;
     }
 
     /**
@@ -973,6 +986,13 @@ public class Options {
      */
     public boolean isPedantic() {
         return pedantic;
+    }
+
+    /**
+     * @return should we track advanced stats
+     */
+    public boolean isTrackAdvancedStats() {
+        return trackAdvancedStats;
     }
 
     /**
