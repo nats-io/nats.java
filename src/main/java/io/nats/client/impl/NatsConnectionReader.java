@@ -39,6 +39,7 @@ class NatsConnectionReader implements Runnable {
 
     private NatsMessage incoming;
     private long incomingLength;
+    private long gatherStart;
 
     NatsConnectionReader(NatsConnection connection) {
         this.connection = connection;
@@ -78,8 +79,11 @@ class NatsConnectionReader implements Runnable {
             this.protocolMode = true;
 
             while (this.running.get()) {
+                long start = System.nanoTime();
                 int read = dataPort.read(buffer);
+                long end = System.nanoTime();
                 if (read > 0) {
+                    this.connection.getNatsStatistics().registerReadTime(end-start);
                     connection.getNatsStatistics().registerRead(read);
                     buffer.flip(); // Get ready to read
 
@@ -96,6 +100,7 @@ class NatsConnectionReader implements Runnable {
                 } else if (read < 0) {
                     throw new IOException("Read channel closed.");
                 } else {
+                    this.connection.getNatsStatistics().registerReadTime(end-start);
                     connection.getNatsStatistics().registerRead(read); // track the 0
                 }
             }
@@ -161,9 +166,10 @@ class NatsConnectionReader implements Runnable {
                     incomingLength--;
                 } else if (gotCR) {
                     if (b == NatsConnection.LF) {
-                        gatherer.flip();
+                        gatherer.flip();         
                         byte[] data = new byte[gatherer.remaining()];
                         gatherer.get(data);
+                        this.connection.getNatsStatistics().registerGatherTime(System.nanoTime() - gatherStart);
                         incoming.setData(data);
                         this.connection.deliverMessage(incoming);
                         gatherer.clear();
@@ -234,9 +240,10 @@ class NatsConnectionReader implements Runnable {
                 lengthString = replyTo;
                 replyTo = null;
             }
-            incoming = new NatsMessage(sid, subject, replyTo, protocolLength);
             incomingLength = Long.parseLong(lengthString);
+            incoming = new NatsMessage(sid, subject, replyTo, protocolLength);
             protocolMode = false;
+            gatherStart = System.nanoTime();
             break;
         case NatsConnection.OP_OK:
             this.connection.processOK();

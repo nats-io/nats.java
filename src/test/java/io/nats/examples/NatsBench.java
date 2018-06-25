@@ -153,7 +153,6 @@ public class NatsBench {
                 Connection nc = Nats.connect(opts);
 
                 Subscription sub = nc.subscribe(subject);
-                sub.enableSingleReaderThreadMode();
                 nc.flush(null);
 
                 // Signal we are ready
@@ -162,12 +161,14 @@ public class NatsBench {
                 // Wait for the signal to start tracking time
                 starter.get(5000, TimeUnit.MICROSECONDS);
 
-                Duration timeout = Duration.ofMillis(500);
+                Duration timeout = Duration.ofMillis(1000);
 
+                int receivedCount = 0;
                 long start = System.nanoTime();
-                for (int i=0;i<numMsgs;i++) {
+                while (receivedCount < numMsgs) {
                     if(sub.nextMessage(timeout) != null) {
                         received.incrementAndGet();
+                        receivedCount++;
                     }
                 }
                 long end = System.nanoTime();
@@ -314,7 +315,7 @@ public class NatsBench {
         }
 
         if (subCount>0 && sent.get() != received.get()) {
-            System.out.println("#### Error - sent and received are not equal "+sent.get() + " != "+received.get());
+            System.out.println("#### Error - sent and received are not equal "+sent.get() + " != " + received.get());
         }
 
         bench.close();
@@ -448,6 +449,7 @@ public class NatsBench {
             }
         } catch (Exception e) {
             System.err.printf("Exiting due to exception [%s]\n", e.getMessage());
+            e.printStackTrace();
             System.exit(-1);
         }
         System.exit(0);

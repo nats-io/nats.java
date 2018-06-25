@@ -26,7 +26,6 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import io.nats.client.TestHandler;
 
 public class SimpleRequestBenchmark {
     public static void main(String args[]) throws InterruptedException {

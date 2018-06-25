@@ -17,11 +17,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.junit.Test;
 
@@ -34,21 +31,34 @@ import io.nats.client.Nats;
 
 public class NatsStatisticsTests {
     @Test
-    public void testHumanReadableString() throws IOException, InterruptedException {
+    public void testHumanReadableString() throws Exception {
         // This test is purely for coverage, any test without a human is likely pedantic
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(ts.getURI())) {
+                Connection nc = Nats.connect(new Options.Builder()
+                                                .server(ts.getURI())
+                                                .turnOnAdvancedStats()
+                                                .build())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                nc.publish(msg.getReplyTo(), new byte[16]);
+            });
+            d.subscribe("subject");
+
+            Future<Message> incoming = nc.request("subject", new byte[8]);
+            Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
             String str = nc.getStatistics().toString();
+            assertNotNull(msg);
             assertNotNull(str);
             assertTrue(str.length() > 0);
             assertTrue(str.contains("### Connection ###"));
+            assertTrue(str.contains("Average Time to read"));
         }
     }
 
     @Test
-    public void testInOutOKRequestStats() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+    public void testInOutOKRequestStats() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).verbose().build();
             Connection nc = Nats.connect(options);

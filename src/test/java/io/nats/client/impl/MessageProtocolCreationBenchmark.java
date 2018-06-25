@@ -20,6 +20,8 @@ public class MessageProtocolCreationBenchmark {
         int warmup = 1_000_000;
         int msgCount = 50_000_000;
 
+        System.out.printf("### Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
+
         for (int j = 0; j < warmup; j++) {
             new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY);
         }

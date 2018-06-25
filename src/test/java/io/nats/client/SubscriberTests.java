@@ -71,33 +71,6 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testSingleThreadMode() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-
-            Subscription sub = nc.subscribe("subject");
-            sub.enableSingleReaderThreadMode();
-            nc.publish("subject", new byte[16]);
-            nc.publish("subject", new byte[16]);
-            nc.publish("subject", new byte[16]);
-
-            Message msg = sub.nextMessage(Duration.ofMillis(500));
-
-            assertEquals("subject", msg.getSubject());
-            assertEquals(sub, msg.getSubscription());
-            assertNull(msg.getReplyTo());
-            assertEquals(16, msg.getData().length);
-            msg = sub.nextMessage(Duration.ofMillis(100));
-            assertNotNull(msg);
-            msg = sub.nextMessage(Duration.ofMillis(100));
-            assertNotNull(msg);
-            msg = sub.nextMessage(Duration.ofMillis(100));
-            assertNull(msg);
-        }
-    }
-
-    @Test
     public void testQueueSubscribers() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {

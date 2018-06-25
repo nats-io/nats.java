@@ -26,11 +26,14 @@ class NatsMessage implements Message {
     private byte[] protocolBytes;
     private NatsSubscription subscription;
     private long sizeInBytes;
+
+    private long creationTime;
     
     NatsMessage next; // for linked list
 
     // Create a message to publish
     NatsMessage(String subject, String replyTo, byte[] data) {
+        creationTime = System.nanoTime();
         // Each call to this method takes about 100ns due to the string append
         // possible performance improvement opportunity (perhaps at the cost of readability).
         StringBuilder protocolStringBuilder = new StringBuilder();
@@ -57,6 +60,7 @@ class NatsMessage implements Message {
 
     // Create a protocol only message to publish
     NatsMessage(String protocol) {
+        creationTime = System.nanoTime();
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
         this.sizeInBytes = this.protocolBytes.length + 2;// for \r\n
     }
@@ -64,6 +68,7 @@ class NatsMessage implements Message {
     // Create an incoming message for a subscriber
     // Doesn't check controlline size, since the server sent us the message
     NatsMessage(String sid, String subject, String replyTo, int protocolLength) {
+        creationTime = System.nanoTime();
         this.sid = sid;
         this.subject = subject;
         this.replyTo = replyTo;
@@ -73,6 +78,10 @@ class NatsMessage implements Message {
 
     boolean isProtocol() {
         return this.subject == null;
+    }
+
+    long getCreationTime() {
+        return this.creationTime;
     }
 
     // Will be null on an incoming message

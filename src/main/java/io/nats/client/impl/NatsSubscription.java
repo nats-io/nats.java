@@ -43,7 +43,7 @@ class NatsSubscription implements Subscription {
         this.messagesReceived = new AtomicLong(0);
 
         if (this.dispatcher == null) {
-            this.incoming = new MessageQueue();
+            this.incoming = new MessageQueue(false);
         }
     }
 
@@ -53,7 +53,7 @@ class NatsSubscription implements Subscription {
 
     void invalidate() {
         if (this.incoming != null) {
-            this.incoming.interrupt();
+            this.incoming.pause();
         }
         this.dispatcher = null;
         this.incoming = null;
@@ -93,14 +93,6 @@ class NatsSubscription implements Subscription {
         return this.incoming;
     }
 
-    public void enableSingleReaderThreadMode() {
-        incoming.enableSingleReaderMode();
-    }
-
-    public boolean isSingleReaderThreadMode() {
-        return incoming.isSingleReaderMode();
-    }
-
     public String getSubject() {
         return this.subject;
     }
@@ -124,6 +116,10 @@ class NatsSubscription implements Subscription {
         }
 
         this.incrementMessageCount();
+
+        if (msg != null) {
+            this.connection.getNatsStatistics().registerMessageTime(System.nanoTime() - msg.getCreationTime());
+        }
 
         if (this.reachedMax()) {
             this.connection.invalidate(this);

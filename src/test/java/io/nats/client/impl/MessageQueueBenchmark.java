@@ -27,7 +27,7 @@ public class MessageQueueBenchmark {
             msgs[j] = new NatsMessage("a");
         }
 
-        MessageQueue pushPop = new MessageQueue();
+        MessageQueue pushPop = new MessageQueue(false);
         start = System.nanoTime();
         for (int i = 0; i < msgCount; i++) {
             pushPop.push(msgs[i]);
@@ -47,7 +47,7 @@ public class MessageQueueBenchmark {
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
-        MessageQueue accumulateQueue = new MessageQueue();
+        MessageQueue accumulateQueue = new MessageQueue(true);
         start = System.nanoTime();
         for (int i = 0; i < msgCount; i++) {
             accumulateQueue.push(msgs[i]);
@@ -67,7 +67,7 @@ public class MessageQueueBenchmark {
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
-        final MessageQueue pushPopThreadQueue = new MessageQueue();
+        final MessageQueue pushPopThreadQueue = new MessageQueue(false);
         final Duration timeout = Duration.ofMillis(10);
         Thread pusher = new Thread(() -> {
             for (int i = 0; i < msgCount; i++) {
@@ -102,7 +102,7 @@ public class MessageQueueBenchmark {
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
-        final MessageQueue pushPopNowThreadQueue = new MessageQueue();
+        final MessageQueue pushPopNowThreadQueue = new MessageQueue(false);
         pusher = new Thread(() -> {
             for (int i = 0; i < msgCount; i++) {
                 pushPopNowThreadQueue.push(msgs[i]);
@@ -132,46 +132,11 @@ public class MessageQueueBenchmark {
                 ((double) (end - start)) / ((double) (msgCount)));
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
-                    
-        for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
-        }
-        final MessageQueue singleThreadQueue = new MessageQueue();
-        singleThreadQueue.enableSingleReaderMode();
-        pusher = new Thread(() -> {
-            for (int i = 0; i < msgCount; i++) {
-                singleThreadQueue.push(msgs[i]);
-            }
-        });
-
-        popper = new Thread(() -> {
-            try {
-                for (int i = 0; i < msgCount; i++) {
-                    singleThreadQueue.popNow();
-                }
-            } catch (Exception exp) {
-                exp.printStackTrace();
-            }
-        });
-
-        start = System.nanoTime();
-        pusher.start();
-        popper.start();
-        pusher.join();
-        popper.join();
-        end = System.nanoTime();
-
-        System.out.printf("\nTotal time to perform %s pushes in one thread and single thread pops in another was %s ms, %f ns/op\n",
-                NumberFormat.getInstance().format(msgCount),
-                NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (msgCount)));
-            System.out.printf("\tor %s op/s\n",
-                    NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
             
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }        
-        final MessageQueue pushAccumulateThreadQueue = new MessageQueue();
+        final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true);
         pusher = new Thread(() -> {
             for (int i = 0; i < msgCount; i++) {
                 pushAccumulateThreadQueue.push(msgs[i]);

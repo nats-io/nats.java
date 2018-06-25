@@ -14,253 +14,198 @@
 package io.nats.client.impl;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Predicate;
 
 class MessageQueue {
-    // Dev notes (sasbury)
-    // I tried this with semaphore and ConcurrentLinkedDeque.
-    // Neither version was an improvement on this version and
-    // both had some issues, including spin locking with a very short
-    // thread sleep. The lock/condition is currently a performance
-    // bottleneck, that should be continuously investigated.
-    // Primary consideration is ordering, we can't lose order which
-    // something like disruptor could do with multiple readers.
-    private long length;
-    private long sizeInBytes;
-    private NatsMessage head;
-    private NatsMessage tail;
-    private ReentrantLock lock;
-    private Condition condition;
-    private boolean interrupted;
+    private final AtomicLong length;
+    private final AtomicLong sizeInBytes;
+    private final AtomicBoolean running;
+    private final boolean singleThreadedReader;
+    private final ConcurrentLinkedQueue<NatsMessage> queue;
+    private final ConcurrentLinkedQueue<Thread> waiters;
 
-    private boolean singleThreadedReader;
-    private NatsMessage nextMessage;
-
-    MessageQueue() {
-        this.lock = new ReentrantLock(false);
-        this.condition = lock.newCondition();
-        this.interrupted = false;
-        this.length = 0;
-        this.sizeInBytes = 0;
-    }
-
-    void enableSingleReaderMode() {
-        singleThreadedReader = true;
+    MessageQueue(boolean singleReaderMode) {
+        this.queue = new ConcurrentLinkedQueue<>();
+        this.running = new AtomicBoolean(true);
+        this.sizeInBytes = new AtomicLong(0);
+        this.length = new AtomicLong(0);
+        
+        this.waiters = new ConcurrentLinkedQueue<>();
+        this.singleThreadedReader = singleReaderMode;
     }
 
     boolean isSingleReaderMode() {
         return singleThreadedReader;
     }
 
-    void interrupt() {
-        this.lock.lock();
-        try {
-            this.interrupted = true;
-            this.condition.signalAll();
-        } finally {
-            this.lock.unlock();
+    void pause() {
+        this.running.set(false);
+        signalAll();
+    }
+
+    void resume() {
+        this.running.set(true);
+        signalAll();
+    }
+
+    void signalOne() {
+        Thread t = waiters.poll();
+        if (t != null) {
+            LockSupport.unpark(t);
         }
     }
 
-    void reset() {
-        this.lock.lock();
-        try {
-            this.interrupted = false;
-            this.condition.signalAll();
-        } finally {
-            this.lock.unlock();
+    void signalIfNotEmpty() {
+        if (this.length.get() > 0) {
+            signalOne();
+        }
+    }
+
+    void signalAll() {
+        Thread t = waiters.poll();
+        while(t != null) {
+            LockSupport.unpark(t);
+            t = waiters.poll();
         }
     }
 
     void push(NatsMessage msg) {
-        lock.lock();
-        try {
-            if (this.length == 0) {
-                this.head = this.tail = msg;
-            } else {
-                this.head.next = msg;
-                this.head = msg;
-            }
-            this.length = this.length + 1;
-            this.sizeInBytes = this.sizeInBytes + msg.getSizeInBytes();
-        } finally {
-            condition.signalAll();
-            lock.unlock();
-        }
+        this.queue.add(msg);
+        this.length.incrementAndGet();
+        this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
+        signalOne();
     }
 
-    void waitForTimeout(long timeoutNanos) throws InterruptedException {
-        long now = System.nanoTime();
-        long start = now;
+    void waitForTimeout(Duration timeout) throws InterruptedException {
+        long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
 
-        lock.lock();
-        try {
-            if (timeoutNanos >= 0) {
-                while ((this.length == 0) && !this.interrupted) {
-                    if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
-                        now = System.nanoTime();
-                        timeoutNanos = timeoutNanos - (now - start);
-                        start = now;
+        if (timeoutNanos >= 0) {
+            Thread t = Thread.currentThread();
+            long now = System.nanoTime();
+            long start = now;
 
-                        if (timeoutNanos <= 0) { // just in case we hit it exactly
-                            break;
-                        }
+            // Then start waiting
+            while (this.length.get() == 0 && this.running.get()) {
+                if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
+                    now = System.nanoTime();
+                    timeoutNanos = timeoutNanos - (now - start);
+                    start = now;
+
+                    if (timeoutNanos <= 0) { // just in case we hit it exactly
+                        break;
                     }
+                }
 
-                    condition.await(timeoutNanos, TimeUnit.NANOSECONDS);
+                waiters.add(t);
+                LockSupport.parkNanos(timeoutNanos);
+                waiters.remove(t);
+
+                if (Thread.interrupted()) {
+                    throw new InterruptedException("Interrupted during timeout");
                 }
             }
-        } finally {
-            lock.unlock();
         }
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
-        NatsMessage msg = null;
-        if (this.singleThreadedReader && !this.interrupted) {
-            if (this.nextMessage != null) {
-                msg = this.nextMessage;
-                nextMessage = this.nextMessage.next;
-                msg.next = null;
-            } else {
-                this.nextMessage = accumulate(-1, 500, timeout);
-    
-                if (this.nextMessage!=null) {
-                    msg = this.nextMessage;
-                    this.nextMessage = msg.next;
-                    msg.next = null;
-                }
-            }
-        } else {
-            msg = safePop(timeout);
+        if (!this.running.get()) {
+            return null;
         }
-        return msg;
-    }
 
-    // Returns a message or waits up to the timeout, returns null if timed out
-    // A timeout of 0 will wait indefinitely
-    NatsMessage safePop(Duration timeout) throws InterruptedException {
-        NatsMessage retVal = null;
-        long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
+        NatsMessage retVal = this.queue.poll();
 
-        lock.lock();
-        try {
-            waitForTimeout(timeoutNanos);
+        if (retVal == null) {
+            waitForTimeout(timeout);
 
-            if (this.interrupted || (this.length == 0)) {
+            if (!this.running.get()) {
                 return null;
             }
 
-            retVal = this.tail;
+            retVal = this.queue.poll();
+        }
 
-            if (this.head == this.tail) {
-                this.head = this.tail = null;
-            } else {
-                this.tail = retVal.next;
-            }
-
-            retVal.next = null;
-            this.length--;
-            this.sizeInBytes = this.sizeInBytes - retVal.getSizeInBytes();
-        } finally {
-            condition.signalAll();
-            lock.unlock();
+        if(retVal != null) {
+            this.sizeInBytes.getAndAdd(-retVal.getSizeInBytes());
+            this.length.decrementAndGet();
+            signalIfNotEmpty();
         }
 
         return retVal;
     }
 
     // Waits up to the timeout to try to accumulate multiple messages
-    // To avoid allocations, the "last" message from the queue is returned
-    // Use the prev field to read the entire set accumulated.
+    // Use the next field to read the entire set accumulated.
     // maxSize and maxMessages are both checked and if either is exceeded
     // the method returns.
     //
     // A timeout of 0 will wait indefinitely
     NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
             throws InterruptedException {
-        NatsMessage oldestMessage = null;
-        NatsMessage newestMessage = null; // first, but these should be read in reverse order, with this one last
-        long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
 
-        lock.lock();
-        try {
-            waitForTimeout(timeoutNanos);
-
-            if (this.interrupted || (this.length == 0)) {
-                return null;
-            }
-
-            oldestMessage = this.tail;
-            newestMessage = findMax(oldestMessage, maxSize, maxMessages);
-
-            // Take them all, if we didn't meet max condition
-            if (newestMessage == null) {
-                newestMessage = this.head;
-            }
-
-            // Update the linked list
-            if (this.head == this.tail || this.head == newestMessage) {
-                this.head = this.tail = null;
-            } else {
-                this.tail = newestMessage.next;
-            }
-
-            newestMessage.next = null;
-
-            // Update the length
-            NatsMessage cursor = oldestMessage;
-            while (cursor != null) {
-                this.length--;
-                this.sizeInBytes = this.sizeInBytes - cursor.getSizeInBytes();
-                cursor = cursor.next;
-            }
-        } finally {
-            condition.signalAll();
-            lock.unlock();
+        if (!this.singleThreadedReader) {
+            throw new IllegalStateException("Accumulate is only supported in single reader mode.");
         }
 
-        return oldestMessage;
-    }
-
-    // Find the last message that satisfies the max condition. Returns the start
-    // if the next message would overrun max size or max messages. Returns null
-    // if there are not enough messages to meet the max condition.
-    private NatsMessage findMax(NatsMessage start, long maxSize, long maxMessages) {
-
-        if (start == null) {
+        if (!this.running.get()) {
             return null;
         }
 
-        NatsMessage cursor = start;
-        long size = start.getSizeInBytes();
+        NatsMessage msg = this.queue.poll();
+
+        if (msg == null) {
+            waitForTimeout(timeout);
+            
+            if (!this.running.get() || (this.queue.peek() == null)) {
+                return null;
+            }
+
+            msg = this.queue.poll();
+        }
+
+        long size = msg.getSizeInBytes();
+
+        if (maxMessages <= 1 || size >= maxSize) {
+            this.sizeInBytes.addAndGet(-size);
+            this.length.decrementAndGet();
+            signalIfNotEmpty();
+            return msg;
+        }
+
         long count = 1;
+        NatsMessage cursor = msg;
 
         while (cursor != null) {
-            if (cursor.next != null) {
-                long s = cursor.next.getSizeInBytes();
+            NatsMessage next = this.queue.peek();
+            if (next != null) {
+                long s = next.getSizeInBytes();
 
                 if (maxSize<0 || (size + s) < maxSize) { // keep going
-                    cursor = cursor.next;
                     size += s;
                     count++;
+                    
+                    cursor.next = this.queue.poll();
+                    cursor = cursor.next;
 
                     if (count == maxMessages) {
                         break;
                     }
-                } else { // One more is too far, return the cursor
+                } else { // One more is too far
                     break;
                 }
             } else { // Didn't meet max condition
-                cursor = null;
                 break;
             }
         }
 
-        return cursor;
+        this.sizeInBytes.addAndGet(-size);
+        this.length.addAndGet(-count);
+
+        signalIfNotEmpty();
+        return msg;
     }
 
     // Returns a message or null
@@ -268,50 +213,34 @@ class MessageQueue {
         return pop(null);
     }
 
-    // Not thread safe, just for testing
+    // Just for testing
     long length() {
-        return this.length;
+        return this.length.get();
     }
 
     long sizeInBytes() {
-        return this.sizeInBytes;
+        return this.sizeInBytes.get();
     }
 
     void filter(Predicate<NatsMessage> p) {
-        lock.lock();
-        try {
-            NatsMessage cursor = tail;
-            NatsMessage previous = null;
-
-            while (cursor != null) {
-                if (p.test(cursor)) {
-                    NatsMessage toRemove = cursor;
-
-                    if (toRemove == this.head) {
-                        this.head = previous;
-
-                        if (previous != null) {
-                            previous.next = null;
-                        }
-                    } else if (toRemove == this.tail) {
-                        this.tail = toRemove.next;
-                    } else if (previous != null) {
-                        previous.next = toRemove.next;
-                    }
-
-                    toRemove.next = null;
-                    this.length--;
-
-                    previous = cursor;
-                    cursor = cursor.next;
-                } else {
-                    previous = cursor;
-                    cursor = cursor.next;
-                }
-            }
-        } finally {
-            condition.signalAll();
-            lock.unlock();
+        if (this.running.get()) {
+            throw new IllegalStateException("Filter is only supported when the queue is paused");
         }
+    
+        ConcurrentLinkedQueue<NatsMessage> newQueue = new ConcurrentLinkedQueue<>();
+        NatsMessage cursor = this.queue.poll();
+
+        while (cursor != null) {
+            if (!p.test(cursor)) {
+                newQueue.add(cursor);
+            } else {
+                this.sizeInBytes.addAndGet(-cursor.getSizeInBytes());
+                this.length.decrementAndGet();
+            }
+            
+            cursor = this.queue.poll();
+        }
+
+        this.queue.addAll(newQueue);
     }
 }

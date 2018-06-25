@@ -81,8 +81,6 @@ class NatsConnection implements Connection {
     private Exception exceptionDuringCloseOrConnect; // an exception occured in another thread while closing or connecting
     private CompletableFuture<Void> closingFuture;
 
-    // Status is an external, simpler value than state, that is matches
-    // other NATS APIs.
     private Status status;
     private ReentrantLock statusLock;
 
@@ -998,7 +996,6 @@ class NatsConnection implements Connection {
 
     void deliverMessage(NatsMessage msg) {
         NatsSubscription sub = null;
-
         this.statistics.incrementInMsgs();
         this.statistics.incrementInBytes(msg.getSizeInBytes());
 

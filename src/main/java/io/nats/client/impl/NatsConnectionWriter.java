@@ -47,7 +47,7 @@ class NatsConnectionWriter implements Runnable {
 
         this.sendBuffer = ByteBuffer.allocate(connection.getOptions().getBufferSize());
 
-        outgoing = new MessageQueue();
+        outgoing = new MessageQueue(true);
     }
 
     // Should only be called if the current thread has exited.
@@ -66,7 +66,7 @@ class NatsConnectionWriter implements Runnable {
     // method does.
     Future<Boolean> stop() {
         this.running.set(false);
-        this.outgoing.interrupt();
+        this.outgoing.pause();
 
         // Clear old ping/pong requests
         byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
@@ -83,7 +83,7 @@ class NatsConnectionWriter implements Runnable {
 
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
-            this.outgoing.reset();
+            this.outgoing.resume();
 
             while (this.running.get()) {
                 NatsMessage msg = this.outgoing.accumulate(this.sendBuffer.capacity(), maxMessages, waitForMessage);

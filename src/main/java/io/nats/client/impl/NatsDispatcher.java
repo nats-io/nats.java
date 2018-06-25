@@ -36,8 +36,7 @@ class NatsDispatcher implements Dispatcher, Runnable {
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
         this.connection = conn;
         this.handler = handler;
-        this.incoming = new MessageQueue();
-        this.incoming.enableSingleReaderMode();
+        this.incoming = new MessageQueue(true);
         this.subscriptions = new HashMap<>();
         this.subLock = new ReentrantLock();
         this.running = new AtomicBoolean(false);
@@ -60,6 +59,7 @@ class NatsDispatcher implements Dispatcher, Runnable {
                     continue;
                 }
 
+                this.connection.getNatsStatistics().registerMessageTime(System.nanoTime() - msg.getCreationTime());
                 NatsSubscription sub = msg.getNatsSubscription();
 
                 if (sub != null && sub.isActive()) {
@@ -88,7 +88,7 @@ class NatsDispatcher implements Dispatcher, Runnable {
         this.subLock.lock();
         try {
             this.running.set(false);
-            this.incoming.interrupt();
+            this.incoming.pause();
             this.subscriptions.clear();
         } finally {
             this.subLock.unlock();
