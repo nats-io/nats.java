@@ -14,9 +14,9 @@
 package io.nats.client.impl;
 
 import java.time.Duration;
-import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 
 import io.nats.client.Dispatcher;
 import io.nats.client.MessageHandler;
@@ -30,15 +30,13 @@ class NatsDispatcher implements Dispatcher, Runnable {
     private Thread thread;
     private final AtomicBoolean running;
 
-    private ReentrantLock subLock;
-    private HashMap<String, NatsSubscription> subscriptions;
+    private Map<String, NatsSubscription> subscriptions;
 
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
         this.connection = conn;
         this.handler = handler;
         this.incoming = new MessageQueue(true);
-        this.subscriptions = new HashMap<>();
-        this.subLock = new ReentrantLock();
+        this.subscriptions = new ConcurrentHashMap<>();
         this.running = new AtomicBoolean(false);
     }
 
@@ -84,14 +82,9 @@ class NatsDispatcher implements Dispatcher, Runnable {
     }
 
     void stop() {
-        this.subLock.lock();
-        try {
-            this.running.set(false);
-            this.incoming.pause();
-            this.subscriptions.clear();
-        } finally {
-            this.subLock.unlock();
-        }
+        this.running.set(false);
+        this.incoming.pause();
+        this.subscriptions.clear();
     }
 
     MessageQueue getMessageQueue() {
@@ -99,24 +92,14 @@ class NatsDispatcher implements Dispatcher, Runnable {
     }
 
     void resendSubscriptions() {
-        this.subLock.lock();
-        try {
-            for (NatsSubscription sub : this.subscriptions.values()) {
-                this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
-            }
-        } finally {
-            this.subLock.unlock();
-        }
+        this.subscriptions.forEach((id, sub)->{
+            this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+        });
     }
 
     // Called by the connection when the subscription is removed
     void remove(NatsSubscription sub) {
-        subLock.lock();
-        try {
-            subscriptions.remove(sub.getSubject());
-        } finally {
-            subLock.unlock();
-        }
+        subscriptions.remove(sub.getSubject());
     }
 
     public Dispatcher subscribe(String subject) {
@@ -124,16 +107,14 @@ class NatsDispatcher implements Dispatcher, Runnable {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
 
-        subLock.lock();
-        try {
-            if (subscriptions.containsKey(subject)) {
-                return this;
-            }
+        NatsSubscription sub = subscriptions.get(subject);
 
-            NatsSubscription sub = connection.createSubscription(subject, null, this);
-            subscriptions.put(subject, sub);
-        } finally {
-            subLock.unlock();
+        if (sub == null) {
+            sub = connection.createSubscription(subject, null, this);
+            NatsSubscription actual = subscriptions.putIfAbsent(subject, sub);
+            if (actual != null) {
+                this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
+            }
         }
 
         return this;
@@ -148,16 +129,14 @@ class NatsDispatcher implements Dispatcher, Runnable {
             throw new IllegalArgumentException("QueueName is required in subscribe");
         }
 
-        subLock.lock();
-        try {
-            if (subscriptions.containsKey(subject)) {
-                return this;
-            }
+        NatsSubscription sub = subscriptions.get(subject);
 
-            NatsSubscription sub = connection.createSubscription(subject, queueName, this);
-            subscriptions.put(subject, sub);
-        } finally {
-            subLock.unlock();
+        if (sub == null) {
+            sub = connection.createSubscription(subject, queueName, this);
+            NatsSubscription actual = subscriptions.putIfAbsent(subject, sub);
+            if (actual != null) {
+                this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
+            }
         }
 
         return this;
@@ -171,17 +150,11 @@ class NatsDispatcher implements Dispatcher, Runnable {
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in unsubscribe");
         }
+        
+        NatsSubscription sub = subscriptions.get(subject);
 
-        subLock.lock();
-        try {
-            if (!subscriptions.containsKey(subject)) {
-                return this;
-            }
-
-            NatsSubscription sub = subscriptions.get(subject);
+        if (sub != null) {
             this.connection.unsubscribe(sub, after); // Connection will tell us when to remove from the map
-        } finally {
-            subLock.unlock();
         }
 
         return this;

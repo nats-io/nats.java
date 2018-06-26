@@ -88,7 +88,6 @@ class MessageQueue {
             long now = System.nanoTime();
             long start = now;
 
-            // Then start waiting
             while (this.length.get() == 0 && this.running.get()) {
                 if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
                     now = System.nanoTime();
@@ -118,7 +117,7 @@ class MessageQueue {
 
         NatsMessage retVal = this.queue.poll();
 
-        if (retVal == null) {
+        if (retVal == null && timeout != null) {
             waitForTimeout(timeout);
 
             if (!this.running.get()) {
@@ -171,7 +170,7 @@ class MessageQueue {
         if (maxMessages <= 1 || size >= maxSize) {
             this.sizeInBytes.addAndGet(-size);
             this.length.decrementAndGet();
-            signalIfNotEmpty();
+            // Don't need this in single reader mode - signalIfNotEmpty();
             return msg;
         }
 
@@ -204,7 +203,7 @@ class MessageQueue {
         this.sizeInBytes.addAndGet(-size);
         this.length.addAndGet(-count);
 
-        signalIfNotEmpty();
+        // Don't need this in single reader mode - signalIfNotEmpty();
         return msg;
     }
 

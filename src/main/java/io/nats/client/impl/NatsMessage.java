@@ -20,8 +20,8 @@ import io.nats.client.Subscription;
 
 class NatsMessage implements Message {
     private String sid;
-    private CharSequence subject;
-    private CharSequence replyTo;
+    private String subject;
+    private String replyTo;
     private byte[] data;
     private byte[] protocolBytes;
     private NatsSubscription subscription;
@@ -29,8 +29,16 @@ class NatsMessage implements Message {
     
     NatsMessage next; // for linked list
 
-    private static String PUB_SPACE = NatsConnection.OP_PUB + " ";
-    private static String SPACE = " ";
+    static final byte[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+
+    static int copy(byte[] dest, int pos, String toCopy) {
+        for (int i=0, max=toCopy.length(); i<max ;i++) {
+            dest[pos] = (byte) toCopy.charAt(i);
+            pos++;
+        }
+
+        return pos;
+    }
 
     // Create a message to publish
     NatsMessage(String subject, String replyTo, byte[] data) {
@@ -38,6 +46,9 @@ class NatsMessage implements Message {
         this.replyTo = replyTo;
         this.data = data;
         
+        /* If we ever want to support UTF-8 subjects ...
+        private static String PUB_SPACE = NatsConnection.OP_PUB + " ";
+        private static String SPACE = " ";
         StringBuilder protocolStringBuilder = new StringBuilder((2 * subject.length()) + 20); // guess a size based on replyTO = subject
         protocolStringBuilder.append(PUB_SPACE);
 
@@ -53,6 +64,50 @@ class NatsMessage implements Message {
 
         String protocol = protocolStringBuilder.toString();
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
+        */
+
+        // Convert the length to bytes
+        byte[] lengthBytes = new byte[12];
+        int idx = lengthBytes.length;
+        int size = (data != null) ? data.length : 0;
+
+        if (size > 0) {
+            for (int i = size; i > 0; i /= 10) {
+                idx--;
+                lengthBytes[idx] = digits[i % 10];
+            }
+        } else {
+            idx--;
+            lengthBytes[idx] = digits[0];
+        }
+
+        // Build the array
+        int len = 4 + subject.length() + 1 + (lengthBytes.length - idx);
+
+        if (replyTo != null) {
+            len += replyTo.length() + 1;
+        }
+
+        this.protocolBytes = new byte[len];
+
+        // Copy everything
+        int pos = 0;
+        protocolBytes[0] = 'P';
+        protocolBytes[1] = 'U';
+        protocolBytes[2] = 'B';
+        protocolBytes[3] = ' ';
+        pos = 4;
+        pos = copy(protocolBytes, pos, subject);
+        protocolBytes[pos] = ' ';
+        pos++;
+
+        if (replyTo != null) {
+            pos = copy(protocolBytes, pos, replyTo);
+            protocolBytes[pos] = ' ';
+            pos++;
+        }
+
+        System.arraycopy(lengthBytes, idx, protocolBytes, pos, lengthBytes.length - idx);
 
         this.sizeInBytes = this.protocolBytes.length + data.length + 4;// for 2x \r\n
     }
@@ -65,10 +120,12 @@ class NatsMessage implements Message {
 
     // Create an incoming message for a subscriber
     // Doesn't check controlline size, since the server sent us the message
-    NatsMessage(String sid, CharSequence subject, CharSequence replyTo, int protocolLength) {
+    NatsMessage(String sid, String subject, String replyTo, int protocolLength) {
         this.sid = sid;
         this.subject = subject;
-        this.replyTo = replyTo;
+        if (replyTo != null) {
+            this.replyTo = replyTo;
+        }
         this.sizeInBytes = protocolLength + 2;
         this.data = null; // will set data and size after we read it
     }
@@ -109,14 +166,14 @@ class NatsMessage implements Message {
     }
 
     public String getSubject() {
-        return this.subject.toString();
+        return this.subject;
     }
 
     public String getReplyTo() {
         if (this.replyTo == null) {
             return null;
         }
-        return this.replyTo.toString();
+        return this.replyTo;
     }
 
     public byte[] getData() {

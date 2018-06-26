@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.examples;
+package io.nats.client;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -27,7 +27,7 @@ import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 
-public class SimpleRequestBenchmark {
+public class RequestBenchmark {
     public static void main(String args[]) throws InterruptedException {
         int threads = 1;
         int msgsPerThread = 5_000_000;
@@ -65,7 +65,7 @@ public class SimpleRequestBenchmark {
                     exp.printStackTrace();
                 }
             });
-            d.subscribe("request_benchmark");
+            d.subscribe("req");
 
             Connection nc = Nats.connect(o);
 
@@ -79,7 +79,7 @@ public class SimpleRequestBenchmark {
 
                     ArrayList<Future<Message>> msgs = new ArrayList<>();
                     for (int i = 0; i < msgsPerThread; i++) {
-                        Future<Message> msg = nc.request("request_benchmark", body);
+                        Future<Message> msg = nc.request("req", body);
                         msgs.add(msg);
 
                         if (i!=0 && i%1_000==0) {

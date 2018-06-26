@@ -19,6 +19,7 @@ public interface ConnectionListener {
         CLOSED("nats: connection closed"),
         DISCONNECTED("nats: connection disconnected"), 
         RECONNECTED("nats: connection reconnected"), 
+        RESUBSCRIBED("nats: subscriptions re-established"), 
         DISCOVERED_SERVERS("nats: discovered servers");
 
         private String event;

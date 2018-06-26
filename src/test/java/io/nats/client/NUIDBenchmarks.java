@@ -11,13 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.examples;
+package io.nats.client;
 
 import java.text.NumberFormat;
 
 import io.nats.client.NUID;
 
-public class SimpleNUIDBenchmarks {
+public class NUIDBenchmarks {
 
     public static void main(String args[]) {
         benchmarkGlobalNUIDSpeed();

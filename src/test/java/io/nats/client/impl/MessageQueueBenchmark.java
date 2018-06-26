@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import java.text.NumberFormat;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 public class MessageQueueBenchmark {
     public static void main(String args[]) throws InterruptedException {
@@ -26,38 +27,49 @@ public class MessageQueueBenchmark {
         for (int j = 0; j < msgCount; j++) {
             msgs[j] = new NatsMessage("a");
         }
+        System.out.println("Warmed up ...");
 
-        MessageQueue pushPop = new MessageQueue(false);
+        MessageQueue push = new MessageQueue(false);
         start = System.nanoTime();
         for (int i = 0; i < msgCount; i++) {
-            pushPop.push(msgs[i]);
-        }
-        for (int i = 0; i < msgCount; i++) {
-            pushPop.popNow();
+            push.push(msgs[i]);
         }
         end = System.nanoTime();
 
-        System.out.printf("\nTotal time to perform %s push/popnow operations was %s ms, %f ns/op\n",
+        System.out.printf("\nTotal time to perform %s push operations was %s ms, %f ns/op\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
                 ((double) (end - start)) / ((double) (msgCount)));
         System.out.printf("\tor %s op/s\n",
                 NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
+        start = System.nanoTime();
+        for (int i = 0; i < msgCount; i++) {
+            push.popNow();
+        }
+        end = System.nanoTime();
+
+        System.out.printf("\nTotal time to perform %s popnow operations was %s ms, %f ns/op\n",
+                NumberFormat.getInstance().format(msgCount),
+                NumberFormat.getInstance().format((end - start) / 1_000_000L),
+                ((double) (end - start)) / ((double) (msgCount)));
+        System.out.printf("\tor %s op/s\n",
+                NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
+
+        MessageQueue accumulateQueue = new MessageQueue(true);
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
-        MessageQueue accumulateQueue = new MessageQueue(true);
-        start = System.nanoTime();
         for (int i = 0; i < msgCount; i++) {
             accumulateQueue.push(msgs[i]);
         }
+        start = System.nanoTime();
         while(accumulateQueue.length() > 0) { // works for single thread, but not multi
             accumulateQueue.accumulate(10_000, 100, Duration.ofMillis(500));
         }
         end = System.nanoTime();
 
-        System.out.printf("\nTotal time to perform %s push/accumulate operations was %s ms, %f ns/op\n",
+        System.out.printf("\nTotal time to perform accumulate %s messages was %s ms, %f ns/op\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
                 ((double) (end - start)) / ((double) (msgCount)));
@@ -69,14 +81,22 @@ public class MessageQueueBenchmark {
         }
         final MessageQueue pushPopThreadQueue = new MessageQueue(false);
         final Duration timeout = Duration.ofMillis(10);
+        final CompletableFuture<Void> go = new CompletableFuture<>();
         Thread pusher = new Thread(() -> {
-            for (int i = 0; i < msgCount; i++) {
-                pushPopThreadQueue.push(msgs[i]);
+            try {
+                go.get();
+                for (int i = 0; i < msgCount; i++) {
+                    pushPopThreadQueue.push(msgs[i]);
+                }
+            } catch (Exception exp) {
+                exp.printStackTrace();
             }
         });
+        pusher.start();
 
         Thread popper = new Thread(() -> {
             try {
+                go.get();
                 for (int i = 0; i < msgCount; i++) {
                     pushPopThreadQueue.pop(timeout);
                 }
@@ -84,10 +104,10 @@ public class MessageQueueBenchmark {
                 exp.printStackTrace();
             }
         });
+        popper.start();
 
         start = System.nanoTime();
-        pusher.start();
-        popper.start();
+        go.complete(null);
         pusher.join();
         popper.join();
         end = System.nanoTime();
@@ -99,18 +119,26 @@ public class MessageQueueBenchmark {
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
         
+        final CompletableFuture<Void> go2 = new CompletableFuture<>();
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
         final MessageQueue pushPopNowThreadQueue = new MessageQueue(false);
         pusher = new Thread(() -> {
-            for (int i = 0; i < msgCount; i++) {
-                pushPopNowThreadQueue.push(msgs[i]);
+            try {
+                go2.get();
+                for (int i = 0; i < msgCount; i++) {
+                    pushPopNowThreadQueue.push(msgs[i]);
+                }
+            } catch (Exception exp) {
+                exp.printStackTrace();
             }
         });
+        pusher.start();
 
         popper = new Thread(() -> {
             try {
+                go2.get();
                 for (int i = 0; i < msgCount; i++) {
                     pushPopNowThreadQueue.popNow();
                 }
@@ -118,10 +146,10 @@ public class MessageQueueBenchmark {
                 exp.printStackTrace();
             }
         });
+        popper.start();
 
         start = System.nanoTime();
-        pusher.start();
-        popper.start();
+        go2.complete(null);
         pusher.join();
         popper.join();
         end = System.nanoTime();
@@ -133,18 +161,27 @@ public class MessageQueueBenchmark {
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
             
+        final CompletableFuture<Void> go3 = new CompletableFuture<>();
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }        
+
         final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true);
         pusher = new Thread(() -> {
-            for (int i = 0; i < msgCount; i++) {
-                pushAccumulateThreadQueue.push(msgs[i]);
+            try {
+                go3.get();
+                for (int i = 0; i < msgCount; i++) {
+                    pushAccumulateThreadQueue.push(msgs[i]);
+                }
+            } catch (Exception exp) {
+                exp.printStackTrace();
             }
         });
+        pusher.start();
 
         popper = new Thread(() -> {
             try {
+                go3.get();
                 int remaining = msgCount;
                 while (remaining > 0) {
                     NatsMessage cursor = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
@@ -157,10 +194,10 @@ public class MessageQueueBenchmark {
                 exp.printStackTrace();
             }
         });
+        popper.start();
 
         start = System.nanoTime();
-        pusher.start();
-        popper.start();
+        go3.complete(null);
         pusher.join();
         popper.join();
         end = System.nanoTime();

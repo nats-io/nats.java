@@ -189,11 +189,9 @@ public class TLSConnectTests {
                                                     Connection.Status.DISCONNECTED == nc.getStatus() || 
                                                     Connection.Status.CONNECTING == nc.getStatus());
 
+            handler.prepForStatusChange(Events.RESUBSCRIBED);
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-                try {
-                    Thread.sleep(200);
-                } catch (Exception e) {
-                }
+                handler.waitForStatusChange(1000, TimeUnit.MILLISECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             }
         } finally {

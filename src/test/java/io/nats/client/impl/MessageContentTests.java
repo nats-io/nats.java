@@ -83,6 +83,33 @@ public class MessageContentTests {
     }
 
     @Test
+    public void testDifferentSizes() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                nc.publish(msg.getReplyTo(), msg.getData());
+            });
+            d.subscribe("subject");
+
+            String body = "hello world";
+            for (int i=0;i<10;i++) {
+
+                byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
+                Future<Message> incoming = nc.request("subject", bodyBytes);
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+                assertNotNull(msg);
+                assertEquals(bodyBytes.length, msg.getData().length);
+                assertEquals(body, new String(msg.getData(), StandardCharsets.UTF_8));
+
+                body = body+body;
+            }
+        }
+    }
+
+    @Test
     public void testZeros() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {

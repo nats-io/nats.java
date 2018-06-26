@@ -21,13 +21,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -39,7 +38,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
@@ -95,14 +93,12 @@ class NatsConnection implements Connection {
 
     private AtomicReference<NatsServerInfo> serverInfo;
 
-    private ReentrantReadWriteLock subscriberLock;
-    private HashMap<String, NatsSubscription> subscribers;
-    private ArrayList<NatsDispatcher> dispatchers;
+    private Map<String, NatsSubscription> subscribers;
+    private Map<String, NatsDispatcher> dispatchers; // use a map so we get more consistent iteration behavior
+    private Map<String, CompletableFuture<Message>> responses;
 
-    private ReentrantLock responseLock;
-    private HashMap<String, CompletableFuture<Message>> responses;
     private String mainInbox;
-    private Dispatcher inboxDispatcher;
+    private AtomicReference<Dispatcher> inboxDispatcher;
     private Timer timer;
 
     private AtomicLong nextSid;
@@ -122,16 +118,16 @@ class NatsConnection implements Connection {
         this.reconnectWaiter = new CompletableFuture<>();
         this.reconnectWaiter.complete(Boolean.TRUE);
 
-        this.subscriberLock = new ReentrantReadWriteLock();
-        this.subscribers = new HashMap<>();
-        this.dispatchers = new ArrayList<>();
-        this.responses = new HashMap<>();
-        this.responseLock = new ReentrantLock();
+        this.dispatchers = new ConcurrentHashMap<>();
+        this.subscribers = new ConcurrentHashMap<>();
+        this.responses = new ConcurrentHashMap<>();
+
         this.nextSid = new AtomicLong(1);
         this.nuid = new NUID();
         this.mainInbox = createInbox() + ".*";
 
         this.serverInfo = new AtomicReference<>();
+        this.inboxDispatcher = new AtomicReference<>();
         this.pongQueue = new ConcurrentLinkedDeque<>();
 
         this.reader = new NatsConnectionReader(this);
@@ -215,18 +211,15 @@ class NatsConnection implements Connection {
             return;
         }
 
-        subscriberLock.readLock().lock();
-        try {
-            for (NatsSubscription sub : this.subscribers.values()) {
-                sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
-            }
+        this.subscribers.forEach((sid, sub) -> {
+            sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+        });
 
-            for (NatsDispatcher d : this.dispatchers) {
-                d.resendSubscriptions();
-            }
-        } finally {
-            subscriberLock.readLock().unlock();
-        }
+        this.dispatchers.forEach((nuid, d) -> {
+            d.resendSubscriptions();
+        });
+        
+        processConnectionEvent(Events.RESUBSCRIBED);
     }
 
     // is called from reconnect and connect
@@ -450,29 +443,23 @@ class NatsConnection implements Connection {
 
         closeSocketImpl();
 
-        subscriberLock.writeLock().lock();
-        try {
-            for (NatsDispatcher d : this.dispatchers) {
-                d.stop();
-            }
+        this.dispatchers.forEach((nuid, d) -> {
+            d.stop();
+        });
 
-            this.dispatchers.clear();
+        this.subscribers.forEach((sid, sub) -> {
+            sub.invalidate();
+        });
+        
+        this.dispatchers.clear();
+        this.subscribers.clear();
 
-            for (NatsSubscription s : this.subscribers.values()) {
-                s.invalidate();
-            }
-
-            this.subscribers.clear();
-            
-            if (timer != null) {
-                timer.cancel();
-                timer = null;
-            }
-
-            cleanResponses(true);
-        } finally {
-            subscriberLock.writeLock().unlock();
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
         }
+
+        cleanResponses(true);
 
         cleanUpPongQueue();
 
@@ -605,12 +592,7 @@ class NatsConnection implements Connection {
     void invalidate(NatsSubscription sub) {
         CharSequence sid = sub.getSID();
 
-        subscriberLock.writeLock().lock();
-        try {
-            subscribers.remove(sid);
-        } finally {
-            subscriberLock.writeLock().unlock();
-        }
+        subscribers.remove(sid);
 
         if (sub.getDispatcher() != null) {
             sub.getDispatcher().remove(sub);
@@ -662,13 +644,8 @@ class NatsConnection implements Connection {
         long sidL = nextSid.getAndIncrement();
         String sid = String.valueOf(sidL);
 
-        subscriberLock.writeLock().lock();
-        try {
-            sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
-            subscribers.put(sid, sub);
-        } finally {
-            subscriberLock.writeLock().unlock();
-        }
+        sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+        subscribers.put(sid, sub);
 
         sendSubscriptionMessage(sid, subject, queueName);
         return sub;
@@ -720,21 +697,19 @@ class NatsConnection implements Connection {
     }
 
     void cleanResponses(boolean cancelIfRunning) {
-        responseLock.lock();
-        try {
-            Iterator<Map.Entry<String,CompletableFuture<Message>>> it = responses.entrySet().iterator();
-            
-            while (it.hasNext()) {
-                Map.Entry<String, CompletableFuture<Message>> pair = it.next();
-                CompletableFuture<Message> f = pair.getValue();
-                if (f.isDone() || cancelIfRunning) {
-                    f.cancel(true); // does nothing if already done
-                    it.remove();
-                    statistics.decrementOutstandingRequests();
-                }
+
+        ArrayList<String> toRemove = new ArrayList<>();
+
+        responses.forEach((token, f) -> {
+            if (f.isDone() || cancelIfRunning) {
+                f.cancel(true); // does nothing if already done
+                toRemove.add(token);
+                statistics.decrementOutstandingRequests();
             }
-        } finally {
-            responseLock.unlock();
+        });
+
+        for (String token : toRemove) {
+            responses.remove(token);
         }
     }
 
@@ -756,6 +731,19 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Message payload size exceed server configuraiton "+body.length+" vs "+this.getMaxPayload());
         }
 
+        if (inboxDispatcher.get() == null) {
+            NatsDispatcher d = new NatsDispatcher(this, (msg) -> {
+                deliverRequest(msg);
+            });
+
+            if (inboxDispatcher.compareAndSet(null, d)) {
+                String id = this.nuid.next();
+                this.dispatchers.put(id, d);
+                d.start();
+                d.subscribe(this.mainInbox);
+            }
+        }
+
         if (oldStyle) {
             responseInbox = createInbox();
         } else {
@@ -765,30 +753,11 @@ class NatsConnection implements Connection {
         String responseToken = getResponseToken(responseInbox);
         CompletableFuture<Message> future = new CompletableFuture<>();
 
-        this.subscriberLock.writeLock().lock();
-        try {
-            if (this.inboxDispatcher == null) {
-
-                this.inboxDispatcher = this.createDispatcher((msg) -> {
-                    deliverRequest(msg);
-                });
-
-                this.inboxDispatcher.subscribe(this.mainInbox);
-            }
-        } finally {
-            this.subscriberLock.writeLock().unlock();
-        }
-
-        responseLock.lock();
-        try {
-            responses.put(responseToken, future);
-        } finally {
-            responseLock.unlock();
-        }
+        responses.put(responseToken, future);
         statistics.incrementOutstandingRequests();
 
         if (oldStyle) {
-            this.inboxDispatcher.subscribe(responseInbox).unsubscribe(responseInbox,1);
+            this.inboxDispatcher.get().subscribe(responseInbox).unsubscribe(responseInbox,1);
         }
         
         this.publish(subject, responseInbox, body);
@@ -802,12 +771,7 @@ class NatsConnection implements Connection {
         String token = getResponseToken(subject);
         CompletableFuture<Message> f = null;
 
-        responseLock.lock();
-        try {
-            f = responses.remove(token);
-        } finally {
-            responseLock.unlock();
-        }
+        f = responses.remove(token);
 
         if (f != null) {
             statistics.decrementOutstandingRequests();
@@ -821,14 +785,9 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Closed");
         }
 
-        NatsDispatcher dispatcher = null;
-        subscriberLock.writeLock().lock();
-        try {
-            dispatcher = new NatsDispatcher(this, handler);
-            dispatchers.add(dispatcher);
-        } finally {
-            subscriberLock.writeLock().unlock();
-        }
+        NatsDispatcher dispatcher = new NatsDispatcher(this, handler);
+        String id = this.nuid.next();
+        this.dispatchers.put(id, dispatcher);
         dispatcher.start();
         return dispatcher;
     }
@@ -990,16 +949,10 @@ class NatsConnection implements Connection {
     }
 
     void deliverMessage(NatsMessage msg) {
-        NatsSubscription sub = null;
         this.statistics.incrementInMsgs();
         this.statistics.incrementInBytes(msg.getSizeInBytes());
 
-        subscriberLock.readLock().lock();
-        try {
-            sub = subscribers.get(msg.getSID());
-        } finally {
-            subscriberLock.readLock().unlock();
-        }
+        NatsSubscription sub = subscribers.get(msg.getSID());
 
         if (sub != null) {
             msg.setSubscription(sub);

@@ -95,18 +95,19 @@ public class ReconnectTests {
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
+            System.out.println("# Waiting for disconnect/reconnect");
             flushAndWait(nc, handler);
             checkReconnectingStatus(nc);
 
-            handler.prepForStatusChange(Events.RECONNECTED);
+            handler.prepForStatusChange(Events.RESUBSCRIBED);
 
-            try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            try (NatsTestServer ts = new NatsTestServer(port, true)) {
                 handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
                 // Make sure dispatcher and subscription are still there
                 Future<Message> inc = nc.request("dispatchSubject", "test".getBytes(StandardCharsets.UTF_8));
-                Message msg = inc.get();
+                Message msg = inc.get(500, TimeUnit.MILLISECONDS);
                 assertNotNull(msg);
 
                 // make sure the subscription survived

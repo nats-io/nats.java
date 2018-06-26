@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.examples;
+package io.nats.client;
 
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -22,10 +22,10 @@ import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 
-public class SimplePublishBenchmark {
+public class PublishBenchmark {
     public static void main(String args[]) throws InterruptedException {
         int threads = 1;
-        int msgsPerThread = 20_000_000;
+        int msgsPerThread = 5_000_000;
         int messageSize = 256;
         long totalMessages = threads * msgsPerThread;
         CountDownLatch latch = new CountDownLatch(threads);
@@ -51,9 +51,9 @@ public class SimplePublishBenchmark {
                 Thread t = new Thread(() -> {
                     try {starter.get();}catch(Exception e){}
                     for(int i = 0; i < msgsPerThread; i++) {
-                        nc.publish("publish_benchmark", body);
+                        nc.publish("bench", body);
                     }
-
+                    try {nc.flush(Duration.ZERO);}catch(Exception e){}
                     latch.countDown();
                 });
                 t.start();
@@ -62,7 +62,6 @@ public class SimplePublishBenchmark {
             long start = System.nanoTime();
             starter.complete(Boolean.TRUE);
             latch.await();
-            try {nc.flush(Duration.ZERO);}catch(Exception e){}
             long end = System.nanoTime();
 
             nc.close();

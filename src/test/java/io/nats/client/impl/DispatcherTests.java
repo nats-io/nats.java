@@ -36,6 +36,7 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
 
 public class DispatcherTests {
     @Test
@@ -65,7 +66,7 @@ public class DispatcherTests {
     @Test
     public void testMultiSubject() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
+                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final CompletableFuture<Message> one = new CompletableFuture<>();

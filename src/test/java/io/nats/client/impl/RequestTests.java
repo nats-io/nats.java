@@ -225,7 +225,7 @@ public class RequestTests {
                     }
 
                     for (Future<Message> f : messages) {
-                        Message msg = f.get(5000, TimeUnit.MILLISECONDS);
+                        Message msg = f.get(1000, TimeUnit.MILLISECONDS);
                         assertNotNull(msg);
                         assertEquals(1, msg.getData().length);
                     }

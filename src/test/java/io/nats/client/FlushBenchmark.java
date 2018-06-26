@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.examples;
+package io.nats.client;
 
 import java.text.NumberFormat;
 
@@ -19,13 +19,13 @@ import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 
-public class PingPongBenchmark {
+public class FlushBenchmark {
     public static void main(String args[]) throws InterruptedException {
-        int pings = 1_000_000;
+        int flushes = 100_000;
 
         System.out.println("###");
-        System.out.printf("### Running ping/pong benchmark with %s pings.\n",
-                                NumberFormat.getInstance().format(pings));
+        System.out.printf("### Running benchmark with %s flushes.\n",
+                                NumberFormat.getInstance().format(flushes));
         System.out.println("###");
 
         try {
@@ -33,22 +33,22 @@ public class PingPongBenchmark {
             Connection nc = Nats.connect(options);
 
             long start = System.nanoTime();
-            for (int i=0; i<pings; i++){
+            for (int i=0; i<flushes; i++){
                 nc.flush(null);
             }
             long end = System.nanoTime();
 
             nc.close();
 
-            System.out.printf("### Total time to perform %s pings was %s ms, %f ns/op\n",
-                    NumberFormat.getInstance().format(pings),
+            System.out.printf("### Total time to perform %s flushes was %s ms, %f ns/op\n",
+                    NumberFormat.getInstance().format(flushes),
                     NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                    ((double) (end - start)) / ((double) (pings)));
-            System.out.printf("### This is equivalent to %s request-replies/sec.\n",
-                    NumberFormat.getInstance().format(1_000_000_000L * pings / (end - start)));
+                    ((double) (end - start)) / ((double) (flushes)));
+            System.out.printf("### This is equivalent to %s flushes/sec.\n",
+                    NumberFormat.getInstance().format(1_000_000_000L * flushes / (end - start)));
 
             System.out.println("###");
-            System.out.println("### Request connection stats ####");
+            System.out.println("### Flush connection stats ####");
             System.out.println();
             System.out.print(nc.getStatistics().toString());
         } catch (Exception ex) {
