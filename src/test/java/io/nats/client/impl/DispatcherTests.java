@@ -582,9 +582,9 @@ public class DispatcherTests {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            done.get(200, TimeUnit.MILLISECONDS);
+
+            done.get(500, TimeUnit.MILLISECONDS);
             
             assertEquals(msgCount, q.size()); // Shoudl only get one since all the extra subs do nothing??
         }

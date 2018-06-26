@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -34,7 +33,8 @@ class NatsConnectionWriter implements Runnable {
     private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
 
-    private ByteBuffer sendBuffer;
+    private byte[] sendBuffer;
+    private int sendPosition;
 
     private MessageQueue outgoing;
 
@@ -45,7 +45,7 @@ class NatsConnectionWriter implements Runnable {
         this.stopped = new CompletableFuture<>();
         this.stopped.complete(Boolean.TRUE); // we are stopped on creation
 
-        this.sendBuffer = ByteBuffer.allocate(connection.getOptions().getBufferSize());
+        this.sendBuffer = new byte[connection.getOptions().getBufferSize()];
 
         outgoing = new MessageQueue(true);
     }
@@ -83,46 +83,62 @@ class NatsConnectionWriter implements Runnable {
 
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
+            NatsStatistics stats = this.connection.getNatsStatistics();
             this.outgoing.resume();
 
             while (this.running.get()) {
-                NatsMessage msg = this.outgoing.accumulate(this.sendBuffer.capacity(), maxMessages, waitForMessage);
+                NatsMessage msg = this.outgoing.accumulate(this.sendBuffer.length, maxMessages, waitForMessage);
 
                 if (msg == null) { // Make sure we are still running
                     continue;
                 }
 
-                sendBuffer.clear();
-
-                long accumulated = 0;
                 while (msg != null) {
-                    accumulated++;
-
                     long size = msg.getSizeInBytes();
 
-                    while (this.sendBuffer.remaining() < size) {
-                        this.sendBuffer = this.connection.enlargeBuffer(this.sendBuffer, 0);
+                    if (sendPosition + size > sendBuffer.length) {
+                        if (sendPosition == 0) { // have to resize
+                            byte[] newSendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2)];
+                            System.arraycopy(sendBuffer, 0, newSendBuffer, 0, sendPosition);
+                            this.sendBuffer = newSendBuffer;
+                        } else { // else send and go to next message
+                            dataPort.write(sendBuffer, sendPosition);
+                            connection.getNatsStatistics().registerWrite(sendPosition);
+                            sendPosition = 0;
+                            msg = msg.next;
+
+                            if (msg == null) {
+                                break;
+                            }
+                        }
                     }
 
-                    sendBuffer.put(msg.getProtocolBytes());
-                    sendBuffer.put(NatsConnection.CRLF);
+                    byte[] bytes = msg.getProtocolBytes();
+                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
+                    sendPosition += bytes.length;
+
+                    sendBuffer[sendPosition++] = '\r';
+                    sendBuffer[sendPosition++] = '\n';
 
                     if (!msg.isProtocol()) {
-                        sendBuffer.put(msg.getData());
-                        sendBuffer.put(NatsConnection.CRLF);
+                        bytes = msg.getData();
+                        System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
+                        sendPosition += bytes.length;
+
+                        sendBuffer[sendPosition++] = '\r';
+                        sendBuffer[sendPosition++] = '\n';
                     }
+
+                    stats.incrementOutMsgs();
+                    stats.incrementOutBytes(size);
+
                     msg = msg.next;
                 }
-                connection.getNatsStatistics().registerAccumulate(accumulated);
 
-                // Write to the socket
-                sendBuffer.flip();
-
-                int toWrite = sendBuffer.remaining();
-                while (sendBuffer.hasRemaining()) {
-                    dataPort.write(sendBuffer);
-                }
+                int toWrite = sendPosition;
+                dataPort.write(sendBuffer, toWrite);
                 connection.getNatsStatistics().registerWrite(toWrite);
+                sendPosition = 0;
             }
         } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);

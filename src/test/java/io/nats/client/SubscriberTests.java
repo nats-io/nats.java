@@ -88,7 +88,7 @@ public class SubscriberTests {
                 nc.publish("subject", new byte[16]);
             }
 
-            nc.flush(Duration.ZERO);// Get them all to the server
+            nc.flush(Duration.ofMillis(200));// Get them all to the server
 
             for (int i = 0; i < msgs; i++) {
                 msg = sub1.nextMessage(null);

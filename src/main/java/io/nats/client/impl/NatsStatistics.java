@@ -22,12 +22,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 class NatsStatistics implements Statistics {
     private ReentrantLock lock;
-    private LongSummaryStatistics accumulateStats;
     private LongSummaryStatistics readStats;
     private LongSummaryStatistics writeStats;
-    private LongSummaryStatistics msgTimeStats;
-    private LongSummaryStatistics gatherStats;
-    private LongSummaryStatistics readTimeStats;
 
     private AtomicLong flushCounter;
     private AtomicLong outstandingRequests;
@@ -46,12 +42,8 @@ class NatsStatistics implements Statistics {
 
     public NatsStatistics(boolean trackAdvanced) {
         this.trackAdvanced = trackAdvanced;
-        this.accumulateStats = new LongSummaryStatistics();
         this.readStats = new LongSummaryStatistics();
         this.writeStats = new LongSummaryStatistics();
-        this.msgTimeStats = new LongSummaryStatistics();
-        this.gatherStats = new LongSummaryStatistics();
-        this.readTimeStats = new LongSummaryStatistics();
 
         this.lock = new ReentrantLock();
         this.flushCounter = new AtomicLong();
@@ -135,22 +127,6 @@ class NatsStatistics implements Statistics {
         } finally {
             lock.unlock();
         }
-    }
-
-    void registerReadTime(long nanos) {
-        registerSummaryStat(readTimeStats, nanos);
-    }
-
-    void registerGatherTime(long nanos) {
-        registerSummaryStat(gatherStats, nanos);
-    }
-
-    void registerMessageTime(long nanos) {
-        registerSummaryStat(msgTimeStats, nanos);
-    }
-
-    void registerAccumulate(long msgCount) {
-        registerSummaryStat(accumulateStats, msgCount);
     }
 
     void registerRead(long bytes) {
@@ -244,22 +220,6 @@ class NatsStatistics implements Statistics {
                 appendNumberStat(builder, "Average Bytes Per Read:          ", readStats.getAverage());
                 appendNumberStat(builder, "Min Bytes Per Read:              ", readStats.getMin());
                 appendNumberStat(builder, "Max Bytes Per Read:              ", readStats.getMax());
-
-                if (msgTimeStats.getCount() > 0) {
-                    builder.append("\n");
-                    appendNumberStat(builder, "Average Time to read (ns):       ", readTimeStats.getAverage());
-                    appendNumberStat(builder, "Min Time to read (ns):           ", readTimeStats.getMin());
-                    appendNumberStat(builder, "Max Time to read (ns):           ", readTimeStats.getMax());
-                    builder.append("\n");
-                    appendNumberStat(builder, "Average Time to gather (ns):     ", gatherStats.getAverage());
-                    appendNumberStat(builder, "Min Time to gather (ns):         ", gatherStats.getMin());
-                    appendNumberStat(builder, "Max Time to gather (ns):         ", gatherStats.getMax());
-
-                    builder.append("\n");
-                    appendNumberStat(builder, "Average Read Pipeline (ns):      ", msgTimeStats.getAverage());
-                    appendNumberStat(builder, "Min Read Pipeline (ns):          ", msgTimeStats.getMin());
-                    appendNumberStat(builder, "Max Read Pipeline (ns):          ", msgTimeStats.getMax());
-                }
             }
             builder.append("\n");
             builder.append("### Writer ###\n");
@@ -271,11 +231,6 @@ class NatsStatistics implements Statistics {
                 appendNumberStat(builder, "Average Bytes Per Write:         ", writeStats.getAverage());
                 appendNumberStat(builder, "Min Bytes Per Write:             ", writeStats.getMin());
                 appendNumberStat(builder, "Max Bytes Per Write:             ", writeStats.getMax());
-                builder.append("\n");
-                appendNumberStat(builder, "Accumulation Calls:              ", accumulateStats.getCount());
-                appendNumberStat(builder, "Average Messages Per Accumulate: ", accumulateStats.getAverage());
-                appendNumberStat(builder, "Min Messages Per Accumulate:     ", accumulateStats.getMin());
-                appendNumberStat(builder, "Max Messages Per Accumulate:     ", accumulateStats.getMax());
             }
         } finally {
             lock.unlock();

@@ -18,7 +18,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -137,7 +136,6 @@ public class TLSConnectTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             int msgCount = 100;
-            ArrayList<Future<Message>> messages = new ArrayList<>();
             Options options = new Options.Builder().
                                 server(ts.getURI()).
                                 maxReconnects(0).
@@ -154,11 +152,7 @@ public class TLSConnectTests {
 
                 for (int i=0;i<msgCount;i++) {
                     Future<Message> incoming = nc.request("subject", null);
-                    messages.add(incoming);
-                }
-
-                for (Future<Message> f : messages) {
-                    Message msg = f.get(500, TimeUnit.MILLISECONDS);
+                    Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
                     assertNotNull(msg);
                     assertEquals(16, msg.getData().length);
                 }

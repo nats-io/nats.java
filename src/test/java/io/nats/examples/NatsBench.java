@@ -59,7 +59,6 @@ public class NatsBench {
 
     private boolean secure = false;
     private Benchmark bench;
-    private boolean includeStats = true;
 
     static final String usageString =
             "\nUsage: java NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
@@ -112,7 +111,6 @@ public class NatsBench {
         Options.Builder builder = new Options.Builder();
         builder.noReconnect();
         builder.servers(servers);
-        builder.turnOnAdvancedStats();
 
         if (secure) {
             builder.secure();
@@ -142,8 +140,10 @@ public class NatsBench {
     }
 
     class SyncSubWorker extends Worker {
-        SyncSubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
+        final Phaser subReady;
+        SyncSubWorker(Future<Boolean> starter, Phaser subReady, Phaser finisher, int numMsgs, int size, boolean secure) {
             super(starter, finisher, numMsgs, size, secure);
+            this.subReady = subReady;
         }
 
         @Override
@@ -156,10 +156,10 @@ public class NatsBench {
                 nc.flush(null);
 
                 // Signal we are ready
-                finisher.arrive();
+                subReady.arrive();
 
                 // Wait for the signal to start tracking time
-                starter.get(5000, TimeUnit.MICROSECONDS);
+                starter.get(60, TimeUnit.SECONDS);
 
                 Duration timeout = Duration.ofMillis(1000);
 
@@ -178,18 +178,10 @@ public class NatsBench {
                 // Clean up
                 sub.unsubscribe();
                 nc.close();
-
-                if (numSubs == 1 && includeStats) {
-                    System.out.println("#########################");
-                    System.out.println("### Subscriber stats ####");
-                    System.out.println("#########################");
-                    System.out.println();
-                    System.out.print(nc.getStatistics().toString());
-                    System.out.println();
-                }
             } catch (Exception e) {
                 errorQueue.add(e);
             } finally {
+                subReady.arrive();
                 finisher.arrive();
             }
         }
@@ -212,7 +204,7 @@ public class NatsBench {
                 }
 
                  // Wait for the signal
-                starter.get(5000, TimeUnit.MICROSECONDS);
+                starter.get(60, TimeUnit.SECONDS);
                 long start = System.nanoTime();
                 for (int i = 0; i < numMsgs; i++) {
                     nc.publish(subject, payload);
@@ -223,14 +215,6 @@ public class NatsBench {
 
                 bench.addPubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
                 nc.close();
-                if (numPubs == 1 && includeStats) {
-                    System.out.println("########################");
-                    System.out.println("### Publisher stats ####");
-                    System.out.println("########################");
-                    System.out.println();
-                    System.out.print(nc.getStatistics().toString());
-                    System.out.println();
-                }
             } catch (Exception e) {
                 errorQueue.add(e);
             } finally {
@@ -250,19 +234,24 @@ public class NatsBench {
         System.out.println();
         System.out.printf("Starting benchmark(s) [msgs=%d, msgsize=%d, pubs=%d, subs=%d]\n", numMsgs,
                 size, numPubs, numSubs);
-        System.out.println("Each pub and sub uses a separate thread and connection to the gnatsd.");
         System.out.println("Use ctrl-C to cancel.");
         System.out.println();
 
-        runTest("Pub Only", this.numPubs, 0);
-        runTest("Pub/Sub", this.numPubs, this.numSubs);
+        if (this.numPubs > 0) {
+            runTest("Pub Only", this.numPubs, 0);
+            runTest("Pub/Sub", this.numPubs, this.numSubs);
+        } else {
+            runTest("Sub", this.numPubs, this.numSubs);
+        }
 
         Runtime.getRuntime().removeShutdownHook(shutdownHook);
     }
 
     public void runTest(String title, int pubCount, int subCount) throws Exception {
+        final Phaser subReady = new Phaser();
         final Phaser finisher = new Phaser();
         final CompletableFuture<Boolean> starter = new CompletableFuture<>();
+        subReady.register();
         finisher.register();
         sent.set(0);
         received.set(0);
@@ -271,12 +260,13 @@ public class NatsBench {
 
         // Run Subscribers first
         for (int i = 0; i < subCount; i++) {
+            subReady.register();
             finisher.register();
-            new Thread(new SyncSubWorker(starter, finisher, this.numMsgs, this.size, secure)).start();
+            new Thread(new SyncSubWorker(starter, subReady, finisher, this.numMsgs, this.size, secure), "Sub-"+i).start();
         }
 
         // Wait for subscribers threads to initialize
-        finisher.arriveAndAwaitAdvance();
+        subReady.arriveAndAwaitAdvance();
 
         if (!errorQueue.isEmpty()) {
             Throwable error = errorQueue.take();
@@ -286,17 +276,21 @@ public class NatsBench {
         }
 
         // Now publishers
-        int remaining = this.numMsgs;
-        int perPubMsgs = this.numMsgs / pubCount;
-        for (int i = 0; i < pubCount; i++) {
-            finisher.register();
-            if (i == numPubs - 1) {
-                perPubMsgs = remaining;
+        if (pubCount != 0) { // running pub in another app
+            int remaining = this.numMsgs;
+            int perPubMsgs = this.numMsgs / pubCount;
+            for (int i = 0; i < pubCount; i++) {
+                finisher.register();
+                if (i == numPubs - 1) {
+                    perPubMsgs = remaining;
+                }
+                
+                new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure), "Pub-"+i).start();
+                
+                remaining -= perPubMsgs;
             }
-            
-            new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure)).start();
-            
-            remaining -= perPubMsgs;
+        } else {
+            System.out.println("Starting subscribers, time to run the publishers somewhere ...");
         }
 
         // Start everything running
@@ -314,7 +308,7 @@ public class NatsBench {
             throw new RuntimeException(error);
         }
 
-        if (subCount>0 && sent.get() != received.get()) {
+        if (subCount>0 && pubCount>0 && sent.get() != received.get()) {
             System.out.println("#### Error - sent and received are not equal "+sent.get() + " != " + received.get());
         }
 

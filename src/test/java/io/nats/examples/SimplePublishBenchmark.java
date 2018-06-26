@@ -20,6 +20,7 @@ import java.util.concurrent.CountDownLatch;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
+import io.nats.client.Options;
 
 public class SimplePublishBenchmark {
     public static void main(String args[]) throws InterruptedException {
@@ -43,7 +44,9 @@ public class SimplePublishBenchmark {
         }
 
         try {
-            Connection nc = Nats.connect();
+            Options options = new Options.Builder().server(Options.DEFAULT_URL).turnOnAdvancedStats().build();
+            Connection nc = Nats.connect(options);
+
             for (int k = 0;k<threads;k++) {
                 Thread t = new Thread(() -> {
                     try {starter.get();}catch(Exception e){}

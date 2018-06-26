@@ -45,11 +45,12 @@ public class ReconnectTests {
         } catch (Exception exp) {
         }
 
-        handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
+        handler.waitForStatusChange(500, TimeUnit.MILLISECONDS);
     }
 
     void checkReconnectingStatus(Connection nc) {
         Connection.Status status = nc.getStatus();
+        System.out.println("Checking reconnect status "+status);
         assertTrue("Reconnecting status", Connection.Status.RECONNECTING == status ||
                                             Connection.Status.DISCONNECTED == status);
     }
@@ -58,15 +59,17 @@ public class ReconnectTests {
     public void testSimpleReconnect() throws Exception { //Includes test for subscriptions and dispatchers across reconnect
         NatsConnection nc = null;
         TestHandler handler = new TestHandler();
-        int port;
+        int port = NatsTestServer.nextPort();
         Subscription sub;
 
+        handler.setPrintExceptions(true);
+
         try {
-            try (NatsTestServer ts = new NatsTestServer()) {
+            try (NatsTestServer ts = new NatsTestServer(port, false)) {
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(-1).
-                                    reconnectWait(Duration.ofMillis(20)).
+                                    reconnectWait(Duration.ofMillis(100)).
                                     connectionListener(handler).
                                     build();
                                     port = ts.getPort();

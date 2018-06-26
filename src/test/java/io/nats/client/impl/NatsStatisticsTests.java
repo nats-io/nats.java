@@ -53,7 +53,7 @@ public class NatsStatisticsTests {
             assertNotNull(str);
             assertTrue(str.length() > 0);
             assertTrue(str.contains("### Connection ###"));
-            assertTrue(str.contains("Average Time to read"));
+            assertTrue(str.contains("Socket Writes"));
         }
     }
 
@@ -80,7 +80,7 @@ public class NatsStatisticsTests {
                 assertTrue("bytes in", stats.getInBytes() > 100);
                 assertTrue("bytes out", stats.getInBytes() > 100);
                 assertEquals("messages in", 2, stats.getInMsgs()); // reply & request
-                assertEquals("messages out", 2, stats.getOutMsgs()); // request & reply
+                assertEquals("messages out", 6, stats.getOutMsgs()); // ping, sub, pub, msg, pub, msg
                 assertEquals("oks", 5, stats.getOKs()); //sub, pub, msg, pub, msg
             } finally {
                 nc.close();

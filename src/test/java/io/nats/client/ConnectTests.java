@@ -30,7 +30,7 @@ import io.nats.client.NatsServerProtocolMock.Progress;
 public class ConnectTests {
     @Test
     public void testDefaultConnection() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
+        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, true)) {
             Connection nc = Nats.connect();
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());

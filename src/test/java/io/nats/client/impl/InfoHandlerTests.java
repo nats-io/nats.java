@@ -81,7 +81,7 @@ public class InfoHandlerTests {
                 return;
             }
 
-            if (pong.startsWith("PONG")) {
+            if (pong != null && pong.startsWith("PONG")) {
                 System.out.println("*** Mock Server @" + ts.getPort() + " got PONG ...");
                 gotPong.complete(Boolean.TRUE);
             } else {

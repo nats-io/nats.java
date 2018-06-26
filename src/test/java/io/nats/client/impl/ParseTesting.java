@@ -28,7 +28,7 @@ public class ParseTesting {
             + "\"connect_urls\":[\"one\", \"two\"]" + "}";
 
     public static void main(String args[]) throws InterruptedException {
-        int iterations = 10_000_000;
+        int iterations = 1_000_000;
 
         System.out.println("###");
         System.out.printf("### Running parse tests with %s msgs.\n", NumberFormat.getInstance().format(iterations));
@@ -37,7 +37,7 @@ public class ParseTesting {
         runTest(iterations, "+OK");
         runTest(iterations, "PONG");
         runTest(iterations, "INFO " + infoJson);
-        runTest(iterations, "MSG subject 22 replyto 234");
+        runTest(iterations, "MSG longer.subject.abitlikeaninbox 22 longer.replyto.abitlikeaninbox 234");
         runTest(iterations, "-ERR some error with spaces in it");
 
     }
@@ -79,8 +79,8 @@ public class ParseTesting {
 
         return builder.toString();
     }
-
-    public static String grabNext(CharBuffer buffer) {
+    
+    public static String grabNextWithSubsequence(CharBuffer buffer) {
         if (!buffer.hasRemaining()) {
             return null;
         }
@@ -104,6 +104,110 @@ public class ParseTesting {
         buffer.position(buffer.limit());
         return retVal;
     }
+    
+    public static CharSequence grabNextAsSubsequence(CharBuffer buffer) {
+        if (!buffer.hasRemaining()) {
+            return null;
+        }
+
+        int start = buffer.position();
+
+        while (buffer.hasRemaining()) {
+            char c = buffer.get();
+
+            if (c == ' ') {
+                int end = buffer.position();
+                buffer.position(start);
+                CharBuffer slice = buffer.subSequence(0, end-start-1); //don't grab the space
+                buffer.position(end);
+                return slice;
+            }
+        }
+
+        buffer.position(start);
+        CharSequence retVal = buffer.subSequence(0, buffer.remaining());
+        buffer.position(buffer.limit());
+        return retVal;
+    }
+
+    static char[] buff = new char[1024];
+    public static String grabNextWithCharArray(CharBuffer buffer) {
+        int remaining = buffer.remaining();
+
+        if (remaining == 0) {
+            return null;
+        }
+
+        int i = 0;
+
+        while (remaining > 0) {
+            char c = buffer.get();
+
+            if (c == ' ') {
+                return new String(buff, 0, i);
+            } else {
+                buff[i] = c;
+                i++;
+            }
+            remaining--;
+        }
+
+        return new String(buff, 0, i);
+    }
+
+    public static String protocolFor(char[] chars, int length) {
+        if (length == 3) {
+            if (chars[0] == '+' && chars[1] == 'O' && chars[2] == 'K') {
+                return NatsConnection.OP_OK;
+            } else if (chars[0] == 'M' && chars[1] == 'S' && chars[2] == 'G') {
+                return NatsConnection.OP_MSG;
+            } else {
+                return null;
+            }
+        } else if (length == 4) { // order for uniqueness
+            if (chars[1] == 'I' && chars[0] == 'P' && chars[2] == 'N' && chars[3] == 'G') {
+                return NatsConnection.OP_PING;
+            } else if (chars[0] == 'P' && chars[1] == 'O' && chars[2] == 'N' && chars[3] == 'G') {
+                return NatsConnection.OP_PONG;
+            } else if (chars[0] == '-' && chars[1] == 'E' && chars[2] == 'R' && chars[3] == 'R') {
+                return NatsConnection.OP_ERR;
+            } else if (chars[2] == 'F' && chars[0] == 'I' && chars[1] == 'N' && chars[3] == 'O') {
+                return NatsConnection.OP_INFO;
+            }  else {
+                return null;
+            }
+        } else {
+            return null;
+        }
+    }
+
+    public static String grabProtocol(CharBuffer buffer) {
+        int remaining = buffer.remaining();
+
+        if (remaining == 0) {
+            return null;
+        }
+
+        int i = 0;
+
+        while (remaining > 0) {
+            char c = buffer.get();
+
+            if (c == ' ') {
+                return protocolFor(buff, i);
+            } else {
+                buff[i] = c;
+                i++;
+            }
+            remaining--;
+        }
+
+        return protocolFor(buff, i);
+    }
+
+    public static CharSequence grabNext(CharBuffer buffer) {
+        return grabNextAsSubsequence(buffer);
+    }
 
     public static String grabTheRest(CharBuffer buffer) {
         return buffer.toString();
@@ -124,12 +228,12 @@ public class ParseTesting {
         String[] oldversion = space.split(pl);
 
         buffer.rewind();
-        ArrayList<String> protoAware = new ArrayList<>();
-        String s = null;
+        ArrayList<String> opAware = new ArrayList<>();
+        CharSequence s = null;
         while((s = grabNext(buffer)) != null) {
-            protoAware.add(s);
+            opAware.add(s.toString());
         }
-        String[] protoAwareArray = protoAware.toArray(new String[0]);
+        String[] opAwareArray = opAware.toArray(new String[0]);
 
         System.out.printf("### Parsing server string: %s\n", serverMessage);
 
@@ -140,8 +244,8 @@ public class ParseTesting {
             System.exit(-1);
         }
 
-        boolean protoOk = Arrays.equals(protoAwareArray, oldversion);
-        System.out.println("### Old and protoaware versions are equal: " + protoOk);
+        boolean protoOk = Arrays.equals(opAwareArray, oldversion);
+        System.out.println("### Old and op-aware versions are equal: " + protoOk);
 
         if (!protoOk) {
             System.exit(-1);
@@ -149,11 +253,20 @@ public class ParseTesting {
 
         long start = System.nanoTime();
         for (int i = 0; i < iterations; i++) {
+            StandardCharsets.UTF_8.decode(protocolBuffer).toString();
+            protocolBuffer.rewind();
+        }
+        long end = System.nanoTime();
+        System.out.printf("### %s raw utf8 decode/sec.\n",
+                NumberFormat.getInstance().format(1_000_000_000L * iterations / (end - start)));
+
+        start = System.nanoTime();
+        for (int i = 0; i < iterations; i++) {
             String protocolLine = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
             space.split(protocolLine);
             protocolBuffer.rewind();
         }
-        long end = System.nanoTime();
+        end = System.nanoTime();
 
         System.out.printf("### %s old parses/sec.\n",
                 NumberFormat.getInstance().format(1_000_000_000L * iterations / (end - start)));
@@ -172,19 +285,14 @@ public class ParseTesting {
         start = System.nanoTime();
         for (int i = 0; i < iterations; i++) {
             CharBuffer charBuffer = StandardCharsets.UTF_8.decode(protocolBuffer);
-            String op = grabNext(charBuffer);
+            String op = grabProtocol(charBuffer);
 
             switch (op) {
             case NatsConnection.OP_MSG:
                 grabNext(charBuffer); //subject
                 grabNext(charBuffer); // sid
-                String replyTo = grabNext(charBuffer);
-                String lengthString = grabNext(charBuffer);
-
-                if (lengthString == null) {
-                    lengthString = replyTo;
-                    replyTo = null;
-                }
+                grabNext(charBuffer); // replyto or length
+                grabNext(charBuffer); // length or null
                 break;
             case NatsConnection.OP_ERR:
                 grabTheRest(charBuffer);
@@ -193,6 +301,8 @@ public class ParseTesting {
             case NatsConnection.OP_PING:
             case NatsConnection.OP_PONG:
             case NatsConnection.OP_INFO:
+                grabTheRest(charBuffer);
+                break;
             default:
                 break;
             }

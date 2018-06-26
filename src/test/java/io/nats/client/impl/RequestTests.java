@@ -41,58 +41,14 @@ import io.nats.client.Subscription;
 import io.nats.client.TestHandler;
 
 public class RequestTests {
-    
-    @Test(expected = IllegalStateException.class)
-    public void throwsIfClosed() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            nc.close();
-            nc.request("subject", null);
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testThrowsWithoutSubject() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            nc.request(null, null);
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testThrowsEmptySubject() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            nc.request("", null);
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testThrowsIfTooBig() throws IOException, InterruptedException {
-        String customInfo = "{\"server_id\":\"myid\",\"max_payload\":512}";
-
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
-            assertEquals("got custom info", 512, ((NatsConnection) nc).getInfo().getMaxPayload());
-            
-            byte[] body = new byte[513];
-            nc.request("subject", body);
-            assertFalse(true);
-        }
-    }
-
     @Test
     public void testSimpleRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
+                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             
             Dispatcher d = nc.createDispatcher((msg) -> {
+                System.out.println("#### publish to "+ msg.getReplyTo());
                 nc.publish(msg.getReplyTo(), null);
             });
             d.subscribe("subject");
@@ -269,7 +225,7 @@ public class RequestTests {
                     }
 
                     for (Future<Message> f : messages) {
-                        Message msg = f.get(500, TimeUnit.MILLISECONDS);
+                        Message msg = f.get(5000, TimeUnit.MILLISECONDS);
                         assertNotNull(msg);
                         assertEquals(1, msg.getData().length);
                     }
@@ -319,6 +275,7 @@ public class RequestTests {
                                     server(ts.getURI()).
                                     errorListener(handler).
                                     bufferSize(initialSize).
+                                    connectionTimeout(Duration.ofSeconds(10)).
                                     build();
 
             Connection nc = Nats.connect(options);
@@ -334,7 +291,7 @@ public class RequestTests {
                 Message msg = null;
 
                 try {
-                    msg = incoming.get(500, TimeUnit.MILLISECONDS);
+                    msg = incoming.get(30000, TimeUnit.MILLISECONDS);
                 } catch (Exception exp) {
                     exp.printStackTrace();
                 }
@@ -348,4 +305,49 @@ public class RequestTests {
             }
         }
     }
+    
+    @Test(expected = IllegalStateException.class)
+    public void throwsIfClosed() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            nc.close();
+            nc.request("subject", null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testThrowsWithoutSubject() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
+            nc.request(null, null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testThrowsEmptySubject() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(ts.getURI())) {
+            nc.request("", null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testThrowsIfTooBig() throws IOException, InterruptedException {
+        String customInfo = "{\"server_id\":\"myid\",\"max_payload\":512}";
+
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
+                Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
+            assertEquals("got custom info", 512, ((NatsConnection) nc).getInfo().getMaxPayload());
+            
+            byte[] body = new byte[513];
+            nc.request("subject", body);
+            assertFalse(true);
+        }
+    }
+
 }

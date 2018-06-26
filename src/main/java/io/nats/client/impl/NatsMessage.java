@@ -20,34 +20,33 @@ import io.nats.client.Subscription;
 
 class NatsMessage implements Message {
     private String sid;
-    private String subject;
-    private String replyTo;
+    private CharSequence subject;
+    private CharSequence replyTo;
     private byte[] data;
     private byte[] protocolBytes;
     private NatsSubscription subscription;
     private long sizeInBytes;
-
-    private long creationTime;
     
     NatsMessage next; // for linked list
 
+    private static String PUB_SPACE = NatsConnection.OP_PUB + " ";
+    private static String SPACE = " ";
+
     // Create a message to publish
     NatsMessage(String subject, String replyTo, byte[] data) {
-        creationTime = System.nanoTime();
-        // Each call to this method takes about 100ns due to the string append
-        // possible performance improvement opportunity (perhaps at the cost of readability).
-        StringBuilder protocolStringBuilder = new StringBuilder();
         this.subject = subject;
         this.replyTo = replyTo;
         this.data = data;
+        
+        StringBuilder protocolStringBuilder = new StringBuilder((2 * subject.length()) + 20); // guess a size based on replyTO = subject
+        protocolStringBuilder.append(PUB_SPACE);
 
-        protocolStringBuilder.append("PUB ");
         protocolStringBuilder.append(subject);
-        protocolStringBuilder.append(" ");
+        protocolStringBuilder.append(SPACE);
 
         if (replyTo != null) {
             protocolStringBuilder.append(replyTo);
-            protocolStringBuilder.append(" ");
+            protocolStringBuilder.append(SPACE);
         }
 
         protocolStringBuilder.append(String.valueOf(data.length));
@@ -60,15 +59,13 @@ class NatsMessage implements Message {
 
     // Create a protocol only message to publish
     NatsMessage(String protocol) {
-        creationTime = System.nanoTime();
         this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
         this.sizeInBytes = this.protocolBytes.length + 2;// for \r\n
     }
 
     // Create an incoming message for a subscriber
     // Doesn't check controlline size, since the server sent us the message
-    NatsMessage(String sid, String subject, String replyTo, int protocolLength) {
-        creationTime = System.nanoTime();
+    NatsMessage(String sid, CharSequence subject, CharSequence replyTo, int protocolLength) {
         this.sid = sid;
         this.subject = subject;
         this.replyTo = replyTo;
@@ -78,10 +75,6 @@ class NatsMessage implements Message {
 
     boolean isProtocol() {
         return this.subject == null;
-    }
-
-    long getCreationTime() {
-        return this.creationTime;
     }
 
     // Will be null on an incoming message
@@ -101,33 +94,36 @@ class NatsMessage implements Message {
         return this.sid;
     }
 
-    public String getSubject() {
-        return this.subject;
-    }
-
-    public String getReplyTo() {
-        return this.replyTo;
-    }
-
     // Only for incoming messages, with no protocol bytes
     void setData(byte[] data) {
         this.data = data;
         this.sizeInBytes += data.length + 2;// for \r\n, we already set the length for the protocol bytes in the constructor
     }
 
-    public byte[] getData() {
-        return this.data;
-    }
-
     void setSubscription(NatsSubscription sub) {
         this.subscription = sub;
     }
 
-    public Subscription getSubscription() {
+    NatsSubscription getNatsSubscription() {
         return this.subscription;
     }
 
-    NatsSubscription getNatsSubscription() {
+    public String getSubject() {
+        return this.subject.toString();
+    }
+
+    public String getReplyTo() {
+        if (this.replyTo == null) {
+            return null;
+        }
+        return this.replyTo.toString();
+    }
+
+    public byte[] getData() {
+        return this.data;
+    }
+
+    public Subscription getSubscription() {
         return this.subscription;
     }
 }

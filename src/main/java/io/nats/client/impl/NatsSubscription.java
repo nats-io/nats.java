@@ -117,10 +117,6 @@ class NatsSubscription implements Subscription {
 
         this.incrementMessageCount();
 
-        if (msg != null) {
-            this.connection.getNatsStatistics().registerMessageTime(System.nanoTime() - msg.getCreationTime());
-        }
-
         if (this.reachedMax()) {
             this.connection.invalidate(this);
         }

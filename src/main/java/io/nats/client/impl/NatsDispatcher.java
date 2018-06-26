@@ -59,7 +59,6 @@ class NatsDispatcher implements Dispatcher, Runnable {
                     continue;
                 }
 
-                this.connection.getNatsStatistics().registerMessageTime(System.nanoTime() - msg.getCreationTime());
                 NatsSubscription sub = msg.getNatsSubscription();
 
                 if (sub != null && sub.isActive()) {

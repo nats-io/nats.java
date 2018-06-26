@@ -13,16 +13,12 @@
 
 package io.nats.client.impl;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
-import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -40,9 +36,8 @@ public class SocketDataPort implements DataPort {
     private Socket socket;
     private SSLSocket sslSocket;
 
-    private ReadableByteChannel in;
-    private WritableByteChannel out;
-    private BufferedOutputStream outBuffer;
+    private InputStream in;
+    private OutputStream out;
 
     public void connect(String serverURI, NatsConnection conn) throws IOException {
         try {
@@ -59,9 +54,8 @@ public class SocketDataPort implements DataPort {
 
             socket.connect(new InetSocketAddress(host, port), (int) timeout);
 
-            in = Channels.newChannel(new BufferedInputStream(socket.getInputStream()));
-            outBuffer = new BufferedOutputStream(socket.getOutputStream());
-            out = Channels.newChannel(outBuffer);
+            in = socket.getInputStream();
+            out = socket.getOutputStream();
         } catch (Exception ex) {
             throw new IOException(ex);
         }
@@ -91,18 +85,17 @@ public class SocketDataPort implements DataPort {
             this.connection.handleCommunicationIssue(ex);
         }
 
-        in = Channels.newChannel(new BufferedInputStream(sslSocket.getInputStream()));
-        outBuffer = new BufferedOutputStream(sslSocket.getOutputStream());
-        out = Channels.newChannel(outBuffer);
+        //in = Channels.newChannel(new BufferedInputStream(sslSocket.getInputStream()));
+        in = sslSocket.getInputStream();
+        out = sslSocket.getOutputStream();
     }
 
-    public int read(ByteBuffer dst) throws IOException {
-        return in.read(dst);
+    public int read(byte[] dst, int off, int len) throws IOException {
+        return in.read(dst, off, len);
     }
 
-    public void write(ByteBuffer src) throws IOException {
-        out.write(src);
-        outBuffer.flush();
+    public void write(byte[] src, int toWrite) throws IOException {
+        out.write(src, 0, toWrite);
     }
 
     public void close() throws IOException {

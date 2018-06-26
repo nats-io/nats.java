@@ -82,7 +82,7 @@ public class SimpleRequestBenchmark {
                         Future<Message> msg = nc.request("request_benchmark", body);
                         msgs.add(msg);
 
-                        if (i!=0 && i%100==0) {
+                        if (i!=0 && i%1_000==0) {
                             for (Future<Message> m : msgs) {
                                 try {
                                     m.get(100, TimeUnit.MILLISECONDS);

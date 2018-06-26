@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 public interface DataPort {
     public void connect(String serverURI, NatsConnection conn) throws IOException;
@@ -25,9 +24,9 @@ public interface DataPort {
      */
     public void upgradeToSecure() throws IOException;
 
-    public int read(ByteBuffer dst) throws IOException;
+    public int read(byte[] dst, int off, int len) throws IOException;
 
-    public void write(ByteBuffer src) throws IOException;
+    public void write(byte[] src, int toWrite) throws IOException;
 
     public void close() throws IOException;
 }

@@ -65,6 +65,7 @@ class NatsConnection implements Connection {
     static final String OP_CONNECT = "CONNECT";
     static final String OP_INFO = "INFO";
     static final String OP_SUB = "SUB";
+    static final String OP_PUB = "PUB";
     static final String OP_UNSUB = "UNSUB";
     static final String OP_MSG = "MSG";
     static final String OP_PING = "PING";
@@ -200,7 +201,7 @@ class NatsConnection implements Connection {
                 lastServer = server;
                 tries++;
                 
-                if (tries > maxTries && maxTries > 0) {
+                if (maxTries > 0 && tries > maxTries) {
                     break;
                 } else if (isConnected()) {
                     this.statistics.incrementReconnects();
@@ -578,9 +579,6 @@ class NatsConnection implements Connection {
         if (this.status == Status.RECONNECTING && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
             throw new IllegalStateException("Unable to queue any more messages during reconnect, max buffer is "+getMaxPayload());
         }
-
-        this.statistics.incrementOutMsgs();
-        this.statistics.incrementOutBytes(msg.getSizeInBytes());
         queueOutgoing(msg);
     }
 
@@ -605,7 +603,7 @@ class NatsConnection implements Connection {
     }
 
     void invalidate(NatsSubscription sub) {
-        String sid = sub.getSID();
+        CharSequence sid = sub.getSID();
 
         subscriberLock.writeLock().lock();
         try {
@@ -640,7 +638,7 @@ class NatsConnection implements Connection {
             return;// We will setup sub on reconnect or ignore
         }
 
-        String sid = sub.getSID();
+        CharSequence sid = sub.getSID();
         StringBuilder protocolBuilder = new StringBuilder();
         protocolBuilder.append(OP_UNSUB);
         protocolBuilder.append(" ");
@@ -676,7 +674,7 @@ class NatsConnection implements Connection {
         return sub;
     }
 
-    void sendSubscriptionMessage(String sid, String subject, String queueName) {
+    void sendSubscriptionMessage(CharSequence sid, String subject, String queueName) {
         if (!isConnected()) { 
             return;// We will setup sub on reconnect or ignore
         }
@@ -913,28 +911,27 @@ class NatsConnection implements Connection {
     }
 
     void readInitialInfo() throws IOException {
-        ByteBuffer readBuffer = ByteBuffer.allocate(options.getBufferSize());
+        byte[] readBuffer = new byte[options.getBufferSize()];
         ByteBuffer protocolBuffer = ByteBuffer.allocate(options.getBufferSize());
         boolean gotCRLF = false;
         boolean gotCR = false;
         int read = 0;
 
         while (!gotCRLF) {
-            read = this.dataPort.read(readBuffer);
+            read = this.dataPort.read(readBuffer, 0, readBuffer.length);
 
             if (read < 0) {
                 break;
             }
 
-            readBuffer.flip();
-
-            while (readBuffer.hasRemaining()) {
-                byte b = readBuffer.get();
+            int i = 0;
+            while (i < read) {
+                byte b = readBuffer[i++];
 
                 if (gotCR) {
                     if (b != LF) {
                         throw new IOException("Missed LF after CR waiting for INFO.");
-                    } else if (readBuffer.hasRemaining()) {
+                    } else if (i < read) {
                         throw new IOException("Read past initial info message.");
                     }
 
@@ -951,8 +948,6 @@ class NatsConnection implements Connection {
                     protocolBuffer.put(b);
                 }
             }
-
-            readBuffer.clear();
 
             if (gotCRLF) {
                 break;
@@ -1225,5 +1220,10 @@ class NatsConnection implements Connection {
         buffer.flip();
         newBuffer.put(buffer);
         return newBuffer;
+    }
+
+    // For testing
+    NatsConnectionReader getReader() {
+        return this.reader;
     }
 }
