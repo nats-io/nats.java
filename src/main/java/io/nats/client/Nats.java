@@ -32,6 +32,14 @@ public class Nats {
     /**
      * Connect to the default URL ({#value Options#DEFAULT_URL}) with all of the
      * default options.
+     * 
+     * <p>This is a synchronous call, and the connection should be ready for use on return
+     * there are network timing issues that could result in a successful connect call but
+     * the connection is invalid soon after return, where soon is in the network/thread world.
+     * 
+     * @throws IOException if a networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     * @return the connection
      */
     public static Connection connect() throws IOException, InterruptedException {
         Options options = new Options.Builder().server(Options.DEFAULT_URL).build();
@@ -39,29 +47,26 @@ public class Nats {
     }
 
     /**
-     * The Java client generally expects URLs of the form: <blockquote>
+     * The Java client generally expects URLs of the form {@code nats://hostname:port}
      * 
-     * <pre>
-     * nats://hostname:port
-     * </pre>
+     * <p>but also allows urls with a user password {@code nats://user:pass@hostname:port}.
      * 
-     * </blockquote> but also allows urls with a user password: <blockquote>
+     * <p>or token in them {@code nats://token@hostname:port}.
      * 
-     * <pre>
-     * nats://user:pass@hostname:port
-     * </pre>
-     * 
-     * </blockquote> or token in them: <blockquote>
-     * 
-     * <pre>
-     * nats://token@hostname:port
-     * </pre>
-     * 
-     * </blockquote> Moreover, you can initiate a TLS connection, by using the `tls`
+     * <p>Moreover, you can initiate a TLS connection, by using the `tls`
      * schema, whic will use the default SSLContext, or fail if one is not set. For
      * testing and development, the `opentls` schema is support when the server is
      * in non-verify mode. In this case, the client will accept any server
      * certificate and will not provide one of its own.
+     * 
+     * <p>This is a synchronous call, and the connection should be ready for use on return
+     * there are network timing issues that could result in a successful connect call but
+     * the connection is invalid soon after return, where soon is in the network/thread world.
+     * 
+     * @param url the url of the server, ie. nats://localhost:4222
+     * @throws IOException if a networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     * @return the connection
      */
     public static Connection connect(String url) throws IOException, InterruptedException {
         Options options = new Options.Builder().server(url).build();
@@ -71,6 +76,16 @@ public class Nats {
     /**
      * Options can be used to set the server URL, or multiple URLS, callback
      * handlers for various errors, and connection events.
+     * 
+     * 
+     * <p>This is a synchronous call, and the connection should be ready for use on return
+     * there are network timing issues that could result in a successful connect call but
+     * the connection is invalid soon after return, where soon is in the network/thread world.
+     * 
+     * @param options the options object to use to create the connection
+     * @throws IOException if a networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     * @return the connection
      */
     public static Connection connect(Options options) throws IOException, InterruptedException {
         return createConnection(options, false);
@@ -96,11 +111,11 @@ public class Nats {
      *                           connection as any other and attempt reconnects on
      *                           failure
      * 
-     * @throws IllegalArgumentException if no connection listener is set in the
-     *                                  options
+     * @throws IllegalArgumentException if no connection listener is set in the options
+     * @throws InterruptedException if the current thread is interrupted
      */
     public static void connectAsychronously(Options options, boolean reconnectOnConnect)
-            throws IOException, InterruptedException {
+            throws InterruptedException {
 
         if (options.getConnectionListener() == null) {
             throw new IllegalArgumentException("Connection Listener required in connectAsychronously");

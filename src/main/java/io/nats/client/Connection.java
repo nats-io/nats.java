@@ -50,16 +50,10 @@ public interface Connection extends AutoCloseable {
      * not</strong> be copied. The expected usage with string content is something
      * like:
      * 
-     * <p>
-     * <blockquote>
-     * 
      * <pre>
      * nc = Nats.connect()
      * nc.publish("destination", "message".getBytes("UTF-8"))
      * </pre>
-     * 
-     * </blockquote>
-     * </p>
      * 
      * where the sender creates a byte array immediatly before calling publish.
      * 
@@ -75,16 +69,10 @@ public interface Connection extends AutoCloseable {
      * message body <strong>will not</strong> be copied. The expected usage with
      * string content is something like:
      * 
-     * <p>
-     * <blockquote>
-     * 
      * <pre>
      * nc = Nats.connect()
      * nc.publish("destination", "reply-to", "message".getBytes("UTF-8"))
      * </pre>
-     * 
-     * </blockquote>
-     * </p>
      * 
      * where the sender creates a byte array immediatly before calling publish.
      * 
@@ -100,15 +88,11 @@ public interface Connection extends AutoCloseable {
     /**
      * Create a synchronous subscription to the specified subject.
      * 
-     * <p>
-     * Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
      * method to read messages for this subscription.
-     * </p>
      * 
-     * <p>
-     * See {@link #createDispatcher(MessageHandler) createDispatcher} for
+     * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
-     * </p>
      * 
      * @param subject
      *                    The subject to subscribe to.
@@ -119,15 +103,11 @@ public interface Connection extends AutoCloseable {
     /**
      * Create a synchronous subscription to the specified subject and queue.
      * 
-     * <p>
-     * Use the {@link Subscription#nextMessage(Duration) nextMessage} method to read
+     * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage} method to read
      * messages for this subscription.
-     * </p>
      * 
-     * <p>
-     * See {@link #createDispatcher(MessageHandler) createDispatcher} for
+     * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
-     * </p>
      * 
      * 
      * @param subject
@@ -154,24 +134,15 @@ public interface Connection extends AutoCloseable {
      * or more subscriptions into a single callback thread. All messages go to the
      * same {@code MessageHandler}.
      * 
-     * <p>
-     * Use the Dispatcher's {@link Dispatcher#subscribe(String)} and
+     * <p>Use the Dispatcher's {@link Dispatcher#subscribe(String)} and
      * {@link Dispatcher#subscribe(String, String)} methods to add subscriptions.
-     * </p>
-     * 
-     * <p>
-     * <blockquote>
      * 
      * <pre>
      * nc = Nats.connect()
-     * d = nc.createDispatcher((m) -> System.out.println(m)).subscribe("hello");
+     * d = nc.createDispatcher((m) -&gt; System.out.println(m)).subscribe("hello");
      * </pre>
      * 
-     * </blockquote>
-     * </p>
-     * 
-     * @param handler
-     *                    The target for the messages.
+     * @param handler The target for the messages.
      * @return A new Dispatcher.
      */
     public Dispatcher createDispatcher(MessageHandler handler);
@@ -181,9 +152,10 @@ public interface Connection extends AutoCloseable {
      * protocol message to and from the server. Passing null is equivalent to
      * passing 0, which will wait forever.
      * 
-     * @param timeout
-     *                    The time to wait for the flush to succeed, pass 0 to wait
+     * @param timeout The time to wait for the flush to succeed, pass 0 to wait
      *                    forever.
+     * @throws TimeoutException if the timeout is exceeded
+     * @throws InterruptedException if the underlying thread is interrupted
      */
     public void flush(Duration timeout) throws TimeoutException, InterruptedException;
 
@@ -191,7 +163,7 @@ public interface Connection extends AutoCloseable {
      * Close the connection and release all blocking calls like {@link #flush flush}
      * and {@link Subscription#nextMessage(Duration) nextMessage}.
      * 
-     * @throw InterruptedException if the thread, or one owned by the connection is interrupted during the close
+     * @throws InterruptedException if the thread, or one owned by the connection is interrupted during the close
      */
     public void close() throws InterruptedException ;
 
@@ -219,7 +191,7 @@ public interface Connection extends AutoCloseable {
     public Collection<String> getServers();
 
     /**
-     * Get some useful statistics about the client.
+     * @return a wrapper for useful statistics about the connection
      */
     public Statistics getStatistics();
 }

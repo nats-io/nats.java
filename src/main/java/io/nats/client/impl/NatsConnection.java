@@ -733,7 +733,7 @@ class NatsConnection implements Connection {
 
         if (inboxDispatcher.get() == null) {
             NatsDispatcher d = new NatsDispatcher(this, (msg) -> {
-                deliverRequest(msg);
+                deliverReply(msg);
             });
 
             if (inboxDispatcher.compareAndSet(null, d)) {
@@ -766,7 +766,7 @@ class NatsConnection implements Connection {
         return future;
     }
 
-    void deliverRequest(Message msg) {
+    void deliverReply(Message msg) {
         String subject = msg.getSubject();
         String token = getResponseToken(subject);
         CompletableFuture<Message> f = null;

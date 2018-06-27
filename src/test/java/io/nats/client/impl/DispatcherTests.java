@@ -307,7 +307,7 @@ public class DispatcherTests {
                     Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
             final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
-            int msgCount = 10;
+            int msgCount = 100;
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
@@ -331,7 +331,7 @@ public class DispatcherTests {
             nc.publish("phase1", new byte[16]);
 
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            phase1.get(200, TimeUnit.MILLISECONDS); // make sure we got them
+            phase1.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(msgCount, q.size());
 
@@ -343,7 +343,7 @@ public class DispatcherTests {
             nc.publish("phase2", new byte[16]);
 
             nc.flush(Duration.ofMillis(1000)); // Wait for it all to get processed
-            phase2.get(200, TimeUnit.MILLISECONDS); // make sure we got them
+            phase2.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(msgCount + 1, q.size());
         }

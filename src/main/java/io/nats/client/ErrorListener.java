@@ -30,6 +30,8 @@ public interface ErrorListener {
      * during Dispatcher callbacks, IOExceptions from the underlying socket, etc..
      * The library will try to handle these, via reconnect or catching them, but they are
      * forwarded here in case the application code needs them for debugging purposes.
+     * @param conn The connection associated with the error
+     * @param exp The exception that has occured, and was handled by the library
      */
     public void exceptionOccurred(Connection conn, Exception exp);
 }

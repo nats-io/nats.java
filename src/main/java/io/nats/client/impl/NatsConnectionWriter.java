@@ -87,6 +87,7 @@ class NatsConnectionWriter implements Runnable {
             this.outgoing.resume();
 
             while (this.running.get()) {
+                sendPosition = 0;
                 NatsMessage msg = this.outgoing.accumulate(this.sendBuffer.length, maxMessages, waitForMessage);
 
                 if (msg == null) { // Make sure we are still running
@@ -98,9 +99,7 @@ class NatsConnectionWriter implements Runnable {
 
                     if (sendPosition + size > sendBuffer.length) {
                         if (sendPosition == 0) { // have to resize
-                            byte[] newSendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2)];
-                            System.arraycopy(sendBuffer, 0, newSendBuffer, 0, sendPosition);
-                            this.sendBuffer = newSendBuffer;
+                            this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2)];
                         } else { // else send and go to next message
                             dataPort.write(sendBuffer, sendPosition);
                             connection.getNatsStatistics().registerWrite(sendPosition);
@@ -135,10 +134,8 @@ class NatsConnectionWriter implements Runnable {
                     msg = msg.next;
                 }
 
-                int toWrite = sendPosition;
-                dataPort.write(sendBuffer, toWrite);
-                connection.getNatsStatistics().registerWrite(toWrite);
-                sendPosition = 0;
+                dataPort.write(sendBuffer, sendPosition);
+                connection.getNatsStatistics().registerWrite(sendPosition);
             }
         } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);

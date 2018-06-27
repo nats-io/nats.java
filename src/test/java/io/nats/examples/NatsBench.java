@@ -111,6 +111,7 @@ public class NatsBench {
         Options.Builder builder = new Options.Builder();
         builder.noReconnect();
         builder.servers(servers);
+        //builder.turnOnAdvancedStats();
 
         if (secure) {
             builder.secure();
@@ -174,6 +175,8 @@ public class NatsBench {
                 long end = System.nanoTime();
 
                 bench.addSubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
+
+                //System.out.println(nc.getStatistics());
 
                 // Clean up
                 sub.unsubscribe();

@@ -108,6 +108,7 @@ public class Options {
      * This property is defined as 5 seconds.
      */
     public static final Duration DEFAULT_REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
+
     /**
      * Default maximum number of pings that have not received a response.
      *
@@ -147,13 +148,13 @@ public class Options {
     /**
      * Default size for buffers in the connection, not as available as other settings, this is primarily changed for testing.
      */
-    public static final int DEFAULT_BUFFER_SIZE = 32 * 1024;
+    public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
 
     static final String PFX = "io.nats.client.";
 
     /**
      * {@value #PROP_CONNECTION_CB}, see
-     * {@link Builder#ConnectionListener(ConnectionListener) ConnectionListener}.
+     * {@link Builder#connectionListener(ConnectionListener) connectionListener}.
      */
     public static final String PROP_CONNECTION_CB = PFX + "callback.connection";
     /**
@@ -163,7 +164,7 @@ public class Options {
     public static final String PROP_DATA_PORT_TYPE = PFX + "dataport.type";
     /**
      * {@value #PROP_ERROR_LISTENER}, see
-     * {@link Builder#ErrorListener(ErrorListener) ErrorListener}.
+     * {@link Builder#errorListener(ErrorListener) errorListener}.
      */
     public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
     /**
@@ -176,8 +177,8 @@ public class Options {
      */
     public static final String PROP_PING_INTERVAL = PFX + "pinginterval";
     /**
-     * {@value #PROP_CLEANUP_INTERVAL}, see {@link Builder#reqestCleanupInterval(Duration)
-     * reqestCleanupInterval}.
+     * {@value #PROP_CLEANUP_INTERVAL}, see {@link Builder#requestCleanupInterval(Duration)
+     * requestCleanupInterval}.
      */
     public static final String PROP_CLEANUP_INTERVAL = PFX + "cleanupinterval";
     /**
@@ -261,7 +262,7 @@ public class Options {
      */
     public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
     /**
-     * {@value #PROP_MAX_CONTROL_LINE}, see {@link Builder#maxControlLine()
+     * {@value #PROP_MAX_CONTROL_LINE}, see {@link Builder#maxControlLine(int)
      * maxControlLine}.
      */
     public static final String PROP_MAX_CONTROL_LINE = "max.control.line";
@@ -731,7 +732,7 @@ public class Options {
         /**
          * Set the interval between attempts to ping the server.
          * 
-         * @param the time between client to server pings
+         * @param time the time between client to server pings
          * @return the Builder for chaining
          */
         public Builder pingInterval(Duration time) {
@@ -763,6 +764,8 @@ public class Options {
 
         /**
          * Sets the initial size for buffers in the conneciton, primarily for testing.
+         * @param size the size in bytes to make buffers for connections created with this options
+         * @return the Builder for chaining
          */
         public Builder bufferSize(int size) {
             this.bufferSize = size;
@@ -1105,6 +1108,7 @@ public class Options {
     /**
      * Create the options string sent with a connect message.
      * 
+     * @param includeAuth tells the options to build a connection string that includes auth information
      * @return the options String, basically JSON
      */
     public String buildProtocolConnectOptionsString(boolean includeAuth) {

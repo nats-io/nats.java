@@ -48,7 +48,6 @@ public class RequestTests {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             
             Dispatcher d = nc.createDispatcher((msg) -> {
-                System.out.println("#### publish to "+ msg.getReplyTo());
                 nc.publish(msg.getReplyTo(), null);
             });
             d.subscribe("subject");
@@ -60,6 +59,29 @@ public class RequestTests {
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+        }
+    }
+
+    @Test
+    public void testMultipleRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                nc.publish(msg.getReplyTo(), new byte[7]);
+            });
+            d.subscribe("subject");
+
+            for (int i=0; i<10; i++) {
+                Future<Message> incoming = nc.request("subject", new byte[11]);
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertNotNull(msg);
+                assertEquals(7, msg.getData().length);
+                assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+            }
         }
     }
 

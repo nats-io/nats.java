@@ -52,7 +52,7 @@ public class MessageContentTests {
             String body = "hello world";
             byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
             Future<Message> incoming = nc.request("subject", bodyBytes);
-            Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+            Message msg = incoming.get(50000, TimeUnit.MILLISECONDS);
 
             assertNotNull(msg);
             assertEquals(bodyBytes.length, msg.getData().length);

@@ -101,7 +101,7 @@ public class ReconnectTests {
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
 
-            try (NatsTestServer ts = new NatsTestServer(port, true)) {
+            try (NatsTestServer ts = new NatsTestServer(port, false)) {
                 handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 

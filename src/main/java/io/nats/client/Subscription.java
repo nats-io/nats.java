@@ -33,14 +33,12 @@ public interface Subscription {
      * While useful in some situations, i.e. tests and simple examples, using a
      * Dispatcher is generally easier and likely preferred for applciation code.
      * 
-     * <p>
-     * Will return null if the calls times out.
-     * </p>
+     * <p>Will return null if the calls times out.
      * 
-     * <p>
-     * Use a timeout of 0 to wait indefinitely. This could still be interrupted if
+     * 
+     * <p>Use a timeout of 0 to wait indefinitely. This could still be interrupted if
      * the subscription is unsubscribed or the client connection is closed.
-     * </p>
+     * 
      * 
      * @param timeout The maximum time to wait.
      * @return The next message for this subscriber or null if there is a timeout.
@@ -52,7 +50,7 @@ public interface Subscription {
     /**
      * Unsubscribe this subscription and stop listening for messages.
      * 
-     * <p>Stops messages to the subscription locally and notifies the server.</p>
+     * <p>Stops messages to the subscription locally and notifies the server.
      * 
      * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
@@ -65,13 +63,13 @@ public interface Subscription {
      * <p>If the subscription has already received <code>after</code> messages, it will not receive
      * more. The provided limit is a lifetime total for the subscription, with the caveat
      * that if the subscription already received more than <code>after</code> when unsubscribe is called
-     * the client will not travel back in time to stop them.</p>
+     * the client will not travel back in time to stop them.
      * 
-     * <p>Supports chaining so that you can do things like:</p>
-     * <p><blockquote><pre>
+     * <p>Supports chaining so that you can do things like:
+     * <pre>
      * nc = Nats.connect()
      * m = nc.subscribe("hello").unsubscribe(1).nextMessage(Duration.ZERO);
-     * </pre></blockquote></p>
+     * </pre>
      * 
      * @param after The number of messages to accept before unsubscribing
      * @return The subscription so that calls can be chained

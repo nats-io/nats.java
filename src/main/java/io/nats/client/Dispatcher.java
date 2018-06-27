@@ -22,7 +22,7 @@ public interface Dispatcher {
      * <p>
      * This call is a no-op if the dispatcher already has a subscription to the
      * specified subject.
-     * </p>
+     * 
      * 
      * @param subject The subject to subscribe to.
      * @return The Dispatcher, so calls can be chained.
@@ -36,7 +36,7 @@ public interface Dispatcher {
      * <p>
      * This call is a no-op if the dispatcher already has a subscription to the
      * specified subject (regardless of the queue name).
-     * </p>
+     * 
      * 
      * @param subject The subject to subscribe to.
      * @param queue The queue group to join.
@@ -47,7 +47,7 @@ public interface Dispatcher {
     /**
      * Unsubscribe from the specified subject, the queue is implicit.
      * 
-     * <p>Stops messages to the subscription locally and notifies the server.</p>
+     * <p>Stops messages to the subscription locally and notifies the server.
      * 
      * @param subject The subject to unsubscribe from.
      * @return The Dispatcher, so calls can be chained.
@@ -61,14 +61,14 @@ public interface Dispatcher {
      * <p>If the subscription has already received <code>after</code> messages, it will not receive
      * more. The provided limit is a lifetime total for the subscription, with the caveat
      * that if the subscription already received more than <code>after</code> when unsubscribe is called
-     * the client will not travel back in time to stop them.</p>
+     * the client will not travel back in time to stop them.
      * 
      * <p>For example, to get a single asynchronous message, you might do:
      * <blockquote><pre>
      * nc = Nats.connect()
      * d = nc.createDispatcher(myHandler);
      * d.subscribe("hello").unsubscribe("hello", 1);
-     * </pre></blockquote></p>
+     * </pre></blockquote>
      * 
      * @param subject The subject to unsubscribe from.
      * @param after The number of messages to accept before unsubscribing
