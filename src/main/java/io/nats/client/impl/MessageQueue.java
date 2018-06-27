@@ -170,7 +170,7 @@ class MessageQueue {
         if (maxMessages <= 1 || size >= maxSize) {
             this.sizeInBytes.addAndGet(-size);
             this.length.decrementAndGet();
-            // Don't need this in single reader mode - signalIfNotEmpty();
+            signalIfNotEmpty();
             return msg;
         }
 
@@ -203,7 +203,7 @@ class MessageQueue {
         this.sizeInBytes.addAndGet(-size);
         this.length.addAndGet(-count);
 
-        // Don't need this in single reader mode - signalIfNotEmpty();
+        signalIfNotEmpty();
         return msg;
     }
 

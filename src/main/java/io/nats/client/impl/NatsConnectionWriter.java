@@ -34,7 +34,6 @@ class NatsConnectionWriter implements Runnable {
     private final AtomicBoolean running;
 
     private byte[] sendBuffer;
-    private int sendPosition;
 
     private MessageQueue outgoing;
 
@@ -87,7 +86,7 @@ class NatsConnectionWriter implements Runnable {
             this.outgoing.resume();
 
             while (this.running.get()) {
-                sendPosition = 0;
+                int sendPosition = 0;
                 NatsMessage msg = this.outgoing.accumulate(this.sendBuffer.length, maxMessages, waitForMessage);
 
                 if (msg == null) { // Make sure we are still running
