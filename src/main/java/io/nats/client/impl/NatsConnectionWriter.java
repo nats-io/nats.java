@@ -56,7 +56,7 @@ class NatsConnectionWriter implements Runnable {
         this.dataPortFuture = dataPortFuture;
         this.running.set(true);
         this.stopped = new CompletableFuture<>(); // New future
-        this.thread = new Thread(this);
+        this.thread = new Thread(this, "Nats Connection Writer");
         this.thread.start();
     }
 

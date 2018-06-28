@@ -82,7 +82,7 @@ class NatsConnectionReader implements Runnable {
         this.dataPortFuture = dataPortFuture;
         this.running.set(true);
         this.stopped = new CompletableFuture<>(); // New future
-        this.thread = new Thread(this);
+        this.thread = new Thread(this, "Nats Connection Reader");
         this.thread.start();
     }
 

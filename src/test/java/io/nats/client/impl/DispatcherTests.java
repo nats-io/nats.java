@@ -331,7 +331,7 @@ public class DispatcherTests {
             d.subscribe("subject");
             d.subscribe("phase1");
             d.subscribe("phase2");
-            nc.flush(Duration.ofMillis(500));// Get them all to the server
+            nc.flush(Duration.ofMillis(1000));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
@@ -339,10 +339,10 @@ public class DispatcherTests {
             nc.publish("phase1", new byte[16]);
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
 
-            phase1.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
+            phase1.get(5000, TimeUnit.MILLISECONDS);
 
             d.unsubscribe("subject");
-            nc.flush(Duration.ofMillis(500));// Get them all to the server
+            nc.flush(Duration.ofMillis(1000));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
@@ -462,7 +462,7 @@ public class DispatcherTests {
 
             d.subscribe("subject");
             d.subscribe("done");
-            nc.flush(Duration.ofMillis(500));// Get them all to the server
+            nc.flush(Duration.ofMillis(1000));// Get them all to the server
 
             nc.publish("subject", new byte[16]);
             nc.publish("subject", new byte[16]);

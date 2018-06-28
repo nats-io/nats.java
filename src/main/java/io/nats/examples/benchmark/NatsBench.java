@@ -37,7 +37,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * A utility class for measuring NATS performance.
+ * A utility class for measuring NATS performance, similar to the version in go and node.
+ * The various tradeoffs to make this code act/work like the other versions, including the
+ * previous java version, make it a bit &quot;crufty&quot; for an example. See autobench for
+ * an example with minimal boilerplate.
  */
 public class NatsBench {
     final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();

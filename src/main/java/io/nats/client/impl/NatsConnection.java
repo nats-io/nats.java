@@ -275,7 +275,7 @@ class NatsConnection implements Connection {
             pongFuture.get(connectTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             if (this.timer == null) {
-                this.timer = new Timer();
+                this.timer = new Timer("Nats Connection Timer");
 
                 long pingMillis = this.options.getPingInterval().toMillis();
 
