@@ -25,4 +25,8 @@ public class BadHandler implements ErrorListener, ConnectionListener {
     public void connectionEvent(Connection conn, Events type) {
         throw new IllegalStateException("Its good to be bad");
     }
+    
+    public void slowConsumerDetected(Connection conn, Consumer consumer) {
+        throw new IllegalStateException("Its good to be bad");
+    }
 }

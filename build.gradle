@@ -6,8 +6,6 @@ apply plugin: 'java'
 apply plugin: 'jacoco'
 
 dependencies {
-    api 'org.apache.commons:commons-math3:3.6.1'
-    implementation 'com.google.guava:guava:23.0'
     testImplementation 'junit:junit:4.12'
 }
 
@@ -15,19 +13,20 @@ repositories {
     jcenter()
 }
 
-version = '0.1.0'
+version = '2.0.0'
 
 jar {
     manifest {
         attributes('Implementation-Title': 'Java Nats',
-                   'Implementation-Version': '0.1.0')
+                   'Implementation-Version': '2.0.0')
     }
+    exclude("io/nats/examples/**")
 }
 
 sourceSets {
     main {
         java {
-            srcDirs = ['src/main/java', 'src/main/javadoc']
+            srcDirs = ['src/main/java','src/examples/java']
         }
     }
     test {
@@ -44,16 +43,34 @@ task generateAPIDoc(type: Javadoc) {
     excludes = ['io/nats/client/impl', 'io/nats/benchmark']
     classpath = sourceSets.main.runtimeClasspath
     doLast {
+            exec {
+                println "Updating favicon on all html files"
+                workingDir 'build/docs/javadoc'
+                // Only on linux, mac at this point
+                commandLine 'find', '.', '-name', '*.html', '-exec', 'sed', '-i', '-e', 's#<head>#<head><link rel="icon" type="image/ico" href="favicon.ico">#', '{}', ';'
+            }
             copy {
+                println "Copying images to javadoc folder"
                 from 'src/main/javadoc/images'
                 into 'build/docs/javadoc'
             }
         }
 }
 
+task examplesJar(type: Jar) {
+    baseName 'java-nats-examples'
+    manifest {
+        attributes('Implementation-Title': 'Java Nats Examples',
+                   'Implementation-Version': '2.0.0')
+    }
+    from(sourceSets.main.output) {
+        include "io/nats/examples/**"
+    }
+}
+
 jacocoTestReport {
     reports {
-        xml.enabled true
+        xml.enabled false
         csv.enabled false
         html.enabled true
     }

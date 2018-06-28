@@ -13,7 +13,7 @@
 
 package io.nats.client;
 
-public interface Dispatcher {
+public interface Dispatcher extends Consumer {
 
     /**
      * Create a subscription to the specified subject under the control of this
@@ -26,6 +26,7 @@ public interface Dispatcher {
      * 
      * @param subject The subject to subscribe to.
      * @return The Dispatcher, so calls can be chained.
+     * @throws IllegalStateException if the dispatcher was closed
      */
     public Dispatcher subscribe(String subject);
 
@@ -41,6 +42,7 @@ public interface Dispatcher {
      * @param subject The subject to subscribe to.
      * @param queue The queue group to join.
      * @return The Dispatcher, so calls can be chained.
+     * @throws IllegalStateException if the dispatcher was closed
      */
     public Dispatcher subscribe(String subject, String queue);
 
@@ -51,6 +53,7 @@ public interface Dispatcher {
      * 
      * @param subject The subject to unsubscribe from.
      * @return The Dispatcher, so calls can be chained.
+     * @throws IllegalStateException if the dispatcher was closed
      */
     public Dispatcher unsubscribe(String subject);
 
@@ -73,6 +76,7 @@ public interface Dispatcher {
      * @param subject The subject to unsubscribe from.
      * @param after The number of messages to accept before unsubscribing
      * @return The Dispatcher, so calls can be chained.
+     * @throws IllegalStateException if the dispatcher was closed
      */
     public Dispatcher unsubscribe(String subject, int after);
 }

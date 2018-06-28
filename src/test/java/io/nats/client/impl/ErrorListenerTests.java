@@ -16,6 +16,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -29,6 +30,7 @@ import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.Subscription;
 import io.nats.client.TestHandler;
 
 public class ErrorListenerTests {
@@ -110,6 +112,33 @@ public class ErrorListenerTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
+        }
+    }
+
+    @Test
+    public void testExceptionInSlowConsumerHandler() throws Exception {
+        BadHandler handler = new BadHandler();
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
+                                                                    server(ts.getURI()).
+                                                                    errorListener(handler).
+                                                                    build())) {
+            
+            Subscription sub = nc.subscribe("subject");
+            sub.setPendingLimits(1, -1);
+
+            nc.publish("subject", null);
+            nc.publish("subject", null);
+            nc.publish("subject", null);
+            nc.publish("subject", null);
+
+            nc.flush(Duration.ofMillis(5000));
+
+            assertEquals(3, sub.getDroppedCount());
+
+            nc.close(); // should force the exception handler through
+            
+            assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions()>0);
         }
     }
 

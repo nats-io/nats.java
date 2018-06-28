@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
-class NatsSubscription implements Subscription {
+class NatsSubscription extends NatsConsumer implements Subscription {
 
     private String subject;
     private String queueName;
@@ -29,8 +29,7 @@ class NatsSubscription implements Subscription {
     private NatsDispatcher dispatcher;
     private MessageQueue incoming;
 
-    private AtomicLong maxMessages;
-    private AtomicLong messagesReceived;
+    private AtomicLong unSubMessageLimit;
 
     NatsSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
@@ -39,8 +38,7 @@ class NatsSubscription implements Subscription {
         this.sid = sid;
         this.dispatcher = dispatcher;
         this.connection = connection;
-        this.maxMessages = new AtomicLong(-1);
-        this.messagesReceived = new AtomicLong(0);
+        this.unSubMessageLimit = new AtomicLong(-1);
 
         if (this.dispatcher == null) {
             this.incoming = new MessageQueue(false);
@@ -59,25 +57,13 @@ class NatsSubscription implements Subscription {
         this.incoming = null;
     }
 
-    void setMax(long cd) {
-        this.maxMessages.set(cd);
+    void setUnsubLimit(long cd) {
+        this.unSubMessageLimit.set(cd);
     }
 
-    long getMax() {
-        return this.maxMessages.get();
-    }
-
-    void incrementMessageCount() {
-        this.messagesReceived.incrementAndGet();
-    }
-
-    long getMessageCount() {
-        return this.messagesReceived.get();
-    }
-
-    boolean reachedMax() {
-        long max = this.maxMessages.get();
-        long recv = this.messagesReceived.get();
+    boolean reachedUnsubLimit() {
+        long max = this.unSubMessageLimit.get();
+        long recv = this.getDeliveredCount();
         return (max > 0) && (max <= recv);
     }
 
@@ -115,9 +101,9 @@ class NatsSubscription implements Subscription {
             throw new IllegalStateException("This subscription is inactive.");
         }
 
-        this.incrementMessageCount();
+        this.incrementDeliveredCount();
 
-        if (this.reachedMax()) {
+        if (this.reachedUnsubLimit()) {
             this.connection.invalidate(this);
         }
 

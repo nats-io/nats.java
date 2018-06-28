@@ -14,11 +14,33 @@
 package io.nats.client;
 
 public interface Statistics {
+    /**
+     * @return the total number of messages that have come in to this connection.
+     */
     public long getInMsgs();
+
+    /**
+     * @return the total number of messages that have gone out of this connection.
+     */
     public long getOutMsgs();
 
+    /**
+     * @return the total number of message bytes that have come in to this connection.
+     */
     public long getInBytes();
+
+    /**
+     * @return the total number of message bytes that have gone out of to this connection.
+     */
     public long getOutBytes();
 
+    /**
+     * @return the total number of times this connection has tried to reconnect.
+     */
     public long getReconnects();
+
+    /**
+     * @return the total number of messages dropped by this connection across all slow consumers.
+     */
+    public long getDroppedCount();
 }

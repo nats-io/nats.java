@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import io.nats.client.Dispatcher;
 import io.nats.client.MessageHandler;
 
-class NatsDispatcher implements Dispatcher, Runnable {
+class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     private NatsConnection connection;
     private MessageQueue incoming;
@@ -29,6 +29,8 @@ class NatsDispatcher implements Dispatcher, Runnable {
 
     private Thread thread;
     private final AtomicBoolean running;
+
+    private String id;
 
     private Map<String, NatsSubscription> subscriptions;
 
@@ -40,7 +42,8 @@ class NatsDispatcher implements Dispatcher, Runnable {
         this.running = new AtomicBoolean(false);
     }
 
-    void start() {
+    void start(String id) {
+        this.id = id;
         this.running.set(true);
         this.thread = new Thread(this);
         this.thread.start();
@@ -60,31 +63,51 @@ class NatsDispatcher implements Dispatcher, Runnable {
                 NatsSubscription sub = msg.getNatsSubscription();
 
                 if (sub != null && sub.isActive()) {
+
+                    sub.incrementDeliveredCount();
+                    this.incrementDeliveredCount();
+
                     try {
                         handler.onMessage(msg);
                     } catch (Exception exp) {
                         this.connection.processException(exp);
                     }
-                    
-                    sub.incrementMessageCount();
 
-                    if (sub.reachedMax()) {
+                    if (sub.reachedUnsubLimit()) {
                         this.connection.invalidate(sub);
                     }
                 }
             }
         } catch (InterruptedException exp) {
-            this.connection.processException(exp);
+            if (this.running.get()){
+                this.connection.processException(exp);
+            } //otherwise we did it
         } finally {
             this.running.set(false);
             this.thread = null;
         }
     }
 
-    void stop() {
+    void stop(boolean unsubscribeAll) {
         this.running.set(false);
         this.incoming.pause();
-        this.subscriptions.clear();
+        this.thread.interrupt();
+
+        if (unsubscribeAll) {
+            this.subscriptions.forEach((subj, sub) -> {
+                this.connection.unsubscribe(sub, -1);
+            });
+        } else {
+            this.subscriptions.clear();
+        }
+    }
+
+    public boolean isActive() {
+        return this.running.get();
+    }
+
+    String getId() {
+        return id;
     }
 
     MessageQueue getMessageQueue() {
@@ -103,21 +126,12 @@ class NatsDispatcher implements Dispatcher, Runnable {
     }
 
     public Dispatcher subscribe(String subject) {
+
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
 
-        NatsSubscription sub = subscriptions.get(subject);
-
-        if (sub == null) {
-            sub = connection.createSubscription(subject, null, this);
-            NatsSubscription actual = subscriptions.putIfAbsent(subject, sub);
-            if (actual != null) {
-                this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
-            }
-        }
-
-        return this;
+        return this.subscribeImpl(subject, null);
     }
 
     public Dispatcher subscribe(String subject, String queueName) {
@@ -127,6 +141,15 @@ class NatsDispatcher implements Dispatcher, Runnable {
 
         if (queueName == null || queueName.length() == 0) {
             throw new IllegalArgumentException("QueueName is required in subscribe");
+        }
+        return this.subscribeImpl(subject, queueName);
+    }
+
+
+    // Assumes the subj/queuename checks are done, does check for closed status
+    Dispatcher subscribeImpl(String subject, String queueName) {
+        if (!this.running.get()) {
+            throw new IllegalStateException("Dispatcher is closed");
         }
 
         NatsSubscription sub = subscriptions.get(subject);
@@ -147,6 +170,10 @@ class NatsDispatcher implements Dispatcher, Runnable {
     }
 
     public Dispatcher unsubscribe(String subject, int after) {
+        if (!this.running.get()) {
+            throw new IllegalStateException("Dispatcher is closed");
+        }
+
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in unsubscribe");
         }

@@ -95,16 +95,14 @@ public class Nats {
      * Try to connect in another thread, a connection listener is required to get
      * the connection.
      * 
-     * <p>
-     * Normally connect will loop through the available servers one time. If
+     * <p>Normally connect will loop through the available servers one time. If
      * reconnectOnConnect is true, the connection attempt will repeat based on the
      * settings in options, including indefinitely.
-     * </p>
      * 
-     * <p>
-     * If there is an exception before a connection is created, and the error
+     * <p>If there is an exception before a connection is created, and the error
      * listener is set, it will be notified with a null connection.
-     * </p>
+     * 
+     * <p><strong>This method is experimental, please provide feedback on its value.</strong>
      * 
      * @param options            the connection options
      * @param reconnectOnConnect if true, the connection will treat the initial

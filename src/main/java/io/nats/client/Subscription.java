@@ -15,17 +15,16 @@ package io.nats.client;
 
 import java.time.Duration;
 
-public interface Subscription {
+public interface Subscription extends Consumer {
 
     /**
-     * Subscriptions are active until they are unsubscribed.
-     * 
-     * @return true if the Subscription is still receiving messages
+     * @return the subject associated with this subscription, will be non-null
      */
-    public boolean isActive();
-
     public String getSubject();
 
+    /**
+     * @return the queue associated with this subscription, may be null.
+     */
     public String getQueueName();
 
     /**

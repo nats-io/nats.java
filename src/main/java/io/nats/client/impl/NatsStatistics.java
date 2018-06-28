@@ -38,6 +38,8 @@ class NatsStatistics implements Statistics {
     private AtomicLong okCount;
     private AtomicLong errCount;
     private AtomicLong exceptionCount;
+    private AtomicLong droppedCount;
+
     final private boolean trackAdvanced;
 
     public NatsStatistics(boolean trackAdvanced) {
@@ -59,10 +61,15 @@ class NatsStatistics implements Statistics {
         this.okCount = new AtomicLong();
         this.errCount = new AtomicLong();
         this.exceptionCount = new AtomicLong();
+        this.droppedCount = new AtomicLong();
     }
 
     void incrementPingCount() {
         this.pingCount.incrementAndGet();
+    }
+
+    void incrementDroppedCount() {
+        this.droppedCount.incrementAndGet();
     }
 
     void incrementOkCount() {
@@ -141,6 +148,10 @@ class NatsStatistics implements Statistics {
         return this.pingCount.get();
     }
 
+    public long getDroppedCount() {
+        return this.droppedCount.get();
+    }
+
     public long getOKs() {
         return this.okCount.get();
     }
@@ -209,6 +220,7 @@ class NatsStatistics implements Statistics {
                 appendNumberStat(builder, "Handled Exceptions:              ", this.exceptionCount.get());
                 appendNumberStat(builder, "Successful Flush Calls:          ", this.flushCounter.get());
                 appendNumberStat(builder, "Outstanding Request Futures:     ", this.outstandingRequests.get());
+                appendNumberStat(builder, "Dropped Messages:                ", this.droppedCount.get());
             }
             builder.append("\n");
             builder.append("### Reader ###\n");

@@ -13,9 +13,9 @@
 
 // Copied from the old client for consistency
 
-package io.nats.benchmark;
+package io.nats.examples.benchmark;
 
-import static io.nats.benchmark.Utils.humanBytes;
+import static io.nats.examples.benchmark.Utils.humanBytes;
 
 import io.nats.client.Statistics;
 import java.text.DecimalFormat;

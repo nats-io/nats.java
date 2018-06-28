@@ -41,6 +41,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
+import io.nats.client.Consumer;
 import io.nats.client.Dispatcher;
 import io.nats.client.ErrorListener;
 import io.nats.client.Message;
@@ -444,7 +445,7 @@ class NatsConnection implements Connection {
         closeSocketImpl();
 
         this.dispatchers.forEach((nuid, d) -> {
-            d.stop();
+            d.stop(false);
         });
 
         this.subscribers.forEach((sid, sub) -> {
@@ -609,9 +610,9 @@ class NatsConnection implements Connection {
         if (after <= 0) {
             this.invalidate(sub); // Will clean it up
         } else {
-            sub.setMax(after);
+            sub.setUnsubLimit(after);
 
-            if (sub.reachedMax()) {
+            if (sub.reachedUnsubLimit()) {
                 sub.invalidate();
             }
         }
@@ -739,7 +740,7 @@ class NatsConnection implements Connection {
             if (inboxDispatcher.compareAndSet(null, d)) {
                 String id = this.nuid.next();
                 this.dispatchers.put(id, d);
-                d.start();
+                d.start(id);
                 d.subscribe(this.mainInbox);
             }
         }
@@ -788,8 +789,25 @@ class NatsConnection implements Connection {
         NatsDispatcher dispatcher = new NatsDispatcher(this, handler);
         String id = this.nuid.next();
         this.dispatchers.put(id, dispatcher);
-        dispatcher.start();
+        dispatcher.start(id);
         return dispatcher;
+    }
+
+    public void closeDispatcher(Dispatcher d) {
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        } else if (!(d instanceof NatsDispatcher)) {
+            throw new IllegalArgumentException("Connection can only manage its own dispatchers");
+        }
+
+        NatsDispatcher nd = ((NatsDispatcher)d);
+        
+        if (!this.dispatchers.containsKey(nd.getId())) {
+            throw new IllegalArgumentException("Dispatcher is already closed.");
+        }
+
+        nd.stop(true);
+        this.dispatchers.remove(nd.getId());
     }
 
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
@@ -958,11 +976,24 @@ class NatsConnection implements Connection {
             msg.setSubscription(sub);
 
             NatsDispatcher d = sub.getDispatcher();
+            NatsConsumer c = (d==null) ? sub : d;
             MessageQueue q = ((d == null) ? sub.getMessageQueue() : d.getMessageQueue());
 
-            if (q != null) {
+            if (c.hasReachedPendingLimits()) {
+                //Drop the message and count it
+                this.statistics.incrementDroppedCount();
+                c.incrementDroppedCount();
+
+                // Notify the first time
+                if (!c.isMarkedSlow()) {
+                    c.markSlow();
+                    processSlowConsumer(c);
+                }
+            } else if (q != null) {
+                c.markNotSlow();
                 q.push(msg);
             }
+
         } else {
             // Drop messages we don't have a subscriber for (could be extras on an
             // auto-unsub for example)
@@ -971,6 +1002,24 @@ class NatsConnection implements Connection {
 
     void processOK() {
         this.statistics.incrementOkCount();
+    }
+
+    void processSlowConsumer(Consumer consumer) {
+        ErrorListener handler = this.options.getErrorListener();
+
+        if (handler != null  && !this.callbackRunner.isShutdown()) {
+            try {
+                this.callbackRunner.execute(() -> {
+                    try {
+                        handler.slowConsumerDetected(this, consumer);
+                    } catch (Exception ex) {
+                        this.statistics.incrementExceptionCount();
+                    }
+                });
+            } catch(RejectedExecutionException re) {
+                // Timing with shutdown, let it go
+            }
+        }
     }
 
     void processException(Exception exp) {

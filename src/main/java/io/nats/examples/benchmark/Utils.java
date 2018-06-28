@@ -13,7 +13,7 @@
 
 // Copied from the old client for consistency
 
-package io.nats.benchmark;
+package io.nats.examples.benchmark;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -37,6 +37,7 @@ public class SubscriberTests {
 
             Message msg = sub.nextMessage(Duration.ofMillis(500));
 
+            assertTrue(sub.isActive());
             assertEquals("subject", msg.getSubject());
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());
@@ -135,6 +136,7 @@ public class SubscriberTests {
             assertNotNull(msg);
 
             sub.unsubscribe();
+            assertFalse(sub.isActive());
             msg = sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
             assertFalse(true);
         }

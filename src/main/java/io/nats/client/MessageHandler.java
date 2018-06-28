@@ -16,9 +16,12 @@ package io.nats.client;
 public interface MessageHandler {
     /**
      * Called to deliver a message to the handler.
+     * 
+     * <p>The thread will be interrupted if the connection is closed, or the dispatcher is stopped.
      *
      * @param msg
      *                - the received Message.
+     * @throws InterruptedException if the dispatcher interrupts this handler
      */
-    void onMessage(Message msg);
+    void onMessage(Message msg) throws InterruptedException;
 }

@@ -148,6 +148,15 @@ public interface Connection extends AutoCloseable {
     public Dispatcher createDispatcher(MessageHandler handler);
 
     /**
+     * Close a dispatcher. This will unsubscribe any subscriptions and stop the delivery thread.
+     * 
+     * <p>Cnce closed the dispatcher will throw an exception on subsequent subscribe or unsubscribe calls.
+     * 
+     * @param dispatcher the dispatcher to close.
+     */
+    public void closeDispatcher(Dispatcher dispatcher);
+
+    /**
      * Flush the connection's buffer of outgoing messages, including sending a
      * protocol message to and from the server. Passing null is equivalent to
      * passing 0, which will wait forever.

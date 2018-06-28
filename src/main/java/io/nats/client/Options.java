@@ -676,7 +676,7 @@ public class Options {
         }
 
         /**
-         * Equivalent to calling maxReconnects with 0.
+         * Equivalent to calling maxReconnects with 0, {@link #maxReconnects(int) maxReconnects}.
          * @return the Builder for chaining
          */
         public Builder noReconnect() {
@@ -686,7 +686,12 @@ public class Options {
 
         /**
          * Set the maximum number of reconnect attempts. Use 0 to turn off
-         * auto-reconnect.
+         * auto-reconnect. Use -1 to turn on infinite reconnects.
+         * 
+         * <p>The reconnect state is entered when the connection is connected and loses
+         * that connection. During the initial connection attempt, the client will cycle over
+         * its server list one time, regardless of what maxReconnects is set to. The only exception
+         * to this is the experimental async connect method {@link Nats#connectAsychronously(Options, boolean) connectAsychronously}.
          * 
          * @param max the maximum reconnect attempts
          * @return the Builder for chaining

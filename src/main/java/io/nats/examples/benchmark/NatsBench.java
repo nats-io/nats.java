@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.examples;
+package io.nats.examples.benchmark;
 
-import io.nats.benchmark.Benchmark;
-import io.nats.benchmark.Sample;
+import io.nats.examples.benchmark.Benchmark;
+import io.nats.examples.benchmark.Sample;
 import io.nats.client.*;
 
 import java.io.FileInputStream;
@@ -63,8 +63,7 @@ public class NatsBench {
     static final String usageString =
             "\nUsage: java NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
                     + "[-csv file] <subject>\n\nOptions:\n"
-                    + "    -s   <urls>                    The nats server URLs (comma-separated)\n"
-                    + "    -tls                            Use TLS secure connection (false)\n"
+                    + "    -s   <urls>                    The nats server URLs (comma-separated), use tls:// or opentls:// to require tls\n"
                     + "    -np                             Number of concurrent publishers (1)\n"
                     + "    -ns                             Number of concurrent subscribers (0)\n"
                     + "    -n                              Number of messages to publish (100,000)\n"
