@@ -40,7 +40,7 @@ task generateAPIDoc(type: Javadoc) {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
-    excludes = ['io/nats/client/impl', 'io/nats/benchmark']
+    excludes = ['io/nats/client/impl', 'io/nats/examples']
     classpath = sourceSets.main.runtimeClasspath
     doLast {
             exec {

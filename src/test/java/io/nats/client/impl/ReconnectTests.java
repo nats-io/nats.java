@@ -50,7 +50,6 @@ public class ReconnectTests {
 
     void checkReconnectingStatus(Connection nc) {
         Connection.Status status = nc.getStatus();
-        System.out.println("Checking reconnect status "+status);
         assertTrue("Reconnecting status", Connection.Status.RECONNECTING == status ||
                                             Connection.Status.DISCONNECTED == status);
     }
@@ -95,7 +94,6 @@ public class ReconnectTests {
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
-            System.out.println("# Waiting for disconnect/reconnect");
             flushAndWait(nc, handler);
             checkReconnectingStatus(nc);
 
@@ -190,9 +188,10 @@ public class ReconnectTests {
     public void testMaxReconnects() throws Exception {
         Connection nc = null;
         TestHandler handler = new TestHandler();
+        int port = NatsTestServer.nextPort();
 
         try {
-            try (NatsTestServer ts = new NatsTestServer()) {
+            try (NatsTestServer ts = new NatsTestServer(port, false)) {
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(1).
@@ -201,10 +200,11 @@ public class ReconnectTests {
                                     build();
                 nc = Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                handler.prepForStatusChange(Events.RECONNECTED);
+                handler.prepForStatusChange(Events.CLOSED);
             }
 
             flushAndWait(nc, handler);
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         } finally {
             if (nc != null) {
                 nc.close();

@@ -198,12 +198,16 @@ class NatsConnection implements Connection {
                 lastServer = server;
                 tries++;
                 
-                if (maxTries > 0 && tries > maxTries) {
+                if (maxTries > 0 && tries >= maxTries) {
                     break;
                 } else if (isConnected()) {
                     this.statistics.incrementReconnects();
                     break;
                 }
+            }
+            
+            if (maxTries > 0 && tries >= maxTries) {
+                break;
             }
         }
 

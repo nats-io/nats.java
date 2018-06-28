@@ -73,7 +73,14 @@ public class NatsTestServer implements AutoCloseable {
 
     public void start() {
         ArrayList<String> cmd = new ArrayList<String>();
-        cmd.add(NatsTestServer.GNATSD);
+
+        String gnatsd = System.getenv("gnatsd_path");
+
+        if(gnatsd == null){
+            gnatsd = NatsTestServer.GNATSD;
+        }
+
+        cmd.add(gnatsd);
 
         if (this.configFilePath != null) {
             Pattern pattern = Pattern.compile("port: (\\d+)");

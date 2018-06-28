@@ -104,8 +104,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
             if (statusChanged != null && type == eventToWaitFor) {
                 statusChanged.complete(Boolean.TRUE);
-            } else if (statusChanged != null) {
             }
+            
         } finally {
             lock.unlock();
         }
