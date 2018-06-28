@@ -51,6 +51,7 @@ public class DispatcherTests {
             });
 
             d.subscribe("subject");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             nc.publish("subject", new byte[16]);
 
@@ -82,6 +83,7 @@ public class DispatcherTests {
 
             d.subscribe("one");
             d.subscribe("two");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             nc.publish("one", new byte[16]);
             nc.publish("two", new byte[16]);
@@ -112,15 +114,15 @@ public class DispatcherTests {
 
             d.subscribe("subject");
             d.subscribe("done");
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofMillis(1000)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            done.get(200, TimeUnit.MILLISECONDS);
+
+            done.get(500, TimeUnit.MILLISECONDS);
             
             assertEquals(msgCount, q.size());
         }
@@ -148,6 +150,7 @@ public class DispatcherTests {
             d.subscribe("subject");
             d.subscribe("phase1");
             d.subscribe("phase2");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             nc.publish("subject", new byte[16]);
             nc.publish("phase1", null);
@@ -204,9 +207,9 @@ public class DispatcherTests {
 
             d1.subscribe("subject", "queue");
             d2.subscribe("subject", "queue");
-
             d1.subscribe("done");
             d2.subscribe("done");
+            nc.flush(Duration.ofMillis(500));
 
             for (int i = 0; i < msgs; i++) {
                 nc.publish("subject", new byte[16]);
@@ -214,9 +217,9 @@ public class DispatcherTests {
 
             nc.publish("done", null);
 
-            nc.flush(Duration.ZERO);// Get them all to the server
-            done1.get(200, TimeUnit.MILLISECONDS);
-            done2.get(200, TimeUnit.MILLISECONDS);
+            nc.flush(Duration.ofMillis(500));
+            done1.get(500, TimeUnit.MILLISECONDS);
+            done2.get(500, TimeUnit.MILLISECONDS);
 
             assertEquals(msgs, received.get());
             assertEquals(msgs, sub1Count.get() + sub2Count.get());
@@ -240,6 +243,7 @@ public class DispatcherTests {
             });
 
             d.subscribe("subject");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             nc.publish("subject", new byte[16]);
 
@@ -263,6 +267,7 @@ public class DispatcherTests {
             });
 
             d.subscribe("subject");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             nc.publish("subject", new byte[16]);
 
@@ -292,13 +297,14 @@ public class DispatcherTests {
             });
 
             d.subscribe("subject");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             nc.publish("subject", new byte[16]); // publish one to kick it off
 
             Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
 
-            assertEquals(1, ((NatsStatistics)(nc.getStatistics())).getFlushCounter());
+            assertEquals(2, ((NatsStatistics)(nc.getStatistics())).getFlushCounter());
         }
     }
 
@@ -325,22 +331,26 @@ public class DispatcherTests {
             d.subscribe("subject");
             d.subscribe("phase1");
             d.subscribe("phase2");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("phase1", new byte[16]);
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            phase1.get(500, TimeUnit.MILLISECONDS); // make sure we got them
+
+            phase1.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
 
             d.unsubscribe("subject");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("phase2", new byte[16]);
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            phase2.get(500, TimeUnit.MILLISECONDS); // make sure we got them
+
+            phase2.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(msgCount, q.size());
         }
@@ -369,6 +379,7 @@ public class DispatcherTests {
             d.subscribe("subject");
             d.subscribe("phase1");
             d.subscribe("phase2");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
@@ -416,6 +427,7 @@ public class DispatcherTests {
 
             d.subscribe("subject");
             d.subscribe("done");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             nc.publish("subject", new byte[16]);
             nc.publish("subject", new byte[16]);
@@ -450,6 +462,7 @@ public class DispatcherTests {
 
             d.subscribe("subject");
             d.subscribe("done");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             nc.publish("subject", new byte[16]);
             nc.publish("subject", new byte[16]);
@@ -482,6 +495,8 @@ public class DispatcherTests {
             });
 
             d.subscribe("done");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
+
             nc.publish("done", new byte[16]); // when we get this we know the others are dispatched
             nc.flush(Duration.ofMillis(1000)); // Wait for the publish
 
@@ -510,6 +525,7 @@ public class DispatcherTests {
 
             d.subscribe("subject");
             d.subscribe("done");
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);

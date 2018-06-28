@@ -20,6 +20,37 @@ go get github.com/nats-io/gnatsd
 
 ## Basic Usage
 
+### Connecting
+
+### Publishing
+
+### Subscribing Synchronously
+
+### Subscribing Asynchronously With Dispatchers
+
+## Advanced Usage
+
+### TLS
+
+-Djavax.net.ssl.keyStore=src/test/resources/keystore.jks
+-Djavax.net.ssl.keyStorePassword=password
+-Djavax.net.ssl.trustStore=src/test/resources/cacerts
+-Djavax.net.ssl.trustStorePassword=password
+
+java -cp build/libs/nats-java-2.0.0.jar:build/libs/java-nats-examples-2.0.0.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
+
+
+java -cp build/libs/nats-java-2.0.0.jar:build/libs/java-nats-examples-2.0.0.jar -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password -Djavax.net.ssl.trustStore=src/test/resources/cacerts -Djavax.net.ssl.trustStorePassword=password io.nats.examples.NatsPub tls://localhost:4443 test "hello world"
+
+gnatsd --conf src/test/resources/tls.conf
+
+### Connection options
+
+### Clusters & Reconnecting
+
+
+## Benchmarking
+
 
 ## License
 

@@ -91,7 +91,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     void stop(boolean unsubscribeAll) {
         this.running.set(false);
         this.incoming.pause();
-        this.thread.interrupt();
+
+        if (this.thread != null) { // Force the interrupt
+            this.thread.interrupt();
+        }
 
         if (unsubscribeAll) {
             this.subscriptions.forEach((subj, sub) -> {

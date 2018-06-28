@@ -122,7 +122,7 @@ public class SlowConsumerTests {
             
             nc.publish("subject", null);
             nc.publish("subject", null);
-            nc.flush(Duration.ofMillis(5000));
+            nc.flush(Duration.ofMillis(1000));
 
             assertEquals(1, d.getDroppedCount());
             assertEquals(1, d.getPendingMessageCount());

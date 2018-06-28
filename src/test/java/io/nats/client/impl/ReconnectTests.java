@@ -82,6 +82,7 @@ public class ReconnectTests {
                     nnc.publish(msg.getReplyTo(), msg.getData());
                 });
                 d.subscribe("dispatchSubject");
+                nc.flush(Duration.ofMillis(1000));
 
                 Future<Message> inc = nc.request("dispatchSubject", "test".getBytes(StandardCharsets.UTF_8));
                 Message msg = inc.get();

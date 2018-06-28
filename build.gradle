@@ -36,7 +36,7 @@ sourceSets {
     }
 }
 
-task generateAPIDoc(type: Javadoc) {
+task apiDoc(type: Javadoc) {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"

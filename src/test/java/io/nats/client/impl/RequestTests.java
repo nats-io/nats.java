@@ -245,6 +245,7 @@ public class RequestTests {
                         Future<Message> incoming = nc.request("subject", null);
                         messages.add(incoming);
                     }
+                    nc.flush(Duration.ofMillis(1000));
 
                     for (Future<Message> f : messages) {
                         Message msg = f.get(1000, TimeUnit.MILLISECONDS);
