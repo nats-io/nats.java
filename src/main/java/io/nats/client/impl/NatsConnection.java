@@ -95,8 +95,9 @@ class NatsConnection implements Connection {
     private AtomicReference<NatsServerInfo> serverInfo;
 
     private Map<String, NatsSubscription> subscribers;
-    private Map<String, NatsDispatcher> dispatchers; // use a map so we get more consistent iteration behavior
+    private Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration behavior
     private Map<String, CompletableFuture<Message>> responses;
+    private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
     private String mainInbox;
     private AtomicReference<Dispatcher> inboxDispatcher;
@@ -104,8 +105,6 @@ class NatsConnection implements Connection {
 
     private AtomicLong nextSid;
     private NUID nuid;
-
-    private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
     private ExecutorService callbackRunner;
 
@@ -272,7 +271,7 @@ class NatsConnection implements Connection {
 
             this.sendConnect();
             Future<Boolean> pongFuture = sendPing();
-            pongFuture.get(connectTimeout.toMillis(), TimeUnit.MILLISECONDS);
+            pongFuture.get(connectTimeout.toNanos(), TimeUnit.NANOSECONDS);
 
             if (this.timer == null) {
                 this.timer = new Timer("Nats Connection Timer");
@@ -820,17 +819,22 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Not Connected");
         }
 
-        Future<Boolean> waitForIt = sendPing();
-
-        if (timeout == null) {
-            timeout = Duration.ZERO;
-        }
 
         try {
-            long millis = timeout.toMillis();
+            Future<Boolean> waitForIt = sendPing();
 
-            if (millis > 0) {
-                waitForIt.get(millis, TimeUnit.MILLISECONDS);
+            if (waitForIt == null) { //error in the sendping code
+                return;
+            }
+
+            if (timeout == null) {
+                timeout = Duration.ZERO;
+            }
+            
+            long nanos = timeout.toNanos();
+
+            if (nanos > 0) {
+                waitForIt.get(nanos, TimeUnit.NANOSECONDS);
             } else {
                 waitForIt.get();
             }

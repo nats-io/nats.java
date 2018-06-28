@@ -29,7 +29,7 @@ public class FlushBenchmark {
         System.out.println("###");
 
         try {
-            Options options = new Options.Builder().build();
+            Options options = new Options.Builder().turnOnAdvancedStats().build();
             Connection nc = Nats.connect(options);
 
             long start = System.nanoTime();
