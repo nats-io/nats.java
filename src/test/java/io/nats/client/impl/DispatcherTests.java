@@ -112,6 +112,7 @@ public class DispatcherTests {
 
             d.subscribe("subject");
             d.subscribe("done");
+            nc.flush(Duration.ofMillis(500)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
@@ -667,12 +668,13 @@ public class DispatcherTests {
             });
 
             d.subscribe("subject").subscribe("subject").subscribe("subject").subscribe("done");
+            nc.flush(Duration.ofMillis(500)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-            nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+            nc.flush(Duration.ofMillis(500)); // wait for them to go through
 
             done.get(500, TimeUnit.MILLISECONDS);
             

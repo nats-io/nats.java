@@ -17,6 +17,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -45,7 +46,9 @@ public class NatsStatisticsTests {
             });
             d.subscribe("subject");
 
+            nc.flush(Duration.ofMillis(500));
             Future<Message> incoming = nc.request("subject", new byte[8]);
+            nc.flush(Duration.ofMillis(500));
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
             String str = nc.getStatistics().toString();
