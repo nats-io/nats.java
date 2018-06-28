@@ -22,7 +22,7 @@ import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 
-public class PublishBenchmark {
+public class PublishBenchmarkWithStats {
     public static void main(String args[]) throws InterruptedException {
         int threads = 1;
         int msgsPerThread = 5_000_000;

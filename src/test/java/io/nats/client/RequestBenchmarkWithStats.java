@@ -27,7 +27,7 @@ import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 
-public class RequestBenchmark {
+public class RequestBenchmarkWithStats {
     public static void main(String args[]) throws InterruptedException {
         int threads = 1;
         int msgsPerThread = 5_000_000;
