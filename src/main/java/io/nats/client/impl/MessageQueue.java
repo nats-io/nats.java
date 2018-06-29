@@ -142,6 +142,10 @@ class MessageQueue {
     // the method returns.
     //
     // A timeout of 0 will wait indefinitely
+    //
+    // Only works in single reader mode, because we want to maintain order.
+    // accumulate reads off the concurrent queue one at a time, so if multiple
+    // readers are present, you could get out of order message delivery.
     NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
             throws InterruptedException {
 

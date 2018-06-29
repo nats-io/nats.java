@@ -154,17 +154,34 @@ public class LatencyBenchmark extends AutoBenchmark {
         long max = stats.getMax() / 1_000;
         long count = stats.getCount();
         double average = stats.getAverage() / 1e3;
+        double median = calcMedian() / 1e3;
         double stdDev = Math.sqrt(measurements.stream().
                                             mapToDouble(Long::doubleValue).
                                             map(d -> ((d-average) * (d-average))).
                                             sum()) / (1e3 * (count-1));
 
-        System.out.printf("%-16s %6s %10s avg %10s min %10s max +/- %.2f    (microseconds)\n",
+        System.out.printf("%-16s %6s %10s median %10s min %10s max +/- %.2f    (microseconds)\n",
                             getName(),
                             NumberFormat.getIntegerInstance().format(count),
-                            NumberFormat.getInstance().format(average),
+                            NumberFormat.getInstance().format(median),
                             NumberFormat.getIntegerInstance().format(min),
                             NumberFormat.getIntegerInstance().format(max),
                             stdDev);
+    }
+
+    public double calcMedian() {
+
+        int size = measurements.size();
+        int middle = measurements.size() / 2;
+
+        measurements.sort(Long::compareTo);
+
+        if (size % 2 == 1) {
+            return measurements.get(middle).longValue();
+        } else {
+            double low = measurements.get(middle-1).doubleValue() / 2.0;
+            double high = measurements.get(middle).doubleValue() / 2.0;
+            return high + low; // already divided by 2
+        }
     }
 }
