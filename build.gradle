@@ -4,23 +4,21 @@ plugins {
 }
 apply plugin: 'java'
 apply plugin: 'jacoco'
+apply plugin: 'maven-publish'
 
-dependencies {
-    testImplementation 'junit:junit:4.12'
-}
+version = '2.0.0'
 
 repositories {
     jcenter()
 }
 
-version = '2.0.0'
+configurations {
+    examples.extendsFrom implementation
+}
 
-jar {
-    manifest {
-        attributes('Implementation-Title': 'Java Nats',
-                   'Implementation-Version': '2.0.0')
-    }
-    exclude("io/nats/examples/**")
+dependencies {
+    testImplementation 'junit:junit:4.12'
+    examples 'com.google.code.gson:gson:2.8.5'
 }
 
 sourceSets {
@@ -36,7 +34,15 @@ sourceSets {
     }
 }
 
-// task apiDoc(type: Javadoc) {
+jar {
+    manifest {
+        attributes('Implementation-Title': 'Java Nats',
+                   'Implementation-Version': '2.0.0',
+                   'Implementation-Vendor': 'nats.io')
+    }
+    exclude("io/nats/examples/**")
+}
+
 javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
     source = sourceSets.main.allJava
@@ -62,17 +68,54 @@ task examplesJar(type: Jar) {
     baseName 'java-nats-examples'
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
-                   'Implementation-Version': '2.0.0')
+                   'Implementation-Version': '2.0.0',
+                   'Implementation-Vendor': 'nats.io')
     }
     from(sourceSets.main.output) {
         include "io/nats/examples/**"
     }
 }
 
-jacocoTestReport {
-    reports {
-        xml.enabled false
-        csv.enabled false
-        html.enabled true
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId 'io.nats'
+            artifactId 'jnats'
+            version '2.0'
+            pom {
+                name = 'NATS Java Client'
+                description = 'A Java 8 client for the NATS server.'
+                url = 'https://github.com/nats-io/java-nats'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/nats-io/java-nats.git'
+                    url = 'https://github.com/nats-io/java-nats'
+                }
+            }
+
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            def releasesRepoUrl = "$buildDir/repos/releases"
+            def snapshotsRepoUrl = "$buildDir/repos/snapshots"
+            url project.hasProperty("release") ? releasesRepoUrl : snapshotsRepoUrl
+        }
     }
 }

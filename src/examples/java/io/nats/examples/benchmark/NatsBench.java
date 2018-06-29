@@ -303,7 +303,7 @@ public class NatsBench {
             throw new RuntimeException(error);
         }
 
-        if (subCount>0 && pubCount>0 && sent.get() != received.get()) {
+        if (subCount==1 && pubCount>0 && sent.get() != received.get()) {
             System.out.println("#### Error - sent and received are not equal "+sent.get() + " != " + received.get());
         }
 

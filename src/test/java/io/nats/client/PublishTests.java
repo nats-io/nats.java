@@ -34,7 +34,7 @@ public class PublishTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             nc.close();
-            nc.publish("subject", "queue", null);
+            nc.publish("subject", "replyto", null);
             assertFalse(true);
         }
     }
