@@ -30,14 +30,11 @@ import io.nats.client.impl.SSLUtils;
 import io.nats.client.impl.SocketDataPort;
 
 /**
- * The Options class specifies the connection options for a new NATs connection.
- * 
- * <p>
- * Options are created using a Builder. The builder supports chaining and will
- * create a default set of options if no methods are calls. The builder can also
- * be created from a properties object using the property names defined with the
- * prefix PROP_ in this class.
- * </p>
+ * The Options class specifies the connection options for a new NATs connection, including the default options.
+ * Options are created using a {@link Options.Builder Builder}.
+ * This class, and the builder associated with it, is basically a long list of parameters. The documentation attempts
+ * to clarify the value of each parameter in place on the builder and here, but it may be easier to read the documentation
+ * starting with the {@link Options.Builder Builder}, since it has a simple list of methods that configure the connection.
  */
 public class Options {
     // NOTE TO DEVS
@@ -45,7 +42,7 @@ public class Options {
     // * add property
     // * add field in builder
     // * add field in options
-    // * addchainable method in builder
+    // * add a chainable method in builder
     // * add update build
     // * update constructor that takes properties
     // * optional default in statics
@@ -67,7 +64,7 @@ public class Options {
     public static final int DEFAULT_PORT = 4222;
 
     /**
-     * Default maximum number of reconnect attempts.
+     * Default maximum number of reconnect attempts, see {@link #getMaxReconnect() getMaxReconnect()}.
      *
      * <p>
      * This property is defined as {@value #DEFAULT_MAX_RECONNECT}
@@ -75,7 +72,7 @@ public class Options {
     public static final int DEFAULT_MAX_RECONNECT = 60;
 
     /**
-     * Default wait time before attempting reconnection to the same server.
+     * Default wait time before attempting reconnection to the same server, see {@link #getReconnectWait() getReconnectWait()}.
      *
      * <p>
      * This property is defined as 2 seconds.
@@ -83,176 +80,186 @@ public class Options {
     public static final Duration DEFAULT_RECONNECT_WAIT = Duration.ofSeconds(2);
 
     /**
-     * Default connection timeout.
+     * Default connection timeout, see {@link #getConnectionTimeout() getConnectionTimeout()}.
      *
      * <p>
      * This property is defined as 2 seconds.}
      */
-    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(2);
+    public static final Duration DEFAULT_CONNECTION_TIMEOUT = Duration.ofSeconds(2);
 
     /**
-     * Default server ping interval. {@code <=0} means disabled.
+     * Default server ping interval. The client will send a ping to the server on this interval to insure liveness.
+     * The server may send pings to the client as well, these are handled automatically by the library
+     * , see {@link #getPingInterval() getPingInterval()}.
+     * 
+     * <p>A value of {@code <=0} means disabled.
      *
-     * <p>
-     * This property is defined as 2 minutes.
+     * <p>This property is defined as 2 minutes.
      */
 
     public static final Duration DEFAULT_PING_INTERVAL = Duration.ofMinutes(2);
 
     /**
-     * Default interval to clean up cancelled/timedout requests.
+     * Default interval to clean up cancelled/timed out requests.
      * A timer is used to clean up futures that were handed out but never completed
-     * via a message.
+     * via a message, {@link #getRequestCleanupInterval() getRequestCleanupInterval()}.
      *
-     * <p>
-     * This property is defined as 5 seconds.
+     * <p>This property is defined as 5 seconds.
      */
     public static final Duration DEFAULT_REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
 
     /**
-     * Default maximum number of pings that have not received a response.
+     * Default maximum number of pings have not received a response allowed by the 
+     * client, {@link #getMaxPingsOut() getMaxPingsOut()}.
      *
-     * <p>
-     * This property is defined as {@value #DEFAULT_MAX_PINGS_OUT}
+     * <p>This property is defined as {@value #DEFAULT_MAX_PINGS_OUT}
      */
     public static final int DEFAULT_MAX_PINGS_OUT = 2;
 
     /**
      * Default SSL protocol used to create an SSLContext if the {@link #PROP_SECURE
      * secure property} is used.
+     * <p>This property is defined as {@value #DEFAULT_SSL_PROTOCOL}
      */
     public static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
 
     /**
      * Default of pending message buffer that is used for buffering messages that
-     * are published during a disconnect/reconnect.
+     * are published during a disconnect/reconnect, {@link #getReconnectBufferSize() getReconnectBufferSize()}.
      *
-     * <p>
-     * This property is defined as {@value #DEFAULT_RECONNECT_BUF_SIZE} bytes, 8 *
+     * <p>This property is defined as {@value #DEFAULT_RECONNECT_BUF_SIZE} bytes, 8 *
      * 1024 * 1024.
      */
     public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
 
     /**
-     * The default length, {@value #DEFAULT_MAX_CONTROL_LINE} bytes, the client will allow in an outgoing protocol control line.
+     * The default length, {@value #DEFAULT_MAX_CONTROL_LINE} bytes, the client will allow in an
+     *  outgoing protocol control line, {@link #getMaxControlLine() getMaxControlLine()}.
      * 
-     * <p>This value is configurable on the server, and should be set to match here.</p>
+     * <p>This value is configurable on the server, and should be set here to match.</p>
      */
     public static final int DEFAULT_MAX_CONTROL_LINE = 1024;
 
     /**
-     * Default dataport class, which will use a TCP socket.
+     * Default dataport class, which will use a TCP socket, {@link #getDataPortType() getDataPortType()}.
+     * 
+     * <p><em>This option is currently provided only for testing, and experimentation, the default 
+     * should be used in almost all cases.</em>
      */
     public static final String DEFAULT_DATA_PORT_TYPE = SocketDataPort.class.getCanonicalName();
 
     /**
-     * Default size for buffers in the connection, not as available as other settings, this is primarily changed for testing.
+     * Default size for buffers in the connection, not as available as other settings, 
+     * this is primarily changed for testing, {@link #getBufferSize() getBufferSize()}.
      */
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
 
     static final String PFX = "io.nats.client.";
 
     /**
-     * {@value #PROP_CONNECTION_CB}, see
+     * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_CB}, see
      * {@link Builder#connectionListener(ConnectionListener) connectionListener}.
      */
     public static final String PROP_CONNECTION_CB = PFX + "callback.connection";
     /**
-     * {@value #PROP_DATA_PORT_TYPE}, see
+     * Property used to configure a builder from a Properties object. {@value #PROP_DATA_PORT_TYPE}, see
      * {@link Builder#dataPortType(String) dataPortType}.
      */
     public static final String PROP_DATA_PORT_TYPE = PFX + "dataport.type";
     /**
-     * {@value #PROP_ERROR_LISTENER}, see
+     * Property used to configure a builder from a Properties object. {@value #PROP_ERROR_LISTENER}, see
      * {@link Builder#errorListener(ErrorListener) errorListener}.
      */
     public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
     /**
-     * {@value #PROP_MAX_PINGS}, see {@link Builder#maxPingsOut(int) maxPingsOut}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_MAX_PINGS}, see {@link Builder#maxPingsOut(int) maxPingsOut}.
      */
     public static final String PROP_MAX_PINGS = PFX + "maxpings";
     /**
-     * {@value #PROP_PING_INTERVAL}, see {@link Builder#pingInterval(Duration)
+     * Property used to configure a builder from a Properties object. {@value #PROP_PING_INTERVAL}, see {@link Builder#pingInterval(Duration)
      * pingInterval}.
      */
     public static final String PROP_PING_INTERVAL = PFX + "pinginterval";
     /**
-     * {@value #PROP_CLEANUP_INTERVAL}, see {@link Builder#requestCleanupInterval(Duration)
+     * Property used to configure a builder from a Properties object. {@value #PROP_CLEANUP_INTERVAL}, see {@link Builder#requestCleanupInterval(Duration)
      * requestCleanupInterval}.
      */
     public static final String PROP_CLEANUP_INTERVAL = PFX + "cleanupinterval";
     /**
-     * {@value #PROP_CONNECTION_TIMEOUT}, see
+     * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_TIMEOUT}, see
      * {@link Builder#connectionTimeout(Duration) connectionTimeout}.
      */
     public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
     /**
-     * {@value #PROP_RECONNECT_BUF_SIZE}, see
+     * Property used to configure a builder from a Properties object. {@value #PROP_RECONNECT_BUF_SIZE}, see
      * {@link Builder#reconnectBufferSize(long) reconnectBufferSize}.
      */
     public static final String PROP_RECONNECT_BUF_SIZE = PFX + "reconnect.buffer.size";
     /**
-     * {@value #PROP_RECONNECT_WAIT}, see {@link Builder#reconnectWait(Duration)
+     * Property used to configure a builder from a Properties object. {@value #PROP_RECONNECT_WAIT}, see {@link Builder#reconnectWait(Duration)
      * reconnectWait}.
      */
     public static final String PROP_RECONNECT_WAIT = PFX + "reconnect.wait";
     /**
-     * {@value #PROP_MAX_RECONNECT}, see {@link Builder#maxReconnects(int)
+     * Property used to configure a builder from a Properties object. {@value #PROP_MAX_RECONNECT}, see {@link Builder#maxReconnects(int)
      * maxReconnects}.
      */
     public static final String PROP_MAX_RECONNECT = PFX + "reconnect.max";
 
     /**
-     * {@value #PROP_PEDANTIC}, see {@link Builder#pedantic() pedantic}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_PEDANTIC}, see {@link Builder#pedantic() pedantic}.
      */
     public static final String PROP_PEDANTIC = PFX + "pedantic";
     /**
-     * {@value #PROP_VERBOSE}, see {@link Builder#verbose() verbose}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_VERBOSE}, see {@link Builder#verbose() verbose}.
      */
     public static final String PROP_VERBOSE = PFX + "verbose";
     /**
-     * {@value #PROP_NO_ECHO}, see {@link Builder#noEcho() noEcho}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_NO_ECHO}, see {@link Builder#noEcho() noEcho}.
      */
     public static final String PROP_NO_ECHO = PFX + "noecho";
     /**
-     * {@value #PROP_CONNECTION_NAME}, see {@link Builder#connectionName(String)
+     * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_NAME}, see {@link Builder#connectionName(String)
      * connectionName}.
      */
     public static final String PROP_CONNECTION_NAME = PFX + "name";
     /**
-     * {@value #PROP_NORANDOMIZE}, see {@link Builder#noRandomize() noRandomize}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_NORANDOMIZE}, see {@link Builder#noRandomize() noRandomize}.
      */
     public static final String PROP_NORANDOMIZE = PFX + "norandomize";
     /**
-     * {@value #PROP_SERVERS}, see {@link Builder#servers(String[]) servers}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_SERVERS}, 
+     * see {@link Builder#servers(String[]) servers}. The value can be a comma-separated list of server URLs.
      */
     public static final String PROP_SERVERS = PFX + "servers";
     /**
-     * {@value #PROP_PASSWORD}, see {@link Builder#userInfo(String, String)
+     * Property used to configure a builder from a Properties object. {@value #PROP_PASSWORD}, see {@link Builder#userInfo(String, String)
      * userInfo}.
      */
     public static final String PROP_PASSWORD = PFX + "password";
     /**
-     * {@value #PROP_USERNAME}, see {@link Builder#userInfo(String, String)
+     * Property used to configure a builder from a Properties object. {@value #PROP_USERNAME}, see {@link Builder#userInfo(String, String)
      * userInfo}.
      */
     public static final String PROP_USERNAME = PFX + "username";
     /**
-     * {@value #PROP_TOKEN}, see {@link Builder#token(String) token}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_TOKEN}, see {@link Builder#token(String) token}.
      */
     public static final String PROP_TOKEN = PFX + "token";
     /**
-     * {@value #PROP_URL}, see {@link Builder#server(String) server}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_URL}, see {@link Builder#server(String) server}.
      */
     public static final String PROP_URL = PFX + "url";
     /**
-     * {@value #PROP_SECURE}, see {@link Builder#sslContext(SSLContext) sslContext}.
+     * Property used to configure a builder from a Properties object. {@value #PROP_SECURE},
+     *  see {@link Builder#sslContext(SSLContext) sslContext}.
      * 
      * This property is a boolean flag, but it tells the options parser to use the
      * default SSL context. Set the default context before creating the options.
      */
     public static final String PROP_SECURE = PFX + "secure";
     /**
+     * Property used to configure a builder from a Properties object. 
      * {@value #PROP_OPENTLS}, see {@link Builder#sslContext(SSLContext) sslContext}.
      * 
      * This property is a boolean flag, but it tells the options parser to use the
@@ -261,12 +268,12 @@ public class Options {
      */
     public static final String PROP_OPENTLS = PFX + "opentls";
     /**
-     * {@value #PROP_USE_OLD_REQUEST_STYLE}, see {@link Builder#oldRequestStyle()
+     * Property used to configure a builder from a Properties object. {@value #PROP_USE_OLD_REQUEST_STYLE}, see {@link Builder#oldRequestStyle()
      * oldRequestStyle}.
      */
     public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
     /**
-     * {@value #PROP_MAX_CONTROL_LINE}, see {@link Builder#maxControlLine(int)
+     * Property used to configure a builder from a Properties object. {@value #PROP_MAX_CONTROL_LINE}, see {@link Builder#maxControlLine(int)
      * maxControlLine}.
      */
     public static final String PROP_MAX_CONTROL_LINE = "max.control.line";
@@ -274,64 +281,64 @@ public class Options {
     /**
      * Protocol key {@value #OPTION_VERBOSE}, see {@link Builder#verbose() verbose}.
      */
-    public static final String OPTION_VERBOSE = "verbose";
+    static final String OPTION_VERBOSE = "verbose";
 
     /**
      * Protocol key {@value #OPTION_PEDANTIC}, see {@link Builder#pedantic()
      * pedantic}.
      */
-    public static final String OPTION_PEDANTIC = "pedantic";
+    static final String OPTION_PEDANTIC = "pedantic";
 
     /**
      * Protocol key {@value #OPTION_TLS_REQUIRED}, see
      * {@link Builder#sslContext(SSLContext) sslContext}.
      */
-    public static final String OPTION_TLS_REQUIRED = "tls_required";
+    static final String OPTION_TLS_REQUIRED = "tls_required";
 
     /**
      * Protocol key {@value #OPTION_AUTH_TOKEN}, see {@link Builder#token(String)
      * token}.
      */
-    public static final String OPTION_AUTH_TOKEN = "auth_token";
+    static final String OPTION_AUTH_TOKEN = "auth_token";
 
     /**
      * Protocol key {@value #OPTION_USER}, see
      * {@link Builder#userInfo(String, String) userInfo}.
      */
-    public static final String OPTION_USER = "user";
+    static final String OPTION_USER = "user";
 
     /**
      * Protocol key {@value #OPTION_PASSWORD}, see
      * {@link Builder#userInfo(String, String) userInfo}.
      */
-    public static final String OPTION_PASSWORD = "pass";
+    static final String OPTION_PASSWORD = "pass";
 
     /**
      * Protocol key {@value #OPTION_NAME}, see {@link Builder#connectionName(String)
      * connectionName}.
      */
-    public static final String OPTION_NAME = "name";
+    static final String OPTION_NAME = "name";
 
     /**
      * Protocol key {@value #OPTION_LANG}, will be set to "Java".
      */
-    public static final String OPTION_LANG = "lang";
+    static final String OPTION_LANG = "lang";
 
     /**
      * Protocol key {@value #OPTION_VERSION}, will be set to
      * {@link Nats#CLIENT_VERSION CLIENT_VERSION}.
      */
-    public static final String OPTION_VERSION = "version";
+    static final String OPTION_VERSION = "version";
 
     /**
      * Protocol key {@value #OPTION_PROTOCOL}, will be set to 1.
      */
-    public static final String OPTION_PROTOCOL = "protocol";
+    static final String OPTION_PROTOCOL = "protocol";
 
     /**
      * Echo key {@value #OPTION_ECHO}, determines if the server should echo to the client.
      */
-    public static final String OPTION_ECHO = "echo";
+    static final String OPTION_ECHO = "echo";
 
     private List<URI> servers;
     private final boolean noRandomize;
@@ -360,6 +367,16 @@ public class Options {
 
     private final boolean trackAdvancedStats;
 
+    /**
+     * Options are created using a Builder. The builder supports chaining and will
+     * create a default set of options if no methods are calls. The builder can also
+     * be created from a properties object using the property names defined with the
+     * prefix PROP_ in this class.
+     * 
+     * <p>{@code new Options.Builder().build()} is equivalent to calling {@link Nats#connect() Nats.connect()}.
+     * 
+     * <p>A common usage for testing might be {@code new Options.Builder().server(myserverurl).noReconnect.build()}
+     */
     public static class Builder {
 
         private ArrayList<URI> servers = new ArrayList<URI>();
@@ -371,7 +388,7 @@ public class Options {
         private int maxControlLine = DEFAULT_MAX_CONTROL_LINE;
         private int maxReconnect = DEFAULT_MAX_RECONNECT;
         private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
-        private Duration connectionTimeout = DEFAULT_TIMEOUT;
+        private Duration connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
@@ -391,11 +408,9 @@ public class Options {
         /**
          * Constructs a new Builder with the default values.
          * 
-         * <p>
-         * One tiny correction is that the builder doesn't have a server url. When build
+         * <p>One tiny clarification is that the builder doesn't have a server url. When {@link #build() build()}
          * is called on a default builder it will add the {@link Options#DEFAULT_URL
          * default url} to its list of servers before creating the options object.
-         * </p>
          */
         public Builder() {
         }
@@ -403,12 +418,13 @@ public class Options {
         /**
          * Constructs a new {@code Builder} from a {@link Properties} object.
          * 
-         * If {@link Options#PROP_SECURE PROP_SECURE} is set, the builder will
+         * <p>If {@link Options#PROP_SECURE PROP_SECURE} is set, the builder will
          * try to use the default SSLContext {@link SSLContext#getDefault()}. If that
          * fails, no context is set and an IllegalArgumentException is thrown.
+         * 
+         * <p>Methods called on the builder after construction can override the properties.
          *
-         * @param props
-         *                  the {@link Properties} object
+         * @param props the {@link Properties} object
          */
         public Builder(Properties props) throws IllegalArgumentException {
             if (props == null) {
@@ -504,7 +520,7 @@ public class Options {
 
             if (props.containsKey(PROP_CONNECTION_TIMEOUT)) {
                 int ms = Integer.parseInt(props.getProperty(PROP_CONNECTION_TIMEOUT, "-1"));
-                this.connectionTimeout = (ms < 0) ? DEFAULT_TIMEOUT : Duration.ofMillis(ms);
+                this.connectionTimeout = (ms < 0) ? DEFAULT_CONNECTION_TIMEOUT : Duration.ofMillis(ms);
             }
 
             if (props.containsKey(PROP_MAX_CONTROL_LINE)) {
@@ -561,7 +577,7 @@ public class Options {
         /**
          * Add a server to the list of known servers.
          * 
-         * @param serverURL the URL for the server ot add
+         * @param serverURL the URL for the server to add
          * @throws IllegalArgumentException if the url is not formatted correctly.
          * @return the Builder for chaining
          */
@@ -605,7 +621,9 @@ public class Options {
         }
 
         /**
-         * Turn off server pool randomization.
+         * Turn off server pool randomization. By default the server will pick
+         * servers from its list randomly on a reconnect. When set to noRandom the server
+         * goes in the order they were configured or provided by gnatsd.
          * @return the Builder for chaining
          */
         public Builder noRandomize() {
@@ -614,7 +632,9 @@ public class Options {
         }
 
         /**
-         * Turn off echo.
+         * Turn off echo. If supported by the gnatsd version you are connecting to this
+         * flag will prevent the server from echoing messages back to the connection if it
+         * has subscriptions on the subject being published to.
          * @return the Builder for chaining
          */
         public Builder noEcho() {
@@ -623,7 +643,7 @@ public class Options {
         }
 
         /**
-         * Set the connectionName.
+         * Set the connection's optional Name.
          * 
          * @param name the connections new name.
          * @return the Builder for chaining
@@ -634,7 +654,7 @@ public class Options {
         }
 
         /**
-         * Turn on verbose mode.
+         * Turn on verbose mode with the server.
          * @return the Builder for chaining
          */
         public Builder verbose() {
@@ -643,7 +663,7 @@ public class Options {
         }
 
         /**
-         * Turn on pedantic mode.
+         * Turn on pedantic mode for the server, in relation to this connection.
          * @return the Builder for chaining
          */
         public Builder pedantic() {
@@ -652,7 +672,8 @@ public class Options {
         }
 
         /**
-         * Turn on advanced stats, primarily for test/benchmarks.
+         * Turn on advanced stats, primarily for test/benchmarks. These are visible if you
+         * call toString on the {@link Statistics Statistics} object.
          * @return the Builder for chaining
          */
         public Builder turnOnAdvancedStats() {
@@ -677,7 +698,7 @@ public class Options {
         }
 
         /**
-         * Set the SSL context to one that accespts any server certificate and has no client certificates.
+         * Set the SSL context to one that accepts any server certificate and has no client certificates.
          * 
          * @throws NoSuchAlgorithmException If the tls protocol is unavailable.
          * @return the Builder for chaining
@@ -712,10 +733,16 @@ public class Options {
          * Set the maximum number of reconnect attempts. Use 0 to turn off
          * auto-reconnect. Use -1 to turn on infinite reconnects.
          * 
+         * <p>The reconnect count is incremented on a per-server basis, so if the server list contains 5 servers
+         * but max reconnects is set to 3, only 3 of those servers will be tried.
+         * 
+         * <p>This library has a slight difference from some NATS clients, if you set the maxReconnects to zero
+         * there will not be any reconnect attempts, regardless of the number of known servers.
+         * 
          * <p>The reconnect state is entered when the connection is connected and loses
          * that connection. During the initial connection attempt, the client will cycle over
          * its server list one time, regardless of what maxReconnects is set to. The only exception
-         * to this is the experimental async connect method {@link Nats#connectAsychronously(Options, boolean) connectAsychronously}.
+         * to this is the experimental async connect method {@link Nats#connectAsynchronously(Options, boolean) connectAsynchronously}.
          * 
          * @param max the maximum reconnect attempts
          * @return the Builder for chaining
@@ -726,7 +753,11 @@ public class Options {
         }
 
         /**
-         * Set the time to wait between reconnect attempts to the same server.
+         * Set the time to wait between reconnect attempts to the same server. This setting is only used
+         * by the client when the same server appears twice in the reconnect attempts, either because it is the
+         * only known server or by random chance. Note, the randomization of the server list doesn't occur per
+         * attempt, it is performed once at the start, so if there are 2 servers in the list you will never encounter
+         * the reconnect wait.
          * 
          * @param time the time to wait
          * @return the Builder for chaining
@@ -737,7 +768,9 @@ public class Options {
         }
 
         /**
-         * Set the maximum length of a control line sent by this connection.
+         * Set the maximum length of a control line sent by this connection. This value is also configured
+         * in the server but the protocol doesn't currently forward that setting. Configure it here so that
+         * the client can ensure that messages are valid before sending to the server.
          * 
          * @param bytes the max byte count
          * @return the Builder for chaining
@@ -759,7 +792,8 @@ public class Options {
         }
 
         /**
-         * Set the interval between attempts to ping the server.
+         * Set the interval between attempts to pings the server. These pings are automated,
+         * and capped by {@link #maxPingsOut(int) maxPingsOut()}.
          * 
          * @param time the time between client to server pings
          * @return the Builder for chaining
@@ -770,7 +804,11 @@ public class Options {
         }
 
         /**
-         * Set the interval between cleaning passes on outstanding request futures.
+         * Set the interval between cleaning passes on outstanding request futures that are cancelled or timeout
+         * in the application code.
+         * 
+         * <p>The default value is probably reasonable, but this interval is useful in a very noisy network
+         * situation where lots of requests are used.
          * 
          * @param time the cleaning interval
          * @return the Builder for chaining
@@ -792,7 +830,7 @@ public class Options {
         }
 
         /**
-         * Sets the initial size for buffers in the conneciton, primarily for testing.
+         * Sets the initial size for buffers in the connection, primarily for testing.
          * @param size the size in bytes to make buffers for connections created with this options
          * @return the Builder for chaining
          */
@@ -803,7 +841,8 @@ public class Options {
 
         /**
          * Set the maximum number of bytes to buffer in the client when trying to
-         * reconnect.
+         * reconnect. When this value is exceeded the client will start to drop messages.
+         * The count of dropped messages can be read from the {@link Statistics#getDroppedCount() Statistics}.
          * 
          * @param size the size in bytes
          * @return the Builder for chaining
@@ -838,7 +877,7 @@ public class Options {
         }
 
         /**
-         * Set the ErrorListener to receive asyncrhonous error events related to this
+         * Set the {@link ErrorListener ErrorListener} to receive asynchronous error events related to this
          * connection.
          * 
          * @param listener The new ErrorListener for this connection.
@@ -850,7 +889,7 @@ public class Options {
         }
 
         /**
-         * Set the ConnectionListener to receive asyncrhonous notifications of disconnect
+         * Set the {@link ConnectionListener ConnectionListener} to receive asynchronous notifications of disconnect
          * events.
          * 
          * @param listener The new ConnectionListener for this type of event.
@@ -865,7 +904,7 @@ public class Options {
          * The class to use for this connections data port. This is an advanced setting
          * and primarily useful for testing.
          * 
-         * @param dataPortClassName a valid and accesible class name
+         * @param dataPortClassName a valid and accessible class name
          * @return the Builder for chaining
          */
         public Builder dataPortType(String dataPortClassName) {
@@ -874,18 +913,22 @@ public class Options {
         }
 
         /**
-         * If the Options builder was not provided with a server, a default one will be included
+         * Build an Options object from this Builder.
+         * 
+         * <p>If the Options builder was not provided with a server, a default one will be included
          * {@link Options#DEFAULT_URL}. If only a single server URI is included, the builder
          * will try a few things to make connecting easier:
-         *  * If there is no user/password is set but the URI has them, they will be used.
-         *  * If there is no token is set but the URI has one, it will be used.
-         *  * If the URI is of the form tls:// and no SSL context was assigned, the default one will
+         * <ul>
+         * <li>If there is no user/password is set but the URI has them, {@code nats://user:password@server:port}, they will be used.
+         * <li>If there is no token is set but the URI has one, {@code nats://token@server:port}, it will be used.
+         * <li>If the URI is of the form tls:// and no SSL context was assigned, the default one will
          *  be used {@link SSLContext#getDefault()}.
-         *  * If the URI is of the form opentls:// and no SSL context was assigned one will be created
+         * <li>If the URI is of the form opentls:// and no SSL context was assigned one will be created
          * that does not check the servers certificate for validity. This is not secure and only provided
          * for tests and development.
+         * </ul>
          * 
-         * @return the nwe options object
+         * @return the new options object
          * @throws IllegalStateException if there is a conflict in the options, like a token and a user/pass
          */
         public Options build() throws IllegalStateException {
@@ -959,141 +1002,141 @@ public class Options {
     }
 
     /**
-     * @return The error listener, or null.
+     * @return the error listener, or null, see {@link Builder#errorListener(ErrorListener) errorListener()} in the builder doc
      */
     public ErrorListener getErrorListener() {
         return this.errorListener;
     }
 
     /**
-     * @return The connection listener, or null.
+     * @return the connection listener, or null, see {@link Builder#connectionListener(ConnectionListener) connectionListener()} in the builder doc
      */
     public ConnectionListener getConnectionListener() {
         return this.connectionListener;
     }
 
     /**
-     * @return Returns the dataport type this options will create.
+     * @return the dataport type for connections created by this options object, see {@link Builder#dataPortType(String) dataPortType()} in the builder doc
      */
     public String getDataPortType() {
         return this.dataPortType;
     }
 
     /**
-     * @return The data port described by these options, or the default type.
+     * @return the data port described by these options
      */
     public DataPort buildDataPort() {
         return (DataPort) Options.Builder.createInstanceOf(dataPortType);
     }
 
     /**
-     * @return the servers stored in this options
+     * @return the servers stored in this options, see {@link Builder#servers(String[]) servers()} in the builder doc
      */
     public Collection<URI> getServers() {
         return servers;
     }
 
     /**
-     * @return should we turn off randomization for server connection attempts
+     * @return should we turn off randomization for server connection attempts, see {@link Builder#noRandomize() noRandomize()} in the builder doc
      */
     public boolean isNoRandomize() {
         return noRandomize;
     }
 
     /**
-     * @return the connectionName
+     * @return the connectionName, see {@link Builder#connectionName(String) connectionName()} in the builder doc
      */
     public String getConnectionName() {
         return connectionName;
     }
 
     /**
-     * @return are we in verbose mode
+     * @return are we in verbose mode, see {@link Builder#verbose() verbose()} in the builder doc
      */
     public boolean isVerbose() {
         return verbose;
     }
 
     /**
-     * @return is echo-ing disabled
+     * @return is echo-ing disabled, see {@link Builder#noEcho() noEcho()} in the builder doc
      */
     public boolean isNoEcho() {
         return noEcho;
     }
 
     /**
-     * @return are we using pedantic protocol
+     * @return are we using pedantic protocol, see {@link Builder#pedantic() pedantic()} in the builder doc
      */
     public boolean isPedantic() {
         return pedantic;
     }
 
     /**
-     * @return should we track advanced stats
+     * @return should we track advanced stats, see {@link Builder#turnOnAdvancedStats() turnOnAdvancedStats()} in the builder doc
      */
     public boolean isTrackAdvancedStats() {
         return trackAdvancedStats;
     }
 
     /**
-     * @return the maximum length of a control line
+     * @return the maximum length of a control line, see {@link Builder#maxControlLine(int) maxControlLine()} in the builder doc
      */
     public int getMaxControlLine() {
         return maxControlLine;
     }
 
     /**
-     * Checks if we have an ssl context, and if so returns true.
-     * @return use tls
+     * 
+     * @return true if there is an sslContext for this Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
      */
     public boolean isTLSRequired() {
         return (this.sslContext != null);
     }
 
     /**
-     * @return the sslContext
+     * @return the sslContext, see {@link Builder#secure() secure()} in the builder doc
      */
     public SSLContext getSslContext() {
         return sslContext;
     }
 
     /**
-     * @return the maxReconnect attempts to make before failing
+     * @return the maxReconnect attempts to make before failing, see {@link Builder#maxReconnects(int) maxReconnects()} in the builder doc
      */
     public int getMaxReconnect() {
         return maxReconnect;
     }
 
     /**
-     * @return the reconnectWait, used between reconnect attempts to the same server
+     * @return the reconnectWait, used between reconnect attempts to the same server, see {@link Builder#reconnectWait(Duration) reconnectWait()} in the builder doc
      */
     public Duration getReconnectWait() {
         return reconnectWait;
     }
 
     /**
-     * @return the connectionTimeout
+     * @return the connectionTimeout, see {@link Builder#connectionTimeout(Duration) connectionTimeout()} in the builder doc
      */
     public Duration getConnectionTimeout() {
         return connectionTimeout;
     }
 
     /**
-     * @return the pingInterval
+     * @return the pingInterval, see {@link Builder#pingInterval(Duration) pingInterval()} in the builder doc
      */
     public Duration getPingInterval() {
         return pingInterval;
     }
 
     /**
-     * @return the request cleanup interval
+     * @return the request cleanup interval, see {@link Builder#requestCleanupInterval(Duration) requestCleanupInterval()} in the builder doc
      */
     public Duration getRequestCleanupInterval() {
         return requestCleanupInterval;
     }
 
     /**
-     * @return the maxPingsOut to limit the number of pings on the wire
+     * @return the maxPingsOut to limit the number of pings on the wire, see {@link Builder#maxPingsOut(int) maxPingsOut()} in the builder doc
      */
     public int getMaxPingsOut() {
         return maxPingsOut;
@@ -1101,42 +1144,42 @@ public class Options {
 
     /**
      * @return the reconnectBufferSize, to limit the amount of data held during
-     *         reconnection attempts
+     *         reconnection attempts, see {@link Builder#reconnectBufferSize(long) reconnectBufferSize()} in the builder doc
      */
     public long getReconnectBufferSize() {
         return reconnectBufferSize;
     }
 
     /**
-     * @return the default size for buffers in the connection code
+     * @return the default size for buffers in the connection code, see {@link Builder#bufferSize(int) bufferSize()} in the builder doc
      */
     public int getBufferSize() {
         return bufferSize;
     }
 
     /**
-     * @return the username to use for basic authentication
+     * @return the username to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
      */
     public String getUsername() {
         return username;
     }
 
     /**
-     * @return the password the password to use for basic authentication
+     * @return the password the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
      */
     public String getPassword() {
         return password;
     }
 
     /**
-     * @return the token to be used for token-based authentication
+     * @return the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
      */
     public String getToken() {
         return token;
     }
 
     /**
-     * @return the flag to turn on old style requests
+     * @return the flag to turn on old style requests, see {@link Builder#oldRequestStyle() oldStyleRequest()} in the builder doc
      */
     public boolean isOldRequestStyle() {
         return useOldRequestStyle;

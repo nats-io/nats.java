@@ -248,7 +248,7 @@ public class ConnectTests {
                                         build();
            handler.prepForStatusChange(Events.CONNECTED);
 
-            Nats.connectAsychronously(options, false);
+            Nats.connectAsynchronously(options, false);
 
             handler.waitForStatusChange(1, TimeUnit.SECONDS);
 
@@ -279,7 +279,7 @@ public class ConnectTests {
         try {
             handler.prepForStatusChange(Events.CONNECTED);
 
-            Nats.connectAsychronously(options, true);
+            Nats.connectAsynchronously(options, true);
 
             // No server at this point, let it fail and try to start over
             try {

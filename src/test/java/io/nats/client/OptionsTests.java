@@ -61,7 +61,7 @@ public class OptionsTests {
         assertEquals("default reconnect buffer size", Options.DEFAULT_RECONNECT_BUF_SIZE, o.getReconnectBufferSize());
 
         assertEquals("default reconnect wait", Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait());
-        assertEquals("default connection timeout", Options.DEFAULT_TIMEOUT, o.getConnectionTimeout());
+        assertEquals("default connection timeout", Options.DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout());
         assertEquals("default ping interval", Options.DEFAULT_PING_INTERVAL, o.getPingInterval());
         assertEquals("default cleanup interval", Options.DEFAULT_REQUEST_CLEANUP_INTERVAL,
                 o.getRequestCleanupInterval());
@@ -207,10 +207,10 @@ public class OptionsTests {
 
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertEquals("poperty reconnect wait", Duration.ofMillis(101), o.getReconnectWait());
-        assertEquals("poperty connection timeout", Duration.ofMillis(202), o.getConnectionTimeout());
-        assertEquals("poperty ping interval", Duration.ofMillis(303), o.getPingInterval());
-        assertEquals("poperty cleanup interval", Duration.ofMillis(404), o.getRequestCleanupInterval());
+        assertEquals("property reconnect wait", Duration.ofMillis(101), o.getReconnectWait());
+        assertEquals("property connection timeout", Duration.ofMillis(202), o.getConnectionTimeout());
+        assertEquals("property ping interval", Duration.ofMillis(303), o.getPingInterval());
+        assertEquals("property cleanup interval", Duration.ofMillis(404), o.getRequestCleanupInterval());
     }
 
     @Test

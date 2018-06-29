@@ -17,6 +17,56 @@ import java.io.IOException;
 
 import io.nats.client.impl.NatsImpl;
 
+/**
+ * The Nats class is the entry point into the NATS client for Java. This class
+ * is used to create a connection to the Nats server, gnatsd. Connecting is a
+ * synchronous process, with a new asynchronous version available for experimenting.
+ * 
+ * <p>Simple connections can be created with a URL, while more control is provided
+ * when an {@link Options Options} object is used. There are a number of options that
+ * effect every connection, as described in the {@link Options Options} documentation.
+ * 
+ * <p>At its simplest, you can connect to a gnatsd on the local host using the default port with:
+ * <pre>Connection nc = Nats.connect()</pre>
+ * <p>and start sending or receiving messages immediately after that.
+ * 
+ * <p>While the simple case relies on a single URL, the options allows you to configure a list of servers
+ * that is used at connect time and during reconnect scenarios.
+ * 
+ * <p>NATS supports TLS connections. This library relies on the standard SSLContext class to configure
+ * SSL certificates and trust managers, as a result there are two steps to setting up a TLS connection,
+ * configuring the SSL context and telling the library which one to use. Several options are provided
+ * for each. To tell the library to connect with TLS:
+ * 
+ * <ul>
+ * <li>Pass a tls:// URL to the connect method, or as part of the options. The library will use the 
+ * default SSLContext for both the client certificates and trust managers.
+ * <li>Call the {@link Options.Builder#secure() secure} method on the options builder, again the default
+ * SSL Context is used.
+ * <li>Call {@link Options.Builder#sslContext(javax.net.ssl.SSLContext) sslContext} when building your options.
+ * Your context will be used.
+ * <li>Pass an opentls:// url to the connect method, or in the options. The library will create a special
+ * SSLContext that has no client certificates and trusts any server. <strong>This is less secure, but useful for
+ * testing and behind a firewall.</strong>
+ * <li>Call the {@link Options.Builder#opentls() opentls} method on the builder when creating your options, again
+ * the all trusting, non-verifiable client is created.
+ * </ul>
+ * 
+ * <p>To set up the default context for tls:// or {@link Options.Builder#secure() secure} you can:
+ * <ul>
+ * <li>Configure the default using System properties, i.e. <em>javax.net.ssl.keyStore</em>.
+ * <li>Set the context manually with the SSLContext setDefault method.
+ * </ul>
+ * 
+ * <p>If the server is configured to verify clients, the opentls mode will not work, and the other modes require a client certificate
+ * to work.
+ * 
+ * <p>Authentication, if configured on the server, is managed via the Options as well. However, the url passed to {@link #connect(String) connect()}
+ * can provide a user/password pair or a token using the forms: {@code nats://user:password@server:port} and {@code nats://token@server:port}.
+ * 
+ * <p>Regardless of the method used a {@link Connection Connection} object is created, and provides the methods for
+ * sending, receiving and dispatching messages.
+ */
 public class Nats {
 
     /**
@@ -30,7 +80,7 @@ public class Nats {
     public static final String CLIENT_LANGUAGE = "java";
 
     /**
-     * Connect to the default URL ({#value Options#DEFAULT_URL}) with all of the
+     * Connect to the default URL, {@link Options#DEFAULT_URL Options.DEFAULT_URL}, with all of the
      * default options.
      * 
      * <p>This is a synchronous call, and the connection should be ready for use on return
@@ -54,7 +104,7 @@ public class Nats {
      * <p>or token in them {@code nats://token@hostname:port}.
      * 
      * <p>Moreover, you can initiate a TLS connection, by using the `tls`
-     * schema, whic will use the default SSLContext, or fail if one is not set. For
+     * schema, which will use the default SSLContext, or fail if one is not set. For
      * testing and development, the `opentls` schema is support when the server is
      * in non-verify mode. In this case, the client will accept any server
      * certificate and will not provide one of its own.
@@ -112,11 +162,11 @@ public class Nats {
      * @throws IllegalArgumentException if no connection listener is set in the options
      * @throws InterruptedException if the current thread is interrupted
      */
-    public static void connectAsychronously(Options options, boolean reconnectOnConnect)
+    public static void connectAsynchronously(Options options, boolean reconnectOnConnect)
             throws InterruptedException {
 
         if (options.getConnectionListener() == null) {
-            throw new IllegalArgumentException("Connection Listener required in connectAsychronously");
+            throw new IllegalArgumentException("Connection Listener required in connectAsynchronously");
         }
 
         Thread t = new Thread(() -> {

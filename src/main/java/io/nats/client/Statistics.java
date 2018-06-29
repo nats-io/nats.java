@@ -13,6 +13,12 @@
 
 package io.nats.client;
 
+/**
+ * Connections can provide an instance of Statistics, {@link Connection#getStatistics() getStatistics()}. The statistics
+ * object provides information about key metrics related to the connection over its entire lifecycle.
+ * 
+ * <p>The Statistics toString() provides a summary of the statistics.
+ */
 public interface Statistics {
     /**
      * @return the total number of messages that have come in to this connection.

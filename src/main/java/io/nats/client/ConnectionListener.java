@@ -13,13 +13,23 @@
 
 package io.nats.client;
 
+/**
+ * Applications can use a ConnectionListener to track the status of a {@link Connection Connection}. The 
+ * listener is configured in the {@link Options Options} at creation time.
+ */
 public interface ConnectionListener {
     public enum Events {
+        /** The connection has successfully completed the handshake with the gnatsd. */
         CONNECTED("nats: connection opened"),
+        /** The connection is permanently closed, either by manual action or failed reconnects. */
         CLOSED("nats: connection closed"),
+        /** The connection lost its connection, but may try to reconnect if configured to. */
         DISCONNECTED("nats: connection disconnected"), 
+        /** The connection was connected, lost its connection and successfully reconnected. */
         RECONNECTED("nats: connection reconnected"), 
-        RESUBSCRIBED("nats: subscriptions re-established"), 
+        /** The connection was reconnected and the server has been notified of all subscriptions. */
+        RESUBSCRIBED("nats: subscriptions re-established"),
+        /** The connection was told about new servers from, from the current server. */ 
         DISCOVERED_SERVERS("nats: discovered servers");
 
         private String event;
@@ -28,6 +38,9 @@ public interface ConnectionListener {
             this.event = err;
         }
 
+        /**
+         * @return the string value for this event
+         */
         public String getEvent() {
             return this.event;
         }
@@ -38,10 +51,8 @@ public interface ConnectionListener {
      * sent to a ConnectionListener via a single method. The ConnectionListener can
      * use the event type to decide what to do about the problem.
      * 
-     * @param conn
-     *                 The connection associated with the error
-     * @param type
-     *                 The type of event that has occured
+     * @param conn the connection associated with the error
+     * @param type the type of event that has occurred
      */
     public void connectionEvent(Connection conn, Events type);
 }

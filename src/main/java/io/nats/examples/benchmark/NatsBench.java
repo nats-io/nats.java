@@ -73,11 +73,6 @@ public class NatsBench {
                     + "    -ms                             Size of the message (128)\n"
                     + "    -csv                            Print results to stdout as csv (false)\n";
 
-    /**
-     * Main constructor for NatsBench.
-     *
-     * @param args configuration parameters
-     */
     public NatsBench(String[] args) throws Exception {
         if (args == null || args.length < 1) {
             usage();
@@ -86,11 +81,6 @@ public class NatsBench {
         parseArgs(args);
     }
 
-    /**
-     * Properties-based constructor for NatsBench.
-     *
-     * @param properties configuration properties
-     */
     public NatsBench(Properties properties) throws NoSuchAlgorithmException {
         urls = properties.getProperty("bench.nats.servers", urls);
         secure = Boolean.parseBoolean(

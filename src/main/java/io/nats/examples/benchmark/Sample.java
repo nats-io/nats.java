@@ -40,7 +40,7 @@ public class Sample {
      * @param msgSize  the size in bytes of each messages
      * @param start    the start time in nanoseconds
      * @param end      the end time in nanoseconds
-     * @param nc       the NATs connection
+     * @param stats    the NATs connection's statistics object
      */
     public Sample(int jobCount, int msgSize, long start, long end, Statistics stats) {
         this.jobMsgCnt = jobCount;

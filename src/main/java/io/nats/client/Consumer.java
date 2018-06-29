@@ -14,10 +14,18 @@
 package io.nats.client;
 
 /**
- * A Consumer in the nats library is an object that represents an incoming queue of
+ * A Consumer in the NATS library is an object that represents an incoming queue of
  * messages. There are two types of consumers {@link Dispatcher} and {@link Subscription}.
  * This interface unifies the responsibilities that are focused on dealing with slow consumers.
  * The {@link Dispatcher} and {@link Subscription} deal with the mechanics of their specialized roles.
+ * 
+ * <p>A slow consumer is defined as a consumer that is not handling messages as quickly as they are arriving. For example,
+ * if the application code doesn't call {@link Subscription#nextMessage(java.time.Duration) nextMessage()}
+ * often enough on a Subscription.
+ * 
+ * <p>By default the library will allow a consumer to be a bit slow, at times, by caching messages for it in a queue.
+ * The size of this queue is determined by {@link #setPendingLimits(long, long) setPendingLimits()}. When a consumer
+ * maxes out its queue size, either by message count or bytes, the library will start to drop messages.
  */
 public interface Consumer {
 
@@ -43,33 +51,33 @@ public interface Consumer {
      * 
      * <p>Setting a value to anything less than or equal to 0 will disable this check.
      * 
-     * @param maxMessages the maximum message count to hold, defaults to {{@value #DEFAULT_MAX_MESSAGES}}.
-     * @param maxBytes the maximum bytes to hold, defaults to {{@value #DEFAULT_MAX_BYTES}}.
+     * @param maxMessages the maximum message count to hold, defaults to {{@value #DEFAULT_MAX_MESSAGES}}
+     * @param maxBytes the maximum bytes to hold, defaults to {{@value #DEFAULT_MAX_BYTES}}
      */
     public void setPendingLimits(long maxMessages, long maxBytes);
 
     /**
-     * @return the pending message limit set by {@link #setPendingLimits(long, long) setPendingLimits}.
+     * @return the pending message limit set by {@link #setPendingLimits(long, long) setPendingLimits}
      */
     public long getPendingMessageLimit();
 
     /**
-     * @return the pending byte limit set by {@link #setPendingLimits(long, long) setPendingLimits}.
+     * @return the pending byte limit set by {@link #setPendingLimits(long, long) setPendingLimits}
      */
     public long getPendingByteLimit();
 
     /**
-     * @return the number of messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}.
+     * @return the number of messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}
      */
     public long getPendingMessageCount();
 
     /**
-     * @return the cumulative size of the messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}.
+     * @return the cumulative size of the messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}
      */
     public long getPendingByteCount();
 
     /**
-     * @return the total number of messages delivered to this consumer, for all time.
+     * @return the total number of messages delivered to this consumer, for all time
      */
     public long getDeliveredCount();
 

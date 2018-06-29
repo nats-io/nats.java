@@ -1,15 +1,65 @@
 <!--
-  ~  Copyright (c) 2015-2018 The NATS Authors. All rights reserved. This program and the accompanying materials are made available under the terms of the Apache 2.0 license which accompanies this distribution, and is available at http://www.apache.org/licenses/LICENSE-2.0
+Copyright 2015-2018 The NATS Authors
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at:
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
   -->
 
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html>
-<head>
-    <title>NATS Java API Overview</title>
-    <link rel="icon" href="favicon.ico">
-</head>
+<head></head>
 <body>
+Java API for the <a href="http://nats.io">NATs messaging system</a>.
 <p><img src="large-logo.png" alt="nats logo"></p>
-<p>short-ish overview of the api.</p>
+
+<p>NATS Server is a simple, high performance open source messaging system for cloud native applications, IoT messaging, and microservices architectures.
+  This Java API opens the server to Java applications. The API is performant, supporting millions of messages a second, and easy to use.
+</p>
+
+<p>Publishing can be accomplished in just a few lines of code:</p>
+<pre>
+    Connection nc = Nats.connect("nats://localhost:4222");
+    nc.publish(subject, message.getBytes(StandardCharsets.UTF_8));
+</pre>
+
+<p>As can subscribing:</p>
+<pre>
+    Connection nc = Nats.connect("nats://localhost:4222");
+    Subscription sub = nc.subscribe(subject);
+
+    Message msg = sub.nextMessage(Duration.ofSeconds(1));
+</pre>
+
+<p>More advanced applications can organize message handling behind threaded Dispatchers:</p>
+<pre>
+    Connection nc = Nats.connect("nats://localhost:4222");
+    
+    Dispatcher d = nc.createDispatcher((msg) -> {
+        System.out.printf("Received message \"%s\" on subject \"%s\"\n", 
+                                new String(msg.getData(), StandardCharsets.UTF_8), 
+                                msg.getSubject());
+    });
+    d.subscribe(subject);
+</pre>
+
+<p>A powerful {@see Options} class is provided to configure advanced connections.</p>
+
+<pre>
+    Options o = new Options.Builder().server("nats://hostname:4222").secure().reconnectBufferSize(300).build();
+    Connection nc = Nats.connect(o);
+</pre>
+
+<p><em>This package is implemented with Java 8 features. It is not designed for Android applications, in particular the networking code while striving
+  for performance and effeciency is not designed for mobile scenarios.
+</em></p>
+
+
 </body>
 </html>

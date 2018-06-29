@@ -13,14 +13,28 @@
 
 package io.nats.client;
 
+/**
+ * This library groups problems into three categories:
+ * <dl>
+ * <dt>Errors</dt>
+ * <dd>The server sent an error message using the {@code -err} protocol operation.</dd>
+ * <dt>Exceptions</dt>
+ * <dd>A Java exception occurred, and was handled by the library.</dd>
+ * <dt>Slow Consumers</dt>
+ * <dd>One of the connections consumers, Subscription or Dispatcher, is slow, and starting to drop messages.</dd>
+ * </dl>
+ * <p>All of these problems are reported to the application code using the ErrorListener. The 
+ * listener is configured in the {@link Options Options} at creation time.
+ */
 public interface ErrorListener {
     /**
      * NATs related errors that occur asynchronously in the client library are sent
      * to an ErrorListener via errorOccurred. The ErrorListener can use the error text to decide what to do about the problem.
-     * <p>The text for an error is described in the protcol doc at `https://nats.io/documentation/internals/nats-protocol`.
-     * 
+     * <p>The text for an error is described in the protocol doc at `https://nats.io/documentation/internals/nats-protocol`.
+     * <p>In some cases the server will close the clients connection after sending one of these errors. In that case, the
+     * connections {@link ConnectionListener ConnectionListener} will be notified.
      * @param conn The connection associated with the error
-     * @param error The text of error that has occured, directly from the server
+     * @param error The text of error that has occurred, directly from the server
      */
     public void errorOccurred(Connection conn, String error);
 
@@ -32,7 +46,7 @@ public interface ErrorListener {
      * forwarded here in case the application code needs them for debugging purposes.
      * 
      * @param conn The connection associated with the error
-     * @param exp The exception that has occured, and was handled by the library
+     * @param exp The exception that has occurred, and was handled by the library
      */
     public void exceptionOccurred(Connection conn, Exception exp);
 

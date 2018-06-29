@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
@@ -71,12 +72,16 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return this.sid;
     }
 
-    NatsDispatcher getDispatcher() {
+    NatsDispatcher getNatsDispatcher() {
         return this.dispatcher;
     }
 
     MessageQueue getMessageQueue() {
         return this.incoming;
+    }
+
+    public Dispatcher getDispatcher() {
+        return this.dispatcher;
     }
 
     public String getSubject() {

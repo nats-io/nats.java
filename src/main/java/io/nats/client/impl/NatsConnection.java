@@ -78,7 +78,7 @@ class NatsConnection implements Connection {
 
     private boolean connecting; // you can only connect in one thread
     private boolean closing; // you can only close in one thread
-    private Exception exceptionDuringCloseOrConnect; // an exception occured in another thread while closing or connecting
+    private Exception exceptionDuringCloseOrConnect; // an exception occurred in another thread while closing or connecting
     private CompletableFuture<Void> closingFuture;
 
     private Status status;
@@ -222,6 +222,12 @@ class NatsConnection implements Connection {
         this.dispatchers.forEach((nuid, d) -> {
             d.resendSubscriptions();
         });
+
+        try {
+            this.flush(this.options.getConnectionTimeout());
+        } catch (Exception exp) {
+            this.processException(exp);
+        }
         
         processConnectionEvent(Events.RESUBSCRIBED);
     }
@@ -517,7 +523,7 @@ class NatsConnection implements Connection {
 
         cleanUpPongQueue();
 
-        // We signalled now wait for them to stop
+        // We signaled now wait for them to stop
         try {
             this.reader.stop().get(10, TimeUnit.SECONDS);
         } catch (Exception ex) {
@@ -562,7 +568,7 @@ class NatsConnection implements Connection {
         if (body == null) {
             body = EMPTY_BODY;
         } else if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
-            throw new IllegalArgumentException("Message payload size exceed server configuraiton "+body.length+" vs "+this.getMaxPayload());
+            throw new IllegalArgumentException("Message payload size exceed server configuration "+body.length+" vs "+this.getMaxPayload());
         }
         
         NatsMessage msg = new NatsMessage(subject, replyTo, body);
@@ -598,8 +604,8 @@ class NatsConnection implements Connection {
 
         subscribers.remove(sid);
 
-        if (sub.getDispatcher() != null) {
-            sub.getDispatcher().remove(sub);
+        if (sub.getNatsDispatcher() != null) {
+            sub.getNatsDispatcher().remove(sub);
         }
 
         sub.invalidate();
@@ -732,7 +738,7 @@ class NatsConnection implements Connection {
         if (body == null) {
             body = EMPTY_BODY;
         } else if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
-            throw new IllegalArgumentException("Message payload size exceed server configuraiton "+body.length+" vs "+this.getMaxPayload());
+            throw new IllegalArgumentException("Message payload size exceed server configuration "+body.length+" vs "+this.getMaxPayload());
         }
 
         if (inboxDispatcher.get() == null) {
@@ -983,7 +989,7 @@ class NatsConnection implements Connection {
         if (sub != null) {
             msg.setSubscription(sub);
 
-            NatsDispatcher d = sub.getDispatcher();
+            NatsDispatcher d = sub.getNatsDispatcher();
             NatsConsumer c = (d==null) ? sub : d;
             MessageQueue q = ((d == null) ? sub.getMessageQueue() : d.getMessageQueue());
 

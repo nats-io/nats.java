@@ -15,12 +15,19 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 
+/**
+ * A data port represents the connection to the network. This could have been called
+ * transport but that seemed too big a concept. This interface just allows a wrapper around
+ * the core communication code.
+ */
 public interface DataPort {
     public void connect(String serverURI, NatsConnection conn) throws IOException;
 
     /**
      * Upgrade the port to SSL. If it is already secured, this is a no-op.
      * If the data port type doesn't support SSL it should throw an exception.
+     * 
+     * @throws IOException if the data port is unable to upgrade.
      */
     public void upgradeToSecure() throws IOException;
 

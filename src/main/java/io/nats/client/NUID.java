@@ -21,7 +21,9 @@ import java.security.SecureRandom;
 import java.util.Random;
 
 /**
- * A highly performant unique identifier generator.
+ * A highly performant unique identifier generator. The library uses this to generate
+ * an inbox for request-replies. Applications can use their own NUID to generate
+ * subjects as well. A shareable Global instance is also available via {@link #nextGlobal nextGlobal()}.
  */
 public final class NUID {
     /*
@@ -52,8 +54,7 @@ public final class NUID {
     private long seq;
     private long inc;
 
-    // Global NUID
-    public static final NUID globalNUID = new NUID();
+    private static final NUID globalNUID = new NUID();
 
     static NUID getInstance() {
         return globalNUID;
@@ -94,9 +95,7 @@ public final class NUID {
     }
 
     /**
-     * Generate the next NUID string from the global locked NUID instance.
-     *
-     * @return the next NUID string from the global locked NUID instance.
+     * @return the next NUID string from a shared global NUID instance
      */
     public static synchronized String nextGlobal() {
         return getInstance().next();

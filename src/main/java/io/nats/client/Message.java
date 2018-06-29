@@ -13,13 +13,33 @@
 
 package io.nats.client;
 
+/**
+ * The NATS library uses a Message object to encapsulate incoming messages. Applications
+ * publish and send requests with raw strings and byte[] but incoming messages can have a few
+ * values, so they need a wrapper.
+ * 
+ * <p>The byte[] returned by {@link #getData() getData()} is not shared with any library code
+ * and is safe to manipulate.
+ */
 public interface Message {
 
+	/**
+	 * @return the subject that this message was sent to
+	 */
 	public String getSubject();
 
+	/**
+	 * @return the subject the application is expected to send a reply message on
+	 */
 	public String getReplyTo();
 
+	/**
+	 * @return the data from the message
+	 */
 	public byte[] getData();
 
+	/**
+	 * @return the Subscription associated with this message, may be owned by a Dispatcher
+	 */
 	public Subscription getSubscription();
 }
