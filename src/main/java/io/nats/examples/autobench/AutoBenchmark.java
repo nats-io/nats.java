@@ -37,6 +37,10 @@ public abstract class AutoBenchmark {
         return this.name;
     }
 
+    public String getSubject() {
+        return String.valueOf(getName().hashCode()%10000);
+    }
+
     public long getMessageSize() {
         return this.messageSize;
     }
@@ -79,7 +83,10 @@ public abstract class AutoBenchmark {
                 message = this.exception.getClass().getCanonicalName();
             }
 
-            System.out.printf("%-18s Exception: %12s\n", getName(), message);
+            System.out.printf("%-18s %12s Exception: %12s\n", 
+                    getName(),
+                    NumberFormat.getIntegerInstance().format(this.messageCount),
+                    message);
             return;
         }
 
@@ -88,7 +95,7 @@ public abstract class AutoBenchmark {
         System.out.printf("%-18s %12s %18s msg/s %12s/s\n",
                             this.name,
                             NumberFormat.getIntegerInstance().format(this.messageCount),
-                            NumberFormat.getInstance().format(messagesPerSecond),
+                            NumberFormat.getIntegerInstance().format((long)messagesPerSecond),
                             humanBytes(bytesPerSecond));
     }
 

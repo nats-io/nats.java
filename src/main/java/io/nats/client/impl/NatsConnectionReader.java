@@ -274,6 +274,7 @@ class NatsConnectionReader implements Runnable {
                         msgDataPosition = 0;
                         incoming = null;
                         gotCR = false;
+                        this.op = UNKNOWN_OP;
                         this.mode = Mode.GATHER_OP;
                         break;
                     } else {
@@ -339,9 +340,9 @@ class NatsConnectionReader implements Runnable {
                         (chars[2] == 'R' || chars[2] == 'r') && 
                         (chars[3] == 'R' || chars[3] == 'R')) {
                 return NatsConnection.OP_ERR;
-            } else if ((chars[2] == 'F' || chars[2] == 'f') && 
-                        (chars[0] == 'I' || chars[0] == 'i') && 
+            } else if ((chars[0] == 'I' || chars[0] == 'i') && 
                         (chars[1] == 'N' || chars[1] == 'n') && 
+                        (chars[2] == 'F' || chars[2] == 'f') &&
                         (chars[3] == 'O' || chars[3] == 'o')) {
                 return NatsConnection.OP_INFO;
             }  else {
@@ -413,6 +414,7 @@ class NatsConnectionReader implements Runnable {
                 break;
             case NatsConnection.OP_OK:
                 this.connection.processOK();
+                this.op = UNKNOWN_OP;
                 this.mode = Mode.GATHER_OP;
                 break;
             case NatsConnection.OP_ERR:
@@ -421,19 +423,23 @@ class NatsConnectionReader implements Runnable {
                     errorText = errorText.replace("\'", "");
                 }
                 this.connection.processError(errorText);
+                this.op = UNKNOWN_OP;
                 this.mode = Mode.GATHER_OP;
                 break;
             case NatsConnection.OP_PING:
                 this.connection.sendPong();
+                this.op = UNKNOWN_OP;
                 this.mode = Mode.GATHER_OP;
                 break;
             case NatsConnection.OP_PONG:
                 this.connection.handlePong();
+                this.op = UNKNOWN_OP;
                 this.mode = Mode.GATHER_OP;
                 break;
             case NatsConnection.OP_INFO:
                 String info = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
                 this.connection.handleInfo(info);
+                this.op = UNKNOWN_OP;
                 this.mode = Mode.GATHER_OP;
                 break;
             default:

@@ -13,6 +13,7 @@
 
 package io.nats.examples.autobench;
 
+import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -33,7 +34,7 @@ public class PubDispatchBenchmark extends AutoBenchmark {
 
     public void execute(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
-        String subject = "autob";
+        String subject = getSubject();
 
         final CompletableFuture<Void> go = new CompletableFuture<>();
         final CompletableFuture<Void> subReady = new CompletableFuture<>();
@@ -50,18 +51,13 @@ public class PubDispatchBenchmark extends AutoBenchmark {
                 try {
                     AtomicInteger count = new AtomicInteger(0);
                     Dispatcher d = subConnect.createDispatcher((msg) -> {
-                        if (msg != null){
-                            count.incrementAndGet();
-
-                            if (count.get() == this.getMessageCount()) {
-                                subDone.complete(null);
-                            }
+                        if (count.incrementAndGet() >= this.getMessageCount()) {
+                            subDone.complete(null);
                         }
                     });
                     d.subscribe(subject);
                     subConnect.flush(Duration.ZERO);
                     subReady.complete(null);
-                    go.get();
                     
                     // For simplicity the test doesn't have a connection listener so just loop
                     // we are async so otherwise we can't know if the connection closed under us
@@ -74,8 +70,10 @@ public class PubDispatchBenchmark extends AutoBenchmark {
                         }
                     }
                     
-                    if (count.get() != this.getMessageCount()) {
-                        throw new Exception("Dispatcher missed messages.");
+                    if (count.get() < this.getMessageCount()) {
+                        throw new Exception("Dispatcher missed " + 
+                                            NumberFormat.getIntegerInstance().format(this.getMessageCount() - count.get()) +
+                                            " messages.");
                     }
                 } catch (Exception exp) {
                     this.setException(exp);

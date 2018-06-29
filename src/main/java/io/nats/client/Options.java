@@ -211,6 +211,10 @@ public class Options {
      */
     public static final String PROP_VERBOSE = PFX + "verbose";
     /**
+     * {@value #PROP_NO_ECHO}, see {@link Builder#noEcho() noEcho}.
+     */
+    public static final String PROP_NO_ECHO = PFX + "noecho";
+    /**
      * {@value #PROP_CONNECTION_NAME}, see {@link Builder#connectionName(String)
      * connectionName}.
      */
@@ -324,6 +328,11 @@ public class Options {
      */
     public static final String OPTION_PROTOCOL = "protocol";
 
+    /**
+     * Echo key {@value #OPTION_ECHO}, determines if the server should echo to the client.
+     */
+    public static final String OPTION_ECHO = "echo";
+
     private List<URI> servers;
     private final boolean noRandomize;
     private final String connectionName;
@@ -343,6 +352,7 @@ public class Options {
     private final String token;
     private final boolean useOldRequestStyle;
     private final int bufferSize;
+    private final boolean noEcho;
 
     private final ErrorListener errorListener;
     private final ConnectionListener connectionListener;
@@ -372,6 +382,7 @@ public class Options {
         private boolean useOldRequestStyle = false;
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private boolean trackAdvancedStats = false;
+        private boolean noEcho = false;
 
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
@@ -466,6 +477,10 @@ public class Options {
 
             if (props.containsKey(PROP_VERBOSE)) {
                 this.verbose = Boolean.parseBoolean(props.getProperty(PROP_VERBOSE));
+            }
+
+            if (props.containsKey(PROP_NO_ECHO)) {
+                this.noEcho = Boolean.parseBoolean(props.getProperty(PROP_NO_ECHO));
             }
 
             if (props.containsKey(PROP_PEDANTIC)) {
@@ -595,6 +610,15 @@ public class Options {
          */
         public Builder noRandomize() {
             this.noRandomize = true;
+            return this;
+        }
+
+        /**
+         * Turn off echo.
+         * @return the Builder for chaining
+         */
+        public Builder noEcho() {
+            this.noEcho = true;
             return this;
         }
 
@@ -926,6 +950,7 @@ public class Options {
         this.useOldRequestStyle = b.useOldRequestStyle;
         this.maxControlLine = b.maxControlLine;
         this.bufferSize = b.bufferSize;
+        this.noEcho = b.noEcho;
 
         this.errorListener = b.errorListener;
         this.connectionListener = b.connectionListener;
@@ -987,6 +1012,13 @@ public class Options {
      */
     public boolean isVerbose() {
         return verbose;
+    }
+
+    /**
+     * @return is echo-ing disabled
+     */
+    public boolean isNoEcho() {
+        return noEcho;
     }
 
     /**
@@ -1132,6 +1164,7 @@ public class Options {
         appendOption(connectString, Options.OPTION_VERBOSE, String.valueOf(this.isVerbose()), false, true);
         appendOption(connectString, Options.OPTION_PEDANTIC, String.valueOf(this.isPedantic()), false, true);
         appendOption(connectString, Options.OPTION_TLS_REQUIRED, String.valueOf(this.isTLSRequired()), false, true);
+        appendOption(connectString, Options.OPTION_ECHO, String.valueOf(!this.isNoEcho()), false, true);
 
         if (includeAuth) {
             if (this.username != null) {

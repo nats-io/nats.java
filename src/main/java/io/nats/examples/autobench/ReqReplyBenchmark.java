@@ -31,7 +31,7 @@ public class ReqReplyBenchmark extends AutoBenchmark {
 
     public void execute(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
-        String subject = "autob";
+        String subject = getSubject();
 
         final CompletableFuture<Void> go = new CompletableFuture<>();
         final CompletableFuture<Void> replyReady = new CompletableFuture<>();
@@ -49,7 +49,6 @@ public class ReqReplyBenchmark extends AutoBenchmark {
                     Subscription sub = replyConnect.subscribe(subject);
                     replyConnect.flush(Duration.ZERO);
                     replyReady.complete(null);
-                    go.get();
                     
                     int count = 0;
                     while(count < this.getMessageCount()) {
@@ -60,8 +59,9 @@ public class ReqReplyBenchmark extends AutoBenchmark {
                             count++;
                         }
                     }
-                    
                     replyDone.complete(null);
+                    replyConnect.flush(Duration.ZERO);
+                    
                 } catch (Exception exp) {
                     this.setException(exp);
                 } finally {
@@ -90,7 +90,6 @@ public class ReqReplyBenchmark extends AutoBenchmark {
                         Future<Message> incoming = requestConnect.request(subject, payload);
                         incoming.get();
                     }
-                    try {requestConnect.flush(Duration.ZERO);}catch(Exception e){}
                     
                     requestDone.complete(null);
                 } finally {

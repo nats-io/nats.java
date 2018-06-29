@@ -64,6 +64,14 @@ public class NatsAutoBench {
             for (AutoBenchmark test : tests) {
                 test.execute(connectOptions);
                 System.out.print(".");
+
+                // Ask for GC and wait a moment between tests
+                System.gc();
+                try {
+                    Thread.sleep(100);
+                } catch (Exception exp) {
+                    // ignore
+                }
             }
             System.out.println();
             System.out.println();
@@ -84,7 +92,7 @@ public class NatsAutoBench {
     }
 
     public static void runWarmup(Options connectOptions) throws Exception {
-        AutoBenchmark warmup = (new PubSubBenchmark("warmup", 2_000_000, 256));
+        AutoBenchmark warmup = (new PubSubBenchmark("warmup", 5_000_000, 64));
         warmup.execute(connectOptions);
 
         if (warmup.getException() != null) {
@@ -96,6 +104,7 @@ public class NatsAutoBench {
     public static List<AutoBenchmark> buildTestList() {
         ArrayList<AutoBenchmark> tests = new ArrayList<>();
         
+        /**/
         tests.add(new PubBenchmark("PubOnly 0b", 10_000_000, 0));
         tests.add(new PubBenchmark("PubOnly 8b", 10_000_000, 8));
         tests.add(new PubBenchmark("PubOnly 32b", 10_000_000, 32));
@@ -123,15 +132,16 @@ public class NatsAutoBench {
         tests.add(new PubDispatchBenchmark("PubDispatch 4k", 100_000, 4*1024));
         tests.add(new PubDispatchBenchmark("PubDispatch 8k", 100_000, 8*1024));
 
-        // Request reply is a 4 message trip, so we run fewer
+        // Request reply is a 4 message trip, and runs the full loop before sending another message
+        // so we run fewer because the client cannot batch any socket calls to the server together
         tests.add(new ReqReplyBenchmark("ReqReply 0b", 20_000, 0));
         tests.add(new ReqReplyBenchmark("ReqReply 8b", 20_000, 8));
         tests.add(new ReqReplyBenchmark("ReqReply 32b", 10_000, 32));
         tests.add(new ReqReplyBenchmark("ReqReply 256b", 10_000, 256));
         tests.add(new ReqReplyBenchmark("ReqReply 512b", 10_000, 512));
-        tests.add(new ReqReplyBenchmark("ReqReply 1k", 5_000, 1024));
-        tests.add(new ReqReplyBenchmark("ReqReply 4k", 5_000, 4*1024));
-        tests.add(new ReqReplyBenchmark("ReqReply 8k", 5_000, 8*1024));
+        tests.add(new ReqReplyBenchmark("ReqReply 1k", 10_000, 1024));
+        tests.add(new ReqReplyBenchmark("ReqReply 4k", 10_000, 4*1024));
+        tests.add(new ReqReplyBenchmark("ReqReply 8k", 10_000, 8*1024));
 
         int latencyTests = 5_000;
         tests.add(new LatencyBenchmark("Latency 0b", latencyTests, 0));
@@ -142,6 +152,7 @@ public class NatsAutoBench {
         tests.add(new LatencyBenchmark("Latency 1k", latencyTests, 1024));
         tests.add(new LatencyBenchmark("Latency 4k", latencyTests, 4 * 1024));
         tests.add(new LatencyBenchmark("Latency 8k", latencyTests, 8 * 1024));
+        /**/
 
         return tests;
     }

@@ -28,13 +28,14 @@ public class PubBenchmark extends AutoBenchmark {
 
     public void execute(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
+        String subject = getSubject();
 
         try {
             Connection nc = Nats.connect(connectOptions);
             try {
                 long start = System.nanoTime();
                 for(int i = 0; i < this.getMessageCount(); i++) {
-                    nc.publish("autob", payload);
+                    nc.publish(subject, payload);
                 }
                 try {nc.flush(Duration.ZERO);}catch(Exception e){}
                 long end = System.nanoTime();

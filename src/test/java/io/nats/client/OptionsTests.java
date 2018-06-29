@@ -47,6 +47,7 @@ public class OptionsTests {
         assertEquals("default pedantic", false, o.isPedantic());
         assertEquals("default norandomize", false, o.isNoRandomize());
         assertEquals("default oldstyle", false, o.isOldRequestStyle());
+        assertEquals("default noEcho", false, o.isNoEcho());
 
         assertNull("default username", o.getUsername());
         assertNull("default password", o.getPassword());
@@ -71,12 +72,13 @@ public class OptionsTests {
 
     @Test
     public void testChainedBooleanOptions() throws NoSuchAlgorithmException {
-        Options o = new Options.Builder().verbose().pedantic().noRandomize().oldRequestStyle().build();
+        Options o = new Options.Builder().verbose().pedantic().noRandomize().noEcho().oldRequestStyle().build();
         assertNull("default username", o.getUsername());
         assertEquals("chained verbose", true, o.isVerbose());
         assertEquals("chained pedantic", true, o.isPedantic());
         assertEquals("chained norandomize", true, o.isNoRandomize());
         assertEquals("chained oldstyle", true, o.isOldRequestStyle());
+        assertEquals("chained noecho", true, o.isNoEcho());
     }
 
     @Test
@@ -142,6 +144,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_NORANDOMIZE, "true");
         props.setProperty(Options.PROP_USE_OLD_REQUEST_STYLE, "true");
         props.setProperty(Options.PROP_OPENTLS, "true");
+        props.setProperty(Options.PROP_NO_ECHO, "true");
 
         Options o = new Options.Builder(props).build();
         assertNull("default username", o.getUsername());
@@ -149,6 +152,7 @@ public class OptionsTests {
         assertEquals("property pedantic", true, o.isPedantic());
         assertEquals("property norandomize", true, o.isNoRandomize());
         assertEquals("property oldstyle", true, o.isOldRequestStyle());
+        assertEquals("property noecho", true, o.isNoEcho());
         assertNotNull("property opentls", o.getSslContext());
     }
 
@@ -254,7 +258,7 @@ public class OptionsTests {
     public void testDefaultConnectOptions() {
         Options o = new Options.Builder().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false}";
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
         assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
     }
 
@@ -263,7 +267,7 @@ public class OptionsTests {
         SSLContext ctx = SSLContext.getDefault();
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true}";
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true}";
         assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
     }
 
@@ -271,9 +275,9 @@ public class OptionsTests {
     public void testAuthConnectOptions() {
         Options o = new Options.Builder().userInfo("hello", "world").build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false}";
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
-                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false"
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
                 + ",\"user\":\"hello\",\"pass\":\"world\"}";
         assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString(false));
         assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString(true));

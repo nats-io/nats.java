@@ -80,18 +80,32 @@ class MessageQueue {
         signalOne();
     }
 
+    public static final int MAX_SPINS = 200;
+    public static final int SPIN_WAIT = 50;
+    public static final int MAX_SPIN_TIME = SPIN_WAIT * MAX_SPINS;
+
     void waitForTimeout(Duration timeout) throws InterruptedException {
         long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
 
         if (timeoutNanos >= 0) {
             Thread t = Thread.currentThread();
-            long now = System.nanoTime();
-            long start = now;
+            long start = System.nanoTime();
+
+            // Semi-spin for at most MAX_SPIN_TIME
+            if (timeoutNanos > MAX_SPIN_TIME) {
+                int count = 0;
+                while (this.length.get() == 0 && this.running.get() && count < MAX_SPINS) {
+                    count++;
+                    LockSupport.parkNanos(SPIN_WAIT);
+                }
+            }
+            
+            long now = start;
 
             while (this.length.get() == 0 && this.running.get()) {
                 if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
                     now = System.nanoTime();
-                    timeoutNanos = timeoutNanos - (now - start);
+                    timeoutNanos = timeoutNanos - (now - start); //include the semi-spin time
                     start = now;
 
                     if (timeoutNanos <= 0) { // just in case we hit it exactly
@@ -100,7 +114,11 @@ class MessageQueue {
                 }
 
                 waiters.add(t);
-                LockSupport.parkNanos(timeoutNanos);
+                if (timeoutNanos == 0) {
+                    LockSupport.park();
+                } else {
+                    LockSupport.parkNanos(timeoutNanos);
+                }
                 waiters.remove(t);
 
                 if (Thread.interrupted()) {

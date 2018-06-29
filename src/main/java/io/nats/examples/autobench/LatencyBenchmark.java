@@ -39,7 +39,7 @@ public class LatencyBenchmark extends AutoBenchmark {
 
     public void execute(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
-        String subject = "autob";
+        String subject = getSubject();
 
         final CompletableFuture<Void> go = new CompletableFuture<>();
         final CompletableFuture<Void> subReady = new CompletableFuture<>();
@@ -160,12 +160,13 @@ public class LatencyBenchmark extends AutoBenchmark {
                                             map(d -> ((d-average) * (d-average))).
                                             sum()) / (1e3 * (count-1));
 
-        System.out.printf("%-16s %6s %10s median %10s min %10s max +/- %.2f    (microseconds)\n",
+        System.out.printf("%-12s %6s %6s / %6.2f / %3s %6s %.2f  (microseconds)\n",
                             getName(),
                             NumberFormat.getIntegerInstance().format(count),
-                            NumberFormat.getInstance().format(median),
                             NumberFormat.getIntegerInstance().format(min),
+                            median,
                             NumberFormat.getIntegerInstance().format(max),
+                            "+/-",
                             stdDev);
     }
 

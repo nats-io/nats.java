@@ -30,7 +30,7 @@ public class PubSubBenchmark extends AutoBenchmark {
 
     public void execute(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
-        String subject = "autob";
+        String subject = getSubject();
 
         final CompletableFuture<Void> go = new CompletableFuture<>();
         final CompletableFuture<Void> subReady = new CompletableFuture<>();
@@ -40,7 +40,9 @@ public class PubSubBenchmark extends AutoBenchmark {
 
         Thread subThread = new Thread(() -> {
             try {
+                int count = 0;
                 Connection subConnect = Nats.connect(connectOptions);
+
                 if (subConnect.getStatus() != Connection.Status.CONNECTED) {
                     throw new Exception("Unable to connect");
                 }
@@ -48,9 +50,7 @@ public class PubSubBenchmark extends AutoBenchmark {
                     Subscription sub = subConnect.subscribe(subject);
                     subConnect.flush(Duration.ZERO);
                     subReady.complete(null);
-                    go.get();
                     
-                    int count = 0;
                     while(count < this.getMessageCount()) {
                         Message msg = sub.nextMessage(Duration.ZERO);
 
@@ -86,6 +86,12 @@ public class PubSubBenchmark extends AutoBenchmark {
                     
                     for(int i = 0; i < this.getMessageCount(); i++) {
                         pubConnect.publish(subject, payload);
+
+                        // Due to a write/read performance asymmetry, flush every once in a while
+                        // on small messages
+                        if (this.getMessageSize() < 64 && i != 0 && i%100_000 == 0) {
+                            try {pubConnect.flush(Duration.ZERO);}catch(Exception e){}
+                        }
                     }
                     try {pubConnect.flush(Duration.ZERO);}catch(Exception e){}
                     

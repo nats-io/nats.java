@@ -24,11 +24,12 @@ public class MessageQueueBenchmark {
         long start, end;
 
         System.out.printf("Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
+        System.out.println("Warmed up ...");
         for (int j = 0; j < msgCount; j++) {
             msgs[j] = new NatsMessage("a");
         }
-        System.out.println("Warmed up ...");
 
+        System.out.println("Starting tests ...");
         MessageQueue push = new MessageQueue(false);
         start = System.nanoTime();
         for (int i = 0; i < msgCount; i++) {
@@ -36,10 +37,10 @@ public class MessageQueueBenchmark {
         }
         end = System.nanoTime();
 
-        System.out.printf("\nTotal time to perform %s push operations was %s ms, %f ns/op\n",
+        System.out.printf("\nTotal time to perform %s push operations was %s ms, %s ns/op\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (msgCount)));
+                NumberFormat.getInstance().format(((double) (end - start)) / ((double) (msgCount))));
         System.out.printf("\tor %s op/s\n",
                 NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
@@ -49,10 +50,10 @@ public class MessageQueueBenchmark {
         }
         end = System.nanoTime();
 
-        System.out.printf("\nTotal time to perform %s popnow operations was %s ms, %f ns/op\n",
+        System.out.printf("\nTotal time to perform %s popnow operations was %s ms, %s ns/op\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (msgCount)));
+                NumberFormat.getInstance().format(((double) (end - start)) / ((double) (msgCount))));
         System.out.printf("\tor %s op/s\n",
                 NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
@@ -69,10 +70,10 @@ public class MessageQueueBenchmark {
         }
         end = System.nanoTime();
 
-        System.out.printf("\nTotal time to perform accumulate %s messages was %s ms, %f ns/op\n",
+        System.out.printf("\nTotal time to perform accumulate %s messages was %s ms, %s ns/op\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (msgCount)));
+                NumberFormat.getInstance().format(((double) (end - start)) / ((double) (msgCount))));
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
         
@@ -112,10 +113,10 @@ public class MessageQueueBenchmark {
         popper.join();
         end = System.nanoTime();
 
-        System.out.printf("\nTotal time to perform %s pushes in one thread and pop with timeout in another was %s ms, %f ns/op\n",
+        System.out.printf("\nTotal time to perform %s pushes in one thread and pop with timeout in another was %s ms, %s ns/op\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (msgCount)));
+                NumberFormat.getInstance().format(((double) (end - start)) / ((double) (msgCount))));
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
         
@@ -154,10 +155,10 @@ public class MessageQueueBenchmark {
         popper.join();
         end = System.nanoTime();
 
-        System.out.printf("\nTotal time to perform %s pushes in one thread and pop nows in another was %s ms, %f ns/op\n",
+        System.out.printf("\nTotal time to perform %s pushes in one thread and pop nows in another was %s ms, %s ns/op\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (msgCount)));
+                NumberFormat.getInstance().format(((double) (end - start)) / ((double) (msgCount))));
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
             
@@ -202,10 +203,10 @@ public class MessageQueueBenchmark {
         popper.join();
         end = System.nanoTime();
 
-        System.out.printf("\nTotal time to perform %s pushes in one thread and accumlates in another was %s ms, %f ns/op\n",
+        System.out.printf("\nTotal time to perform %s pushes in one thread and accumlates in another was %s ms, %s ns/op\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
-                ((double) (end - start)) / ((double) (msgCount)));
+                NumberFormat.getInstance().format(((double) (end - start)) / ((double) (msgCount))));
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
     }
