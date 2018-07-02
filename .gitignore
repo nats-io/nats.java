@@ -20,7 +20,6 @@ gnatsd.log
 *.dmg
 *.gz
 *.iso
-*.jar
 *.rar
 *.tar
 *.zip
