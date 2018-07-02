@@ -4,16 +4,12 @@ plugins {
 }
 apply plugin: 'java'
 apply plugin: 'jacoco'
-apply plugin: 'maven-publish'
+apply plugin: 'maven'
 
 version = '2.0.0'
 
 repositories {
     jcenter()
-}
-
-configurations {
-    examples.extendsFrom implementation
 }
 
 dependencies {
@@ -85,36 +81,26 @@ task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            groupId 'io.nats'
-            artifactId 'jnats'
-            version '2.0'
-            pom {
-                name = 'NATS Java Client'
-                description = 'A Java 8 client for the NATS server.'
-                url = 'https://github.com/nats-io/java-nats'
+task generatePom{
+    doLast {
+        pom {
+            project {
                 licenses {
                     license {
                         name = 'The Apache License, Version 2.0'
                         url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
                     }
                 }
-                scm {
-                    connection = 'scm:git:git://github.com/nats-io/java-nats.git'
-                    url = 'https://github.com/nats-io/java-nats'
-                }
             }
-
-            from components.java
-        }
+        }.writeTo("$buildDir/pom.xml")
     }
+}
+
+uploadArchives {
     repositories {
-        maven {
-            def releasesRepoUrl = "$buildDir/repos/releases"
-            def snapshotsRepoUrl = "$buildDir/repos/snapshots"
-            url project.hasProperty("release") ? releasesRepoUrl : snapshotsRepoUrl
+        mavenDeployer {
+            repository(url: "file://$buildDir/repos")
         }
     }
 }
+
