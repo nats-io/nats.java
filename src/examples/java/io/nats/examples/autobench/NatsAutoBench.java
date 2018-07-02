@@ -60,7 +60,11 @@ public class NatsAutoBench {
             System.out.println("Running warmup");
             runWarmup(connectOptions);
 
-            System.out.printf("Executing %d tests ", tests.size());
+            System.out.printf("Current memory usage is %s / %s / %s free/total/max\n", 
+                                AutoBenchmark.humanBytes(Runtime.getRuntime().freeMemory()),
+                                AutoBenchmark.humanBytes(Runtime.getRuntime().totalMemory()),
+                                AutoBenchmark.humanBytes(Runtime.getRuntime().maxMemory()));
+            System.out.print("Executing tests ");
             for (AutoBenchmark test : tests) {
                 test.execute(connectOptions);
                 System.out.print(".");
@@ -86,6 +90,12 @@ public class NatsAutoBench {
 
                 test.printResult();
             }
+
+            System.out.println();
+            System.out.printf("Final memory usage is %s / %s / %s free/total/max\n", 
+                                AutoBenchmark.humanBytes(Runtime.getRuntime().freeMemory()),
+                                AutoBenchmark.humanBytes(Runtime.getRuntime().totalMemory()),
+                                AutoBenchmark.humanBytes(Runtime.getRuntime().maxMemory()));
         } catch (Exception exp) {
             exp.printStackTrace();
         }

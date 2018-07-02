@@ -1,4 +1,5 @@
 # NATS - Java Client
+
 A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
@@ -7,23 +8,31 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 [![Coverage Status](https://coveralls.io/repos/nats-io/nats-java/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/nats-java?branch=master)
 [![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg)](http://javadoc.io/doc/io.nats/jnats/2.0.0)
 
+## A Note on Versions
+
+This is version 2.0 of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address problems in thread resources, which has resulted in an updated API. The API is still [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking). This version also removes any runtime dependencies.
+
+Previous versions are still available in the repo.
 
 ## Installation
 
-The entire client is provided in a single jar file, with no external dependencies.
+The java-nats client is provided in a single jar file, with no external dependencies. See [Building From Source](#building-from-source) for details on building the library.
 
-```bash
-# Java client
-maven, gradle, jar
-tbd
+### Downloading the Jar
 
-# Server
-go get github.com/nats-io/gnatsd
-```
+TODO
+
+### Using Maven
+
+TODO
+
+### Using Gradle
+
+TODO
 
 ## Basic Usage
 
-Sending and receiving with NATS is as simple as connecting to the gnatsd and publishing or subscribing for messages.
+Sending and receiving with NATS is as simple as connecting to the gnatsd and publishing or subscribing for messages. A number of examples are provided in this repo as described in [examples.md](src/examples/java/io/nats/examples/examples.md).
 
 ### Connecting
 
@@ -31,19 +40,19 @@ There are four different ways to connect using the Java library:
 
 1. Connect to a local server on the default port:
 
-    ```
+    ```java
     Connection nc = Nats.connect();
     ```
 
 2. Connect to a server using a URL:
 
-    ```
+    ```java
     Connection nc = Nats.connect("nats://myhost:4222");
     ```
 
 3. Connect to one or more servers with a custom configuration:
 
-    ```
+    ```java
     Options o = new Options.Builder().server("nats://serverone:4222").server("nats://servertwo:4222").maxReconnects(-1).build();
     Connection nc = Nats.connect(o);
     ```
@@ -52,7 +61,7 @@ There are four different ways to connect using the Java library:
 
 4. Connect asynchronously, this requires a callback to tell the application when the client is connected:
 
-    ```
+    ```java
      Options options = new Options.Builder().server(Options.DEFAULT_URL).connectionListener(handler).build();
      Nats.connectAsynchronously(options, true);
     ```
@@ -65,20 +74,19 @@ Once connected, publishing is accomplished via one of three methods:
 
 1. With a subject and message body:
 
-    ```
+    ```java
     nc.publish("subject", "hello world".getBytes(StandardCharsets.UTF_8));
     ```
 
 2. With a subject and message body, as well as a subject for the receiver to reply to:
 
-    ```
+    ```java
     nc.publish("subject", "replyto", "hello world".getBytes(StandardCharsets.UTF_8));
     ```
 
-3. As a request that expects a reply. This method uses a Future to allow the application code to wait for the response. Under the covers 
-a request/reply pair is the same as a publish/subscribe only the library manages the subscription for you.
+3. As a request that expects a reply. This method uses a Future to allow the application code to wait for the response. Under the covers a request/reply pair is the same as a publish/subscribe only the library manages the subscription for you.
 
-    ```
+    ```java
     Future<Message> incoming = nc.request("subject", "hello world".getBytes(StandardCharsets.UTF_8));
     Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
     String response = new String(msg.getData(), StandardCharsets.UTF_8);
@@ -92,20 +100,18 @@ languages.
 
 The Java NATS library provides two mechanisms to listen for messages, three if you include the request/reply discussed above.
 
-1. Synchronous subscriptions where the application code manually asks for messages and blocks until they arrive. Each subscription
-is associated with a single subject, although that subject can be a wildcard.
+1. Synchronous subscriptions where the application code manually asks for messages and blocks until they arrive. Each subscription is associated with a single subject, although that subject can be a wildcard.
 
-    ```
+    ```java
     Subscription sub = nc.subscribe("subject");
     Message msg = sub.nextMessage(Duration.ofMillis(500));
 
     String response = new String(msg.getData(), StandardCharsets.UTF_8);
     ```
 
-2. A Dispatcher that will call application code in a background thread. Dispatchers can manage multiple subjects with a single thread
-and single callback.
+2. A Dispatcher that will call application code in a background thread. Dispatchers can manage multiple subjects with a single thread and single callback.
 
-    ```
+    ```java
     Dispatcher d = nc.createDispatcher((msg) -> {
         String response = new String(msg.getData(), StandardCharsets.UTF_8);
         ...
@@ -122,13 +128,13 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
 
 1. The Java library allows the use of the tls:// protocol in its urls. This setting expects a default SSLContext to be set. You can set this default context using System properties, or in code. For example, you could run the publish example using:
 
-    ```
+    ```bash
     java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password -Djavax.net.ssl.trustStore=src/test/resources/cacerts -Djavax.net.ssl.trustStorePassword=password io.nats.examples.NatsPub tls://localhost:4443 test "hello world"
     ```
 
     where the following properties are being set:
 
-    ```
+    ```bash
     -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks
     -Djavax.net.ssl.keyStorePassword=password
     -Djavax.net.ssl.trustStore=src/test/resources/cacerts
@@ -137,10 +143,9 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
 
     This method can be used with or without client verification.
 
-2. During development, or behind a firewall where the client can trust the server, the library supports the opentls:// protocol which will use a special
-SSLContext that trusts all server certificates, but provides no client certificates.
+2. During development, or behind a firewall where the client can trust the server, the library supports the opentls:// protocol which will use a special SSLContext that trusts all server certificates, but provides no client certificates.
 
-    ```
+    ```bash
     java io.nats.examples.NatsSub opentls://localhost:4443 test 3
     ```
 
@@ -148,17 +153,13 @@ SSLContext that trusts all server certificates, but provides no client certifica
 
 3. Your code can build an SSLContext to work with or without client verification.
 
-    ```
+    ```java
     SSLContext ctx = createContext();
     Options options = new Options.Builder().server(ts.getURI()).sslContext(ctx).build();
     Connection nc = Nats.connect(options);
     ```
 
-If you want to try out these techniques, there is a set tls configuration for the server in the test files that can be used to run gnatsd.
-
-```
-gnatsd --conf src/test/resources/tls.conf
-```
+If you want to try out these techniques, take a look at the [examples.md](src/examples/java/io/nats/examples/examples.md) for instructions.
 
 ### Clusters & Reconnecting
 
@@ -170,26 +171,29 @@ Reconnection behavior is controlled via a few options, see the javadoc for the O
 
 The `io.nats.examples` package contains two benchmarking tools, modeled after tools in other NATS clients. Both examples run against an existing gnatsd. The first called `io.nats.examples.benchmark.NatsBench` runs two simple tests, the first simply publishes messages, the second also receives messages. Tests are run with 1 thread/connection per publisher or subscriber. Running on an iMac (2017), with 4.2 GHz Intel Core i7 and 64GB of memory produced results like:
 
-```
+```AsciiDoc
 Starting benchmark(s) [msgs=5000000, msgsize=256, pubs=2, subs=2]
-Pub Only stats: 10,394,945 msgs/sec ~ 2.48 GB/sec
- [ 1] 5,441,683 msgs/sec ~ 1.30 GB/sec (2500000 msgs)
- [ 2] 5,197,476 msgs/sec ~ 1.24 GB/sec (2500000 msgs)
-  min 5,197,476 | avg 5,319,579 | max 5,441,683 | stddev 122,103.50 msgs
-Pub/Sub stats: 3,827,228 msgs/sec ~ 934.38 MB/sec
- Pub stats: 1,276,217 msgs/sec ~ 311.58 MB/sec
-  [ 1] 638,543 msgs/sec ~ 155.89 MB/sec (2500000 msgs)
-  [ 2] 638,108 msgs/sec ~ 155.79 MB/sec (2500000 msgs)
-   min 638,108 | avg 638,325 | max 638,543 | stddev 217.50 msgs
- Sub stats: 2,551,453 msgs/sec ~ 622.91 MB/sec
-  [ 1] 1,275,730 msgs/sec ~ 311.46 MB/sec (5000000 msgs)
-  [ 2] 1,275,726 msgs/sec ~ 311.46 MB/sec (5000000 msgs)
-   min 1,275,726 | avg 1,275,728 | max 1,275,730 | stddev 2.00 msgs
+Current memory usage is 966.14 mb / 981.50 mb / 14.22 gb free/total/max
+Use ctrl-C to cancel.
+Pub Only stats: 9,584,263 msgs/sec ~ 2.29 gb/sec
+ [ 1] 4,831,495 msgs/sec ~ 1.15 gb/sec (2500000 msgs)
+ [ 2] 4,792,145 msgs/sec ~ 1.14 gb/sec (2500000 msgs)
+  min 4,792,145 | avg 4,811,820 | max 4,831,495 | stddev 19,675.00 msgs
+Pub/Sub stats: 3,735,744 msgs/sec ~ 912.05 mb/sec
+ Pub stats: 1,245,680 msgs/sec ~ 304.12 mb/sec
+  [ 1] 624,385 msgs/sec ~ 152.44 mb/sec (2500000 msgs)
+  [ 2] 622,840 msgs/sec ~ 152.06 mb/sec (2500000 msgs)
+   min 622,840 | avg 623,612 | max 624,385 | stddev 772.50 msgs
+ Sub stats: 2,490,461 msgs/sec ~ 608.02 mb/sec
+  [ 1] 1,245,230 msgs/sec ~ 304.01 mb/sec (5000000 msgs)
+  [ 2] 1,245,231 msgs/sec ~ 304.01 mb/sec (5000000 msgs)
+   min 1,245,230 | avg 1,245,230 | max 1,245,231 | stddev .71 msgs
+Final memory usage is 2.02 gb / 2.94 gb / 14.22 gb free/total/max
 ```
 
 The second, called `io.nats.examples.autobench.NatsAutoBench` runs a series of tests with various message sizes. Running this test on the same iMac, resulted in:
 
-```
+```AsciiDoc
 PubOnly 0b           10,000,000          8,464,850 msg/s       0.00 b/s
 PubOnly 8b           10,000,000         10,065,263 msg/s     76.79 mb/s
 PubOnly 32b          10,000,000         12,534,612 msg/s    382.53 mb/s
@@ -232,7 +236,64 @@ Latency 4k    5,000     36 /  50.64 / 193    +/- 0.83  (microseconds)
 Latency 8k    5,000     38 /  55.45 / 206    +/- 0.88  (microseconds)
 ```
 
-It is worth noting that in both cases memory was not a factor, the processor and OS were more of a consideration.
+It is worth noting that in both cases memory was not a factor, the processor and OS were more of a consideration. To test this, take a look at the NatsBench results again. Those are run without any constraint on the Java heap and end up doubling the used memory. However, if we run the same test again with a constraint of 1Gb using -Xmx1g, the performance is comparable, differentiated primarily by "noise" that we can see between test runs with the same settings.
+
+```AsciiDoc
+Starting benchmark(s) [msgs=5000000, msgsize=256, pubs=2, subs=2]
+Current memory usage is 976.38 mb / 981.50 mb / 981.50 mb free/total/max
+Use ctrl-C to cancel.
+
+Pub Only stats: 10,123,382 msgs/sec ~ 2.41 gb/sec
+ [ 1] 5,068,256 msgs/sec ~ 1.21 gb/sec (2500000 msgs)
+ [ 2] 5,061,691 msgs/sec ~ 1.21 gb/sec (2500000 msgs)
+  min 5,061,691 | avg 5,064,973 | max 5,068,256 | stddev 3,282.50 msgs
+
+Pub/Sub stats: 3,563,770 msgs/sec ~ 870.06 mb/sec
+ Pub stats: 1,188,261 msgs/sec ~ 290.10 mb/sec
+  [ 1] 594,701 msgs/sec ~ 145.19 mb/sec (2500000 msgs)
+  [ 2] 594,130 msgs/sec ~ 145.05 mb/sec (2500000 msgs)
+   min 594,130 | avg 594,415 | max 594,701 | stddev 285.50 msgs
+ Sub stats: 2,375,839 msgs/sec ~ 580.04 mb/sec
+  [ 1] 1,187,919 msgs/sec ~ 290.02 mb/sec (5000000 msgs)
+  [ 2] 1,187,920 msgs/sec ~ 290.02 mb/sec (5000000 msgs)
+   min 1,187,919 | avg 1,187,919 | max 1,187,920 | stddev .71 msgs
+
+
+Final memory usage is 317.62 mb / 960.50 mb / 960.50 mb free/total/max
+```
+
+## Building From Source
+
+The build depends on Gradle, and contains `gradlew` to allow you to compile without installing Gradle first. After cloning, you can build the repository and run the tests with a single command:
+
+```bash
+> git clone https://github.com/nats-io/java-nats.git
+> cd java-nats
+> ./gradlew build
+```
+
+This will place the class files in a new `build` folder. To just build the jar:
+
+```bash
+> ./gradlew jar
+```
+
+The jar will be placed in `build/libs`.
+
+You can also build the java doc, and the samples jar using:
+
+```bash
+> ./gradlew javadoc
+> ./gradlew exampleJar
+```
+
+The java doc is located in `build/docs` and the example jar is in `build/libs`. Finally, to run the tests with the coverage report:
+
+```bash
+> ./gradlew test jacocoTestReport
+```
+
+which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
 
 ## License
 

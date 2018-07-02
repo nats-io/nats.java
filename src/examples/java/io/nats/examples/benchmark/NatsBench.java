@@ -229,6 +229,10 @@ public class NatsBench {
         System.out.println();
         System.out.printf("Starting benchmark(s) [msgs=%d, msgsize=%d, pubs=%d, subs=%d]\n", numMsgs,
                 size, numPubs, numSubs);
+        System.out.printf("Current memory usage is %s / %s / %s free/total/max\n", 
+                            Utils.humanBytes(Runtime.getRuntime().freeMemory()),
+                            Utils.humanBytes(Runtime.getRuntime().totalMemory()),
+                            Utils.humanBytes(Runtime.getRuntime().maxMemory()));
         System.out.println("Use ctrl-C to cancel.");
         System.out.println();
 
@@ -239,6 +243,11 @@ public class NatsBench {
             runTest("Sub", this.numPubs, this.numSubs);
         }
 
+        System.out.println();
+        System.out.printf("Final memory usage is %s / %s / %s free/total/max\n", 
+                            Utils.humanBytes(Runtime.getRuntime().freeMemory()),
+                            Utils.humanBytes(Runtime.getRuntime().totalMemory()),
+                            Utils.humanBytes(Runtime.getRuntime().maxMemory()));
         Runtime.getRuntime().removeShutdownHook(shutdownHook);
     }
 

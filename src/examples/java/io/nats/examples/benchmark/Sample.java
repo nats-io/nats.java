@@ -97,7 +97,7 @@ public class Sample {
     public String toString() {
         DecimalFormat formatter = new DecimalFormat("#,###");
         String rate = formatter.format(rate());
-        String throughput = humanBytes(throughput(), false);
+        String throughput = humanBytes(throughput());
         return String.format("%s msgs/sec ~ %s/sec", rate, throughput);
     }
 

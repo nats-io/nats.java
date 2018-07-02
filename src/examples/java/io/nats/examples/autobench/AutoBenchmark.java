@@ -96,10 +96,10 @@ public abstract class AutoBenchmark {
                             this.name,
                             NumberFormat.getIntegerInstance().format(this.messageCount),
                             NumberFormat.getIntegerInstance().format((long)messagesPerSecond),
-                            humanBytes(bytesPerSecond));
+                            AutoBenchmark.humanBytes(bytesPerSecond));
     }
 
-    public String humanBytes(double bytes) {
+    public static String humanBytes(double bytes) {
         int base = 1024;
         String[] pre = new String[] {"k", "m", "g", "t", "p", "e"};
         String post = "b";
