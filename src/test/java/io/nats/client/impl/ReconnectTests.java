@@ -373,8 +373,8 @@ public class ReconnectTests {
             flushAndWait(nc, handler);
             checkReconnectingStatus(nc);
 
-            //write 20 mb
-            for (int i=0;i<20_000;i++) {
+            //write 5 mb, travis appears to get mad at more
+            for (int i=0;i<5_000;i++) {
                 nc.publish("test", new byte[1024]);
             }
 

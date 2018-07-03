@@ -363,7 +363,7 @@ public class SubscriberTests {
             });
             t.start();
 
-            sub.nextMessage(Duration.ofMillis(500)); // Should throw
+            sub.nextMessage(Duration.ofMillis(5000)); // Should throw
             assertTrue(false);
         }
     }
