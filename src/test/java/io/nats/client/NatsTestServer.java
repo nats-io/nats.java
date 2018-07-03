@@ -165,6 +165,8 @@ public class NatsTestServer implements AutoCloseable {
             System.out.println("\t" + ex.getMessage());
             System.out.println("%%% Make sure that gnatsd is installed and in your PATH.");
             System.out.println("%%% See https://github.com/nats-io/gnatsd for information on installing gnatsd");
+
+            throw new IllegalStateException("Failed to run [" + this.cmdLine +"]");
         }
     }
 
