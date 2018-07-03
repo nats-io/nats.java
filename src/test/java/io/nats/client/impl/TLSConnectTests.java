@@ -167,9 +167,10 @@ public class TLSConnectTests {
     public void testTLSOnReconnect() throws InterruptedException, Exception {
         Connection nc = null;
         TestHandler handler = new TestHandler();
+        int port = NatsTestServer.nextPort();
 
         try {
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", port, false)) {
                 SSLContext ctx = TestSSLUtils.createTestSSLContext();
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
@@ -190,7 +191,7 @@ public class TLSConnectTests {
                                                     Connection.Status.CONNECTING == nc.getStatus());
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", port, false)) {
                 handler.waitForStatusChange(1000, TimeUnit.MILLISECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             }

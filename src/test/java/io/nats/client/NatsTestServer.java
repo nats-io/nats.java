@@ -14,8 +14,10 @@
 package io.nats.client;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,7 +33,7 @@ public class NatsTestServer implements AutoCloseable {
     private static final String GNATSD = "gnatsd";
 
     // Use a new port each time, we increment and get so start at the normal port
-    private static AtomicInteger portCounter = new AtomicInteger(Options.DEFAULT_PORT);
+    private static AtomicInteger portCounter = new AtomicInteger(Options.DEFAULT_PORT + 1);
 
     private int port;
     private boolean debug;
@@ -57,6 +59,14 @@ public class NatsTestServer implements AutoCloseable {
     public NatsTestServer(String configFilePath, boolean debug) {
         this.configFilePath = configFilePath;
         this.debug = debug;
+        this.port = nextPort();
+        start();
+    }
+
+    public NatsTestServer(String configFilePath, int port, boolean debug) {
+        this.configFilePath = configFilePath;
+        this.debug = debug;
+        this.port = port;
         start();
     }
 
@@ -82,21 +92,29 @@ public class NatsTestServer implements AutoCloseable {
 
         cmd.add(gnatsd);
 
+        // Rewrite the port to a new one, so we don't reuse the same one over and over
         if (this.configFilePath != null) {
             Pattern pattern = Pattern.compile("port: (\\d+)");
             Matcher matcher = pattern.matcher("");
             BufferedReader read = null;
+            File tmp = null;
+            BufferedWriter write = null;
             String line;
 
             try {
+                tmp = File.createTempFile("nats_java_test", ".conf");
+                write = new BufferedWriter(new FileWriter(tmp));
                 read = new BufferedReader(new FileReader(this.configFilePath));
 
                 while ((line = read.readLine()) != null) {
                     matcher.reset(line);
 
                     if (matcher.find()) {
-                        this.port = Integer.parseInt(matcher.group(1));
+                        line = line.replace(matcher.group(1), String.valueOf(this.port));
                     }
+
+                    write.write(line);
+                    write.write("\n");
                 }
             } catch (Exception exp) {
                 System.out.println("%%% Error parsing config file for port.");
@@ -106,14 +124,20 @@ public class NatsTestServer implements AutoCloseable {
                     try {
                         read.close();
                     } catch (Exception e) {
-                        System.out.println("%%% Error closing config file for port.");
-                        return;
+                        throw new IllegalStateException("Failed to read config file");
+                    }
+                }
+                if (write != null) {
+                    try{
+                        write.close();
+                    } catch (Exception e) {
+                        throw new IllegalStateException("Failed to update config file");
                     }
                 }
             }
 
             cmd.add("--config");
-            cmd.add(this.configFilePath);
+            cmd.add(tmp.getAbsolutePath());
         } else {
             cmd.add("--port");
             cmd.add(String.valueOf(port));
@@ -131,7 +155,6 @@ public class NatsTestServer implements AutoCloseable {
 
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd);
-            pb.directory(new File(System.getProperty("user.home")));
 
             if (debug) {
                 System.out.println("%%% Starting [" + this.cmdLine + "] with redirected IO");

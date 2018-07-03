@@ -167,7 +167,6 @@ public class ConnectTests {
             Connection nc = Nats.connect(ts.getURI());
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertEquals("Parsed port", 16222, ts.getPort());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -269,8 +268,9 @@ public class ConnectTests {
     public void testAsyncConnectionWithReconnect() throws IOException, InterruptedException {
         TestHandler handler = new TestHandler();
         Connection nc = null;
+        int port = NatsTestServer.nextPort();
         Options options = new Options.Builder().
-                                server(Options.DEFAULT_URL).
+                                server("nats://localhost:"+port).
                                 maxReconnects(-1).
                                 reconnectWait(Duration.ofMillis(100)).
                                 connectionListener(handler).
@@ -291,7 +291,7 @@ public class ConnectTests {
             nc = handler.getConnection();
             assertNotNull(nc);
 
-            try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
+            try (NatsTestServer ts = new NatsTestServer(port, false)) {
                 handler.waitForStatusChange(1, TimeUnit.SECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             }
