@@ -320,8 +320,8 @@ public class ReconnectTests {
                                         server(ts.getURI()).
                                         maxReconnects(-1).
                                         connectionListener(handler).
-                                        reconnectBufferSize(8*512).
-                                        reconnectWait(Duration.ofSeconds(10)).
+                                        reconnectBufferSize(4*512).
+                                        reconnectWait(Duration.ofSeconds(480)).
                                         build();
                 nc = Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
@@ -332,7 +332,7 @@ public class ReconnectTests {
             checkReconnectingStatus(nc);
 
             for (int i=0;i<20;i++) {
-                nc.publish("test", new byte[512]);// Should blow up by the 9th message
+                nc.publish("test", new byte[512]);// Should blow up by the 5th message
             }
 
             assertFalse(true);
