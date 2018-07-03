@@ -577,7 +577,8 @@ class NatsConnection implements Connection {
         
         NatsMessage msg = new NatsMessage(subject, replyTo, body);
 
-        if (this.status == Status.RECONNECTING && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
+        if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
+                         && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
             throw new IllegalStateException("Unable to queue any more messages during reconnect, max buffer is "+getMaxPayload());
         }
         queueOutgoing(msg);

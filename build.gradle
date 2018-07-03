@@ -8,7 +8,7 @@ plugins {
     id 'com.github.kt3k.coveralls' version '2.6.3'
 }
 
-version = '2.0.0'
+version = '2.0.0-SNAPSHOT'
 archivesBaseName = 'jnats'
 group = 'io.nats'
 
@@ -124,7 +124,7 @@ uploadArchives {
 
             /*
             beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-            
+
             repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
                 authentication(userName: ossrhUsername, password: ossrhPassword)
             }

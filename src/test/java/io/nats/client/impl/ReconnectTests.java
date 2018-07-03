@@ -45,7 +45,7 @@ public class ReconnectTests {
         } catch (Exception exp) {
         }
 
-        handler.waitForStatusChange(5000, TimeUnit.MILLISECONDS);
+        handler.waitForStatusChange(2000, TimeUnit.MILLISECONDS);
     }
 
     void checkReconnectingStatus(Connection nc) {
