@@ -21,11 +21,11 @@ The java-nats client is provided in a single jar file, with no external dependen
 
 TODO
 
-### Using Maven
+### Using Gradle
 
 TODO
 
-### Using Gradle
+### Using Maven
 
 TODO
 
