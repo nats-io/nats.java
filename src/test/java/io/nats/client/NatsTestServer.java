@@ -199,7 +199,11 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     public String getURI() {
-        return "nats://localhost:" + this.getPort();
+        return getURIForPort(this.port);
+    }
+
+    public static String getURIForPort(int port) {
+        return "nats://localhost:" + port;
     }
 
     public void shutdown() {

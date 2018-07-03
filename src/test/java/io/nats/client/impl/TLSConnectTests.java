@@ -166,12 +166,15 @@ public class TLSConnectTests {
         Connection nc = null;
         TestHandler handler = new TestHandler();
         int port = NatsTestServer.nextPort();
+        int newPort = NatsTestServer.nextPort();
 
+        // Use two server ports to avoid port release timing issues
         try {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", port, false)) {
                 SSLContext ctx = TestSSLUtils.createTestSSLContext();
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
+                                    server(NatsTestServer.getURIForPort(newPort)).
                                     maxReconnects(-1).
                                     sslContext(ctx).
                                     connectionListener(handler).
@@ -189,8 +192,8 @@ public class TLSConnectTests {
                                                     Connection.Status.CONNECTING == nc.getStatus());
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", port, false)) {
-                handler.waitForStatusChange(1000, TimeUnit.MILLISECONDS);
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
+                handler.waitForStatusChange(5, TimeUnit.SECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             }
         } finally {

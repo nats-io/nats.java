@@ -78,6 +78,7 @@ class NatsConnection implements Connection {
 
     private boolean connecting; // you can only connect in one thread
     private boolean closing; // you can only close in one thread
+    private boolean closeRequested; //respect a close call regardless
     private Exception exceptionDuringCloseOrConnect; // an exception occurred in another thread while closing or connecting
     private CompletableFuture<Void> closingFuture;
 
@@ -183,7 +184,7 @@ class NatsConnection implements Connection {
             return;
         }
 
-        while (!isConnected() && !isClosed()) {
+        while (!isConnected() && !isClosed() && !closeRequested) {
             Collection<String> serversToTry = buildReconnectList();
 
             for (String server : serversToTry) {
@@ -196,7 +197,7 @@ class NatsConnection implements Connection {
                     waitForReconnectTimeout();
                 }
 
-                if (isClosed()) {
+                if (isClosingOrClosed() || closeRequested) {
                     break;
                 }
                 
@@ -330,7 +331,6 @@ class NatsConnection implements Connection {
             throw exp;
         }  catch (Exception exp) { // every thing else
             processException(exp);
-            
             try {
                 this.closeSocket(false);
             } catch(InterruptedException e) {
@@ -366,7 +366,7 @@ class NatsConnection implements Connection {
         // If we are connecting or closing, note exception and leave
         statusLock.lock();
         try{
-            if (this.connecting || this.closing) {
+            if (this.connecting || this.closing || this.status == Status.CLOSED) {
                 this.exceptionDuringCloseOrConnect = io;
                 return;
             }
@@ -388,6 +388,8 @@ class NatsConnection implements Connection {
         t.start();
     }
 
+    // Close socket is called when another connect attempt is possible
+    // Close is called when the connection should shutdown, period
     void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
         boolean wasConnected = false;
         boolean exitOrWait = false;
@@ -400,7 +402,7 @@ class NatsConnection implements Connection {
                 this.closing = true;
                 this.exceptionDuringCloseOrConnect = null;
                 wasConnected = (this.status == Status.CONNECTED);
-                closingFuture = new CompletableFuture<>();
+                this.closingFuture = new CompletableFuture<>();
             }
         } finally {
             statusLock.unlock();
@@ -420,18 +422,25 @@ class NatsConnection implements Connection {
         try{
             updateStatus(Status.DISCONNECTED);
             this.closing = false;
+            this.closingFuture.complete(null);
         } finally {
             statusLock.unlock();
         }
 
-        if (wasConnected && tryReconnectIfConnected) {
+        if (closeRequested) {
+            close();
+        } else if (wasConnected && tryReconnectIfConnected) {
             reconnect();
         }
     }
 
+    // Close socket is called when another connect attempt is possible
+    // Close is called when the connection should shutdown, period
     public void close() throws InterruptedException {
         
         boolean exitOrWait = false;
+
+        this.closeRequested = true;
 
         statusLock.lock();
         try{
@@ -440,7 +449,7 @@ class NatsConnection implements Connection {
             } else {
                 this.closing = true;
                 this.exceptionDuringCloseOrConnect = null;
-                closingFuture = new CompletableFuture<>();
+                this.closingFuture = new CompletableFuture<>();
             }
         } finally {
             statusLock.unlock();
@@ -451,6 +460,7 @@ class NatsConnection implements Connection {
                 this.closingFuture.get();
             } catch (ExecutionException e) {
             }
+
             return;
         }
 
@@ -504,7 +514,7 @@ class NatsConnection implements Connection {
         statusLock.lock();
         try{
             this.closing = false;
-            closingFuture.complete(null);
+            this.closingFuture.complete(null);
         } finally {
             statusLock.unlock();
         }

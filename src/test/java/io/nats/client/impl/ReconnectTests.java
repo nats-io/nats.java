@@ -373,8 +373,9 @@ public class ReconnectTests {
             flushAndWait(nc, handler);
             checkReconnectingStatus(nc);
 
+            byte[] payload = new byte[1024];
             for (int i=0;i<1_000;i++) {
-                nc.publish("test", new byte[1024]);
+                nc.publish("test", payload);
             }
 
             assertTrue(true);

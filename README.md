@@ -279,7 +279,7 @@ Final memory usage is 317.62 mb / 960.50 mb / 960.50 mb free/total/max
 
 ## Building From Source
 
-The build depends on Gradle, and contains `gradlew` to allow you to compile without installing Gradle first. After cloning, you can build the repository and run the tests with a single command:
+The build depends on Gradle, and contains `gradlew` to simplify the process. After cloning, you can build the repository and run the tests with a single command:
 
 ```bash
 > git clone https://github.com/nats-io/java-nats.git
