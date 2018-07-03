@@ -105,24 +105,6 @@ jacocoTestReport {
     }
 }
 
-task generatePom{
-    doLast {
-        pom {
-            project {
-                licenses {
-                    license {
-                        name = 'The Apache License, Version 2.0'
-                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                    }
-                }
-                scm {
-                    url = 'https://github.com/nats-io/java-nats'
-                }
-            }
-        }.writeTo("$buildDir/pom.xml")
-    }
-}
-
 artifacts {
     archives javadocJar, sourcesJar
 }
