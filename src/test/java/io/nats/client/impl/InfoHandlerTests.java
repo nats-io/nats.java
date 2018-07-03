@@ -103,7 +103,6 @@ public class InfoHandlerTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Progress", Progress.COMPLETED_CUSTOM_CODE == ts.getProgress());
         }
     }
 }

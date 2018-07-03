@@ -144,7 +144,6 @@ public class PublishTests {
             assertTrue("Got pub.", gotPub.get().booleanValue()); //wait for receipt to close up
             nc.close();
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
-            assertTrue("Progress", Progress.COMPLETED_CUSTOM_CODE == ts.getProgress());
 
             String expectedProtocol = null;
             if (replyTo == null) {
