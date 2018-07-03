@@ -41,7 +41,7 @@ public class ReconnectTests {
 
     static void flushAndWait(Connection nc, TestHandler handler) {
         try {
-            nc.flush(Duration.ofMillis(500));
+            nc.flush(Duration.ofMillis(1000));
         } catch (Exception exp) {
         }
 
@@ -276,7 +276,7 @@ public class ReconnectTests {
             flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(nc.getCurrentServerURI(), ts.getURI());
+            assertEquals(ts.getURI(), nc.getCurrentServerURI());
         } finally {
             if (nc != null) {
                 nc.close();

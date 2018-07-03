@@ -316,8 +316,8 @@ class NatsConnection implements Connection {
                     throw this.exceptionDuringCloseOrConnect;
                 }
 
-                updateStatus(Status.CONNECTED);
                 this.currentServerURI = serverURI;
+                updateStatus(Status.CONNECTED);
             } finally {
                 statusLock.unlock();
             }
