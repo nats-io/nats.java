@@ -283,7 +283,7 @@ public class ConnectTests {
 
             // No server at this point, let it fail and try to start over
             try {
-                Thread.sleep(100);
+                Thread.sleep(500);
             } catch (Exception exp) {
 
             }
@@ -292,7 +292,7 @@ public class ConnectTests {
             assertNotNull(nc);
 
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                handler.waitForStatusChange(1, TimeUnit.SECONDS);
+                handler.waitForStatusChange(5, TimeUnit.SECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             }
         } finally {

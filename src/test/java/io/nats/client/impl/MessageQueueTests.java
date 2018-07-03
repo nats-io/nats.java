@@ -348,10 +348,10 @@ public class MessageQueueTests {
     public void testMultipleWritersOneAccumulator() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue(true);
-        int threads = 7;
+        int threads = 4;
         int msgPerThread = 30;
         int msgCount = threads * msgPerThread;
-        int tries = msgCount;
+        int tries = 100;
         AtomicInteger count = new AtomicInteger(0);
 
         for (int i=0;i<threads;i++) {
