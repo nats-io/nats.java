@@ -131,6 +131,7 @@ public class NatsTestServer implements AutoCloseable {
 
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.directory(new File(System.getProperty("user.home")));
 
             if (debug) {
                 System.out.println("%%% Starting [" + this.cmdLine + "] with redirected IO");
