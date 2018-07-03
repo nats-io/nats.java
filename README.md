@@ -3,9 +3,10 @@
 A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build Status](https://travis-ci.org/nats-io/nats-java.svg?branch=master)](http://travis-ci.org/nats-io/nats-java)
-[![Coverage Status](https://coveralls.io/repos/nats-io/nats-java/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/nats-java?branch=master)
-[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg)](http://javadoc.io/doc/io.nats/jnats/2.0.0)
+[![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=version2)](http://travis-ci.org/nats-io/nats-java?branch=version2)
+[![Coverage Status](https://coveralls.io/repos/nats-io/java-nats/badge.svg?branch=version2&service=github)](https://coveralls.io/github/nats-io/java-nats?branch=version2)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
+[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg?branch=2.0.0)](http://javadoc.io/doc/io.nats/jnats?branch=2.0.0)
 
 ## A Note on Versions
 
