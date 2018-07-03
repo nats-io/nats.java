@@ -26,8 +26,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Test;
 
-import io.nats.client.NatsServerProtocolMock.Progress;
-
 public class PublishTests {
     @Test(expected = IllegalStateException.class)
     public void throwsIfClosedOnPublish() throws IOException, InterruptedException {

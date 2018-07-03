@@ -353,7 +353,7 @@ public class SubscriberTests {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             Subscription sub = nc.subscribe("subject");
-            nc.flush(null);
+            nc.flush(Duration.ofMillis(1000));
 
             Thread t = new Thread(()->{
                 try {

@@ -42,6 +42,10 @@ class MessageQueue {
         return singleThreadedReader;
     }
 
+    boolean isRunning() {
+        return this.running.get();
+    }
+
     void pause() {
         this.running.set(false);
         signalAll();
