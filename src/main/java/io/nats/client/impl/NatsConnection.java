@@ -195,6 +195,10 @@ class NatsConnection implements Connection {
                     this.reconnectWaiter = new CompletableFuture<>();
                     waitForReconnectTimeout();
                 }
+
+                if (isClosed()) {
+                    break;
+                }
                 
                 updateStatus(Status.RECONNECTING);
                 tryToConnect(server);

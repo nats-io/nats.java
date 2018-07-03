@@ -360,10 +360,10 @@ public class ReconnectTests {
             try (NatsTestServer ts = new NatsTestServer()) {
                 Options options = new Options.Builder().
                                         server(ts.getURI()).
-                                        maxReconnects(-1).
+                                        maxReconnects(5).
                                         connectionListener(handler).
                                         reconnectBufferSize(-1).
-                                        reconnectWait(Duration.ofSeconds(10)).
+                                        reconnectWait(Duration.ofSeconds(30)).
                                         build();
                 nc = Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
@@ -373,8 +373,7 @@ public class ReconnectTests {
             flushAndWait(nc, handler);
             checkReconnectingStatus(nc);
 
-            //write 5 mb, travis appears to get mad at more
-            for (int i=0;i<5_000;i++) {
+            for (int i=0;i<1_000;i++) {
                 nc.publish("test", new byte[1024]);
             }
 
