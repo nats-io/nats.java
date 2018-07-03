@@ -49,6 +49,7 @@ test {
     }
     testLogging {
         exceptionFormat = 'full'
+        events "started", "passed", "skipped", "failed"
     }
 }
 
@@ -120,18 +121,19 @@ uploadArchives {
     repositories {
         mavenDeployer {
             
-            repository(url: "file://$buildDir/repos")
+            if (project.hasProperty("travis")) {
+                //beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
-            /*
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                }
 
-            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
+                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                }
+            } else {
+                repository(url: "file://$buildDir/repos")
             }
-
-            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
-            }*/
 
             pom.project {
                 name 'NATS Java Client'
