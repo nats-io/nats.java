@@ -8,6 +8,7 @@ jdk:
 
 env:
   - NATS_VERSION=v1.1.0
+  - gnatsd_path=$HOME/gnatsd
 
 before_script:
   - wget "https://github.com/nats-io/gnatsd/releases/download/$NATS_VERSION/gnatsd-$NATS_VERSION-linux-amd64.zip" -O tmp.zip
