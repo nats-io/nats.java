@@ -1,0 +1,29 @@
+dist: trusty
+language: java
+sudo: required
+
+jdk:
+- oraclejdk8
+- openjdk8
+
+env:
+  - NATS_VERSION=v1.1.0
+
+before_script:
+  - wget "https://github.com/nats-io/gnatsd/releases/download/$NATS_VERSION/gnatsd-$NATS_VERSION-linux-amd64.zip" -O tmp.zip
+  - unzip tmp.zip
+  - mv gnatsd-$NATS_VERSION-linux-amd64 gnatsd
+
+install:
+- sudo apt-get install -y gnupg2
+
+before_cache:
+  - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+  - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+cache:
+  directories:
+    - $HOME/.gradle/caches/
+    - $HOME/.gradle/wrapper/
+
+after_success:
+  - ./gradlew test jacocoTestReport coveralls

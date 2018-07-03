@@ -3,7 +3,6 @@
 A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnats-io%2Fnats-java.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnats-io%2Fnats-java?ref=badge_shield)
 [![Build Status](https://travis-ci.org/nats-io/nats-java.svg?branch=master)](http://travis-ci.org/nats-io/nats-java)
 [![Coverage Status](https://coveralls.io/repos/nats-io/nats-java/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/nats-java?branch=master)
 [![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg)](http://javadoc.io/doc/io.nats/jnats/2.0.0)
@@ -29,6 +28,12 @@ TODO
 ### Using Gradle
 
 TODO
+
+### Linux Platform Note
+
+NATS uses RNG to generate unique inbox names. A peculiarity of the JDK on Linux (see [JDK-6202721](https://bugs.openjdk.java.net/browse/JDK-6202721) and [JDK-6521844](https://bugs.openjdk.java.net/browse/JDK-6521844)) causes Java to use `/dev/random` even when `/dev/urandom` is called for. The net effect is that successive calls to `newInbox()`, either directly or through calling `request()` will become very slow, on the order of seconds, making many applications unusable if the issue is not addressed. A simple workaround would be to use the following jvm args.
+
+`-Djava.security.egd=file:/dev/./urandom`
 
 ## Basic Usage
 
@@ -165,6 +170,13 @@ If you want to try out these techniques, take a look at the [examples.md](src/ex
 
 The Java client will automatically reconnect if it loses its connection the gnatsd. If given a single server, the client will keep trying that one. If given a list of servers, the client will rotate between them. When the gnatsd servers are in a cluster, they will tell the client about the other servers, so that in the simplest case a client could connect to one server, learn about the cluster and reconnect to another server if its initial one goes down.
 
+To tell the connection about multiple servers for the initial connection, use the `servers()` method on the options builder, or call `server()` multiple times.
+
+```Java
+String[] serverUrls = {"nats://serverOne:4222", "nats://serverTwo:4222"};
+Options o = new Options.Builder().servers(serverUrls).build();
+```
+
 Reconnection behavior is controlled via a few options, see the javadoc for the Options.Builder class for specifics on reconnect limits, delays and buffers.
 
 ## Benchmarking
@@ -299,5 +311,3 @@ which will create a folder called `build/reports/jacoco` containing the file `in
 
 Unless otherwise noted, the NATS source files are distributed
 under the Apache Version 2.0 license found in the LICENSE file.
-
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fnats-io%2Fnats-java.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fnats-io%2Fnats-java?ref=badge_large)

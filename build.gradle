@@ -1,12 +1,16 @@
 
 plugins {
     id 'java-library'
+    id 'java'
+    id 'jacoco'
+    id 'maven'
+    id 'signing'
+    id 'com.github.kt3k.coveralls' version '2.6.3'
 }
-apply plugin: 'java'
-apply plugin: 'jacoco'
-apply plugin: 'maven'
 
 version = '2.0.0'
+archivesBaseName = 'jnats'
+group = 'io.nats'
 
 repositories {
     jcenter()
@@ -36,6 +40,13 @@ jar {
                    'Implementation-Vendor': 'nats.io')
     }
     exclude("io/nats/examples/**")
+}
+
+test {
+    maxHeapSize = "2g"
+    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
+        jvmArgs '-Djava.security.egd=file:/dev/./urandom'
+    }
 }
 
 javadoc {
@@ -81,6 +92,19 @@ task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
+jacocoTestReport {
+    reports {
+        xml.enabled = true // coveralls plugin depends on xml format report
+        html.enabled = true
+    }
+    afterEvaluate { // only report on main library not examples
+        classDirectories = files(classDirectories.files.collect {
+            fileTree(dir: it,
+                    exclude: ['**/examples**'])
+        })
+    }
+}
+
 task generatePom{
     doLast {
         pom {
@@ -91,15 +115,51 @@ task generatePom{
                         url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
                     }
                 }
+                scm {
+                    url = 'https://github.com/nats-io/java-nats'
+                }
             }
         }.writeTo("$buildDir/pom.xml")
     }
 }
 
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+/*signing {
+    sign configurations.archives
+} */
+
 uploadArchives {
     repositories {
         mavenDeployer {
+            
             repository(url: "file://$buildDir/repos")
+
+            /*repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }*/
+
+            pom.project {
+                name 'NATS Java Client'
+                packaging 'jar'
+                description 'Client library for working with the NATS messaging system.'
+                url 'http://nats.io'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                scm {
+                    url = 'https://github.com/nats-io/java-nats'
+                }
+            }
         }
     }
 }
