@@ -88,7 +88,7 @@ public class ConnectTests {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
             Connection nc = Nats.connect(opt);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
                 assertEquals(-1, nc.getMaxPayload()); // No info to set it from
             } finally {
                 nc.close();
@@ -104,7 +104,7 @@ public class ConnectTests {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
             Connection nc = Nats.connect(opt);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -119,7 +119,7 @@ public class ConnectTests {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
             Connection nc = Nats.connect(opt);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -134,7 +134,7 @@ public class ConnectTests {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
             Connection nc = Nats.connect(opt);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -181,7 +181,7 @@ public class ConnectTests {
             Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
             Connection nc = Nats.connect(options);
             try {
-                assertEquals("Connected Status", Connection.Status.DISCONNECTED, nc.getStatus());
+                assertEquals("Connected Status", Connection.Status.CLOSED, nc.getStatus());
             } finally {
                 nc.close();
                 assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
@@ -196,7 +196,7 @@ public class ConnectTests {
             Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
             Connection nc = Nats.connect(options);
             try {
-                assertEquals("Connected Status", Connection.Status.DISCONNECTED, nc.getStatus());
+                assertEquals("Connected Status", Connection.Status.CLOSED, nc.getStatus());
             } finally {
                 nc.close();
                 assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
@@ -212,7 +212,7 @@ public class ConnectTests {
             Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
             Connection nc = Nats.connect(options);
             try {
-                assertEquals("Connected Status", Connection.Status.DISCONNECTED, nc.getStatus());
+                assertEquals("Connected Status", Connection.Status.CLOSED, nc.getStatus());
             } finally {
                 nc.close();
                 assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
@@ -227,7 +227,7 @@ public class ConnectTests {
             Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
             Connection nc = Nats.connect(options);
             try {
-                assertEquals("Connected Status", Connection.Status.DISCONNECTED, nc.getStatus());
+                assertEquals("Connected Status", Connection.Status.CLOSED, nc.getStatus());
             } finally {
                 nc.close();
                 assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
@@ -301,5 +301,32 @@ public class ConnectTests {
             }
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
+    }
+    
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnAsyncWithoutListener() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().
+                                        server(ts.getURI()).
+                                        build();
+            Nats.connectAsynchronously(options, false);
+        }
+    }
+    
+    @Test
+    public void testErrorOnAsync() throws IOException, InterruptedException {
+        TestHandler handler = new TestHandler();
+        Options options = new Options.Builder().
+                                    server("nats://localhost:"+NatsTestServer.nextPort()).
+                                    connectionListener(handler).
+                                    errorListener(handler).
+                                    noReconnect().
+                                    build();
+        handler.prepForStatusChange(Events.CLOSED);
+        Nats.connectAsynchronously(options, false);
+        handler.waitForStatusChange(1, TimeUnit.SECONDS);
+
+        assertEquals(1, handler.getExceptionCount());
+        assertTrue("Closed Status", Connection.Status.CLOSED == handler.getConnection().getStatus());
     }
 }

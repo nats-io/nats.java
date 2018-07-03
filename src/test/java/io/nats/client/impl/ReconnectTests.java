@@ -41,11 +41,11 @@ public class ReconnectTests {
 
     static void flushAndWait(Connection nc, TestHandler handler) {
         try {
-            nc.flush(Duration.ofMillis(50));
+            nc.flush(Duration.ofMillis(500));
         } catch (Exception exp) {
         }
 
-        handler.waitForStatusChange(500, TimeUnit.MILLISECONDS);
+        handler.waitForStatusChange(5000, TimeUnit.MILLISECONDS);
     }
 
     void checkReconnectingStatus(Connection nc) {
@@ -60,6 +60,8 @@ public class ReconnectTests {
         TestHandler handler = new TestHandler();
         int port = NatsTestServer.nextPort();
         Subscription sub;
+        long start = 0;
+        long end = 0;
 
         handler.setPrintExceptions(true);
 
@@ -68,7 +70,7 @@ public class ReconnectTests {
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(-1).
-                                    reconnectWait(Duration.ofMillis(100)).
+                                    reconnectWait(Duration.ofMillis(1000)).
                                     connectionListener(handler).
                                     build();
                                     port = ts.getPort();
@@ -93,6 +95,7 @@ public class ReconnectTests {
                 assertNotNull(msg);
 
                 handler.prepForStatusChange(Events.DISCONNECTED);
+                start = System.nanoTime();
             }
 
             flushAndWait(nc, handler);
@@ -101,8 +104,12 @@ public class ReconnectTests {
             handler.prepForStatusChange(Events.RESUBSCRIBED);
 
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
+                handler.waitForStatusChange(5000, TimeUnit.MILLISECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+                end = System.nanoTime();
+
+                assertTrue("reconnect wait", 1_000_000 * (end-start) > 1000);
 
                 // Make sure dispatcher and subscription are still there
                 Future<Message> inc = nc.request("dispatchSubject", "test".getBytes(StandardCharsets.UTF_8));

@@ -204,12 +204,12 @@ class NatsServerInfo {
                 case 't':
                     ch = '\t';
                     break;
-                case '\"':
+                /*case '\"':
                     ch = '\"';
                     break;
                 case '\'':
                     ch = '\'';
-                    break;
+                    break;*/
                 // Hex Unicode: u????
                 case 'u':
                     if (i >= st.length() - 5) {

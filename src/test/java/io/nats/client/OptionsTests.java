@@ -91,8 +91,16 @@ public class OptionsTests {
     }
 
     @Test
-    public void testChainedSSLOptions() throws NoSuchAlgorithmException {
-        SSLContext ctx = SSLContext.getDefault();
+    public void testChainedSecure() throws Exception {
+        SSLContext ctx = TestSSLUtils.createTestSSLContext();
+        SSLContext.setDefault(ctx);
+        Options o = new Options.Builder().secure().build();
+        assertEquals("chained context", ctx, o.getSslContext());
+    }
+
+    @Test
+    public void testChainedSSLOptions() throws Exception {
+        SSLContext ctx = TestSSLUtils.createTestSSLContext();
         Options o = new Options.Builder().sslContext(ctx).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("chained context", ctx, o.getSslContext());
@@ -171,8 +179,9 @@ public class OptionsTests {
     }
 
     @Test
-    public void testPropertiesSSLOptions() throws NoSuchAlgorithmException {
-
+    public void testPropertiesSSLOptions() throws Exception {
+        // don't use default for tests, issues with forcing algorithm exception in other tests break it
+        SSLContext.setDefault(TestSSLUtils.createTestSSLContext());
         Properties props = new Properties();
         props.setProperty(Options.PROP_SECURE, "true");
 
@@ -195,6 +204,24 @@ public class OptionsTests {
         assertEquals("property ping max", 200, o.getMaxPingsOut());
         assertEquals("property reconnect buffer size", 300, o.getReconnectBufferSize());
         assertEquals("property max control line", 400, o.getMaxControlLine());
+    }
+
+    @Test
+    public void testDefaultPropertyIntOptions() {
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_RECONNECT_WAIT, "-1");
+        props.setProperty(Options.PROP_CONNECTION_TIMEOUT, "-1");
+        props.setProperty(Options.PROP_PING_INTERVAL, "-1");
+        props.setProperty(Options.PROP_CLEANUP_INTERVAL, "-1");
+        props.setProperty(Options.PROP_MAX_CONTROL_LINE, "-1");
+
+        Options o = new Options.Builder(props).build();
+        assertEquals("default max control line", Options.DEFAULT_MAX_CONTROL_LINE, o.getMaxControlLine());
+        assertEquals("default reconnect wait", Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait());
+        assertEquals("default connection timeout", Options.DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout());
+        assertEquals("default ping interval", Options.DEFAULT_PING_INTERVAL, o.getPingInterval());
+        assertEquals("default cleanup interval", Options.DEFAULT_REQUEST_CLEANUP_INTERVAL,
+                o.getRequestCleanupInterval());
     }
 
     @Test
@@ -263,8 +290,8 @@ public class OptionsTests {
     }
 
     @Test
-    public void testConnectOptionsWithNameAndContext() throws NoSuchAlgorithmException {
-        SSLContext ctx = SSLContext.getDefault();
+    public void testConnectOptionsWithNameAndContext() throws Exception {
+        SSLContext ctx = TestSSLUtils.createTestSSLContext();
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true}";
@@ -371,21 +398,46 @@ public class OptionsTests {
         assertEquals("property server", url2, serverArray[1].toString());
     }
 
+    @Test
+    public void testEmptyStringInServers() {
+        String url1 = "nats://localhost:8080";
+        String url2 = "";
+        String[] serverUrls = {url1, url2};
+        Options o = new Options.Builder().servers(serverUrls).build();
+
+        Collection<URI> servers = o.getServers();
+        URI[] serverArray = servers.toArray(new URI[0]);
+        assertEquals(1, serverArray.length);
+        assertEquals("property server", url1, serverArray[0].toString());
+    }
+
     @Test(expected=IllegalArgumentException.class)
     public void testBadClassInPropertyConnectionListeners() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_CONNECTION_CB, "foo");
         new Options.Builder(props);
+        assertFalse(true);
     }
 
     @Test(expected=IllegalStateException.class)
     public void testTokenAndUserThrows() {
         new Options.Builder().token("foo").userInfo("foo", "bar").build();
+        assertFalse(true);
     }
 
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnBadServerURI() {
         new Options.Builder().server("foo:/bar\\:blammer").build();
+        assertFalse(true);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptyServersProp() {
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_SERVERS, "");
+
+        new Options.Builder(props).build();
+        assertFalse(true);
     }
 
     @Test(expected=IllegalArgumentException.class)
@@ -394,5 +446,56 @@ public class OptionsTests {
         String url2 = "foo:/bar\\:blammer";
         String[] serverUrls = {url1, url2};
         new Options.Builder().servers(serverUrls).build();
+        assertFalse(true);
     }
+
+/* These next three require that no default is set anywhere, if another test
+    requires SSLContext.setDefault() and runs before these, they will fail. Commenting
+    out for now, this can be run manually.
+
+    @Test(expected=NoSuchAlgorithmException.class)
+    public void testThrowOnBadContextForSecure() throws Exception {
+        try {
+            System.setProperty("javax.net.ssl.keyStore", "foo");
+            System.setProperty("javax.net.ssl.trustStore", "bar");
+            new Options.Builder().secure().build();
+            assertFalse(true);
+        }
+        finally {
+            System.clearProperty("javax.net.ssl.keyStore");
+            System.clearProperty("javax.net.ssl.trustStore");
+        }
+    }
+
+    @Test(expected=IllegalStateException.class)
+    public void testThrowOnBadContextForTLSUrl() throws Exception {
+        try {
+            System.setProperty("javax.net.ssl.keyStore", "foo");
+            System.setProperty("javax.net.ssl.trustStore", "bar");
+            new Options.Builder().server("tls://localhost:4242").build();
+            assertFalse(true);
+        }
+        finally {
+            System.clearProperty("javax.net.ssl.keyStore");
+            System.clearProperty("javax.net.ssl.trustStore");
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnBadContextSecureProp() {
+        try {
+            System.setProperty("javax.net.ssl.keyStore", "foo");
+            System.setProperty("javax.net.ssl.trustStore", "bar");
+            
+            Properties props = new Properties();
+            props.setProperty(Options.PROP_SECURE, "true");
+            new Options.Builder(props).build();
+            assertFalse(true);
+        }
+        finally {
+            System.clearProperty("javax.net.ssl.keyStore");
+            System.clearProperty("javax.net.ssl.trustStore");
+        }
+    }
+    */
 }

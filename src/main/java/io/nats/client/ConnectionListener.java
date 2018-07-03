@@ -41,7 +41,7 @@ public interface ConnectionListener {
         /**
          * @return the string value for this event
          */
-        public String getEvent() {
+        public String toString() {
             return this.event;
         }
     }

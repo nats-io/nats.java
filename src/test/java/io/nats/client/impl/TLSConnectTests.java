@@ -59,7 +59,6 @@ public class TLSConnectTests {
 
     @Test
     public void testVerifiedTLSConnection() throws Exception {
-        //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
@@ -79,7 +78,6 @@ public class TLSConnectTests {
 
     @Test
     public void testOpenTLSConnection() throws Exception {
-        //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             Options options = new Options.Builder().
                                 server(ts.getURI()).
@@ -215,7 +213,7 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -232,7 +230,7 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -251,7 +249,7 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -270,7 +268,7 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());

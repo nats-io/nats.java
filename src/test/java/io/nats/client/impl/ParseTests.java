@@ -16,12 +16,14 @@ package io.nats.client.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-import java.nio.CharBuffer;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
 
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
 
 public class ParseTests {
     @Test
@@ -49,33 +51,118 @@ public class ParseTests {
         assertFalse(true);
     }
 
-
-    public String grabProtocol(NatsConnectionReader reader, CharSequence buffer) {
-        int remaining = buffer.length();
-
-        if (remaining == 0) {
-            return null;
+    @Test(expected=IOException.class)
+    public void testLongProtocolOpThrows() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("thisistoolong\r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            assertFalse(true);
         }
+    }
 
-        int index = 0;
-        char[] opArray = new char[NatsConnectionReader.MAX_PROTOCOL_OP_LENGTH];
-
-        while (remaining > 0) {
-            char c = buffer.charAt(index);
-
-            if (c == ' ') {
-                return reader.opFor(opArray, index);
-            } else {
-                if (index >= NatsConnectionReader.MAX_PROTOCOL_OP_LENGTH) {
-                    return NatsConnectionReader.UNKNOWN_OP;
-                }
-                opArray[index] = c;
-                index++;
-            }
-            remaining--;
+    @Test(expected=IOException.class)
+    public void testMissingLineFeed() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("PING\rPONG").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            assertFalse(true);
         }
+    }
 
-        return reader.opFor(opArray, index);
+    @Test(expected=IOException.class)
+    public void testMissingSubject() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("MSG  1 1\r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherMessageProtocol(bytes.length);
+            reader.parseProtocolMessage();
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IOException.class)
+    public void testMissingSID() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("MSG subject  1\r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherMessageProtocol(bytes.length);
+            reader.parseProtocolMessage();
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IOException.class)
+    public void testMissingLength() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("MSG subject 2 \r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherMessageProtocol(bytes.length);
+            reader.parseProtocolMessage();
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IOException.class)
+    public void testBadLength() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("MSG subject 2 x\r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherMessageProtocol(bytes.length);
+            reader.parseProtocolMessage();
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testMessageLineTooLong() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
+                                                                    server(ts.getURI()).
+                                                                    maxControlLine(16).
+                                                                    build())) {
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("MSG reallylongsubjectobreakthelength 1 1\r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherMessageProtocol(bytes.length);
+            reader.parseProtocolMessage();
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testProtocolLineTooLong() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
+                                                                    server(ts.getURI()).
+                                                                    maxControlLine(16).
+                                                                    build())) {
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("INFO reallylongsubjectobreakthelengthnotevenjson\r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherProtocol(bytes.length);
+            reader.parseProtocolMessage();
+            assertFalse(true);
+        }
     }
 
     @Test
@@ -89,8 +176,9 @@ public class ParseTests {
         };
 
         String[] badStrings = {
-            "THISISTOOLONG the rest doesn't matter", "XXX", "XXXX", "XX", "X", "PINX", "PONX", "MSX", "INFX", "+OX", "-ERX",
-            "thisistoolong the rest doesn't matter", "xxx", "xxxx", "xx", "x", "pinx", "ponx", "msx", "infx", "+ox", "-erx"
+            "XXX", "XXXX", "XX", "X", "PINX", "PONX", "MSX", "INFX", "+OX", "-ERX",
+            "xxx", "xxxx", "xx", "x", "pinx", "ponx", "msx", "infx", "+ox", "-erx",
+            "+mk", "+ms", "-msg", "-esg", "poog", "piig", "mkg", "iing", "inng"
         };
 
         String[] expected = {
@@ -104,11 +192,19 @@ public class ParseTests {
             NatsConnectionReader reader = nc.getReader();
 
             for (int i=0; i<serverStrings.length; i++) {
-                assertEquals(serverStrings[i], expected[i], grabProtocol(reader, CharBuffer.wrap(serverStrings[i])));
+                byte[] bytes = (serverStrings[i]+"\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                String op = reader.currentOp();
+                assertEquals(serverStrings[i], expected[i], op);
             }
 
             for (int i=0; i<badStrings.length; i++) {
-                assertEquals(badStrings[i], "UNKNOWN", grabProtocol(reader, CharBuffer.wrap(badStrings[i])));
+                byte[] bytes = (badStrings[i]+"\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                String op = reader.currentOp();
+                assertEquals(badStrings[i], NatsConnectionReader.UNKNOWN_OP, op);
             }
         }
     }

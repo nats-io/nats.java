@@ -26,7 +26,7 @@ class NatsConnectionReader implements Runnable {
     static final int MAX_PROTOCOL_OP_LENGTH = 4;
     static final String UNKNOWN_OP = "UNKNOWN";
 
-    private enum Mode {
+    enum Mode {
         GATHER_OP,
         GATHER_PROTO,
         GATHER_MSG_PROTO,
@@ -176,7 +176,7 @@ class NatsConnectionReader implements Runnable {
                     this.opPos++;
                 }
             }
-        } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
+        } catch (ArrayIndexOutOfBoundsException | IllegalStateException | NumberFormatException | NullPointerException ex) {
             this.encounteredProtocolError(ex);
         }
     }
@@ -400,7 +400,7 @@ class NatsConnectionReader implements Runnable {
                     replyTo = null;
                 }
                 
-                if(subject==null || sid==null || lengthChars==null) {
+                if(subject==null || subject.length() == 0 || sid==null || sid.length() == 0 || lengthChars==null) {
                     throw new IllegalStateException("Bad MSG control line, missing required fields");
                 }
 
@@ -452,5 +452,17 @@ class NatsConnectionReader implements Runnable {
 
     void encounteredProtocolError(Exception ex) throws IOException {
         throw new IOException(ex);
+    }
+
+    //For testing
+    void fakeReadForTest(byte[] bytes) {
+        System.arraycopy(bytes, 0, this.buffer, 0, bytes.length);
+        this.bufferPosition = 0;
+        this.op = UNKNOWN_OP;
+        this.mode = Mode.GATHER_OP;
+    }
+
+    String currentOp() {
+        return this.op;
     }
 }

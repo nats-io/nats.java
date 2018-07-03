@@ -962,7 +962,7 @@ public class Options {
                     try {
                         this.sslContext = SSLContext.getDefault();
                     } catch (NoSuchAlgorithmException e) {
-                        this.sslContext = null;
+                        throw new IllegalStateException("Unable to create default SSL context", e);
                     }
                 } else if ("opentls".equals(serverURI.getScheme()) && this.sslContext == null)
                 {

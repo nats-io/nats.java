@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -498,5 +499,20 @@ public class MessageQueueTests {
         assertEquals(before, after + expected.length + 2);
         assertEquals(q.popNow(), msg1);
         assertEquals(q.popNow(), msg3);
+    }
+
+    @Test
+    public void testPausedAccumulate() throws InterruptedException {
+        MessageQueue q = new MessageQueue(true);
+        q.pause();
+        NatsMessage msg = q.accumulate(1,1,null);
+        assertNull(msg);
+    }
+
+    @Test(expected=IllegalStateException.class)
+    public void testThrowOnFilterIfRunning() throws InterruptedException {
+        MessageQueue q = new MessageQueue(true);
+        q.filter((msg) -> {return true;});
+        assertFalse(true);
     }
 }

@@ -23,6 +23,7 @@ import org.junit.Test;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.BadHandler;
 import io.nats.client.Connection;
+import io.nats.client.ConnectionListener;
 import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
@@ -31,6 +32,11 @@ import io.nats.client.TestHandler;
 
 public class ConnectionListenerTests {
 
+    @Test
+    public void testToString() {
+        assertEquals(ConnectionListener.Events.CLOSED.toString(), "nats: connection closed");
+    }
+    
     @Test
     public void testCloseCount() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {

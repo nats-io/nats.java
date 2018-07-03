@@ -666,6 +666,16 @@ public class DispatcherTests {
         }
     }
 
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullSubjectInUnsub() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.unsubscribe(null);
+            assertFalse(true);
+        }
+    }
+
     @Test
     public void testDoubleSubscribe() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);

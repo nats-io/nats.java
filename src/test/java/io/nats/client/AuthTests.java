@@ -94,7 +94,7 @@ public class AuthTests {
                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -113,7 +113,7 @@ public class AuthTests {
                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -172,7 +172,7 @@ public class AuthTests {
                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -191,7 +191,7 @@ public class AuthTests {
                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());

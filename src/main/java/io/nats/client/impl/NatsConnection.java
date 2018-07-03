@@ -159,8 +159,12 @@ class NatsConnection implements Connection {
             }
         }
 
-        if (!isConnected() && reconnectOnConnect && !isClosed()) {
-            reconnect();
+        if (!isConnected() && !isClosed()) {
+            if (reconnectOnConnect){
+                reconnect();
+            } else {
+                close();
+            }
         }
     }
 

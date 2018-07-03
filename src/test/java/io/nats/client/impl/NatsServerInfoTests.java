@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
@@ -49,6 +50,33 @@ public class NatsServerInfoTests {
     }
 
     @Test
+    public void testEmptyURLParsing() {
+        String json = "{" +
+                        "\"server_id\":\"myserver\"" + "," +
+                        "\"connect_urls\":[\"one\", \"\"]" +
+                       "}";
+        NatsServerInfo info = new NatsServerInfo(json);
+        assertEquals(info.getServerId(), "myserver");
+        String[] urls = {"one"};
+        assertTrue(Arrays.equals(info.getConnectURLs(), urls));
+    }
+    
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowsOnNonJson() {
+        String json = "foo";
+        new NatsServerInfo(json);
+        assertFalse(true);
+    }
+       
+    
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowsOnShortString() {
+        String json = "{}";
+        new NatsServerInfo(json);
+        assertFalse(true);
+    }
+
+    @Test
     public void testNonAsciiValue() {
         String json = "{" +
                         "\"server_id\":\"myserver\"" + "," +
@@ -72,5 +100,12 @@ public class NatsServerInfoTests {
         assertEquals("my!server", info.getGoVersion());
         assertEquals("my\\host", info.getHost());
         assertEquals("1.1.1\t1", info.getVersion());
+    }
+
+    @Test
+    public void testInvalidUnicode() {
+        String json = "{\"server_id\":\"\\"+"u33"+"\"}";
+        NatsServerInfo info = new NatsServerInfo(json);
+        assertEquals("u33", info.getServerId());
     }
 }

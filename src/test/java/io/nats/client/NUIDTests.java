@@ -54,6 +54,13 @@ public class NUIDTests {
                 nuid.length());
     }
 
+    @Test
+    public void testGlobalGUIDLen() {
+        String nuid = NUID.nextGlobal();
+        assertEquals(String.format("Expected len of %d, got %d", NUID.totalLen, nuid.length()), NUID.totalLen,
+                nuid.length());
+    }
+
     @Test(timeout = 5000)
     public void testProperPrefix() {
         char min = (char) 255;

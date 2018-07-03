@@ -48,7 +48,7 @@ public class ErrorListenerTests {
                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
                 assertTrue(handler.getCount() > 0);
                 assertEquals(1, handler.getErrorCount("Authorization Violation"));
             } finally {
@@ -106,7 +106,7 @@ public class ErrorListenerTests {
                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.DISCONNECTED == nc.getStatus());
+                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
                 assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions()>0);
             } finally {
                 nc.close();
