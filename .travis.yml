@@ -8,12 +8,12 @@ jdk:
 
 env:
   - gnatsd_path=$HOME/gnatsd
-  - NATS_VERSION=v1.1.0
+  - gnatsd_version=v1.1.0
 
 before_script:
-  - wget "https://github.com/nats-io/gnatsd/releases/download/$NATS_VERSION/gnatsd-$NATS_VERSION-linux-amd64.zip" -O tmp.zip
+  - wget "https://github.com/nats-io/gnatsd/releases/download/$gnatsd_version/gnatsd-$gnatsd_version-linux-amd64.zip" -O tmp.zip
   - unzip tmp.zip
-  - mv gnatsd-$NATS_VERSION-linux-amd64 gnatsd
+  - mv gnatsd-$gnatsd_version-linux-amd64 gnatsd
 
 install:
 - sudo apt-get install -y gnupg2
