@@ -41,11 +41,11 @@ public class ReconnectTests {
 
     static void flushAndWait(Connection nc, TestHandler handler) {
         try {
-            nc.flush(Duration.ofMillis(1000));
+            nc.flush(Duration.ofSeconds(1));
         } catch (Exception exp) {
         }
 
-        handler.waitForStatusChange(2000, TimeUnit.MILLISECONDS);
+        handler.waitForStatusChange(5, TimeUnit.SECONDS);
     }
 
     void checkReconnectingStatus(Connection nc) {

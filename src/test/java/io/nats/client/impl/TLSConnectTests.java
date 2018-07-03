@@ -187,13 +187,10 @@ public class TLSConnectTests {
             }
 
             ReconnectTests.flushAndWait(nc, handler);
-            assertTrue("Reconnecting status", Connection.Status.RECONNECTING == nc.getStatus() || 
-                                                    Connection.Status.DISCONNECTED == nc.getStatus() || 
-                                                    Connection.Status.CONNECTING == nc.getStatus());
-
             handler.prepForStatusChange(Events.RESUBSCRIBED);
+
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
-                handler.waitForStatusChange(5, TimeUnit.SECONDS);
+                handler.waitForStatusChange(10, TimeUnit.SECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             }
         } finally {
