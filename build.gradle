@@ -47,6 +47,9 @@ test {
     if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
         jvmArgs '-Djava.security.egd=file:/dev/./urandom'
     }
+    testLogging {
+        exceptionFormat = 'full'
+    }
 }
 
 javadoc {

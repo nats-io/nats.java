@@ -13,8 +13,7 @@ before_script:
   - wget "https://github.com/nats-io/gnatsd/releases/download/$gnatsd_version/gnatsd-$gnatsd_version-linux-amd64.zip" -O tmp.zip
   - unzip tmp.zip
   - mv gnatsd-$gnatsd_version-linux-amd64 gnatsd
-  - pwd
-  - echo $gnatsd_path
+  - chmod +x gnatsd
 
 install:
   - sudo apt-get install -y gnupg2
