@@ -32,7 +32,6 @@ import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
-import io.nats.client.NatsServerProtocolMock.Progress;
 
 public class PingTests {
     @Test
@@ -73,7 +72,6 @@ public class PingTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Progress", Progress.COMPLETED_CUSTOM_CODE == ts.getProgress());
         }
     }
 

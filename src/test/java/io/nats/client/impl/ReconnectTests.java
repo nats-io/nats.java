@@ -331,7 +331,7 @@ public class ReconnectTests {
             flushAndWait(nc, handler);
             checkReconnectingStatus(nc);
 
-            for (int i=0;i<10;i++) {
+            for (int i=0;i<20;i++) {
                 nc.publish("test", new byte[512]);// Should blow up by the 9th message
             }
 
