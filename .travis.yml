@@ -6,9 +6,6 @@ jdk:
 - oraclejdk8
 - openjdk8
 
-env:
-  - gnatsd_path=$TRAVIS_BUILD_DIR/gnatsd/gnatsd gnatsd_version=v1.1.0
-
 before_script:
   - wget "https://github.com/nats-io/gnatsd/releases/download/$gnatsd_version/gnatsd-$gnatsd_version-linux-amd64.zip" -O tmp.zip
   - unzip tmp.zip
@@ -27,3 +24,25 @@ cache:
 
 after_success:
   - ./gradlew test jacocoTestReport coveralls
+
+#
+# The gnatsd variables are used in tests that run gnatsd
+#
+# The global/secure values are used to deploy, they can be regenerated/created by someone with access to
+# the sonatype repostiory
+# > cd java-nats
+# > travis encrypt ORG_GRADLE_PROJECT_ossrhUsername=<your user name>
+# > travis encrypt ORG_GRADLE_PROJECT_ossrhPassword=<your password>
+# or use
+# > travis encrypt -i
+# to avoid passwords in shell history
+# Copy and paste the output to the global section below
+# The order is: username, password
+# 
+# Started on the deploy stuff, but leaving it out for now
+env:
+  - gnatsd_path=$TRAVIS_BUILD_DIR/gnatsd/gnatsd gnatsd_version=v1.1.0
+  #global:
+  #- ORG_GRADLE_PROJECT_travis=false
+
+

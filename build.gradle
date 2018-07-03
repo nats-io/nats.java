@@ -13,7 +13,7 @@ archivesBaseName = 'jnats'
 group = 'io.nats'
 
 repositories {
-    jcenter()
+    mavenCentral()
 }
 
 dependencies {
@@ -113,6 +113,17 @@ artifacts {
     archives javadocJar, sourcesJar
 }
 
+// These are overriden
+def v_ossrhUserName="hello"
+def v_ossrhPassword="world"
+
+if (project.hasProperty("ossrhUsername")) {
+  v_ossrhUsername = ossrhUsername
+}
+if (project.hasProperty("ossrhPassword")) {
+  v_ossrhPassword = ossrhPassword
+}
+
 /*signing {
     sign configurations.archives
 } */
@@ -125,11 +136,11 @@ uploadArchives {
                 //beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                    authentication(userName: v_ossrhUsername, password: v_ossrhPassword)
                 }
 
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                    authentication(userName: v_ossrhUsername, password: v_ossrhPassword)
                 }
             } else {
                 repository(url: "file://$buildDir/repos")
