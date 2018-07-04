@@ -25,7 +25,6 @@ import org.junit.Test;
 import io.nats.client.Connection;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock.Progress;
 
 public class InfoHandlerTests {
     @Test
@@ -42,7 +41,6 @@ public class InfoHandlerTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Progress", Progress.SENT_PONG == ts.getProgress());
         }
     }
 

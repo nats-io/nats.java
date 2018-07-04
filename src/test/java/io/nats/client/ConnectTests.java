@@ -25,7 +25,6 @@ import org.junit.Test;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
-import io.nats.client.NatsServerProtocolMock.Progress;
 
 public class ConnectTests {
     @Test
@@ -78,7 +77,6 @@ public class ConnectTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Progress", Progress.SENT_PONG == ts.getProgress());
         }
     }
 
@@ -94,7 +92,6 @@ public class ConnectTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Progress", Progress.CLIENT_CONNECTED == ts.getProgress());
         }
     }
 
@@ -109,7 +106,6 @@ public class ConnectTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Progress", Progress.SENT_INFO == ts.getProgress());
         }
     }
 
@@ -124,7 +120,6 @@ public class ConnectTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Progress", Progress.GOT_CONNECT == ts.getProgress());
         }
     }
 
@@ -139,7 +134,6 @@ public class ConnectTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Progress", Progress.GOT_PING == ts.getProgress());
         }
     }
 
@@ -156,7 +150,6 @@ public class ConnectTests {
                     nc.close();
                     assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
                 }
-                assertEquals("Progress", Progress.GOT_PING, fake.getProgress());
             }
         }
     }
