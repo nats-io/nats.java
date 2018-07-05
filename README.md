@@ -310,6 +310,8 @@ The java doc is located in `build/docs` and the example jar is in `build/libs`. 
 
 which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
 
+Many of the tests run gnatsd on a custom port. If gnatsd is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the gnatsd location with the environment variable `gnatsd_path`.
+
 ## License
 
 Unless otherwise noted, the NATS source files are distributed
