@@ -63,6 +63,26 @@ public class RequestTests {
     }
 
     @Test
+    public void testSafeRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                nc.publish(msg.getReplyTo(), null);
+            });
+            d.subscribe("subject");
+
+            Message msg = nc.request("subject", null, Duration.ofMillis(1000));
+
+            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertNotNull(msg);
+            assertEquals(0, msg.getData().length);
+            assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+        }
+    }
+
+    @Test
     public void testMultipleRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {

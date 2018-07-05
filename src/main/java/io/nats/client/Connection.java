@@ -147,6 +147,19 @@ public interface Connection extends AutoCloseable {
     public Future<Message> request(String subject, byte[] data);
 
     /**
+     * Send a request and returns the reply or null. This version of request is equivalent
+     * to calling get on the future returned from {@link #request(String, byte[]) request()} with
+     * the timeout and handling the ExecutionException and TimeoutException.
+     * 
+     * @param subject the subject for the service that will handle the request
+     * @param data the content of the message
+     * @param timeout the time to wait for a response
+     * @return the reply message or null if the timeout is reached
+     * @throws InterruptedException if one is thrown while waiting, in order to propogate it up
+     */
+    public Message request(String subject, byte[] data, Duration timeout) throws InterruptedException;
+
+    /**
      * Create a synchronous subscription to the specified subject.
      * 
      * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}

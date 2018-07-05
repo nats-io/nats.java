@@ -742,6 +742,18 @@ class NatsConnection implements Connection {
         }
     }
 
+    public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
+        Message reply = null;
+        Future<Message> incoming = this.request(subject, body);
+        try {
+            reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        } catch (ExecutionException|TimeoutException e) {
+            reply = null;
+        }
+
+        return reply;
+    }
+
     public Future<Message> request(String subject, byte[] body) {
         String responseInbox = null;
         boolean oldStyle = options.isOldRequestStyle();
