@@ -102,6 +102,7 @@ public class NatsBench {
         String[] servers = urls.split(",");
         Options.Builder builder = new Options.Builder();
         builder.noReconnect();
+        builder.connectionName("NatsBench");
         builder.servers(servers);
         //builder.turnOnAdvancedStats();
 

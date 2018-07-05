@@ -263,4 +263,9 @@ public interface Connection extends AutoCloseable {
      * @return a wrapper for useful statistics about the connection
      */
     public Statistics getStatistics();
+
+    /**
+     * @return the read-only options used to create this connection
+     */
+    public Options getOptions();
 }

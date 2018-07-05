@@ -45,7 +45,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     void start(String id) {
         this.id = id;
         this.running.set(true);
-        this.thread = new Thread(this, "Nats Dispatcher");
+        String name = (this.connection.getOptions().getConnectionName() != null) ? this.connection.getOptions().getConnectionName() : "Nats Connection";
+        this.thread = new Thread(this, name + " Dispatcher");
         this.thread.start();
     }
 

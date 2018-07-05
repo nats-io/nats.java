@@ -378,13 +378,14 @@ class NatsConnection implements Connection {
 
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
+        String name = (this.getOptions().getConnectionName() != null) ? this.getOptions().getConnectionName() : "Nats Connection";
         Thread t = new Thread(() -> {
             try {
                 this.closeSocket(true);
             } catch(InterruptedException e) {
                 processException(e);
             }
-        });
+        }, name + " Reconnect");
         t.start();
     }
 
@@ -1129,7 +1130,7 @@ class NatsConnection implements Connection {
         return this.serverInfo.get();
     }
 
-    Options getOptions() {
+    public Options getOptions() {
         return this.options;
     }
 
