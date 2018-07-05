@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+## Version 2.0.0-SNAPSHOT ##
+
+ * [BREAKING CHANGE] Moved build to gradle
+ * [BREAKING CHANGE] Ground up rewrite to simplify and address API issues, API has changed
+ * [BREAKING CHANGE] Simplified connection API
+
 ## Version 1.1-SNAPSHOT ##
 _2017-02-09_  [GitHub Diff](https://github.com/nats-io/java-nats/compare/1.0...HEAD)
 
