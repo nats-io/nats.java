@@ -175,11 +175,16 @@ public class NatsTestServer implements AutoCloseable {
 
             this.process = pb.start();
             
-            try {
-                Thread.sleep(100);
-            } catch (Exception exp) {
-                //Give the server time to get going
-            }
+            int tries = 10;
+            // wait at least 1x and maybe 10
+            do {
+                try {
+                    Thread.sleep(100);
+                } catch (Exception exp) {
+                    //Give the server time to get going
+                }
+                tries--;
+            } while(!this.process.isAlive() && tries > 0);
 
             if (debug) {
                 System.out.println("%%% Started [" + this.cmdLine + "]");

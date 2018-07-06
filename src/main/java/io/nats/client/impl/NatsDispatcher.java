@@ -94,7 +94,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.incoming.pause();
 
         if (this.thread != null) { // Force the interrupt
-            this.thread.interrupt();
+            try {
+                this.thread.interrupt();
+            } catch (Exception exp) {
+                // let it go
+            }
         }
 
         if (unsubscribeAll) {
