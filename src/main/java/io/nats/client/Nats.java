@@ -87,6 +87,8 @@ public class Nats {
      * there are network timing issues that could result in a successful connect call but
      * the connection is invalid soon after return, where soon is in the network/thread world.
      * 
+     * <p>If the connection fails, an IOException is thrown
+     * 
      * @throws IOException if a networking issue occurs
      * @throws InterruptedException if the current thread is interrupted
      * @return the connection
@@ -113,6 +115,8 @@ public class Nats {
      * there are network timing issues that could result in a successful connect call but
      * the connection is invalid soon after return, where soon is in the network/thread world.
      * 
+     * <p>If the connection fails, an IOException is thrown
+     * 
      * @param url the url of the server, ie. nats://localhost:4222
      * @throws IOException if a networking issue occurs
      * @throws InterruptedException if the current thread is interrupted
@@ -131,6 +135,8 @@ public class Nats {
      * <p>This is a synchronous call, and the connection should be ready for use on return
      * there are network timing issues that could result in a successful connect call but
      * the connection is invalid soon after return, where soon is in the network/thread world.
+     * 
+     * <p>If the connection fails, an IOException is thrown
      * 
      * @param options the options object to use to create the connection
      * @throws IOException if a networking issue occurs

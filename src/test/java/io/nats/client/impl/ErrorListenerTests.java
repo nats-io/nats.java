@@ -13,9 +13,11 @@
 
 package io.nats.client.impl;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +40,7 @@ public class ErrorListenerTests {
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user","stephen","--pass","password"};
         TestHandler handler = new TestHandler();
+        Connection nc = null;
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
             Options options = new Options.Builder().
@@ -46,14 +49,16 @@ public class ErrorListenerTests {
                         errorListener(handler).
                         // skip this so we get an error userInfo("stephen", "password").
                         build();
-            Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(options);
+            } catch(IOException e) {
                 assertTrue(handler.getCount() > 0);
                 assertEquals(1, handler.getErrorCount("Authorization Violation"));
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
@@ -96,6 +101,7 @@ public class ErrorListenerTests {
     public void testExceptionInErrorHandler() throws Exception {
         String[] customArgs = {"--user","stephen","--pass","password"};
         BadHandler handler = new BadHandler();
+        Connection nc = null;
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
             Options options = new Options.Builder().
@@ -104,13 +110,16 @@ public class ErrorListenerTests {
                         errorListener(handler).
                         // skip this so we get an error userInfo("stephen", "password").
                         build();
-            Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
-                assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions()>0);
+                nc = Nats.connect(options);
+                assertFalse(true);
+            } catch(IOException e) {
+                assertTrue(true);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }

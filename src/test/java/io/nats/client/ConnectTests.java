@@ -80,59 +80,66 @@ public class ConnectTests {
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testConnectExitBeforeInfo() throws IOException, InterruptedException {
+        Connection nc = null;
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_BEFORE_INFO)) {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-            Connection nc = Nats.connect(opt);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
-                assertEquals(-1, nc.getMaxPayload()); // No info to set it from
+                nc = Nats.connect(opt);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testConnectExitAfterInfo() throws IOException, InterruptedException {
+        Connection nc = null;
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_INFO)) {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-            Connection nc = Nats.connect(opt);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(opt);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testConnectExitAfterConnect() throws IOException, InterruptedException {
+        Connection nc = null;
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_CONNECT)) {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-            Connection nc = Nats.connect(opt);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(opt);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testConnectExitAfterPing() throws IOException, InterruptedException {
+        Connection nc = null;
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
             Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-            Connection nc = Nats.connect(opt);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(opt);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
@@ -167,63 +174,71 @@ public class ConnectTests {
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testFailWithMissingLineFeedAfterInfo() throws IOException, InterruptedException {
+        Connection nc = null;
         String badInfo = "{\"server_id\":\"test\"}\rmore stuff";
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
             Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
-            Connection nc = Nats.connect(options);
             try {
-                assertEquals("Connected Status", Connection.Status.CLOSED, nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testFailWithStuffAfterInitialInfo() throws IOException, InterruptedException {
+        Connection nc = null;
         String badInfo = "{\"server_id\":\"test\"}\r\nmore stuff";
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
             Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
-            Connection nc = Nats.connect(options);
             try {
-                assertEquals("Connected Status", Connection.Status.CLOSED, nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testFailWrongInitialInfoOP() throws IOException, InterruptedException {
+        Connection nc = null;
         String badInfo = "PING {\"server_id\":\"test\"}\r\n"; // wrong op code
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
             ts.useCustomInfoAsFullInfo();
             Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
-            Connection nc = Nats.connect(options);
             try {
-                assertEquals("Connected Status", Connection.Status.CLOSED, nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testIncompleteInitialInfo() throws IOException, InterruptedException {
+        Connection nc = null;
         String badInfo = "{\"server_id\"\r\n";
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
             Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
-            Connection nc = Nats.connect(options);
             try {
-                assertEquals("Connected Status", Connection.Status.CLOSED, nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertEquals("Closed Status", Connection.Status.CLOSED, nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }

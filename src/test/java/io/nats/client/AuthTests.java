@@ -15,6 +15,8 @@ package io.nats.client;
 
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
+
 import org.junit.Test;
 
 public class AuthTests {
@@ -83,45 +85,6 @@ public class AuthTests {
     }
 
     @Test
-    public void testBadUserBadPass() throws Exception {
-        String[] customArgs = {"--user","stephen","--pass","password"};
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            // See config file for user/pass
-            Options options = new Options.Builder().
-                        server(ts.getURI()).
-                        maxReconnects(0).
-                        userInfo("sam", "notthepassword").
-                        build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
-            } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
-            }
-        }
-    }
-
-    @Test
-    public void testMissingUserPass() throws Exception {
-        String[] customArgs = {"--user","wally","--pass","password"};
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            // See config file for user/pass
-            Options options = new Options.Builder().
-                        server(ts.getURI()).
-                        maxReconnects(0).
-                        build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
-            } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
-            }
-        }
-    }
-
-    @Test
     public void testToken() throws Exception {
         String[] customArgs = {"--auth","derek"};
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
@@ -160,8 +123,52 @@ public class AuthTests {
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
+    public void testBadUserBadPass() throws Exception {
+        Connection nc = null;
+        String[] customArgs = {"--user","stephen","--pass","password"};
+        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+            // See config file for user/pass
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        userInfo("sam", "notthepassword").
+                        build();
+            try {
+                nc = Nats.connect(options);
+            } finally {
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
+            }
+        }
+    }
+
+    @Test(expected=IOException.class)
+    public void testMissingUserPass() throws Exception {
+        Connection nc = null;
+        String[] customArgs = {"--user","wally","--pass","password"};
+        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+            // See config file for user/pass
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        build();
+            try {
+                nc = Nats.connect(options);
+            } finally {
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
+            }
+        }
+    }
+
+    @Test(expected=IOException.class)
     public void testBadToken() throws Exception {
+        Connection nc = null;
         String[] customArgs = {"--auth","colin"};
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
@@ -170,18 +177,20 @@ public class AuthTests {
                         maxReconnects(0).
                         token("notthetoken").
                         build();
-            Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testMissingToken() throws Exception {
+        Connection nc = null;
         String[] customArgs = {"--auth","ivan"};
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
@@ -189,12 +198,13 @@ public class AuthTests {
                         server(ts.getURI()).
                         maxReconnects(0).
                         build();
-            Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }

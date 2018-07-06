@@ -138,7 +138,7 @@ class NatsConnection implements Connection {
     }
 
     // Connect is only called after creation
-    void connect(boolean reconnectOnConnect) throws InterruptedException {
+    void connect(boolean reconnectOnConnect) throws InterruptedException, IOException {
         if (options.getServers().size() == 0) {
             throw new IllegalArgumentException("No servers provided in options");
         }
@@ -165,6 +165,7 @@ class NatsConnection implements Connection {
                 reconnect();
             } else {
                 close();
+                throw new IOException("Unable to connect to gnatsd server.");
             }
         }
     }

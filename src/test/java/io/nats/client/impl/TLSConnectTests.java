@@ -17,6 +17,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -201,8 +202,9 @@ public class TLSConnectTests {
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testDisconnectOnUpgrade() throws Exception {
+        Connection nc = null;
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
@@ -211,35 +213,39 @@ public class TLSConnectTests {
                                 dataPortType(CloseOnUpgradeAttempt.class.getCanonicalName()).
                                 sslContext(ctx).
                                 build();
-            Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testServerSecureClientNotMismatch() throws Exception {
+        Connection nc = null;
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             Options options = new Options.Builder().
                                 server(ts.getURI()).
                                 maxReconnects(0).
                                 build();
-            Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testClientSecureServerNotMismatch() throws Exception {
+        Connection nc = null;
         try (NatsTestServer ts = new NatsTestServer()) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
@@ -247,18 +253,20 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
-            Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
 
-    @Test
+    @Test(expected=IOException.class)
     public void testClientServerCertMismatch() throws Exception {
+        Connection nc = null;
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             SSLContext ctx = TestSSLUtils.createEmptySSLContext();
             Options options = new Options.Builder().
@@ -266,12 +274,13 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
-            Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                nc = Nats.connect(options);
             } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                if (nc != null) {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
             }
         }
     }
