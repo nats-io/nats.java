@@ -26,3 +26,5 @@ To get the signing key to travis, export it and put it in the .travis folder
 > travis encrypt-file .travis/nats.travis.gpg
 
 Update the before install as instructed
+
+NOTE - if your password has special characters to BASH - which may be required by sonatype, you need to escape them before you encrypt them. If you do not then bash will mess them up when Travis tries to set them.
