@@ -12,6 +12,13 @@ version = '2.0.0-SNAPSHOT'
 archivesBaseName = 'jnats'
 group = 'io.nats'
 
+// Get signing properties set up from outside (env var can't handle the dot
+if (signing_keyId != null) {
+    signing.keyId = signing_keyId
+    signing.password = signing_password
+    signing.secretKeyRingFile = signing_secretKeyRingFile
+}
+
 repositories {
     mavenCentral()
 }
