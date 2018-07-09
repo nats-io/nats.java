@@ -291,7 +291,7 @@ public class ConnectTests {
 
             // No server at this point, let it fail and try to start over
             try {
-                Thread.sleep(500);
+                Thread.sleep(1000);
             } catch (Exception exp) {
 
             }
@@ -334,7 +334,7 @@ public class ConnectTests {
         Nats.connectAsynchronously(options, false);
         handler.waitForStatusChange(1, TimeUnit.SECONDS);
 
-        assertEquals(1, handler.getExceptionCount());
+        assertTrue(1 < handler.getExceptionCount());
         assertTrue("Closed Status", Connection.Status.CLOSED == handler.getConnection().getStatus());
     }
 }
