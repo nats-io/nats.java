@@ -13,12 +13,12 @@ archivesBaseName = 'jnats'
 group = 'io.nats'
 
 // Get signing properties set up from outside (env var can't handle the dot)
-if (System.getEnv('SONATYPE_USERNAME') != null) {
-    project.ext['ossrhUsername'] = System.getEnv('SONATYPE_USERNAME')
-    project.ext['ossrhPassword'] = System.getEnv('SONATYPE_PASSWORD')
-    project.ext['signing.secretKeyRingFile'] = System.getEnv('GPG_KEYRING_FILE')
-    project.ext['signing.keyId'] = System.getEnv('GPG_KEY_ID')
-    project.ext['signing.password'] =  System.getEnv('GPG_KEY_PASSPHRASE')
+if (System.getenv('SONATYPE_USERNAME') != null) {
+    project.ext['ossrhUsername'] = System.getenv('SONATYPE_USERNAME')
+    project.ext['ossrhPassword'] = System.getenv('SONATYPE_PASSWORD')
+    project.ext['signing.secretKeyRingFile'] = System.getenv('GPG_KEYRING_FILE')
+    project.ext['signing.keyId'] = System.getenv('GPG_KEY_ID')
+    project.ext['signing.password'] =  System.getenv('GPG_KEY_PASSPHRASE')
 }
 
 repositories {
