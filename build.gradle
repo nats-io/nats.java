@@ -120,7 +120,7 @@ signing {
 uploadArchives {
     repositories {
         mavenDeployer {
-            if (project.hasProperty("local_archives")) {
+            if (project.hasProperty("local_archives") || ("true".equals(System.getenv("TRAVIS_PULL_REQUEST")))) {
                 repository(url: "file://$buildDir/repos")
             } else {
                 beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
