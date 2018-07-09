@@ -13,7 +13,7 @@ before_install:
 install:
 - "./gradlew -PossrhUsername=${SONATYPE_USERNAME} -PossrhPassword=${SONATYPE_PASSWORD} -Psigning.keyId=${GPG_KEY_ID} -Psigning.password=${GPG_KEY_PASSPHRASE} -Psigning.secretKeyRingFile=.travis/nats.travis.gpg assemble -x signArchives"
 script:
-- "./graldew check"
+- "./gradlew check"
 before_cache:
 - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
 - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
