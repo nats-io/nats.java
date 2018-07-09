@@ -1,7 +1,9 @@
+# Automating the travis deploy
 
 See https://rishikeshdarandale.github.io/build/deploying-to-oss-sonatype-using-travis/
+
 The global/secure values are used to deploy, they can be regenerated/created by someone with access to
-the sonatype repostiory
+the sonatype repository
 
 You can use --add or copy and paste to the global section manually.
 

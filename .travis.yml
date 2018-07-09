@@ -18,9 +18,6 @@ install:
 script:
 - ./graldew check
 
-after_success:
-- ./deploy.sh
-
 before_cache:
 - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
 - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
@@ -31,10 +28,12 @@ cache:
 
 after_success:
 - ./gradlew test jacocoTestReport coveralls
+- ./deploy.sh
 
 env:
-  - gnatsd_path=$TRAVIS_BUILD_DIR/gnatsd/gnatsd gnatsd_version=v1.1.0
   global:
+  - gnatsd_version=v1.1.0
+  - gnatsd_path=$TRAVIS_BUILD_DIR/gnatsd/gnatsd
   - secure: "XPQdjC7lOvzZHyIOVaX7RYqW/oYvWEUoE27s1mhGbC3IlhN9M9aRnX9wUM5f4emTHvIbU0pel/uitZTHn7r8Gk5jvoO34AMR2aeILRTd7MEplFhchgSUEJ7vVY7GXfASFzKNicKEwEqr/Hkr7Rvp7TEt0bYxZ+nuhP08PwPkTrI75UUNyOe6StSTAsorVLYUtXl/zeuKlqt0vR5BNy8ncoarD3FIbD7cERtJjkOioYfwLALVB1IeulzSB+L1yGvNAlR2+kNTXYTyb2qBWEkpt23R+4/qhF47dd62VRI7w/ekNEBAORbIVzqVfA2la6B8df/8YSRs7ZbBqis9ghU76TctL6u3SaVtKVmu5jVqfNolJPFHQooBLOHiEmFjWPQ8dtlGzf5lvyXe0Hx4kUK/BjCuzf/LaT5RT/rKt/FFTkALYLVOv3i8iQ5n2avUqH3kUf8/a9lKWFbRg+MMjCCKOIM1ICQTqdkCeUhm2KRGi4ftCwHas7ey4P1S+4u6df41kpYMAiFxvfYunprxDkuyAdtB3vg6oRkKPXrvnWDaJ/EdiUrkofhNkL2+kwRleNCv7OwYdMK+kA/M+XZfszsILkC/ZnWqKVNfJnEZ2r1HGrDoUuwsyVRFS3m+nZrwMAhct0a5pK9hmub1fM1/3Ws+wk0P729ylov9MfN9ieEJHMI="
   - secure: "AED1n/GW6BoeKlJvXnkubHcfqo+98P+AnURguGL5wOWxWrjGZxKCBNBJj5C32bLWoGxpTyUUG9OEwROrvSCdTM+apCIMLaH/sJsw0RmYOklIAzwONrmkBZjVgPVamvQEUl1XMWu5NHb0Y/7K3Vq60Ya4po8D12f2M0mYklMHLzJvKx1UF7AtpNQS0POtUgvvW7emoC9z/1KVQ5BRJKKCBS2MnzQHudWJuz4v+OtE7OIE+/ANtEVd8UmGyPlkIauL0/WNPiyXUK3xKzUlJqI0gpeHC3Nwl5HFNdNiZGz2NgWATyrBy5oKH1BJb58eT3QsvJTBcC+vtX876Vsbl0CDgXdHyGhvI1Q1RpKJ5uKdnn2VAsO/NAYX/DJhbdcUN5nW4yDDnejXScCfA+ERqD4GoDH4n3f5EYIxUo/GwjRI9NalLTI/ZEowW5tFTEeabemVasYrugTjXgaNCUyz2pqfVm+e2S9w3vmMBDxhKxzd0JrIvnlYhNdDzv0NQR7XA7WsA+OmWlR76Esj1HzZKw8WKoA/gQQvmHcFP0GmsSR/PtN//AIOtnxjC31mtPMdpfvcuVP3H67aXEv52AKeYR6yBohqgHIDff0yuDTQMmlxdMtHbs+tFPbBfnNTJzESJzAZ23DPCZ5xSar6nm4YJJJk2OIhRq87z0t7gQN4J0IYVrA="
   - secure: "DG0/gW52Ak/Je8HslcAV1SLbyZjJbjkxvc5GZn6dx02LCyOmOheMqSL+jZDBLIVk7fyebF2tbYvuCN6Dv2sKZ9kHUAGY/K14SgJdMyKSEQaD3yZgJtvqe4wpqf+H7KOnhCQzS+HMAFczIhyWvtnoV+Y+M/5RjXpjoay0WEY0INp/6JLQLcke5b4iK2nmjZ5nSpnSr3KK+xuy3S615CQYTR7xU+9ZV4yTJmzIUulrFE+RVja82vLjlg3EshK+oZPkVoB+3FbgZKTTzoMiO7b02NpATZcrEbFr23ODQo7kEJmBObBIFWrfiewIgL1/OSw9gHyJ0Ecj2U9JpjaMWbqc3iAPxaCL0L0KZTcQt78iCzDF0PJLv+yZ6Yw2JE5DKqIA+g5aI3yxhapv40HZ7F19iYCvgJ4JEMy9wLNbSVpeil3SN2Pj5haXcgGf4u4u2r9uhm+lz3vH4Pl9HzO1kQzSNh+6NKmbJH6sMTEGCElOkLSLj5v/Ufe6smPblweKjwITHPtC/SrWlMOYy3dZEsood0ulRewDoHPyZY4bE9XqnXow17VEpSjrBKas/r6jptZQfEviuUcu//dWkCPOTbFUxSExRfK2pLCz0pGCqx72wOcZGmM2Zqs2bUHDgrDdGb2Poij9pU2wNhgWyMLCDZzhktlA59rhqjNEtxT3ffsdvS8="
