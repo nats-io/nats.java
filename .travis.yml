@@ -5,15 +5,13 @@ jdk:
 - oraclejdk8
 - openjdk8
 before_script:
-- wget "https://github.com/nats-io/gnatsd/releases/download/$gnatsd_version/gnatsd-$gnatsd_version-linux-amd64.zip"
-  -O tmp.zip
+- wget "https://github.com/nats-io/gnatsd/releases/download/$gnatsd_version/gnatsd-$gnatsd_version-linux-amd64.zip" -O tmp.zip
 - unzip tmp.zip
 - mv gnatsd-$gnatsd_version-linux-amd64 gnatsd
 before_install:
 - openssl aes-256-cbc -K $encrypted_f07928735f08_key -iv $encrypted_f07928735f08_iv -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
 install:
-- "./gradlew -Psigning.keyId=${GPG_KEY_ID} -Psigning.password=${GPG_KEY_PASSPHRASE}
-  -Psigning.secretKeyRingFile=.travis/nats.travis.gpg assemble -x signArchives"
+- "./gradlew -PossrhUsername=${SONATYPE_USERNAME} -PossrhPassword=${SONATYPE_PASSWORD} -Psigning.keyId=${GPG_KEY_ID} -Psigning.password=${GPG_KEY_PASSPHRASE} -Psigning.secretKeyRingFile=.travis/nats.travis.gpg assemble -x signArchives"
 script:
 - "./graldew check"
 before_cache:
