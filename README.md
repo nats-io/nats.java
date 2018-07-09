@@ -12,7 +12,7 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 
 ## A Note on Versions
 
-This is version 2.0 of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address problems in thread resources, which has resulted in an updated API. The API is still [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking). This version also removes any runtime dependencies.
+This is version 2.0 of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address problems in thread resources, which has resulted in an updated API. The API is still [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking). This version also removes all non-JDK runtime dependencies.
 
 Previous versions are still available in the repo.
 
@@ -22,15 +22,52 @@ The java-nats client is provided in a single jar file, with no external dependen
 
 ### Downloading the Jar
 
-TODO
+Prior to release, if you don't want to build from source, you can download the latest jar at [https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.nats&a=jnats&v=2.0.0-SNAPSHOT&e=jar](https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.nats&a=jnats&v=2.0.0-SNAPSHOT&e=jar). This jar will contain a unique number, so you may want to rename it to get a consistent jar name.
 
 ### Using Gradle
 
-TODO
+The NATs client is available in the Maven central repository, and can be imported as a standard dependency in your `build.gradle` file:
+
+```groovy
+dependencies {
+    implementation 'io.nats:jnats:2.0.0-SNAPSHOT'
+}
+```
+
+However, the current 2.0.0 version is only available as a snapshot, so you will need to access the Nexus repository directly:
+
+```groovy
+repositories {
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots"
+    }
+}
+```
 
 ### Using Maven
 
-TODO
+The NATs client is available on the Maven central repository, and can be imported as a normal dependency in your pom.xml file:
+
+```xml
+<dependency>
+    <groupId>io.nats</groupId>
+    <artifactId>jnats</artifactId>
+    <version>2.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+However, the current 2.0.0 version is only available as a snapshot, so you will need to access the Nexus repository directly.
+
+```xml
+<repositories>
+    <repository>
+        <id>snapshots-repo</id>
+        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        <releases><enabled>false</enabled></releases>
+        <snapshots><enabled>true</enabled></snapshots>
+    </repository>
+</repositories>
+```
 
 ### Linux Platform Note
 
