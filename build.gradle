@@ -12,15 +12,11 @@ version = '2.0.0-SNAPSHOT'
 archivesBaseName = 'jnats'
 group = 'io.nats'
 
-// Get signing properties set up from outside (env var can't handle the dot
+// Get signing properties set up from outside (env var can't handle the dot)
 if (project.hasProperty('signing_keyId')) {
-    signingConfigs {
-        release {
-            secretKeyRingFile project.getProperty('signing_secretKeyRingFile')
-            keyId project.getProperty('signing_keyId')
-            password project.getProperty('signing_password')
-        }
-    }
+    project.ext['signing.secretKeyRingFile'] = project.getProperty('signing_secretKeyRingFile')
+    project.ext['signing.keyId'] = project.getProperty('signing_keyId')
+    project.ext['signing.password'] =  project.getProperty('signing_password')
 }
 
 repositories {
