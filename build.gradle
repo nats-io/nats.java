@@ -75,7 +75,7 @@ javadoc {
 }
 
 task examplesJar(type: Jar) {
-    baseName 'java-nats-examples'
+    baseName 'jnats-examples'
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
                    'Implementation-Version': '2.0.0',
@@ -113,44 +113,32 @@ artifacts {
     archives javadocJar, sourcesJar
 }
 
-// These are overriden
-def v_ossrhUserName="hello"
-def v_ossrhPassword="world"
-
-if (project.hasProperty("ossrhUsername")) {
-  v_ossrhUsername = ossrhUsername
-}
-if (project.hasProperty("ossrhPassword")) {
-  v_ossrhPassword = ossrhPassword
-}
-
-/*signing {
+signing {
     sign configurations.archives
-} */
+}
 
 uploadArchives {
     repositories {
         mavenDeployer {
-            
-            if (project.hasProperty("travis")) {
-                //beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+            if (project.hasProperty("local_archives")) {
+                repository(url: "file://$buildDir/repos")
+            } else {
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                    authentication(userName: v_ossrhUsername, password: v_ossrhPassword)
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
                 }
 
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                    authentication(userName: v_ossrhUsername, password: v_ossrhPassword)
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
                 }
-            } else {
-                repository(url: "file://$buildDir/repos")
             }
 
             pom.project {
-                name 'NATS Java Client'
+                name 'jnats'
                 packaging 'jar'
                 description 'Client library for working with the NATS messaging system.'
-                url 'http://nats.io'
+                url 'https://github.com/nats-io/java-nats'
                 licenses {
                     license {
                         name = 'The Apache License, Version 2.0'
@@ -165,3 +153,4 @@ uploadArchives {
     }
 }
 
+afterReleaseBuild.dependsOn uploadArchives
