@@ -7,7 +7,7 @@ jdk:
 before_script:
 - wget "https://github.com/nats-io/gnatsd/releases/download/$gnatsd_version/gnatsd-$gnatsd_version-linux-amd64.zip" -O tmp.zip
 - unzip tmp.zip
-- mv gnatsd-$gnatsd_version-linux-amd64 gnatsd-$gnatsd_version-linux-amd64
+- mv gnatsd-$gnatsd_version-linux-amd64 gnatsd
 before_install:
 - openssl aes-256-cbc -K $encrypted_f07928735f08_key -iv $encrypted_f07928735f08_iv -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
 install:
@@ -34,6 +34,6 @@ env:
   - secure: rh5ZVjNaklgwnRSizqt2utzkz27FJwny3gWQkx9QlmkRPisrWWAEtkhpc+WUtV5PT3/LPh5GyqFQNmQI6m3vZbf30KS2/vanQagnxs7ZUem7AiVPLVjbhexeFqi28BafhJjI4DNCYKvQb2u1wLwbvHw9hN48WWahJJpuAvnAiren52qmrZITt7HpTU8BTsxtX3pFK6Iqq2EfZQtPwsP7iK5YGC/8N338Kd+0DGkN7hzrMfHc64lyPmeTqFOso1VKPtR4PQIo67etDNBpkMLjP7Xucw0nGYnj7myfbO7q18LD22R+rJ8gAi6bCarFRclUxFtuoiV/br8h5MWdxJmYjQJyivXMLQvLqTh11eXn4pMpiPh6mPPzjH124CU4O7Hqo6KaO4t+stbcrmvGe0SvCl48WZJ++R+ZEpEl8c4y4dpYt/rUi8vobYkzfmAi2UpaKcDTBXQFpAQ+qJwCy4gEyJC0DnquOMYh53RhLpvBH4FFm172oAq9Klti2n4ZGz/MhvJYkF01UFILC0tVRrGX0+y45zx/7PYXuIWLVxPj+3YFowwYdIVi1pK4yiPXqJtR1rrBwvBDu8VI0GOMMkj4nyOGhYjPNvaxSwqkI3Av+RQTBN/pTEpaFZRdxKDWP0d0Bh5p90DXOPG9nmzAnPLArsNNoXnNResXzgN+MEXGs3k=
   - ORG_GRADLE_PROJECT_ossrhUsername=$SONATYPE_USERNAME
   - ORG_GRADLE_PROJECT_ossrhPassword=$SONATYPE_PASSWORD
-  - ORG_GRADLE_PROJECT_signing.keyId=$GPG_KEY_ID
-  - ORG_GRADLE_PROJECT_signing.password=$GPG_KEY_PASSPHRASE
-  - ORG_GRADLE_PROJECT_signing.secretKeyRingFile=.travis/nats.travis.gpg
+  - ORG_GRADLE_PROJECT_signing_keyId=$GPG_KEY_ID
+  - ORG_GRADLE_PROJECT_signing_password=$GPG_KEY_PASSPHRASE
+  - ORG_GRADLE_PROJECT_signing_secretKeyRingFile=.travis/nats.travis.gpg

@@ -1,6 +1,6 @@
 # Automating the travis deploy
 
-See https://rishikeshdarandale.github.io/build/deploying-to-oss-sonatype-using-travis/
+See https://rishikeshdarandale.github.io/build/deploying-to-oss-sonatype-using-travis/ and https://central.sonatype.org/pages/gradle.html
 
 The global/secure values are used to deploy, they can be regenerated/created by someone with access to
 the sonatype repository
