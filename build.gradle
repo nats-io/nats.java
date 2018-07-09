@@ -13,10 +13,12 @@ archivesBaseName = 'jnats'
 group = 'io.nats'
 
 // Get signing properties set up from outside (env var can't handle the dot)
-if (project.hasProperty('signing_keyId')) {
-    project.ext['signing.secretKeyRingFile'] = project.getProperty('signing_secretKeyRingFile')
-    project.ext['signing.keyId'] = project.getProperty('signing_keyId')
-    project.ext['signing.password'] =  project.getProperty('signing_password')
+if (System.getEnv('SONATYPE_USERNAME') != null) {
+    project.ext['ossrhUsername'] = System.getEnv('SONATYPE_USERNAME')
+    project.ext['ossrhPassword'] = System.getEnv('SONATYPE_PASSWORD')
+    project.ext['signing.secretKeyRingFile'] = System.getEnv('GPG_KEYRING_FILE')
+    project.ext['signing.keyId'] = System.getEnv('GPG_KEY_ID')
+    project.ext['signing.password'] =  System.getEnv('GPG_KEY_PASSPHRASE')
 }
 
 repositories {
@@ -133,11 +135,11 @@ uploadArchives {
                 beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                    authentication(userName: project.getProperty('ossrhUsername'), password: project.getProperty('ossrhPassword'))
                 }
 
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                    authentication(userName: project.getProperty('ossrhUsername'), password: project.getProperty('ossrhPassword'))
                 }
             }
 
