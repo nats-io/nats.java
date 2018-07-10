@@ -221,8 +221,11 @@ public interface Connection extends AutoCloseable {
      * protocol message to and from the server. Passing null is equivalent to
      * passing 0, which will wait forever.
      * 
-     * If called while the connection is disconnected, this method will immediately
+     * If called while the connection is closed, this method will immediately
      * throw a TimeoutException, regardless of the timeout.
+     * 
+     * If called while the connection is disconnected due to network issues this
+     * method will wait for up to the timeout for a reconnect or close.
      * 
      * @param timeout The time to wait for the flush to succeed, pass 0 to wait
      *                    forever.

@@ -37,7 +37,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
@@ -77,13 +79,13 @@ class NatsConnection implements Connection {
     private NatsStatistics statistics;
 
     private boolean connecting; // you can only connect in one thread
-    private boolean closing; // you can only close in one thread
-    private boolean closeRequested; //respect a close call regardless
-    private Exception exceptionDuringCloseOrConnect; // an exception occurred in another thread while closing or connecting
-    private CompletableFuture<Void> closingFuture;
+    private boolean disconnecting; // you can only disconnect in one thread
+    private boolean closing; //respect a close call regardless
+    private Exception exceptionDuringConnectChange; // an exception occurred in another thread while disconnecting or connecting
 
     private Status status;
     private ReentrantLock statusLock;
+    private Condition statusChanged;
 
     private CompletableFuture<DataPort> dataPortFuture;
     private DataPort dataPort;
@@ -115,6 +117,7 @@ class NatsConnection implements Connection {
         this.statistics = new NatsStatistics(this.options.isTrackAdvancedStats());
 
         this.statusLock = new ReentrantLock();
+        this.statusChanged = this.statusLock.newCondition();
         this.status = Status.DISCONNECTED;
         this.reconnectWaiter = new CompletableFuture<>();
         this.reconnectWaiter.complete(Boolean.TRUE);
@@ -185,7 +188,7 @@ class NatsConnection implements Connection {
             return;
         }
 
-        while (!isConnected() && !isClosed() && !closeRequested) {
+        while (!isConnected() && !isClosed() && !this.isClosing()) {
             Collection<String> serversToTry = buildReconnectList();
 
             for (String server : serversToTry) {
@@ -198,7 +201,7 @@ class NatsConnection implements Connection {
                     waitForReconnectTimeout();
                 }
 
-                if (isClosingOrClosed() || closeRequested) {
+                if (isDisconnectingOrClosed() || this.isClosing()) {
                     break;
                 }
                 
@@ -252,6 +255,7 @@ class NatsConnection implements Connection {
                     return;
                 }
                 this.connecting = true;
+                statusChanged.signalAll();
             } finally {
                 statusLock.unlock();
             }
@@ -318,12 +322,12 @@ class NatsConnection implements Connection {
             try{
                 this.connecting = false;
 
-                if (this.exceptionDuringCloseOrConnect != null) {
-                    throw this.exceptionDuringCloseOrConnect;
+                if (this.exceptionDuringConnectChange != null) {
+                    throw this.exceptionDuringConnectChange;
                 }
 
                 this.currentServerURI = serverURI;
-                updateStatus(Status.CONNECTED);
+                updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
                 statusLock.unlock();
             }
@@ -341,6 +345,7 @@ class NatsConnection implements Connection {
             statusLock.lock();
             try{
                 this.connecting = false;
+                statusChanged.signalAll();
             } finally {
                 statusLock.unlock();
             }
@@ -364,11 +369,11 @@ class NatsConnection implements Connection {
 
     // Called from reader/writer thread
     void handleCommunicationIssue(Exception io) {
-        // If we are connecting or closing, note exception and leave
+        // If we are connecting or disconnecting, note exception and leave
         statusLock.lock();
         try{
-            if (this.connecting || this.closing || this.status == Status.CLOSED) {
-                this.exceptionDuringCloseOrConnect = io;
+            if (this.connecting || this.disconnecting || this.status == Status.CLOSED) {
+                this.exceptionDuringConnectChange = io;
                 return;
             }
         } finally {
@@ -394,28 +399,20 @@ class NatsConnection implements Connection {
     // Close is called when the connection should shutdown, period
     void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
         boolean wasConnected = false;
-        boolean exitOrWait = false;
 
         statusLock.lock();
         try{
-            if (isClosingOrClosed()) {
-                exitOrWait = true;
+            if (isDisconnectingOrClosed()) {
+                waitForDisconnectOrClose(this.options.getConnectionTimeout());
+                return;
             } else {
-                this.closing = true;
-                this.exceptionDuringCloseOrConnect = null;
+                this.disconnecting = true;
+                this.exceptionDuringConnectChange = null;
                 wasConnected = (this.status == Status.CONNECTED);
-                this.closingFuture = new CompletableFuture<>();
+                statusChanged.signalAll();
             }
         } finally {
             statusLock.unlock();
-        }
-        
-        if (exitOrWait) {
-            try {
-                this.closingFuture.get();
-            } catch (ExecutionException e) {
-            }
-            return;
         }
 
         closeSocketImpl();
@@ -423,13 +420,13 @@ class NatsConnection implements Connection {
         statusLock.lock();
         try{
             updateStatus(Status.DISCONNECTED);
-            this.closing = false;
-            this.closingFuture.complete(null);
+            this.disconnecting = false;
+            statusChanged.signalAll();
         } finally {
             statusLock.unlock();
         }
 
-        if (closeRequested) {
+        if (isClosing()) { // Bit of a misname, but closing means we are in the close method or were asked to be
             close();
         } else if (wasConnected && tryReconnectIfConnected) {
             reconnect();
@@ -440,30 +437,19 @@ class NatsConnection implements Connection {
     // Close is called when the connection should shutdown, period
     public void close() throws InterruptedException {
         
-        boolean exitOrWait = false;
-
-        this.closeRequested = true;
-
         statusLock.lock();
         try{
-            if (isClosingOrClosed()) {
-                exitOrWait = true;
+            this.closing = true;// We were asked to close, so do it
+            if (isDisconnectingOrClosed()) {
+                waitForDisconnectOrClose(this.options.getConnectionTimeout());
+                return;
             } else {
-                this.closing = true;
-                this.exceptionDuringCloseOrConnect = null;
-                this.closingFuture = new CompletableFuture<>();
+                this.disconnecting = true;
+                this.exceptionDuringConnectChange = null;
+                statusChanged.signalAll();
             }
         } finally {
             statusLock.unlock();
-        }
-        
-        if (exitOrWait) {
-            try {
-                this.closingFuture.get();
-            } catch (ExecutionException e) {
-            }
-
-            return;
         }
 
         // Stop the reconnect wait timer after we stop the writer/reader (only if we are really closing, not on errors)
@@ -495,11 +481,11 @@ class NatsConnection implements Connection {
 
         statusLock.lock();
         try {
-            updateStatus(Status.CLOSED);
+            updateStatus(Status.CLOSED); // will signal, we also signal when we stop disconnecting
 
-            if (exceptionDuringCloseOrConnect != null) {
-                processException(exceptionDuringCloseOrConnect);
-                exceptionDuringCloseOrConnect = null;
+            if (exceptionDuringConnectChange != null) {
+                processException(exceptionDuringConnectChange);
+                exceptionDuringConnectChange = null;
             }
         } finally {
             statusLock.unlock();
@@ -515,8 +501,8 @@ class NatsConnection implements Connection {
         
         statusLock.lock();
         try{
-            this.closing = false;
-            this.closingFuture.complete(null);
+            this.disconnecting = false;
+            statusChanged.signalAll();
         } finally {
             statusLock.unlock();
         }
@@ -854,10 +840,11 @@ class NatsConnection implements Connection {
 
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
 
-        if (!isConnected()) {
-            throw new TimeoutException("Attempted to flush while not connected");
-        }
+        waitForConnectOrClose(timeout);
 
+        if (isClosed()) {
+            throw new TimeoutException("Attempted to flush while closed");
+        }
 
         try {
             Future<Boolean> waitForIt = sendPing();
@@ -1188,6 +1175,7 @@ class NatsConnection implements Connection {
             }
             this.status = newStatus;
         } finally {
+            statusChanged.signalAll();
             statusLock.unlock();
         }
 
@@ -1200,6 +1188,10 @@ class NatsConnection implements Connection {
         } else if (this.status == Status.CONNECTED) {
             processConnectionEvent(Events.CONNECTED);
         } 
+    }
+
+    boolean isClosing() {
+        return this.closing;
     }
 
     boolean isClosed() {
@@ -1219,10 +1211,51 @@ class NatsConnection implements Connection {
         }
     }
 
-    boolean isClosingOrClosed() {
+    boolean isDisconnectingOrClosed() {
         statusLock.lock();
         try {
-            return this.status == Status.CLOSED || this.closing;
+            return this.status == Status.CLOSED || this.disconnecting;
+        } finally {
+            statusLock.unlock();
+        }
+    }
+
+    boolean isDisconnecting() {
+        statusLock.lock();
+        try {
+            return this.disconnecting;
+        } finally {
+            statusLock.unlock();
+        }
+    }
+
+    void waitForDisconnectOrClose(Duration timeout) throws InterruptedException {
+        waitFor(timeout, (Void) -> {return this.isDisconnecting() && !this.isClosed();});
+    }
+
+    void waitForConnectOrClose(Duration timeout) throws InterruptedException {
+        waitFor(timeout, (Void) -> {return !this.isConnected() && !this.isClosed();});
+    }
+
+    void waitFor(Duration timeout, Predicate<Void> test) throws InterruptedException {
+        statusLock.lock();
+        try{
+            long currentWaitNanos = (timeout != null) ? timeout.toNanos() : -1;
+            long start = System.nanoTime();
+            while (currentWaitNanos >= 0 && test.test(null)) {
+                if (currentWaitNanos > 0) {
+                    statusChanged.await(currentWaitNanos, TimeUnit.NANOSECONDS);
+                    long now = System.nanoTime();
+                    currentWaitNanos = currentWaitNanos - (now-start);
+                    start = now;
+
+                    if (currentWaitNanos <= 0) {
+                        break;
+                    }
+                } else {
+                    statusChanged.await();
+                }
+            }
         } finally {
             statusLock.unlock();
         }
@@ -1233,7 +1266,7 @@ class NatsConnection implements Connection {
         long currentWaitNanos = (waitTime != null) ? waitTime.toNanos() : -1;
         long start = System.nanoTime();
 
-        while (currentWaitNanos > 0 && !isClosingOrClosed() &&
+        while (currentWaitNanos > 0 && !isDisconnectingOrClosed() &&
                     !isConnected() && !this.reconnectWaiter.isDone()) {
             try {
                 this.reconnectWaiter.get(currentWaitNanos, TimeUnit.NANOSECONDS);

@@ -38,7 +38,6 @@ import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import io.nats.client.Subscription;
-import io.nats.client.TestHandler;
 
 public class RequestTests {
     @Test
@@ -140,7 +139,7 @@ public class RequestTests {
                 Message msg = null;
                 
                 try {
-                    incoming.get(100, TimeUnit.MILLISECONDS);
+                    msg = incoming.get(100, TimeUnit.MILLISECONDS);
                     assertFalse(true);
                 } catch(TimeoutException e) {
                     assertTrue(true);
@@ -313,10 +312,8 @@ public class RequestTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             int initialSize = 128;
             int messageSize = 1024;
-            TestHandler handler = new TestHandler(); // will print exceptions for us
             Options options = new Options.Builder().
                                     server(ts.getURI()).
-                                    errorListener(handler).
                                     bufferSize(initialSize).
                                     connectionTimeout(Duration.ofSeconds(10)).
                                     build();

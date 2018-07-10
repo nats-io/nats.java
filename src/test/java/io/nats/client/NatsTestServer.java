@@ -42,6 +42,14 @@ public class NatsTestServer implements AutoCloseable {
     private String cmdLine;
     private String[] customArgs;
 
+    public static int nextPort() {
+        return NatsTestServer.portCounter.incrementAndGet();
+    }
+
+    public static int currentPort() {
+        return NatsTestServer.portCounter.get();
+    }
+
     public NatsTestServer() {
         this(false);
     }
@@ -75,10 +83,6 @@ public class NatsTestServer implements AutoCloseable {
         this.debug = debug;
         this.customArgs = customArgs;
         start();
-    }
-
-    public static int nextPort() {
-        return NatsTestServer.portCounter.incrementAndGet();
     }
 
     public void start() {
@@ -186,9 +190,7 @@ public class NatsTestServer implements AutoCloseable {
                 tries--;
             } while(!this.process.isAlive() && tries > 0);
 
-            if (debug) {
-                System.out.println("%%% Started [" + this.cmdLine + "]");
-            }
+            System.out.println("%%% Started [" + this.cmdLine + "]");
         } catch (IOException ex) {
             System.out.println("%%% Failed to start [" + this.cmdLine + "] with message:");
             System.out.println("\t" + ex.getMessage());
@@ -218,9 +220,7 @@ public class NatsTestServer implements AutoCloseable {
 
         this.process.destroy();
         
-        if (this.debug) {
-            System.out.println("%%% Shut down ["+ this.cmdLine +"]");
-        }
+        System.out.println("%%% Shut down ["+ this.cmdLine +"]");
 
         this.process = null;
     }

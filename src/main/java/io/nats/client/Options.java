@@ -381,7 +381,7 @@ public class Options {
 
         private ArrayList<URI> servers = new ArrayList<URI>();
         private boolean noRandomize = false;
-        private String connectionName = null;
+        private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
         private boolean pedantic = false;
         private SSLContext sslContext = null;
