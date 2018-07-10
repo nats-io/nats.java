@@ -119,7 +119,7 @@ jacocoTestReport {
 }
 
 artifacts {
-    archives javadocJar, sourcesJar
+    archives javadocJar, sourcesJar, examplesJar
 }
 
 signing {
