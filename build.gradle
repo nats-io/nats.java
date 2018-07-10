@@ -84,7 +84,7 @@ javadoc {
 }
 
 task examplesJar(type: Jar) {
-    baseName 'jnats-examples'
+    classifier = 'examples'
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
                    'Implementation-Version': '2.0.0',
