@@ -1170,7 +1170,7 @@ class NatsConnection implements Connection {
         return servers;
     }
 
-    public String getCurrentServerURI() {
+    public String getConnectedUrl() {
         return this.currentServerURI;
     }
 

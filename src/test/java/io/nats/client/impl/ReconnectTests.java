@@ -236,14 +236,14 @@ public class ReconnectTests {
                                             build();
                 nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertEquals(nc.getCurrentServerURI(), ts2.getURI());
+                assertEquals(nc.getConnectedUrl(), ts2.getURI());
                 handler.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(nc.getCurrentServerURI(), ts.getURI());
+            assertEquals(nc.getConnectedUrl(), ts.getURI());
         } finally {
             if (nc != null) {
                 nc.close();
@@ -269,14 +269,14 @@ public class ReconnectTests {
                                             build();
                 nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertEquals(nc.getCurrentServerURI(), ts2.getURI());
+                assertEquals(nc.getConnectedUrl(), ts2.getURI());
                 handler.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(ts.getURI(), nc.getCurrentServerURI());
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
         } finally {
             if (nc != null) {
                 nc.close();
@@ -300,14 +300,14 @@ public class ReconnectTests {
                                             build();
                 nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertEquals(nc.getCurrentServerURI(), ts2.getURI());
+                assertEquals(nc.getConnectedUrl(), ts2.getURI());
                 handler.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(nc.getCurrentServerURI(), ts.getURI());
+            assertEquals(nc.getConnectedUrl(), ts.getURI());
         } finally {
             if (nc != null) {
                 nc.close();

@@ -271,4 +271,9 @@ public interface Connection extends AutoCloseable {
      * @return the read-only options used to create this connection
      */
     public Options getOptions();
+
+    /**
+     * @return the url used for the current connection, or null if disconnected
+     */
+    public String getConnectedUrl();
 }
