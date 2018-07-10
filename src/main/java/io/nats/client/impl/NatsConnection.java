@@ -855,7 +855,7 @@ class NatsConnection implements Connection {
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
 
         if (!isConnected()) {
-            throw new IllegalStateException("Not Connected");
+            throw new TimeoutException("Attempted to flush while not connected");
         }
 
 

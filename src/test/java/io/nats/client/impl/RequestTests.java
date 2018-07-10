@@ -239,7 +239,7 @@ public class RequestTests {
                 }
 
                 assertTrue((end-start) > 2 * cleanupInterval * 1_000_000);
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertTrue(0 >= ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());

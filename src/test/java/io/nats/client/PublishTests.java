@@ -37,7 +37,7 @@ public class PublishTests {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = TimeoutException.class)
     public void throwsIfClosedOnFlush() throws IOException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
