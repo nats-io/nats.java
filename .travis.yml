@@ -25,7 +25,7 @@ cache:
 after_success:
 - "./gradlew test jacocoTestReport coveralls"
 - "./gradlew uploadArchives"
-- "[[ ${TRAVIS_PULL_REQUEST} == 'false' ]] && [[${TRAVIS_BRANCH} == 'master]] && ./gradlew closeAndReleaseRepository"
+- "test ${TRAVIS_PULL_REQUEST} = 'false' && test ${TRAVIS_BRANCH} = 'master && ./gradlew closeAndReleaseRepository"
 env:
   global:
   - gnatsd_version=v1.1.0
