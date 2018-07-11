@@ -22,7 +22,7 @@ The java-nats client is provided in a single jar file, with no external dependen
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/1.0/jnats-1.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/1.0/jnats-1.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0-beta/jnats-2.0-beta.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0-beta/jnats-2.0-beta.jar).
 
 ### Using Gradle
 
