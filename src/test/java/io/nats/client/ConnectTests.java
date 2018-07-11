@@ -332,7 +332,7 @@ public class ConnectTests {
                                     build();
         handler.prepForStatusChange(Events.CLOSED);
         Nats.connectAsynchronously(options, false);
-        handler.waitForStatusChange(5, TimeUnit.SECONDS);
+        handler.waitForStatusChange(10, TimeUnit.SECONDS);
 
         assertTrue(1 <= handler.getExceptionCount());
         assertTrue("Closed Status", Connection.Status.CLOSED == handler.getConnection().getStatus());
