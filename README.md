@@ -8,11 +8,11 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 [![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=version2)](http://travis-ci.org/nats-io/java-nats?branch=version2)
 [![Coverage Status](https://coveralls.io/repos/nats-io/java-nats/badge.svg?branch=version2&service=github)](https://coveralls.io/github/nats-io/java-nats?branch=version2)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
-[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg?branch=2.0.0)](http://javadoc.io/doc/io.nats/jnats?branch=2.0.0)
+[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg?branch=version2)](http://javadoc.io/doc/io.nats/jnats?branch=version2)
 
 ## A Note on Versions
 
-This is version 2.0 of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address problems in thread resources, which has resulted in an updated API. The API is still [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking). This version also removes all non-JDK runtime dependencies.
+This is version 2.0-beta of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address problems in thread resources, which has resulted in an updated API. The API is still [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking). This version also removes all non-JDK runtime dependencies.
 
 Previous versions are still available in the repo.
 
@@ -22,7 +22,7 @@ The java-nats client is provided in a single jar file, with no external dependen
 
 ### Downloading the Jar
 
-Prior to release, if you don't want to build from source, you can download the latest jar at [https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.nats&a=jnats&v=2.0.0-SNAPSHOT&e=jar](https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.nats&a=jnats&v=2.0.0-SNAPSHOT&e=jar). This jar will contain a unique number, so you may want to rename it to get a consistent jar name.
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/1.0/jnats-1.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/1.0/jnats-1.0.jar).
 
 ### Using Gradle
 
@@ -30,17 +30,7 @@ The NATs client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.0.0-SNAPSHOT'
-}
-```
-
-However, the current 2.0.0 version is only available as a snapshot, so you will need to access the Nexus repository directly:
-
-```groovy
-repositories {
-    maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots"
-    }
+    implementation 'io.nats:jnats:2.0-beta'
 }
 ```
 
@@ -52,19 +42,19 @@ The NATs client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
+    <version>2.0-beta</version>
 </dependency>
 ```
 
-However, the current 2.0.0 version is only available as a snapshot, so you will need to access the Nexus repository directly.
+If you need the absolute latest, before it propagates to maven central, you can use the repository:
 
 ```xml
 <repositories>
     <repository>
-        <id>snapshots-repo</id>
-        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-        <releases><enabled>false</enabled></releases>
-        <snapshots><enabled>true</enabled></snapshots>
+        <id>latest-repo</id>
+        <url>https://oss.sonatype.org/content/repositories/releases</url>
+        <releases><enabled>true</enabled></releases>
+        <snapshots><enabled>false</enabled></snapshots>
     </repository>
 </repositories>
 ```

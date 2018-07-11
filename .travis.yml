@@ -26,6 +26,7 @@ cache:
 after_success:
 - "./gradlew test jacocoTestReport coveralls"
 - "./gradlew uploadArchives"
+- "./gradlew closeAndReleaseRepository"
 env:
   global:
   - gnatsd_version=v1.1.0
