@@ -3,7 +3,6 @@ language: java
 sudo: required
 jdk:
 - oraclejdk8
-- openjdk8
 before_script:
 - wget "https://github.com/nats-io/gnatsd/releases/download/$gnatsd_version/gnatsd-$gnatsd_version-linux-amd64.zip"
   -O tmp.zip
