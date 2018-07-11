@@ -18,12 +18,7 @@ def branch = System.getenv("TRAVIS_BRANCH");
 
 def getVersionName = { ->
     if ("true".equals(System.getenv("TRAVIS_PULL_REQUEST")) || !"master".equals(branch))  {
-
-        if (branch != null) {
-            versionModifier = "-" + branch + "-SNAPSHOT"
-        } else {
-            versionModifier = "-SNAPSHOT"
-        }
+        versionModifier = "-SNAPSHOT"
     }
 
     if (versionModifier != null && versionModifier.length() > 0) {
