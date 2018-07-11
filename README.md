@@ -34,6 +34,20 @@ dependencies {
 }
 ```
 
+If you need the latest and greatest before Maven central updates, you can use:
+
+```groovy
+repositories {
+    jcenter()
+    maven {
+        url "https://oss.sonatype.org/content/repositories/releases"
+    }
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots"
+    }
+}
+```
+
 ### Using Maven
 
 The NATs client is available on the Maven central repository, and can be imported as a normal dependency in your pom.xml file:
