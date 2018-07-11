@@ -349,31 +349,35 @@ public class MessageQueueTests {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue(true);
         int threads = 4;
-        int msgPerThread = 30;
+        int msgPerThread = 77;
         int msgCount = threads * msgPerThread;
-        int tries = 100;
+        AtomicInteger sent = new AtomicInteger(0);
         AtomicInteger count = new AtomicInteger(0);
+        int tries = msgCount;
 
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
                 for (int j=0;j<msgPerThread;j++) {
                     q.push(new NatsMessage("test"));
+                    sent.incrementAndGet();
                 };
             });
             t.start();
         }
 
 
-        while (count.get() < msgCount && tries > 0 ) {
-            NatsMessage msg = q.accumulate(100, 5, Duration.ofMillis(5000));
+        while (count.get() < msgCount && (tries > 0 || sent.get() < msgCount)) {
+            NatsMessage msg = q.accumulate(5000, 10, Duration.ofMillis(5000));
 
             while (msg != null) {
                 count.incrementAndGet();
                 msg = msg.next;
             }
             tries--;
+            Thread.sleep(1);
         }
-        
+
+        assertEquals(msgCount, sent.get());
         assertEquals(msgCount, count.get());
 
         NatsMessage msg = q.popNow();
