@@ -10,8 +10,8 @@ This folder contains a number of examples:
 6. `NatsSub.java` - reads messages synchronously
 7. `autobench` - benchmarks the current system/setup in several scenarios
 8. `benchmark` - benchmark that supports multiple threads
-
-There is also a larger example called `stan` that implements a server that can respond on multiple subjects, and several clients that send requests on those various subjects.
+9. `stan` - A larger example that implements a server that can respond on multiple subjects, and several clients that send requests on those various subjects.
+10. `stability` - a small producer and subscriber that run forever printing some status every so often. These are intended for long running tests without burning the CPU.
 
 All of these examples take the server URL on the command line, which means that you can use the `tls` and `opentls` schemas to test over a secure connection.
 

@@ -79,8 +79,8 @@ class MessageQueue {
 
     void push(NatsMessage msg) {
         this.queue.add(msg);
-        this.length.incrementAndGet();
         this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
+        this.length.incrementAndGet();
         signalOne();
     }
 
@@ -88,8 +88,9 @@ class MessageQueue {
     public static final int SPIN_WAIT = 50;
     public static final int MAX_SPIN_TIME = SPIN_WAIT * MAX_SPINS;
 
-    void waitForTimeout(Duration timeout) throws InterruptedException {
+    NatsMessage waitForTimeout(Duration timeout) throws InterruptedException {
         long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
+        NatsMessage retVal = null;
 
         if (timeoutNanos >= 0) {
             Thread t = Thread.currentThread();
@@ -98,15 +99,19 @@ class MessageQueue {
             // Semi-spin for at most MAX_SPIN_TIME
             if (timeoutNanos > MAX_SPIN_TIME) {
                 int count = 0;
-                while (this.length.get() == 0 && this.running.get() && count < MAX_SPINS) {
+                while (this.running.get() && (retVal = this.queue.poll()) == null && count < MAX_SPINS) {
                     count++;
                     LockSupport.parkNanos(SPIN_WAIT);
                 }
             }
+
+            if (retVal != null) {
+                return retVal;
+            }
             
             long now = start;
 
-            while (this.length.get() == 0 && this.running.get()) {
+            while (this.running.get() && (retVal = this.queue.poll()) == null) {
                 if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
                     now = System.nanoTime();
                     timeoutNanos = timeoutNanos - (now - start); //include the semi-spin time
@@ -130,6 +135,8 @@ class MessageQueue {
                 }
             }
         }
+
+        return retVal;
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
@@ -140,13 +147,7 @@ class MessageQueue {
         NatsMessage retVal = this.queue.poll();
 
         if (retVal == null && timeout != null) {
-            waitForTimeout(timeout);
-
-            if (!this.running.get()) {
-                return null;
-            }
-
-            retVal = this.queue.poll();
+            retVal = waitForTimeout(timeout);
         }
 
         if(retVal != null) {
@@ -182,13 +183,11 @@ class MessageQueue {
         NatsMessage msg = this.queue.poll();
 
         if (msg == null) {
-            waitForTimeout(timeout);
+            msg = waitForTimeout(timeout);
             
-            if (!this.running.get() || (this.queue.peek() == null)) {
+            if (!this.running.get() || (msg == null)) {
                 return null;
             }
-
-            msg = this.queue.poll();
         }
 
         long size = msg.getSizeInBytes();
