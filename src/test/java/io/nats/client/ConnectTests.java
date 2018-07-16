@@ -335,6 +335,6 @@ public class ConnectTests {
         handler.waitForStatusChange(10, TimeUnit.SECONDS);
 
         assertTrue(1 <= handler.getExceptionCount());
-        assertTrue("Closed Status", Connection.Status.CLOSED == handler.getConnection().getStatus());
+        assertTrue(handler.getConnection() == null || Connection.Status.CLOSED == handler.getConnection().getStatus());
     }
 }
