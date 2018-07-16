@@ -1,6 +1,6 @@
 # Change Log
 
-## Version 2.0-beta
+## Version 2.0.0
 
 * [BREAKING CHANGE] Moved build to gradle
 * [BREAKING CHANGE] Ground up rewrite to simplify and address API issues, API has changed
