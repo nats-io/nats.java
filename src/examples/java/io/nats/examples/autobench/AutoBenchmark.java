@@ -15,6 +15,7 @@ package io.nats.examples.autobench;
 
 import java.text.NumberFormat;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 
 import io.nats.client.Options;
 
@@ -22,13 +23,15 @@ public abstract class AutoBenchmark {
     private String name;
     private long messageSize;
     private long messageCount;
-    private Exception exception;
     private long runtimeNanos;
+    private AtomicLong start;
+    private Exception exception;
 
     public AutoBenchmark(String name, long messageCount, long messageSize) {
         this.name = name;
         this.messageCount = messageCount;
         this.messageSize = messageSize;
+        this.start = new AtomicLong();
     }
 
     public abstract void execute(Options connectOptions) throws InterruptedException;
@@ -53,8 +56,26 @@ public abstract class AutoBenchmark {
         return new byte[(int)this.messageSize];
     }
 
-    public void setRuntimeNanos(long runtimeNanos) {
-        this.runtimeNanos = runtimeNanos;
+    public long getStart() {
+        return start.get();
+    }
+
+    public void startTiming() {
+        start.set(System.nanoTime());
+    }
+
+    public void endTiming() {
+        long end = System.nanoTime();
+        this.runtimeNanos = end - start.get();
+    }
+
+    public void reset() {
+        this.runtimeNanos = 0;
+        this.exception = null;
+    }
+
+    public long getRuntimeNanos() {
+        return this.runtimeNanos;
     }
 
     public void setException(Exception ex) {

@@ -112,11 +112,10 @@ public class ReqReplyBenchmark extends AutoBenchmark {
             return;
         }
         
-        long start = System.nanoTime();
+        this.startTiming();
         go.complete(null);
         getFutureSafely(requestDone);
         getFutureSafely(replyDone);
-        long end = System.nanoTime();
-        setRuntimeNanos(end-start);
+        this.endTiming();
     }
 }

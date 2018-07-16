@@ -26,13 +26,13 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 
-public class PubDispatchBenchmark extends AutoBenchmark {
+public class PubDispatchBenchmark extends ThrottledBenchmark {
 
     public PubDispatchBenchmark(String name, long messageCount, long messageSize) {
         super(name, messageCount, messageSize);
     }
 
-    public void execute(Options connectOptions) throws InterruptedException {
+    void executeWithLimiter(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
         String subject = getSubject();
 
@@ -101,6 +101,7 @@ public class PubDispatchBenchmark extends AutoBenchmark {
                     
                     for(int i = 0; i < this.getMessageCount(); i++) {
                         pubConnect.publish(subject, payload);
+                        this.adjustAndSleep(pubConnect);
                     }
                     try {pubConnect.flush(Duration.ZERO);}catch(Exception e){}
                     
@@ -111,6 +112,7 @@ public class PubDispatchBenchmark extends AutoBenchmark {
             } catch (Exception ex) {
                 pubReady.cancel(true);
                 this.setException(ex);
+                this.pubFailed();
             } finally {
                 pubDone.complete(null);
             }
@@ -125,12 +127,10 @@ public class PubDispatchBenchmark extends AutoBenchmark {
             return;
         }
         
-        long start = System.nanoTime();
+        startTiming();
         go.complete(null);
         getFutureSafely(pubDone);
         getFutureSafely(subDone);
-        long end = System.nanoTime();
-
-        setRuntimeNanos(end-start);
+        endTiming();
     }
 }

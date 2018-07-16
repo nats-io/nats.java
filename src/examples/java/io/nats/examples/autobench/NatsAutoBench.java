@@ -102,7 +102,7 @@ public class NatsAutoBench {
     }
 
     public static void runWarmup(Options connectOptions) throws Exception {
-        AutoBenchmark warmup = (new PubSubBenchmark("warmup", 5_000_000, 64));
+        AutoBenchmark warmup = (new PubSubBenchmark("warmup", 1_000_000, 64));
         warmup.execute(connectOptions);
 
         if (warmup.getException() != null) {
@@ -132,7 +132,7 @@ public class NatsAutoBench {
         tests.add(new PubSubBenchmark("PubSub 1k", 1_000_000, 1024));
         tests.add(new PubSubBenchmark("PubSub 4k", 100_000, 4*1024));
         tests.add(new PubSubBenchmark("PubSub 8k", 100_000, 8*1024));
-
+        
         tests.add(new PubDispatchBenchmark("PubDispatch 0b", 10_000_000, 0));
         tests.add(new PubDispatchBenchmark("PubDispatch 8b", 10_000_000, 8));
         tests.add(new PubDispatchBenchmark("PubDispatch 32b", 10_000_000, 32));

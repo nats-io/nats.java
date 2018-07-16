@@ -33,13 +33,12 @@ public class PubBenchmark extends AutoBenchmark {
         try {
             Connection nc = Nats.connect(connectOptions);
             try {
-                long start = System.nanoTime();
+                this.startTiming();
                 for(int i = 0; i < this.getMessageCount(); i++) {
                     nc.publish(subject, payload);
                 }
                 try {nc.flush(Duration.ZERO);}catch(Exception e){}
-                long end = System.nanoTime();
-                setRuntimeNanos(end-start);
+                this.endTiming();
             } finally {
                 nc.close();
             }

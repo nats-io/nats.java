@@ -22,13 +22,13 @@ import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.client.Subscription;
 
-public class PubSubBenchmark extends AutoBenchmark {
+public class PubSubBenchmark extends ThrottledBenchmark {
 
     public PubSubBenchmark(String name, long messageCount, long messageSize) {
         super(name, messageCount, messageSize);
     }
 
-    public void execute(Options connectOptions) throws InterruptedException {
+    void executeWithLimiter(Options connectOptions) throws InterruptedException {
         byte[] payload = createPayload();
         String subject = getSubject();
 
@@ -86,12 +86,7 @@ public class PubSubBenchmark extends AutoBenchmark {
                     
                     for(int i = 0; i < this.getMessageCount(); i++) {
                         pubConnect.publish(subject, payload);
-
-                        // Due to a write/read performance asymmetry, flush every once in a while
-                        // on small messages
-                        if (this.getMessageSize() < 64 && i != 0 && i%100_000 == 0) {
-                            try {pubConnect.flush(Duration.ZERO);}catch(Exception e){}
-                        }
+                        adjustAndSleep(pubConnect);
                     }
                     try {pubConnect.flush(Duration.ZERO);}catch(Exception e){}
                     
@@ -102,6 +97,7 @@ public class PubSubBenchmark extends AutoBenchmark {
             } catch (Exception ex) {
                 pubReady.cancel(true);
                 this.setException(ex);
+                pubFailed();
             } finally {
                 pubDone.complete(null);
             }
@@ -116,12 +112,13 @@ public class PubSubBenchmark extends AutoBenchmark {
             return;
         }
         
-        long start = System.nanoTime();
+        startTiming();
         go.complete(null);
         getFutureSafely(pubDone);
         getFutureSafely(subDone);
-        long end = System.nanoTime();
+        endTiming();
 
-        setRuntimeNanos(end-start);
+        pubThread.join();
+        subThread.join();
     }
 }
