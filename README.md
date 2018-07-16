@@ -5,14 +5,18 @@
 A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=version2)](http://travis-ci.org/nats-io/java-nats?branch=version2)
-[![Coverage Status](https://coveralls.io/repos/nats-io/java-nats/badge.svg?branch=version2&service=github)](https://coveralls.io/github/nats-io/java-nats?branch=version2)
+[![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=master)](http://travis-ci.org/nats-io/java-nats?branch=master)
+[![Coverage Status](https://coveralls.io/repos/nats-io/java-nats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/java-nats?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
-[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg?branch=version2)](http://javadoc.io/doc/io.nats/jnats?branch=version2)
+[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg?branch=master)](http://javadoc.io/doc/io.nats/jnats?branch=master)
 
 ## A Note on Versions
 
-This is version 2.0-beta of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address problems in thread resources, which has resulted in an updated API. The API is still [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking). This version also removes all non-JDK runtime dependencies.
+This is version 2.0.0 of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
+
+The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
+
+Version 2.0.0 uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2.0.0 to allow clients to limit there use of this new API.
 
 Previous versions are still available in the repo.
 
@@ -22,7 +26,7 @@ The java-nats client is provided in a single jar file, with no external dependen
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0-beta/jnats-2.0-beta.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0-beta/jnats-2.0-beta.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0.0/jnats-2.0.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0.0/jnats-2.0.0.jar).
 
 ### Using Gradle
 
@@ -30,7 +34,7 @@ The NATs client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.0-beta'
+    implementation 'io.nats:jnats:2.0.0'
 }
 ```
 
@@ -56,7 +60,7 @@ The NATs client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.0-beta</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
@@ -72,6 +76,8 @@ If you need the absolute latest, before it propagates to maven central, you can 
     </repository>
 </repositories>
 ```
+
+If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0 please use ranges in your POM file, java-nats-streaming 1.x is using [1.1, 1.9.9) for this.
 
 ### Linux Platform Note
 
