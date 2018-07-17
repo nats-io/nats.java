@@ -1,0 +1,198 @@
+// Copyright 2015-2018 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package io.nats.client.impl;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import io.nats.client.Dispatcher;
+import io.nats.client.MessageHandler;
+
+class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
+
+    private NatsConnection connection;
+    private MessageQueue incoming;
+    private MessageHandler handler;
+
+    private Thread thread;
+    private final AtomicBoolean running;
+
+    private String id;
+
+    private Map<String, NatsSubscription> subscriptions;
+
+    NatsDispatcher(NatsConnection conn, MessageHandler handler) {
+        this.connection = conn;
+        this.handler = handler;
+        this.incoming = new MessageQueue(true);
+        this.subscriptions = new ConcurrentHashMap<>();
+        this.running = new AtomicBoolean(false);
+    }
+
+    void start(String id) {
+        this.id = id;
+        this.running.set(true);
+        String name = (this.connection.getOptions().getConnectionName() != null) ? this.connection.getOptions().getConnectionName() : "Nats Connection";
+        this.thread = new Thread(this, name + " Dispatcher");
+        this.thread.start();
+    }
+
+    public void run() {
+        Duration waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
+
+        try {
+            while (this.running.get()) {
+                NatsMessage msg = this.incoming.pop(waitForMessage);
+
+                if (msg == null) {
+                    continue;
+                }
+
+                NatsSubscription sub = msg.getNatsSubscription();
+
+                if (sub != null && sub.isActive()) {
+
+                    sub.incrementDeliveredCount();
+                    this.incrementDeliveredCount();
+
+                    try {
+                        handler.onMessage(msg);
+                    } catch (Exception exp) {
+                        this.connection.processException(exp);
+                    }
+
+                    if (sub.reachedUnsubLimit()) {
+                        this.connection.invalidate(sub);
+                    }
+                }
+            }
+        } catch (InterruptedException exp) {
+            if (this.running.get()){
+                this.connection.processException(exp);
+            } //otherwise we did it
+        } finally {
+            this.running.set(false);
+            this.thread = null;
+        }
+    }
+
+    void stop(boolean unsubscribeAll) {
+        this.running.set(false);
+        this.incoming.pause();
+
+        if (this.thread != null) { // Force the interrupt
+            try {
+                this.thread.interrupt();
+            } catch (Exception exp) {
+                // let it go
+            }
+        }
+
+        if (unsubscribeAll) {
+            this.subscriptions.forEach((subj, sub) -> {
+                this.connection.unsubscribe(sub, -1);
+            });
+        } else {
+            this.subscriptions.clear();
+        }
+    }
+
+    public boolean isActive() {
+        return this.running.get();
+    }
+
+    String getId() {
+        return id;
+    }
+
+    MessageQueue getMessageQueue() {
+        return incoming;
+    }
+
+    void resendSubscriptions() {
+        this.subscriptions.forEach((id, sub)->{
+            this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+        });
+    }
+
+    // Called by the connection when the subscription is removed
+    void remove(NatsSubscription sub) {
+        subscriptions.remove(sub.getSubject());
+    }
+
+    public Dispatcher subscribe(String subject) {
+
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        return this.subscribeImpl(subject, null);
+    }
+
+    public Dispatcher subscribe(String subject, String queueName) {
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        if (queueName == null || queueName.length() == 0) {
+            throw new IllegalArgumentException("QueueName is required in subscribe");
+        }
+        return this.subscribeImpl(subject, queueName);
+    }
+
+
+    // Assumes the subj/queuename checks are done, does check for closed status
+    Dispatcher subscribeImpl(String subject, String queueName) {
+        if (!this.running.get()) {
+            throw new IllegalStateException("Dispatcher is closed");
+        }
+
+        NatsSubscription sub = subscriptions.get(subject);
+
+        if (sub == null) {
+            sub = connection.createSubscription(subject, queueName, this);
+            NatsSubscription actual = subscriptions.putIfAbsent(subject, sub);
+            if (actual != null) {
+                this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
+            }
+        }
+
+        return this;
+    }
+
+    public Dispatcher unsubscribe(String subject) {
+        return this.unsubscribe(subject, -1);
+    }
+
+    public Dispatcher unsubscribe(String subject, int after) {
+        if (!this.running.get()) {
+            throw new IllegalStateException("Dispatcher is closed");
+        }
+
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in unsubscribe");
+        }
+        
+        NatsSubscription sub = subscriptions.get(subject);
+
+        if (sub != null) {
+            this.connection.unsubscribe(sub, after); // Connection will tell us when to remove from the map
+        }
+
+        return this;
+    }
+
+}

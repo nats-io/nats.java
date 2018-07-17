@@ -14,535 +14,185 @@
 package io.nats.client;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
+
+import io.nats.client.impl.NatsImpl;
 
 /**
- * <img src="{@docRoot}/resources/large-logo.png" alt="NATS logo">
- *
- * <p>The NATS java client library enables communication with a NATS server using
- * {@link Connection} instances.
- *
- * <h1>Contents</h1>
- *
- * <p><b>
- * <a href="#0">0. Your first NATS client</a><br>
- * </b>
- * <h2 id="foo">0. <a class="meaningful_link" href="#firstclient">Your first NATS client</a></h2>
- * This client creates a connection to NATS, subscribes to subject {@code foo}, and sends 10
- * messages to {@code foo} as well:
- * <pre>
- * {@code
- * import io.nats.client.*;
- * import java.util.concurrent.CountDownLatch;
- *
- * int toSend=10;
- * final CountDownLatch latch=new CountDownLatch(1);
- * final AtomicInteger received=new AtomicInteger(toSend);
- *
- * // Create a connection to the default NATS URL ("nats://localhost:4222"):
- * Connection nc = Nats.connect();
- *
- * // Create an asynchronous {@link MessageHandler}
- * MessageHandler mcb = new MessageHandler() {
- *     public void onMessage(Message msg) {
- *         System.out.println("Received message: " + msg);
- *         if (received.decrementAndGet() == 0) {
- *             latch.countDown();
- *         }
- *     }
- * };
- *
- * // Subscribe to a subject using an asynchronous message callback
- * try (Subscription sub = nc.subscribe("foo", mcb));
- *
- * // Send messages to yourself
- * for ( int i = 0; i < toSend; i++ ) {
- *     nc.publish("foo", "Hello World".getBytes());
- * }
- *
- * // Wait for all messages to be received
- * latch.await(5000);
- *
- * // Close subscription
- * sub.close();
- *
- * // Close connection
- * nc.close();
- * }
- * </pre>
+ * The Nats class is the entry point into the NATS client for Java. This class
+ * is used to create a connection to the Nats server, gnatsd. Connecting is a
+ * synchronous process, with a new asynchronous version available for experimenting.
+ * 
+ * <p>Simple connections can be created with a URL, while more control is provided
+ * when an {@link Options Options} object is used. There are a number of options that
+ * effect every connection, as described in the {@link Options Options} documentation.
+ * 
+ * <p>At its simplest, you can connect to a gnatsd on the local host using the default port with:
+ * <pre>Connection nc = Nats.connect()</pre>
+ * <p>and start sending or receiving messages immediately after that.
+ * 
+ * <p>While the simple case relies on a single URL, the options allows you to configure a list of servers
+ * that is used at connect time and during reconnect scenarios.
+ * 
+ * <p>NATS supports TLS connections. This library relies on the standard SSLContext class to configure
+ * SSL certificates and trust managers, as a result there are two steps to setting up a TLS connection,
+ * configuring the SSL context and telling the library which one to use. Several options are provided
+ * for each. To tell the library to connect with TLS:
+ * 
+ * <ul>
+ * <li>Pass a tls:// URL to the connect method, or as part of the options. The library will use the 
+ * default SSLContext for both the client certificates and trust managers.
+ * <li>Call the {@link Options.Builder#secure() secure} method on the options builder, again the default
+ * SSL Context is used.
+ * <li>Call {@link Options.Builder#sslContext(javax.net.ssl.SSLContext) sslContext} when building your options.
+ * Your context will be used.
+ * <li>Pass an opentls:// url to the connect method, or in the options. The library will create a special
+ * SSLContext that has no client certificates and trusts any server. <strong>This is less secure, but useful for
+ * testing and behind a firewall.</strong>
+ * <li>Call the {@link Options.Builder#opentls() opentls} method on the builder when creating your options, again
+ * the all trusting, non-verifiable client is created.
+ * </ul>
+ * 
+ * <p>To set up the default context for tls:// or {@link Options.Builder#secure() secure} you can:
+ * <ul>
+ * <li>Configure the default using System properties, i.e. <em>javax.net.ssl.keyStore</em>.
+ * <li>Set the context manually with the SSLContext setDefault method.
+ * </ul>
+ * 
+ * <p>If the server is configured to verify clients, the opentls mode will not work, and the other modes require a client certificate
+ * to work.
+ * 
+ * <p>Authentication, if configured on the server, is managed via the Options as well. However, the url passed to {@link #connect(String) connect()}
+ * can provide a user/password pair or a token using the forms: {@code nats://user:password@server:port} and {@code nats://token@server:port}.
+ * 
+ * <p>Regardless of the method used a {@link Connection Connection} object is created, and provides the methods for
+ * sending, receiving and dispatching messages.
  */
-public final class Nats {
-
-    private Nats() {}
+public class Nats {
 
     /**
-     * Connection states for {@link Connection#getState()}.
+     * Current version of the library - {@value #CLIENT_VERSION}
      */
-    public enum ConnState {
-        /**
-         * The {@code Connection} is currently disconnected.
-         */
-        DISCONNECTED,
-        /**
-         * The {@code Connection} is currently connected.
-         */
-        CONNECTED,
-        /**
-         * The {@code Connection} is currently closed.
-         */
-        CLOSED,
-        /**
-         * The {@code Connection} is currently attempting to reconnect to a server it was previously
-         * connected to.
-         *
-         * @see Connection#isReconnecting()
-         */
-        RECONNECTING,
-        /**
-         * The {@code Connection} is currently connecting to a server for the first time.
-         */
-        CONNECTING
+    public static final String CLIENT_VERSION = "2.0.0";
+
+    /**
+     * Current language of the library - {@value #CLIENT_LANGUAGE}
+     */
+    public static final String CLIENT_LANGUAGE = "java";
+
+    /**
+     * Connect to the default URL, {@link Options#DEFAULT_URL Options.DEFAULT_URL}, with all of the
+     * default options.
+     * 
+     * <p>This is a synchronous call, and the connection should be ready for use on return
+     * there are network timing issues that could result in a successful connect call but
+     * the connection is invalid soon after return, where soon is in the network/thread world.
+     * 
+     * <p>If the connection fails, an IOException is thrown
+     * 
+     * @throws IOException if a networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     * @return the connection
+     */
+    public static Connection connect() throws IOException, InterruptedException {
+        Options options = new Options.Builder().server(Options.DEFAULT_URL).build();
+        return createConnection(options, false);
     }
 
     /**
-     * Default server host.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_HOST}
+     * The Java client generally expects URLs of the form {@code nats://hostname:port}
+     * 
+     * <p>but also allows urls with a user password {@code nats://user:pass@hostname:port}.
+     * 
+     * <p>or token in them {@code nats://token@hostname:port}.
+     * 
+     * <p>Moreover, you can initiate a TLS connection, by using the `tls`
+     * schema, which will use the default SSLContext, or fail if one is not set. For
+     * testing and development, the `opentls` schema is support when the server is
+     * in non-verify mode. In this case, the client will accept any server
+     * certificate and will not provide one of its own.
+     * 
+     * <p>This is a synchronous call, and the connection should be ready for use on return
+     * there are network timing issues that could result in a successful connect call but
+     * the connection is invalid soon after return, where soon is in the network/thread world.
+     * 
+     * <p>If the connection fails, an IOException is thrown
+     * 
+     * @param url the url of the server, ie. nats://localhost:4222
+     * @throws IOException if a networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     * @return the connection
      */
-    public static final String DEFAULT_HOST = "localhost";
-
-    // Property names
-    static final String PFX = "io.nats.client.";
-    /**
-     * This property is defined as String {@value #PROP_RECONNECTED_CB}.
-     */
-    public static final String PROP_RECONNECTED_CB = PFX + "callback.reconnected";
-    /**
-     * This property is defined as String {@value #PROP_DISCONNECTED_CB}.
-     */
-    public static final String PROP_DISCONNECTED_CB = PFX + "callback.disconnected";
-    /**
-     * This property is defined as String {@value #PROP_CLOSED_CB}.
-     */
-    public static final String PROP_CLOSED_CB = PFX + "callback.closed";
-    /**
-     * This property is defined as String {@value #PROP_EXCEPTION_HANDLER}.
-     */
-    public static final String PROP_EXCEPTION_HANDLER = PFX + "callback.exception";
-    /**
-     * This property is defined as String {@value #PROP_MAX_PINGS}.
-     */
-    public static final String PROP_MAX_PINGS = PFX + "maxpings";
-    /**
-     * This property is defined as String {@value #PROP_PING_INTERVAL}.
-     */
-    public static final String PROP_PING_INTERVAL = PFX + "pinginterval";
-    /**
-     * This property is defined as String {@value #PROP_CONNECTION_TIMEOUT}.
-     */
-    public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
-    /**
-     * This property is defined as String {@value #PROP_RECONNECT_BUF_SIZE}.
-     */
-    public static final String PROP_RECONNECT_BUF_SIZE = PFX + "reconnect.buffer.size";
-    /**
-     * This property is defined as String {@value #PROP_RECONNECT_WAIT}.
-     */
-    public static final String PROP_RECONNECT_WAIT = PFX + "reconnect.wait";
-    /**
-     * This property is defined as String {@value #PROP_MAX_RECONNECT}.
-     */
-    public static final String PROP_MAX_RECONNECT = PFX + "reconnect.max";
-    /**
-     * This property is defined as String {@value #PROP_RECONNECT_ALLOWED}.
-     */
-    public static final String PROP_RECONNECT_ALLOWED = PFX + "reconnect.allowed";
-    /**
-     * This property is defined as String {@value #PROP_TLS_DEBUG}.
-     */
-    public static final String PROP_TLS_DEBUG = PFX + "tls.debug";
-    /**
-     * This property is defined as String {@value #PROP_SECURE}.
-     */
-    public static final String PROP_SECURE = PFX + "secure";
-    /**
-     * This property is defined as String {@value #PROP_PEDANTIC}.
-     */
-    public static final String PROP_PEDANTIC = PFX + "pedantic";
-    /**
-     * This property is defined as String {@value #PROP_VERBOSE}.
-     */
-    public static final String PROP_VERBOSE = PFX + "verbose";
-    /**
-     * This property is defined as String {@value #PROP_CONNECTION_NAME}.
-     */
-    public static final String PROP_CONNECTION_NAME = PFX + "name";
-    /**
-     * This property is defined as String {@value #PROP_NORANDOMIZE}.
-     */
-    public static final String PROP_NORANDOMIZE = PFX + "norandomize";
-    /**
-     * This property is defined as String {@value #PROP_SERVERS}.
-     */
-    public static final String PROP_SERVERS = PFX + "servers";
-    /**
-     * This property is defined as String {@value #PROP_PASSWORD}.
-     */
-    public static final String PROP_PASSWORD = PFX + "password";
-    /**
-     * This property is defined as String {@value #PROP_USERNAME}.
-     */
-    public static final String PROP_USERNAME = PFX + "username";
-    /**
-     * This property is defined as String {@value #PROP_PORT}.
-     */
-    public static final String PROP_PORT = PFX + "port";
-    /**
-     * This property is defined as String {@value #PROP_HOST}.
-     */
-    public static final String PROP_HOST = PFX + "host";
-    /**
-     * This property is defined as String {@value #PROP_URL}.
-     */
-    public static final String PROP_URL = PFX + "url";
-    /**
-     * This property is defined as String {@value #PROP_USE_OLD_REQUEST_STYLE}.
-     */
-    public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
-    /**
-     * This property is defined as String {@value #PROP_USE_GLOBAL_MSG_DELIVERY}.
-     */
-    public static final String PROP_USE_GLOBAL_MSG_DELIVERY = PFX + "use.global.msg.delivery";
-
-    /*
-     * Constants
-     */
-    private static final int SECOND = 1000;
-    private static final int MINUTE = 60 * SECOND;
-    static final String PERMISSIONS_ERR = "permissions violation";
-    static final String STALE_CONNECTION = "stale connection";
-
-    /**
-     * Default server URL.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_URL}
-     */
-    public static final String DEFAULT_URL = "nats://localhost:4222";
-
-    /**
-     * Default server port.
-     *
-     * <p>This property is defined as int {@value #DEFAULT_PORT}
-     */
-    public static final int DEFAULT_PORT = 4222;
-
-    /**
-     * Default maximum number of reconnect attempts.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_MAX_RECONNECT}
-     */
-    public static final int DEFAULT_MAX_RECONNECT = 60;
-
-    /**
-     * Default wait time before attempting reconnection to the same server.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_RECONNECT_WAIT}
-     */
-    public static final int DEFAULT_RECONNECT_WAIT = 2 * SECOND;
-
-    /**
-     * Default connection timeout.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_TIMEOUT}
-     */
-    public static final int DEFAULT_TIMEOUT = 2 * SECOND;
-
-    /**
-     * Default server ping interval. {@code <=0} means disabled.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_PING_INTERVAL}
-     */
-
-    public static final int DEFAULT_PING_INTERVAL = 2 * MINUTE;
-    /**
-     * Default maximum number of pings that have not received a response.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_MAX_PINGS_OUT}
-     */
-    public static final int DEFAULT_MAX_PINGS_OUT = 2;
-
-    /**
-     * Default of pending message buffer that is used for buffering messages that are published
-     * during a disconnect/reconnect.
-     *
-     * <p>This property is defined as String {@value #DEFAULT_RECONNECT_BUF_SIZE}
-     */
-    public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
-
-    // Common messages
-
-    /**
-     * This error message is defined as String {@value #ERR_CONNECTION_CLOSED}.
-     */
-    public static final String ERR_CONNECTION_CLOSED = "nats: connection closed";
-    /**
-     * This error message is defined as String {@value #ERR_SECURE_CONN_REQUIRED}.
-     */
-    public static final String ERR_SECURE_CONN_REQUIRED = "nats: secure connection required";
-    /**
-     * This error message is defined as String {@value #ERR_SECURE_CONN_WANTED}.
-     */
-    public static final String ERR_SECURE_CONN_WANTED = "nats: secure connection not available";
-    /**
-     * This error message is defined as String {@value #ERR_BAD_SUBSCRIPTION}.
-     */
-    public static final String ERR_BAD_SUBSCRIPTION = "nats: invalid subscription";
-    /**
-     * This error message is defined as String {@value #ERR_BAD_SUBJECT}.
-     */
-    public static final String ERR_BAD_SUBJECT = "nats: invalid subject";
-    /**
-     * This error message is defined as String {@value #ERR_SLOW_CONSUMER}.
-     */
-    public static final String ERR_SLOW_CONSUMER = "nats: slow consumer, messages dropped";
-    /**
-     * This error message is defined as String {@value #ERR_TCP_FLUSH_FAILED}.
-     */
-    public static final String ERR_TCP_FLUSH_FAILED =
-            "nats: i/o exception when flushing output stream";
-    /**
-     * This error message is defined as String {@value #ERR_TIMEOUT}.
-     */
-    public static final String ERR_TIMEOUT = "nats: timeout";
-    /**
-     * This error message is defined as String {@value #ERR_BAD_TIMEOUT}.
-     */
-    public static final String ERR_BAD_TIMEOUT = "nats: timeout invalid";
-    /**
-     * This error message is defined as String {@value #ERR_AUTHORIZATION}.
-     */
-    public static final String ERR_AUTHORIZATION = "nats: authorization violation";
-    /**
-     * This error message is defined as String {@value #ERR_NO_SERVERS}.
-     */
-    public static final String ERR_NO_SERVERS = "nats: no servers available for connection";
-    /**
-     * This error message is defined as String {@value #ERR_JSON_PARSE}.
-     */
-    public static final String ERR_JSON_PARSE = "nats: connect message, json parse err";
-    /**
-     * This error message is defined as String {@value #ERR_MAX_PAYLOAD}.
-     */
-    public static final String ERR_MAX_PAYLOAD = "nats: maximum payload exceeded";
-    /**
-     * This error message is defined as String {@value #ERR_MAX_MESSAGES}.
-     */
-    public static final String ERR_MAX_MESSAGES = "nats: maximum messages delivered";
-    /**
-     * This error message is defined as String {@value #ERR_SYNC_SUB_REQUIRED}.
-     */
-    public static final String ERR_SYNC_SUB_REQUIRED =
-            "nats: illegal call on an async subscription";
-    /**
-     * This error message is defined as String {@value #ERR_NO_INFO_RECEIVED}.
-     */
-    public static final String ERR_NO_INFO_RECEIVED = "nats: protocol exception, INFO not received";
-    /**
-     * This error message is defined as String {@value #ERR_RECONNECT_BUF_EXCEEDED}.
-     */
-    public static final String ERR_RECONNECT_BUF_EXCEEDED = "nats: outbound buffer limit exceeded";
-    /**
-     * This error message is defined as String {@value #ERR_INVALID_CONNECTION}.
-     */
-    public static final String ERR_INVALID_CONNECTION = "nats: invalid connection";
-    /**
-     * This error message is defined as String {@value #ERR_INVALID_MESSAGE}.
-     */
-    public static final String ERR_INVALID_MESSAGE = "nats: invalid message or message nil";
-    /**
-     * This error message is defined as String {@value #ERR_STALE_CONNECTION}.
-     */
-    public static final String ERR_STALE_CONNECTION = "nats: " + STALE_CONNECTION;
-    /**
-     * This error message is defined as String {@value #ERR_PERMISSIONS_VIOLATION}.
-     */
-    public static final String ERR_PERMISSIONS_VIOLATION = "nats: " + PERMISSIONS_ERR;
-
-    // jnats specific
-    /**
-     * This error message is defined as String {@value #ERR_CONNECTION_READ}.
-     */
-    public static final String ERR_CONNECTION_READ = "nats: connection read error";
-    /**
-     * This error message is defined as String {@value #ERR_PROTOCOL}.
-     */
-    public static final String ERR_PROTOCOL = "nats: protocol error";
-
-    // Other string constants
-
-    static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
-    static final String DEFAULT_LANG_STRING = "java";
-
-    // Error messages for internal use
-
-    static final String PROP_PROPERTIES_FILENAME = "jnats.properties";
-    static final String PROP_CLIENT_VERSION = "client.version";
-
-    // Server error strings
-    protected static final String SERVER_ERR_PARSER = "'Parser Error'";
-    protected static final String SERVER_ERR_AUTH_TIMEOUT = "'Authorization Timeout'";
-    static final String SERVER_ERR_AUTH_VIOLATION = "'Authorization Violation'";
-    protected static final String SERVER_ERR_MAX_PAYLOAD = "'Maximum Payload Violation'";
-    protected static final String SERVER_ERR_INVALID_SUBJECT = "'Invalid Subject'";
-    protected static final String SERVER_UNKNOWN_PROTOCOL_OP = "'Unknown Protocol Operation'";
-    protected static final String SERVER_ERR_TLS_REQUIRED = "'Secure Connection - TLS Required'";
-
-    static final String NATS_SCHEME = "nats";
-    static final String TCP_SCHEME = "tcp";
-    static final String TLS_SCHEME = "tls";
-
-    static private MsgDeliveryPool globalMsgDeliveryPool = null;
-
-    /**
-     * Creates a NATS connection using the default URL ({@value #DEFAULT_URL}) and default
-     * {@link Options}.
-     *
-     * @return the {@code Connection}
-     * @throws IOException      if a problem occurs
-     */
-    public static Connection connect() throws IOException {
-        return connect(DEFAULT_URL, defaultOptions());
+    public static Connection connect(String url) throws IOException, InterruptedException {
+        Options options = new Options.Builder().server(url).build();
+        return createConnection(options, false);
     }
 
     /**
-     * Creates a NATS connection using the supplied URL list and default {@link Options}.
-     *
-     * @param url a comma-separated list of NATS server URLs
-     * @return the {@code Connection}
-     * @throws IOException      if a problem occurs
+     * Options can be used to set the server URL, or multiple URLS, callback
+     * handlers for various errors, and connection events.
+     * 
+     * 
+     * <p>This is a synchronous call, and the connection should be ready for use on return
+     * there are network timing issues that could result in a successful connect call but
+     * the connection is invalid soon after return, where soon is in the network/thread world.
+     * 
+     * <p>If the connection fails, an IOException is thrown
+     * 
+     * @param options the options object to use to create the connection
+     * @throws IOException if a networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     * @return the connection
      */
-    public static Connection connect(String url) throws IOException {
-        return connect(url, defaultOptions());
+    public static Connection connect(Options options) throws IOException, InterruptedException {
+        return createConnection(options, false);
     }
 
     /**
-     * Creates a NATS connection using the supplied URL list and {@link Options}.
-     *
-     * @param url     a comma-separated list of NATS server URLs
-     * @param options an {@link Options} object
-     * @return the {@link Connection}
-     * @throws IOException      if a problem occurs
+     * Try to connect in another thread, a connection listener is required to get
+     * the connection.
+     * 
+     * <p>Normally connect will loop through the available servers one time. If
+     * reconnectOnConnect is true, the connection attempt will repeat based on the
+     * settings in options, including indefinitely.
+     * 
+     * <p>If there is an exception before a connection is created, and the error
+     * listener is set, it will be notified with a null connection.
+     * 
+     * <p><strong>This method is experimental, please provide feedback on its value.</strong>
+     * 
+     * @param options            the connection options
+     * @param reconnectOnConnect if true, the connection will treat the initial
+     *                           connection as any other and attempt reconnects on
+     *                           failure
+     * 
+     * @throws IllegalArgumentException if no connection listener is set in the options
+     * @throws InterruptedException if the current thread is interrupted
      */
-    public static Connection connect(String url, Options options) throws IOException {
-        Options opts = options;
-        if (opts == null) {
-            opts = defaultOptions();
+    public static void connectAsynchronously(Options options, boolean reconnectOnConnect)
+            throws InterruptedException {
+
+        if (options.getConnectionListener() == null) {
+            throw new IllegalArgumentException("Connection Listener required in connectAsynchronously");
         }
-        opts.servers = processUrlString(url);
-        return opts.connect();
-    }
 
-    /**
-     * Returns the default {@link Options}.
-     *
-     * @return the default {@link Options}
-     */
-    public static Options defaultOptions() {
-        return new Options.Builder().build();
-    }
-
-    static List<URI> processUrlString(String url) {
-        List<URI> servers = null;
-        if (url != null) {
-            String[] urls = url.split(",");
-            servers = new ArrayList<URI>(urls.length);
-            for (String item : urls) {
-                if (!item.trim().isEmpty()) {
-                    servers.add(URI.create(item.trim()));
+        Thread t = new Thread(() -> {
+            try {
+                NatsImpl.createConnection(options, reconnectOnConnect);
+            } catch (Exception ex) {
+                if (options.getErrorListener() != null) {
+                    options.getErrorListener().exceptionOccurred(null, ex);
                 }
             }
-        }
-        return servers;
+        });
+        t.start();
     }
 
-    static List<URI> processUrlArray(String[] servers) {
-        List<URI> list = null;
-        if (servers != null && servers.length > 0) {
-            list = new ArrayList<URI>(servers.length);
-            for (String s : servers) {
-                try {
-                    list.add(new URI(s.trim()));
-                } catch (URISyntaxException e) {
-                    throw new IllegalArgumentException(e);
-                }
-            }
-        }
-        return list;
+    private static Connection createConnection(Options options, boolean reconnectOnConnect)
+            throws IOException, InterruptedException {
+        return NatsImpl.createConnection(options, reconnectOnConnect);
     }
 
-    /**
-     * Create a library scoped message delivery thread pool.
-     * <p>
-     * By default, each asynchronous subscription has its own thread
-     * responsible for dispatching the messages.
-     * <p>
-     * If the application needs to create a high number of subscriptions,
-     * this may not scale.
-     * <p>
-     * Creating a message delivery thread pool will limit the
-     * number of threads used for message delivery. The use of this
-     * thread pool still guarantees that messages from a given subscription
-     * are dispatched in order. In other words, a subscription is bound
-     * to a given thread in the pool.
-     *
-     * @param size the size of the thread pool
-     * @throws IllegalArgumentException if size is lower or equal to zero.
-     * @throws IllegalStateException if pool has already been created.
-     */
-    synchronized public static void createMsgDeliveryThreadPool(int size) {
-        if (size <= 0) {
-            throw new IllegalArgumentException("Pool size cannot be set to a value lower than 1");
-        }
-        if (globalMsgDeliveryPool != null) {
-            throw new IllegalStateException("Pool has already been created");
-        }
-        // Create the pool only when calling with a size >= 1.
-        globalMsgDeliveryPool = new MsgDeliveryPool(size);
-    }
-
-    /**
-     * Returns the message delivery thread pool size.
-     *
-     * @return the message delivery thread pool size or 0 if none is used.
-     */
-    synchronized public static int getMsgDeliveryThreadPoolSize() {
-        if (globalMsgDeliveryPool == null) {
-            return 0;
-        }
-        return globalMsgDeliveryPool.getSize();
-    }
-
-    /**
-     * Shuts down the message delivery thread pool.
-     *
-     * The pool is shared by all connections. You don't need to
-     * call {@link #shutdownMsgDeliveryThreadPool()}, but if you do,
-     * you should call this method only after all connections have been
-     * closed to ensure that no new message arrive and need to be
-     * dipatched, which would delay the shutdown of the thread pool.
-     */
-    synchronized public static void shutdownMsgDeliveryThreadPool() {
-        if (globalMsgDeliveryPool == null) {
-            return;
-        }
-        globalMsgDeliveryPool.shutdown();
-        globalMsgDeliveryPool = null;
-    }
-
-    synchronized protected static MsgDeliveryPool getMsgDeliveryThreadPool() {
-        return globalMsgDeliveryPool;
+    private Nats() {
+        throw new UnsupportedOperationException("Nats is a static class");
     }
 }

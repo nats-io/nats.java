@@ -13,719 +13,1234 @@
 
 package io.nats.client;
 
-import static io.nats.client.Nats.DEFAULT_MAX_PINGS_OUT;
-import static io.nats.client.Nats.DEFAULT_MAX_RECONNECT;
-import static io.nats.client.Nats.DEFAULT_PING_INTERVAL;
-import static io.nats.client.Nats.DEFAULT_RECONNECT_BUF_SIZE;
-import static io.nats.client.Nats.DEFAULT_RECONNECT_WAIT;
-import static io.nats.client.Nats.DEFAULT_TIMEOUT;
-import static io.nats.client.Nats.DEFAULT_URL;
-import static io.nats.client.Nats.PROP_CLOSED_CB;
-import static io.nats.client.Nats.PROP_CONNECTION_NAME;
-import static io.nats.client.Nats.PROP_CONNECTION_TIMEOUT;
-import static io.nats.client.Nats.PROP_DISCONNECTED_CB;
-import static io.nats.client.Nats.PROP_EXCEPTION_HANDLER;
-import static io.nats.client.Nats.PROP_MAX_PINGS;
-import static io.nats.client.Nats.PROP_MAX_RECONNECT;
-import static io.nats.client.Nats.PROP_NORANDOMIZE;
-import static io.nats.client.Nats.PROP_PASSWORD;
-import static io.nats.client.Nats.PROP_PEDANTIC;
-import static io.nats.client.Nats.PROP_PING_INTERVAL;
-import static io.nats.client.Nats.PROP_RECONNECTED_CB;
-import static io.nats.client.Nats.PROP_RECONNECT_ALLOWED;
-import static io.nats.client.Nats.PROP_RECONNECT_BUF_SIZE;
-import static io.nats.client.Nats.PROP_RECONNECT_WAIT;
-import static io.nats.client.Nats.PROP_SECURE;
-import static io.nats.client.Nats.PROP_SERVERS;
-import static io.nats.client.Nats.PROP_TLS_DEBUG;
-import static io.nats.client.Nats.PROP_URL;
-import static io.nats.client.Nats.PROP_USERNAME;
-import static io.nats.client.Nats.PROP_USE_OLD_REQUEST_STYLE;
-import static io.nats.client.Nats.PROP_USE_GLOBAL_MSG_DELIVERY;
-import static io.nats.client.Nats.PROP_VERBOSE;
-
-import java.io.IOException;
+import java.util.List;
+import java.util.Properties;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
+import java.util.Collection;
+
 import javax.net.ssl.SSLContext;
 
+import io.nats.client.impl.DataPort;
+import io.nats.client.impl.SSLUtils;
+import io.nats.client.impl.SocketDataPort;
+
 /**
- * An {@code Options} object contains the immutable (and some mutable) configuration settings for
- * a {@link Connection}.
- *
- * <p>The {@code Options} object is constructed using methods of an {@link Options.Builder} as in
- * the following
- * example:
- * <pre>
- *    Options opts = new Options.Builder()
- *            .noReconnect()
- *            .timeout(3, TimeUnit.SECONDS)
- *            .build();
- *
- *    // Now connect
- *    Connection nc = Nats.connect("nats://example.company.com:4222", opts);
- *
- * </pre>
+ * The Options class specifies the connection options for a new NATs connection, including the default options.
+ * Options are created using a {@link Options.Builder Builder}.
+ * This class, and the builder associated with it, is basically a long list of parameters. The documentation attempts
+ * to clarify the value of each parameter in place on the builder and here, but it may be easier to read the documentation
+ * starting with the {@link Options.Builder Builder}, since it has a simple list of methods that configure the connection.
  */
 public class Options {
-    String url;
-    List<URI> servers;
-    boolean noRandomize;
-    final String connectionName;
-    final boolean verbose;
-    final boolean pedantic;
-    final boolean secure;
-    final SSLContext sslContext;
-    // Print console output during connection handshake (java-specific)
-    final boolean tlsDebug;
-    final boolean allowReconnect;
-    final int maxReconnect;
-    final long reconnectWait;
-    final int connectionTimeout;
-    final long pingInterval;
-    final int maxPingsOut;
-    final boolean useOldRequestStyle;
-    final boolean useGlobalMsgDelivery;
-    // Connection handlers
-    public ClosedCallback closedCb;
-    public DisconnectedCallback disconnectedCb;
-    public ReconnectedCallback reconnectedCb;
-    public ExceptionHandler asyncErrorCb;
-
-    // Size of the backing ByteArrayOutputStream buffer during reconnect.
-    // Once this has been exhausted publish operations will error.
-    final int reconnectBufSize;
-
-    final String username;
-    final String password;
-    final String token;
-
-    // TODO Allow users to set a custom "dialer" like Go. For now keep package-private
-    final TcpConnectionFactory factory;
-
-    // private List<X509Certificate> certificates =
-    // new ArrayList<X509Certificate>();
-
-    private Options(Builder builder) {
-        this.factory = builder.factory;
-        this.url = builder.url;
-        this.username = builder.username;
-        this.password = builder.password;
-        this.token = builder.token;
-        if (builder.servers != null) {
-            this.servers = new ArrayList<URI>(builder.servers);
-        }
-        this.noRandomize = builder.noRandomize;
-        this.connectionName = builder.connectionName;
-        this.verbose = builder.verbose;
-        this.pedantic = builder.pedantic;
-        this.secure = builder.secure;
-        this.allowReconnect = builder.allowReconnect;
-        this.maxReconnect = builder.maxReconnect;
-        this.reconnectBufSize = builder.reconnectBufSize;
-        this.reconnectWait = builder.reconnectWait;
-        this.connectionTimeout = builder.connectionTimeout;
-        this.pingInterval = builder.pingInterval;
-        this.maxPingsOut = builder.maxPingsOut;
-        this.useOldRequestStyle = builder.useOldRequestStyle;
-        this.useGlobalMsgDelivery = builder.useGlobalMsgDelivery;
-        this.sslContext = builder.sslContext;
-        this.tlsDebug = builder.tlsDebug;
-        this.disconnectedCb = builder.disconnectedCb;
-        this.closedCb = builder.closedCb;
-        this.reconnectedCb = builder.reconnectedCb;
-        this.asyncErrorCb = builder.asyncErrorCb;
-
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-
-        if (!(obj instanceof Options)) {
-            return false;
-        }
-
-        Options other = (Options) obj;
-
-        return (compare(url, other.url)
-                && compare(username, other.username)
-                && compare(password, other.password)
-                && compare(token, other.token)
-                && compare(servers, other.servers)
-                && Boolean.compare(noRandomize, other.noRandomize) == 0
-                && compare(connectionName, other.connectionName)
-                && Boolean.compare(verbose, other.verbose) == 0
-                && Boolean.compare(pedantic, other.pedantic) == 0
-                && Boolean.compare(secure, other.secure) == 0
-                && Boolean.compare(allowReconnect, other.allowReconnect) == 0
-                && Integer.compare(maxReconnect, other.maxReconnect) == 0
-                && Integer.compare(reconnectBufSize, other.reconnectBufSize) == 0
-                && Long.compare(reconnectWait, other.reconnectWait) == 0
-                && Integer.compare(connectionTimeout, other.connectionTimeout) == 0
-                && Long.compare(pingInterval, other.pingInterval) == 0
-                && Integer.compare(maxPingsOut, other.maxPingsOut) == 0
-                && Boolean.compare(useOldRequestStyle, other.useOldRequestStyle) == 0
-                && Boolean.compare(useGlobalMsgDelivery, other.useGlobalMsgDelivery) == 0
-                && (sslContext == null ? other.sslContext == null : sslContext.equals(other
-                .sslContext))
-                && Boolean.compare(tlsDebug, other.tlsDebug) == 0
-                && (factory == null ? other.factory == null : factory == other.factory)
-                && (disconnectedCb == null ? other.disconnectedCb == null : disconnectedCb
-                == other.disconnectedCb)
-                && (closedCb == null ? other.closedCb == null : closedCb == other.closedCb)
-                && (reconnectedCb == null ? other.reconnectedCb == null : reconnectedCb == other
-                .reconnectedCb)
-                && (asyncErrorCb == null ? other.asyncErrorCb == null : asyncErrorCb == other
-                .asyncErrorCb));
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(url, username, password, token, servers, noRandomize, connectionName,
-                verbose, pedantic, secure, allowReconnect, maxReconnect, reconnectBufSize,
-                reconnectWait, connectionTimeout, pingInterval, maxPingsOut, useOldRequestStyle, useGlobalMsgDelivery, sslContext, tlsDebug,
-                factory, disconnectedCb, closedCb, reconnectedCb, asyncErrorCb);
-    }
-
-    static boolean compare(String str1, String str2) {
-        return (str1 == null ? str2 == null : str1.equals(str2));
-    }
-
-    static boolean compare(List<URI> first, List<URI> second) {
-        if (first == null || second == null) {
-            return (first == null && second == null);
-        }
-        if (first.size() != second.size()) {
-            return false;
-        }
-        for (int i = 0; i < first.size(); i++) {
-            URI left = first.get(i);
-            URI right = second.get(i);
-            if (!(left == null ? right == null : left.equals(right))) {
-                return false;
-            }
-        }
-        return true;
-    }
+    // NOTE TO DEVS
+    // To add an option, you have to:
+    // * add property
+    // * add field in builder
+    // * add field in options
+    // * add a chainable method in builder
+    // * add update build
+    // * update constructor that takes properties
+    // * optional default in statics
 
     /**
-     * Creates a connection using this {@code Options} object.
+     * Default server URL.
      *
-     * @return the {@code Connection}
-     * @throws IOException      if something goes wrong
+     * <p>
+     * This property is defined as {@value #DEFAULT_URL}
      */
-    public Connection connect() throws IOException {
-        return new ConnectionImpl(this).connect();
-    }
-
-    public TcpConnectionFactory getFactory() {
-        return factory;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public String getToken() {
-        return this.token;
-    }
-
-    public List<URI> getServers() {
-        return servers;
-    }
-
-    public boolean isNoRandomize() {
-        return noRandomize;
-    }
-
-    public String getConnectionName() {
-        return connectionName;
-    }
-
-    public boolean isVerbose() {
-        return verbose;
-    }
-
-    public boolean isPedantic() {
-        return pedantic;
-    }
-
-    public boolean isSecure() {
-        return secure;
-    }
-
-    public boolean isTlsDebug() {
-        return tlsDebug;
-    }
-
-    public boolean isReconnectAllowed() {
-        return allowReconnect;
-    }
-
-    public int getMaxReconnect() {
-        return maxReconnect;
-    }
-
-    public int getReconnectBufSize() {
-        return reconnectBufSize;
-    }
-
-    public long getReconnectWait() {
-        return reconnectWait;
-    }
-
-    public int getConnectionTimeout() {
-        return connectionTimeout;
-    }
-
-    public long getPingInterval() {
-        return pingInterval;
-    }
-
-    public int getMaxPingsOut() {
-        return maxPingsOut;
-    }
-
-    public boolean isUseOldRequestStyle() { return useOldRequestStyle; }
-
-    public boolean isUsingGlobalMsgDelivery() { return useGlobalMsgDelivery; }
-
-    public ExceptionHandler getExceptionHandler() {
-        return asyncErrorCb;
-    }
-
-    public ClosedCallback getClosedCallback() {
-        return closedCb;
-    }
-
-    public ReconnectedCallback getReconnectedCallback() {
-        return reconnectedCb;
-    }
-
-    public DisconnectedCallback getDisconnectedCallback() {
-        return disconnectedCb;
-    }
-
-    // public void addCertificate(X509Certificate cert) {
-    // if (cert==null)
-    // throw new IllegalArgumentException("Null certificate");
-    // certificates.add(cert);
-    // }
-    //
-    // public void addCertificate(byte[] cert) throws CertificateException {
-    // if (cert==null)
-    // throw new IllegalArgumentException("Null certificate");
-    // CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-    // InputStream in = new ByteArrayInputStream(cert);
-    // X509Certificate theCert = (X509Certificate)certFactory.generateCertificate(in);
-    // certificates.add(theCert);
-    // }
-    //
-    // public void addCertificate(String cert) throws CertificateException {
-    // addCertificate(cert.getBytes(Charset.forName("UTF-8")));
-    // }
-
-    public SSLContext getSslContext() {
-        return sslContext;
-    }
+    public static final String DEFAULT_URL = "nats://localhost:4222";
 
     /**
-     * An {@link Options} builder.
+     * Default server port.
+     *
+     * <p>
+     * This property is defined as {@value #DEFAULT_PORT}
      */
-    public static final class Builder {
-        String url;
-        List<URI> servers;
-        private String username;
-        private String password;
-        private String token;
-        private boolean noRandomize;
-        private String connectionName;
-        private boolean verbose;
-        private boolean pedantic;
-        private boolean secure;
-        private boolean allowReconnect = true;
+    public static final int DEFAULT_PORT = 4222;
+
+    /**
+     * Default maximum number of reconnect attempts, see {@link #getMaxReconnect() getMaxReconnect()}.
+     *
+     * <p>
+     * This property is defined as {@value #DEFAULT_MAX_RECONNECT}
+     */
+    public static final int DEFAULT_MAX_RECONNECT = 60;
+
+    /**
+     * Default wait time before attempting reconnection to the same server, see {@link #getReconnectWait() getReconnectWait()}.
+     *
+     * <p>
+     * This property is defined as 2 seconds.
+     */
+    public static final Duration DEFAULT_RECONNECT_WAIT = Duration.ofSeconds(2);
+
+    /**
+     * Default connection timeout, see {@link #getConnectionTimeout() getConnectionTimeout()}.
+     *
+     * <p>
+     * This property is defined as 2 seconds.}
+     */
+    public static final Duration DEFAULT_CONNECTION_TIMEOUT = Duration.ofSeconds(2);
+
+    /**
+     * Default server ping interval. The client will send a ping to the server on this interval to insure liveness.
+     * The server may send pings to the client as well, these are handled automatically by the library
+     * , see {@link #getPingInterval() getPingInterval()}.
+     * 
+     * <p>A value of {@code <=0} means disabled.
+     *
+     * <p>This property is defined as 2 minutes.
+     */
+
+    public static final Duration DEFAULT_PING_INTERVAL = Duration.ofMinutes(2);
+
+    /**
+     * Default interval to clean up cancelled/timed out requests.
+     * A timer is used to clean up futures that were handed out but never completed
+     * via a message, {@link #getRequestCleanupInterval() getRequestCleanupInterval()}.
+     *
+     * <p>This property is defined as 5 seconds.
+     */
+    public static final Duration DEFAULT_REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
+
+    /**
+     * Default maximum number of pings have not received a response allowed by the 
+     * client, {@link #getMaxPingsOut() getMaxPingsOut()}.
+     *
+     * <p>This property is defined as {@value #DEFAULT_MAX_PINGS_OUT}
+     */
+    public static final int DEFAULT_MAX_PINGS_OUT = 2;
+
+    /**
+     * Default SSL protocol used to create an SSLContext if the {@link #PROP_SECURE
+     * secure property} is used.
+     * <p>This property is defined as {@value #DEFAULT_SSL_PROTOCOL}
+     */
+    public static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
+
+    /**
+     * Default of pending message buffer that is used for buffering messages that
+     * are published during a disconnect/reconnect, {@link #getReconnectBufferSize() getReconnectBufferSize()}.
+     *
+     * <p>This property is defined as {@value #DEFAULT_RECONNECT_BUF_SIZE} bytes, 8 *
+     * 1024 * 1024.
+     */
+    public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
+
+    /**
+     * The default length, {@value #DEFAULT_MAX_CONTROL_LINE} bytes, the client will allow in an
+     *  outgoing protocol control line, {@link #getMaxControlLine() getMaxControlLine()}.
+     * 
+     * <p>This value is configurable on the server, and should be set here to match.</p>
+     */
+    public static final int DEFAULT_MAX_CONTROL_LINE = 1024;
+
+    /**
+     * Default dataport class, which will use a TCP socket, {@link #getDataPortType() getDataPortType()}.
+     * 
+     * <p><em>This option is currently provided only for testing, and experimentation, the default 
+     * should be used in almost all cases.</em>
+     */
+    public static final String DEFAULT_DATA_PORT_TYPE = SocketDataPort.class.getCanonicalName();
+
+    /**
+     * Default size for buffers in the connection, not as available as other settings, 
+     * this is primarily changed for testing, {@link #getBufferSize() getBufferSize()}.
+     */
+    public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
+
+    static final String PFX = "io.nats.client.";
+
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_CB}, see
+     * {@link Builder#connectionListener(ConnectionListener) connectionListener}.
+     */
+    public static final String PROP_CONNECTION_CB = PFX + "callback.connection";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_DATA_PORT_TYPE}, see
+     * {@link Builder#dataPortType(String) dataPortType}.
+     */
+    public static final String PROP_DATA_PORT_TYPE = PFX + "dataport.type";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_ERROR_LISTENER}, see
+     * {@link Builder#errorListener(ErrorListener) errorListener}.
+     */
+    public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_MAX_PINGS}, see {@link Builder#maxPingsOut(int) maxPingsOut}.
+     */
+    public static final String PROP_MAX_PINGS = PFX + "maxpings";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_PING_INTERVAL}, see {@link Builder#pingInterval(Duration)
+     * pingInterval}.
+     */
+    public static final String PROP_PING_INTERVAL = PFX + "pinginterval";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_CLEANUP_INTERVAL}, see {@link Builder#requestCleanupInterval(Duration)
+     * requestCleanupInterval}.
+     */
+    public static final String PROP_CLEANUP_INTERVAL = PFX + "cleanupinterval";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_TIMEOUT}, see
+     * {@link Builder#connectionTimeout(Duration) connectionTimeout}.
+     */
+    public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_RECONNECT_BUF_SIZE}, see
+     * {@link Builder#reconnectBufferSize(long) reconnectBufferSize}.
+     */
+    public static final String PROP_RECONNECT_BUF_SIZE = PFX + "reconnect.buffer.size";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_RECONNECT_WAIT}, see {@link Builder#reconnectWait(Duration)
+     * reconnectWait}.
+     */
+    public static final String PROP_RECONNECT_WAIT = PFX + "reconnect.wait";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_MAX_RECONNECT}, see {@link Builder#maxReconnects(int)
+     * maxReconnects}.
+     */
+    public static final String PROP_MAX_RECONNECT = PFX + "reconnect.max";
+
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_PEDANTIC}, see {@link Builder#pedantic() pedantic}.
+     */
+    public static final String PROP_PEDANTIC = PFX + "pedantic";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_VERBOSE}, see {@link Builder#verbose() verbose}.
+     */
+    public static final String PROP_VERBOSE = PFX + "verbose";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_NO_ECHO}, see {@link Builder#noEcho() noEcho}.
+     */
+    public static final String PROP_NO_ECHO = PFX + "noecho";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_NAME}, see {@link Builder#connectionName(String)
+     * connectionName}.
+     */
+    public static final String PROP_CONNECTION_NAME = PFX + "name";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_NORANDOMIZE}, see {@link Builder#noRandomize() noRandomize}.
+     */
+    public static final String PROP_NORANDOMIZE = PFX + "norandomize";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_SERVERS}, 
+     * see {@link Builder#servers(String[]) servers}. The value can be a comma-separated list of server URLs.
+     */
+    public static final String PROP_SERVERS = PFX + "servers";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_PASSWORD}, see {@link Builder#userInfo(String, String)
+     * userInfo}.
+     */
+    public static final String PROP_PASSWORD = PFX + "password";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_USERNAME}, see {@link Builder#userInfo(String, String)
+     * userInfo}.
+     */
+    public static final String PROP_USERNAME = PFX + "username";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_TOKEN}, see {@link Builder#token(String) token}.
+     */
+    public static final String PROP_TOKEN = PFX + "token";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_URL}, see {@link Builder#server(String) server}.
+     */
+    public static final String PROP_URL = PFX + "url";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_SECURE},
+     *  see {@link Builder#sslContext(SSLContext) sslContext}.
+     * 
+     * This property is a boolean flag, but it tells the options parser to use the
+     * default SSL context. Set the default context before creating the options.
+     */
+    public static final String PROP_SECURE = PFX + "secure";
+    /**
+     * Property used to configure a builder from a Properties object. 
+     * {@value #PROP_OPENTLS}, see {@link Builder#sslContext(SSLContext) sslContext}.
+     * 
+     * This property is a boolean flag, but it tells the options parser to use the
+     * an SSL context that takes any server TLS certificate and does not provide
+     * its own. The server must have tls_verify turned OFF for this option to work.
+     */
+    public static final String PROP_OPENTLS = PFX + "opentls";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_USE_OLD_REQUEST_STYLE}, see {@link Builder#oldRequestStyle()
+     * oldRequestStyle}.
+     */
+    public static final String PROP_USE_OLD_REQUEST_STYLE = "use.old.request.style";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_MAX_CONTROL_LINE}, see {@link Builder#maxControlLine(int)
+     * maxControlLine}.
+     */
+    public static final String PROP_MAX_CONTROL_LINE = "max.control.line";
+
+    /**
+     * Protocol key {@value #OPTION_VERBOSE}, see {@link Builder#verbose() verbose}.
+     */
+    static final String OPTION_VERBOSE = "verbose";
+
+    /**
+     * Protocol key {@value #OPTION_PEDANTIC}, see {@link Builder#pedantic()
+     * pedantic}.
+     */
+    static final String OPTION_PEDANTIC = "pedantic";
+
+    /**
+     * Protocol key {@value #OPTION_TLS_REQUIRED}, see
+     * {@link Builder#sslContext(SSLContext) sslContext}.
+     */
+    static final String OPTION_TLS_REQUIRED = "tls_required";
+
+    /**
+     * Protocol key {@value #OPTION_AUTH_TOKEN}, see {@link Builder#token(String)
+     * token}.
+     */
+    static final String OPTION_AUTH_TOKEN = "auth_token";
+
+    /**
+     * Protocol key {@value #OPTION_USER}, see
+     * {@link Builder#userInfo(String, String) userInfo}.
+     */
+    static final String OPTION_USER = "user";
+
+    /**
+     * Protocol key {@value #OPTION_PASSWORD}, see
+     * {@link Builder#userInfo(String, String) userInfo}.
+     */
+    static final String OPTION_PASSWORD = "pass";
+
+    /**
+     * Protocol key {@value #OPTION_NAME}, see {@link Builder#connectionName(String)
+     * connectionName}.
+     */
+    static final String OPTION_NAME = "name";
+
+    /**
+     * Protocol key {@value #OPTION_LANG}, will be set to "Java".
+     */
+    static final String OPTION_LANG = "lang";
+
+    /**
+     * Protocol key {@value #OPTION_VERSION}, will be set to
+     * {@link Nats#CLIENT_VERSION CLIENT_VERSION}.
+     */
+    static final String OPTION_VERSION = "version";
+
+    /**
+     * Protocol key {@value #OPTION_PROTOCOL}, will be set to 1.
+     */
+    static final String OPTION_PROTOCOL = "protocol";
+
+    /**
+     * Echo key {@value #OPTION_ECHO}, determines if the server should echo to the client.
+     */
+    static final String OPTION_ECHO = "echo";
+
+    private List<URI> servers;
+    private final boolean noRandomize;
+    private final String connectionName;
+    private final boolean verbose;
+    private final boolean pedantic;
+    private final SSLContext sslContext;
+    private final int maxReconnect;
+    private final int maxControlLine;
+    private final Duration reconnectWait;
+    private final Duration connectionTimeout;
+    private final Duration pingInterval;
+    private final Duration requestCleanupInterval;
+    private final int maxPingsOut;
+    private final long reconnectBufferSize;
+    private final String username;
+    private final String password;
+    private final String token;
+    private final boolean useOldRequestStyle;
+    private final int bufferSize;
+    private final boolean noEcho;
+
+    private final ErrorListener errorListener;
+    private final ConnectionListener connectionListener;
+    private final String dataPortType;
+
+    private final boolean trackAdvancedStats;
+
+    /**
+     * Options are created using a Builder. The builder supports chaining and will
+     * create a default set of options if no methods are calls. The builder can also
+     * be created from a properties object using the property names defined with the
+     * prefix PROP_ in this class.
+     * 
+     * <p>{@code new Options.Builder().build()} is equivalent to calling {@link Nats#connect() Nats.connect()}.
+     * 
+     * <p>A common usage for testing might be {@code new Options.Builder().server(myserverurl).noReconnect.build()}
+     */
+    public static class Builder {
+
+        private ArrayList<URI> servers = new ArrayList<URI>();
+        private boolean noRandomize = false;
+        private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
+        private boolean verbose = false;
+        private boolean pedantic = false;
+        private SSLContext sslContext = null;
+        private int maxControlLine = DEFAULT_MAX_CONTROL_LINE;
         private int maxReconnect = DEFAULT_MAX_RECONNECT;
-        private int reconnectBufSize = DEFAULT_RECONNECT_BUF_SIZE;
-        private long reconnectWait = DEFAULT_RECONNECT_WAIT;
-        private int connectionTimeout = DEFAULT_TIMEOUT;
-        private long pingInterval = DEFAULT_PING_INTERVAL;
+        private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
+        private Duration connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
+        private Duration pingInterval = DEFAULT_PING_INTERVAL;
+        private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
-        private boolean useOldRequestStyle;
-        private boolean useGlobalMsgDelivery = (Nats.getMsgDeliveryThreadPool() != null);
-        private SSLContext sslContext;
-        private boolean tlsDebug;
-        private TcpConnectionFactory factory;
-        DisconnectedCallback disconnectedCb;
-        ClosedCallback closedCb;
-        ReconnectedCallback reconnectedCb;
-        ExceptionHandler asyncErrorCb;
+        private long reconnectBufferSize = DEFAULT_RECONNECT_BUF_SIZE;
+        private String username = null;
+        private String password = null;
+        private String token = null;
+        private boolean useOldRequestStyle = false;
+        private int bufferSize = DEFAULT_BUFFER_SIZE;
+        private boolean trackAdvancedStats = false;
+        private boolean noEcho = false;
+
+        private ErrorListener errorListener = null;
+        private ConnectionListener connectionListener = null;
+        private String dataPortType = DEFAULT_DATA_PORT_TYPE;
 
         /**
-         * Constructs a {@link Builder} instance based on the supplied {@link Options} instance.
-         *
-         * @param template the {@link Options} object to use as a template
+         * Constructs a new Builder with the default values.
+         * 
+         * <p>One tiny clarification is that the builder doesn't have a server url. When {@link #build() build()}
+         * is called on a default builder it will add the {@link Options#DEFAULT_URL
+         * default url} to its list of servers before creating the options object.
          */
-        public Builder(Options template) {
-            this.url = template.url;
-            this.username = template.username;
-            this.password = template.password;
-            this.token = template.token;
-            if (template.servers != null) {
-                this.servers = new ArrayList<URI>(template.servers);
-            }
-            this.noRandomize = template.noRandomize;
-            this.connectionName = template.connectionName;
-            this.verbose = template.verbose;
-            this.pedantic = template.pedantic;
-            this.secure = template.secure;
-            this.allowReconnect = template.allowReconnect;
-            this.maxReconnect = template.maxReconnect;
-            this.reconnectBufSize = template.reconnectBufSize;
-            this.reconnectWait = template.reconnectWait;
-            this.connectionTimeout = template.connectionTimeout;
-            this.pingInterval = template.pingInterval;
-            this.maxPingsOut = template.maxPingsOut;
-            this.sslContext = template.sslContext;
-            this.tlsDebug = template.tlsDebug;
-            this.disconnectedCb = template.disconnectedCb;
-            this.closedCb = template.closedCb;
-            this.reconnectedCb = template.reconnectedCb;
-            this.asyncErrorCb = template.asyncErrorCb;
-            this.factory = template.factory;
-            this.useOldRequestStyle = template.useOldRequestStyle;
-            this.useGlobalMsgDelivery = template.useGlobalMsgDelivery;
-        }
-
         public Builder() {
         }
 
         /**
          * Constructs a new {@code Builder} from a {@link Properties} object.
+         * 
+         * <p>If {@link Options#PROP_SECURE PROP_SECURE} is set, the builder will
+         * try to use the default SSLContext {@link SSLContext#getDefault()}. If that
+         * fails, no context is set and an IllegalArgumentException is thrown.
+         * 
+         * <p>Methods called on the builder after construction can override the properties.
          *
          * @param props the {@link Properties} object
          */
-        public Builder(Properties props) {
+        public Builder(Properties props) throws IllegalArgumentException {
             if (props == null) {
                 throw new IllegalArgumentException("Properties cannot be null");
             }
 
-            // PROP_URL
             if (props.containsKey(PROP_URL)) {
-                this.url = props.getProperty(PROP_URL, DEFAULT_URL);
+                this.server(props.getProperty(PROP_URL, DEFAULT_URL));
             }
-            // PROP_USERNAME
+
             if (props.containsKey(PROP_USERNAME)) {
                 this.username = props.getProperty(PROP_USERNAME, null);
             }
-            // PROP_PASSWORD
+
             if (props.containsKey(PROP_PASSWORD)) {
                 this.password = props.getProperty(PROP_PASSWORD, null);
             }
-            // PROP_SERVERS
+
+            if (props.containsKey(PROP_TOKEN)) {
+                this.token = props.getProperty(PROP_TOKEN, null);
+            }
+
             if (props.containsKey(PROP_SERVERS)) {
                 String str = props.getProperty(PROP_SERVERS);
                 if (str.isEmpty()) {
                     throw new IllegalArgumentException(PROP_SERVERS + " cannot be empty");
                 } else {
                     String[] servers = str.trim().split(",\\s*");
-                    this.servers = processServers(servers);
+                    this.servers(servers);
                 }
             }
-            // PROP_NORANDOMIZE
+
             if (props.containsKey(PROP_NORANDOMIZE)) {
                 this.noRandomize = Boolean.parseBoolean(props.getProperty(PROP_NORANDOMIZE));
             }
-            // PROP_CONNECTION_NAME
+
+            if (props.containsKey(PROP_SECURE)) {
+                boolean secure = Boolean.parseBoolean(props.getProperty(PROP_SECURE));
+
+                if (secure) {
+                    try {
+                        this.sslContext = SSLContext.getDefault();
+                    } catch (NoSuchAlgorithmException e) {
+                        this.sslContext = null;
+                        throw new IllegalArgumentException("Unable to retrieve default SSL context");
+                    }
+                }
+            }
+
+            if (props.containsKey(PROP_OPENTLS)) {
+                boolean tls = Boolean.parseBoolean(props.getProperty(PROP_OPENTLS));
+
+                if (tls) {
+                    try {
+                        this.sslContext = SSLUtils.createOpenTLSContext();
+                    } catch (Exception e) {
+                        this.sslContext = null;
+                        throw new IllegalArgumentException("Unable to create open SSL context");
+                    }
+                }
+            }
+
             if (props.containsKey(PROP_CONNECTION_NAME)) {
                 this.connectionName = props.getProperty(PROP_CONNECTION_NAME, null);
             }
-            // PROP_VERBOSE
+
             if (props.containsKey(PROP_VERBOSE)) {
                 this.verbose = Boolean.parseBoolean(props.getProperty(PROP_VERBOSE));
             }
-            // PROP_PEDANTIC
+
+            if (props.containsKey(PROP_NO_ECHO)) {
+                this.noEcho = Boolean.parseBoolean(props.getProperty(PROP_NO_ECHO));
+            }
+
             if (props.containsKey(PROP_PEDANTIC)) {
                 this.pedantic = Boolean.parseBoolean(props.getProperty(PROP_PEDANTIC));
             }
-            // PROP_SECURE
-            if (props.containsKey(PROP_SECURE)) {
-                this.secure = Boolean.parseBoolean(props.getProperty(PROP_SECURE));
-            }
-            // PROP_TLS_DEBUG
-            if (props.containsKey(PROP_TLS_DEBUG)) {
-                this.tlsDebug = Boolean.parseBoolean(props.getProperty(PROP_TLS_DEBUG));
-            }
-            // PROP_RECONNECT_ALLOWED
-            if (props.containsKey(PROP_RECONNECT_ALLOWED)) {
-                this.allowReconnect = Boolean.parseBoolean(
-                        props.getProperty(PROP_RECONNECT_ALLOWED, Boolean.toString(true)));
-            }
-            // PROP_MAX_RECONNECT
+
             if (props.containsKey(PROP_MAX_RECONNECT)) {
-                this.maxReconnect = Integer.parseInt(props.getProperty(PROP_MAX_RECONNECT,
-                        Integer.toString(DEFAULT_MAX_RECONNECT)));
+                this.maxReconnect = Integer
+                        .parseInt(props.getProperty(PROP_MAX_RECONNECT, Integer.toString(DEFAULT_MAX_RECONNECT)));
             }
-            // PROP_RECONNECT_WAIT
+
             if (props.containsKey(PROP_RECONNECT_WAIT)) {
-                this.reconnectWait = Integer.parseInt(props.getProperty(PROP_RECONNECT_WAIT,
-                        Integer.toString(DEFAULT_RECONNECT_WAIT)));
+                int ms = Integer.parseInt(props.getProperty(PROP_RECONNECT_WAIT, "-1"));
+                this.reconnectWait = (ms < 0) ? DEFAULT_RECONNECT_WAIT : Duration.ofMillis(ms);
             }
-            // PROP_RECONNECT_BUF_SIZE
+
             if (props.containsKey(PROP_RECONNECT_BUF_SIZE)) {
-                this.reconnectBufSize = Integer.parseInt(props.getProperty(PROP_RECONNECT_BUF_SIZE,
-                        Integer.toString(DEFAULT_RECONNECT_BUF_SIZE)));
+                this.reconnectBufferSize = Long.parseLong(
+                        props.getProperty(PROP_RECONNECT_BUF_SIZE, Long.toString(DEFAULT_RECONNECT_BUF_SIZE)));
             }
-            // PROP_CONNECTION_TIMEOUT
+
             if (props.containsKey(PROP_CONNECTION_TIMEOUT)) {
-                this.connectionTimeout = Integer.parseInt(
-                        props.getProperty(PROP_CONNECTION_TIMEOUT, Integer.toString(
-                                DEFAULT_TIMEOUT)));
+                int ms = Integer.parseInt(props.getProperty(PROP_CONNECTION_TIMEOUT, "-1"));
+                this.connectionTimeout = (ms < 0) ? DEFAULT_CONNECTION_TIMEOUT : Duration.ofMillis(ms);
             }
-            // PROP_PING_INTERVAL
+
+            if (props.containsKey(PROP_MAX_CONTROL_LINE)) {
+                int bytes = Integer.parseInt(props.getProperty(PROP_MAX_CONTROL_LINE, "-1"));
+                this.maxControlLine = (bytes < 0) ? DEFAULT_MAX_CONTROL_LINE : bytes;
+            }
+
             if (props.containsKey(PROP_PING_INTERVAL)) {
-                this.pingInterval = Integer.parseInt(props.getProperty(PROP_PING_INTERVAL,
-                        Integer.toString(DEFAULT_PING_INTERVAL)));
+                int ms = Integer.parseInt(props.getProperty(PROP_PING_INTERVAL, "-1"));
+                this.pingInterval = (ms < 0) ? DEFAULT_PING_INTERVAL : Duration.ofMillis(ms);
             }
-            // PROP_MAX_PINGS
+
+            if (props.containsKey(PROP_CLEANUP_INTERVAL)) {
+                int ms = Integer.parseInt(props.getProperty(PROP_CLEANUP_INTERVAL, "-1"));
+                this.requestCleanupInterval = (ms < 0) ? DEFAULT_REQUEST_CLEANUP_INTERVAL : Duration.ofMillis(ms);
+            }
+
             if (props.containsKey(PROP_MAX_PINGS)) {
-                this.maxPingsOut = Integer.parseInt(
-                        props.getProperty(PROP_MAX_PINGS, Integer.toString(DEFAULT_MAX_PINGS_OUT)));
+                this.maxPingsOut = Integer
+                        .parseInt(props.getProperty(PROP_MAX_PINGS, Integer.toString(DEFAULT_MAX_PINGS_OUT)));
             }
-            // PROP_USE_OLD_REQUEST_STYLE
+
             if (props.containsKey(PROP_USE_OLD_REQUEST_STYLE)) {
                 this.useOldRequestStyle = Boolean.parseBoolean(props.getProperty(PROP_USE_OLD_REQUEST_STYLE));
             }
-            // PROP_USE_GLOBAL_MSG_DELIVERY
-            if (props.containsKey(PROP_USE_GLOBAL_MSG_DELIVERY)) {
-                this.useGlobalMsgDelivery = Boolean.parseBoolean(props.getProperty(PROP_USE_GLOBAL_MSG_DELIVERY));
+
+            if (props.containsKey(PROP_ERROR_LISTENER)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_ERROR_LISTENER));
+                this.errorListener = (ErrorListener) instance;
             }
-            // PROP_EXCEPTION_HANDLER
-            if (props.containsKey(PROP_EXCEPTION_HANDLER)) {
-                Object instance;
-                try {
-                    String str = props.getProperty(PROP_EXCEPTION_HANDLER);
-                    Class<?> clazz = Class.forName(str);
-                    Constructor<?> constructor = clazz.getConstructor();
-                    instance = constructor.newInstance();
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(e);
-                }
-                this.asyncErrorCb = (ExceptionHandler) instance;
+
+            if (props.containsKey(PROP_CONNECTION_CB)) {
+                Object instance = createInstanceOf(props.getProperty(PROP_CONNECTION_CB));
+                this.connectionListener = (ConnectionListener) instance;
             }
-            // PROP_CLOSED_CB
-            if (props.containsKey(PROP_CLOSED_CB)) {
-                Object instance;
-                try {
-                    String str = props.getProperty(PROP_CLOSED_CB);
-                    Class<?> clazz = Class.forName(str);
-                    Constructor<?> constructor = clazz.getConstructor();
-                    instance = constructor.newInstance();
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(e);
-                }
-                this.closedCb = (ClosedCallback) instance;
-            }
-            // PROP_DISCONNECTED_CB
-            if (props.containsKey(PROP_DISCONNECTED_CB)) {
-                Object instance;
-                try {
-                    String str = props.getProperty(PROP_DISCONNECTED_CB);
-                    Class<?> clazz = Class.forName(str);
-                    Constructor<?> constructor = clazz.getConstructor();
-                    instance = constructor.newInstance();
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(e);
-                }
-                this.disconnectedCb = (DisconnectedCallback) instance;
-            }
-            // PROP_RECONNECTED_CB
-            if (props.containsKey(PROP_RECONNECTED_CB)) {
-                Object instance;
-                try {
-                    String str = props.getProperty(PROP_RECONNECTED_CB);
-                    Class<?> clazz = Class.forName(str);
-                    Constructor<?> constructor = clazz.getConstructor();
-                    instance = constructor.newInstance();
-                } catch (Exception e) {
-                    throw new IllegalArgumentException(e);
-                }
-                this.reconnectedCb = (ReconnectedCallback) instance;
+
+            if (props.containsKey(PROP_DATA_PORT_TYPE)) {
+                this.dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
             }
         }
 
-        public Builder dontRandomize() {
+        static Object createInstanceOf(String className) {
+            Object instance = null;
+            try {
+                Class<?> clazz = Class.forName(className);
+                Constructor<?> constructor = clazz.getConstructor();
+                instance = constructor.newInstance();
+            } catch (Exception e) {
+                throw new IllegalArgumentException(e);
+            }
+            return instance;
+        }
+
+        /**
+         * Add a server to the list of known servers.
+         * 
+         * @param serverURL the URL for the server to add
+         * @throws IllegalArgumentException if the url is not formatted correctly.
+         * @return the Builder for chaining
+         */
+        public Builder server(String serverURL) {
+            try {
+                this.servers.add(new URI(serverURL.trim()));
+            } catch (URISyntaxException e) {
+                throw new IllegalArgumentException("Bad server URL: " + serverURL, e);
+            }
+            return this;
+        }
+
+        /**
+         * Add an array of servers to the list of known servers.
+         * 
+         * @param servers A list of server URIs
+         * @throws IllegalArgumentException if any url is not formatted correctly.
+         * @return the Builder for chaining
+         */
+        public Builder servers(String[] servers) {
+            for (String s : servers) {
+                if (s != null && !s.isEmpty()) {
+                    try {
+                        this.servers.add(new URI(s.trim()));
+                    } catch (URISyntaxException e) {
+                        throw new IllegalArgumentException("Bad server URL: " + s, e);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Turn on the old request style that uses a new inbox and subscriber for each
+         * request.
+         * @return the Builder for chaining
+         */
+        public Builder oldRequestStyle() {
+            this.useOldRequestStyle = true;
+            return this;
+        }
+
+        /**
+         * Turn off server pool randomization. By default the server will pick
+         * servers from its list randomly on a reconnect. When set to noRandom the server
+         * goes in the order they were configured or provided by gnatsd.
+         * @return the Builder for chaining
+         */
+        public Builder noRandomize() {
             this.noRandomize = true;
             return this;
         }
 
-        Builder factory(TcpConnectionFactory factory) {
-            this.factory = factory;
+        /**
+         * Turn off echo. If supported by the gnatsd version you are connecting to this
+         * flag will prevent the server from echoing messages back to the connection if it
+         * has subscriptions on the subject being published to.
+         * @return the Builder for chaining
+         */
+        public Builder noEcho() {
+            this.noEcho = true;
             return this;
         }
 
-        public Builder maxPingsOut(int maxPingsOut) {
-            this.maxPingsOut = maxPingsOut;
+        /**
+         * Set the connection's optional Name.
+         * 
+         * @param name the connections new name.
+         * @return the Builder for chaining
+         */
+        public Builder connectionName(String name) {
+            this.connectionName = name;
             return this;
         }
 
-        public Builder useOldRequestStyle(boolean useOldRequestStyle) {
-            this.useOldRequestStyle = useOldRequestStyle;
-            return this;
-        }
-
-        public Builder maxReconnect(int maxReconnect) {
-            this.maxReconnect = maxReconnect;
-            return this;
-        }
-
-        public Builder name(String connectionName) {
-            this.connectionName = connectionName;
-            return this;
-        }
-
-        public Builder pedantic() {
-            this.pedantic = true;
-            return this;
-        }
-
-        public Builder pingInterval(long interval, TimeUnit unit) {
-            return pingInterval(unit.toMillis(interval));
-        }
-
-        public Builder pingInterval(long pingInterval) {
-            this.pingInterval = pingInterval;
-            return this;
-        }
-
-        public Builder noReconnect() {
-            this.allowReconnect = false;
-            return this;
-        }
-
-        public Builder reconnectBufSize(int reconnectBufSize) {
-            this.reconnectBufSize = reconnectBufSize;
-            return this;
-        }
-
-        public Builder reconnectWait(long millis) {
-            this.reconnectWait = millis;
-            return this;
-        }
-
-        public Builder reconnectWait(long duration, TimeUnit unit) {
-            return reconnectWait(unit.toMillis(duration));
-        }
-
-        public Builder secure() {
-            this.secure = true;
-            return this;
-        }
-
-        List<URI> processServers(String[] serverArray) {
-            List<URI> list = null;
-            if ((serverArray != null) && (serverArray.length != 0)) {
-                list = new ArrayList<URI>(serverArray.length);
-                for (String s : serverArray) {
-                    if (s != null && !s.isEmpty()) {
-                        try {
-                            list.add(new URI(s.trim()));
-                        } catch (URISyntaxException e) {
-                            throw new IllegalArgumentException("Bad server URL: " + s, e);
-                        }
-                    }
-                }
-            }
-            return list;
-        }
-
-        public Builder sslContext(SSLContext sslContext) {
-            this.sslContext = sslContext;
-            if (sslContext != null) {
-                this.secure = true;
-            }
-            return this;
-        }
-
-        public Builder timeout(int millis) {
-            this.connectionTimeout = millis;
-            return this;
-        }
-
-        public Builder timeout(int timeout, TimeUnit unit) {
-            return timeout((int) unit.toMillis(timeout));
-        }
-
-        public Builder tlsDebug() {
-            this.tlsDebug = true;
-            return this;
-        }
-
-        public Builder token(String token) {
-            this.token = token;
-            return this;
-        }
-
-        public Builder userInfo(String user, String pass) {
-            this.username = user;
-            this.password = pass;
-            return this;
-        }
-
+        /**
+         * Turn on verbose mode with the server.
+         * @return the Builder for chaining
+         */
         public Builder verbose() {
             this.verbose = true;
             return this;
         }
 
-        public Builder errorCb(ExceptionHandler cb) {
-            this.asyncErrorCb = cb;
-            return this;
-        }
-
-        public Builder closedCb(ClosedCallback cb) {
-            this.closedCb = cb;
-            return this;
-        }
-
-        public Builder disconnectedCb(DisconnectedCallback cb) {
-            this.disconnectedCb = cb;
-            return this;
-        }
-
-        public Builder reconnectedCb(ReconnectedCallback cb) {
-            this.reconnectedCb = cb;
-            return this;
-        }
-
-        public Builder useGlobalMsgDelivery(boolean use) {
-            this.useGlobalMsgDelivery = use;
+        /**
+         * Turn on pedantic mode for the server, in relation to this connection.
+         * @return the Builder for chaining
+         */
+        public Builder pedantic() {
+            this.pedantic = true;
             return this;
         }
 
         /**
-         * Creates a {@link Options} instance based on the current configuration.
-         *
-         * @return the created {@link Options} instance
+         * Turn on advanced stats, primarily for test/benchmarks. These are visible if you
+         * call toString on the {@link Statistics Statistics} object.
+         * @return the Builder for chaining
          */
-        public Options build() {
-            return new Options(this);
+        public Builder turnOnAdvancedStats() {
+            this.trackAdvancedStats = true;
+            return this;
         }
 
+        /**
+         * Set the SSL context to the {@link Options#DEFAULT_SSL_PROTOCOL default one}.
+         * 
+         * @throws NoSuchAlgorithmException If the default protocol is unavailable.
+         * @throws IllegalArgumentException If there is no default SSL context.
+         * @return the Builder for chaining
+         */
+        public Builder secure() throws NoSuchAlgorithmException, IllegalArgumentException {
+            this.sslContext = SSLContext.getDefault();
+
+            if(this.sslContext == null) {
+                throw new IllegalArgumentException("No Default SSL Context");
+            }
+            return this;
+        }
+
+        /**
+         * Set the SSL context to one that accepts any server certificate and has no client certificates.
+         * 
+         * @throws NoSuchAlgorithmException If the tls protocol is unavailable.
+         * @return the Builder for chaining
+         */
+        public Builder opentls() throws NoSuchAlgorithmException {
+            this.sslContext = SSLUtils.createOpenTLSContext();
+            return this;
+        }
+
+        /**
+         * Set the SSL context, requires that the server supports TLS connections and
+         * the URI specifies TLS.
+         * 
+         * @param ctx the SSL Context to use for TLS connections
+         * @return the Builder for chaining
+         */
+        public Builder sslContext(SSLContext ctx) {
+            this.sslContext = ctx;
+            return this;
+        }
+
+        /**
+         * Equivalent to calling maxReconnects with 0, {@link #maxReconnects(int) maxReconnects}.
+         * @return the Builder for chaining
+         */
+        public Builder noReconnect() {
+            this.maxReconnect = 0;
+            return this;
+        }
+
+        /**
+         * Set the maximum number of reconnect attempts. Use 0 to turn off
+         * auto-reconnect. Use -1 to turn on infinite reconnects.
+         * 
+         * <p>The reconnect count is incremented on a per-server basis, so if the server list contains 5 servers
+         * but max reconnects is set to 3, only 3 of those servers will be tried.
+         * 
+         * <p>This library has a slight difference from some NATS clients, if you set the maxReconnects to zero
+         * there will not be any reconnect attempts, regardless of the number of known servers.
+         * 
+         * <p>The reconnect state is entered when the connection is connected and loses
+         * that connection. During the initial connection attempt, the client will cycle over
+         * its server list one time, regardless of what maxReconnects is set to. The only exception
+         * to this is the experimental async connect method {@link Nats#connectAsynchronously(Options, boolean) connectAsynchronously}.
+         * 
+         * @param max the maximum reconnect attempts
+         * @return the Builder for chaining
+         */
+        public Builder maxReconnects(int max) {
+            this.maxReconnect = max;
+            return this;
+        }
+
+        /**
+         * Set the time to wait between reconnect attempts to the same server. This setting is only used
+         * by the client when the same server appears twice in the reconnect attempts, either because it is the
+         * only known server or by random chance. Note, the randomization of the server list doesn't occur per
+         * attempt, it is performed once at the start, so if there are 2 servers in the list you will never encounter
+         * the reconnect wait.
+         * 
+         * @param time the time to wait
+         * @return the Builder for chaining
+         */
+        public Builder reconnectWait(Duration time) {
+            this.reconnectWait = time;
+            return this;
+        }
+
+        /**
+         * Set the maximum length of a control line sent by this connection. This value is also configured
+         * in the server but the protocol doesn't currently forward that setting. Configure it here so that
+         * the client can ensure that messages are valid before sending to the server.
+         * 
+         * @param bytes the max byte count
+         * @return the Builder for chaining
+         */
+        public Builder maxControlLine(int bytes) {
+            this.maxControlLine = bytes;
+            return this;
+        }
+
+        /**
+         * Set the timeout for connection attempts.
+         * 
+         * @param time the time to wait
+         * @return the Builder for chaining
+         */
+        public Builder connectionTimeout(Duration time) {
+            this.connectionTimeout = time;
+            return this;
+        }
+
+        /**
+         * Set the interval between attempts to pings the server. These pings are automated,
+         * and capped by {@link #maxPingsOut(int) maxPingsOut()}.
+         * 
+         * @param time the time between client to server pings
+         * @return the Builder for chaining
+         */
+        public Builder pingInterval(Duration time) {
+            this.pingInterval = time;
+            return this;
+        }
+
+        /**
+         * Set the interval between cleaning passes on outstanding request futures that are cancelled or timeout
+         * in the application code.
+         * 
+         * <p>The default value is probably reasonable, but this interval is useful in a very noisy network
+         * situation where lots of requests are used.
+         * 
+         * @param time the cleaning interval
+         * @return the Builder for chaining
+         */
+        public Builder requestCleanupInterval(Duration time) {
+            this.requestCleanupInterval = time;
+            return this;
+        }
+
+        /**
+         * Set the maximum number of pings the client can have in flight.
+         * 
+         * @param max the max pings
+         * @return the Builder for chaining
+         */
+        public Builder maxPingsOut(int max) {
+            this.maxPingsOut = max;
+            return this;
+        }
+
+        /**
+         * Sets the initial size for buffers in the connection, primarily for testing.
+         * @param size the size in bytes to make buffers for connections created with this options
+         * @return the Builder for chaining
+         */
+        public Builder bufferSize(int size) {
+            this.bufferSize = size;
+            return this;
+        }
+
+        /**
+         * Set the maximum number of bytes to buffer in the client when trying to
+         * reconnect. When this value is exceeded the client will start to drop messages.
+         * The count of dropped messages can be read from the {@link Statistics#getDroppedCount() Statistics}.
+         * 
+         * @param size the size in bytes
+         * @return the Builder for chaining
+         */
+        public Builder reconnectBufferSize(long size) {
+            this.reconnectBufferSize = size;
+            return this;
+        }
+
+        /**
+         * Set the username and password for basic authentication.
+         * 
+         * @param userName a non-empty user name
+         * @param password the password, in plain text
+         * @return the Builder for chaining
+         */
+        public Builder userInfo(String userName, String password) {
+            this.username = userName;
+            this.password = password;
+            return this;
+        }
+
+        /**
+         * Set the token for token-based authentication.
+         * 
+         * @param token The token
+         * @return the Builder for chaining
+         */
+        public Builder token(String token) {
+            this.token = token;
+            return this;
+        }
+
+        /**
+         * Set the {@link ErrorListener ErrorListener} to receive asynchronous error events related to this
+         * connection.
+         * 
+         * @param listener The new ErrorListener for this connection.
+         * @return the Builder for chaining
+         */
+        public Builder errorListener(ErrorListener listener) {
+            this.errorListener = listener;
+            return this;
+        }
+
+        /**
+         * Set the {@link ConnectionListener ConnectionListener} to receive asynchronous notifications of disconnect
+         * events.
+         * 
+         * @param listener The new ConnectionListener for this type of event.
+         * @return the Builder for chaining
+         */
+        public Builder connectionListener(ConnectionListener listener) {
+            this.connectionListener = listener;
+            return this;
+        }
+
+        /**
+         * The class to use for this connections data port. This is an advanced setting
+         * and primarily useful for testing.
+         * 
+         * @param dataPortClassName a valid and accessible class name
+         * @return the Builder for chaining
+         */
+        public Builder dataPortType(String dataPortClassName) {
+            this.dataPortType = dataPortClassName;
+            return this;
+        }
+
+        /**
+         * Build an Options object from this Builder.
+         * 
+         * <p>If the Options builder was not provided with a server, a default one will be included
+         * {@link Options#DEFAULT_URL}. If only a single server URI is included, the builder
+         * will try a few things to make connecting easier:
+         * <ul>
+         * <li>If there is no user/password is set but the URI has them, {@code nats://user:password@server:port}, they will be used.
+         * <li>If there is no token is set but the URI has one, {@code nats://token@server:port}, it will be used.
+         * <li>If the URI is of the form tls:// and no SSL context was assigned, the default one will
+         *  be used {@link SSLContext#getDefault()}.
+         * <li>If the URI is of the form opentls:// and no SSL context was assigned one will be created
+         * that does not check the servers certificate for validity. This is not secure and only provided
+         * for tests and development.
+         * </ul>
+         * 
+         * @return the new options object
+         * @throws IllegalStateException if there is a conflict in the options, like a token and a user/pass
+         */
+        public Options build() throws IllegalStateException {
+
+            if (this.username != null && this.token != null) {
+                throw new IllegalStateException("Options can't have token and username");
+            }
+            
+            if (servers.size() == 0) {
+                server(DEFAULT_URL);
+            } else if (servers.size() == 1) { // Allow some URI based configs
+                URI serverURI = servers.get(0);
+                
+                if (this.username==null && this.password==null && this.token == null) {
+                    String userInfo = serverURI.getUserInfo();
+
+                    if (userInfo != null) {
+                        String[] info = userInfo.split(":");
+
+                        if (info.length == 2) {
+                            this.username = info[0];
+                            this.password = info[1];
+                        } else {
+                            this.token = userInfo;
+                        }
+                    }
+                }
+
+                if ("tls".equals(serverURI.getScheme()) && this.sslContext == null)
+                {
+                    try {
+                        this.sslContext = SSLContext.getDefault();
+                    } catch (NoSuchAlgorithmException e) {
+                        throw new IllegalStateException("Unable to create default SSL context", e);
+                    }
+                } else if ("opentls".equals(serverURI.getScheme()) && this.sslContext == null)
+                {
+                    this.sslContext = SSLUtils.createOpenTLSContext();
+                }
+            }
+            return new Options(this);
+        }
+    }
+
+    private Options(Builder b) {
+        this.servers = b.servers;
+        this.noRandomize = b.noRandomize;
+        this.connectionName = b.connectionName;
+        this.verbose = b.verbose;
+        this.pedantic = b.pedantic;
+        this.sslContext = b.sslContext;
+        this.maxReconnect = b.maxReconnect;
+        this.reconnectWait = b.reconnectWait;
+        this.connectionTimeout = b.connectionTimeout;
+        this.pingInterval = b.pingInterval;
+        this.requestCleanupInterval = b.requestCleanupInterval;
+        this.maxPingsOut = b.maxPingsOut;
+        this.reconnectBufferSize = b.reconnectBufferSize;
+        this.username = b.username;
+        this.password = b.password;
+        this.token = b.token;
+        this.useOldRequestStyle = b.useOldRequestStyle;
+        this.maxControlLine = b.maxControlLine;
+        this.bufferSize = b.bufferSize;
+        this.noEcho = b.noEcho;
+
+        this.errorListener = b.errorListener;
+        this.connectionListener = b.connectionListener;
+        this.dataPortType = b.dataPortType;
+        this.trackAdvancedStats = b.trackAdvancedStats;
+    }
+
+    /**
+     * @return the error listener, or null, see {@link Builder#errorListener(ErrorListener) errorListener()} in the builder doc
+     */
+    public ErrorListener getErrorListener() {
+        return this.errorListener;
+    }
+
+    /**
+     * @return the connection listener, or null, see {@link Builder#connectionListener(ConnectionListener) connectionListener()} in the builder doc
+     */
+    public ConnectionListener getConnectionListener() {
+        return this.connectionListener;
+    }
+
+    /**
+     * @return the dataport type for connections created by this options object, see {@link Builder#dataPortType(String) dataPortType()} in the builder doc
+     */
+    public String getDataPortType() {
+        return this.dataPortType;
+    }
+
+    /**
+     * @return the data port described by these options
+     */
+    public DataPort buildDataPort() {
+        return (DataPort) Options.Builder.createInstanceOf(dataPortType);
+    }
+
+    /**
+     * @return the servers stored in this options, see {@link Builder#servers(String[]) servers()} in the builder doc
+     */
+    public Collection<URI> getServers() {
+        return servers;
+    }
+
+    /**
+     * @return should we turn off randomization for server connection attempts, see {@link Builder#noRandomize() noRandomize()} in the builder doc
+     */
+    public boolean isNoRandomize() {
+        return noRandomize;
+    }
+
+    /**
+     * @return the connectionName, see {@link Builder#connectionName(String) connectionName()} in the builder doc
+     */
+    public String getConnectionName() {
+        return connectionName;
+    }
+
+    /**
+     * @return are we in verbose mode, see {@link Builder#verbose() verbose()} in the builder doc
+     */
+    public boolean isVerbose() {
+        return verbose;
+    }
+
+    /**
+     * @return is echo-ing disabled, see {@link Builder#noEcho() noEcho()} in the builder doc
+     */
+    public boolean isNoEcho() {
+        return noEcho;
+    }
+
+    /**
+     * @return are we using pedantic protocol, see {@link Builder#pedantic() pedantic()} in the builder doc
+     */
+    public boolean isPedantic() {
+        return pedantic;
+    }
+
+    /**
+     * @return should we track advanced stats, see {@link Builder#turnOnAdvancedStats() turnOnAdvancedStats()} in the builder doc
+     */
+    public boolean isTrackAdvancedStats() {
+        return trackAdvancedStats;
+    }
+
+    /**
+     * @return the maximum length of a control line, see {@link Builder#maxControlLine(int) maxControlLine()} in the builder doc
+     */
+    public int getMaxControlLine() {
+        return maxControlLine;
+    }
+
+    /**
+     * 
+     * @return true if there is an sslContext for this Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
+     */
+    public boolean isTLSRequired() {
+        return (this.sslContext != null);
+    }
+
+    /**
+     * @return the sslContext, see {@link Builder#secure() secure()} in the builder doc
+     */
+    public SSLContext getSslContext() {
+        return sslContext;
+    }
+
+    /**
+     * @return the maxReconnect attempts to make before failing, see {@link Builder#maxReconnects(int) maxReconnects()} in the builder doc
+     */
+    public int getMaxReconnect() {
+        return maxReconnect;
+    }
+
+    /**
+     * @return the reconnectWait, used between reconnect attempts to the same server, see {@link Builder#reconnectWait(Duration) reconnectWait()} in the builder doc
+     */
+    public Duration getReconnectWait() {
+        return reconnectWait;
+    }
+
+    /**
+     * @return the connectionTimeout, see {@link Builder#connectionTimeout(Duration) connectionTimeout()} in the builder doc
+     */
+    public Duration getConnectionTimeout() {
+        return connectionTimeout;
+    }
+
+    /**
+     * @return the pingInterval, see {@link Builder#pingInterval(Duration) pingInterval()} in the builder doc
+     */
+    public Duration getPingInterval() {
+        return pingInterval;
+    }
+
+    /**
+     * @return the request cleanup interval, see {@link Builder#requestCleanupInterval(Duration) requestCleanupInterval()} in the builder doc
+     */
+    public Duration getRequestCleanupInterval() {
+        return requestCleanupInterval;
+    }
+
+    /**
+     * @return the maxPingsOut to limit the number of pings on the wire, see {@link Builder#maxPingsOut(int) maxPingsOut()} in the builder doc
+     */
+    public int getMaxPingsOut() {
+        return maxPingsOut;
+    }
+
+    /**
+     * @return the reconnectBufferSize, to limit the amount of data held during
+     *         reconnection attempts, see {@link Builder#reconnectBufferSize(long) reconnectBufferSize()} in the builder doc
+     */
+    public long getReconnectBufferSize() {
+        return reconnectBufferSize;
+    }
+
+    /**
+     * @return the default size for buffers in the connection code, see {@link Builder#bufferSize(int) bufferSize()} in the builder doc
+     */
+    public int getBufferSize() {
+        return bufferSize;
+    }
+
+    /**
+     * @return the username to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     */
+    public String getUsername() {
+        return username;
+    }
+
+    /**
+     * @return the password the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     */
+    public String getPassword() {
+        return password;
+    }
+
+    /**
+     * @return the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
+     */
+    public String getToken() {
+        return token;
+    }
+
+    /**
+     * @return the flag to turn on old style requests, see {@link Builder#oldRequestStyle() oldStyleRequest()} in the builder doc
+     */
+    public boolean isOldRequestStyle() {
+        return useOldRequestStyle;
+    }
+
+    /**
+     * Create the options string sent with a connect message.
+     * 
+     * @param includeAuth tells the options to build a connection string that includes auth information
+     * @return the options String, basically JSON
+     */
+    public String buildProtocolConnectOptionsString(boolean includeAuth) {
+        StringBuilder connectString = new StringBuilder();
+        connectString.append("{");
+
+        appendOption(connectString, Options.OPTION_LANG, Nats.CLIENT_LANGUAGE, true, false);
+        appendOption(connectString, Options.OPTION_VERSION, Nats.CLIENT_VERSION, true, true);
+
+        if (this.connectionName != null) {
+            appendOption(connectString, Options.OPTION_NAME, this.connectionName, true, true);
+        }
+
+        appendOption(connectString, Options.OPTION_PROTOCOL, "1", false, true);
+
+        appendOption(connectString, Options.OPTION_VERBOSE, String.valueOf(this.isVerbose()), false, true);
+        appendOption(connectString, Options.OPTION_PEDANTIC, String.valueOf(this.isPedantic()), false, true);
+        appendOption(connectString, Options.OPTION_TLS_REQUIRED, String.valueOf(this.isTLSRequired()), false, true);
+        appendOption(connectString, Options.OPTION_ECHO, String.valueOf(!this.isNoEcho()), false, true);
+
+        if (includeAuth) {
+            if (this.username != null) {
+                appendOption(connectString, Options.OPTION_USER, this.username, true, true);
+            }
+
+            if (this.password != null) {
+                appendOption(connectString, Options.OPTION_PASSWORD, this.password, true, true);
+            }
+
+            if (this.token != null) {
+                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true, true);
+            }
+        }
+
+        connectString.append("}");
+        return connectString.toString();
+    }
+
+    private void appendOption(StringBuilder builder, String key, String value, boolean quotes, boolean comma) {
+        if (comma) {
+            builder.append(",");
+        }
+        builder.append("\"");
+        builder.append(key);
+        builder.append("\"");
+        builder.append(":");
+        if (quotes) {
+            builder.append("\"");
+        }
+        builder.append(value);
+        if (quotes) {
+            builder.append("\"");
+        }
     }
 }

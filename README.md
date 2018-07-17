@@ -1,256 +1,363 @@
-![](https://raw.githubusercontent.com/nats-io/nats-site/master/src/img/large-logo.png)
-# NATS - Java client
-A [Java](http://www.java.com) client for the [NATS messaging system](https://nats.io).
+![NATS](src/main/javadoc/images/large-logo.png)
 
-[![License Apache 2.0](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=master)](http://travis-ci.org/nats-io/java-nats)
+# NATS - Java Client
+
+A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
+
+[![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=master)](http://travis-ci.org/nats-io/java-nats?branch=master)
 [![Coverage Status](https://coveralls.io/repos/nats-io/java-nats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/java-nats?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
-[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg)](http://javadoc.io/doc/io.nats/jnats)
+[![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg?branch=master)](http://javadoc.io/doc/io.nats/jnats?branch=master)
 
-[![Dependency Status](https://www.versioneye.com/user/projects/57c07fac968d640039516937/badge.svg?style=flat-square)](https://www.versioneye.com/user/projects/57c07fac968d640039516937)
-[![Reference Status](https://www.versioneye.com/java/io.nats:jnats/reference_badge.svg?style=flat-square)](https://www.versioneye.com/java/io.nats:jnats/references)
+## A Note on Versions
+
+This is version 2.0.0 of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
+
+The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
+
+Version 2.0.0 uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2.0.0 to allow clients to limit there use of this new API.
+
+Previous versions are still available in the repo.
 
 ## Installation
 
-### Maven Central
+The java-nats client is provided in a single jar file, with no external dependencies. See [Building From Source](#building-from-source) for details on building the library.
 
-#### Releases
+### Downloading the Jar
 
-Current stable release (click for pom info): [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0.0/jnats-2.0.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0.0/jnats-2.0.0.jar).
 
-#### Snapshots
+### Using Gradle
 
-Snapshot releases from the current `master` branch are uploaded to Sonatype OSSRH (OSS Repository Hosting) with each successful Travis CI build. 
-If you don't already have your pom.xml configured for using Maven snapshots, you'll need to add the following repository to your pom.xml:
+The NATs client is available in the Maven central repository, and can be imported as a standard dependency in your `build.gradle` file:
+
+```groovy
+dependencies {
+    implementation 'io.nats:jnats:2.0.0'
+}
+```
+
+If you need the latest and greatest before Maven central updates, you can use:
+
+```groovy
+repositories {
+    jcenter()
+    maven {
+        url "https://oss.sonatype.org/content/repositories/releases"
+    }
+    maven {
+        url "https://oss.sonatype.org/content/repositories/snapshots"
+    }
+}
+```
+
+### Using Maven
+
+The NATs client is available on the Maven central repository, and can be imported as a normal dependency in your pom.xml file:
 
 ```xml
-<profiles>
-  <profile>
-     <id>allow-snapshots</id>
-        <activation><activeByDefault>true</activeByDefault></activation>
-     <repositories>
-       <repository>
-         <id>snapshots-repo</id>
-         <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-         <releases><enabled>false</enabled></releases>
-         <snapshots><enabled>true</enabled></snapshots>
-       </repository>
-     </repositories>
-   </profile>
-</profiles>
-
-```
-#### Building from source code (this repository)
-To clone, compile, and install in your local maven repository (or copy the artifacts from the `target/` directory to wherever you need them):
-```
-git clone git@github.com:nats-io/java-nats.git
-cd java-nats
-mvn install
+<dependency>
+    <groupId>io.nats</groupId>
+    <artifactId>jnats</artifactId>
+    <version>2.0.0</version>
+</dependency>
 ```
 
-## Platform Notes
-### Linux
-We use RNG to generate unique inbox names. A peculiarity of the JDK on Linux (see [JDK-6202721] (https://bugs.openjdk.java.net/browse/JDK-6202721) and [JDK-6521844](https://bugs.openjdk.java.net/browse/JDK-6521844)) causes Java to use `/dev/random` even when `/dev/urandom` is called for. The net effect is that successive calls to `newInbox()`, either directly or through calling `request()` will become very slow, on the order of seconds, making many applications unusable if the issue is not addressed. A simple workaround would be to use the following jvm args.
+If you need the absolute latest, before it propagates to maven central, you can use the repository:
+
+```xml
+<repositories>
+    <repository>
+        <id>latest-repo</id>
+        <url>https://oss.sonatype.org/content/repositories/releases</url>
+        <releases><enabled>true</enabled></releases>
+        <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+</repositories>
+```
+
+If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0 please use ranges in your POM file, java-nats-streaming 1.x is using [1.1, 1.9.9) for this.
+
+### Linux Platform Note
+
+NATS uses RNG to generate unique inbox names. A peculiarity of the JDK on Linux (see [JDK-6202721](https://bugs.openjdk.java.net/browse/JDK-6202721) and [JDK-6521844](https://bugs.openjdk.java.net/browse/JDK-6521844)) causes Java to use `/dev/random` even when `/dev/urandom` is called for. The net effect is that successive calls to `newInbox()`, either directly or through calling `request()` will become very slow, on the order of seconds, making many applications unusable if the issue is not addressed. A simple workaround would be to use the following jvm args.
 
 `-Djava.security.egd=file:/dev/./urandom`
 
 ## Basic Usage
 
-```java
-import io.nats.client.*;
+Sending and receiving with NATS is as simple as connecting to the gnatsd and publishing or subscribing for messages. A number of examples are provided in this repo as described in [examples.md](src/examples/java/io/nats/examples/examples.md).
 
-// ...
+### Connecting
 
-// Connect to default URL ("nats://localhost:4222")
-Connection nc = Nats.connect();
+There are four different ways to connect using the Java library:
 
-// Simple Publisher
-nc.publish("foo", "Hello World".getBytes());
+1. Connect to a local server on the default port:
 
-// Simple Async Subscriber
-nc.subscribe("foo", m -> {
-    System.out.printf("Received a message: %s\n", new String(m.getData()));
-});
+    ```java
+    Connection nc = Nats.connect();
+    ```
 
-// Simple Sync Subscriber
-int timeout = 1000;
-SyncSubscription sub = nc.subscribeSync("foo");
-Message msg = sub.nextMessage(timeout);
+2. Connect to a server using a URL:
 
-// Unsubscribing
-sub = nc.subscribe("foo");
-sub.unsubscribe();
+    ```java
+    Connection nc = Nats.connect("nats://myhost:4222");
+    ```
 
-// Requests
-msg = nc.request("help", "help me".getBytes(), 10000);
+3. Connect to one or more servers with a custom configuration:
 
-// Replies
-nc.subscribe("help", message -> {
-    try {
-        nc.publish(message.getReplyTo(), "I can help!".getBytes());
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-});
+    ```java
+    Options o = new Options.Builder().server("nats://serverone:4222").server("nats://servertwo:4222").maxReconnects(-1).build();
+    Connection nc = Nats.connect(o);
+    ```
 
-// ...
+    See the javadoc for a complete list of configuration options.
 
-// Close connection
-nc.close();
-```
+4. Connect asynchronously, this requires a callback to tell the application when the client is connected:
 
-## TLS
+    ```java
+     Options options = new Options.Builder().server(Options.DEFAULT_URL).connectionListener(handler).build();
+     Nats.connectAsynchronously(options, true);
+    ```
 
-TLS/SSL connections may be configured through the use of an [SSLContext](https://docs.oracle.com/javase/8/docs/api/javax/net/ssl/SSLContext.html).
- 
-```java
-	// Set up and load the keystore
-	final KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-	final char[] keyPassPhrase = "password".toCharArray();
-	final KeyStore ks = KeyStore.getInstance("JKS");
-	ks.load(classLoader.getResourceAsStream("keystore.jks"), keyPassPhrase);
-	kmf.init(ks, keyPassPhrase);
+    This feature is experimental, please let us know if you like it.
 
-	// Set up and load the trust store
-	final char[] trustPassPhrase = "password".toCharArray();
-	final KeyStore tks = KeyStore.getInstance("JKS");
-	tks.load(classLoader.getResourceAsStream("cacerts"), trustPassPhrase);
-	final TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-	tmf.init(tks);
+### Publishing
 
-	// Get and initialize the SSLContext
-	SSLContext c = SSLContext.getInstance(Constants.DEFAULT_SSL_PROTOCOL);
-	c.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+Once connected, publishing is accomplished via one of three methods:
 
-	// Create NATS options
-	Options opts = new Options.Builder()
-		.secure()       // Set the secure option, indicating that TLS is required
-		.tlsDebug()     // Set TLS debug, which will produce additional console output
-		.sslContext(c)  // Set the context for this factory
-		.build();
+1. With a subject and message body:
 
-	// Create a new SSL connection
-	try (Connection connection = Nats.connect("nats://localhost:1222", opts)) {
-		connection.publish("foo", "Hello".getBytes());
-		connection.close();
-	} catch (Exception e) {
-		e.printStackTrace();
-	}
-```
+    ```java
+    nc.publish("subject", "hello world".getBytes(StandardCharsets.UTF_8));
+    ```
 
-## Wildcard Subscriptions
+2. With a subject and message body, as well as a subject for the receiver to reply to:
 
-```java
+    ```java
+    nc.publish("subject", "replyto", "hello world".getBytes(StandardCharsets.UTF_8));
+    ```
 
-// "*" matches any token, at any level of the subject.
-nc.subscribe("foo.*.baz", m -> {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-});
+3. As a request that expects a reply. This method uses a Future to allow the application code to wait for the response. Under the covers a request/reply pair is the same as a publish/subscribe only the library manages the subscription for you.
 
-nc.subscribe("foo.bar.*", m -> {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-});
+    ```java
+    Future<Message> incoming = nc.request("subject", "hello world".getBytes(StandardCharsets.UTF_8));
+    Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+    String response = new String(msg.getData(), StandardCharsets.UTF_8);
+    ```
 
-// ">" matches any length of the tail of a subject, and can only be the last token
-// E.g. 'foo.>' will match 'foo.bar', 'foo.bar.baz', 'foo.foo.bar.bax.22'
-nc.subscribe("foo.>", m -> {
-    System.out.printf("Msg received on [%s] : %s\n", m.getSubject(), new String(m.getData()));
-});
+All of these methods, as well as the incoming message code use byte arrays for maximum flexibility. Applications can
+send JSON, Strings, YAML, Protocol Buffers, or any other format through NATS to applications written in a wide range of
+languages.
 
-// Matches all of the above
-nc.publish("foo.bar.baz", "Hello World");
+### Listening for Incoming Messages
 
-```
+The Java NATS library provides two mechanisms to listen for messages, three if you include the request/reply discussed above.
 
-## Queue Groups
+1. Synchronous subscriptions where the application code manually asks for messages and blocks until they arrive. Each subscription is associated with a single subject, although that subject can be a wildcard.
 
-```java
-// All subscriptions with the same queue name will form a queue group.
-// Each message will be delivered to only one subscriber per queue group,
-// using queuing semantics. You can have as many queue groups as you wish.
-// Normal subscribers will continue to work as expected.
+    ```java
+    Subscription sub = nc.subscribe("subject");
+    Message msg = sub.nextMessage(Duration.ofMillis(500));
 
-nc.subscribe("foo", "job_workers", m -> {
-    received += 1;
-});
+    String response = new String(msg.getData(), StandardCharsets.UTF_8);
+    ```
 
-```
+2. A Dispatcher that will call application code in a background thread. Dispatchers can manage multiple subjects with a single thread and single callback.
+
+    ```java
+    Dispatcher d = nc.createDispatcher((msg) -> {
+        String response = new String(msg.getData(), StandardCharsets.UTF_8);
+        ...
+    });
+
+    d.subscribe("subject");
+    ```
 
 ## Advanced Usage
 
-```java
+### TLS
 
-// Flush connection to server, returns when all messages have been processed.
-nc.flush()
-System.out.println("All clear!");
+NATS supports TLS 1.2. The server can be configured to verify client certificates or not. Depending on this setting the client has several options.
 
-// flush can also be called with a timeout value.
-try {
-    flushed = nc.flush(1000);
-    System.out.println("All clear!");
-} catch (TimeoutException e) {
-    System.out.println("Flushed timed out!");
-}
+1. The Java library allows the use of the tls:// protocol in its urls. This setting expects a default SSLContext to be set. You can set this default context using System properties, or in code. For example, you could run the publish example using:
 
-// Auto-unsubscribe after MAX_WANTED messages received
-final static int MAX_WANTED = 10;
-...
-sub = nc.subscribe("foo");
-sub.autoUnsubscribe(MAX_WANTED);
+    ```bash
+    java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password -Djavax.net.ssl.trustStore=src/test/resources/cacerts -Djavax.net.ssl.trustStorePassword=password io.nats.examples.NatsPub tls://localhost:4443 test "hello world"
+    ```
 
-// Multiple connections
-nc1 = Nats.connect("nats://host1:4222");
-nc2 = Nats.connect("nats://host2:4222");
+    where the following properties are being set:
 
-nc1.subscribe("foo", m -> {
-    System.out.printf("Received a message: %s\n", new String(m.getData()));
-});
+    ```bash
+    -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks
+    -Djavax.net.ssl.keyStorePassword=password
+    -Djavax.net.ssl.trustStore=src/test/resources/cacerts
+    -Djavax.net.ssl.trustStorePassword=password
+    ```
 
-nc2.publish("foo", "Hello World!");
+    This method can be used with or without client verification.
 
+2. During development, or behind a firewall where the client can trust the server, the library supports the opentls:// protocol which will use a special SSLContext that trusts all server certificates, but provides no client certificates.
+
+    ```bash
+    java io.nats.examples.NatsSub opentls://localhost:4443 test 3
+    ```
+
+    This method requires that client verification is off.
+
+3. Your code can build an SSLContext to work with or without client verification.
+
+    ```java
+    SSLContext ctx = createContext();
+    Options options = new Options.Builder().server(ts.getURI()).sslContext(ctx).build();
+    Connection nc = Nats.connect(options);
+    ```
+
+If you want to try out these techniques, take a look at the [examples.md](src/examples/java/io/nats/examples/examples.md) for instructions.
+
+### Clusters & Reconnecting
+
+The Java client will automatically reconnect if it loses its connection the gnatsd. If given a single server, the client will keep trying that one. If given a list of servers, the client will rotate between them. When the gnatsd servers are in a cluster, they will tell the client about the other servers, so that in the simplest case a client could connect to one server, learn about the cluster and reconnect to another server if its initial one goes down.
+
+To tell the connection about multiple servers for the initial connection, use the `servers()` method on the options builder, or call `server()` multiple times.
+
+```Java
+String[] serverUrls = {"nats://serverOne:4222", "nats://serverTwo:4222"};
+Options o = new Options.Builder().servers(serverUrls).build();
 ```
 
-## Clustered Usage
+Reconnection behavior is controlled via a few options, see the javadoc for the Options.Builder class for specifics on reconnect limits, delays and buffers.
 
-```java
+## Benchmarking
 
-String[] servers = new String[] {
-	"nats://localhost:1222",
-	"nats://localhost:1223",
-	"nats://localhost:1224",
-};
+The `io.nats.examples` package contains two benchmarking tools, modeled after tools in other NATS clients. Both examples run against an existing gnatsd. The first called `io.nats.examples.benchmark.NatsBench` runs two simple tests, the first simply publishes messages, the second also receives messages. Tests are run with 1 thread/connection per publisher or subscriber. Running on an iMac (2017), with 4.2 GHz Intel Core i7 and 64GB of memory produced results like:
 
-// Setup options to include all servers in the cluster
-ConnectionFactory cf = new ConnectionFactory();
-cf.setServers(servers);
-
-// Optionally set ReconnectWait and MaxReconnect attempts.
-// This example means 10 seconds total per backend.
-cf.setMaxReconnect(5);
-cf.setReconnectWait(2000);
-
-// Optionally disable randomization of the server pool
-cf.setNoRandomize(true);
-
-Connection nc = cf.createConnection();
-
-// Setup callbacks to be notified on disconnects and reconnects
-nc.setDisconnectedCallback(event -> {
-    System.out.printf("Got disconnected from %s!\n", event.getConnection().getConnectedUrl());
-});
-
-// See who we are connected to on reconnect.
-nc.setReconnectedCallback(event -> {
-    System.out.printf("Got reconnected to %s!\n", event.getConnection().getConnectedUrl());
-});
-
-// Setup a callback to be notified when the Connection is closed
-nc.setClosedCallback( event -> {
-    System.out.printf("Connection to %s has been closed.\n", event.getConnection().getConnectedUrl());
-});
-
+```AsciiDoc
+Starting benchmark(s) [msgs=5000000, msgsize=256, pubs=2, subs=2]
+Current memory usage is 966.14 mb / 981.50 mb / 14.22 gb free/total/max
+Use ctrl-C to cancel.
+Pub Only stats: 9,584,263 msgs/sec ~ 2.29 gb/sec
+ [ 1] 4,831,495 msgs/sec ~ 1.15 gb/sec (2500000 msgs)
+ [ 2] 4,792,145 msgs/sec ~ 1.14 gb/sec (2500000 msgs)
+  min 4,792,145 | avg 4,811,820 | max 4,831,495 | stddev 19,675.00 msgs
+Pub/Sub stats: 3,735,744 msgs/sec ~ 912.05 mb/sec
+ Pub stats: 1,245,680 msgs/sec ~ 304.12 mb/sec
+  [ 1] 624,385 msgs/sec ~ 152.44 mb/sec (2500000 msgs)
+  [ 2] 622,840 msgs/sec ~ 152.06 mb/sec (2500000 msgs)
+   min 622,840 | avg 623,612 | max 624,385 | stddev 772.50 msgs
+ Sub stats: 2,490,461 msgs/sec ~ 608.02 mb/sec
+  [ 1] 1,245,230 msgs/sec ~ 304.01 mb/sec (5000000 msgs)
+  [ 2] 1,245,231 msgs/sec ~ 304.01 mb/sec (5000000 msgs)
+   min 1,245,230 | avg 1,245,230 | max 1,245,231 | stddev .71 msgs
+Final memory usage is 2.02 gb / 2.94 gb / 14.22 gb free/total/max
 ```
+
+The second, called `io.nats.examples.autobench.NatsAutoBench` runs a series of tests with various message sizes. Running this test on the same iMac, resulted in:
+
+```AsciiDoc
+PubOnly 0b           10,000,000          8,464,850 msg/s       0.00 b/s
+PubOnly 8b           10,000,000         10,065,263 msg/s     76.79 mb/s
+PubOnly 32b          10,000,000         12,534,612 msg/s    382.53 mb/s
+PubOnly 256b         10,000,000          7,996,057 msg/s      1.91 gb/s
+PubOnly 512b         10,000,000          5,942,165 msg/s      2.83 gb/s
+PubOnly 1k            1,000,000          4,043,937 msg/s      3.86 gb/s
+PubOnly 4k              500,000          1,114,947 msg/s      4.25 gb/s
+PubOnly 8k              100,000            460,630 msg/s      3.51 gb/s
+PubSub 0b            10,000,000          3,155,673 msg/s       0.00 b/s
+PubSub 8b            10,000,000          3,218,427 msg/s     24.55 mb/s
+PubSub 32b           10,000,000          2,681,550 msg/s     81.83 mb/s
+PubSub 256b          10,000,000          2,020,481 msg/s    493.28 mb/s
+PubSub 512b           5,000,000          2,000,918 msg/s    977.01 mb/s
+PubSub 1k             1,000,000          1,170,448 msg/s      1.12 gb/s
+PubSub 4k               100,000            382,964 msg/s      1.46 gb/s
+PubSub 8k               100,000            196,474 msg/s      1.50 gb/s
+PubDispatch 0b       10,000,000          4,645,438 msg/s       0.00 b/s
+PubDispatch 8b       10,000,000          4,500,006 msg/s     34.33 mb/s
+PubDispatch 32b      10,000,000          4,458,481 msg/s    136.06 mb/s
+PubDispatch 256b     10,000,000          2,586,563 msg/s    631.49 mb/s
+PubDispatch 512b      5,000,000          2,187,592 msg/s      1.04 gb/s
+PubDispatch 1k        1,000,000          1,369,985 msg/s      1.31 gb/s
+PubDispatch 4k          100,000            403,314 msg/s      1.54 gb/s
+PubDispatch 8k          100,000            203,320 msg/s      1.55 gb/s
+ReqReply 0b              20,000              9,548 msg/s       0.00 b/s
+ReqReply 8b              20,000              9,491 msg/s     74.15 kb/s
+ReqReply 32b             10,000              9,778 msg/s    305.59 kb/s
+ReqReply 256b            10,000              8,394 msg/s      2.05 mb/s
+ReqReply 512b            10,000              8,259 msg/s      4.03 mb/s
+ReqReply 1k              10,000              8,193 msg/s      8.00 mb/s
+ReqReply 4k              10,000              7,915 msg/s     30.92 mb/s
+ReqReply 8k              10,000              7,454 msg/s     58.24 mb/s
+Latency 0b    5,000     35 /  49.20 / 134    +/- 0.77  (microseconds)
+Latency 8b    5,000     35 /  49.54 / 361    +/- 0.80  (microseconds)
+Latency 32b   5,000     35 /  49.27 / 135    +/- 0.79  (microseconds)
+Latency 256b  5,000     41 /  56.41 / 142    +/- 0.90  (microseconds)
+Latency 512b  5,000     40 /  56.41 / 174    +/- 0.91  (microseconds)
+Latency 1k    5,000     35 /  49.76 / 160    +/- 0.80  (microseconds)
+Latency 4k    5,000     36 /  50.64 / 193    +/- 0.83  (microseconds)
+Latency 8k    5,000     38 /  55.45 / 206    +/- 0.88  (microseconds)
+```
+
+It is worth noting that in both cases memory was not a factor, the processor and OS were more of a consideration. To test this, take a look at the NatsBench results again. Those are run without any constraint on the Java heap and end up doubling the used memory. However, if we run the same test again with a constraint of 1Gb using -Xmx1g, the performance is comparable, differentiated primarily by "noise" that we can see between test runs with the same settings.
+
+```AsciiDoc
+Starting benchmark(s) [msgs=5000000, msgsize=256, pubs=2, subs=2]
+Current memory usage is 976.38 mb / 981.50 mb / 981.50 mb free/total/max
+Use ctrl-C to cancel.
+
+Pub Only stats: 10,123,382 msgs/sec ~ 2.41 gb/sec
+ [ 1] 5,068,256 msgs/sec ~ 1.21 gb/sec (2500000 msgs)
+ [ 2] 5,061,691 msgs/sec ~ 1.21 gb/sec (2500000 msgs)
+  min 5,061,691 | avg 5,064,973 | max 5,068,256 | stddev 3,282.50 msgs
+
+Pub/Sub stats: 3,563,770 msgs/sec ~ 870.06 mb/sec
+ Pub stats: 1,188,261 msgs/sec ~ 290.10 mb/sec
+  [ 1] 594,701 msgs/sec ~ 145.19 mb/sec (2500000 msgs)
+  [ 2] 594,130 msgs/sec ~ 145.05 mb/sec (2500000 msgs)
+   min 594,130 | avg 594,415 | max 594,701 | stddev 285.50 msgs
+ Sub stats: 2,375,839 msgs/sec ~ 580.04 mb/sec
+  [ 1] 1,187,919 msgs/sec ~ 290.02 mb/sec (5000000 msgs)
+  [ 2] 1,187,920 msgs/sec ~ 290.02 mb/sec (5000000 msgs)
+   min 1,187,919 | avg 1,187,919 | max 1,187,920 | stddev .71 msgs
+
+
+Final memory usage is 317.62 mb / 960.50 mb / 960.50 mb free/total/max
+```
+
+## Building From Source
+
+The build depends on Gradle, and contains `gradlew` to simplify the process. After cloning, you can build the repository and run the tests with a single command:
+
+```bash
+> git clone https://github.com/nats-io/java-nats.git
+> cd java-nats
+> ./gradlew build
+```
+
+This will place the class files in a new `build` folder. To just build the jar:
+
+```bash
+> ./gradlew jar
+```
+
+The jar will be placed in `build/libs`.
+
+You can also build the java doc, and the samples jar using:
+
+```bash
+> ./gradlew javadoc
+> ./gradlew exampleJar
+```
+
+The java doc is located in `build/docs` and the example jar is in `build/libs`. Finally, to run the tests with the coverage report:
+
+```bash
+> ./gradlew test jacocoTestReport
+```
+
+which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
+
+Many of the tests run gnatsd on a custom port. If gnatsd is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the gnatsd location with the environment variable `gnatsd_path`.
 
 ## License
 

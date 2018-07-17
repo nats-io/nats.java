@@ -11,32 +11,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Copied from 1.0 Java client for consistency and expedience.
+
 package io.nats.client;
 
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Random;
 
 /**
- * A highly performant unique identifier generator.
+ * A highly performant unique identifier generator. The library uses this to generate
+ * an inbox for request-replies. Applications can use their own NUID to generate
+ * subjects as well. A shareable Global instance is also available via {@link #nextGlobal nextGlobal()}.
  */
 public final class NUID {
-
-
     /*
-     * NUID needs to be very fast to generate and truly unique, all while being entropy pool
-     * friendly. We will use 12 bytes of crypto generated data (entropy draining), and 10 bytes of
-     * sequential data that is started at a pseudo random number and increments with a pseudo-random
-     * increment. Total is 22 bytes of base 62 ascii text :)
+     * NUID needs to be very fast to generate and truly unique, all while being
+     * entropy pool friendly. We will use 12 bytes of crypto generated data (entropy
+     * draining), and 10 bytes of sequential data that is started at a pseudo random
+     * number and increments with a pseudo-random increment. Total is 22 bytes of
+     * base 62 ascii text :)
      */
 
     // Constants
-    static final char[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
-            'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
-            'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
-            'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+    static final char[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
+            'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
+            'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w',
+            'x', 'y', 'z' };
     static final int base = 62;
     static final int preLen = 12;
     static final int seqLen = 10;
@@ -52,9 +54,7 @@ public final class NUID {
     private long seq;
     private long inc;
 
-
-    // Global NUID
-    public static final NUID globalNUID = new NUID();
+    private static final NUID globalNUID = new NUID();
 
     static NUID getInstance() {
         return globalNUID;
@@ -62,6 +62,12 @@ public final class NUID {
 
     /**
      * The default NUID constructor.
+     * 
+     * Relies on the SHA1PRNG instance of SecureRandom.
+     * 
+     * @throws IllegalStateException
+     *                                   if the class cannot find the necessary
+     *                                   SecureRandom instance.
      */
     public NUID() {
         // Generate a cryto random int, 0 <= val < max to seed pseudorandom
@@ -70,7 +76,7 @@ public final class NUID {
             srand = SecureRandom.getInstance("SHA1PRNG");
             seed = bytesToLong(srand.generateSeed(8)); // seed with 8 bytes (64 bits)
         } catch (NoSuchAlgorithmException e) {
-            // IGNORE - FIXME:  This should error up somehow.
+            throw new IllegalStateException("NUID requires SHA1PRNG Algorithm and it is not available.");
         }
 
         if (seed != 0L) {
@@ -89,9 +95,7 @@ public final class NUID {
     }
 
     /**
-     * Generate the next NUID string from the global locked NUID instance.
-     *
-     * @return the next NUID string from the global locked NUID instance.
+     * @return the next NUID string from a shared global NUID instance
      */
     public static synchronized String nextGlobal() {
         return getInstance().next();
@@ -102,7 +106,7 @@ public final class NUID {
      *
      * @return the next NUID string from this instance.
      */
-    public final String next() {
+    public final synchronized String next() {
         // Increment and capture.
         seq += inc;
         if (seq >= maxSeq) {
@@ -130,8 +134,8 @@ public final class NUID {
     }
 
     /*
-     * Generate a new prefix from random. This *can* drain entropy and will be called automatically
-     * when we exhaust the sequential range.
+     * Generate a new prefix from random. This *can* drain entropy and will be
+     * called automatically when we exhaust the sequential range.
      */
 
     final void randomizePrefix() {
@@ -156,12 +160,6 @@ public final class NUID {
         return val;
     }
 
-    static byte[] longToBytes(long x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
-        buffer.putLong(x);
-        return buffer.array();
-    }
-
     static long bytesToLong(byte[] bytes) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
         buffer.put(bytes);
@@ -177,15 +175,6 @@ public final class NUID {
     }
 
     /**
-     * Sets the prefix.
-     *
-     * @param pre the pre to set
-     */
-    void setPre(char[] pre) {
-        this.pre = Arrays.copyOf(pre, pre.length);
-    }
-
-    /**
      * Return the current sequence value.
      *
      * @return the seq
@@ -197,27 +186,10 @@ public final class NUID {
     /**
      * Set the sequence to the supplied value.
      *
-     * @param seq the seq to set
+     * @param seq
+     *                the seq to set
      */
     void setSeq(long seq) {
         this.seq = seq;
-    }
-
-    /**
-     * Return the current increment.
-     *
-     * @return the inc
-     */
-    long getInc() {
-        return inc;
-    }
-
-    /**
-     * Set the increment to the supplied value.
-     *
-     * @param inc the inc to set
-     */
-    void setInc(long inc) {
-        this.inc = inc;
     }
 }

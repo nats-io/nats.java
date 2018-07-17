@@ -1,29 +1,76 @@
-# Eclipse stuff
+
+# NATS stuff #
+##############
+gnatsd.log
+*.csv
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+/bin
+
+# Packages #
+############
+*.7z
+*.dmg
+*.gz
+*.iso
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+
+# OS generated files #
+######################
+.DS_Store*
+ehthumbs.db
+Icon?
+Thumbs.db
+
+# Editor Files #
+################
+*~
+*.swp
+
+# Gradle Files #
+################
+.gradle
+.m2
+
+# Build output directies
+/target
+*/target
+/build
+*/build
+
+# IntelliJ specific files/directories
+out
+.idea
+*.ipr
+*.iws
+*.iml
+atlassian-ide-plugin.xml
+
+# Eclipse specific files/directories
 .classpath
 .project
-.settings/
-.checkstyle
+.settings
+.metadata
 
-# IntelliJ stuff
-.idea
-*.iml
+# NetBeans specific files/directories
+.nbattrs
 
-# Build artifacts
-*.class
-target/
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.ear
+# VSCode
+.vscode/
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 /target/
-
-# NATS stuff
-gnatsd.log
-*.csv

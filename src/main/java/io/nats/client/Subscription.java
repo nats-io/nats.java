@@ -13,148 +13,92 @@
 
 package io.nats.client;
 
-import java.io.IOException;
+import java.time.Duration;
 
 /**
- * A client uses a {@code Subscription} object to receive messages that have been published to a
- * subject.
- *
- * <p>Each {@code Subscription} object is unique, even if the subscription is to the same subject.
- * This means that if {@code Connection.subscribe("foo", cb)} is called twice in a row, each of the
- * resulting {@code Subscription} objects will be unique, and any message delivered on subject "foo"
- * will be delivered individually to both {@code Subscription} objects.
+ * A Subscription encapsulates an incoming queue of messages associated with a single
+ * subject and optional queue name. Subscriptions can be in one of two modes. Either the
+ * subscription can be used for synchronous reading of messages with {@link #nextMessage(Duration) nextMessage()}
+ * or the subscription can be owned by a Dispatcher. When a subscription is owned by a dispatcher
+ * it cannot be used to get messages or unsubscribe, those operations must be performed on the dispatcher.
+ * 
+ * <p>Subscriptions support the concept of auto-unsubscribe. This concept is a bit tricky, as it involves
+ * the client library, the server and the Subscriptions history. If told to unsubscribe after 5 messages, a subscription
+ * will stop receiving messages when one of the following occurs:
+ * <ul>
+ * <li>The subscription delivers 5 messages with next messages, <em>including any previous messages</em>.
+ * <li>The server sends 5 messages to the subscription.
+ * <li>The subscription already received 5 or more messages.
+ * </ul>
+ * <p>In the case of a reconnect, the remaining message count, as maintained by the subscription, will be sent
+ * to the server. So if you unsubscribe with a max of 5, then disconnect after 2, the new server will be told to
+ * unsubscribe after 3.
+ * <p>The other, possibly confusing case, is that unsubscribe is based on total messages. So if you make a subscription and
+ * receive 5 messages on it, then say unsubscribe with a maximum of 5, the subscription will immediately stop handling messages.
  */
-public interface Subscription extends AutoCloseable {
+public interface Subscription extends Consumer {
 
     /**
-     * Retrieves the subject of interest from the {@code Subscription} object.
-     *
-     * @return the subject of interest
+     * @return the subject associated with this subscription, will be non-null
      */
-    String getSubject();
+    public String getSubject();
 
     /**
-     * Returns the optional queue group name. If present, all subscriptions with the same name will
-     * form a distributed queue, and each message will only be processed by one member of the group.
-     *
-     * @return the name of the queue group this Subscription belongs to.
+     * @return the queue associated with this subscription, may be null.
      */
-    String getQueue();
+    public String getQueueName();
 
     /**
-     * Returns whether the Subscription object is still active (subscribed).
-     *
-     * @return true if the Subscription is active, false otherwise.
+     * @return the Dispatcher that owns this subscription, or null
      */
-    boolean isValid();
+    Dispatcher getDispatcher();
 
     /**
-     * Removes interest in the {@code Subscription} object's subject immediately.
-     *
-     * @throws IOException if an error occurs while notifying the server
+     * Read the next message for a subscription, or block until one is available.
+     * While useful in some situations, i.e. tests and simple examples, using a
+     * Dispatcher is generally easier and likely preferred for application code.
+     * 
+     * <p>Will return null if the calls times out.
+     * 
+     * 
+     * <p>Use a timeout of 0 to wait indefinitely. This could still be interrupted if
+     * the subscription is unsubscribed or the client connection is closed.
+     * 
+     * 
+     * @param timeout the maximum time to wait
+     * @return the next message for this subscriber or null if there is a timeout
+     * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
+     * @throws InterruptedException if one occurs while waiting for the message
      */
-    void unsubscribe() throws IOException;
+    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
 
     /**
-     * Issues an automatic unsubscribe request. The unsubscribe is executed by the server when max
-     * messages have been received. This can be useful when sending a request to an unknown number
-     * of subscribers. request() uses this functionality.
-     *
-     * @param max The number of messages to receive before unsubscribing.
-     * @throws IOException if an error occurs while sending the unsubscribe request to the NATS
-     *                     server.
+     * Unsubscribe this subscription and stop listening for messages.
+     * 
+     * <p>Stops messages to the subscription locally and notifies the server.
+     * 
+     * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
-    void autoUnsubscribe(int max) throws IOException;
+    public void unsubscribe();
 
     /**
-     * Returns the number of messages delivered to, but not processed, by this Subscription.
-     *
-     * @return the number of delivered messages.
+     * Unsubscribe this subscription and stop listening for messages, after the
+     * specified number of messages.
+     * 
+     * <p>If the subscription has already received <code>after</code> messages, it will not receive
+     * more. The provided limit is a lifetime total for the subscription, with the caveat
+     * that if the subscription already received more than <code>after</code> when unsubscribe is called
+     * the client will not travel back in time to stop them.
+     * 
+     * <p>Supports chaining so that you can do things like:
+     * <pre>
+     * nc = Nats.connect()
+     * m = nc.subscribe("hello").unsubscribe(1).nextMessage(Duration.ZERO);
+     * </pre>
+     * 
+     * @param after the number of messages to accept before unsubscribing
+     * @return the subscription so that calls can be chained
+     * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
-    long getDelivered();
-
-    /**
-     * Returns the number of messages delivered to, but not processed, by this Subscription.
-     *
-     * @return the number of delivered messages.
-     * @deprecated use {@link #getPendingMsgs()} instead
-     */
-    @Deprecated
-    int getQueuedMessageCount();
-
-    /**
-     * Returns the current number of pending messages for this subscription.
-     *
-     * @return the current number of pending messages for this subscription
-     */
-    int getPendingMsgs();
-
-    /**
-     * Returns the current number of pending bytes for this subscription.
-     *
-     * @return the current number of pending bytes for this subscription
-     */
-    int getPendingBytes();
-
-    /**
-     * Returns the maximum number of pending messages seen for this subscription.
-     *
-     * @return the maximum number of pending messages seen for this subscription
-     */
-    int getPendingMsgsMax();
-
-    /**
-     * Returns the maximum number of pending bytes seen for this subscription.
-     *
-     * @return the maximum number of pending bytes seen for this subscription
-     */
-    long getPendingBytesMax();
-
-    /**
-     * Sets the maximum number of unprocessed messages and bytes that can be left pending on this
-     * subscription before messages are dropped and a slow consumer exception is thrown.
-     *
-     * @param msgs  the maximum number of pending messages
-     * @param bytes the maximum number of pending bytes
-     */
-    void setPendingLimits(int msgs, int bytes);
-
-    /**
-     * Returns the maximum number of unprocessed messages that can be left pending on this
-     * subscription before messages are dropped and a slow consumer exception is thrown.
-     *
-     * @return the maximum number of unprocessed messages that can be left pending on this
-     * subscription before messages are dropped and a slow consumer exception is thrown.
-     */
-    int getPendingMsgsLimit();
-
-    /**
-     * Returns the maximum number of unprocessed message bytes that can be left pending on this
-     * subscription before messages are dropped and a slow consumer exception is thrown.
-     *
-     * @return the maximum number of unprocessed message bytes that can be left pending on this
-     * subscription before messages are dropped and a slow consumer exception is thrown.
-     */
-    int getPendingBytesLimit();
-
-    /**
-     * Clears the the maximum number of unprocessed messages and bytes for this subscription.
-     */
-    void clearMaxPending();
-
-    /**
-     * Returns the number of messages that this subscription has dropped due to "slow consumer"
-     * condition.
-     *
-     * @return the number of messages that have been dropped by this Subscription
-     */
-    int getDropped();
-
-    /**
-     * {@inheritDoc}.
-     */
-    @Override
-    void close();
-
-
+    public Subscription unsubscribe(int after);
 }

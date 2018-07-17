@@ -12,8 +12,11 @@
 // limitations under the License.
 
 /**
- * This is the Java client API for NATS -- see the {@link io.nats.client.Nats} class for usage.
- *
- * @author Larry McQueary
+ * The Java Nats client is encapsulated into this single package {@code io.nats.client}. Applications
+ * will start from the {@link Nats Nats} class to connect to the gnatsd server. Once connected, they can
+ * use the {@link Connection Connection} object to publish messages or create subscriptions.
+ * 
+ * @since 2.0.0
+ * @version 2.0.0
  */
 package io.nats.client;

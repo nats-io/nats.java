@@ -1,0 +1,191 @@
+
+plugins {
+    id 'java-library'
+    id 'java'
+    id 'jacoco'
+    id 'maven'
+    id 'signing'
+    id 'com.github.kt3k.coveralls' version '2.6.3'
+    id "io.codearte.nexus-staging" version "0.11.0"
+}
+
+// Update version here, repeated check-ins not into master will have snapshot on them
+def versionMajor = 2
+def versionMinor = 0
+def versionPatch = 0
+def versionModifier = ""
+def branch = System.getenv("TRAVIS_BRANCH");
+
+def getVersionName = { ->
+    if ("true".equals(System.getenv("TRAVIS_PULL_REQUEST")) || !"master".equals(branch))  {
+        versionModifier = "-SNAPSHOT"
+    }
+
+    if (versionModifier != null && versionModifier.length() > 0) {
+        return "" + versionMajor + "." + versionMinor + "." + versionPatch + versionModifier
+    } else {
+        return "" + versionMajor + "." + versionMinor + "." + versionPatch
+    }
+}
+
+version = getVersionName()
+archivesBaseName = 'jnats'
+group = 'io.nats'
+
+// Get signing properties set up from outside (env var can't handle the dot)
+if (System.getenv('SONATYPE_USERNAME') != null) {
+    project.ext['ossrhUsername'] = System.getenv('SONATYPE_USERNAME')
+    project.ext['ossrhPassword'] = System.getenv('SONATYPE_PASSWORD')
+    project.ext['signing.secretKeyRingFile'] = System.getenv('GPG_KEYRING_FILE')
+    project.ext['signing.keyId'] = System.getenv('GPG_KEY_ID')
+    project.ext['signing.password'] =  System.getenv('GPG_KEY_PASSPHRASE')
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.12'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java','src/examples/java']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+    }
+}
+
+jar {
+    manifest {
+        attributes('Implementation-Title': 'Java Nats',
+                   'Implementation-Version': '2.0.0',
+                   'Implementation-Vendor': 'nats.io')
+    }
+    exclude("io/nats/examples/**")
+}
+
+test {
+    maxHeapSize = "2g"
+    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
+        jvmArgs '-Djava.security.egd=file:/dev/./urandom'
+    }
+    testLogging {
+        exceptionFormat = 'full'
+        events "started", "passed", "skipped", "failed"
+    }
+}
+
+javadoc {
+    options.overview = 'src/main/javadoc/overview.html' // relative to source root
+    source = sourceSets.main.allJava
+    title = "NATS.IO Java API"
+    excludes = ['io/nats/client/impl', 'io/nats/examples']
+    classpath = sourceSets.main.runtimeClasspath
+    doLast {
+            exec {
+                println "Updating favicon on all html files"
+                workingDir 'build/docs/javadoc'
+                // Only on linux, mac at this point
+                commandLine 'find', '.', '-name', '*.html', '-exec', 'sed', '-i', '-e', 's#<head>#<head><link rel="icon" type="image/ico" href="favicon.ico">#', '{}', ';'
+            }
+            copy {
+                println "Copying images to javadoc folder"
+                from 'src/main/javadoc/images'
+                into 'build/docs/javadoc'
+            }
+        }
+}
+
+task examplesJar(type: Jar) {
+    classifier = 'examples'
+    manifest {
+        attributes('Implementation-Title': 'Java Nats Examples',
+                   'Implementation-Version': '2.0.0',
+                   'Implementation-Vendor': 'nats.io')
+    }
+    from(sourceSets.main.output) {
+        include "io/nats/examples/**"
+    }
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled = true // coveralls plugin depends on xml format report
+        html.enabled = true
+    }
+    afterEvaluate { // only report on main library not examples
+        classDirectories = files(classDirectories.files.collect {
+            fileTree(dir: it,
+                    exclude: ['**/examples**'])
+        })
+    }
+}
+
+artifacts {
+    archives javadocJar, sourcesJar, examplesJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            if (project.hasProperty("local_archives") || ("true".equals(System.getenv("TRAVIS_PULL_REQUEST")))) {
+                repository(url: "file://$buildDir/repos")
+            } else {
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                    authentication(userName: project.getProperty('ossrhUsername'), password: project.getProperty('ossrhPassword'))
+                }
+
+                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                    authentication(userName: project.getProperty('ossrhUsername'), password: project.getProperty('ossrhPassword'))
+                }
+            }
+
+            pom.project {
+                name 'jnats'
+                packaging 'jar'
+                description 'Client library for working with the NATS messaging system.'
+                url 'https://github.com/nats-io/java-nats'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                developers {
+                    developer {
+                        id="synadia"
+                        name "Synadia"
+                        email "info@synadia.com"
+                        url "https://nats.io"
+                    }
+                }
+                scm {
+                    url = 'https://github.com/nats-io/java-nats'
+                }
+            }
+        }
+    }
+}
