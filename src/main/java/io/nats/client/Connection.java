@@ -15,6 +15,7 @@ package io.nats.client;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
@@ -144,7 +145,7 @@ public interface Connection extends AutoCloseable {
      * @param data the content of the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    public Future<Message> request(String subject, byte[] data);
+    public CompletableFuture<Message> request(String subject, byte[] data);
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent

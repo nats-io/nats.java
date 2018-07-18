@@ -1,6 +1,10 @@
 
 # Change Log
 
+## Version 2.0.1
+
+* [CHANGED] Request now returns a CompletableFuture to allow more application async options
+
 ## Version 2.0.0
 
 * [BREAKING CHANGE] Moved build to gradle

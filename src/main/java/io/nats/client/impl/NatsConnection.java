@@ -742,7 +742,7 @@ class NatsConnection implements Connection {
         return reply;
     }
 
-    public Future<Message> request(String subject, byte[] body) {
+    public CompletableFuture<Message> request(String subject, byte[] body) {
         String responseInbox = null;
         boolean oldStyle = options.isOldRequestStyle();
         
