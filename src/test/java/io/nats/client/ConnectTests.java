@@ -80,6 +80,20 @@ public class ConnectTests {
         }
     }
 
+    @Test
+    public void testFullFakeConnectWithTabs() throws IOException, InterruptedException {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            ts.useTabs();
+            Connection nc = Nats.connect(ts.getURI());
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
     @Test(expected=IOException.class)
     public void testConnectExitBeforeInfo() throws IOException, InterruptedException {
         Connection nc = null;

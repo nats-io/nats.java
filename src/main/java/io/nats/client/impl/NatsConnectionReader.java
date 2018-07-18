@@ -25,6 +25,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 class NatsConnectionReader implements Runnable {
     static final int MAX_PROTOCOL_OP_LENGTH = 4;
     static final String UNKNOWN_OP = "UNKNOWN";
+    static final char SPACE = ' ';
+    static final char TAB = '\t';
 
     enum Mode {
         GATHER_OP,
@@ -160,7 +162,7 @@ class NatsConnectionReader implements Runnable {
                     } else {
                         throw new IllegalStateException("Bad socket data, no LF after CR");
                     }
-                } else if (b == ' ') { // Got a space, get the rest of the protocol line
+                } else if (b == SPACE || b == TAB) { // Got a space, get the rest of the protocol line
                     this.op = opFor(opArray, opPos);
                     this.opPos = 0;
                     if (this.op == NatsConnection.OP_MSG) {
@@ -303,7 +305,7 @@ class NatsConnectionReader implements Runnable {
             char c = this.msgLineChars[this.msgLinePosition];
             this.msgLinePosition++;
 
-            if (c == ' ') {
+            if (c == SPACE || c == TAB) {
                 String slice = new String(this.msgLineChars, start, this.msgLinePosition - start -1); //don't grab the space, avoid an intermediate char sequence
                 return slice;
             }

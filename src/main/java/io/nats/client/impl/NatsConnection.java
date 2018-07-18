@@ -973,7 +973,7 @@ class NatsConnection implements Connection {
 
         String infoJson = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
         infoJson = infoJson.trim();
-        String msg[] = infoJson.split(" ");
+        String msg[] = infoJson.split("\\s");
         String op = msg[0].toUpperCase();
 
         if (!OP_INFO.equals(op)) {

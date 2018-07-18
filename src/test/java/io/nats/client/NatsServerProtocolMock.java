@@ -59,6 +59,7 @@ public class NatsServerProtocolMock implements Closeable{
     private CompletableFuture<Boolean> waitForIt;
     private Customizer customizer;
     private String customInfo;
+    private String separator = " ";
 
     private boolean customInfoIsFullInfo = false;
 
@@ -99,6 +100,10 @@ public class NatsServerProtocolMock implements Closeable{
         } catch (Exception exp) {
             //Give the server time to get going
         }
+    }
+
+    public void useTabs() {
+        this.separator = "\t";
     }
 
     public void useCustomInfoAsFullInfo() {
@@ -153,10 +158,10 @@ public class NatsServerProtocolMock implements Closeable{
                 if (customInfoIsFullInfo) {
                     writer.write(customInfo);
                 } else {
-                    writer.write("INFO " + customInfo + "\r\n");
+                    writer.write("INFO" + this.separator + customInfo + "\r\n");
                 }
             } else {
-                writer.write("INFO {\"server_id\":\"test\"}\r\n");
+                writer.write("INFO" + this.separator + "{\"server_id\":\"test\"}\r\n");
             }
             writer.flush();
             this.progress = Progress.SENT_INFO;

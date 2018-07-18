@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.Test;
@@ -42,6 +43,62 @@ public class SubscriberTests {
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
+        }
+    }
+
+    @Test
+    public void testTabInProtocolLine() throws Exception {
+        CompletableFuture<Boolean> gotSub = new CompletableFuture<>();
+        CompletableFuture<Boolean> sendMsg = new CompletableFuture<>();
+
+        NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
+            String subLine = "";
+            
+            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for SUB ...");
+            try {
+                subLine = r.readLine();
+            } catch(Exception e) {
+                gotSub.cancel(true);
+                return;
+            }
+
+            if (subLine.startsWith("SUB")) {
+                gotSub.complete(Boolean.TRUE);
+            }
+
+            String[] parts = subLine.split("\\s");
+            String subject = parts[1];
+            int subId = Integer.parseInt(parts[2]);
+
+            try {
+                sendMsg.get();
+            } catch (Exception e) {
+                //keep going
+            }
+
+            w.write("MSG\t"+subject+"\t"+subId+"\t0\r\n\r\n");
+            w.flush();
+        };
+
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
+                    Connection  nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            Subscription sub = nc.subscribe("subject");
+
+            gotSub.get();
+            sendMsg.complete(Boolean.TRUE);
+
+            Message msg = sub.nextMessage(Duration.ZERO);//Duration.ofMillis(1000));
+
+            assertTrue(sub.isActive());
+            assertEquals("subject", msg.getSubject());
+            assertEquals(sub, msg.getSubscription());
+            assertNull(msg.getReplyTo());
+            assertEquals(0, msg.getData().length);
+
+            nc.close();
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
