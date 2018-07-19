@@ -7,6 +7,7 @@ plugins {
     id 'signing'
     id 'com.github.kt3k.coveralls' version '2.6.3'
     id "io.codearte.nexus-staging" version "0.11.0"
+    id 'osgi'
 }
 
 // Update version here, repeated check-ins not into master will have snapshot on them
@@ -60,6 +61,10 @@ sourceSets {
             srcDirs = ['src/test/java']
         }
     }
+}
+
+osgiClasses {
+    exclude("io/nats/examples/**")
 }
 
 jar {
