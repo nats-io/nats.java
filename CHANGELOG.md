@@ -4,6 +4,7 @@
 ## Version 2.0.1
 
 * [CHANGED] Request now returns a CompletableFuture to allow more application async options
+* [ADDED] Added back OSGI manifest information
 
 ## Version 2.0.0
 
