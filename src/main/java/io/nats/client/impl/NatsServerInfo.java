@@ -28,6 +28,7 @@ class NatsServerInfo {
     static final String TLS = "tls_required";
     static final String MAX_PAYLOAD = "max_payload";
     static final String CONNECT_URLS = "connect_urls";
+    static final String PROTOCOL_VERSION = "proto";
 
     private String serverId;
     private String version;
@@ -39,6 +40,7 @@ class NatsServerInfo {
     private long maxPayload;
     private String[] connectURLs;
     private String rawInfoJson;
+    private int protocolVersion;
 
     public NatsServerInfo(String json) {
         this.rawInfoJson = json;
@@ -63,6 +65,10 @@ class NatsServerInfo {
 
     public int getPort() {
         return this.port;
+    }
+
+    public int getProtocolVersion() {
+        return this.protocolVersion;
     }
 
     public boolean isAuthRequired() {
@@ -101,6 +107,7 @@ class NatsServerInfo {
         Pattern tlsRE = Pattern.compile("\""+TLS+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
         Pattern portRE = Pattern.compile("\""+PORT+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
         Pattern maxRE = Pattern.compile("\""+MAX_PAYLOAD+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
+        Pattern protoRE = Pattern.compile("\""+PROTOCOL_VERSION+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
         Pattern connectRE = Pattern.compile("\""+CONNECT_URLS+"\":" + grabArray, Pattern.CASE_INSENSITIVE);
         Pattern infoObject = Pattern.compile(grabObject, Pattern.CASE_INSENSITIVE);
 
@@ -151,6 +158,11 @@ class NatsServerInfo {
         m = portRE.matcher(jsonString);
         if (m.find()) {
             this.port = Integer.parseInt(m.group(1));
+        }
+        
+        m = protoRE.matcher(jsonString);
+        if (m.find()) {
+            this.protocolVersion = Integer.parseInt(m.group(1));
         }
         
         m = maxRE.matcher(jsonString);

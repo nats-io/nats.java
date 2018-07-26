@@ -282,7 +282,7 @@ class NatsConnection implements Connection {
             // Wait for the INFO message manually
             // all other traffic will use the reader and writer
             readInitialInfo();
-
+            checkVersionRequirements();
             upgradeToSecureIfNeeded();
             
             // Start the reader and writer after we secured the connection, if necessary
@@ -349,6 +349,15 @@ class NatsConnection implements Connection {
             } finally {
                 statusLock.unlock();
             }
+        }
+    }
+
+    void checkVersionRequirements() throws IOException {
+        Options opts = getOptions();
+        NatsServerInfo info = getInfo();
+
+        if (opts.isNoEcho() && info.getProtocolVersion() < 1) {
+            throw new IOException("Server does not support no echo.");
         }
     }
 
