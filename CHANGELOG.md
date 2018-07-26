@@ -5,6 +5,8 @@
 
 * [CHANGED] Request now returns a CompletableFuture to allow more application async options
 * [ADDED] Added back OSGI manifest information
+* [ADDED] getLastError method to connection
+* [ADDED/CHANGED] Implemented noEcho tests, and require the server to support noEcho if it is set
 
 ## Version 2.0.0
 
