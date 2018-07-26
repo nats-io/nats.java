@@ -279,4 +279,9 @@ public interface Connection extends AutoCloseable {
      * @return the url used for the current connection, or null if disconnected
      */
     public String getConnectedUrl();
+    
+    /**
+     * @return the error text from the last error sent by the server to this client
+     */
+    public String getLastError();
 }

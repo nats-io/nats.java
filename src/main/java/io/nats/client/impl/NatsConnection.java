@@ -109,6 +109,8 @@ class NatsConnection implements Connection {
     private AtomicLong nextSid;
     private NUID nuid;
 
+    private AtomicReference<String> lastError;
+
     private ExecutorService callbackRunner;
 
     NatsConnection(Options options) {
@@ -129,6 +131,8 @@ class NatsConnection implements Connection {
         this.nextSid = new AtomicLong(1);
         this.nuid = new NUID();
         this.mainInbox = createInbox() + ".*";
+
+        this.lastError = new AtomicReference<>();
 
         this.serverInfo = new AtomicReference<>();
         this.inboxDispatcher = new AtomicReference<>();
@@ -1090,6 +1094,8 @@ class NatsConnection implements Connection {
 
         this.statistics.incrementErrCount();
 
+        this.lastError.set(errorText);
+
         if (handler != null  && !this.callbackRunner.isShutdown()) {
             try {
                 this.callbackRunner.execute(() -> {
@@ -1172,6 +1178,10 @@ class NatsConnection implements Connection {
 
     public Status getStatus() {
         return this.status;
+    }
+
+    public String getLastError() {
+        return this.lastError.get();
     }
 
     void updateStatus(Status newStatus) {
