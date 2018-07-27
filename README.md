@@ -30,7 +30,7 @@ You can download the latest jar at [https://search.maven.org/remotecontent?filep
 
 ### Using Gradle
 
-The NATs client is available in the Maven central repository, and can be imported as a standard dependency in your `build.gradle` file:
+The NATS client is available in the Maven central repository, and can be imported as a standard dependency in your `build.gradle` file:
 
 ```groovy
 dependencies {
@@ -54,7 +54,7 @@ repositories {
 
 ### Using Maven
 
-The NATs client is available on the Maven central repository, and can be imported as a normal dependency in your pom.xml file:
+The NATS client is available on the Maven central repository, and can be imported as a normal dependency in your pom.xml file:
 
 ```xml
 <dependency>
