@@ -1,6 +1,10 @@
 
 # Change Log
 
+## Version 2.0.0
+
+* [FIXED] In a cluster situation the library wasn't using each server's auth info if it was in the URI.
+
 ## Version 2.0.1
 
 * [CHANGED] Request now returns a CompletableFuture to allow more application async options

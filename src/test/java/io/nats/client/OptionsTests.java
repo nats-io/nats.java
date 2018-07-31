@@ -286,7 +286,7 @@ public class OptionsTests {
         Options o = new Options.Builder().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
-        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
+        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false));
     }
 
     @Test
@@ -295,7 +295,7 @@ public class OptionsTests {
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true}";
-        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString(false));
+        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false));
     }
 
     @Test
@@ -306,8 +306,8 @@ public class OptionsTests {
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
                 + ",\"user\":\"hello\",\"pass\":\"world\"}";
-        assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString(false));
-        assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString(true));
+        assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false));
+        assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true));
     }
 
     @Test
@@ -333,20 +333,24 @@ public class OptionsTests {
 
     @Test
     public void testUserPassInURL() {
-        Options o = new Options.Builder().server("nats://derek:password@localhost:2222").build();
+        String serverURI = "nats://derek:password@localhost:2222";
+        Options o = new Options.Builder().server(serverURI).build();
 
-        assertNull(o.getToken());
-        assertEquals("user from url", "derek", o.getUsername());
-        assertEquals("password from url", "password", o.getPassword());
+        String connectString = o.buildProtocolConnectOptionsString(serverURI, true);
+        assertTrue(connectString.contains("\"user\":\"derek\""));
+        assertTrue(connectString.contains("\"pass\":\"password\""));
+        assertFalse(connectString.contains("\"token\":"));
     }
 
     @Test
     public void testTokenInURL() {
-        Options o = new Options.Builder().server("nats://alberto@localhost:2222").build();
+        String serverURI = "nats://alberto@localhost:2222";
+        Options o = new Options.Builder().server(serverURI).build();
 
-        assertNull(o.getUsername());
-        assertNull(o.getPassword());
-        assertEquals("token from url", "alberto", o.getToken());
+        String connectString = o.buildProtocolConnectOptionsString(serverURI, true);
+        assertTrue(connectString.contains("\"auth_token\":\"alberto\""));
+        assertFalse(connectString.contains("\"user\":"));
+        assertFalse(connectString.contains("\"pass\":"));
     }
 
     @Test(expected=IllegalArgumentException.class)
