@@ -24,7 +24,7 @@ cache:
   - "$HOME/.gradle/wrapper/"
 after_success:
 - "./gradlew test jacocoTestReport coveralls"
-#Disable for now, upload archives fails because of IP address changes - "./gradlew uploadArchives"
+- test ${TRAVIS_BRANCH} != 'master' && "./gradlew uploadArchives" # Disable master for now, it fails due to ip address issues
 #Disable for now, upload archives fails because of IP address changes - "test ${TRAVIS_PULL_REQUEST} != 'true' && test ${TRAVIS_BRANCH} = 'master' && ./gradlew closeAndReleaseRepository"
 env:
   global:
