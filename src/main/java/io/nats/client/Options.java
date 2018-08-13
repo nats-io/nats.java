@@ -1181,6 +1181,7 @@ public class Options {
      * If includeAuth is true the auth information is included:
      * If the server URIs have auth info it is used. Otherwise the userInfo is used.
      * 
+     * @param serverURI the current server uri
      * @param includeAuth tells the options to build a connection string that includes auth information
      * @return the options String, basically JSON
      */
