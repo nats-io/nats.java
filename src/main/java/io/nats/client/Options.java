@@ -855,6 +855,9 @@ public class Options {
         /**
          * Set the username and password for basic authentication.
          * 
+         * If the user and password are set in the server URL, they will override these values. However, in a clustering situation,
+         * these values can be used as a fallback.
+         * 
          * @param userName a non-empty user name
          * @param password the password, in plain text
          * @return the Builder for chaining
@@ -867,6 +870,8 @@ public class Options {
 
         /**
          * Set the token for token-based authentication.
+         * 
+         * If a token is provided in a server URI it overrides this value.
          * 
          * @param token The token
          * @return the Builder for chaining
@@ -941,21 +946,6 @@ public class Options {
                 server(DEFAULT_URL);
             } else if (servers.size() == 1) { // Allow some URI based configs
                 URI serverURI = servers.get(0);
-                
-                if (this.username==null && this.password==null && this.token == null) {
-                    String userInfo = serverURI.getUserInfo();
-
-                    if (userInfo != null) {
-                        String[] info = userInfo.split(":");
-
-                        if (info.length == 2) {
-                            this.username = info[0];
-                            this.password = info[1];
-                        } else {
-                            this.token = userInfo;
-                        }
-                    }
-                }
 
                 if ("tls".equals(serverURI.getScheme()) && this.sslContext == null)
                 {
@@ -1188,10 +1178,13 @@ public class Options {
     /**
      * Create the options string sent with a connect message.
      * 
+     * If includeAuth is true the auth information is included:
+     * If the server URIs have auth info it is used. Otherwise the userInfo is used.
+     * 
      * @param includeAuth tells the options to build a connection string that includes auth information
      * @return the options String, basically JSON
      */
-    public String buildProtocolConnectOptionsString(boolean includeAuth) {
+    public String buildProtocolConnectOptionsString(String serverURI, boolean includeAuth) {
         StringBuilder connectString = new StringBuilder();
         connectString.append("{");
 
@@ -1210,15 +1203,44 @@ public class Options {
         appendOption(connectString, Options.OPTION_ECHO, String.valueOf(!this.isNoEcho()), false, true);
 
         if (includeAuth) {
-            if (this.username != null) {
+            String uriUser = null;
+            String uriPass = null;
+            String uriToken = null;
+            
+            // Values from URI override options
+            try {
+                URI uri = new URI(serverURI);
+                String userInfo = uri.getUserInfo();
+
+                if (userInfo != null) {
+                    String[] info = userInfo.split(":");
+
+                    if (info.length == 2) {
+                        uriUser = info[0];
+                        uriPass = info[1];
+                    } else {
+                        uriToken = userInfo;
+                    }
+                }
+            } catch(URISyntaxException e) {
+                uriUser = uriToken = uriPass = null;
+            }
+
+            if (uriUser != null) {
+                appendOption(connectString, Options.OPTION_USER, uriUser, true, true);
+            } else if (this.username != null) {
                 appendOption(connectString, Options.OPTION_USER, this.username, true, true);
             }
 
-            if (this.password != null) {
+            if (uriPass != null) {
+                appendOption(connectString, Options.OPTION_PASSWORD, uriPass, true, true);
+            } else if (this.password != null) {
                 appendOption(connectString, Options.OPTION_PASSWORD, this.password, true, true);
             }
 
-            if (this.token != null) {
+            if (uriToken != null) {
+                appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
+            } else if (this.token != null) {
                 appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true, true);
             }
         }

@@ -293,7 +293,7 @@ class NatsConnection implements Connection {
             this.reader.start(this.dataPortFuture);
             this.writer.start(this.dataPortFuture);
 
-            this.sendConnect();
+            this.sendConnect(serverURI);
             Future<Boolean> pongFuture = sendPing();
             pongFuture.get(connectTimeout.toNanos(), TimeUnit.NANOSECONDS);
 
@@ -884,12 +884,12 @@ class NatsConnection implements Connection {
         }
     }
 
-    void sendConnect() {
+    void sendConnect(String serverURI) {
         NatsServerInfo info = this.serverInfo.get();
         StringBuilder connectString = new StringBuilder();
         connectString.append(NatsConnection.OP_CONNECT);
         connectString.append(" ");
-        String connectOptions = this.options.buildProtocolConnectOptionsString(info.isAuthRequired());
+        String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired());
         connectString.append(connectOptions);
         NatsMessage msg = new NatsMessage(connectString.toString());
         queueOutgoing(msg);

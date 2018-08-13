@@ -5,7 +5,9 @@
 
 There are currently two steps to the deployment, travis + sonatype, with a few random extra bits of knowledge.
 
-Travis will either deploy a snapshot or a release based on the version in build.gradle. If you deploy a release build, you will need to manually go to sonatype to release it. Those builds are found in the staging area. (We need to try to automate this in the future.)
+Travis doesn't support sonatype deploy correctly. There is an issue where the various artifacts get split across multiple repositories. That code has been deleted from the travis file and manual releases are required.
+
+~~Travis will either deploy a snapshot or a release based on the version in build.gradle. If you deploy a release build, you will need to manually go to sonatype to release it. Those builds are found in the staging area. (We need to try to automate this in the future.)~~
 
 ## Important note about release repositories
 
