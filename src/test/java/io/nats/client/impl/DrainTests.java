@@ -469,7 +469,6 @@ public class DrainTests {
             final int total = 5000;
             final int sleepBetweenDrains = 10;
             AtomicInteger count = new AtomicInteger();
-            int loops = 0;
             Instant start = Instant.now();
             Instant now = start;
             Connection working = null;
@@ -518,18 +517,12 @@ public class DrainTests {
                 draining.close();
 
                 draining = working;
-                loops++;
             }
 
             draining.close();
             pubThread.join();
 
             assertEquals(count.get(), total);
-
-            int estByLoops = (loops * sleepBetweenDrains);
-            int dub = total * 2;
-            int half = total / 2;
-            assertTrue(estByLoops > half && estByLoops < dub);
         }
     }
 
