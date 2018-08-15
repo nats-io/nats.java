@@ -12,8 +12,8 @@ plugins {
 
 // Update version here, repeated check-ins not into master will have snapshot on them
 def versionMajor = 2
-def versionMinor = 0
-def versionPatch = 2
+def versionMinor = 1
+def versionPatch = 0
 def versionModifier = ""
 def branch = System.getenv("TRAVIS_BRANCH");
 
