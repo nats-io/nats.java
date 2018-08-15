@@ -23,7 +23,6 @@ import io.nats.client.MessageHandler;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
-    private NatsConnection connection;
     private MessageQueue incoming;
     private MessageHandler handler;
 
@@ -35,7 +34,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     private Map<String, NatsSubscription> subscriptions;
 
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
-        this.connection = conn;
+        super(conn);
         this.handler = handler;
         this.incoming = new MessageQueue(true);
         this.subscriptions = new ConcurrentHashMap<>();
@@ -134,7 +133,6 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     }
 
     public Dispatcher subscribe(String subject) {
-
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
@@ -159,6 +157,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (!this.running.get()) {
             throw new IllegalStateException("Dispatcher is closed");
         }
+        
+        if (this.isDraining()) {
+            throw new IllegalStateException("Dispatcher is draining");
+        }
 
         NatsSubscription sub = subscriptions.get(subject);
 
@@ -182,6 +184,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalStateException("Dispatcher is closed");
         }
 
+        if (isDraining()) { // No op while draining
+            return this;
+        }
+
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in unsubscribe");
         }
@@ -195,4 +201,13 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return this;
     }
 
+    void sendUnsubToConnection() {
+        this.subscriptions.forEach((id, sub)->{
+            this.connection.sendUnsub(sub, -1);
+        });
+    }
+
+    void cleanUpAfterDrain() {
+        this.connection.cleanupDispatcher(this);
+    }
 }

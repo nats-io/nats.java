@@ -235,8 +235,33 @@ public interface Connection extends AutoCloseable {
     public void flush(Duration timeout) throws TimeoutException, InterruptedException;
 
     /**
+     * Drain tells the connection to process in flight messages before closing.
+     * 
+     * Drain initially drains all of the consumers, stopping incoming messages.
+     * Next, publishing is halted and a flush call is used to insure all published
+     * messages have reached the server.
+     * Finally the connection is closed.
+     * 
+     * A future is used to allow this call to be treated as synchronous or asynchronous as
+     * needed by the application. The value of the future will be true if all of the subscriptions
+     * were drained in the timeout, and false otherwise. The future is completed after the connection
+     * is closed, so any connection handler notifications will happen before the future completes.
+     * 
+     * @param timeout The time to wait for the drain to succeed, pass 0 to wait
+     *                    forever. Drain involves moving messages to and from the server
+     *                    so a very short timeout is not recommended. If the timeout is reached before
+     *                    the drain completes, the connection is simply closed, which can result in message
+     *                    loss.
+     * @return A future that can be used to check if the drain has completed
+     */
+    public CompletableFuture<Boolean> drain(Duration timeout);
+
+    /**
      * Close the connection and release all blocking calls like {@link #flush flush}
      * and {@link Subscription#nextMessage(Duration) nextMessage}.
+     * 
+     * If close() is called after {@link #drain(Duration) drain} it will wait up to the connection timeout
+     * to return, but it will not initiate a close. The drain takes precedence and will initiate the close.
      * 
      * @throws InterruptedException if the thread, or one owned by the connection is interrupted during the close
      */

@@ -13,6 +13,9 @@
 
 package io.nats.client;
 
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+
 /**
  * A Consumer in the NATS library is an object that represents an incoming queue of
  * messages. There are two types of consumers {@link Dispatcher} and {@link Subscription}.
@@ -96,4 +99,19 @@ public interface Consumer {
      * For a subscription the answer is false after unsubscribe. For a dispatcher, false after stop.
      */
     public boolean isActive();
+
+    /**
+     * Drain tells the consumer to process in flight, or cached messages, but stop receiving new ones. The library will
+     * flush the unsubscribe call(s) insuring that any publish calls made by this client are included. When all messages
+     * are processed the consumer effectively becomes unsubscribed.
+     * 
+     * A future is used to allow this call to be treated as synchronous or asynchronous as
+     * needed by the application.
+     * 
+     * @param timeout The time to wait for the drain to succeed, pass 0 to wait
+     *                    forever. Drain involves moving messages to and from the server
+     *                    so a very short timeout is not recommended.
+     * @return A future that can be used to check if the drain has completed
+     */
+    public CompletableFuture<Boolean> drain(Duration timeout);
 }

@@ -13,25 +13,32 @@
 
 package io.nats.client.impl;
 
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import io.nats.client.Consumer;
 
 abstract class NatsConsumer implements Consumer {
 
+    NatsConnection connection;
     private AtomicLong maxMessages;
     private AtomicLong maxBytes;
     private AtomicLong droppedMessages;
     private AtomicLong messagesDelivered;
     private AtomicBoolean slow;
+    private AtomicReference<CompletableFuture<Boolean>> draining;
 
-    NatsConsumer() {
+    NatsConsumer(NatsConnection conn) {
+        this.connection = conn;
         this.maxMessages = new AtomicLong();
         this.maxBytes = new AtomicLong();
         this.droppedMessages = new AtomicLong();
         this.messagesDelivered = new AtomicLong(0);
         this.slow = new AtomicBoolean(false);
+        this.draining = new AtomicReference<>();
     }
 
     /**
@@ -67,14 +74,14 @@ abstract class NatsConsumer implements Consumer {
      * @return the number of messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}.
      */
     public long getPendingMessageCount() {
-        return this.getMessageQueue().length();
+        return this.getMessageQueue()!=null ? this.getMessageQueue().length() : 0;
     }
 
     /**
      * @return the cumulative size of the messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}.
      */
     public long getPendingByteCount() {
-        return this.getMessageQueue().sizeInBytes();
+        return this.getMessageQueue()!=null ? this.getMessageQueue().sizeInBytes() : 0;
     }
 
     /**
@@ -118,10 +125,46 @@ abstract class NatsConsumer implements Consumer {
         return this.slow.get();
     }
 
+    void markDraining(CompletableFuture<Boolean> future) {
+        this.draining.set(future);
+    }
+
+    CompletableFuture<Boolean> getDrainingFuture() {
+        return this.draining.get();
+    }
+
+    boolean isDraining() {
+        return this.draining.get() != null;
+    }
+
     boolean hasReachedPendingLimits() {
         return ((this.getPendingByteCount() >= this.getPendingByteLimit() && this.getPendingByteLimit() > 0) ||
                     (this.getPendingMessageCount() >= this.getPendingMessageLimit() && this.getPendingMessageLimit() > 0));
     }
+
+    /**
+    * Drain tells the consumer to process in flight, or cached messages, but stop receiving new ones. The library will
+    * flush the unsubscribe call(s) insuring that any publish calls made by this client are included. When all messages
+    * are processed the consumer effectively becomes unsubscribed.
+    * 
+    * @param timeout The time to wait for the drain to succeed, pass 0 to wait
+    *                    forever. Drain involves moving messages to and from the server
+    *                    so a very short timeout is not recommended.
+    * @return A future that can be used to check if the drain has completed
+    */
+   public CompletableFuture<Boolean> drain(Duration timeout) {
+       if (!this.isActive()) {
+           throw new IllegalStateException("Consumer is closed");
+       }
+
+       if (isDraining()) {
+           return this.getDrainingFuture();
+       }
+
+       this.markDraining(this.connection.drain(this, timeout));
+       this.sendUnsubToConnection();
+       return getDrainingFuture();
+   }
 
     /**
      * @return whether or not this consumer is still processing messages.
@@ -130,4 +173,16 @@ abstract class NatsConsumer implements Consumer {
     public abstract boolean isActive();
 
     abstract MessageQueue getMessageQueue();
+
+    /**
+     * Called during drain to tell the consumer to send appropriate unsub requests to the connection.
+     * 
+     * A subscription will unsub itself, while a dispatcher will unsub all of its subscriptions.
+     */
+    abstract void sendUnsubToConnection();
+
+    /**
+     * Abstract method, called by the connection when the drain is complete.
+     */
+    abstract void cleanUpAfterDrain();
 }

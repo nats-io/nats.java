@@ -26,7 +26,6 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     private String queueName;
     private String sid;
 
-    private NatsConnection connection;
     private NatsDispatcher dispatcher;
     private MessageQueue incoming;
 
@@ -34,11 +33,11 @@ class NatsSubscription extends NatsConsumer implements Subscription {
 
     NatsSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
+        super(connection);
         this.subject = subject;
         this.queueName = queueName;
         this.sid = sid;
         this.dispatcher = dispatcher;
-        this.connection = connection;
         this.unSubMessageLimit = new AtomicLong(-1);
 
         if (this.dispatcher == null) {
@@ -100,10 +99,13 @@ class NatsSubscription extends NatsConsumer implements Subscription {
             throw new IllegalStateException("This subscription is inactive.");
         }
 
+        boolean draining = this.isDraining();
+
         NatsMessage msg = incoming.pop(timeout);
 
-        if (this.incoming == null || !this.incoming.isRunning()) { // We were unsubscribed while waiting
-            throw new IllegalStateException("This subscription is inactive.");
+        // if we are draining, ignore the timing issue of incoming going away in another thread
+        if (!draining && (this.incoming == null || !this.incoming.isRunning())) { // We were unsubscribed while waiting
+            throw new IllegalStateException("This subscription became inactive.");
         }
 
         this.incrementDeliveredCount();
@@ -126,6 +128,10 @@ class NatsSubscription extends NatsConsumer implements Subscription {
                     "Subscriptions that belong to a dispatcher cannot respond to unsubscribe directly.");
         } else if (this.incoming == null) {
             throw new IllegalStateException("This subscription is inactive.");
+        }
+
+        if (isDraining()) { // No op while draining
+            return;
         }
 
         this.connection.unsubscribe(this, -1);
@@ -157,7 +163,19 @@ class NatsSubscription extends NatsConsumer implements Subscription {
             throw new IllegalStateException("This subscription is inactive.");
         }
 
+        if (isDraining()) { // No op while draining
+            return this;
+        }
+
         this.connection.unsubscribe(this, after);
         return this;
+    }
+
+    void sendUnsubToConnection() {
+        this.connection.sendUnsub(this, -1);
+    }
+
+    void cleanUpAfterDrain() {
+        this.connection.invalidate(this);
     }
 }
