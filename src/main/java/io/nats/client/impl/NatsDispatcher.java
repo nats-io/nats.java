@@ -77,6 +77,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                         this.connection.invalidate(sub);
                     }
                 }
+
+                if (isDrained()) {
+                    return;
+                }
             }
         } catch (InterruptedException exp) {
             if (this.running.get()){
@@ -88,13 +92,21 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         }
     }
 
-    void stop(boolean unsubscribeAll) {
+    void stop(boolean unsubscribeAll, Duration timeout) {
         this.running.set(false);
         this.incoming.pause();
 
-        if (this.thread != null) { // Force the interrupt
+        if (this.thread != null) { // Force the interrupt, try to join if we have a timeout
             try {
-                this.thread.interrupt();
+                long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
+                
+                if (timeoutNanos > 0) {
+                    this.thread.join(timeoutNanos / 1_000_000L, (int)(timeoutNanos % 1_000_000L));
+                }
+                
+                if (this.thread.isAlive()) {
+                    this.thread.interrupt();
+                }
             } catch (Exception exp) {
                 // let it go
             }
@@ -207,7 +219,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         });
     }
 
-    void cleanUpAfterDrain() {
-        this.connection.cleanupDispatcher(this);
+    void cleanUpAfterDrain(Duration timeout) {
+        this.connection.cleanupDispatcher(this, timeout);
     }
 }

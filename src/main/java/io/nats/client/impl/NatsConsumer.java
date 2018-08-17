@@ -142,6 +142,10 @@ abstract class NatsConsumer implements Consumer {
                     (this.getPendingMessageCount() >= this.getPendingMessageLimit() && this.getPendingMessageLimit() > 0));
     }
 
+    boolean isDrained() {
+        return isDraining() && this.getPendingMessageCount() == 0;
+    }
+
     /**
     * Drain tells the consumer to process in flight, or cached messages, but stop receiving new ones. The library will
     * flush the unsubscribe call(s) insuring that any publish calls made by this client are included. When all messages
@@ -184,5 +188,5 @@ abstract class NatsConsumer implements Consumer {
     /**
      * Abstract method, called by the connection when the drain is complete.
      */
-    abstract void cleanUpAfterDrain();
+    abstract void cleanUpAfterDrain(Duration timeout);
 }

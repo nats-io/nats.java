@@ -175,7 +175,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         this.connection.sendUnsub(this, -1);
     }
 
-    void cleanUpAfterDrain() {
+    void cleanUpAfterDrain(Duration timeout) {
         this.connection.invalidate(this);
     }
 }

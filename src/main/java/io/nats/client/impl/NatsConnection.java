@@ -462,10 +462,10 @@ class NatsConnection implements Connection {
     // Close socket is called when another connect attempt is possible
     // Close is called when the connection should shutdown, period
     public void close() throws InterruptedException {
-        this.close(true);
+        this.close(true, null);
     }
 
-    void close(boolean checkDrainStatus) throws InterruptedException {
+    void close(boolean checkDrainStatus, Duration timeoutForDispatchers) throws InterruptedException {
         statusLock.lock();
         try {
             if (checkDrainStatus && this.isDraining()) {
@@ -495,7 +495,7 @@ class NatsConnection implements Connection {
         closeSocketImpl();
 
         this.dispatchers.forEach((nuid, d) -> {
-            d.stop(false);
+            d.stop(false, timeoutForDispatchers);
         });
 
         this.subscribers.forEach((sid, sub) -> {
@@ -892,11 +892,11 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Dispatcher is already closed.");
         }
 
-        cleanupDispatcher(nd);
+        cleanupDispatcher(nd, null);
     }
 
-    void cleanupDispatcher(NatsDispatcher nd) {
-        nd.stop(true);
+    void cleanupDispatcher(NatsDispatcher nd, Duration timeout) {
+        nd.stop(true, timeout);
         this.dispatchers.remove(nd.getId());
     }
 
@@ -1497,7 +1497,8 @@ class NatsConnection implements Connection {
                     }
                 }
 
-                this.close(false);// close the connection after the last flush
+                now = Instant.now(); // capture the remaining timeout for dispatchers to use
+                this.close(false, timeout.minus(Duration.between(start, now)));// close the connection after the last flush
                 tracker.complete(consumers.size() == 0 && (inboxer == null || inboxer.getPendingMessageCount() == 0));
             } catch (TimeoutException | InterruptedException e) {
                 this.processException(e);
@@ -1543,7 +1544,7 @@ class NatsConnection implements Connection {
                     now = Instant.now();
                 }
 
-                sub.cleanUpAfterDrain();
+                sub.cleanUpAfterDrain(timeout.minus(Duration.between(start, now)));
             } catch (TimeoutException | InterruptedException e) {
                 this.processException(e);
                 e.printStackTrace();

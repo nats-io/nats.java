@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.time.Duration;
@@ -569,6 +570,49 @@ public class DrainTests {
             assertTrue(tracker.get(1, TimeUnit.SECONDS));
             assertFalse(sub.isActive());
             assertEquals(((NatsConnection) subCon).getConsumerCount(), 0);
+        }
+    }
+
+    @Test
+    public void testSlowAsyncDuringDrainCanFinishIfTime() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
+            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+
+            AtomicInteger count = new AtomicInteger();
+            Dispatcher d = subCon.createDispatcher((msg) -> {
+                try {
+                    Thread.sleep(1500); // go slow so the main app can drain us
+                } catch (Exception e) {
+                    assertNull(e);
+                }
+
+                if (!Thread.interrupted()) {
+                    count.incrementAndGet();
+                }
+            });
+            d.subscribe("draintest");
+            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+
+            pubCon.publish("draintest", null);
+            pubCon.publish("draintest", null);
+            pubCon.flush(Duration.ofSeconds(1));
+
+            subCon.flush(Duration.ofSeconds(1));
+            try {
+                Thread.sleep(500); // give the msgs time to get to subCon
+            } catch (Exception e) {
+
+            }
+
+            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(5));
+
+            assertTrue(tracker.get(5, TimeUnit.SECONDS));
+            assertTrue(((NatsConnection) subCon).isDrained());
+            assertEquals(count.get(), 2); // Should get both
+            assertTrue(Connection.Status.CLOSED == subCon.getStatus());
         }
     }
 }
