@@ -131,27 +131,33 @@ public class NKeyTests {
         assertFalse(true);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test
     public void testBadCRC() throws Exception {
-        byte[] bytes = new byte[32];
-        SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
-        random.nextBytes(bytes);
-
-        String encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
-
-        StringBuilder builder = new StringBuilder();
-
-        builder.append(encoded.substring(0, 3));
-
-        if (encoded.charAt(3) == 'x') {
-            builder.append('z');
-        } else {
-            builder.append('x');
+        for (int i=0;i<1000;i++) {
+            try {
+                byte[] bytes = new byte[32];
+                SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+                random.nextBytes(bytes);
+        
+                String encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
+        
+                StringBuilder builder = new StringBuilder();
+        
+                builder.append(encoded.substring(0, 6));
+        
+                if (encoded.charAt(6) == 'x' || encoded.charAt(6) == 'X') {
+                    builder.append('Z');
+                } else {
+                    builder.append('X');
+                }
+                builder.append(encoded.substring(7));
+        
+                NKey.decode(NKey.Type.ACCOUNT, builder.toString());
+                assertFalse(true);
+            } catch (IllegalArgumentException e) {
+                //expected
+            }
         }
-        builder.append(encoded.substring(4));
-
-        NKey.decode(NKey.Type.ACCOUNT, builder.toString());
-        assertFalse(true);
     }
 
     @Test
