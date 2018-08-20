@@ -467,7 +467,7 @@ public class DrainTests {
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
 
-            final int total = 5000;
+            final int total = 1000;
             final int sleepBetweenDrains = 10;
             AtomicInteger count = new AtomicInteger();
             Instant start = Instant.now();
