@@ -4,6 +4,7 @@
 ## Version 2.1.0
 
 * [ADDED] Support for consumer or connection drain. (New API lead to version bump.)
+* [ADDED] Support for NKeys - adds two new dependencies for encryption and encoding.
 
 ## Version 2.0.2
 

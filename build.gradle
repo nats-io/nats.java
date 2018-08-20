@@ -47,6 +47,8 @@ repositories {
 }
 
 dependencies {
+    compile 'net.i2p.crypto:eddsa:0.3.0'
+    compile 'commons-codec:commons-codec:1.11'
     testImplementation 'junit:junit:4.12'
 }
 

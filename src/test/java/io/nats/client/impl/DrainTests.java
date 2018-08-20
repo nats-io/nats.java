@@ -513,7 +513,7 @@ public class DrainTests {
                 }
 
                 CompletableFuture<Boolean> tracker = draining.drain(Duration.ofSeconds(5));
-                assertTrue(tracker.get(5, TimeUnit.SECONDS)); // wait for the drain to complete
+                assertTrue(tracker.get(15, TimeUnit.SECONDS)); // wait for the drain to complete
                 assertTrue(((NatsConnection) draining).isDrained());
                 draining.close();
 
