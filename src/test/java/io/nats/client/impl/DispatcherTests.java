@@ -495,10 +495,10 @@ public class DispatcherTests {
             });
 
             d.subscribe("done");
-            nc.flush(Duration.ofMillis(500));// Get them all to the server
+            nc.flush(Duration.ofMillis(5000));// Get them all to the server
 
             nc.publish("done", new byte[16]); // when we get this we know the others are dispatched
-            nc.flush(Duration.ofMillis(1000)); // Wait for the publish
+            nc.flush(Duration.ofMillis(5000)); // Wait for the publish
 
             done.get(200, TimeUnit.MILLISECONDS); // make sure we got them
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
