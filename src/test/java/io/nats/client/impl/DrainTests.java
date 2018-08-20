@@ -467,7 +467,7 @@ public class DrainTests {
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
 
-            final int total = 1000;
+            final int total = 200;
             final int sleepBetweenDrains = 10;
             AtomicInteger count = new AtomicInteger();
             Instant start = Instant.now();
@@ -513,7 +513,7 @@ public class DrainTests {
                 }
 
                 CompletableFuture<Boolean> tracker = draining.drain(Duration.ofSeconds(5));
-                assertTrue(tracker.get(15, TimeUnit.SECONDS)); // wait for the drain to complete
+                assertTrue(tracker.get(30, TimeUnit.SECONDS)); // wait for the drain to complete
                 assertTrue(((NatsConnection) draining).isDrained());
                 draining.close();
 
