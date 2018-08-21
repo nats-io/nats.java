@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 
 import org.junit.Test;
 
@@ -467,7 +468,7 @@ public class DrainTests {
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
 
-            final int total = 200;
+            final int total = 500;
             final int sleepBetweenDrains = 10;
             AtomicInteger count = new AtomicInteger();
             Instant start = Instant.now();
@@ -484,7 +485,7 @@ public class DrainTests {
                 for (int i = 0; i < total; i++) {
                     pubCon.publish("draintest", null);
                     try {
-                        Thread.sleep(1); // use a nice stead pace to avoid slow consumers
+                        LockSupport.parkNanos(1000); // use a nice stead pace to avoid slow consumers
                     } catch (Exception e) {
 
                     }
@@ -507,12 +508,12 @@ public class DrainTests {
                 }).subscribe("draintest", "queue");
 
                 try {
-                    Thread.sleep(sleepBetweenDrains); // let them both work a bit
+                    LockSupport.parkNanos(1_000_000 * sleepBetweenDrains); // let them both work a bit
                 } catch (Exception e) {
 
                 }
 
-                CompletableFuture<Boolean> tracker = draining.drain(Duration.ofSeconds(5));
+                CompletableFuture<Boolean> tracker = draining.drain(Duration.ofSeconds(30));
                 assertTrue(tracker.get(30, TimeUnit.SECONDS)); // wait for the drain to complete
                 assertTrue(((NatsConnection) draining).isDrained());
                 draining.close();
