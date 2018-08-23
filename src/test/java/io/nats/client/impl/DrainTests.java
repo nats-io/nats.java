@@ -513,26 +513,31 @@ public class DrainTests {
             assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
 
             final int total = 5_000;
-            final int sleepBetweenDrains = 10;
+            final Duration sleepBetweenDrains = Duration.ofMillis(250);
+            final Duration sleepBetweenMessages = Duration.ofMillis(1);
+            final Duration testTimeout = Duration.ofMillis(5 * total * sleepBetweenMessages.toMillis());
+            final Duration drainTimeout = testTimeout;
+            final Duration waitTimeout = drainTimeout.plusSeconds(1);
             AtomicInteger count = new AtomicInteger();
             Instant start = Instant.now();
             Instant now = start;
             Connection working = null;
-            Connection draining = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
             NatsDispatcher workingD = null;
             NatsDispatcher drainingD = null;
 
+            Connection draining = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
             assertTrue("Connected Status", Connection.Status.CONNECTED == draining.getStatus());
 
             drainingD = (NatsDispatcher) draining.createDispatcher((msg) -> {
                 count.incrementAndGet();
             }).subscribe("draintest", "queue");
+            draining.flush(Duration.ofSeconds(5));
 
             Thread pubThread = new Thread(() -> {
                 for (int i = 0; i < total; i++) {
                     pubCon.publish("draintest", null);
                     try {
-                        LockSupport.parkNanos(1000); // use a nice stead pace to avoid slow consumers
+                        LockSupport.parkNanos(sleepBetweenMessages.toNanos()); // use a nice stead pace to avoid slow consumers
                     } catch (Exception e) {
 
                     }
@@ -546,23 +551,24 @@ public class DrainTests {
 
             pubThread.start();
 
-            while (count.get() < total && Duration.between(start, now).toMillis() < 20_000) {
+            while (count.get() < total && Duration.between(start, now).compareTo(testTimeout) < 0) {
 
                 working = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 assertTrue("Connected Status", Connection.Status.CONNECTED == working.getStatus());
                 workingD = (NatsDispatcher) working.createDispatcher((msg) -> {
                     count.incrementAndGet();
                 }).subscribe("draintest", "queue");
+                working.flush(Duration.ofSeconds(5));
 
                 try {
-                    LockSupport.parkNanos(1_000_000 * sleepBetweenDrains); // let them both work a bit
+                    LockSupport.parkNanos(sleepBetweenDrains.toNanos()); // let them both work a bit
                 } catch (Exception e) {
 
                 }
 
-                CompletableFuture<Boolean> tracker = draining.drain(Duration.ofSeconds(9));
+                CompletableFuture<Boolean> tracker = draining.drain(drainTimeout);
 
-                assertTrue(tracker.get(10, TimeUnit.SECONDS)); // wait for the drain to complete
+                assertTrue(tracker.get(waitTimeout.toMillis(), TimeUnit.MILLISECONDS)); // wait for the drain to complete
                 assertTrue(drainingD.isDrained());
                 assertTrue(((NatsConnection) draining).isDrained());
                 draining.close(); // no op, but ide wants this for auto-closable
