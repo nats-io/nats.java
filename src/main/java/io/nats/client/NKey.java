@@ -369,10 +369,8 @@ public class NKey {
      * @throws IOException if there is a problem encoding the key
      */
     public String getPrivateKey()  throws GeneralSecurityException, IOException{
-        KeyPair keys = getKeyPair();
-        EdDSAPrivateKey privKey = (EdDSAPrivateKey) keys.getPrivate();
-        byte[] bytes = privKey.getEncoded();
-        return encode(Type.PRIVATE, bytes);
+        DecodedSeed decoded = decodeSeed(privateKeyAsSeed);
+        return encode(Type.PRIVATE, decoded.bytes);
     }
 
     /**

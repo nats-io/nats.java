@@ -391,6 +391,7 @@ public class NKeyTests {
     	user, _ := nkeys.CreateUser(nil)
         seed, _ := user.Seed()
         publicKey, _ := user.PublicKey()
+        privateKey, _ := user.PrivateKey()
 
         data := []byte("Hello World")
         sig, _ := user.Sign(data)
@@ -398,16 +399,18 @@ public class NKeyTests {
 
         fmt.Printf("Seed: %q\n", seed)
         fmt.Printf("Public: %q\n", publicKey)
+        fmt.Printf("Private: %q\n", privateKey)
 
         fmt.Printf("Data: %q\n", data)
         fmt.Printf("Signature: %q\n", encSig)
      */
     @Test
     public void testInterop() throws Exception {
-        String seed = "SUANAIIT56SCRLMMX7MWS2VWY642E6QQM7DHLTUEIF5RI3H6UDOVT4IRESBBE5CWSIJWWH2X5NONV4IVRTQJ4O4V5AHUH6LLRTEWSSNQSAFXK";
-        String publicKey = "UAISJAQSORLJEE3LD5L6WXG26EKYZYE6HOK6QD2D7FVYZSLJJGYJBIXW";
+        String seed = "SUANUMOF6TPEPPH2GERC5RVRQKJDPJVX5D3VZCJYP2DNOGAGYC7J3I5ITEVHAL46IGWPHMKLQAPB6CILWESKAJG4PGOVBYI4BYQJS76YSJZLQ";
+        String publicKey = "UCUJSKTQF6PEDLHTWFFYAHQ7BEF3CJFAETOHTHKQ4EOA4IEZP7MJFHTQ";
+        String privateKey = "PDNDDRPU3ZD3Z6RREIXMNMMCSI32NN7I65OISOD6Q3LRQBWAX2O2HKEZFJYC7HSBVTZ3CS4ADYPQSC5RESQCJXDZTVIOCHAOECMX7WESPRRA";
         byte[] data = "Hello World".getBytes(StandardCharsets.UTF_8);
-        String encodedSig = "nvhX/WN61nh29QMhqJrwIgk/T29HVK8yExUw7h2/ACSRlL1nkLjtBmQn99bbEB+00d8C6Ig1aV+/JKIt98ZaAA==";
+        String encodedSig = "+KUbWqEzExkBlgI4wk1fph1DWHvE6bV2Ef2wYVZ1r2U15mWcll+PMbdyO/OyrB9nGxA0h9D6frkW/RYGKNIvAQ==";
 
         NKey fromSeed = NKey.fromSeed(seed);
 
@@ -426,6 +429,7 @@ public class NKeyTests {
         // Make sure generation is the same
         assertEquals(fromSeed.getSeed(), seed);
         assertEquals(fromSeed.getPublicKey(), publicKey);
+        assertEquals(fromSeed.getPrivateKey(), privateKey);
 
         DecodedSeed decoded = NKey.decodeSeed(seed);
         String encodedSeed = NKey.encodeSeed(NKey.Type.fromPrefix(decoded.prefix), decoded.bytes);
