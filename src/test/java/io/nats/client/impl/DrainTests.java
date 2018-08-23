@@ -546,7 +546,7 @@ public class DrainTests {
 
             pubThread.start();
 
-            while (count.get() < total && Duration.between(start, now).toMillis() < 5000) {
+            while (count.get() < total && Duration.between(start, now).toMillis() < 20_000) {
 
                 working = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 assertTrue("Connected Status", Connection.Status.CONNECTED == working.getStatus());
