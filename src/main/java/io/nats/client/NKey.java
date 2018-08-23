@@ -369,6 +369,10 @@ public class NKey {
      * @throws IOException if there is a problem encoding the key
      */
     public String getPrivateKey()  throws GeneralSecurityException, IOException{
+        if (privateKeyAsSeed == null) {
+            throw new IllegalStateException("Public-only NKey");
+        }
+
         DecodedSeed decoded = decodeSeed(privateKeyAsSeed);
         return encode(Type.PRIVATE, decoded.bytes);
     }

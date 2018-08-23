@@ -338,6 +338,8 @@ public class NKeyTests {
         String seed = theKey.getSeed();
         assertEquals(NKey.fromSeed(seed), NKey.fromSeed(seed));
         assertEquals(NKey.fromSeed(seed).hashCode(), NKey.fromSeed(seed).hashCode());
+        assertEquals(NKey.fromSeed(seed).getPublicKey(), NKey.fromSeed(seed).getPublicKey());
+        assertEquals(NKey.fromSeed(seed).getPrivateKey(), NKey.fromSeed(seed).getPrivateKey());
 
         assertTrue(seed.startsWith("SA"));
 
