@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.junit.Test;
 
@@ -31,6 +32,8 @@ import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.TestHandler;
+import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
 
 public class PingTests {
@@ -143,7 +146,7 @@ public class PingTests {
         }
     }
 
-    @Test
+    @Test(expected=TimeoutException.class)
     public void testFlushTimeout() throws Exception {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Options options = new Options.Builder().
@@ -155,15 +158,30 @@ public class PingTests {
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                 // fake server so flush will timeout
-
-                try {
-                    nc.flush(Duration.ofMillis(50));
-                    assertFalse(true); // should timeout
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                nc.flush(Duration.ofMillis(50));
             } finally {
                 nc.close();
+            }
+        }
+    }
+
+    @Test(expected=TimeoutException.class)
+    public void testFlushTimeoutDisconnected() throws Exception {
+        TestHandler handler = new TestHandler();
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().connectionListener(handler).server(ts.getURI()).build();
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                nc.flush(Duration.ofSeconds(2));
+                handler.prepForStatusChange(Events.DISCONNECTED);
+                ts.close();
+                handler.waitForStatusChange(2, TimeUnit.SECONDS);
+                nc.flush(Duration.ofSeconds(2));
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
         }
     }

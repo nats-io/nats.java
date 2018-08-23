@@ -32,6 +32,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     private String id;
 
     private Map<String, NatsSubscription> subscriptions;
+    private Duration waitForMessage;
+
 
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
         super(conn);
@@ -39,6 +41,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.incoming = new MessageQueue(true);
         this.subscriptions = new ConcurrentHashMap<>();
         this.running = new AtomicBoolean(false);
+        this.waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
     }
 
     void start(String id) {
@@ -49,15 +52,22 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.thread.start();
     }
 
-    public void run() {
-        Duration waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
+    boolean breakRunLoop() {
+        return this.incoming.isDrained();
+    }
 
+    public void run() {
         try {
             while (this.running.get()) {
-                NatsMessage msg = this.incoming.pop(waitForMessage);
+                
+                NatsMessage msg = this.incoming.pop(this.waitForMessage);
 
                 if (msg == null) {
-                    continue;
+                    if (breakRunLoop()) {
+                        return;
+                    } else {
+                        continue;
+                    }
                 }
 
                 NatsSubscription sub = msg.getNatsSubscription();
@@ -78,7 +88,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                     }
                 }
 
-                if (isDrained()) {
+                if (breakRunLoop()) {
+                    // will set the dispatcher to not active
                     return;
                 }
             }
@@ -92,18 +103,12 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         }
     }
 
-    void stop(boolean unsubscribeAll, Duration timeout) {
+    void stop(boolean unsubscribeAll) {
         this.running.set(false);
         this.incoming.pause();
 
-        if (this.thread != null) { // Force the interrupt, try to join if we have a timeout
+        if (this.thread != null) {
             try {
-                long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
-                
-                if (timeoutNanos > 0) {
-                    this.thread.join(timeoutNanos / 1_000_000L, (int)(timeoutNanos % 1_000_000L));
-                }
-                
                 if (this.thread.isAlive()) {
                     this.thread.interrupt();
                 }
@@ -193,7 +198,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     public Dispatcher unsubscribe(String subject, int after) {
         if (!this.running.get()) {
-            throw new IllegalStateException("Dispatcher is closed");
+            throw new IllegalStateException("Dispatcfher is closed");
         }
 
         if (isDraining()) { // No op while draining
@@ -213,13 +218,17 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return this;
     }
 
-    void sendUnsubToConnection() {
+    void sendUnsubForDrain() {
         this.subscriptions.forEach((id, sub)->{
             this.connection.sendUnsub(sub, -1);
         });
     }
 
-    void cleanUpAfterDrain(Duration timeout) {
-        this.connection.cleanupDispatcher(this, timeout);
+    void cleanUpAfterDrain() {
+        this.connection.cleanupDispatcher(this);
+    }
+
+    public boolean isDrained() {
+        return !isActive() && super.isDrained();
     }
 }

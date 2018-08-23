@@ -242,6 +242,14 @@ public interface Connection extends AutoCloseable {
      * messages have reached the server.
      * Finally the connection is closed.
      * 
+     * In order to drain subscribers, an unsub is sent to the server followed by a flush.
+     * These two steps occur before drain returns. The remaining steps occur in a background thread.
+     * This method tries to manage the timeout properly, so that if the timeout is 1 second, and the flush
+     * takes 100ms, the remaining steps have 900ms in the background thread.
+     * 
+     * The connection will try to let all messages be drained, but when the timeout is reached
+     * the connection is closed and any outstanding dispatcher threads are interrupted.
+     * 
      * A future is used to allow this call to be treated as synchronous or asynchronous as
      * needed by the application. The value of the future will be true if all of the subscriptions
      * were drained in the timeout, and false otherwise. The future is completed after the connection
@@ -253,8 +261,10 @@ public interface Connection extends AutoCloseable {
      *                    the drain completes, the connection is simply closed, which can result in message
      *                    loss.
      * @return A future that can be used to check if the drain has completed
+     * @throws InterruptedException if the thread is interrupted
+     * @throws TimeoutException if the initial flush times out
      */
-    public CompletableFuture<Boolean> drain(Duration timeout);
+    public CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException;
 
     /**
      * Close the connection and release all blocking calls like {@link #flush flush}

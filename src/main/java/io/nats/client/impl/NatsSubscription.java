@@ -99,12 +99,9 @@ class NatsSubscription extends NatsConsumer implements Subscription {
             throw new IllegalStateException("This subscription is inactive.");
         }
 
-        boolean draining = this.isDraining();
-
         NatsMessage msg = incoming.pop(timeout);
 
-        // if we are draining, ignore the timing issue of incoming going away in another thread
-        if (!draining && (this.incoming == null || !this.incoming.isRunning())) { // We were unsubscribed while waiting
+        if (this.incoming == null || !this.incoming.isRunning()) { // We were unsubscribed while waiting
             throw new IllegalStateException("This subscription became inactive.");
         }
 
@@ -171,11 +168,11 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return this;
     }
 
-    void sendUnsubToConnection() {
+    void sendUnsubForDrain() {
         this.connection.sendUnsub(this, -1);
     }
 
-    void cleanUpAfterDrain(Duration timeout) {
+    void cleanUpAfterDrain() {
         this.connection.invalidate(this);
     }
 }

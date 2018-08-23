@@ -112,6 +112,7 @@ public interface Consumer {
      *                    forever. Drain involves moving messages to and from the server
      *                    so a very short timeout is not recommended.
      * @return A future that can be used to check if the drain has completed
+     * @throws InterruptedException if the thread is interrupted
      */
-    public CompletableFuture<Boolean> drain(Duration timeout);
+    public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException;
 }

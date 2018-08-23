@@ -243,11 +243,15 @@ class NatsConnection implements Connection {
         }
 
         this.subscribers.forEach((sid, sub) -> {
-            sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+            if (!sub.isDraining()) {
+                sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+            }
         });
 
         this.dispatchers.forEach((nuid, d) -> {
-            d.resendSubscriptions();
+            if (!d.isDraining()) {
+                d.resendSubscriptions();
+            }
         });
 
         try {
@@ -462,10 +466,10 @@ class NatsConnection implements Connection {
     // Close socket is called when another connect attempt is possible
     // Close is called when the connection should shutdown, period
     public void close() throws InterruptedException {
-        this.close(true, null);
+        this.close(true);
     }
 
-    void close(boolean checkDrainStatus, Duration timeoutForDispatchers) throws InterruptedException {
+    void close(boolean checkDrainStatus) throws InterruptedException {
         statusLock.lock();
         try {
             if (checkDrainStatus && this.isDraining()) {
@@ -495,7 +499,7 @@ class NatsConnection implements Connection {
         closeSocketImpl();
 
         this.dispatchers.forEach((nuid, d) -> {
-            d.stop(false, timeoutForDispatchers);
+            d.stop(false);
         });
 
         this.subscribers.forEach((sid, sub) -> {
@@ -797,8 +801,8 @@ class NatsConnection implements Connection {
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
-        } else if (blockPublishForDrain.get()) {
-            throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
+        } else if (isDraining()) {
+            throw new IllegalStateException("Connection is Draining");
         }
 
         if (subject == null || subject.length() == 0) {
@@ -892,20 +896,32 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Dispatcher is already closed.");
         }
 
-        cleanupDispatcher(nd, null);
+        cleanupDispatcher(nd);
     }
 
-    void cleanupDispatcher(NatsDispatcher nd, Duration timeout) {
-        nd.stop(true, timeout);
+    void cleanupDispatcher(NatsDispatcher nd) {
+        nd.stop(true);
         this.dispatchers.remove(nd.getId());
     }
 
     public void flush(Duration timeout) throws TimeoutException, InterruptedException {
 
+        Instant start = Instant.now();
         waitForConnectOrClose(timeout);
 
         if (isClosed()) {
             throw new TimeoutException("Attempted to flush while closed");
+        }
+
+        if (timeout == null) {
+            timeout = Duration.ZERO;
+        }
+
+        Instant now = Instant.now();
+        Duration waitTime = Duration.between(start, now);
+
+        if (!timeout.equals(Duration.ZERO) && waitTime.compareTo(timeout) >= 0) {
+            throw new TimeoutException("Timeout out waiting for connection before flush.");
         }
 
         try {
@@ -915,13 +931,16 @@ class NatsConnection implements Connection {
                 return;
             }
 
-            if (timeout == null) {
-                timeout = Duration.ZERO;
-            }
-
             long nanos = timeout.toNanos();
 
             if (nanos > 0) {
+
+                nanos -= waitTime.toNanos();
+
+                if (nanos <= 0) {
+                    nanos = 1; // let the future timeout if it isn't resolved
+                }
+
                 waitForIt.get(nanos, TimeUnit.NANOSECONDS);
             } else {
                 waitForIt.get();
@@ -1403,7 +1422,12 @@ class NatsConnection implements Connection {
         return false;
     }
 
-    public CompletableFuture<Boolean> drain(Duration timeout) {
+    public CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException {
+
+        if (isClosing() || isClosed()) {
+            throw new IllegalStateException("A connection can't be drained during close.");
+        }
+
         this.statusLock.lock();
         try {
             if (isDraining()) {
@@ -1413,48 +1437,54 @@ class NatsConnection implements Connection {
         } finally {
             this.statusLock.unlock();
         }
-
+        
         final CompletableFuture<Boolean> tracker = this.draining.get();
-        final HashSet<NatsConsumer> consumers = new HashSet<>();
-        final NatsDispatcher inboxer = this.inboxDispatcher.get();
+        Instant start = Instant.now();
 
+        // Don't include subscribers with dispatchers
         HashSet<NatsSubscription> pureSubscribers = new HashSet<>();
         pureSubscribers.addAll(this.subscribers.values());
         pureSubscribers.removeIf((s) -> {
             return s.getDispatcher() != null;
         });
 
-        // Don't include subscribers with dispatchers
+        final HashSet<NatsConsumer> consumers = new HashSet<>();
         consumers.addAll(pureSubscribers);
         consumers.addAll(this.dispatchers.values());
 
-        if (inboxer != null) {
-            consumers.remove(inboxer); // This one is special
+        NatsDispatcher inboxer = this.inboxDispatcher.get();
+
+        if(inboxer != null) {
+            consumers.add(inboxer);
         }
 
         // Stop the consumers NOW so that when this method returns they are blocked
-        consumers.forEach((con) -> {
-            con.drain(timeout); // Will call back into connection, but connection is already draining
+        consumers.forEach((cons) -> {
+            cons.markDraining(tracker);
+            cons.sendUnsubForDrain();
+        });
+
+        this.flush(timeout); // Flush and wait up to the timeout, if this fails, let the caller know
+        
+        consumers.forEach((cons) -> {
+            cons.markUnsubedForDrain();
         });
 
         // Wait for the timeout or the pending count to go to 0
         Thread t = new Thread(() -> {
-            Instant start = Instant.now();
 
             try {
-                this.flush(timeout); // Flush and wait up to the timeout for unsubs to go through
-
                 Instant now = Instant.now();
 
                 while (timeout == null || timeout.equals(Duration.ZERO)
                         || Duration.between(start, now).compareTo(timeout) < 0) {
                     for (Iterator<NatsConsumer> i = consumers.iterator(); i.hasNext();) {
                         NatsConsumer cons = i.next();
-                        if (cons.getPendingMessageCount() == 0) {
+                        if (cons.isDrained()) {
                             i.remove();
                         }
                     }
-
+                    
                     if (consumers.size() == 0) {
                         break;
                     }
@@ -1466,22 +1496,6 @@ class NatsConnection implements Connection {
 
                 // Stop publishing
                 this.blockPublishForDrain.set(true);
-
-                // Stop request/reply
-                NatsDispatcher inboxerMidDrain = this.inboxDispatcher.get();
-                if (inboxerMidDrain != null) {
-                    inboxerMidDrain.drain(timeout);
-                    while (timeout == null || timeout.equals(Duration.ZERO)
-                            || Duration.between(start, now).compareTo(timeout) < 0) {
-                        if (inboxerMidDrain.getPendingMessageCount() == 0) {
-                            break;
-                        }
-
-                        Thread.sleep(1); // Sleep 1 milli
-
-                        now = Instant.now();
-                    }
-                }
 
                 // One last flush
                 if (timeout == null || timeout.equals(Duration.ZERO)) {
@@ -1497,9 +1511,8 @@ class NatsConnection implements Connection {
                     }
                 }
 
-                now = Instant.now(); // capture the remaining timeout for dispatchers to use
-                this.close(false, timeout.minus(Duration.between(start, now)));// close the connection after the last flush
-                tracker.complete(consumers.size() == 0 && (inboxer == null || inboxer.getPendingMessageCount() == 0));
+                this.close(false); // close the connection after the last flush
+                tracker.complete(consumers.size() == 0);
             } catch (TimeoutException | InterruptedException e) {
                 this.processException(e);
             } finally {
@@ -1509,47 +1522,6 @@ class NatsConnection implements Connection {
                     this.processException(e);
                 }
                 tracker.complete(false);
-            }
-        });
-        t.start();
-
-        return tracker;
-    }
-
-    CompletableFuture<Boolean> drain(NatsConsumer sub, Duration timeout) {
-        if (isDraining()) {
-            return this.draining.get(); // Share the future if we are draining everything
-        }
-
-        final CompletableFuture<Boolean> tracker = new CompletableFuture<>();
-
-        // Wait for the timeout or the pending count to go to 0, skipped if conn is
-        // draining
-        Thread t = new Thread(() -> {
-            Instant start = Instant.now();
-
-            try {
-                this.flush(timeout); // Flush and wait up to the timeout
-
-                Instant now = Instant.now();
-
-                while (timeout == null || timeout.equals(Duration.ZERO)
-                        || Duration.between(start, now).compareTo(timeout) < 0) {
-                    if (sub.getPendingMessageCount() == 0) {
-                        break;
-                    }
-
-                    Thread.sleep(1); // Sleep 1 milli
-
-                    now = Instant.now();
-                }
-
-                sub.cleanUpAfterDrain(timeout.minus(Duration.between(start, now)));
-            } catch (TimeoutException | InterruptedException e) {
-                this.processException(e);
-                e.printStackTrace();
-            } finally {
-                tracker.complete(sub.getPendingMessageCount() == 0);
             }
         });
         t.start();
