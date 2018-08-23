@@ -560,9 +560,9 @@ public class DrainTests {
 
                 }
 
-                CompletableFuture<Boolean> tracker = draining.drain(Duration.ofSeconds(5));
+                CompletableFuture<Boolean> tracker = draining.drain(Duration.ofSeconds(9));
 
-                assertTrue(tracker.get(5, TimeUnit.SECONDS)); // wait for the drain to complete
+                assertTrue(tracker.get(10, TimeUnit.SECONDS)); // wait for the drain to complete
                 assertTrue(drainingD.isDrained());
                 assertTrue(((NatsConnection) draining).isDrained());
                 draining.close(); // no op, but ide wants this for auto-closable
