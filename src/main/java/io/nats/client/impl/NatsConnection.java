@@ -310,7 +310,10 @@ class NatsConnection implements Connection {
 
             this.sendConnect(serverURI);
             Future<Boolean> pongFuture = sendPing();
-            pongFuture.get(connectTimeout.toNanos(), TimeUnit.NANOSECONDS);
+
+            if (pongFuture != null) {
+                pongFuture.get(connectTimeout.toNanos(), TimeUnit.NANOSECONDS);
+            }
 
             if (this.timer == null) {
                 this.timer = new Timer("Nats Connection Timer");
@@ -320,7 +323,9 @@ class NatsConnection implements Connection {
                 if (pingMillis > 0) {
                     this.timer.schedule(new TimerTask() {
                         public void run() {
-                            sendPing();
+                            if (isConnected()) {
+                                sendPing();
+                            }
                         }
                     }, pingMillis, pingMillis);
                 }
