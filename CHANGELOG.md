@@ -4,6 +4,7 @@
 ## Version 2.1.0
 
 * [ADDED] Support for consumer or connection drain. (New API lead to version bump.)
+* [FIXED] Fixed an issue with null pointer when ping/pong and reconnect interacted poorly.
 
 ## Version 2.0.2
 

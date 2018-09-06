@@ -29,7 +29,7 @@ cache:
   - "$HOME/.gradle/wrapper/"
 after_success:
 - "./gradlew test jacocoTestReport coveralls"
-- test ${TRAVIS_BRANCH} != 'master' && test ${TRAVIS_JDK_VERSION} == 'ORACLE JDK 8' && "./gradlew uploadArchives" # Disable master for now, it fails due to ip address issues
+- test ${TRAVIS_BRANCH} != 'master' && test ${TRAVIS_JDK_VERSION} == 'oraclejdk8' && "./gradlew uploadArchives" # Disable master for now, it fails due to ip address issues
 #Disable for now, upload archives fails because of IP address changes - "test ${TRAVIS_PULL_REQUEST} != 'true' && test ${TRAVIS_BRANCH} = 'master' && ./gradlew closeAndReleaseRepository"
 env:
   global:
