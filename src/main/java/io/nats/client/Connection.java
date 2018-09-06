@@ -242,7 +242,7 @@ public interface Connection extends AutoCloseable {
      * messages have reached the server.
      * Finally the connection is closed.
      * 
-     * In order to drain subscribers, an unsub is sent to the server followed by a flush.
+     * In order to drain subscribers, an unsub protocol message is sent to the server followed by a flush.
      * These two steps occur before drain returns. The remaining steps occur in a background thread.
      * This method tries to manage the timeout properly, so that if the timeout is 1 second, and the flush
      * takes 100ms, the remaining steps have 900ms in the background thread.
