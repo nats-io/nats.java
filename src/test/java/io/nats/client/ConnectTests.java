@@ -299,8 +299,6 @@ public class ConnectTests {
                                 build();
         
         try {
-            handler.prepForStatusChange(Events.CONNECTED);
-
             Nats.connectAsynchronously(options, true);
 
             // No server at this point, let it fail and try to start over
@@ -310,9 +308,10 @@ public class ConnectTests {
 
             }
 
-            nc = handler.getConnection();
+            nc = handler.getConnection(); // will be disconnected, but should be there
             assertNotNull(nc);
 
+            handler.prepForStatusChange(Events.RECONNECTED);
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
                 handler.waitForStatusChange(5, TimeUnit.SECONDS);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
@@ -320,8 +319,8 @@ public class ConnectTests {
         } finally {
             if (nc != null) {
                 nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
     

@@ -41,7 +41,7 @@ Java API for the <a href="http://nats.io">NATs messaging system</a>.
 <pre>
     Connection nc = Nats.connect("nats://localhost:4222");
     
-    Dispatcher d = nc.createDispatcher((msg) -> {
+    Dispatcher d = nc.createDispatcher((msg) -&gt; {
         System.out.printf("Received message \"%s\" on subject \"%s\"\n", 
                                 new String(msg.getData(), StandardCharsets.UTF_8), 
                                 msg.getSubject());
@@ -49,7 +49,7 @@ Java API for the <a href="http://nats.io">NATs messaging system</a>.
     d.subscribe(subject);
 </pre>
 
-<p>A powerful {@see Options} class is provided to configure advanced connections.</p>
+<p>A powerful Options class is provided to configure advanced connections.</p>
 
 <pre>
     Options o = new Options.Builder().server("nats://hostname:4222").secure().reconnectBufferSize(300).build();

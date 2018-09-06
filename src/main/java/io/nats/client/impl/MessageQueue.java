@@ -15,22 +15,26 @@ package io.nats.client.impl;
 
 import java.time.Duration;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Predicate;
 
 class MessageQueue {
+    private final static int STOPPED = 0;
+    private final static int RUNNING = 1;
+    private final static int DRAINING = 2;
+
     private final AtomicLong length;
     private final AtomicLong sizeInBytes;
-    private final AtomicBoolean running;
+    private final AtomicInteger running;
     private final boolean singleThreadedReader;
     private final ConcurrentLinkedQueue<NatsMessage> queue;
     private final ConcurrentLinkedQueue<Thread> waiters;
 
     MessageQueue(boolean singleReaderMode) {
         this.queue = new ConcurrentLinkedQueue<>();
-        this.running = new AtomicBoolean(true);
+        this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
         
@@ -43,17 +47,30 @@ class MessageQueue {
     }
 
     boolean isRunning() {
-        return this.running.get();
+        return this.running.get() != STOPPED;
+    }
+
+    boolean isDraining() {
+        return this.running.get() == DRAINING;
     }
 
     void pause() {
-        this.running.set(false);
+        this.running.set(STOPPED);
         signalAll();
     }
 
     void resume() {
-        this.running.set(true);
+        this.running.set(RUNNING);
         signalAll();
+    }
+
+    void drain() {
+        this.running.set(DRAINING);
+        signalAll();
+    }
+
+    boolean isDrained() {
+        return this.running.get() == DRAINING && this.length() == 0;
     }
 
     void signalOne() {
@@ -99,7 +116,12 @@ class MessageQueue {
             // Semi-spin for at most MAX_SPIN_TIME
             if (timeoutNanos > MAX_SPIN_TIME) {
                 int count = 0;
-                while (this.running.get() && (retVal = this.queue.poll()) == null && count < MAX_SPINS) {
+                while (this.isRunning() && (retVal = this.queue.poll()) == null && count < MAX_SPINS) {
+
+                    if (this.isDraining()) {
+                        break;
+                    }
+
                     count++;
                     LockSupport.parkNanos(SPIN_WAIT);
                 }
@@ -111,7 +133,12 @@ class MessageQueue {
             
             long now = start;
 
-            while (this.running.get() && (retVal = this.queue.poll()) == null) {
+            while (this.isRunning() && (retVal = this.queue.poll()) == null) {
+                
+                if (this.isDraining()) {
+                    break;
+                }
+                
                 if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
                     now = System.nanoTime();
                     timeoutNanos = timeoutNanos - (now - start); //include the semi-spin time
@@ -140,7 +167,7 @@ class MessageQueue {
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
-        if (!this.running.get()) {
+        if (!this.isRunning()) {
             return null;
         }
 
@@ -176,7 +203,7 @@ class MessageQueue {
             throw new IllegalStateException("Accumulate is only supported in single reader mode.");
         }
 
-        if (!this.running.get()) {
+        if (!this.isRunning()) {
             return null;
         }
 
@@ -185,7 +212,7 @@ class MessageQueue {
         if (msg == null) {
             msg = waitForTimeout(timeout);
             
-            if (!this.running.get() || (msg == null)) {
+            if (!this.isRunning() || (msg == null)) {
                 return null;
             }
         }
@@ -247,7 +274,7 @@ class MessageQueue {
     }
 
     void filter(Predicate<NatsMessage> p) {
-        if (this.running.get()) {
+        if (this.isRunning()) {
             throw new IllegalStateException("Filter is only supported when the queue is paused");
         }
     

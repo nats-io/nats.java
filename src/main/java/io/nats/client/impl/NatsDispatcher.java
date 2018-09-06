@@ -23,7 +23,6 @@ import io.nats.client.MessageHandler;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
-    private NatsConnection connection;
     private MessageQueue incoming;
     private MessageHandler handler;
 
@@ -33,13 +32,16 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     private String id;
 
     private Map<String, NatsSubscription> subscriptions;
+    private Duration waitForMessage;
+
 
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
-        this.connection = conn;
+        super(conn);
         this.handler = handler;
         this.incoming = new MessageQueue(true);
         this.subscriptions = new ConcurrentHashMap<>();
         this.running = new AtomicBoolean(false);
+        this.waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
     }
 
     void start(String id) {
@@ -50,15 +52,22 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.thread.start();
     }
 
-    public void run() {
-        Duration waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
+    boolean breakRunLoop() {
+        return this.incoming.isDrained();
+    }
 
+    public void run() {
         try {
             while (this.running.get()) {
-                NatsMessage msg = this.incoming.pop(waitForMessage);
+                
+                NatsMessage msg = this.incoming.pop(this.waitForMessage);
 
                 if (msg == null) {
-                    continue;
+                    if (breakRunLoop()) {
+                        return;
+                    } else {
+                        continue;
+                    }
                 }
 
                 NatsSubscription sub = msg.getNatsSubscription();
@@ -78,6 +87,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                         this.connection.invalidate(sub);
                     }
                 }
+
+                if (breakRunLoop()) {
+                    // will set the dispatcher to not active
+                    return;
+                }
             }
         } catch (InterruptedException exp) {
             if (this.running.get()){
@@ -93,9 +107,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.running.set(false);
         this.incoming.pause();
 
-        if (this.thread != null) { // Force the interrupt
+        if (this.thread != null) {
             try {
-                this.thread.interrupt();
+                if (this.thread.isAlive()) {
+                    this.thread.interrupt();
+                }
             } catch (Exception exp) {
                 // let it go
             }
@@ -134,7 +150,6 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     }
 
     public Dispatcher subscribe(String subject) {
-
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
@@ -159,6 +174,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (!this.running.get()) {
             throw new IllegalStateException("Dispatcher is closed");
         }
+        
+        if (this.isDraining()) {
+            throw new IllegalStateException("Dispatcher is draining");
+        }
 
         NatsSubscription sub = subscriptions.get(subject);
 
@@ -179,7 +198,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     public Dispatcher unsubscribe(String subject, int after) {
         if (!this.running.get()) {
-            throw new IllegalStateException("Dispatcher is closed");
+            throw new IllegalStateException("Dispatcfher is closed");
+        }
+
+        if (isDraining()) { // No op while draining
+            return this;
         }
 
         if (subject == null || subject.length() == 0) {
@@ -195,4 +218,17 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return this;
     }
 
+    void sendUnsubForDrain() {
+        this.subscriptions.forEach((id, sub)->{
+            this.connection.sendUnsub(sub, -1);
+        });
+    }
+
+    void cleanUpAfterDrain() {
+        this.connection.cleanupDispatcher(this);
+    }
+
+    public boolean isDrained() {
+        return !isActive() && super.isDrained();
+    }
 }

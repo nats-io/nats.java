@@ -35,6 +35,7 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * A utility class for measuring NATS performance, similar to the version in go and node.
@@ -184,8 +185,14 @@ public class NatsBench {
     }
 
     class PubWorker extends Worker {
-        PubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
+
+        private AtomicLong start;
+        private long targetPubRate;
+
+        PubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure, long targetPubRate) {
             super(starter, finisher, numMsgs, size, secure);
+            this.start = new AtomicLong();
+            this.targetPubRate = targetPubRate;
         }
 
         @Override
@@ -201,7 +208,7 @@ public class NatsBench {
 
                  // Wait for the signal
                 starter.get(60, TimeUnit.SECONDS);
-                long start = System.nanoTime();
+                start.set(System.nanoTime());
                 for (int i = 0; i < numMsgs; i++) {
                     nc.publish(subject, payload);
                     sent.incrementAndGet();
@@ -209,12 +216,56 @@ public class NatsBench {
                 nc.flush(Duration.ZERO);
                 long end = System.nanoTime();
 
-                bench.addPubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
+                bench.addPubSample(new Sample(numMsgs, size, start.get(), end, nc.getStatistics()));
                 nc.close();
             } catch (Exception e) {
                 errorQueue.add(e);
             } finally {
                 finisher.arrive();
+            }
+        }
+
+
+        void adjustAndSleep(Connection nc) throws InterruptedException {
+
+            if (this.targetPubRate <= 0) {
+                return;
+            }
+
+            long count = sent.incrementAndGet();
+
+            if (count % 1000 != 0) { // Only sleep every 1000 message
+                return;
+            }
+
+            long now = System.nanoTime();
+            long start = this.start.get();
+            double rate = (1e9 * (double) count)/((double)(now - start));
+            double delay = (1.0/((double) this.targetPubRate));
+            double adjust = delay / 20.0; // 5%
+            
+            if (adjust == 0) {
+                adjust = 1e-9; // 1ns min
+            }
+            
+            if (rate < this.targetPubRate) {
+                delay -= adjust;
+            } else if (rate > this.targetPubRate) {
+                delay += adjust;
+            }
+            
+            if (delay < 0) {
+                delay = 0;
+            }
+
+            delay = delay * 1000; // we are doing this every 1000 messages
+            
+            long nanos = (long)(delay * 1e9);
+            LockSupport.parkNanos(nanos);
+            
+            // Flush small messages regularly
+            if (this.size < 64 && count != 0 && count % 100_000 == 0) {
+                try {nc.flush(Duration.ZERO);}catch(Exception e){}
             }
         }
     }
@@ -290,7 +341,11 @@ public class NatsBench {
                     perPubMsgs = remaining;
                 }
                 
-                new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure), "Pub-"+i).start();
+                if (subCount == 0) {
+                    new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure, 0), "Pub-"+i).start();
+                } else {
+                    new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure, 2_000_000), "Pub-"+i).start();
+                }
                 
                 remaining -= perPubMsgs;
             }

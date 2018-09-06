@@ -71,13 +71,16 @@ public class ConnectionListenerTests {
                                     maxReconnects(0).
                                     connectionListener(handler).
                                     build();
+                                    
+                handler.prepForStatusChange(Events.CONNECTED);
                 Connection nc = Nats.connect(options);
                 try {
+                    handler.waitForStatusChange(5, TimeUnit.SECONDS);
                     assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                    assertEquals(1, handler.getEventCount(Events.DISCOVERED_SERVERS));
                 } finally {
                     nc.close();
                     assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                    assertEquals(1, handler.getEventCount(Events.DISCOVERED_SERVERS));
                 }
             }
         }
