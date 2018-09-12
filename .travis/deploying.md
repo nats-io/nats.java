@@ -13,6 +13,12 @@ Travis doesn't support sonatype deploy correctly. There is an issue where the va
 
 The gradle close and release process will fail if there is more than one repository staged. You may need to manually drop repositories from staging during testing on a single version number.
 
+## Before you Release
+
+1. Check that the Nats.java version is updated.
+2. Check that the version in gradle.build is updated.
+3. Check that the changelog.md is ready
+
 ## Manually Deploying
 
 You can deploy manually by setting up your gradle.properties to have:
