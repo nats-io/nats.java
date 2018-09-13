@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -42,6 +43,58 @@ public class AuthTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
+        }
+    }
+
+    @Test
+    public void testUserPassOnReconnect() throws Exception {
+        TestHandler handler = new TestHandler();
+        int port = NatsTestServer.nextPort();
+        Connection nc = null;
+        Subscription sub = null;
+        String[] customArgs = {"--user","stephen","--pass","password"};
+
+        try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
+            // See config file for user/pass
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(-1).
+                        userInfo("stephen", "password").
+                        connectionListener(handler).
+                        build();
+            nc = Nats.connect(options);
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            sub = nc.subscribe("test");
+            nc.publish("test", null);
+            nc.flush(Duration.ofSeconds(5));
+            Message msg = sub.nextMessage(Duration.ofSeconds(5));
+            assertNotNull(msg);
+            handler.prepForStatusChange(Events.DISCONNECTED);
+        }
+
+        try {
+            nc.flush(Duration.ofSeconds(1));
+        } catch (Exception exp) {
+        }
+
+        handler.waitForStatusChange(5, TimeUnit.SECONDS);
+        assertTrue("Reconnecting status", Connection.Status.RECONNECTING == nc.getStatus() ||
+                                            Connection.Status.DISCONNECTED == nc.getStatus());
+        handler.prepForStatusChange(Events.RESUBSCRIBED);
+
+
+        try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
+            handler.waitForStatusChange(5, TimeUnit.SECONDS);
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            nc.publish("test", null);
+            nc.flush(Duration.ofSeconds(5));
+            Message msg = sub.nextMessage(Duration.ofSeconds(5));
+            assertNotNull(msg);
+
+            nc.close();
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
@@ -86,6 +139,57 @@ public class AuthTests {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
+        }
+    }
+
+    @Test
+    public void testUserPassInURLOnReconnect() throws Exception {
+        TestHandler handler = new TestHandler();
+        int port = NatsTestServer.nextPort();
+        Connection nc = null;
+        Subscription sub = null;
+        String[] customArgs = {"--user","stephen","--pass","password"};
+
+        try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
+            // See config file for user/pass
+            Options options = new Options.Builder().
+                        server("nats://stephen:password@localhost:"+ts.getPort()).
+                        maxReconnects(-1).
+                        connectionListener(handler).
+                        build();
+            nc = Nats.connect(options);
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            sub = nc.subscribe("test");
+            nc.publish("test", null);
+            nc.flush(Duration.ofSeconds(5));
+            Message msg = sub.nextMessage(Duration.ofSeconds(5));
+            assertNotNull(msg);
+            handler.prepForStatusChange(Events.DISCONNECTED);
+        }
+
+        try {
+            nc.flush(Duration.ofSeconds(1));
+        } catch (Exception exp) {
+        }
+
+        handler.waitForStatusChange(5, TimeUnit.SECONDS);
+        assertTrue("Reconnecting status", Connection.Status.RECONNECTING == nc.getStatus() ||
+                                            Connection.Status.DISCONNECTED == nc.getStatus());
+        handler.prepForStatusChange(Events.RESUBSCRIBED);
+
+
+        try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
+            handler.waitForStatusChange(5, TimeUnit.SECONDS);
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            nc.publish("test", null);
+            nc.flush(Duration.ofSeconds(5));
+            Message msg = sub.nextMessage(Duration.ofSeconds(5));
+            assertNotNull(msg);
+
+            nc.close();
+            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }
 
