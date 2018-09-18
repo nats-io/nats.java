@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
+import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
 
 public class AuthTests {
@@ -174,8 +175,9 @@ public class AuthTests {
         }
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
-        assertTrue("Reconnecting status", Connection.Status.RECONNECTING == nc.getStatus() ||
-                                            Connection.Status.DISCONNECTED == nc.getStatus());
+        Status status = nc.getStatus();
+        assertTrue("Reconnecting status", Connection.Status.RECONNECTING == status ||
+                                            Connection.Status.DISCONNECTED == status);
         handler.prepForStatusChange(Events.RESUBSCRIBED);
 
 

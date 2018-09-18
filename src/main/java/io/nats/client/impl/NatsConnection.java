@@ -202,6 +202,8 @@ class NatsConnection implements Connection {
             return;
         }
 
+        this.writer.setReconnectMode(true);
+
         while (!isConnected() && !isClosed() && !this.isClosing()) {
             Collection<String> serversToTry = buildReconnectList();
 
@@ -259,6 +261,8 @@ class NatsConnection implements Connection {
         } catch (Exception exp) {
             this.processException(exp);
         }
+        
+        this.writer.setReconnectMode(false);
 
         processConnectionEvent(Events.RESUBSCRIBED);
     }
@@ -700,7 +704,7 @@ class NatsConnection implements Connection {
             protocolBuilder.append(String.valueOf(after));
         }
         NatsMessage unsubMsg = new NatsMessage(protocolBuilder.toString());
-        queueOutgoing(unsubMsg);
+        queueProtocolOutgoing(unsubMsg);
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -740,7 +744,7 @@ class NatsConnection implements Connection {
         protocolBuilder.append(" ");
         protocolBuilder.append(sid);
         NatsMessage subMsg = new NatsMessage(protocolBuilder.toString());
-        queueOutgoing(subMsg);
+        queueProtocolOutgoing(subMsg);
     }
 
     String createInbox() {
@@ -965,9 +969,9 @@ class NatsConnection implements Connection {
         String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired());
         connectString.append(connectOptions);
         NatsMessage msg = new NatsMessage(connectString.toString());
-        queueOutgoing(msg);
+        queueProtocolOutgoing(msg);
     }
-
+    
     // Send a ping request and push a pong future on the queue.
     // futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns the wait will not return
@@ -989,14 +993,16 @@ class NatsConnection implements Connection {
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
         NatsMessage msg = new NatsMessage(NatsConnection.OP_PING);
         pongQueue.add(pongFuture);
-        queueOutgoing(msg);
+
+        queueProtocolOutgoing(msg);
+
         this.statistics.incrementPingCount();
         return pongFuture;
     }
 
     void sendPong() {
         NatsMessage msg = new NatsMessage(NatsConnection.OP_PONG);
-        queueOutgoing(msg);
+        queueProtocolOutgoing(msg);
     }
 
     // Called by the reader
@@ -1084,6 +1090,13 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Control line is too long");
         }
         this.writer.queue(msg);
+    }
+
+    void queueProtocolOutgoing(NatsMessage msg) {
+        if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
+            throw new IllegalArgumentException("Control line is too long");
+        }
+        this.writer.queueProtocolMessage(msg);
     }
 
     void deliverMessage(NatsMessage msg) {
