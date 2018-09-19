@@ -726,7 +726,7 @@ class NatsConnection implements Connection {
         return sub;
     }
 
-    void sendSubscriptionMessage(CharSequence sid, String subject, String queueName, boolean fastPath) {
+    void sendSubscriptionMessage(CharSequence sid, String subject, String queueName, boolean treatAsInternal) {
         if (!isConnected()) {
             return;// We will setup sub on reconnect or ignore
         }
@@ -745,7 +745,7 @@ class NatsConnection implements Connection {
         protocolBuilder.append(sid);
         NatsMessage subMsg = new NatsMessage(protocolBuilder.toString());
 
-        if (fastPath) {
+        if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
         } else {
             queueOutgoing(subMsg);
@@ -989,7 +989,7 @@ class NatsConnection implements Connection {
     // futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns the wait will not return
     // without setting a timeout.
-    CompletableFuture<Boolean> sendPing(boolean fastPath) {
+    CompletableFuture<Boolean> sendPing(boolean treatAsInternal) {
         int max = this.options.getMaxPingsOut();
 
         if (!isConnectedOrConnecting()) {
@@ -1007,7 +1007,7 @@ class NatsConnection implements Connection {
         NatsMessage msg = new NatsMessage(NatsConnection.OP_PING);
         pongQueue.add(pongFuture);
 
-        if (fastPath) {
+        if (treatAsInternal) {
             queueInternalOutgoing(msg);
         } else {
             queueOutgoing(msg);
