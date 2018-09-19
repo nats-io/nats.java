@@ -16,8 +16,9 @@ The gradle close and release process will fail if there is more than one reposit
 ## Before you Release
 
 1. Check that the Nats.java version is updated.
-2. Check that the version in gradle.build is updated.
-3. Check that the changelog.md is ready
+2. Check that the version in gradle.build is updated, including the jar file versions
+3. Check dependency versions.
+4. Check that the changelog.md is ready
 
 ## Manually Deploying
 
