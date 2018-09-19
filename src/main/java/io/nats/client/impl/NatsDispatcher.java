@@ -140,7 +140,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     void resendSubscriptions() {
         this.subscriptions.forEach((id, sub)->{
-            this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+            this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
         });
     }
 

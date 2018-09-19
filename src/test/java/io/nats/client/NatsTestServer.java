@@ -85,6 +85,13 @@ public class NatsTestServer implements AutoCloseable {
         start();
     }
 
+    public NatsTestServer(String[] customArgs, int port, boolean debug) {
+        this.port = port;
+        this.debug = debug;
+        this.customArgs = customArgs;
+        start();
+    }
+
     public void start() {
         ArrayList<String> cmd = new ArrayList<String>();
 

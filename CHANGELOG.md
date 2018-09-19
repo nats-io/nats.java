@@ -1,6 +1,11 @@
 
 # Change Log
 
+## Version 2.1.1
+
+* [FIXED] Issue with version in Nats.java, also updated deploying.md with checklist
+* [FIXED] Fixed issue during reconnect where buffered messages blocked protocol messages
+
 ## Version 2.1.0
 
 * [ADDED] Support for consumer or connection drain. (New API lead to version bump.)
