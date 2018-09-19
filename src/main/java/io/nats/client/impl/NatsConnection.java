@@ -245,8 +245,8 @@ class NatsConnection implements Connection {
         }
 
         this.subscribers.forEach((sid, sub) -> {
-            if (!sub.isDraining()) {
-                sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName());
+            if (sub.getDispatcher() == null && !sub.isDraining()) {
+                sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
             }
         });
 
@@ -328,7 +328,7 @@ class NatsConnection implements Connection {
                     this.timer.schedule(new TimerTask() {
                         public void run() {
                             if (isConnected()) {
-                                sendPing();
+                                softPing(); // The timer always uses the standard queue
                             }
                         }
                     }, pingMillis, pingMillis);
@@ -704,7 +704,7 @@ class NatsConnection implements Connection {
             protocolBuilder.append(String.valueOf(after));
         }
         NatsMessage unsubMsg = new NatsMessage(protocolBuilder.toString());
-        queueProtocolOutgoing(unsubMsg);
+        queueInternalOutgoing(unsubMsg);
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -722,11 +722,11 @@ class NatsConnection implements Connection {
         sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
         subscribers.put(sid, sub);
 
-        sendSubscriptionMessage(sid, subject, queueName);
+        sendSubscriptionMessage(sid, subject, queueName, false);
         return sub;
     }
 
-    void sendSubscriptionMessage(CharSequence sid, String subject, String queueName) {
+    void sendSubscriptionMessage(CharSequence sid, String subject, String queueName, boolean fastPath) {
         if (!isConnected()) {
             return;// We will setup sub on reconnect or ignore
         }
@@ -744,7 +744,12 @@ class NatsConnection implements Connection {
         protocolBuilder.append(" ");
         protocolBuilder.append(sid);
         NatsMessage subMsg = new NatsMessage(protocolBuilder.toString());
-        queueProtocolOutgoing(subMsg);
+
+        if (fastPath) {
+            queueInternalOutgoing(subMsg);
+        } else {
+            queueOutgoing(subMsg);
+        }
     }
 
     String createInbox() {
@@ -969,14 +974,22 @@ class NatsConnection implements Connection {
         String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired());
         connectString.append(connectOptions);
         NatsMessage msg = new NatsMessage(connectString.toString());
-        queueProtocolOutgoing(msg);
+        queueInternalOutgoing(msg);
+    }
+    
+    CompletableFuture<Boolean> sendPing() {
+        return this.sendPing(true);
+    }
+
+    CompletableFuture<Boolean> softPing() {
+        return this.sendPing(false);
     }
     
     // Send a ping request and push a pong future on the queue.
     // futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns the wait will not return
     // without setting a timeout.
-    CompletableFuture<Boolean> sendPing() {
+    CompletableFuture<Boolean> sendPing(boolean fastPath) {
         int max = this.options.getMaxPingsOut();
 
         if (!isConnectedOrConnecting()) {
@@ -994,7 +1007,11 @@ class NatsConnection implements Connection {
         NatsMessage msg = new NatsMessage(NatsConnection.OP_PING);
         pongQueue.add(pongFuture);
 
-        queueProtocolOutgoing(msg);
+        if (fastPath) {
+            queueInternalOutgoing(msg);
+        } else {
+            queueOutgoing(msg);
+        }
 
         this.statistics.incrementPingCount();
         return pongFuture;
@@ -1002,7 +1019,7 @@ class NatsConnection implements Connection {
 
     void sendPong() {
         NatsMessage msg = new NatsMessage(NatsConnection.OP_PONG);
-        queueProtocolOutgoing(msg);
+        queueInternalOutgoing(msg);
     }
 
     // Called by the reader
@@ -1092,11 +1109,11 @@ class NatsConnection implements Connection {
         this.writer.queue(msg);
     }
 
-    void queueProtocolOutgoing(NatsMessage msg) {
+    void queueInternalOutgoing(NatsMessage msg) {
         if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
             throw new IllegalArgumentException("Control line is too long");
         }
-        this.writer.queueProtocolMessage(msg);
+        this.writer.queueInternallMessage(msg);
     }
 
     void deliverMessage(NatsMessage msg) {

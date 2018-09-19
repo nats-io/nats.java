@@ -98,7 +98,7 @@ class NatsConnectionWriter implements Runnable {
                 int sendPosition = 0;
                 NatsMessage msg = null;
                 
-                if (this.reconnectMode.get()) {
+                if (reconnectMode.get()) {
                     msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxMessages, reconnectWait);
                 } else {
                     msg = this.outgoing.accumulate(this.sendBuffer.length, maxMessages, waitForMessage);
@@ -174,7 +174,7 @@ class NatsConnectionWriter implements Runnable {
         this.outgoing.push(msg);
     }
 
-    void queueProtocolMessage(NatsMessage msg) {
+    void queueInternallMessage(NatsMessage msg) {
         if (this.reconnectMode.get()) {
             this.reconnectOutgoing.push(msg);
         } else {
