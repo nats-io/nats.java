@@ -174,7 +174,7 @@ class NatsConnectionWriter implements Runnable {
         this.outgoing.push(msg);
     }
 
-    void queueInternallMessage(NatsMessage msg) {
+    void queueInternalMessage(NatsMessage msg) {
         if (this.reconnectMode.get()) {
             this.reconnectOutgoing.push(msg);
         } else {

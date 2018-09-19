@@ -1113,7 +1113,7 @@ class NatsConnection implements Connection {
         if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
             throw new IllegalArgumentException("Control line is too long");
         }
-        this.writer.queueInternallMessage(msg);
+        this.writer.queueInternalMessage(msg);
     }
 
     void deliverMessage(NatsMessage msg) {
