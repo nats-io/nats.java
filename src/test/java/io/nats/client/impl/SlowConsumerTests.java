@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import io.nats.client.Consumer;
 import io.nats.client.Dispatcher;
+import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
@@ -32,6 +33,22 @@ import io.nats.client.Subscription;
 import io.nats.client.TestHandler;
 
 public class SlowConsumerTests {
+
+    @Test
+    public void testDefaultPendingLimits() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            
+            Subscription sub = nc.subscribe("subject");
+            Dispatcher d = nc.createDispatcher((Message m) -> {});
+
+            assertEquals(sub.getPendingMessageLimit(), Consumer.DEFAULT_MAX_MESSAGES);
+            assertEquals(sub.getPendingByteLimit(), Consumer.DEFAULT_MAX_BYTES);
+
+            assertEquals(d.getPendingMessageLimit(), Consumer.DEFAULT_MAX_MESSAGES);
+            assertEquals(d.getPendingByteLimit(), Consumer.DEFAULT_MAX_BYTES);
+        }
+    }
 
     @Test
     public void testSlowSubscriberByMessages() throws Exception {

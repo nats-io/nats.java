@@ -35,8 +35,8 @@ abstract class NatsConsumer implements Consumer {
 
     NatsConsumer(NatsConnection conn) {
         this.connection = conn;
-        this.maxMessages = new AtomicLong();
-        this.maxBytes = new AtomicLong();
+        this.maxMessages = new AtomicLong(Consumer.DEFAULT_MAX_MESSAGES);
+        this.maxBytes = new AtomicLong(Consumer.DEFAULT_MAX_BYTES);
         this.droppedMessages = new AtomicLong();
         this.messagesDelivered = new AtomicLong(0);
         this.slow = new AtomicBoolean(false);
