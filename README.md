@@ -20,6 +20,10 @@ Version 2.1 uses a simplified versioning scheme. Any issues will be fixed in the
 
 Previous versions are still available in the repo.
 
+### UTF-8 Subjects
+
+The client protocol spec doesn't state the encoding on subjects. Some clients use ASCII and some use UTF-8 which matches ASCII for a-Z and 0-9. Until 2.1.2 the 2.0+ version of the Java client used ASCII for performance reasons. As of 2.1.2 you can choose to support UTF-8 subjects via the Options. Keep in mind that there is a ~10% performance penalty for UTF-8 encoding and decoding in benchmarks, but depending on your application this cost may be negligible. Also, keep in mind that not all clients support UTF-8 and test accordingly.
+
 ## Installation
 
 The java-nats client is provided in a single jar file, with no external dependencies. See [Building From Source](#building-from-source) for details on building the library.

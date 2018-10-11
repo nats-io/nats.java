@@ -656,7 +656,7 @@ public class Options {
         /**
          * The client protocol is not clear about the encoding for subject names. For 
          * performance reasons, the Java client defaults to ASCII. You can enable UTF8
-         * with this method. The server, written in go, treats byte->string as UTF8 by default
+         * with this method. The server, written in go, treats byte to string as UTF8 by default
          * and should allow UTF8 subjects, but make sure to test any clients when using them.
          * @return the Builder for chaining
          */
