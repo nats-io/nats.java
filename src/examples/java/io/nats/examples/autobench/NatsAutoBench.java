@@ -29,33 +29,56 @@ import io.nats.client.Options;
  */
 public class NatsAutoBench {
     static final String usageString =
-    "\nUsage: java NatsAutoBench [server]"
-            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
+    "\nUsage: java NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med]"
+    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+    + "\n\ntiny, small and med reduce the number of messages used for tests, which can help on slower machines\n";
 
     public static void main(String args[]) {
-        String server;
+        String server = Options.DEFAULT_URL;
+        boolean utf8 = false;
+        int baseMsgs = 100_000;
+        int latencyMsgs = 5_000;
 
-        if (args.length == 1) {
-            server = args[0];
-        } else if (args.length == 0) {
-            server = Options.DEFAULT_URL;
-        } else {
-            usage();
-            return;
+        if (args.length > 0) {
+            for (String s : args) {
+                if (s.equals("utf8")) {
+                    utf8 = true;
+                }else if (s.equals("med")) {
+                    baseMsgs = 50_000;
+                    latencyMsgs = 2_500;
+                }  else if (s.equals("small")) {
+                    baseMsgs = 5_000;
+                    latencyMsgs = 250;
+                } else if (s.equals("tiny")) {
+                    baseMsgs = 1_000;
+                    latencyMsgs = 50;
+                } else if (s.equals("nano")) {
+                    baseMsgs = 10;
+                    latencyMsgs = 5;
+                } else if (s.equals("help")) {
+                    usage();
+                    return;
+                } else {
+                    server = s;
+                }
+            }
         }
 
-        if ("help".equals(server)) {
-            usage();
-        }
+        System.out.printf("Connecting to gnatsd at %s\n", server);
 
         try {
-            Options connectOptions = new Options.Builder().
-                                            server(server).
-                                            connectionTimeout(Duration.ofMillis(1000)).
-                                            noReconnect().
-                                            build();
-                                       
-            List<AutoBenchmark> tests = buildTestList();
+            Options.Builder builder = new Options.Builder().
+                                                    server(server).
+                                                    connectionTimeout(Duration.ofSeconds(1)).
+                                                    noReconnect();
+            
+            if (utf8) {
+                System.out.printf("Enabling UTF-8 subjects\n");
+                builder.supportUTF8Subjects();
+            }
+                    
+            Options connectOptions = builder.build();                   
+            List<AutoBenchmark> tests = buildTestList(baseMsgs, latencyMsgs);
 
             System.out.println("Running warmup");
             runWarmup(connectOptions);
@@ -72,7 +95,7 @@ public class NatsAutoBench {
                 // Ask for GC and wait a moment between tests
                 System.gc();
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(500);
                 } catch (Exception exp) {
                     // ignore
                 }
@@ -111,57 +134,56 @@ public class NatsAutoBench {
         }
     }
 
-    public static List<AutoBenchmark> buildTestList() {
+    public static List<AutoBenchmark> buildTestList(int baseMsgs, int latencyMsgs) {
         ArrayList<AutoBenchmark> tests = new ArrayList<>();
         
         /**/
-        tests.add(new PubBenchmark("PubOnly 0b", 10_000_000, 0));
-        tests.add(new PubBenchmark("PubOnly 8b", 10_000_000, 8));
-        tests.add(new PubBenchmark("PubOnly 32b", 10_000_000, 32));
-        tests.add(new PubBenchmark("PubOnly 256b", 10_000_000, 256));
-        tests.add(new PubBenchmark("PubOnly 512b", 10_000_000, 512));
-        tests.add(new PubBenchmark("PubOnly 1k", 1_000_000, 1024));
-        tests.add(new PubBenchmark("PubOnly 4k", 500_000, 4*1024));
-        tests.add(new PubBenchmark("PubOnly 8k", 100_000, 8*1024));
+        tests.add(new PubBenchmark("PubOnly 0b", 100 * baseMsgs, 0));
+        tests.add(new PubBenchmark("PubOnly 8b", 100 * baseMsgs, 8));
+        tests.add(new PubBenchmark("PubOnly 32b", 100 * baseMsgs, 32));
+        tests.add(new PubBenchmark("PubOnly 256b", 100 * baseMsgs, 256));
+        tests.add(new PubBenchmark("PubOnly 512b", 100 * baseMsgs, 512));
+        tests.add(new PubBenchmark("PubOnly 1k", 10 * baseMsgs, 1024));
+        tests.add(new PubBenchmark("PubOnly 4k", 5 * baseMsgs, 4*1024));
+        tests.add(new PubBenchmark("PubOnly 8k", baseMsgs, 8*1024));
 
-        tests.add(new PubSubBenchmark("PubSub 0b", 10_000_000, 0));
-        tests.add(new PubSubBenchmark("PubSub 8b", 10_000_000, 8));
-        tests.add(new PubSubBenchmark("PubSub 32b", 10_000_000, 32));
-        tests.add(new PubSubBenchmark("PubSub 256b", 10_000_000, 256));
-        tests.add(new PubSubBenchmark("PubSub 512b", 5_000_000, 512));
-        tests.add(new PubSubBenchmark("PubSub 1k", 1_000_000, 1024));
-        tests.add(new PubSubBenchmark("PubSub 4k", 100_000, 4*1024));
-        tests.add(new PubSubBenchmark("PubSub 8k", 100_000, 8*1024));
+        tests.add(new PubSubBenchmark("PubSub 0b", 100 * baseMsgs, 0));
+        tests.add(new PubSubBenchmark("PubSub 8b", 100 * baseMsgs, 8));
+        tests.add(new PubSubBenchmark("PubSub 32b", 100 * baseMsgs, 32));
+        tests.add(new PubSubBenchmark("PubSub 256b", 100 * baseMsgs, 256));
+        tests.add(new PubSubBenchmark("PubSub 512b", 50 * baseMsgs, 512));
+        tests.add(new PubSubBenchmark("PubSub 1k", 10 * baseMsgs, 1024));
+        tests.add(new PubSubBenchmark("PubSub 4k", baseMsgs, 4*1024));
+        tests.add(new PubSubBenchmark("PubSub 8k", baseMsgs, 8*1024));
         
-        tests.add(new PubDispatchBenchmark("PubDispatch 0b", 10_000_000, 0));
-        tests.add(new PubDispatchBenchmark("PubDispatch 8b", 10_000_000, 8));
-        tests.add(new PubDispatchBenchmark("PubDispatch 32b", 10_000_000, 32));
-        tests.add(new PubDispatchBenchmark("PubDispatch 256b", 10_000_000, 256));
-        tests.add(new PubDispatchBenchmark("PubDispatch 512b", 5_000_000, 512));
-        tests.add(new PubDispatchBenchmark("PubDispatch 1k", 1_000_000, 1024));
-        tests.add(new PubDispatchBenchmark("PubDispatch 4k", 100_000, 4*1024));
-        tests.add(new PubDispatchBenchmark("PubDispatch 8k", 100_000, 8*1024));
-
+        tests.add(new PubDispatchBenchmark("PubDispatch 0b", 100 * baseMsgs, 0));
+        tests.add(new PubDispatchBenchmark("PubDispatch 8b", 100 * baseMsgs, 8));
+        tests.add(new PubDispatchBenchmark("PubDispatch 32b", 100 * baseMsgs, 32));
+        tests.add(new PubDispatchBenchmark("PubDispatch 256b", 100 * baseMsgs, 256));
+        tests.add(new PubDispatchBenchmark("PubDispatch 512b", 50 * baseMsgs, 512));
+        tests.add(new PubDispatchBenchmark("PubDispatch 1k", 10 * baseMsgs, 1024));
+        tests.add(new PubDispatchBenchmark("PubDispatch 4k", baseMsgs, 4*1024));
+        tests.add(new PubDispatchBenchmark("PubDispatch 8k", baseMsgs, 8*1024));
+        
         // Request reply is a 4 message trip, and runs the full loop before sending another message
         // so we run fewer because the client cannot batch any socket calls to the server together
-        tests.add(new ReqReplyBenchmark("ReqReply 0b", 20_000, 0));
-        tests.add(new ReqReplyBenchmark("ReqReply 8b", 20_000, 8));
-        tests.add(new ReqReplyBenchmark("ReqReply 32b", 10_000, 32));
-        tests.add(new ReqReplyBenchmark("ReqReply 256b", 10_000, 256));
-        tests.add(new ReqReplyBenchmark("ReqReply 512b", 10_000, 512));
-        tests.add(new ReqReplyBenchmark("ReqReply 1k", 10_000, 1024));
-        tests.add(new ReqReplyBenchmark("ReqReply 4k", 10_000, 4*1024));
-        tests.add(new ReqReplyBenchmark("ReqReply 8k", 10_000, 8*1024));
+        tests.add(new ReqReplyBenchmark("ReqReply 0b", baseMsgs / 5, 0));
+        tests.add(new ReqReplyBenchmark("ReqReply 8b", baseMsgs / 5, 8));
+        tests.add(new ReqReplyBenchmark("ReqReply 32b", baseMsgs / 10, 32));
+        tests.add(new ReqReplyBenchmark("ReqReply 256b", baseMsgs / 10, 256));
+        tests.add(new ReqReplyBenchmark("ReqReply 512b", baseMsgs / 10, 512));
+        tests.add(new ReqReplyBenchmark("ReqReply 1k", baseMsgs / 10, 1024));
+        tests.add(new ReqReplyBenchmark("ReqReply 4k", baseMsgs / 10, 4*1024));
+        tests.add(new ReqReplyBenchmark("ReqReply 8k", baseMsgs / 10, 8*1024));
 
-        int latencyTests = 5_000;
-        tests.add(new LatencyBenchmark("Latency 0b", latencyTests, 0));
-        tests.add(new LatencyBenchmark("Latency 8b", latencyTests, 8));
-        tests.add(new LatencyBenchmark("Latency 32b", latencyTests, 32));
-        tests.add(new LatencyBenchmark("Latency 256b", latencyTests, 256));
-        tests.add(new LatencyBenchmark("Latency 512b", latencyTests, 512));
-        tests.add(new LatencyBenchmark("Latency 1k", latencyTests, 1024));
-        tests.add(new LatencyBenchmark("Latency 4k", latencyTests, 4 * 1024));
-        tests.add(new LatencyBenchmark("Latency 8k", latencyTests, 8 * 1024));
+        tests.add(new LatencyBenchmark("Latency 0b", latencyMsgs, 0));
+        tests.add(new LatencyBenchmark("Latency 8b", latencyMsgs, 8));
+        tests.add(new LatencyBenchmark("Latency 32b", latencyMsgs, 32));
+        tests.add(new LatencyBenchmark("Latency 256b", latencyMsgs, 256));
+        tests.add(new LatencyBenchmark("Latency 512b", latencyMsgs, 512));
+        tests.add(new LatencyBenchmark("Latency 1k", latencyMsgs, 1024));
+        tests.add(new LatencyBenchmark("Latency 4k", latencyMsgs, 4 * 1024));
+        tests.add(new LatencyBenchmark("Latency 8k", latencyMsgs, 8 * 1024));
         /**/
 
         return tests;

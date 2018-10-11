@@ -279,6 +279,11 @@ public class Options {
     public static final String PROP_MAX_CONTROL_LINE = "max.control.line";
 
     /**
+     * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjcts()}
+     */
+    public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
+
+    /**
      * Protocol key {@value #OPTION_VERBOSE}, see {@link Builder#verbose() verbose}.
      */
     static final String OPTION_VERBOSE = "verbose";
@@ -360,6 +365,7 @@ public class Options {
     private final boolean useOldRequestStyle;
     private final int bufferSize;
     private final boolean noEcho;
+    private final boolean utf8Support;
 
     private final ErrorListener errorListener;
     private final ConnectionListener connectionListener;
@@ -400,6 +406,7 @@ public class Options {
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private boolean trackAdvancedStats = false;
         private boolean noEcho = false;
+        private boolean utf8Support = false;
 
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
@@ -497,6 +504,10 @@ public class Options {
 
             if (props.containsKey(PROP_NO_ECHO)) {
                 this.noEcho = Boolean.parseBoolean(props.getProperty(PROP_NO_ECHO));
+            }
+
+            if (props.containsKey(PROP_UTF8_SUBJECTS)) {
+                this.utf8Support = Boolean.parseBoolean(props.getProperty(PROP_UTF8_SUBJECTS));
             }
 
             if (props.containsKey(PROP_PEDANTIC)) {
@@ -639,6 +650,18 @@ public class Options {
          */
         public Builder noEcho() {
             this.noEcho = true;
+            return this;
+        }
+
+        /**
+         * The client protocol is not clear about the encoding for subject names. For 
+         * performance reasons, the Java client defaults to ASCII. You can enable UTF8
+         * with this method. The server, written in go, treats byte->string as UTF8 by default
+         * and should allow UTF8 subjects, but make sure to test any clients when using them.
+         * @return the Builder for chaining
+         */
+        public Builder supportUTF8Subjects() {
+            this.utf8Support = true;
             return this;
         }
 
@@ -984,6 +1007,7 @@ public class Options {
         this.maxControlLine = b.maxControlLine;
         this.bufferSize = b.bufferSize;
         this.noEcho = b.noEcho;
+        this.utf8Support = b.utf8Support;
 
         this.errorListener = b.errorListener;
         this.connectionListener = b.connectionListener;
@@ -1031,6 +1055,13 @@ public class Options {
      */
     public boolean isNoRandomize() {
         return noRandomize;
+    }
+
+    /**
+     * @return whether or not utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
+     */
+    public boolean supportUTF8Subjects() {
+        return utf8Support;
     }
 
     /**

@@ -48,14 +48,16 @@ public class PubSubBenchmark extends ThrottledBenchmark {
                 }
                 try {
                     Subscription sub = subConnect.subscribe(subject);
-                    subConnect.flush(Duration.ZERO);
+                    subConnect.flush(Duration.ofSeconds(5));
                     subReady.complete(null);
                     
                     while(count < this.getMessageCount()) {
-                        Message msg = sub.nextMessage(Duration.ZERO);
+                        Message msg = sub.nextMessage(Duration.ofSeconds(5));
 
                         if (msg != null){
                             count++;
+                        } else {
+                            throw new Exception("No messages within timeout.");
                         }
                     }
 
@@ -88,7 +90,7 @@ public class PubSubBenchmark extends ThrottledBenchmark {
                         pubConnect.publish(subject, payload);
                         adjustAndSleep(pubConnect);
                     }
-                    try {pubConnect.flush(Duration.ZERO);}catch(Exception e){}
+                    try {pubConnect.flush(Duration.ofSeconds(5));}catch(Exception e){}
                     
                     pubDone.complete(null);
                 } finally {

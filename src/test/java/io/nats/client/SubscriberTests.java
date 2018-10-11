@@ -128,6 +128,39 @@ public class SubscriberTests {
         }
     }
 
+
+    @Test
+    public void testUTF8Subjects() throws IOException, TimeoutException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(
+                    new Options.Builder().server(ts.getURI()).supportUTF8Subjects().noReconnect().build())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            // Some UTF8 from http://www.columbia.edu/~fdc/utf8/
+            String[] subjects = {"Τη γλώσσα μου έδωσαν ελληνική",
+                "На берегу пустынных волн",
+                "ვეპხის ტყაოსანი შოთა რუსთაველი",
+                "Je peux manger du verre, ça ne me fait pas mal",
+                "⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑",
+                "أنا قادر على أكل الزجاج و هذا لا يؤلمني",
+                "私はガラスを食べられます。それは私を傷つけません"};
+
+            for (String subject : subjects) {
+                subject = subject.replace(" ",""); // get rid of spaces
+                Subscription sub = nc.subscribe(subject);
+                nc.flush(Duration.ofSeconds(5));
+                nc.publish(subject, new byte[16]);
+                Message msg = sub.nextMessage(Duration.ofSeconds(5));
+                assertNotNull(subject, msg);
+                assertEquals(subject, msg.getSubject());
+                assertEquals(sub, msg.getSubscription());
+                assertNull(msg.getReplyTo());
+                assertEquals(16, msg.getData().length);
+                sub.unsubscribe();
+            }
+        }
+    }
+
     @Test
     public void testQueueSubscribers() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);

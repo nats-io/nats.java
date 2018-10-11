@@ -45,11 +45,15 @@ public class NatsMessageTests {
         String replyTo = "reply";
         String protocol = "PUB "+subject+" "+replyTo+" "+body.length;
 
-        NatsMessage msg = new NatsMessage(subject, replyTo, body);
+        NatsMessage msg = new NatsMessage(subject, replyTo, body, false);
 
-        System.out.println("### "+new String(msg.getProtocolBytes()));
         assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes());
         assertEquals("Size is correct", protocol.getBytes(StandardCharsets.US_ASCII).length + body.length + 4, msg.getSizeInBytes());
+    
+        msg = new NatsMessage(subject, replyTo, body, true);
+
+        assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes());
+        assertEquals("Size is correct", protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes());
     }
     
     @Test(expected=IllegalArgumentException.class)

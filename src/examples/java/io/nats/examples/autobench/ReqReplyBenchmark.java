@@ -47,12 +47,12 @@ public class ReqReplyBenchmark extends AutoBenchmark {
                 }
                 try {
                     Subscription sub = replyConnect.subscribe(subject);
-                    replyConnect.flush(Duration.ZERO);
+                    replyConnect.flush(Duration.ofSeconds(5));
                     replyReady.complete(null);
                     
                     int count = 0;
                     while(count < this.getMessageCount()) {
-                        Message msg = sub.nextMessage(Duration.ZERO);
+                        Message msg = sub.nextMessage(Duration.ofSeconds(5));
 
                         if (msg != null){
                             replyConnect.publish(msg.getReplyTo(), payload);
@@ -60,7 +60,7 @@ public class ReqReplyBenchmark extends AutoBenchmark {
                         }
                     }
                     replyDone.complete(null);
-                    replyConnect.flush(Duration.ZERO);
+                    replyConnect.flush(Duration.ofSeconds(5));
                     
                 } catch (Exception exp) {
                     this.setException(exp);

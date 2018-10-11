@@ -56,7 +56,7 @@ public class PubDispatchBenchmark extends ThrottledBenchmark {
                         }
                     });
                     d.subscribe(subject);
-                    subConnect.flush(Duration.ZERO);
+                    subConnect.flush(Duration.ofSeconds(5));
                     subReady.complete(null);
                     
                     // For simplicity the test doesn't have a connection listener so just loop
@@ -103,7 +103,7 @@ public class PubDispatchBenchmark extends ThrottledBenchmark {
                         pubConnect.publish(subject, payload);
                         this.adjustAndSleep(pubConnect);
                     }
-                    try {pubConnect.flush(Duration.ZERO);}catch(Exception e){}
+                    try {pubConnect.flush(Duration.ofSeconds(5));}catch(Exception e){}
                     
                     pubDone.complete(null);
                 } finally {

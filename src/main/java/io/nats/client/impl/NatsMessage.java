@@ -40,74 +40,73 @@ class NatsMessage implements Message {
         return pos;
     }
 
+    private static String PUB_SPACE = NatsConnection.OP_PUB + " ";
+    private static String SPACE = " ";
+
     // Create a message to publish
-    NatsMessage(String subject, String replyTo, byte[] data) {
+    NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this.subject = subject;
         this.replyTo = replyTo;
         this.data = data;
         
-        /* If we ever want to support UTF-8 subjects ...
-        private static String PUB_SPACE = NatsConnection.OP_PUB + " ";
-        private static String SPACE = " ";
-        StringBuilder protocolStringBuilder = new StringBuilder((2 * subject.length()) + 20); // guess a size based on replyTO = subject
-        protocolStringBuilder.append(PUB_SPACE);
-
-        protocolStringBuilder.append(subject);
-        protocolStringBuilder.append(SPACE);
-
-        if (replyTo != null) {
-            protocolStringBuilder.append(replyTo);
+        if (utf8mode) {
+            StringBuilder protocolStringBuilder = new StringBuilder((2 * subject.length()) + 20); // guess a size based on replyTO = subject
+            protocolStringBuilder.append(PUB_SPACE);
+            protocolStringBuilder.append(subject);
             protocolStringBuilder.append(SPACE);
-        }
-
-        protocolStringBuilder.append(String.valueOf(data.length));
-
-        String protocol = protocolStringBuilder.toString();
-        this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
-        */
-
-        // Convert the length to bytes
-        byte[] lengthBytes = new byte[12];
-        int idx = lengthBytes.length;
-        int size = (data != null) ? data.length : 0;
-
-        if (size > 0) {
-            for (int i = size; i > 0; i /= 10) {
-                idx--;
-                lengthBytes[idx] = digits[i % 10];
+    
+            if (replyTo != null) {
+                protocolStringBuilder.append(replyTo);
+                protocolStringBuilder.append(SPACE);
             }
+    
+            protocolStringBuilder.append(String.valueOf(data.length));
+
+            this.protocolBytes = protocolStringBuilder.toString().getBytes(StandardCharsets.UTF_8);
         } else {
-            idx--;
-            lengthBytes[idx] = digits[0];
-        }
+            // Convert the length to bytes
+            byte[] lengthBytes = new byte[12];
+            int idx = lengthBytes.length;
+            int size = (data != null) ? data.length : 0;
 
-        // Build the array
-        int len = 4 + subject.length() + 1 + (lengthBytes.length - idx);
+            if (size > 0) {
+                for (int i = size; i > 0; i /= 10) {
+                    idx--;
+                    lengthBytes[idx] = digits[i % 10];
+                }
+            } else {
+                idx--;
+                lengthBytes[idx] = digits[0];
+            }
 
-        if (replyTo != null) {
-            len += replyTo.length() + 1;
-        }
+            // Build the array
+            int len = 4 + subject.length() + 1 + (lengthBytes.length - idx);
 
-        this.protocolBytes = new byte[len];
+            if (replyTo != null) {
+                len += replyTo.length() + 1;
+            }
 
-        // Copy everything
-        int pos = 0;
-        protocolBytes[0] = 'P';
-        protocolBytes[1] = 'U';
-        protocolBytes[2] = 'B';
-        protocolBytes[3] = ' ';
-        pos = 4;
-        pos = copy(protocolBytes, pos, subject);
-        protocolBytes[pos] = ' ';
-        pos++;
+            this.protocolBytes = new byte[len];
 
-        if (replyTo != null) {
-            pos = copy(protocolBytes, pos, replyTo);
+            // Copy everything
+            int pos = 0;
+            protocolBytes[0] = 'P';
+            protocolBytes[1] = 'U';
+            protocolBytes[2] = 'B';
+            protocolBytes[3] = ' ';
+            pos = 4;
+            pos = copy(protocolBytes, pos, subject);
             protocolBytes[pos] = ' ';
             pos++;
-        }
 
-        System.arraycopy(lengthBytes, idx, protocolBytes, pos, lengthBytes.length - idx);
+            if (replyTo != null) {
+                pos = copy(protocolBytes, pos, replyTo);
+                protocolBytes[pos] = ' ';
+                pos++;
+            }
+
+            System.arraycopy(lengthBytes, idx, protocolBytes, pos, lengthBytes.length - idx);
+        }
 
         this.sizeInBytes = this.protocolBytes.length + data.length + 4;// for 2x \r\n
     }
