@@ -5,6 +5,7 @@
 
 * [FIXED] #181 - issue with default pending limits on consumers not matching doc
 * [FIXED] #179 - added version variable for jars in build.gradle to make it easier to change
+* [ADDED] Support for UTF8 subjects
 
 ## Version 2.1.1
 
