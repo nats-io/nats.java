@@ -13,8 +13,9 @@ plugins {
 // Update version here, repeated check-ins not into master will have snapshot on them
 def versionMajor = 2
 def versionMinor = 1
-def versionPatch = 1
+def versionPatch = 2
 def versionModifier = ""
+def jarVersion = "2.1.2"
 def branch = System.getenv("TRAVIS_BRANCH");
 
 def getVersionName = { ->
@@ -70,7 +71,7 @@ osgiClasses {
 jar {
     manifest {
         attributes('Implementation-Title': 'Java Nats',
-                   'Implementation-Version': '2.1.1',
+                   'Implementation-Version': jarVersion,
                    'Implementation-Vendor': 'nats.io')
     }
     exclude("io/nats/examples/**")
@@ -112,7 +113,7 @@ task examplesJar(type: Jar) {
     classifier = 'examples'
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
-                   'Implementation-Version': '2.1.1',
+                   'Implementation-Version': jarVersion,
                    'Implementation-Vendor': 'nats.io')
     }
     from(sourceSets.main.output) {

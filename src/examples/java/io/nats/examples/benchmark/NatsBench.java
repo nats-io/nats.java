@@ -213,7 +213,7 @@ public class NatsBench {
                     nc.publish(subject, payload);
                     sent.incrementAndGet();
                 }
-                nc.flush(Duration.ZERO);
+                nc.flush(Duration.ofSeconds(5));
                 long end = System.nanoTime();
 
                 bench.addPubSample(new Sample(numMsgs, size, start.get(), end, nc.getStatistics()));
@@ -265,7 +265,7 @@ public class NatsBench {
             
             // Flush small messages regularly
             if (this.size < 64 && count != 0 && count % 100_000 == 0) {
-                try {nc.flush(Duration.ZERO);}catch(Exception e){}
+                try {nc.flush(Duration.ofSeconds(5));}catch(Exception e){}
             }
         }
     }

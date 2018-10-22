@@ -37,7 +37,7 @@ public class PubBenchmark extends AutoBenchmark {
                 for(int i = 0; i < this.getMessageCount(); i++) {
                     nc.publish(subject, payload);
                 }
-                try {nc.flush(Duration.ZERO);}catch(Exception e){}
+                try {nc.flush(Duration.ofSeconds(5));}catch(Exception e){}
                 this.endTiming();
             } finally {
                 nc.close();

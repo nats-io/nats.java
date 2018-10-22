@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -63,6 +64,8 @@ class NatsConnectionReader implements Runnable {
     private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
 
+    private final boolean utf8Mode;
+
     NatsConnectionReader(NatsConnection connection) {
         this.connection = connection;
 
@@ -75,6 +78,8 @@ class NatsConnectionReader implements Runnable {
         this.opArray = new char[MAX_PROTOCOL_OP_LENGTH];
         this.buffer = new byte[connection.getOptions().getBufferSize()];
         this.bufferPosition = 0;
+
+        this.utf8Mode = connection.getOptions().supportUTF8Subjects();
     }
 
     // Should only be called if the current thread has exited.
@@ -113,7 +118,11 @@ class NatsConnectionReader implements Runnable {
                         if (this.mode == Mode.GATHER_OP) {
                             this.gatherOp(bytesRead);
                         } else if (this.mode == Mode.GATHER_MSG_PROTO) {
-                            this.gatherMessageProtocol(bytesRead);
+                            if (this.utf8Mode) {
+                                this.gatherProtocol(bytesRead);
+                            } else {
+                                this.gatherMessageProtocol(bytesRead);
+                            }
                         } else if (this.mode == Mode.GATHER_PROTO) {
                             this.gatherProtocol(bytesRead);
                         } else {
@@ -358,12 +367,12 @@ class NatsConnectionReader implements Runnable {
 
     private static int[] TENS = new int[] { 1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000};
 
-    public static int parseLength(CharSequence s) throws NumberFormatException {
+    public static int parseLength(String s) throws NumberFormatException {
         int length = s.length();
         int retVal = 0;
 
         if (length > TENS.length) {
-            throw new NumberFormatException("Long in message length \"" + s + "\"");
+            throw new NumberFormatException("Long in message length \"" + s + "\" "+length+" > "+TENS.length);
         }
         
         for (int i=length-1;i>=0;i--) {
@@ -384,11 +393,16 @@ class NatsConnectionReader implements Runnable {
         try {
             switch (this.op) {
             case NatsConnection.OP_MSG:
-                /* If we want to go to UTF8, need to remove parse msg proto and use something like
-                protocolLength = protocolBuffer.remaining();
-                protocolChars = StandardCharsets.UTF_8.decode(protocolBuffer);
-                */
                 int protocolLength = this.msgLinePosition; //This is just after the last character
+                int protocolLineLength = protocolLength + 4; // 4 for the "MSG "
+
+                if (this.utf8Mode) {
+                    protocolLineLength = protocolBuffer.remaining() + 4;
+
+                    CharBuffer buff = StandardCharsets.UTF_8.decode(protocolBuffer);
+                    protocolLength = buff.remaining();
+                    buff.get(this.msgLineChars, 0, protocolLength);
+                }
                 
                 this.msgLinePosition = 0;
                 String subject = grabNextMessageLineElement(protocolLength);
@@ -409,7 +423,7 @@ class NatsConnectionReader implements Runnable {
 
                 int incomingLength = parseLength(lengthChars);
 
-                this.incoming = new NatsMessage(sid, subject, replyTo, protocolLength + 4); // 4 for the "MSG "
+                this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
                 this.mode = Mode.GATHER_DATA;
                 this.msgData = new byte[incomingLength];
                 this.msgDataPosition = 0;

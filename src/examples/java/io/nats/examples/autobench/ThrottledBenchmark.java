@@ -101,11 +101,12 @@ public abstract class ThrottledBenchmark extends AutoBenchmark {
         delay = delay * 1000; // we are doing this every 1000 messages
         
         long nanos = (long)(delay * 1e9);
+
         LockSupport.parkNanos(nanos);
         
         // Flush small messages regularly
         if (this.getMessageSize() < 64 && count != 0 && count % 100_000 == 0) {
-            try {nc.flush(Duration.ZERO);}catch(Exception e){}
+            try {nc.flush(Duration.ofSeconds(5));}catch(Exception e){}
         }
 	}
 }

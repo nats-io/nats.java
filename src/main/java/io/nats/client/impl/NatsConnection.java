@@ -628,7 +628,7 @@ class NatsConnection implements Connection {
                     "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }
 
-        NatsMessage msg = new NatsMessage(subject, replyTo, body);
+        NatsMessage msg = new NatsMessage(subject, replyTo, body, options.supportUTF8Subjects());
 
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {

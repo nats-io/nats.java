@@ -1,6 +1,12 @@
 
 # Change Log
 
+## Version 2.1.2
+
+* [FIXED] #181 - issue with default pending limits on consumers not matching doc
+* [FIXED] #179 - added version variable for jars in build.gradle to make it easier to change
+* [ADDED] Support for UTF8 subjects
+
 ## Version 2.1.1
 
 * [FIXED] Issue with version in Nats.java, also updated deploying.md with checklist

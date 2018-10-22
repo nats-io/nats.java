@@ -23,21 +23,33 @@ public class MessageProtocolCreationBenchmark {
         System.out.printf("### Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
 
         for (int j = 0; j < warmup; j++) {
-            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY);
+            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, true);
         }
 
         long start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY);
+            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, false);
         }
         long end = System.nanoTime();
 
-        System.out.printf("\n### Total time to create %s messages for sending was %s ms\n\t%f ns/op\n\t%s op/sec\n",
+        System.out.printf("\n### Total time to create %s non-utf8 messages for sending was %s ms\n\t%f ns/op\n\t%s op/sec\n",
                 NumberFormat.getInstance().format(msgCount),
                 NumberFormat.getInstance().format((end - start) / 1_000_000L),
                 ((double) (end - start)) / ((double) (msgCount)),
                 NumberFormat.getInstance().format(((double)(1_000_000_000L * msgCount))/((double) (end - start))));
 
+        start = System.nanoTime();
+        for (int j = 0; j < msgCount; j++) {
+            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, true);
+        }
+        end = System.nanoTime();
+
+        System.out.printf("\n### Total time to create %s utf8 messages for sending was %s ms\n\t%f ns/op\n\t%s op/sec\n",
+                NumberFormat.getInstance().format(msgCount),
+                NumberFormat.getInstance().format((end - start) / 1_000_000L),
+                ((double) (end - start)) / ((double) (msgCount)),
+                NumberFormat.getInstance().format(((double)(1_000_000_000L * msgCount))/((double) (end - start))));
+        
         start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
             new NatsMessage("ping");

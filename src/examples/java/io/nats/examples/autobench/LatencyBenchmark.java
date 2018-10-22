@@ -58,13 +58,13 @@ public class LatencyBenchmark extends AutoBenchmark {
                 }
                 try {
                     Subscription sub = subConnect.subscribe(subject);
-                    subConnect.flush(Duration.ZERO);
+                    subConnect.flush(Duration.ofSeconds(5));
                     subReady.complete(null);
                     go.get();
                     
                     int count = 0;
                     while(count < this.getMessageCount()) {
-                        Message msg = sub.nextMessage(Duration.ZERO);
+                        Message msg = sub.nextMessage(Duration.ofSeconds(5));
 
                         if (msg != null){
                             measurements.add(System.nanoTime() - start.get());
