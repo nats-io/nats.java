@@ -50,7 +50,9 @@ class NatsMessage implements Message {
         this.data = data;
         
         if (utf8mode) {
-            StringBuilder protocolStringBuilder = new StringBuilder((2 * subject.length()) + 20); // guess a size based on replyTO = subject
+            int subjectSize = subject.length() * 2;
+            int replySize = (replyTo != null) ? replyTo.length() * 2 : 0;
+            StringBuilder protocolStringBuilder = new StringBuilder(4 + subjectSize + 1 + replySize + 1);
             protocolStringBuilder.append(PUB_SPACE);
             protocolStringBuilder.append(subject);
             protocolStringBuilder.append(SPACE);
