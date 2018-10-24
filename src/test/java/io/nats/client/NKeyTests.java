@@ -69,6 +69,30 @@ public class NKeyTests {
     }
 
     @Test
+    public void testBase32() throws Exception {
+        String[] inputs = {
+        "Strings from UTF-8 Testing To get Random-ish Bytes",
+        "Τη γλώσσα μου έδωσαν ελληνική",
+        "На берегу пустынных волн",
+        "ვეპხის ტყაოსანი შოთა რუსთაველი",
+        "Je peux manger du verre, ça ne me fait pas mal",
+        "⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑",
+        "أنا قادر على أكل الزجاج و هذا لا يؤلمني",
+        "私はガラスを食べられます。それは私を傷つけません"
+        };
+
+        for (int i=0; i < inputs.length; i++) {
+            String expected = inputs[i];
+            byte[] bytes = expected.getBytes(StandardCharsets.UTF_8);
+            String encoded = NKey.base32Encode(bytes);
+            byte[] decoded = NKey.base32Decode(encoded);
+            String test = new String(decoded, StandardCharsets.UTF_8);
+            assertEquals(expected, test);
+        }
+
+    }
+
+    @Test
     public void testEncodeDecodeSeed() throws Exception {
         byte[] bytes = new byte[64];
         SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
@@ -88,19 +112,19 @@ public class NKeyTests {
         random.nextBytes(bytes);
 
         String encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
-        byte[] decoded = NKey.decode(NKey.Type.ACCOUNT, encoded);
+        byte[] decoded = NKey.decode(NKey.Type.ACCOUNT, encoded, false);
         assertTrue(Arrays.equals(bytes, decoded));
 
         encoded = NKey.encode(NKey.Type.USER, bytes);
-        decoded = NKey.decode(NKey.Type.USER, encoded);
+        decoded = NKey.decode(NKey.Type.USER, encoded, false);
         assertTrue(Arrays.equals(bytes, decoded));
 
         encoded = NKey.encode(NKey.Type.SERVER, bytes);
-        decoded = NKey.decode(NKey.Type.SERVER, encoded);
+        decoded = NKey.decode(NKey.Type.SERVER, encoded, false);
         assertTrue(Arrays.equals(bytes, decoded));
 
         encoded = NKey.encode(NKey.Type.CLUSTER, bytes);
-        decoded = NKey.decode(NKey.Type.CLUSTER, encoded);
+        decoded = NKey.decode(NKey.Type.CLUSTER, encoded, false);
         assertTrue(Arrays.equals(bytes, decoded));
     }
 
@@ -111,7 +135,7 @@ public class NKeyTests {
         random.nextBytes(bytes);
 
         String encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
-        NKey.decode(NKey.Type.USER, encoded);
+        NKey.decode(NKey.Type.USER, encoded, false);
         assertFalse(true);
     }
 
@@ -127,7 +151,7 @@ public class NKeyTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testDecodeSize() throws Exception {
-        NKey.decode(NKey.Type.ACCOUNT, "");
+        NKey.decode(NKey.Type.ACCOUNT, "", false);
         assertFalse(true);
     }
 
@@ -152,7 +176,7 @@ public class NKeyTests {
                 }
                 builder.append(encoded.substring(7));
         
-                NKey.decode(NKey.Type.ACCOUNT, builder.toString());
+                NKey.decode(NKey.Type.ACCOUNT, builder.toString(), false);
                 assertFalse(true);
             } catch (IllegalArgumentException e) {
                 //expected
@@ -186,6 +210,9 @@ public class NKeyTests {
         NKey otherKey = NKey.createAccount(null);
         assertFalse(otherKey.verify(data, sig));
         assertNotEquals(otherKey, theKey);
+
+        assertTrue(NKey.isValidPublicAccountKey(publicKey));
+        assertFalse(NKey.isValidPublicUserKey(publicKey));
     }
 
     @Test
@@ -214,6 +241,9 @@ public class NKeyTests {
         NKey otherKey = NKey.createUser(null);
         assertFalse(otherKey.verify(data, sig));
         assertNotEquals(otherKey, theKey);
+
+        assertTrue(NKey.isValidPublicUserKey(publicKey));
+        assertFalse(NKey.isValidPublicAccountKey(publicKey));
     }
 
     @Test
@@ -242,6 +272,40 @@ public class NKeyTests {
         NKey otherKey = NKey.createCluster(null);
         assertFalse(otherKey.verify(data, sig));
         assertNotEquals(otherKey, theKey);
+
+        assertTrue(NKey.isValidPublicClusterKey(publicKey));
+        assertFalse(NKey.isValidPublicUserKey(publicKey));
+    }
+
+    @Test
+    public void testOperator() throws Exception {
+        NKey theKey = NKey.createOperator(null);
+        assertNotNull(theKey);
+
+        String seed = theKey.getSeed();
+        NKey.decodeSeed(seed); // throws if there is an issue
+
+        assertEquals(NKey.fromSeed(theKey.getSeed()), NKey.fromSeed(theKey.getSeed()));
+
+        String publicKey = theKey.getPublicKey();
+        assertTrue(publicKey.charAt(0) == 'O');
+
+        String privateKey = theKey.getPrivateKey();
+        assertTrue(privateKey.charAt(0) == 'P');
+
+        byte[] data = "Connect Everything".getBytes(StandardCharsets.UTF_8);
+        byte[] sig = theKey.sign(data);
+
+        assertEquals(sig.length, ED25519_SIGNATURE_SIZE);
+
+        assertTrue(theKey.verify(data, sig));
+
+        NKey otherKey = NKey.createOperator(null);
+        assertFalse(otherKey.verify(data, sig));
+        assertNotEquals(otherKey, theKey);
+
+        assertTrue(NKey.isValidPublicOperatorKey(publicKey));
+        assertFalse(NKey.isValidPublicUserKey(publicKey));
     }
 
     @Test
@@ -270,6 +334,9 @@ public class NKeyTests {
         NKey otherKey = NKey.createServer(null);
         assertFalse(otherKey.verify(data, sig));
         assertNotEquals(otherKey, theKey);
+
+        assertTrue(NKey.isValidPublicServerKey(publicKey));
+        assertFalse(NKey.isValidPublicUserKey(publicKey));
     }
 
     @Test

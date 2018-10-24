@@ -16,7 +16,7 @@ This is version 2.1 of the java-nats library. This version is a ground up rewrit
 
 The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
 
-Version 2.1 uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we are updating to 2.1.
+Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, nkey support moved us to 2.2.
 
 Previous versions are still available in the repo.
 
@@ -30,7 +30,7 @@ The java-nats client is provided in a single jar file, with no external dependen
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0.0/jnats-2.0.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0.0/jnats-2.0.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.2.0/jnats-2.2.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.2.0/jnats-2.2.0.jar).
 
 ### Using Gradle
 
@@ -38,7 +38,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.0.0'
+    implementation 'io.nats:jnats:2.2.0'
 }
 ```
 
@@ -64,7 +64,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.0.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 
