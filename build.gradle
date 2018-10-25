@@ -43,6 +43,10 @@ if (System.getenv('SONATYPE_USERNAME') != null) {
     project.ext['signing.password'] =  System.getenv('GPG_KEY_PASSPHRASE')
 }
 
+tasks.withType(Sign) {
+    onlyIf { "master".equals(branch) }
+}
+
 repositories {
     jcenter()
 }
@@ -158,7 +162,7 @@ uploadArchives {
         mavenDeployer {
             if (project.hasProperty("local_archives") || ("true".equals(System.getenv("TRAVIS_PULL_REQUEST")))) {
                 repository(url: "file://$buildDir/repos")
-            } else {
+            } else if (project.hasProperty('ossrhUsername') && project.hasProperty('ossrhPassword')) {
                 beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
