@@ -71,6 +71,7 @@ public class NKeyTests {
     @Test
     public void testBase32() throws Exception {
         String[] inputs = {
+        "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         "Strings from UTF-8 Testing To get Random-ish Bytes",
         "Τη γλώσσα μου έδωσαν ελληνική",
         "На берегу пустынных волн",

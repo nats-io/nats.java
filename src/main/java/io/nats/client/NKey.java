@@ -136,6 +136,9 @@ public class NKey {
     // http://en.wikipedia.org/wiki/Base_32
     private static final String BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     private static int[] BASE32_LOOKUP;
+    private static int MASK = 31;
+    private static int SHIFT = 5;
+
     static {
         BASE32_LOOKUP = new int[256];
 
@@ -150,79 +153,59 @@ public class NKey {
     }
 
     static public String base32Encode(final byte[] bytes) {
-        int i = 0;
-        int index = 0;
-        int digit = 0;
-        int cur, next;
-        StringBuilder retVal = new StringBuilder((bytes.length + 7) * 8 / 5);
-        int length = bytes.length;
-        
-        while (i < length) {
-            cur = (bytes[i] >= 0) ? bytes[i] : (bytes[i] + 256);
+        int last = bytes.length;
+        StringBuilder retVal = new StringBuilder((last + 7) * 8 / SHIFT);
+        int offset = 0;
+        int buffer = bytes[offset++];
+        int bitsLeft = 8;
 
-            if (index > 3) {
-                if ((i + 1) < length) {
-                    next = (bytes[i + 1] >= 0) ? bytes[i + 1] : (bytes[i + 1] + 256);
-                } else {
-                    next = 0;
+        while (bitsLeft > 0 || offset < last)
+        {
+            if (bitsLeft < SHIFT)
+            {
+                if (offset < last)
+                {
+                    buffer <<= 8;
+                    buffer |= (bytes[offset++] & 0xff);
+                    bitsLeft += 8;
                 }
-
-                digit = cur & (0xFF >> index);
-                index = (index + 5) % 8;
-                digit <<= index;
-                digit |= next >> (8 - index);
-                i++;
-            } else {
-                digit = (cur >> (8 - (index + 5))) & 0x1F;
-                index = (index + 5) % 8;
-                if (index == 0) {
-                    i++;
+                else
+                {
+                    int pad = SHIFT - bitsLeft;
+                    buffer <<= pad;
+                    bitsLeft += pad;
                 }
             }
-            retVal.append(BASE32_CHARS.charAt(digit));
+            int index = MASK & (buffer >> (bitsLeft - SHIFT));
+            bitsLeft -= SHIFT;
+            retVal.append(BASE32_CHARS.charAt(index));
         }
 
         return retVal.toString();
     }
 
     static public byte[] base32Decode(final String input) {
-        int i, index, lookup, offset, digit;
-        byte[] bytes = new byte[input.length() * 5 / 8];
-        int length = bytes.length;
+        byte[] bytes = new byte[input.length() * SHIFT/ 8];
+        int buffer = 0;
+        int next = 0;
+        int bitsLeft = 0;
 
-        for (i = 0, index = 0, offset = 0; i < input.length(); i++) {
-            lookup = input.charAt(i) - '0';
+        for (int i=0;i<input.length();i++)
+        {
+            int lookup = input.charAt(i) - '0';
 
             if (lookup < 0 || lookup >= BASE32_LOOKUP.length) {
                 continue;
             }
 
-            digit = BASE32_LOOKUP[lookup];
-
-            if (digit == 0xFF) { // Placeholder in the table
-                continue;
-            }
-
-            if (index <= 3) {
-                index = (index + 5) % 8;
-                if (index == 0) {
-                    bytes[offset] |= digit;
-                    offset++;
-                    if (offset >= length) {
-                        break;
-                    }
-                } else {
-                    bytes[offset] |= digit << (8 - index);
-                }
-            } else {
-                index = (index + 5) % 8;
-                bytes[offset] |= (digit >>> index);
-                offset++;
-
-                if (offset >= length) {
-                    break;
-                }
-                bytes[offset] |= digit << (8 - index);
+            int c = BASE32_LOOKUP[lookup];
+            buffer <<= SHIFT;
+            buffer |= c & MASK;
+            bitsLeft += SHIFT;
+            if (bitsLeft >= 8)
+            {
+                bytes[next++] = (byte)(buffer >> (bitsLeft - 8));
+                bitsLeft -= 8;
             }
         }
         return bytes;
