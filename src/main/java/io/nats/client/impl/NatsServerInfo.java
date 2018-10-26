@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,6 +30,7 @@ class NatsServerInfo {
     static final String MAX_PAYLOAD = "max_payload";
     static final String CONNECT_URLS = "connect_urls";
     static final String PROTOCOL_VERSION = "proto";
+    static final String NONCE = "nonce";
 
     private String serverId;
     private String version;
@@ -41,6 +43,7 @@ class NatsServerInfo {
     private String[] connectURLs;
     private String rawInfoJson;
     private int protocolVersion;
+    private byte[] nonce;
 
     public NatsServerInfo(String json) {
         this.rawInfoJson = json;
@@ -87,22 +90,27 @@ class NatsServerInfo {
         return this.connectURLs;
     }
 
+    public byte[] getNonce() {
+        return this.nonce;
+    }
+
     // If parsing succeeds this is the JSON, if not this may be the full protocol line
     public String getRawJson() {
         return rawInfoJson;
     }
 
-    void parseInfo(String jsonString) {
-        String grabString = "\\s*\"(.+?)\"";
-        String grabBoolean = "\\s*(true|false)";
-        String grabNumber = "\\s*(\\d+)";
-        String grabArray = "\\s*\\[(.+?)\\]";
-        String grabObject = "\\{(.+?)\\}";
+    private static final String grabString = "\\s*\"(.+?)\"";
+    private static final String grabBoolean = "\\s*(true|false)";
+    private static final String grabNumber = "\\s*(\\d+)";
+    private static final String grabArray = "\\s*\\[(.+?)\\]";
+    private static final String grabObject = "\\{(.+?)\\}";
 
+    void parseInfo(String jsonString) {
         Pattern serverIdRE = Pattern.compile("\""+SERVER_ID+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern versionRE = Pattern.compile("\""+VERSION+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern goRE = Pattern.compile("\""+GO+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern hostRE = Pattern.compile("\""+HOST+"\":" + grabString, Pattern.CASE_INSENSITIVE);
+        Pattern nonceRE = Pattern.compile("\""+NONCE+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern authRE = Pattern.compile("\""+AUTH+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
         Pattern tlsRE = Pattern.compile("\""+TLS+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
         Pattern portRE = Pattern.compile("\""+PORT+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
@@ -148,6 +156,12 @@ class NatsServerInfo {
         m = authRE.matcher(jsonString);
         if (m.find()) {
             this.authRequired = Boolean.parseBoolean(m.group(1));
+        }
+        
+        m = nonceRE.matcher(jsonString);
+        if (m.find()) {
+            String encodedNonce = m.group(1);
+            this.nonce = encodedNonce.getBytes(StandardCharsets.US_ASCII);
         }
         
         m = tlsRE.matcher(jsonString);

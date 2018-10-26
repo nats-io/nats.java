@@ -247,7 +247,7 @@ public class NKey {
     }
 
     public static String encodeSeed(Type type, byte[] src) throws IOException {
-        if (src.length != ED25519_PRIVATE_KEYSIZE) {
+        if (src.length != ED25519_PRIVATE_KEYSIZE && src.length != ED25519_SEED_SIZE) {
             throw new IllegalArgumentException("Source is not the correct size for an ED25519 seed");
         }
 
@@ -338,6 +338,11 @@ public class NKey {
         byte[] seed = new byte[NKey.ed25519.getCurve().getField().getb() / 8];
         random.nextBytes(seed);
 
+        return createPair(type, seed);
+    }
+
+    static NKey createPair(Type type, byte[] seed)
+            throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         EdDSAPrivateKeySpec privKeySpec = new EdDSAPrivateKeySpec(seed, NKey.ed25519);
         EdDSAPrivateKey privKey = new EdDSAPrivateKey(privKeySpec);
         EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(privKey.getA(), NKey.ed25519);
@@ -392,7 +397,16 @@ public class NKey {
 
     public static NKey fromSeed(String seed) {
         DecodedSeed decoded = decodeSeed(seed); // Should throw on bad seed
-        return new NKey(Type.fromPrefix(decoded.prefix), null, seed);
+
+        if (decoded.bytes.length == ED25519_PRIVATE_KEYSIZE) {
+            return new NKey(Type.fromPrefix(decoded.prefix), null, seed);
+        } else {
+            try {
+                return createPair(Type.fromPrefix(decoded.prefix), decoded.bytes);
+            } catch(Exception e) {
+                throw new IllegalArgumentException("Bad seed value", e);
+            }
+        }
     }
 
     public static boolean isValidPublicAccountKey(String src) {
@@ -440,7 +454,14 @@ public class NKey {
         if (privateKeyAsSeed == null) {
             throw new IllegalStateException("Public-only NKey");
         }
-        return privateKeyAsSeed;
+        DecodedSeed decoded = decodeSeed(privateKeyAsSeed);
+        byte[] seedBytes = new byte[ED25519_SEED_SIZE];
+        System.arraycopy(decoded.bytes, 0, seedBytes, 0, seedBytes.length);
+        try {
+            return encodeSeed(Type.fromPrefix(decoded.prefix), seedBytes);
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to create seed.", e);
+        }
     }
 
     /**
@@ -479,7 +500,7 @@ public class NKey {
     }
 
     /**
-     * @return A keypair that represents this NKey in Java security form.
+     * @return A Java security keypair that represents this NKey in Java security form.
      * 
      * @throws GeneralSecurityException if there is an encryption problem
      * @throws IOException              if there is a problem encoding or decoding

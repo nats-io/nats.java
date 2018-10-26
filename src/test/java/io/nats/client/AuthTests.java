@@ -17,6 +17,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -438,6 +441,47 @@ public class AuthTests {
                     nc.close();
                     assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
                 }
+            }
+        }
+    }
+
+    String createNKeyConfigFile(String nkey) throws Exception {
+        File tmp = File.createTempFile("nats_java_test", ".conf");
+        BufferedWriter writer = new BufferedWriter(new FileWriter(tmp));
+
+        writer.write("port: 8222"); // will get rewritten
+        writer.newLine();
+
+        writer.write("authorization {"); writer.newLine();
+        writer.write("users = ["); writer.newLine();
+        writer.write(String.format("{\nnkey:%s\n}", nkey)); writer.newLine();
+        writer.write("]"); writer.newLine();
+        writer.write("}"); writer.newLine();
+
+        writer.close();
+        
+        return tmp.getAbsolutePath();
+    }
+
+    @Test
+    public void testNKeyAuth() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        assertNotNull(theKey);
+
+        String configFile = createNKeyConfigFile(theKey.getPublicKey());
+
+        try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        authHandler(new TestAuthHandler(theKey)).
+                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
         }
     }

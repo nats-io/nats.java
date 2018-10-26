@@ -142,7 +142,7 @@ public class NKeyTests {
 
     @Test(expected=IllegalArgumentException.class)
     public void testEncodeSeedSize() throws Exception {
-        byte[] bytes = new byte[32];
+        byte[] bytes = new byte[48];
         SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
         random.nextBytes(bytes);
 
@@ -476,25 +476,42 @@ public class NKeyTests {
      */
     @Test
     public void testInterop() throws Exception {
-        String seed = "SUANUMOF6TPEPPH2GERC5RVRQKJDPJVX5D3VZCJYP2DNOGAGYC7J3I5ITEVHAL46IGWPHMKLQAPB6CILWESKAJG4PGOVBYI4BYQJS76YSJZLQ";
-        String publicKey = "UCUJSKTQF6PEDLHTWFFYAHQ7BEF3CJFAETOHTHKQ4EOA4IEZP7MJFHTQ";
-        String privateKey = "PDNDDRPU3ZD3Z6RREIXMNMMCSI32NN7I65OISOD6Q3LRQBWAX2O2HKEZFJYC7HSBVTZ3CS4ADYPQSC5RESQCJXDZTVIOCHAOECMX7WESPRRA";
+        String seed = "SUADM44XTUSVK6TMQCENQBJWY6KPPLFNIN6WDSVMRGXTLXWL4KLJC2LVAU";
+        String publicKey = "UBD2DOFMQ4LFMW57PUWMWNX4XPAA256T2JFCKWAQHSFJ74Q2TULPY3TU";
+        String privateKey = "PA3HHF45EVKXU3EARDMAKNWHST32ZLKDPVQ4VLEJV4255S7CS2IWSR5BXCWIOFSWLO7X2LGLG36LXQANO7J5ESRFLAIDZCU76INJ2FX4VNIQ";
+        String encodedSig = "zDhv93Sy7Z3n8K3fe9IEDPadw56vwYgbOwzG00lGvUKfm+A3fXPMlK3SbOPVZRrthmYeugnICxeCLT5ClLoVBQ==";
+        String nonce = "0dmHxbhEzVCblos=";
+        String nonceEncodedSig = "atWNWx92PMrD8eH2oGFvvAZw0Kk08A5LwmqglpZwoENVIS6ts2hMNXxURyYnHy/+MBS7ZTGYEPuD3QwEW0yODQ==";
         byte[] data = "Hello World".getBytes(StandardCharsets.UTF_8);
-        String encodedSig = "+KUbWqEzExkBlgI4wk1fph1DWHvE6bV2Ef2wYVZ1r2U15mWcll+PMbdyO/OyrB9nGxA0h9D6frkW/RYGKNIvAQ==";
-
         NKey fromSeed = NKey.fromSeed(seed);
+        NKey fromPublicKey = NKey.fromPublicKey(publicKey);
 
         assertEquals(fromSeed.getType(), NKey.Type.USER);
 
-        NKey fromPublicKey = NKey.fromPublicKey(publicKey);
+        byte[] nonceData = Base64.getDecoder().decode(nonce);
+        byte[] nonceSig = Base64.getDecoder().decode(nonceEncodedSig);
+        byte[] seedNonceSig = fromSeed.sign(nonceData);
+        String encodedSeedNonceSig = Base64.getEncoder().encodeToString(seedNonceSig);
+
+        assertTrue(Arrays.equals(seedNonceSig, nonceSig));
+        assertEquals(nonceEncodedSig, encodedSeedNonceSig);
+
+        assertTrue(fromSeed.verify(nonceData, nonceSig));
+        assertTrue(fromPublicKey.verify(nonceData, nonceSig));
+        assertTrue(fromSeed.verify(nonceData, seedNonceSig));
+        assertTrue(fromPublicKey.verify(nonceData, seedNonceSig));
 
         byte[] seedSig = fromSeed.sign(data);
         byte[] sig = Base64.getDecoder().decode(encodedSig);
+        String encodedSeedSig = Base64.getEncoder().encodeToString(seedSig);
 
         assertTrue(Arrays.equals(seedSig, sig));
+        assertEquals(encodedSig, encodedSeedSig);
 
         assertTrue(fromSeed.verify(data, sig));
         assertTrue(fromPublicKey.verify(data, sig));
+        assertTrue(fromSeed.verify(data, seedSig));
+        assertTrue(fromPublicKey.verify(data, seedSig));
 
         // Make sure generation is the same
         assertEquals(fromSeed.getSeed(), seed);

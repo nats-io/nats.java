@@ -21,6 +21,7 @@ import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 
 import javax.net.ssl.SSLContext;
@@ -345,6 +346,16 @@ public class Options {
      */
     static final String OPTION_ECHO = "echo";
 
+    /**
+     * NKey key {@value #OPTION_NKEY}, the public key being used for sign-in.
+     */
+    static final String OPTION_NKEY = "nkey";
+
+    /**
+     * SIG key {@value #OPTION_SIG}, the signature of the nonce sent by the server.
+     */
+    static final String OPTION_SIG = "sig";
+
     private List<URI> servers;
     private final boolean noRandomize;
     private final String connectionName;
@@ -366,6 +377,8 @@ public class Options {
     private final int bufferSize;
     private final boolean noEcho;
     private final boolean utf8Support;
+
+    private final AuthHandler authHandler;
 
     private final ErrorListener errorListener;
     private final ConnectionListener connectionListener;
@@ -407,6 +420,8 @@ public class Options {
         private boolean trackAdvancedStats = false;
         private boolean noEcho = false;
         private boolean utf8Support = false;
+
+        private AuthHandler authHandler;
 
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
@@ -905,6 +920,18 @@ public class Options {
         }
 
         /**
+         * Set the {@link AuthHandler AuthHandler} to sign the server nonce for authentication in 
+         * nonce-mode.
+         * 
+         * @param handler The new AuthHandler for this connection.
+         * @return the Builder for chaining
+         */
+        public Builder authHandler(AuthHandler handler) {
+            this.authHandler = handler;
+            return this;
+        }
+
+        /**
          * Set the {@link ErrorListener ErrorListener} to receive asynchronous error events related to this
          * connection.
          * 
@@ -1009,6 +1036,7 @@ public class Options {
         this.noEcho = b.noEcho;
         this.utf8Support = b.utf8Support;
 
+        this.authHandler = b.authHandler;
         this.errorListener = b.errorListener;
         this.connectionListener = b.connectionListener;
         this.dataPortType = b.dataPortType;
@@ -1027,6 +1055,13 @@ public class Options {
      */
     public ConnectionListener getConnectionListener() {
         return this.connectionListener;
+    }
+
+    /**
+     * @return the auth handler, or null, see {@link Builder#authHandler(AuthHandler) authHandler()} in the builder doc
+     */
+    public AuthHandler getAuthHandler() {
+        return this.authHandler;
     }
 
     /**
@@ -1214,9 +1249,10 @@ public class Options {
      * 
      * @param serverURI the current server uri
      * @param includeAuth tells the options to build a connection string that includes auth information
+     * @param nonce if the client is supposed to sign the nonce for authentication
      * @return the options String, basically JSON
      */
-    public String buildProtocolConnectOptionsString(String serverURI, boolean includeAuth) {
+    public String buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
         StringBuilder connectString = new StringBuilder();
         connectString.append("{");
 
@@ -1234,7 +1270,14 @@ public class Options {
         appendOption(connectString, Options.OPTION_TLS_REQUIRED, String.valueOf(this.isTLSRequired()), false, true);
         appendOption(connectString, Options.OPTION_ECHO, String.valueOf(!this.isNoEcho()), false, true);
 
-        if (includeAuth) {
+        if (includeAuth && nonce != null && this.getAuthHandler() != null) {
+            String nkey = this.getAuthHandler().getID();
+            byte[] sig = this.getAuthHandler().sign(nonce);
+            String encodedSig = Base64.getEncoder().encodeToString(sig);
+
+            appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
+            appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
+        } else if (includeAuth) {
             String uriUser = null;
             String uriPass = null;
             String uriToken = null;
