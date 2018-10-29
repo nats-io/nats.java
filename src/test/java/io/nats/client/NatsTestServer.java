@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,6 +42,40 @@ public class NatsTestServer implements AutoCloseable {
     private Process process;
     private String cmdLine;
     private String[] customArgs;
+
+    public static String generateGnatsdVersionString() {
+        ArrayList<String> cmd = new ArrayList<String>();
+
+        String gnatsd = System.getenv("gnatsd_path");
+
+        if(gnatsd == null){
+            gnatsd = NatsTestServer.GNATSD;
+        }
+
+        cmd.add(gnatsd);
+        cmd.add("--version");
+
+        try {
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            Process process = pb.start();
+            process.waitFor();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            ArrayList<String> lines = new ArrayList<String>();
+            String line = "";			
+			while ((line = reader.readLine())!= null) {
+				lines.add(line);
+            }
+            
+            if (lines.size() > 0) {
+                return lines.get(0);
+            }
+
+            return null;
+        }
+        catch (Exception exp) {
+            return null;
+        }
+    }
 
     public static int nextPort() {
         return NatsTestServer.portCounter.incrementAndGet();

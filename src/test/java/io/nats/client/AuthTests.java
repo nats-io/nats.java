@@ -469,6 +469,12 @@ public class AuthTests {
         assertNotNull(theKey);
 
         String configFile = createNKeyConfigFile(theKey.getPublicKey());
+        String version = NatsTestServer.generateGnatsdVersionString();
+
+        if (!version.contains("version 2")) {
+            // Server version doesn't support this test
+            return;
+        }
 
         try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
             Options options = new Options.Builder().
