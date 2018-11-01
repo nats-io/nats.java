@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2018 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,7 +14,7 @@
 package io.nats.client;
 
 /**
- * NATS provides an challenge response based authentication scheme based on {@link NKey NKeys}. Since 
+ * NATS provides a challenge-response based authentication scheme based on {@link NKey NKeys}. Since 
  * NKeys depend on a private seed, we do not handle them directly in the client library. Instead you can 
  * work with them inside an AuthHandler that only makes the public key available to the library.
  * 

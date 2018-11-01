@@ -1273,6 +1273,15 @@ public class Options {
         if (includeAuth && nonce != null && this.getAuthHandler() != null) {
             String nkey = this.getAuthHandler().getID();
             byte[] sig = this.getAuthHandler().sign(nonce);
+
+            if (sig == null) {
+                sig = new byte[0];
+            }
+
+            if (nkey == null) {
+                nkey = "";
+            }
+
             String encodedSig = Base64.getEncoder().encodeToString(sig);
 
             appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);

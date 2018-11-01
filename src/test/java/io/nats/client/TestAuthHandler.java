@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2018 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -34,7 +34,7 @@ public class TestAuthHandler implements AuthHandler {
     public String getID() {
         try {
             return this.nkey.getPublicKey();
-        } catch (GeneralSecurityException|IOException ex) {
+        } catch (GeneralSecurityException|IOException|NullPointerException ex) {
             return null;
         }
     }
@@ -42,7 +42,7 @@ public class TestAuthHandler implements AuthHandler {
     public byte[] sign(byte[] nonce) {
         try {
             return this.nkey.sign(nonce);
-        } catch (GeneralSecurityException|IOException ex) {
+        } catch (GeneralSecurityException|IOException|NullPointerException ex) {
             return null;
         }
     }
