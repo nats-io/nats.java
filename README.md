@@ -24,6 +24,11 @@ Previous versions are still available in the repo.
 
 The client protocol spec doesn't explicitly state the encoding on subjects. Some clients use ASCII and some use UTF-8 which matches ASCII for a-Z and 0-9. Until 2.1.2 the 2.0+ version of the Java client used ASCII for performance reasons. As of 2.1.2 you can choose to support UTF-8 subjects via the Options. Keep in mind that there is a small performance penalty for UTF-8 encoding and decoding in benchmarks, but depending on your application this cost may be negligible. Also, keep in mind that not all clients support UTF-8 and test accordingly.
 
+### NKey-based Challenge Response Authentication
+
+The NATS server is adding support for a challenge response authentication scheme based on [NKeys](https://github.com/nats-io/nkeys). Version 2.2.0 of
+the Java client supports this scheme via an AuthHandler interface.
+
 ## Installation
 
 The java-nats client is provided in a single jar file, with no external dependencies. See [Building From Source](#building-from-source) for details on building the library.

@@ -29,6 +29,66 @@ class DecodedSeed {
     byte[] bytes;
 }
 
+/**
+ * <p>
+ * The NATS ecosystem will be moving to Ed25519 keys for identity,
+ * authentication and authorization for entities such as Accounts, Users,
+ * Servers and Clusters.
+ * </p>
+ * <p>
+ * NKeys are based on the Ed25519 standard. This signing algorithm provides for
+ * the use of public and private keys to sign and verify data. NKeys is designed
+ * to formulate keys in a much friendlier fashion referencing work done in
+ * cryptocurrencies, specifically Stellar. Bitcoin and others use a form of
+ * Base58 (or Base58Check) to encode raw keys. Stellar utilizes a more
+ * traditional Base32 with a CRC16 and a version or prefix byte. NKeys utilizes
+ * a similar format with one or two prefix bytes. The base32 encoding of these
+ * prefixes will yield friendly human readable prefixes, e.g. 'N' = server, 'C'
+ * = cluster, 'O' = operator, 'A' = account, and 'U' = user to help developers
+ * and administrators quickly identify key types.
+ * </p>
+ * <p>
+ * Each NKey is generated from 32 bytes. These bytes are called the seed and are
+ * encoded, in the NKey world, into a string starting with the letter 'S', with
+ * a second character indicating the key’s type, e.g. "SU" is a seed for a u
+ * er key pair, "SA" is a seed for an account key pair. The seed can be used t
+ *  create the Ed25519 public/private key pair and should be protected as a p
+ * ivate key. It is equivalent to the private key for a PGP key pair, or the m
+ * ster password for your password vault.
+ * </p>
+ * <p>
+ * Ed25519 uses the seed bytes to generate a key pair. The pair contains a
+ * private key, which can be used to sign data, and a public key which can be
+ * used to verify a signature. The public key can be distributed, and is not
+ * considered secret.
+ * </p>
+ * <p>
+ * The NKey libraries encode 32 byte public keys using Base32 and a CRC16
+ * checksum plus a prefix based on the key type, e.g. “U…” for a user key.
+ * </p>
+ * <p>
+ * The NKey libraries have support for exporting a 64 byte private key. This
+ * data is encoded into a string starting with the prefix ‘P’ for private. The
+ * 64 bytes in a private key consists of the 32 bytes of the seed followed by 
+ * he 32 bytes of the public key. Essentially, the private key is redundant sin
+ * e you can get it back from the seed alone. The NATS team recommends sto
+ * ing the 32 byte seed and letting the NKey library regenerate anything els
+ *  it needs for signing.
+ * </p>
+ * <p>
+ * The existence of both a seed and a private key can result in confusion. It is
+ * reasonable to simply think of Ed25519 as having a public key and a private
+ * seed, and ignore the longer private key concept. In fact, the NKey libraries
+ * generally expect you to create an NKey from either a public key, to use for
+ * verification, or a seed, to use for signing.
+ * </p>
+ * <p>
+ * The NATS system will utilize public NKeys for identification, the NATS system
+ * will never store or even have access to any private keys or seeds.
+ * Authentication will utilize a challenge-response mechanism based on a
+ * collection of random bytes called a nonce.
+ * </p>
+ */
 public class NKey {
 
     /**
@@ -123,11 +183,11 @@ public class NKey {
             0x9de8, 0x8dc9, 0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1, 0xef1f, 0xff3e, 0xcf5d,
             0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8, 0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0 };
 
-    public static int crc16(byte[] bytes) {
+    private static int crc16(byte[] bytes) {
         int crc = 0;
-    
+
         for (byte b : bytes) {
-		    crc = ((crc << 8) & 0xffff) ^ crc16table[((crc>>8) ^ (b & 0xFF)) & 0x00FF];
+            crc = ((crc << 8) & 0xffff) ^ crc16table[((crc >> 8) ^ (b & 0xFF)) & 0x00FF];
         }
 
         return crc;
@@ -142,35 +202,30 @@ public class NKey {
     static {
         BASE32_LOOKUP = new int[256];
 
-        for (int i=0;i<BASE32_LOOKUP.length;i++) {
+        for (int i = 0; i < BASE32_LOOKUP.length; i++) {
             BASE32_LOOKUP[i] = 0xFF;
         }
 
-        for (int i=0;i<BASE32_CHARS.length();i++) {
+        for (int i = 0; i < BASE32_CHARS.length(); i++) {
             int index = BASE32_CHARS.charAt(i) - '0';
             BASE32_LOOKUP[index] = i;
         }
     }
 
-    static public String base32Encode(final byte[] bytes) {
+    private static String base32Encode(final byte[] bytes) {
         int last = bytes.length;
         StringBuilder retVal = new StringBuilder((last + 7) * 8 / SHIFT);
         int offset = 0;
         int buffer = bytes[offset++];
         int bitsLeft = 8;
 
-        while (bitsLeft > 0 || offset < last)
-        {
-            if (bitsLeft < SHIFT)
-            {
-                if (offset < last)
-                {
+        while (bitsLeft > 0 || offset < last) {
+            if (bitsLeft < SHIFT) {
+                if (offset < last) {
                     buffer <<= 8;
                     buffer |= (bytes[offset++] & 0xff);
                     bitsLeft += 8;
-                }
-                else
-                {
+                } else {
                     int pad = SHIFT - bitsLeft;
                     buffer <<= pad;
                     bitsLeft += pad;
@@ -184,14 +239,13 @@ public class NKey {
         return retVal.toString();
     }
 
-    static public byte[] base32Decode(final String input) {
-        byte[] bytes = new byte[input.length() * SHIFT/ 8];
+    private static byte[] base32Decode(final String input) {
+        byte[] bytes = new byte[input.length() * SHIFT / 8];
         int buffer = 0;
         int next = 0;
         int bitsLeft = 0;
 
-        for (int i=0;i<input.length();i++)
-        {
+        for (int i = 0; i < input.length(); i++) {
             int lookup = input.charAt(i) - '0';
 
             if (lookup < 0 || lookup >= BASE32_LOOKUP.length) {
@@ -202,9 +256,8 @@ public class NKey {
             buffer <<= SHIFT;
             buffer |= c & MASK;
             bitsLeft += SHIFT;
-            if (bitsLeft >= 8)
-            {
-                bytes[next++] = (byte)(buffer >> (bitsLeft - 8));
+            if (bitsLeft >= 8) {
+                bytes[next++] = (byte) (buffer >> (bitsLeft - 8));
                 bitsLeft -= 8;
             }
         }
@@ -230,7 +283,7 @@ public class NKey {
         return false;
     }
 
-    public static String encode(Type type, byte[] src) throws IOException {
+    private static String encode(Type type, byte[] src) throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         bytes.write(type.prefix);
@@ -246,7 +299,7 @@ public class NKey {
         return withoutPad;
     }
 
-    public static String encodeSeed(Type type, byte[] src) throws IOException {
+    private static String encodeSeed(Type type, byte[] src) throws IOException {
         if (src.length != ED25519_PRIVATE_KEYSIZE && src.length != ED25519_SEED_SIZE) {
             throw new IllegalArgumentException("Source is not the correct size for an ED25519 seed");
         }
@@ -272,7 +325,7 @@ public class NKey {
         return withoutPad;
     }
 
-    static byte[] decode(String src) {
+    private static byte[] decode(String src) {
         byte[] raw = base32Decode(src);
 
         if (raw == null || raw.length < 4) {
@@ -292,7 +345,7 @@ public class NKey {
         return dataBytes;
     }
 
-    static byte[] decode(Type expectedType, String src, boolean safe) {
+    private static byte[] decode(Type expectedType, String src, boolean safe) {
         byte[] raw = decode(src);
         byte[] dataBytes = Arrays.copyOfRange(raw, 1, raw.length);
         Type type = NKey.Type.fromPrefix(raw[0] & 0xFF);
@@ -307,7 +360,7 @@ public class NKey {
         return dataBytes;
     }
 
-    static DecodedSeed decodeSeed(String seed) {
+    private static DecodedSeed decodeSeed(String seed) {
         byte[] raw = decode(seed);
 
         // Need to do the reverse here to get back to internal representation.
@@ -329,7 +382,7 @@ public class NKey {
         return retVal;
     }
 
-    static NKey createPair(Type type, SecureRandom random)
+    private static NKey createPair(Type type, SecureRandom random)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         if (random == null) {
             random = SecureRandom.getInstance("SHA1PRNG", "SUN");
@@ -341,7 +394,7 @@ public class NKey {
         return createPair(type, seed);
     }
 
-    static NKey createPair(Type type, byte[] seed)
+    private static NKey createPair(Type type, byte[] seed)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         EdDSAPrivateKeySpec privKeySpec = new EdDSAPrivateKeySpec(seed, NKey.ed25519);
         EdDSAPrivateKey privKey = new EdDSAPrivateKey(privKeySpec);
@@ -358,31 +411,102 @@ public class NKey {
         return new NKey(type, null, encoded);
     }
 
+    /**
+     * Create an Account NKey from the provided random number generator.
+     * 
+     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * 
+     * The new NKey contains the private seed, which should be saved in a secure location.
+     * 
+     * @param random A secure random provider
+     * @return the new Nkey
+     * @throws IOException if the seed cannot be encoded to a string
+     * @throws NoSuchProviderException if the default secure random cannot be created
+     * @throws NoSuchAlgorithmException if the default secure random cannot be created
+     */
     public static NKey createAccount(SecureRandom random)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         return createPair(Type.ACCOUNT, random);
     }
 
+    /**
+     * Create an Cluster NKey from the provided random number generator.
+     * 
+     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * 
+     * The new NKey contains the private seed, which should be saved in a secure location.
+     * 
+     * @param random A secure random provider
+     * @return the new Nkey
+     * @throws IOException if the seed cannot be encoded to a string
+     * @throws NoSuchProviderException if the default secure random cannot be created
+     * @throws NoSuchAlgorithmException if the default secure random cannot be created
+     */
     public static NKey createCluster(SecureRandom random)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         return createPair(Type.CLUSTER, random);
     }
 
+    /**
+     * Create an Operator NKey from the provided random number generator.
+     * 
+     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * 
+     * The new NKey contains the private seed, which should be saved in a secure location.
+     * 
+     * @param random A secure random provider
+     * @return the new Nkey
+     * @throws IOException if the seed cannot be encoded to a string
+     * @throws NoSuchProviderException if the default secure random cannot be created
+     * @throws NoSuchAlgorithmException if the default secure random cannot be created
+     */
     public static NKey createOperator(SecureRandom random)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         return createPair(Type.OPERATOR, random);
     }
 
+    /**
+     * Create a Server NKey from the provided random number generator.
+     * 
+     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * 
+     * The new NKey contains the private seed, which should be saved in a secure location.
+     * 
+     * @param random A secure random provider
+     * @return the new Nkey
+     * @throws IOException if the seed cannot be encoded to a string
+     * @throws NoSuchProviderException if the default secure random cannot be created
+     * @throws NoSuchAlgorithmException if the default secure random cannot be created
+     */
     public static NKey createServer(SecureRandom random)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         return createPair(Type.SERVER, random);
     }
 
+    /**
+     * Create a User NKey from the provided random number generator.
+     * 
+     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * 
+     * The new NKey contains the private seed, which should be saved in a secure location.
+     * 
+     * @param random A secure random provider
+     * @return the new Nkey
+     * @throws IOException if the seed cannot be encoded to a string
+     * @throws NoSuchProviderException if the default secure random cannot be created
+     * @throws NoSuchAlgorithmException if the default secure random cannot be created
+     */
     public static NKey createUser(SecureRandom random)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         return createPair(Type.USER, random);
     }
 
+    /**
+     * Create an NKey object from the encoded public key. This NKey can be used for verification but not for signing.
+     * 
+     * @param publicKey the string encoded public key
+     * @return the new Nkey
+     */
     public static NKey fromPublicKey(String publicKey) {
         byte[] raw = decode(publicKey);
         int prefix = raw[0] & 0xFF;
@@ -395,6 +519,12 @@ public class NKey {
         return new NKey(type, publicKey, null);
     }
 
+    /**
+     * Creates an NKey object from a string encoded seed. This NKey can be used to sign or verify.
+     * 
+     * @param seed the string encoded seed, see {@link NKey#getSeed() getSeed()}
+     * @return the Nkey
+     */
     public static NKey fromSeed(String seed) {
         DecodedSeed decoded = decodeSeed(seed); // Should throw on bad seed
 
@@ -403,28 +533,48 @@ public class NKey {
         } else {
             try {
                 return createPair(Type.fromPrefix(decoded.prefix), decoded.bytes);
-            } catch(Exception e) {
+            } catch (Exception e) {
                 throw new IllegalArgumentException("Bad seed value", e);
             }
         }
     }
 
+    /**
+     * @param src the encoded public key
+     * @return true if the public key is an account public key
+     */
     public static boolean isValidPublicAccountKey(String src) {
         return decode(Type.ACCOUNT, src, true) != null;
     }
 
+    /**
+     * @param src the encoded public key
+     * @return true if the public key is a cluster public key
+     */
     public static boolean isValidPublicClusterKey(String src) {
         return decode(Type.CLUSTER, src, true) != null;
     }
 
+    /**
+     * @param src the encoded public key
+     * @return true if the public key is an operator public key
+     */
     public static boolean isValidPublicOperatorKey(String src) {
         return decode(Type.OPERATOR, src, true) != null;
     }
 
+    /**
+     * @param src the encoded public key
+     * @return true if the public key is a server public key
+     */
     public static boolean isValidPublicServerKey(String src) {
         return decode(Type.SERVER, src, true) != null;
     }
 
+    /**
+     * @param src the encoded public key
+     * @return true if the public key is a user public key
+     */
     public static boolean isValidPublicUserKey(String src) {
         return decode(Type.USER, src, true) != null;
     }
@@ -448,7 +598,7 @@ public class NKey {
     }
 
     /**
-     * @return the encoded seed for this NKey
+     * @return the string encoded seed for this NKey
      */
     public String getSeed() {
         if (privateKeyAsSeed == null) {
@@ -500,7 +650,8 @@ public class NKey {
     }
 
     /**
-     * @return A Java security keypair that represents this NKey in Java security form.
+     * @return A Java security keypair that represents this NKey in Java security
+     *         form.
      * 
      * @throws GeneralSecurityException if there is an encryption problem
      * @throws IOException              if there is a problem encoding or decoding
@@ -527,7 +678,7 @@ public class NKey {
     }
 
     /**
-     * @return get the Type of this NKey
+     * @return the Type of this NKey
      */
     public Type getType() {
         return type;

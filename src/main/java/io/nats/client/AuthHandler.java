@@ -13,6 +13,31 @@
 
 package io.nats.client;
 
+/**
+ * NATS provides an challenge response based authentication scheme based on {@link NKey NKeys}. Since 
+ * NKeys depend on a private seed, we do not handle them directly in the client library. Instead you can 
+ * work with them inside an AuthHandler that only makes the public key available to the library.
+ * 
+ * <pre>
+ * {@code
+    public String getID() {
+        try {
+            return this.nkey.getPublicKey();
+        } catch (GeneralSecurityException|IOException ex) {
+            return null;
+        }
+    }
+
+    public byte[] sign(byte[] nonce) {
+        try {
+            return this.nkey.sign(nonce);
+        } catch (GeneralSecurityException|IOException ex) {
+            return null;
+        }
+    }
+   }
+ * </pre>
+ */
 public interface AuthHandler {
     /**
      * Sign is called by the library when the server sends a nonce.
