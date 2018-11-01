@@ -183,7 +183,7 @@ public class NKey {
             0x9de8, 0x8dc9, 0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1, 0xef1f, 0xff3e, 0xcf5d,
             0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8, 0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0 };
 
-    private static int crc16(byte[] bytes) {
+    static int crc16(byte[] bytes) {
         int crc = 0;
 
         for (byte b : bytes) {
@@ -212,7 +212,7 @@ public class NKey {
         }
     }
 
-    private static String base32Encode(final byte[] bytes) {
+    static String base32Encode(final byte[] bytes) {
         int last = bytes.length;
         StringBuilder retVal = new StringBuilder((last + 7) * 8 / SHIFT);
         int offset = 0;
@@ -239,7 +239,7 @@ public class NKey {
         return retVal.toString();
     }
 
-    private static byte[] base32Decode(final String input) {
+    static byte[] base32Decode(final String input) {
         byte[] bytes = new byte[input.length() * SHIFT / 8];
         int buffer = 0;
         int next = 0;
@@ -283,7 +283,7 @@ public class NKey {
         return false;
     }
 
-    private static String encode(Type type, byte[] src) throws IOException {
+    static String encode(Type type, byte[] src) throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         bytes.write(type.prefix);
@@ -299,7 +299,7 @@ public class NKey {
         return withoutPad;
     }
 
-    private static String encodeSeed(Type type, byte[] src) throws IOException {
+    static String encodeSeed(Type type, byte[] src) throws IOException {
         if (src.length != ED25519_PRIVATE_KEYSIZE && src.length != ED25519_SEED_SIZE) {
             throw new IllegalArgumentException("Source is not the correct size for an ED25519 seed");
         }
@@ -325,7 +325,7 @@ public class NKey {
         return withoutPad;
     }
 
-    private static byte[] decode(String src) {
+    static byte[] decode(String src) {
         byte[] raw = base32Decode(src);
 
         if (raw == null || raw.length < 4) {
@@ -345,7 +345,7 @@ public class NKey {
         return dataBytes;
     }
 
-    private static byte[] decode(Type expectedType, String src, boolean safe) {
+    static byte[] decode(Type expectedType, String src, boolean safe) {
         byte[] raw = decode(src);
         byte[] dataBytes = Arrays.copyOfRange(raw, 1, raw.length);
         Type type = NKey.Type.fromPrefix(raw[0] & 0xFF);
@@ -360,7 +360,7 @@ public class NKey {
         return dataBytes;
     }
 
-    private static DecodedSeed decodeSeed(String seed) {
+    static DecodedSeed decodeSeed(String seed) {
         byte[] raw = decode(seed);
 
         // Need to do the reverse here to get back to internal representation.
