@@ -31,7 +31,7 @@ the Java client supports this scheme via an AuthHandler interface.
 
 ## Installation
 
-The java-nats client is provided in a single jar file, with no external dependencies. See [Building From Source](#building-from-source) for details on building the library.
+The java-nats client is provided in a single jar file, with a single external dependency for the encryption in NKey support. See [Building From Source](#building-from-source) for details on building the library.
 
 ### Downloading the Jar
 
