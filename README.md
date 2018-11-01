@@ -16,7 +16,7 @@ This is version 2.1 of the java-nats library. This version is a ground up rewrit
 
 The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
 
-Version 2.1 uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we are updating to 2.1.
+Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, nkey support moved us to 2.2.
 
 Previous versions are still available in the repo.
 
@@ -24,13 +24,18 @@ Previous versions are still available in the repo.
 
 The client protocol spec doesn't explicitly state the encoding on subjects. Some clients use ASCII and some use UTF-8 which matches ASCII for a-Z and 0-9. Until 2.1.2 the 2.0+ version of the Java client used ASCII for performance reasons. As of 2.1.2 you can choose to support UTF-8 subjects via the Options. Keep in mind that there is a small performance penalty for UTF-8 encoding and decoding in benchmarks, but depending on your application this cost may be negligible. Also, keep in mind that not all clients support UTF-8 and test accordingly.
 
+### NKey-based Challenge Response Authentication
+
+The NATS server is adding support for a challenge response authentication scheme based on [NKeys](https://github.com/nats-io/nkeys). Version 2.2.0 of
+the Java client supports this scheme via an AuthHandler interface.
+
 ## Installation
 
-The java-nats client is provided in a single jar file, with no external dependencies. See [Building From Source](#building-from-source) for details on building the library.
+The java-nats client is provided in a single jar file, with a single external dependency for the encryption in NKey support. See [Building From Source](#building-from-source) for details on building the library.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0.0/jnats-2.0.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.0.0/jnats-2.0.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.2.0/jnats-2.2.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.2.0/jnats-2.2.0.jar).
 
 ### Using Gradle
 
@@ -38,7 +43,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.0.0'
+    implementation 'io.nats:jnats:2.2.0'
 }
 ```
 
@@ -64,7 +69,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.0.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 

@@ -17,13 +17,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 
 import org.junit.Test;
 
 public class NatsServerInfoTests {
     @Test
     public void testValidInfoString() {
+        byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
+        String encoded = Base64.getEncoder().encodeToString(nonce);
+        byte[] ascii = encoded.getBytes(StandardCharsets.US_ASCII);
+
         String json = "{" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"version\":\"1.1.1\"" + "," +
@@ -34,12 +40,14 @@ public class NatsServerInfoTests {
                         "\"port\": 7777" + "," +
                         "\"max_payload\":100000000000" + "," +
                         "\"connect_urls\":[\"one\", \"two\"]" +
+                        "\"nonce\":\""+encoded+"\"" +
                        "}";
         NatsServerInfo info = new NatsServerInfo(json);
         assertEquals(info.getServerId(), "myserver");
         assertEquals(info.getVersion(), "1.1.1");
         assertEquals(info.getGoVersion(), "go1.9");
         assertEquals(info.getHost(), "host");
+        assertTrue(Arrays.equals(info.getNonce(), ascii));
         assertEquals(info.getPort(), 7777);
         assertEquals(info.getMaxPayload(), 100_000_000_000L);
         assertEquals(info.isAuthRequired(), false);

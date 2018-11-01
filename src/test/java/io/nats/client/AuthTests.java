@@ -14,9 +14,13 @@
 package io.nats.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -438,6 +442,82 @@ public class AuthTests {
                     nc.close();
                     assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
                 }
+            }
+        }
+    }
+
+    String createNKeyConfigFile(String nkey) throws Exception {
+        File tmp = File.createTempFile("nats_java_test", ".conf");
+        BufferedWriter writer = new BufferedWriter(new FileWriter(tmp));
+
+        writer.write("port: 8222"); // will get rewritten
+        writer.newLine();
+
+        writer.write("authorization {"); writer.newLine();
+        writer.write("users = ["); writer.newLine();
+        writer.write(String.format("{\nnkey:%s\n}", nkey)); writer.newLine();
+        writer.write("]"); writer.newLine();
+        writer.write("}"); writer.newLine();
+
+        writer.close();
+        
+        return tmp.getAbsolutePath();
+    }
+
+    @Test
+    public void testNKeyAuth() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        assertNotNull(theKey);
+
+        String configFile = createNKeyConfigFile(theKey.getPublicKey());
+        String version = NatsTestServer.generateGnatsdVersionString();
+
+        if (!version.contains("version 2")) {
+            // Server version doesn't support this test
+            return;
+        }
+
+        try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        authHandler(new TestAuthHandler(theKey)).
+                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
+    @Test(expected=IOException.class)
+    public void testBadAuthHandler() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        assertNotNull(theKey);
+
+        String configFile = createNKeyConfigFile(theKey.getPublicKey());
+        String version = NatsTestServer.generateGnatsdVersionString();
+
+        if (!version.contains("version 2")) {
+            // Server version doesn't support this test
+            throw new IOException();// to pass the test
+        }
+
+        try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        authHandler(new TestAuthHandler(null)). // No nkey
+                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertFalse("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
         }
     }

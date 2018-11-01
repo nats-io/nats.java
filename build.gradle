@@ -12,10 +12,10 @@ plugins {
 
 // Update version here, repeated check-ins not into master will have snapshot on them
 def versionMajor = 2
-def versionMinor = 1
-def versionPatch = 2
+def versionMinor = 2
+def versionPatch = 0
 def versionModifier = ""
-def jarVersion = "2.1.2"
+def jarVersion = "2.2.0"
 def branch = System.getenv("TRAVIS_BRANCH");
 
 def getVersionName = { ->
@@ -43,11 +43,16 @@ if (System.getenv('SONATYPE_USERNAME') != null) {
     project.ext['signing.password'] =  System.getenv('GPG_KEY_PASSPHRASE')
 }
 
+tasks.withType(Sign) {
+    onlyIf { "master".equals(branch) }
+}
+
 repositories {
     jcenter()
 }
 
 dependencies {
+    implementation 'net.i2p.crypto:eddsa:0.3.0'
     testImplementation 'junit:junit:4.12'
 }
 
@@ -157,7 +162,7 @@ uploadArchives {
         mavenDeployer {
             if (project.hasProperty("local_archives") || ("true".equals(System.getenv("TRAVIS_PULL_REQUEST")))) {
                 repository(url: "file://$buildDir/repos")
-            } else {
+            } else if (project.hasProperty('ossrhUsername') && project.hasProperty('ossrhPassword')) {
                 beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {

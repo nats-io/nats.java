@@ -1,6 +1,10 @@
 
 # Change Log
 
+## Version 2.2.0
+
+* [ADDED] Support for NKeys, and nonce based auth
+
 ## Version 2.1.2
 
 * [FIXED] #181 - issue with default pending limits on consumers not matching doc

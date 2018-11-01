@@ -971,7 +971,7 @@ class NatsConnection implements Connection {
         StringBuilder connectString = new StringBuilder();
         connectString.append(NatsConnection.OP_CONNECT);
         connectString.append(" ");
-        String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired());
+        String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
         connectString.append(connectOptions);
         NatsMessage msg = new NatsMessage(connectString.toString());
         queueInternalOutgoing(msg);
