@@ -327,7 +327,7 @@ public class OptionsTests {
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
-                + ",\"nkey\":\""+th.getID()+"\",\"sig\":\""+sig+"\"}";
+                + ",\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\"}";
         assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce));
         assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce));
     }

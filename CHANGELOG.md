@@ -1,6 +1,10 @@
 
 # Change Log
 
+## Version 2.3.0
+
+* [BREAKING CHANGE] Replaced use of strings for seeds and public keys in NKey code to use char[] to allow better memory security.
+
 ## Version 2.2.0
 
 * [ADDED] Support for NKeys, and nonce based auth

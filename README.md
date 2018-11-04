@@ -16,7 +16,7 @@ This is version 2.1 of the java-nats library. This version is a ground up rewrit
 
 The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
 
-Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, nkey support moved us to 2.2.
+Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, NKey support moved us to 2.2.
 
 Previous versions are still available in the repo.
 
@@ -27,7 +27,8 @@ The client protocol spec doesn't explicitly state the encoding on subjects. Some
 ### NKey-based Challenge Response Authentication
 
 The NATS server is adding support for a challenge response authentication scheme based on [NKeys](https://github.com/nats-io/nkeys). Version 2.2.0 of
-the Java client supports this scheme via an AuthHandler interface.
+the Java client supports this scheme via an AuthHandler interface. *Version 2.3.0 replaced several NKey methods that used strings with methods using char[]
+to improve security. Since NKeys are new, and not available in the server we have not bumped the major version and are just bumping the minor version.*
 
 ## Installation
 

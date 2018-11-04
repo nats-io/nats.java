@@ -1271,7 +1271,7 @@ public class Options {
         appendOption(connectString, Options.OPTION_ECHO, String.valueOf(!this.isNoEcho()), false, true);
 
         if (includeAuth && nonce != null && this.getAuthHandler() != null) {
-            String nkey = this.getAuthHandler().getID();
+            char[] nkey = this.getAuthHandler().getID();
             byte[] sig = this.getAuthHandler().sign(nonce);
 
             if (sig == null) {
@@ -1279,12 +1279,12 @@ public class Options {
             }
 
             if (nkey == null) {
-                nkey = "";
+                nkey = new char[0];
             }
 
             String encodedSig = Base64.getEncoder().encodeToString(sig);
 
-            appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
+            appendOption(connectString, Options.OPTION_NKEY, new String(nkey), true, true); // public key to string is ok
             appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
         } else if (includeAuth) {
             String uriUser = null;

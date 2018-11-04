@@ -101,6 +101,12 @@ class DecodedSeed {
  * Authentication will utilize a challenge-response mechanism based on a
  * collection of random bytes called a nonce.
  * </p>
+ * <p>
+ * Version note - 2.2.0 provided string arguments for seeds, this is not as safe
+ * as char arrays, so in 2.3.0 we have included a breaking change to char arrays.
+ * While this is not the proper version choice, NKeys aren't widely used, if at all yet,
+ * so we are making the change on a minor jump.
+ * </p>
  */
 public class NKey {
 
@@ -225,12 +231,13 @@ public class NKey {
         }
     }
 
-    static String base32Encode(final byte[] bytes) {
+    static char[] base32Encode(final byte[] bytes) {
         int last = bytes.length;
-        StringBuilder retVal = new StringBuilder((last + 7) * 8 / SHIFT);
+        char[] charBuff = new char[(last + 7) * 8 / SHIFT];
         int offset = 0;
         int buffer = bytes[offset++];
         int bitsLeft = 8;
+        int i = 0;
 
         while (bitsLeft > 0 || offset < last) {
             if (bitsLeft < SHIFT) {
@@ -246,20 +253,37 @@ public class NKey {
             }
             int index = MASK & (buffer >> (bitsLeft - SHIFT));
             bitsLeft -= SHIFT;
-            retVal.append(BASE32_CHARS.charAt(index));
+            charBuff[i] = BASE32_CHARS.charAt(index);
+            i++;
         }
 
-        return retVal.toString();
+        int nonBlank;
+
+        for (nonBlank=charBuff.length-1;nonBlank>=0;nonBlank--) {
+            if (charBuff[nonBlank] != 0) {
+                break;
+            }
+        }
+
+        char[] retVal = new char[nonBlank+1];
+
+        System.arraycopy(charBuff, 0, retVal, 0, retVal.length);
+
+        for (int j=0;j<charBuff.length;j++) {
+            charBuff[j] = '\0';
+        }
+
+        return retVal;
     }
 
-    static byte[] base32Decode(final String input) {
-        byte[] bytes = new byte[input.length() * SHIFT / 8];
+    static byte[] base32Decode(final char[] input) {
+        byte[] bytes = new byte[input.length * SHIFT / 8];
         int buffer = 0;
         int next = 0;
         int bitsLeft = 0;
 
-        for (int i = 0; i < input.length(); i++) {
-            int lookup = input.charAt(i) - '0';
+        for (int i = 0; i < input.length; i++) {
+            int lookup = input[i] - '0';
 
             if (lookup < 0 || lookup >= BASE32_LOOKUP.length) {
                 continue;
@@ -296,7 +320,25 @@ public class NKey {
         return false;
     }
 
-    static String encode(Type type, byte[] src) throws IOException {
+    static char[] removePaddingAndClear(char[] withPad) {
+        int i;
+
+        for (i=withPad.length-1;i>=0;i--) {
+            if (withPad[i] != '=') {
+                break;
+            }
+        }
+        char[] withoutPad = new char[i+1];
+        System.arraycopy(withPad, 0, withoutPad, 0, withoutPad.length);
+
+        for (int j=0;j<withPad.length;j++) {
+            withPad[j] = '\0';
+        }
+
+        return withoutPad;
+    }
+
+    static char[] encode(Type type, byte[] src) throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         bytes.write(type.prefix);
@@ -307,12 +349,11 @@ public class NKey {
 
         bytes.write(littleEndian);
 
-        String withPad = base32Encode(bytes.toByteArray());
-        String withoutPad = withPad.replace("=", "");
-        return withoutPad;
+        char[] withPad = base32Encode(bytes.toByteArray());
+        return removePaddingAndClear(withPad);
     }
 
-    static String encodeSeed(Type type, byte[] src) throws IOException {
+    static char[] encodeSeed(Type type, byte[] src) throws IOException {
         if (src.length != ED25519_PRIVATE_KEYSIZE && src.length != ED25519_SEED_SIZE) {
             throw new IllegalArgumentException("Source is not the correct size for an ED25519 seed");
         }
@@ -333,12 +374,11 @@ public class NKey {
 
         bytes.write(littleEndian);
 
-        String withPad = base32Encode(bytes.toByteArray());
-        String withoutPad = withPad.replace("=", "");
-        return withoutPad;
+        char[] withPad = base32Encode(bytes.toByteArray());
+        return removePaddingAndClear(withPad);
     }
 
-    static byte[] decode(String src) {
+    static byte[] decode(char[] src) {
         byte[] raw = base32Decode(src);
 
         if (raw == null || raw.length < 4) {
@@ -358,7 +398,7 @@ public class NKey {
         return dataBytes;
     }
 
-    static byte[] decode(Type expectedType, String src, boolean safe) {
+    static byte[] decode(Type expectedType, char[] src, boolean safe) {
         byte[] raw = decode(src);
         byte[] dataBytes = Arrays.copyOfRange(raw, 1, raw.length);
         Type type = NKey.Type.fromPrefix(raw[0] & 0xFF);
@@ -373,7 +413,7 @@ public class NKey {
         return dataBytes;
     }
 
-    static DecodedSeed decodeSeed(String seed) {
+    static DecodedSeed decodeSeed(char[] seed) {
         byte[] raw = decode(seed);
 
         // Need to do the reverse here to get back to internal representation.
@@ -420,7 +460,7 @@ public class NKey {
         System.arraycopy(seed, 0, bytes, 0, seed.length);
         System.arraycopy(pubBytes, 0, bytes, seed.length, pubBytes.length);
 
-        String encoded = encodeSeed(type, bytes);
+        char[] encoded = encodeSeed(type, bytes);
         return new NKey(type, null, encoded);
     }
 
@@ -520,7 +560,7 @@ public class NKey {
      * @param publicKey the string encoded public key
      * @return the new Nkey
      */
-    public static NKey fromPublicKey(String publicKey) {
+    public static NKey fromPublicKey(char[] publicKey) {
         byte[] raw = decode(publicKey);
         int prefix = raw[0] & 0xFF;
 
@@ -538,7 +578,7 @@ public class NKey {
      * @param seed the string encoded seed, see {@link NKey#getSeed() getSeed()}
      * @return the Nkey
      */
-    public static NKey fromSeed(String seed) {
+    public static NKey fromSeed(char[] seed) {
         DecodedSeed decoded = decodeSeed(seed); // Should throw on bad seed
 
         if (decoded.bytes.length == ED25519_PRIVATE_KEYSIZE) {
@@ -556,7 +596,7 @@ public class NKey {
      * @param src the encoded public key
      * @return true if the public key is an account public key
      */
-    public static boolean isValidPublicAccountKey(String src) {
+    public static boolean isValidPublicAccountKey(char[] src) {
         return decode(Type.ACCOUNT, src, true) != null;
     }
 
@@ -564,7 +604,7 @@ public class NKey {
      * @param src the encoded public key
      * @return true if the public key is a cluster public key
      */
-    public static boolean isValidPublicClusterKey(String src) {
+    public static boolean isValidPublicClusterKey(char[] src) {
         return decode(Type.CLUSTER, src, true) != null;
     }
 
@@ -572,7 +612,7 @@ public class NKey {
      * @param src the encoded public key
      * @return true if the public key is an operator public key
      */
-    public static boolean isValidPublicOperatorKey(String src) {
+    public static boolean isValidPublicOperatorKey(char[] src) {
         return decode(Type.OPERATOR, src, true) != null;
     }
 
@@ -580,7 +620,7 @@ public class NKey {
      * @param src the encoded public key
      * @return true if the public key is a server public key
      */
-    public static boolean isValidPublicServerKey(String src) {
+    public static boolean isValidPublicServerKey(char[] src) {
         return decode(Type.SERVER, src, true) != null;
     }
 
@@ -588,23 +628,23 @@ public class NKey {
      * @param src the encoded public key
      * @return true if the public key is a user public key
      */
-    public static boolean isValidPublicUserKey(String src) {
+    public static boolean isValidPublicUserKey(char[] src) {
         return decode(Type.USER, src, true) != null;
     }
 
     /**
      * The seed or private key per the Ed25519 spec, encoded with encodeSeed.
      */
-    private String privateKeyAsSeed;
+    private char[] privateKeyAsSeed;
 
     /**
      * The public key, maybe null. Used for public only NKeys.
      */
-    private String publicKey;
+    private char[] publicKey;
 
     private Type type;
 
-    private NKey(Type t, String publicKey, String privateKey) {
+    private NKey(Type t, char[] publicKey, char[] privateKey) {
         this.type = t;
         this.privateKeyAsSeed = privateKey;
         this.publicKey = publicKey;
@@ -613,7 +653,7 @@ public class NKey {
     /**
      * @return the string encoded seed for this NKey
      */
-    public String getSeed() {
+    public char[] getSeed() {
         if (privateKeyAsSeed == null) {
             throw new IllegalStateException("Public-only NKey");
         }
@@ -634,7 +674,7 @@ public class NKey {
      * @throws IOException              if there is a problem encoding the public
      *                                  key
      */
-    public String getPublicKey() throws GeneralSecurityException, IOException {
+    public char[] getPublicKey() throws GeneralSecurityException, IOException {
         if (publicKey != null) {
             return publicKey;
         }
@@ -653,7 +693,7 @@ public class NKey {
      * @throws GeneralSecurityException if there is an encryption problem
      * @throws IOException              if there is a problem encoding the key
      */
-    public String getPrivateKey() throws GeneralSecurityException, IOException {
+    public char[] getPrivateKey() throws GeneralSecurityException, IOException {
         if (privateKeyAsSeed == null) {
             throw new IllegalStateException("Public-only NKey");
         }
@@ -733,7 +773,7 @@ public class NKey {
         if (privateKeyAsSeed != null) {
             sKey = getKeyPair().getPublic();
         } else {
-            String encodedPublicKey = getPublicKey();
+            char[] encodedPublicKey = getPublicKey();
             byte[] decodedPublicKey = decode(this.type, encodedPublicKey, false);
             EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(
                     new GroupElement(NKey.ed25519.getCurve(), decodedPublicKey), NKey.ed25519);
@@ -761,10 +801,10 @@ public class NKey {
         }
 
         if (this.privateKeyAsSeed == null) {
-            return this.publicKey.equals(otherNKey.publicKey);
+            return Arrays.equals(this.publicKey, otherNKey.publicKey);
         }
 
-        return this.privateKeyAsSeed.equals(otherNKey.privateKeyAsSeed);
+        return Arrays.equals(this.privateKeyAsSeed, otherNKey.privateKeyAsSeed);
     }
 
     @Override
@@ -773,9 +813,9 @@ public class NKey {
         result = 31 * result + this.type.prefix;
 
         if (this.privateKeyAsSeed == null) {
-            result = 31 * result + this.publicKey.hashCode();
+            result = 31 * result + Arrays.hashCode(this.publicKey);
         } else {
-            result = 31 * result + this.privateKeyAsSeed.hashCode();
+            result = 31 * result + Arrays.hashCode(this.privateKeyAsSeed);
         }
         return result;
     }

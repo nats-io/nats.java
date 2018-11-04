@@ -31,7 +31,7 @@ public class TestAuthHandler implements AuthHandler {
         return this.nkey;
     }
 
-    public String getID() {
+    public char[] getID() {
         try {
             return this.nkey.getPublicKey();
         } catch (GeneralSecurityException|IOException|NullPointerException ex) {

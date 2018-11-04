@@ -50,9 +50,9 @@ public interface AuthHandler {
 
     /**
      * getID should return a public key associated with a client key known to the server.
-     * If the server is not in nonce-mode, this string can be empty.
+     * If the server is not in nonce-mode, this array can be empty.
      * 
-     * @return the public key as a string
+     * @return the public key as a char array
      */
-    public String getID();
+    public char[] getID();
 }
