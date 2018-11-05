@@ -16,6 +16,7 @@ package io.nats.examples;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Future;
 
+import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Nats;
@@ -25,7 +26,9 @@ public class NatsReq {
 
     static final String usageString =
             "\nUsage: java NatsReq [server] <subject> <text message>"
-            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
+            + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "Set the environment variable NATS_NKEY to use challenge resposne authentication by setting a file containing your seed.\n"
+            + "Use the URL for user/pass/token authentication.\n";
 
     public static void main(String args[]) {
         String subject;
@@ -47,8 +50,14 @@ public class NatsReq {
 
         try {
             
-            Options options = new Options.Builder().server(server).noReconnect().build();
-            Connection nc = Nats.connect(options);
+            Options.Builder builder = new Options.Builder().server(server).noReconnect();
+
+            if (System.getenv("NATS_NKEY") != null) {
+                AuthHandler handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
+                builder.authHandler(handler);
+            }
+
+            Connection nc = Nats.connect(builder.build());
             Future<Message> replyFuture = nc.request(subject, message.getBytes(StandardCharsets.UTF_8));
             Message reply = replyFuture.get();
 

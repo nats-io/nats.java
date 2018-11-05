@@ -11,20 +11,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.examples;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-public class TestAuthHandler implements AuthHandler {
+import io.nats.client.AuthHandler;
+import io.nats.client.NKey;
+
+public class ExampleAuthHandler implements AuthHandler {
     private NKey nkey;
 
-    public TestAuthHandler(NKey nkey) {
-        this.nkey = nkey;
-    }
+    public ExampleAuthHandler(String path) throws Exception {
+        BufferedReader in = null;
 
-    public TestAuthHandler() throws Exception {
-        this.nkey = NKey.createUser(null);
+        try {
+            in = new BufferedReader((new FileReader(new File(path))));
+            
+            char[] buffer = new char[2048];
+            int len = in.read(buffer);
+            char[] seed = new char[len];
+
+            System.arraycopy(buffer, 0, seed, 0, len);
+
+            this.nkey = NKey.fromSeed(seed);
+
+            for (int i=0;i<buffer.length;i++) {
+                buffer[i] = '\0';
+            }
+        } finally {
+            if (in != null) {
+                in.close();
+            }
+        }
     }
 
     public NKey getNKey() {

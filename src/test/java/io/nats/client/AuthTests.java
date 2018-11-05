@@ -446,7 +446,7 @@ public class AuthTests {
         }
     }
 
-    String createNKeyConfigFile(String nkey) throws Exception {
+    String createNKeyConfigFile(char[] nkey) throws Exception {
         File tmp = File.createTempFile("nats_java_test", ".conf");
         BufferedWriter writer = new BufferedWriter(new FileWriter(tmp));
 
@@ -455,7 +455,7 @@ public class AuthTests {
 
         writer.write("authorization {"); writer.newLine();
         writer.write("users = ["); writer.newLine();
-        writer.write(String.format("{\nnkey:%s\n}", nkey)); writer.newLine();
+        writer.write(String.format("{\nnkey:%s\n}", new String(nkey))); writer.newLine();
         writer.write("]"); writer.newLine();
         writer.write("}"); writer.newLine();
 

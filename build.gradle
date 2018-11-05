@@ -12,10 +12,10 @@ plugins {
 
 // Update version here, repeated check-ins not into master will have snapshot on them
 def versionMajor = 2
-def versionMinor = 2
+def versionMinor = 3
 def versionPatch = 0
 def versionModifier = ""
-def jarVersion = "2.2.0"
+def jarVersion = "2.3.0"
 def branch = System.getenv("TRAVIS_BRANCH");
 
 def getVersionName = { ->

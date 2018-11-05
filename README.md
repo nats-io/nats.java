@@ -16,7 +16,7 @@ This is version 2.1 of the java-nats library. This version is a ground up rewrit
 
 The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
 
-Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, nkey support moved us to 2.2.
+Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, NKey support moved us to 2.2.
 
 Previous versions are still available in the repo.
 
@@ -27,7 +27,8 @@ The client protocol spec doesn't explicitly state the encoding on subjects. Some
 ### NKey-based Challenge Response Authentication
 
 The NATS server is adding support for a challenge response authentication scheme based on [NKeys](https://github.com/nats-io/nkeys). Version 2.2.0 of
-the Java client supports this scheme via an AuthHandler interface.
+the Java client supports this scheme via an AuthHandler interface. *Version 2.3.0 replaced several NKey methods that used strings with methods using char[]
+to improve security. Since NKeys are new, and not available in the server we have not bumped the major version and are just bumping the minor version.*
 
 ## Installation
 
@@ -35,7 +36,11 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.2.0/jnats-2.2.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.2.0/jnats-2.2.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.3.0/jnats-2.3.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.3.0/jnats-2.3.0.jar).
+
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.3.0/jnats-2.3.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.3.0/jnats-2.3.0-examples.jar).
+
+To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
 ### Using Gradle
 
