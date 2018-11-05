@@ -158,7 +158,7 @@ public class NKeyTests {
 
     @Test
     public void testBadCRC() throws Exception {
-        for (int i=0;i<1000;i++) {
+        for (int i=0;i<10000;i++) {
             try {
                 byte[] bytes = new byte[32];
                 SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
@@ -168,14 +168,18 @@ public class NKeyTests {
         
                 StringBuilder builder = new StringBuilder();
         
-                builder.append(encoded,0, 6);
-        
-                if (encoded[6] == 'x' || encoded[6]== 'X') {
-                    builder.append('Z');
-                } else {
-                    builder.append('X');
+                for (int j=0;j<encoded.length;j++) {
+                    if (j==6) {
+                        char c = encoded[j];
+                        if (c == 'x' || c== 'X') {
+                            builder.append('Z');
+                        } else {
+                            builder.append('X');
+                        }
+                    } else {
+                        builder.append(encoded[j]);
+                    }
                 }
-                builder.append(encoded, 7, encoded.length-8);
         
                 NKey.decode(NKey.Type.ACCOUNT, builder.toString().toCharArray(), false);
                 assertFalse(true);

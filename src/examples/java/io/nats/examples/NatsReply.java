@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
+import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
@@ -26,7 +27,9 @@ public class NatsReply {
 
     static final String usageString =
             "\nUsage: java NatsReply [server] <subject> <msgCount>"
-                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
+            + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "Set the environment variable NATS_NKEY to use challenge resposne authentication by setting a file containing your seed.\n"
+            + "Use the URL for user/pass/token authentication.\n";
 
     public static void main(String args[]) {
         String subject;
@@ -48,8 +51,14 @@ public class NatsReply {
 
         try {
             
-            Options options = new Options.Builder().server(server).noReconnect().build();
-            Connection nc = Nats.connect(options);
+            Options.Builder builder = new Options.Builder().server(server).noReconnect();
+
+            if (System.getenv("NATS_NKEY") != null) {
+                AuthHandler handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
+                builder.authHandler(handler);
+            }
+
+            Connection nc = Nats.connect(builder.build());
             CountDownLatch latch = new CountDownLatch(msgCount); // dispatcher runs callback in another thread
             
             Dispatcher d = nc.createDispatcher((msg) -> {
