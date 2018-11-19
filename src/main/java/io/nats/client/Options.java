@@ -131,7 +131,7 @@ public class Options {
      * <p>This property is defined as {@value #DEFAULT_RECONNECT_BUF_SIZE} bytes, 8 *
      * 1024 * 1024.
      */
-    public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
+    public static final int DEFAULT_RECONNECT_BUF_SIZE = 8_388_608;
 
     /**
      * The default length, {@value #DEFAULT_MAX_CONTROL_LINE} bytes, the client will allow in an

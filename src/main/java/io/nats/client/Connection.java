@@ -113,8 +113,12 @@ public interface Connection extends AutoCloseable {
      * 
      * where the sender creates a byte array immediately before calling publish.
      * 
+     * See {@link #publish(String, String, byte[]) publish()} for more details on 
+     * publish during reconnect.
+     * 
      * @param subject the subject to send the message to
      * @param body the message body
+     * @throws IllegalStateException if the reconnect buffer is exceeded
      */
     public void publish(String subject, byte[] body);
 
@@ -129,10 +133,17 @@ public interface Connection extends AutoCloseable {
      * </pre>
      * 
      * where the sender creates a byte array immediately before calling publish.
-     * 
+     * <p>
+     * During reconnect the client will try to buffer messages. The buffer size is set
+     * in the connect options, see {@link Options.Builder#reconnectBufferSize(long) reconnectBufferSize()}
+     * with a default value of {@link Options#DEFAULT_RECONNECT_BUF_SIZE 8 * 1024 * 1024} bytes.
+     * If the buffer is exceeded an IllegalStateException is thrown. Applications should use
+     * this exception as a signal to wait for reconnect before continuing.
+     * </p>
      * @param subject the subject to send the message to
      * @param replyTo the subject the receiver should send the response to
      * @param body the message body
+     * @throws IllegalStateException if the reconnect buffer is exceeded
      */
     public void publish(String subject, String replyTo, byte[] body);
 

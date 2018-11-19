@@ -223,6 +223,7 @@ abstract class NatsConsumer implements Consumer {
                 tracker.complete(this.isDrained());
             }
        });
+       t.setName("Consumer Drain");
        t.start();
 
        return getDrainingFuture();

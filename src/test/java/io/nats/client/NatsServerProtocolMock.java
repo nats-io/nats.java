@@ -34,6 +34,7 @@ public class NatsServerProtocolMock implements Closeable{
         EXIT_AFTER_INFO,
         EXIT_AFTER_CONNECT,
         EXIT_AFTER_PING,
+        EXIT_AFTER_CUSTOM,
         NO_EXIT
     }
 
@@ -76,6 +77,18 @@ public class NatsServerProtocolMock implements Closeable{
     public NatsServerProtocolMock(Customizer custom) {
         this.port = NatsTestServer.nextPort();
         this.exitAt = ExitAt.NO_EXIT;
+        this.customizer = custom;
+        start();
+    }
+
+    public NatsServerProtocolMock(Customizer custom, int port, boolean exitAfterCustom) {
+        this.port = port;
+
+        if (exitAfterCustom) {
+            this.exitAt = ExitAt.EXIT_AFTER_CUSTOM;
+        } else {
+            this.exitAt = ExitAt.NO_EXIT;
+        }
         this.customizer = custom;
         start();
     }
@@ -208,6 +221,10 @@ public class NatsServerProtocolMock implements Closeable{
                 this.customizer.customizeTest(this, reader, writer);
                 this.progress = Progress.COMPLETED_CUSTOM_CODE;
             }
+
+            if (exitAt == ExitAt.EXIT_AFTER_CUSTOM) {
+                throw new Exception("exit");
+            }
             waitForIt.get(); // Wait for the test to cancel us
 
         } catch (IOException io) {
@@ -216,7 +233,10 @@ public class NatsServerProtocolMock implements Closeable{
             io.printStackTrace();
         } catch (Exception ex) {
             System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
-            ex.printStackTrace();
+            
+            if (!"exit".equals(ex.getMessage())) {
+                ex.printStackTrace();
+            }
         }
         finally {
             if (serverSocket != null) {

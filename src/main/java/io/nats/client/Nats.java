@@ -184,6 +184,7 @@ public class Nats {
                 }
             }
         });
+        t.setName("NATS - async connection");
         t.start();
     }
 

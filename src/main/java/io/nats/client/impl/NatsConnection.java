@@ -222,6 +222,7 @@ class NatsConnection implements Connection {
                 }
 
                 updateStatus(Status.RECONNECTING);
+
                 tryToConnect(server);
                 lastServer = server;
                 tries++;
@@ -262,6 +263,8 @@ class NatsConnection implements Connection {
             this.processException(exp);
         }
         
+        // When the flush returns we are done sending internal messages, so we can switch to the
+        // non-reconnect queue
         this.writer.setReconnectMode(false);
 
         processConnectionEvent(Events.RESUBSCRIBED);
@@ -293,7 +296,7 @@ class NatsConnection implements Connection {
             this.reader.stop().get();
             this.writer.stop().get();
 
-            this.cleanUpPongQueue();
+            cleanUpPongQueue();
 
             DataPort newDataPort = this.options.buildDataPort();
             newDataPort.connect(serverURI, this);
@@ -308,7 +311,7 @@ class NatsConnection implements Connection {
             checkVersionRequirements();
             upgradeToSecureIfNeeded();
 
-            // Start the reader and writer after we secured the connection, if necessary
+            // start the reader and writer after we secured the connection, if necessary
             this.reader.start(this.dataPortFuture);
             this.writer.start(this.dataPortFuture);
 
@@ -1559,6 +1562,7 @@ class NatsConnection implements Connection {
                 tracker.complete(false);
             }
         });
+        t.setName("Connection Drain");
         t.start();
 
         return tracker;

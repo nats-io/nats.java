@@ -21,8 +21,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Test;
 
@@ -45,7 +47,7 @@ public class ReconnectTests {
         } catch (Exception exp) {
         }
 
-        handler.waitForStatusChange(5, TimeUnit.SECONDS);
+        handler.waitForStatusChange(15, TimeUnit.SECONDS);
     }
 
     void checkReconnectingStatus(Connection nc) {
@@ -467,6 +469,103 @@ public class ReconnectTests {
         } finally {
             if (nc != null) {
                 nc.close();
+            }
+        }
+    }
+
+    @Test
+    public void testReconnectDropOnLineFeed() throws Exception {
+        NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
+        int port = NatsTestServer.nextPort();
+        Duration reconnectWait = Duration.ofMillis(100); // thrash
+        int thrashCount = 5;
+        CompletableFuture<Boolean> gotSub = new CompletableFuture<>();
+        AtomicReference<CompletableFuture<Boolean>> subRef = new AtomicReference<>(gotSub);
+        CompletableFuture<Boolean> sendMsg = new CompletableFuture<>();
+        AtomicReference<CompletableFuture<Boolean>> sendRef = new AtomicReference<>(sendMsg);
+
+        NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
+            String subLine = "";
+            
+            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for SUB ...");
+            try {
+                subLine = r.readLine();
+            } catch(Exception e) {
+                subRef.get().cancel(true);
+                return;
+            }
+
+            if (subLine.startsWith("SUB")) {
+                subRef.get().complete(Boolean.TRUE);
+            }
+
+            try {
+                sendRef.get().get();
+            } catch (Exception e) {
+                //keep going
+            }
+
+            w.write("MSG\r"); // Drop the line feed
+            w.flush();
+        };
+
+        try {
+            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
+                Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    maxReconnects(-1).
+                                    reconnectWait(reconnectWait).
+                                    connectionListener(handler).
+                                    build();
+                                    port = ts.getPort();
+                nc = (NatsConnection) Nats.connect(options);
+                assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());
+                nc.subscribe("test");
+                subRef.get().get();
+                handler.prepForStatusChange(Events.DISCONNECTED);
+                sendRef.get().complete(true);
+                flushAndWait(nc, handler); // mock server will close so we do this inside the curly
+            }
+
+            // Thrash in and out of connect status
+            // server starts thrashCount times so we should succeed thrashCount x
+            for (int i=0;i<thrashCount;i++) {
+                checkReconnectingStatus(nc);
+
+                // connect good then bad
+                handler.prepForStatusChange(Events.RESUBSCRIBED);
+                try (NatsTestServer ts = new NatsTestServer(port, false)) {
+                    handler.waitForStatusChange(5000, TimeUnit.MILLISECONDS);
+                    assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());
+                    handler.prepForStatusChange(Events.DISCONNECTED);
+                }
+
+                flushAndWait(nc, handler); // nats won't close until we tell it, so put this outside the curly
+                checkReconnectingStatus(nc);
+
+                gotSub = new CompletableFuture<>();
+                subRef.set(gotSub);
+                sendMsg = new CompletableFuture<>();
+                sendRef.set(sendMsg);
+
+                handler.prepForStatusChange(Events.RESUBSCRIBED);
+                try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
+                    handler.waitForStatusChange(5000, TimeUnit.MILLISECONDS);
+                    assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());
+                    subRef.get().get();
+                    handler.prepForStatusChange(Events.DISCONNECTED);
+                    sendRef.get().complete(true);
+                    flushAndWait(nc, handler); // mock server will close so we do this inside the curly
+                }
+            }
+            
+
+            assertEquals("reconnect count", 2 * thrashCount, nc.getNatsStatistics().getReconnects());
+        } finally {
+            if (nc != null) {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
         }
     }
