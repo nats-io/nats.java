@@ -21,6 +21,7 @@ import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 
@@ -609,7 +610,7 @@ public class Options {
          */
         public Builder server(String serverURL) {
             try {
-                this.servers.add(new URI(serverURL.trim()));
+                this.servers.add(Options.parseURIForServer(serverURL.trim()));
             } catch (URISyntaxException e) {
                 throw new IllegalArgumentException("Bad server URL: " + serverURL, e);
             }
@@ -627,7 +628,7 @@ public class Options {
             for (String s : servers) {
                 if (s != null && !s.isEmpty()) {
                     try {
-                        this.servers.add(new URI(s.trim()));
+                        this.servers.add(Options.parseURIForServer(s.trim()));
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
                     }
@@ -1240,6 +1241,40 @@ public class Options {
     public boolean isOldRequestStyle() {
         return useOldRequestStyle;
     }
+    
+    public URI createURIForServer(String serverURI) throws URISyntaxException {
+        return Options.parseURIForServer(serverURI);
+    }
+    
+    static URI parseURIForServer(String serverURI) throws URISyntaxException {
+        String known[] = {"nats", "tls", "opentls"};
+        List<String> knownProtocols = Arrays.asList(known);
+        URI uri = null;
+
+        try {
+            uri = new URI(serverURI);
+
+            if (uri.getHost() == null || uri.getHost().equals("")) {
+                // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
+                uri = new URI("nats://"+serverURI);
+            }
+        } catch (URISyntaxException e) {
+            // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
+            uri = new URI("nats://"+serverURI);
+        }
+
+        if (!knownProtocols.contains(uri.getScheme())) {
+            throw new URISyntaxException(serverURI, "unknown URI scheme ");
+        }
+
+        if (uri.getHost() != null && uri.getHost() != "") {
+            return uri;
+        }
+
+
+
+        throw new URISyntaxException(serverURI, "unable to parse server URI");
+    }
 
     /**
      * Create the options string sent with a connect message.
@@ -1293,7 +1328,7 @@ public class Options {
             
             // Values from URI override options
             try {
-                URI uri = new URI(serverURI);
+                URI uri = this.createURIForServer(serverURI);
                 String userInfo = uri.getUserInfo();
 
                 if (userInfo != null) {

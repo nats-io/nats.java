@@ -378,12 +378,15 @@ public class ReconnectTests {
         TestHandler handler = new TestHandler();
 
         try (NatsTestServer ts = new NatsTestServer()) {
-            String customInfo = "{\"server_id\":\"myid\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
+            String striped = ts.getURI().substring("nats://".length()); // info doesn't have protocol
+            String customInfo = "{\"server_id\":\"myid\",\"connect_urls\": [\""+striped+"\"]}";
             try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
                 Options options = new Options.Builder().
                                             server(ts2.getURI()).
                                             connectionListener(handler).
                                             maxReconnects(-1).
+                                            connectionTimeout(Duration.ofSeconds(5)).
+                                            reconnectWait(Duration.ofSeconds(1)).
                                             build();
                 nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
@@ -394,7 +397,7 @@ public class ReconnectTests {
             flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(nc.getConnectedUrl(), ts.getURI());
+            assertTrue(ts.getURI().endsWith(nc.getConnectedUrl()));
         } finally {
             if (nc != null) {
                 nc.close();
