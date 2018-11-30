@@ -1,6 +1,13 @@
 
 # Change Log
 
+## Version 2.4.0
+
+* [FIXED] #195 - issue with "discovered" servers not having a protocol but we tried to parse as uri
+* [FIXED] #186, #191 - sneaky issue with connection reader not reseting state on reconnect
+* [ADDED] #192 - option to set inbox prefix, default remains the same
+* [FIXED] #196 - updated all the versions i could find, and added note in gradle file about them
+
 ## Version 2.3.0
 
 * [BREAKING CHANGE] Replaced use of strings for seeds and public keys in NKey code to use char[] to allow better memory security.
