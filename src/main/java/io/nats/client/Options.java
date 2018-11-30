@@ -156,6 +156,13 @@ public class Options {
      */
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
 
+    
+    /**
+     * Default prefix used for inboxes, you can change this to manage authorization of subjects.
+     * See {@link #getInboxPrefix() getInboxPrefix()}, the . is required but will be added if missing.
+     */
+    public static final String DEFAULT_INBOX_PREFIX = "_INBOX.";
+
     static final String PFX = "io.nats.client.";
 
     /**
@@ -286,6 +293,11 @@ public class Options {
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
 
     /**
+     * Property used to set the inbox prefix
+     */
+    public static final String PROP_INBOX_PREFIX = "inbox.prefix";
+
+    /**
      * Protocol key {@value #OPTION_VERBOSE}, see {@link Builder#verbose() verbose}.
      */
     static final String OPTION_VERBOSE = "verbose";
@@ -374,6 +386,7 @@ public class Options {
     private final String username;
     private final String password;
     private final String token;
+    private final String inboxPrefix;
     private final boolean useOldRequestStyle;
     private final int bufferSize;
     private final boolean noEcho;
@@ -421,6 +434,7 @@ public class Options {
         private boolean trackAdvancedStats = false;
         private boolean noEcho = false;
         private boolean utf8Support = false;
+        private String inboxPrefix = DEFAULT_INBOX_PREFIX;
 
         private AuthHandler authHandler;
 
@@ -587,6 +601,10 @@ public class Options {
             if (props.containsKey(PROP_DATA_PORT_TYPE)) {
                 this.dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
             }
+
+            if (props.containsKey(PROP_INBOX_PREFIX)) {
+                this.inboxPrefix(props.getProperty(PROP_INBOX_PREFIX, DEFAULT_INBOX_PREFIX));
+            }
         }
 
         static Object createInstanceOf(String className) {
@@ -689,6 +707,21 @@ public class Options {
          */
         public Builder connectionName(String name) {
             this.connectionName = name;
+            return this;
+        }
+
+        /**
+         * Set the connection's inbox prefix. All inboxes will start with this string.
+         * 
+         * @param prefix prefix to use.
+         * @return the Builder for chaining
+         */
+        public Builder inboxPrefix(String prefix) {
+            this.inboxPrefix = prefix;
+
+            if (!this.inboxPrefix.endsWith(".")) {
+                this.inboxPrefix = this.inboxPrefix + ".";
+            }
             return this;
         }
 
@@ -1036,6 +1069,7 @@ public class Options {
         this.bufferSize = b.bufferSize;
         this.noEcho = b.noEcho;
         this.utf8Support = b.utf8Support;
+        this.inboxPrefix = b.inboxPrefix;
 
         this.authHandler = b.authHandler;
         this.errorListener = b.errorListener;
@@ -1240,6 +1274,13 @@ public class Options {
      */
     public boolean isOldRequestStyle() {
         return useOldRequestStyle;
+    }
+
+    /**
+     * @return the inbox prefix to use for requests, see {@link Builder#inboxPrefix(String) inboxPrefix()} in the builder doc
+     */
+    public String getInboxPrefix() {
+        return inboxPrefix;
     }
     
     public URI createURIForServer(String serverURI) throws URISyntaxException {

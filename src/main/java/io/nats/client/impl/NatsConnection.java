@@ -61,8 +61,6 @@ import io.nats.client.ConnectionListener.Events;
 class NatsConnection implements Connection {
     static final byte[] EMPTY_BODY = new byte[0];
 
-    static final String INBOX_PREFIX = "_INBOX.";
-
     static final byte CR = 0x0D;
     static final byte LF = 0x0A;
     static final byte[] CRLF = { CR, LF };
@@ -756,17 +754,21 @@ class NatsConnection implements Connection {
     }
 
     String createInbox() {
+        String prefix = options.getInboxPrefix();
         StringBuilder builder = new StringBuilder();
-        builder.append(INBOX_PREFIX);
+        builder.append(prefix);
         builder.append(this.nuid.next());
         return builder.toString();
     }
 
-    static final int RESP_INBOX_PREFIX_LEN = INBOX_PREFIX.length() + 22 + 1; // 22 for nuid, 1 for .
+    int getRespInboxLength() {
+        String prefix = options.getInboxPrefix();
+        return prefix.length() + 22 + 1; // 22 for nuid, 1 for .
+    }
 
     String createResponseInbox(String inbox) {
         StringBuilder builder = new StringBuilder();
-        builder.append(inbox.substring(0, RESP_INBOX_PREFIX_LEN)); // Get rid of the *
+        builder.append(inbox.substring(0, getRespInboxLength())); // Get rid of the *
         builder.append(this.nuid.next());
         return builder.toString();
     }
@@ -774,10 +776,11 @@ class NatsConnection implements Connection {
     // If the inbox is long enough, pull out the end part, otherwise, just use the
     // full thing
     String getResponseToken(String responseInbox) {
-        if (responseInbox.length() <= RESP_INBOX_PREFIX_LEN) {
+        int len = getRespInboxLength();
+        if (responseInbox.length() <= len) {
             return responseInbox;
         }
-        return responseInbox.substring(RESP_INBOX_PREFIX_LEN);
+        return responseInbox.substring(len);
     }
 
     void cleanResponses(boolean cancelIfRunning) {
