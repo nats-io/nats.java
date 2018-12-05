@@ -27,6 +27,7 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.util.Arrays;
+import java.util.Random;
 
 import net.i2p.crypto.eddsa.EdDSAEngine;
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
@@ -648,6 +649,28 @@ public class NKey {
         this.type = t;
         this.privateKeyAsSeed = privateKey;
         this.publicKey = publicKey;
+    }
+
+    /**
+     * Clear the seed and public key char arrays by filling them
+     * with random bytes then zero-ing them out.
+     * 
+     * The nkey is unusable after this operation.
+     */
+    public void clear() {
+        Random r = new Random();
+        if (privateKeyAsSeed != null) {
+            for (int i=0; i< privateKeyAsSeed.length ; i++) {
+                privateKeyAsSeed[i] = (char)(r.nextInt(26) + 'a');
+            }
+            Arrays.fill(privateKeyAsSeed, '\0');
+        }
+        if (publicKey != null) {
+            for (int i=0; i< publicKey.length ; i++) {
+                publicKey[i] = (char)(r.nextInt(26) + 'a');
+            }
+            Arrays.fill(publicKey, '\0');
+        }
     }
 
     /**

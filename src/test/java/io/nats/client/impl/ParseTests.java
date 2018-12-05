@@ -131,7 +131,7 @@ public class ParseTests {
         }
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected=IOException.class)
     public void testMessageLineTooLong() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().

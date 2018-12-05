@@ -493,6 +493,34 @@ public class AuthTests {
         }
     }
 
+    @Test
+    public void testJWTAuthWithChainFile() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        assertNotNull(theKey);
+
+        String version = NatsTestServer.generateGnatsdVersionString();
+
+        if (!version.contains("version 2")) {
+            // Server version doesn't support this test
+            return;
+        }
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", true)) {
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.chain")).
+                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
     @Test(expected=IOException.class)
     public void testBadAuthHandler() throws Exception {
         NKey theKey = NKey.createUser(null);

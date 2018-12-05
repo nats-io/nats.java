@@ -320,14 +320,14 @@ public class OptionsTests {
     public void testNKeyConnectOptions() throws Exception {
         TestAuthHandler th = new TestAuthHandler();
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-        String sig = Base64.getEncoder().encodeToString(th.sign(nonce));
+        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
 
         Options o = new Options.Builder().authHandler(th).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
-                + ",\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\"}";
+                + ",\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\",\"jwt\":\"\"}";
         assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce));
         assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce));
     }

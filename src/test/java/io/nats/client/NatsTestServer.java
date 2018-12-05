@@ -256,6 +256,7 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     public void shutdown() {
+
         if (this.process == null) {
             return;
         }

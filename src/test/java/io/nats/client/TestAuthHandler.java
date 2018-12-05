@@ -46,4 +46,8 @@ public class TestAuthHandler implements AuthHandler {
             return null;
         }
     }
+
+    public char[] getJWT() {
+        return null;
+    }
 }

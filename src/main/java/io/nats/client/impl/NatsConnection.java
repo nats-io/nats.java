@@ -973,14 +973,18 @@ class NatsConnection implements Connection {
     }
 
     void sendConnect(String serverURI) {
-        NatsServerInfo info = this.serverInfo.get();
-        StringBuilder connectString = new StringBuilder();
-        connectString.append(NatsConnection.OP_CONNECT);
-        connectString.append(" ");
-        String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-        connectString.append(connectOptions);
-        NatsMessage msg = new NatsMessage(connectString.toString());
-        queueInternalOutgoing(msg);
+        try {
+            NatsServerInfo info = this.serverInfo.get();
+            StringBuilder connectString = new StringBuilder();
+            connectString.append(NatsConnection.OP_CONNECT);
+            connectString.append(" ");
+            String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
+            connectString.append(connectOptions);
+            NatsMessage msg = new NatsMessage(connectString.toString());
+            queueInternalOutgoing(msg);
+        } catch (Exception exp) {
+            processException(exp);
+        }
     }
     
     CompletableFuture<Boolean> sendPing() {

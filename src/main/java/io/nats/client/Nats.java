@@ -188,6 +188,22 @@ public class Nats {
         t.start();
     }
 
+    /**
+     * Create an authhandler from a chain file. The handler will read the file each time it needs to respond to a request
+     * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
+     */
+    public static AuthHandler credentials(String chainFile) {
+        return NatsImpl.credentials(chainFile);
+    }
+
+    /**
+     * Create an authhandler from a jwt file and an nkey file. The handler will read the files each time it needs to respond to a request
+     * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
+     */
+    public static AuthHandler credentials(String jwtFile, String nkeyFile) {
+        return NatsImpl.credentials(jwtFile, nkeyFile);
+    }
+
     private static Connection createConnection(Options options, boolean reconnectOnConnect)
             throws IOException, InterruptedException {
         return NatsImpl.createConnection(options, reconnectOnConnect);

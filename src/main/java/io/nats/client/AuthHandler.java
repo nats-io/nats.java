@@ -55,4 +55,13 @@ public interface AuthHandler {
      * @return the public key as a char array
      */
     public char[] getID();
+
+    /**
+     * getJWT should return the user JWT associated with this connection.
+     * This can return null for challenge only authentication, but for account/user
+     * JWT-based authentication you need to return the JWT bytes here.
+     * 
+     * @return the user JWT
+     */ 
+    public char[] getJWT();
 }

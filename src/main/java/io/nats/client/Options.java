@@ -15,6 +15,7 @@ package io.nats.client;
 
 import java.util.List;
 import java.util.Properties;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -368,6 +369,11 @@ public class Options {
      * SIG key {@value #OPTION_SIG}, the signature of the nonce sent by the server.
      */
     static final String OPTION_SIG = "sig";
+
+    /**
+     * JWT key {@value #OPTION_SIG}, the user JWT to send to the server.
+     */
+    static final String OPTION_JWT = "jwt";
 
     private List<URI> servers;
     private final boolean noRandomize;
@@ -1349,19 +1355,25 @@ public class Options {
         if (includeAuth && nonce != null && this.getAuthHandler() != null) {
             char[] nkey = this.getAuthHandler().getID();
             byte[] sig = this.getAuthHandler().sign(nonce);
+            char[] jwt = this.getAuthHandler().getJWT();
 
             if (sig == null) {
                 sig = new byte[0];
+            }
+
+            if (jwt == null) {
+                jwt = new char[0];
             }
 
             if (nkey == null) {
                 nkey = new char[0];
             }
 
-            String encodedSig = Base64.getEncoder().encodeToString(sig);
+            String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
 
             appendOption(connectString, Options.OPTION_NKEY, new String(nkey), true, true); // public key to string is ok
             appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
+            appendOption(connectString, Options.OPTION_JWT, new String(jwt), true, true); // public JWT to string is ok
         } else if (includeAuth) {
             String uriUser = null;
             String uriPass = null;

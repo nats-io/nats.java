@@ -27,7 +27,7 @@ public class NatsServerInfoTests {
     @Test
     public void testValidInfoString() {
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-        String encoded = Base64.getEncoder().encodeToString(nonce);
+        String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
         byte[] ascii = encoded.getBytes(StandardCharsets.US_ASCII);
 
         String json = "{" +
