@@ -462,13 +462,9 @@ public class Options {
          * Constructs a new {@code Builder} from a {@link Properties} object.
          * 
          * <p>If {@link Options#PROP_SECURE PROP_SECURE} is set, the builder will
-         * try to recreate an SSLContext that mimics the{@link SSLContext#getDefault()}.
-         * The custom context uses the default trust manager, and wraps the default key manager.
-         * The key manager wrapper will map ip address from server urls obtained from a nats server
-         * into the URL/Hostname used for the initial connection. This allows certificates
-         * without IP addresses to be used for NATS server clusters, especially in cloud situations.
+         * try to to get the default context{@link SSLContext#getDefault() getDefault()}.
          * 
-         * If a context can't be created, no context is set and an IllegalArgumentException is thrown.
+         * If a context can't be found, no context is set and an IllegalArgumentException is thrown.
          * 
          * <p>Methods called on the builder after construction can override the properties.
          *
