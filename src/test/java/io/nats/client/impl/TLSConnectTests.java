@@ -59,6 +59,26 @@ public class TLSConnectTests {
     }
 
     @Test
+    public void testSimpleIPTLSConnection() throws Exception {
+        //System.setProperty("javax.net.debug", "all");
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            SSLContext ctx = TestSSLUtils.createTestSSLContext();
+            Options options = new Options.Builder().
+                                server("127.0.0.1:" + ts.getPort()).
+                                maxReconnects(0).
+                                sslContext(ctx).
+                                build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
+    @Test
     public void testVerifiedTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
@@ -97,10 +117,28 @@ public class TLSConnectTests {
 
     @Test
     public void testURISchemeTLSConnection() throws Exception {
-        SSLContext.setDefault(TestSSLUtils.createTestSSLContext());
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             Options options = new Options.Builder().
                                 server("tls://localhost:"+ts.getPort()).
+                                sslContext(TestSSLUtils.createTestSSLContext()). // override the custom one
+                                maxReconnects(0).
+                                build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
+    @Test
+    public void testURISchemeIPTLSConnection() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+            Options options = new Options.Builder().
+                                server("tls://127.0.0.1:"+ts.getPort()).
+                                sslContext(TestSSLUtils.createTestSSLContext()). // override the custom one
                                 maxReconnects(0).
                                 build();
             Connection nc = Nats.connect(options);

@@ -50,6 +50,7 @@ public class ConnectionListenerTests {
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
+                assertEquals(ts.getURI(), ((NatsConnection)nc).getInitialServerURL());
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());

@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -93,6 +94,7 @@ class NatsConnection implements Connection {
     private CompletableFuture<DataPort> dataPortFuture;
     private DataPort dataPort;
     private String currentServerURI;
+    private String connectServerURI;
     private CompletableFuture<Boolean> reconnectWaiter;
 
     private NatsConnectionReader reader;
@@ -169,6 +171,7 @@ class NatsConnection implements Connection {
             tryToConnect(serverURI);
 
             if (isConnected()) {
+                connectServerURI = serverURI;
                 break;
             } else {
                 updateStatus(Status.DISCONNECTED);
@@ -272,6 +275,7 @@ class NatsConnection implements Connection {
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
     void tryToConnect(String serverURI) {
+        System.out.println("##### "+serverURI);
         try {
             statusLock.lock();
             try {
@@ -364,6 +368,7 @@ class NatsConnection implements Connection {
             processException(exp);
             throw exp;
         } catch (Exception exp) { // every thing else
+            exp.printStackTrace();
             processException(exp);
             try {
                 this.closeSocket(false);
@@ -1279,7 +1284,7 @@ class NatsConnection implements Connection {
 
     public Collection<String> getServers() {
         NatsServerInfo info = this.serverInfo.get();
-        ArrayList<String> servers = new ArrayList<String>();
+        HashSet<String> servers = new HashSet<String>();
 
         options.getServers().stream().forEach(x -> servers.add(x.toString()));
 
@@ -1288,6 +1293,38 @@ class NatsConnection implements Connection {
         }
 
         return servers;
+    }
+
+    public boolean isReconnectServer(String address, int port) {
+        NatsServerInfo info = this.serverInfo.get();
+        if (!this.writer.getReconnectMode()) {
+            return false;
+        }
+
+        if (info == null || info.getConnectURLs() == null) {
+            return false;
+        }
+
+        String hostPort = address+":"+port;
+        String[] connectURLs = info.getConnectURLs();
+
+        try {
+            URI url = this.options.createURIForServer(hostPort);
+            for (int i=0;i<connectURLs.length;i++) {
+                URI connectURI = this.options.createURIForServer(connectURLs[i]);
+                if (connectURI.toString().equals(url.toString())) {
+                    return true;
+                }
+            }
+        } catch (Exception exp) {
+            return false;
+        }
+
+        return false;
+    }
+
+    public String getInitialServerURL() {
+        return this.connectServerURI;
     }
 
     public String getConnectedUrl() {

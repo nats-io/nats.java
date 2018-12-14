@@ -19,10 +19,14 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
+import java.security.cert.Certificate;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -38,6 +42,7 @@ public class SocketDataPort implements DataPort {
 
     private InputStream in;
     private OutputStream out;
+    private Certificate[] certificatesFromConnection;
 
     public void connect(String serverURI, NatsConnection conn) throws IOException {
 
@@ -66,13 +71,26 @@ public class SocketDataPort implements DataPort {
      * If the data port type doesn't support SSL it should throw an exception.
      */
     public void upgradeToSecure() throws IOException {
-        SSLSocketFactory factory = this.connection.getOptions().getSslContext().getSocketFactory();
+        boolean recheckReconnect = this.connection.getOptions().recheckClusterCert();
+        boolean isReconnectServer = this.connection.isReconnectServer(this.host, this.port);
+        SSLContext context = null;
+        
+        if (isReconnectServer && !recheckReconnect) {
+            HashSet<Certificate> certs = new HashSet<>();
+            certs.addAll(Arrays.asList(this.certificatesFromConnection));
+            context = SSLUtils.createReconnectContext(certs);
+        } else {
+            context = this.connection.getOptions().getSslContext();
+        }
+        
+        SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = this.connection.getOptions().getConnectionTimeout();
 
         this.sslSocket = (SSLSocket) factory.createSocket(socket, null, true);
         this.sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
+        
         this.sslSocket.addHandshakeCompletedListener((evt) -> {
             waitForHandshake.complete(null);
         });
@@ -83,6 +101,11 @@ public class SocketDataPort implements DataPort {
             waitForHandshake.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (Exception ex) {
             this.connection.handleCommunicationIssue(ex);
+        }
+
+        // Reset the allowed certs on a full reconnect
+        if (!isReconnectServer || recheckReconnect) {
+            this.certificatesFromConnection = this.sslSocket.getSession().getPeerCertificates();
         }
 
         //in = Channels.newChannel(new BufferedInputStream(sslSocket.getInputStream()));
