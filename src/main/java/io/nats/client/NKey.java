@@ -32,7 +32,6 @@ import java.util.Random;
 import net.i2p.crypto.eddsa.EdDSAEngine;
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
 import net.i2p.crypto.eddsa.EdDSAPublicKey;
-import net.i2p.crypto.eddsa.math.GroupElement;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable;
 import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec;
@@ -454,8 +453,7 @@ public class NKey {
         EdDSAPrivateKey privKey = new EdDSAPrivateKey(privKeySpec);
         EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(privKey.getA(), NKey.ed25519);
         EdDSAPublicKey pubKey = new EdDSAPublicKey(pubKeySpec);
-        GroupElement A = pubKey.getA();
-        byte[] pubBytes = A.toByteArray();
+        byte[] pubBytes = pubKey.getAbyte();
 
         byte[] bytes = new byte[pubBytes.length + seed.length];
         System.arraycopy(seed, 0, bytes, 0, seed.length);
@@ -704,8 +702,7 @@ public class NKey {
 
         KeyPair keys = getKeyPair();
         EdDSAPublicKey pubKey = (EdDSAPublicKey) keys.getPublic();
-        GroupElement A = pubKey.getA();
-        byte[] pubBytes = A.toByteArray();
+        byte[] pubBytes = pubKey.getAbyte();
 
         return encode(this.type, pubBytes);
     }
@@ -746,8 +743,7 @@ public class NKey {
 
         EdDSAPrivateKeySpec privKeySpec = new EdDSAPrivateKeySpec(seedBytes, NKey.ed25519);
         EdDSAPrivateKey privKey = new EdDSAPrivateKey(privKeySpec);
-        EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(new GroupElement(NKey.ed25519.getCurve(), pubBytes),
-                NKey.ed25519);
+        EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(pubBytes, NKey.ed25519);
         EdDSAPublicKey pubKey = new EdDSAPublicKey(pubKeySpec);
 
         return new KeyPair(pubKey, privKey);
@@ -798,8 +794,7 @@ public class NKey {
         } else {
             char[] encodedPublicKey = getPublicKey();
             byte[] decodedPublicKey = decode(this.type, encodedPublicKey, false);
-            EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(
-                    new GroupElement(NKey.ed25519.getCurve(), decodedPublicKey), NKey.ed25519);
+            EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(decodedPublicKey, NKey.ed25519);
             sKey = new EdDSAPublicKey(pubKeySpec);
         }
 
