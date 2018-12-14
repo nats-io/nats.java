@@ -166,10 +166,6 @@ class NatsConnectionWriter implements Runnable {
         reconnectMode.set(tf);
     }
 
-    boolean getReconnectMode() {
-        return reconnectMode.get();
-    }
-
     boolean canQueue(NatsMessage msg, long maxSize) {
         return (maxSize <= 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < maxSize);
     }

@@ -163,13 +163,6 @@ public class Options {
      */
     public static final String DEFAULT_INBOX_PREFIX = "_INBOX.";
 
-    /**
-     * Default value for the reset cluster cert options. See {@link #recheckClusterCert() recheckClusterCert()}.
-     * By default we do not recheck these certs because they may not contain IPs obtained via server
-     * info messages.
-     */
-    public static final boolean DEFAULT_RECHECK_CLUSTER_CERT = false;
-
     static final String PFX = "io.nats.client.";
 
     /**
@@ -275,10 +268,6 @@ public class Options {
      */
     public static final String PROP_SECURE = PFX + "secure";
 
-    /**
-     * Property used to set {@link #recheckClusterCert() recheckClusterCert()}.
-     */
-    public static final String PROP_RECHECK_CLUSTER_CERT = PFX + "recheck.cluster.cert";
     /**
      * Property used to configure a builder from a Properties object. 
      * {@value #PROP_OPENTLS}, see {@link Builder#sslContext(SSLContext) sslContext}.
@@ -408,7 +397,6 @@ public class Options {
     private final int bufferSize;
     private final boolean noEcho;
     private final boolean utf8Support;
-    private final boolean recheckClusterCert;
 
     private final AuthHandler authHandler;
 
@@ -453,7 +441,6 @@ public class Options {
         private boolean noEcho = false;
         private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
-        private boolean recheckClusterCert;
 
         private AuthHandler authHandler;
 
@@ -566,10 +553,6 @@ public class Options {
 
             if (props.containsKey(PROP_PEDANTIC)) {
                 this.pedantic = Boolean.parseBoolean(props.getProperty(PROP_PEDANTIC));
-            }
-
-            if (props.containsKey(PROP_RECHECK_CLUSTER_CERT)) {
-                this.recheckClusterCert = Boolean.parseBoolean(props.getProperty(PROP_RECHECK_CLUSTER_CERT));
             }
 
             if (props.containsKey(PROP_MAX_RECONNECT)) {
@@ -784,11 +767,6 @@ public class Options {
         /**
          * Sets the options to use the default SSL Context, if it exists.
          * 
-         * In reconnect situations, the {@link #recheckClusterCert() recheckClusterCert()}
-         * option is also used, so the default context may be ignored on a reconnect to 
-         * a server whose address was provided by a server that was authenticated by its
-         * certificate.
-         * 
          * @throws NoSuchAlgorithmException If the default protocol is unavailable.
          * @throws IllegalArgumentException If there is no default SSL context.
          * @return the Builder for chaining
@@ -799,26 +777,6 @@ public class Options {
             if(this.sslContext == null) {
                 throw new IllegalArgumentException("No Default SSL Context");
             }
-            return this;
-        }
-
-        /**
-         * Turn on checking for cluster certs. By default, we allow cluster servers, obtained
-         * from the server we connect to in INFO messages, to connect with the original connections
-         * cert. Set this recheck to true to force all certificates to be valid for their server.
-         * 
-         * The default keystore is used, and a special trust manager is installed that only approves
-         * certificates from the last full TLS connection.
-         * 
-         * The motivation for this has to do with certificates in dynamic clusters. If clusters give
-         * clients server addresses as IPs, they may not be in the SSL certificate. In this case, we
-         * want to make sure the IP came from a server INFO message, and that it matches the initial
-         * connection which always does a full TLS check, but don't require the certificate to have
-         * every cluster server's IP in it.
-         * @return the Builder for chaining
-         */
-        public Builder recheckClusterCert() {
-            this.recheckClusterCert = true;
             return this;
         }
 
@@ -836,8 +794,6 @@ public class Options {
         /**
          * Set the SSL context, requires that the server supports TLS connections and
          * the URI specifies TLS.
-         * 
-         * See {@link #recheckClusterCert() recheckClusterCert()} for reconnect behavior.
          * 
          * @param ctx the SSL Context to use for TLS connections
          * @return the Builder for chaining
@@ -1124,7 +1080,6 @@ public class Options {
         this.noEcho = b.noEcho;
         this.utf8Support = b.utf8Support;
         this.inboxPrefix = b.inboxPrefix;
-        this.recheckClusterCert = b.recheckClusterCert;
 
         this.authHandler = b.authHandler;
         this.errorListener = b.errorListener;
@@ -1244,13 +1199,6 @@ public class Options {
      */
     public SSLContext getSslContext() {
         return sslContext;
-    }
-
-    /**
-     * @return the whether we force a cert recheck on reconnect, see {@link Builder#recheckClusterCert() recheckClusterCert()} in the builder doc
-     */
-    public boolean recheckClusterCert() {
-        return recheckClusterCert;
     }
 
     /**

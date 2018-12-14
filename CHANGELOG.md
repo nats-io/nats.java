@@ -3,9 +3,7 @@
 
 ## Version 2.4.0
 
-* [BRAKING CHANGE] - by default the library doesn't require that certificates used during reconnect
-contain the IP address of servers obtained from those provided during the initial connection. See
-the Options.Builder documentation for recheckClusterCert.
+* [FIXED] - issue with norandomize server connect order, it was broken at some point
 * [FIXED] #195 - issue with "discovered" servers not having a protocol but we tried to parse as uri
 * [FIXED] #186, #191 - sneaky issue with connection reader not reseting state on reconnect
 * [ADDED] #192 - option to set inbox prefix, default remains the same

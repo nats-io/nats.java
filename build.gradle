@@ -137,6 +137,17 @@ task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
+task fatJar(type: Jar) {
+    classifier = 'fat'
+    manifest {
+        attributes('Implementation-Title': 'Java Nats With Dependencies',
+                   'Implementation-Version': jarVersion,
+                   'Implementation-Vendor': 'nats.io')
+    }
+    from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
 jacocoTestReport {
     reports {
         xml.enabled = true // coveralls plugin depends on xml format report

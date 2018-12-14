@@ -52,7 +52,6 @@ public class OptionsTests {
         assertEquals("default oldstyle", false, o.isOldRequestStyle());
         assertEquals("default noEcho", false, o.isNoEcho());
         assertEquals("default UTF8 Support", false, o.supportUTF8Subjects());
-        assertEquals("default recheck cluster cert Support", false, o.recheckClusterCert());
 
         assertNull("default username", o.getUsername());
         assertNull("default password", o.getPassword());
@@ -77,7 +76,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedBooleanOptions() throws NoSuchAlgorithmException {
-        Options o = new Options.Builder().verbose().pedantic().noRandomize().recheckClusterCert().supportUTF8Subjects().noEcho().oldRequestStyle().build();
+        Options o = new Options.Builder().verbose().pedantic().noRandomize().supportUTF8Subjects().noEcho().oldRequestStyle().build();
         assertNull("default username", o.getUsername());
         assertEquals("chained verbose", true, o.isVerbose());
         assertEquals("chained pedantic", true, o.isPedantic());
@@ -85,7 +84,6 @@ public class OptionsTests {
         assertEquals("chained oldstyle", true, o.isOldRequestStyle());
         assertEquals("chained noecho", true, o.isNoEcho());
         assertEquals("chained utf8", true, o.supportUTF8Subjects());
-        assertEquals("chained recheck cluster cert", true, o.recheckClusterCert());
     }
 
     @Test
@@ -161,7 +159,6 @@ public class OptionsTests {
         props.setProperty(Options.PROP_OPENTLS, "true");
         props.setProperty(Options.PROP_NO_ECHO, "true");
         props.setProperty(Options.PROP_UTF8_SUBJECTS, "true");
-        props.setProperty(Options.PROP_RECHECK_CLUSTER_CERT, "true");
 
         Options o = new Options.Builder(props).build();
         assertNull("default username", o.getUsername());
@@ -171,7 +168,6 @@ public class OptionsTests {
         assertEquals("property oldstyle", true, o.isOldRequestStyle());
         assertEquals("property noecho", true, o.isNoEcho());
         assertEquals("property utf8", true, o.supportUTF8Subjects());
-        assertEquals("property recheck cluster cert",true, o.recheckClusterCert());
         assertNotNull("property opentls", o.getSslContext());
     }
 

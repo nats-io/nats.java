@@ -61,7 +61,7 @@ public class NatsMessageTests {
         byte[] body = new byte[10];
         String subject = "subject";
         String replyTo = "reply";
-        int maxControlLine = 100;
+        int maxControlLine = 1024;
 
         while (subject.length() <= maxControlLine) {
             subject = subject + subject;

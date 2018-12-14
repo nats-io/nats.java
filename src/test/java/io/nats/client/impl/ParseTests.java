@@ -153,10 +153,17 @@ public class ParseTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
                                                                     server(ts.getURI()).
-                                                                    maxControlLine(16).
+                                                                    maxControlLine(1024).
                                                                     build())) {
             NatsConnectionReader reader = nc.getReader();
-            byte[] bytes = ("INFO reallylongsubjectobreakthelengthnotevenjson\r\n").getBytes(StandardCharsets.US_ASCII);
+            StringBuilder longString = new StringBuilder();
+
+            longString.append("INFO ");
+            for (int i=0;i<500;i++ ){
+                longString.append("helloworld");
+            }
+
+            byte[] bytes = longString.toString().getBytes(StandardCharsets.US_ASCII);
             reader.fakeReadForTest(bytes);
             reader.gatherOp(bytes.length);
             reader.gatherProtocol(bytes.length);

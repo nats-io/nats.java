@@ -19,6 +19,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -319,19 +320,20 @@ public class ReconnectTests {
                 Options options = new Options.Builder().
                                             server(ts2.getURI()).
                                             server(ts.getURI()).
+                                            noRandomize().
                                             connectionListener(handler).
                                             maxReconnects(-1).
                                             build();
                 nc = (NatsConnection) Nats.connect(options);
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertEquals(nc.getConnectedUrl(), ts2.getURI());
+                assertEquals(ts2.getURI(), nc.getConnectedUrl());
                 handler.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(nc.getConnectedUrl(), ts.getURI());
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
         } finally {
             if (nc != null) {
                 nc.close();
@@ -633,7 +635,9 @@ public class ReconnectTests {
             flushAndWait(nc, handler);
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(nc.getConnectedUrl(), ts2.getURI());
+
+            URI uri = options.createURIForServer(nc.getConnectedUrl());
+            assertEquals(ts2.getPort(), uri.getPort()); // full uri will have some ip address, just check port
         } finally {
             if (nc != null) {
                 nc.close();
