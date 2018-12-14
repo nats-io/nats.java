@@ -3,7 +3,9 @@
 
 ## Version 2.4.0
 
+* [ADDED] - support for JWT based authentication
 * [FIXED] - issue with norandomize server connect order, it was broken at some point
+* [FIXED] ##199 - import of a private package
 * [FIXED] #195 - issue with "discovered" servers not having a protocol but we tried to parse as uri
 * [FIXED] #186, #191 - sneaky issue with connection reader not reseting state on reconnect
 * [ADDED] #192 - option to set inbox prefix, default remains the same
