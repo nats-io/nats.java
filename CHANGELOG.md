@@ -3,7 +3,7 @@
 
 ## Version 2.4.0
 
-* [ADDED] - support for JWT based authentication
+* [ADDED] - support for JWT-based authentication and NGS
 * [FIXED] - issue with norandomize server connect order, it was broken at some point
 * [FIXED] ##199 - import of a private package
 * [FIXED] #195 - issue with "discovered" servers not having a protocol but we tried to parse as uri
