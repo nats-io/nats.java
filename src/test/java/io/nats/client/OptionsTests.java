@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -320,14 +321,14 @@ public class OptionsTests {
     public void testNKeyConnectOptions() throws Exception {
         TestAuthHandler th = new TestAuthHandler();
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-        String sig = Base64.getEncoder().encodeToString(th.sign(nonce));
+        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
 
         Options o = new Options.Builder().authHandler(th).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
-                + ",\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\"}";
+                + ",\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\",\"jwt\":\"\"}";
         assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce));
         assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce));
     }
@@ -473,6 +474,47 @@ public class OptionsTests {
         String[] serverUrls = {url1, url2};
         new Options.Builder().servers(serverUrls).build();
         assertFalse(true);
+    }
+
+    @Test
+    public void testParseURIForServer() throws URISyntaxException {
+        String[][] test = {
+            {"nats://localhost:4222","nats://localhost:4222"},
+            {"tls://localhost:4222","tls://localhost:4222"},
+            {"opentls://localhost:4222","opentls://localhost:4222"},
+            {"localhost:4222","nats://localhost:4222"},
+
+            {"nats://localhost","nats://localhost:4222"},
+            {"tls://localhost","tls://localhost:4222"},
+            {"opentls://localhost","opentls://localhost:4222"},
+            {"localhost","nats://localhost:4222"},
+
+            {"nats://connect.nats.io:4222","nats://connect.nats.io:4222"},
+            {"tls://connect.nats.io:4222","tls://connect.nats.io:4222"},
+            {"opentls://connect.nats.io:4222","opentls://connect.nats.io:4222"},
+            {"connect.nats.io:4222","nats://connect.nats.io:4222"},
+
+            {"nats://connect.nats.io","nats://connect.nats.io:4222"},
+            {"tls://connect.nats.io","tls://connect.nats.io:4222"},
+            {"opentls://connect.nats.io","opentls://connect.nats.io:4222"},
+            {"connect.nats.io","nats://connect.nats.io:4222"},
+            
+            {"nats://192.168.0.1:4222","nats://192.168.0.1:4222"},
+            {"tls://192.168.0.1:4222","tls://192.168.0.1:4222"},
+            {"opentls://192.168.0.1:4222","opentls://192.168.0.1:4222"},
+            {"192.168.0.1:4222","nats://192.168.0.1:4222"},
+
+            {"nats://192.168.0.1","nats://192.168.0.1:4222"},
+            {"tls://192.168.0.1","tls://192.168.0.1:4222"},
+            {"opentls://192.168.0.1","opentls://192.168.0.1:4222"},
+            {"192.168.0.1","nats://192.168.0.1:4222"},
+        };
+
+        for (int i=0 ;i<test.length;i++) {
+            URI actual = Options.parseURIForServer(test[i][0]);
+            URI expected = new URI(test[i][1]);
+            assertEquals(expected.toASCIIString(), actual.toASCIIString());
+        }
     }
 
 /* These next three require that no default is set anywhere, if another test

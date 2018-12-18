@@ -21,6 +21,7 @@ import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 
@@ -131,7 +132,7 @@ public class Options {
      * <p>This property is defined as {@value #DEFAULT_RECONNECT_BUF_SIZE} bytes, 8 *
      * 1024 * 1024.
      */
-    public static final int DEFAULT_RECONNECT_BUF_SIZE = 8 * 1024 * 1024;
+    public static final int DEFAULT_RECONNECT_BUF_SIZE = 8_388_608;
 
     /**
      * The default length, {@value #DEFAULT_MAX_CONTROL_LINE} bytes, the client will allow in an
@@ -154,6 +155,13 @@ public class Options {
      * this is primarily changed for testing, {@link #getBufferSize() getBufferSize()}.
      */
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
+
+    
+    /**
+     * Default prefix used for inboxes, you can change this to manage authorization of subjects.
+     * See {@link #getInboxPrefix() getInboxPrefix()}, the . is required but will be added if missing.
+     */
+    public static final String DEFAULT_INBOX_PREFIX = "_INBOX.";
 
     static final String PFX = "io.nats.client.";
 
@@ -259,6 +267,7 @@ public class Options {
      * default SSL context. Set the default context before creating the options.
      */
     public static final String PROP_SECURE = PFX + "secure";
+
     /**
      * Property used to configure a builder from a Properties object. 
      * {@value #PROP_OPENTLS}, see {@link Builder#sslContext(SSLContext) sslContext}.
@@ -283,6 +292,11 @@ public class Options {
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjcts()}
      */
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
+
+    /**
+     * Property used to set the inbox prefix
+     */
+    public static final String PROP_INBOX_PREFIX = "inbox.prefix";
 
     /**
      * Protocol key {@value #OPTION_VERBOSE}, see {@link Builder#verbose() verbose}.
@@ -356,6 +370,11 @@ public class Options {
      */
     static final String OPTION_SIG = "sig";
 
+    /**
+     * JWT key {@value #OPTION_SIG}, the user JWT to send to the server.
+     */
+    static final String OPTION_JWT = "jwt";
+
     private List<URI> servers;
     private final boolean noRandomize;
     private final String connectionName;
@@ -373,6 +392,7 @@ public class Options {
     private final String username;
     private final String password;
     private final String token;
+    private final String inboxPrefix;
     private final boolean useOldRequestStyle;
     private final int bufferSize;
     private final boolean noEcho;
@@ -420,6 +440,7 @@ public class Options {
         private boolean trackAdvancedStats = false;
         private boolean noEcho = false;
         private boolean utf8Support = false;
+        private String inboxPrefix = DEFAULT_INBOX_PREFIX;
 
         private AuthHandler authHandler;
 
@@ -441,8 +462,9 @@ public class Options {
          * Constructs a new {@code Builder} from a {@link Properties} object.
          * 
          * <p>If {@link Options#PROP_SECURE PROP_SECURE} is set, the builder will
-         * try to use the default SSLContext {@link SSLContext#getDefault()}. If that
-         * fails, no context is set and an IllegalArgumentException is thrown.
+         * try to to get the default context{@link SSLContext#getDefault() getDefault()}.
+         * 
+         * If a context can't be found, no context is set and an IllegalArgumentException is thrown.
          * 
          * <p>Methods called on the builder after construction can override the properties.
          *
@@ -586,6 +608,10 @@ public class Options {
             if (props.containsKey(PROP_DATA_PORT_TYPE)) {
                 this.dataPortType = props.getProperty(PROP_DATA_PORT_TYPE);
             }
+
+            if (props.containsKey(PROP_INBOX_PREFIX)) {
+                this.inboxPrefix(props.getProperty(PROP_INBOX_PREFIX, DEFAULT_INBOX_PREFIX));
+            }
         }
 
         static Object createInstanceOf(String className) {
@@ -609,7 +635,7 @@ public class Options {
          */
         public Builder server(String serverURL) {
             try {
-                this.servers.add(new URI(serverURL.trim()));
+                this.servers.add(Options.parseURIForServer(serverURL.trim()));
             } catch (URISyntaxException e) {
                 throw new IllegalArgumentException("Bad server URL: " + serverURL, e);
             }
@@ -627,7 +653,7 @@ public class Options {
             for (String s : servers) {
                 if (s != null && !s.isEmpty()) {
                     try {
-                        this.servers.add(new URI(s.trim()));
+                        this.servers.add(Options.parseURIForServer(s.trim()));
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
                     }
@@ -692,6 +718,21 @@ public class Options {
         }
 
         /**
+         * Set the connection's inbox prefix. All inboxes will start with this string.
+         * 
+         * @param prefix prefix to use.
+         * @return the Builder for chaining
+         */
+        public Builder inboxPrefix(String prefix) {
+            this.inboxPrefix = prefix;
+
+            if (!this.inboxPrefix.endsWith(".")) {
+                this.inboxPrefix = this.inboxPrefix + ".";
+            }
+            return this;
+        }
+
+        /**
          * Turn on verbose mode with the server.
          * @return the Builder for chaining
          */
@@ -720,7 +761,7 @@ public class Options {
         }
 
         /**
-         * Set the SSL context to the {@link Options#DEFAULT_SSL_PROTOCOL default one}.
+         * Sets the options to use the default SSL Context, if it exists.
          * 
          * @throws NoSuchAlgorithmException If the default protocol is unavailable.
          * @throws IllegalArgumentException If there is no default SSL context.
@@ -976,8 +1017,7 @@ public class Options {
          * <ul>
          * <li>If there is no user/password is set but the URI has them, {@code nats://user:password@server:port}, they will be used.
          * <li>If there is no token is set but the URI has one, {@code nats://token@server:port}, it will be used.
-         * <li>If the URI is of the form tls:// and no SSL context was assigned, the default one will
-         *  be used {@link SSLContext#getDefault()}.
+         * <li>If the URI is of the form tls:// and no SSL context was assigned, one is created, see {@link Options.Builder#secure() secure()}.
          * <li>If the URI is of the form opentls:// and no SSL context was assigned one will be created
          * that does not check the servers certificate for validity. This is not secure and only provided
          * for tests and development.
@@ -1035,6 +1075,7 @@ public class Options {
         this.bufferSize = b.bufferSize;
         this.noEcho = b.noEcho;
         this.utf8Support = b.utf8Support;
+        this.inboxPrefix = b.inboxPrefix;
 
         this.authHandler = b.authHandler;
         this.errorListener = b.errorListener;
@@ -1242,6 +1283,54 @@ public class Options {
     }
 
     /**
+     * @return the inbox prefix to use for requests, see {@link Builder#inboxPrefix(String) inboxPrefix()} in the builder doc
+     */
+    public String getInboxPrefix() {
+        return inboxPrefix;
+    }
+    
+    public URI createURIForServer(String serverURI) throws URISyntaxException {
+        return Options.parseURIForServer(serverURI);
+    }
+    
+    static URI parseURIForServer(String serverURI) throws URISyntaxException {
+        String known[] = {"nats", "tls", "opentls"};
+        List<String> knownProtocols = Arrays.asList(known);
+        URI uri = null;
+
+        try {
+            uri = new URI(serverURI);
+
+            if (uri.getHost() == null || uri.getHost().equals("") || uri.getScheme() == "" || uri.getScheme() == null) {
+                // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
+                uri = new URI("nats://"+serverURI);
+            }
+        } catch (URISyntaxException e) {
+            // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
+            uri = new URI("nats://"+serverURI);
+        }
+
+        if (!knownProtocols.contains(uri.getScheme())) {
+            throw new URISyntaxException(serverURI, "unknown URI scheme ");
+        }
+
+        if (uri.getHost() != null && uri.getHost() != "") {
+            if (uri.getPort() == -1) {
+                uri = new URI(uri.getScheme(), 
+                                uri.getUserInfo(), 
+                                uri.getHost(),
+                                4222,
+                                uri.getPath(),
+                                uri.getQuery(),
+                                uri.getFragment());
+            }
+            return uri;
+        }
+
+        throw new URISyntaxException(serverURI, "unable to parse server URI");
+    }
+
+    /**
      * Create the options string sent with a connect message.
      * 
      * If includeAuth is true the auth information is included:
@@ -1273,19 +1362,25 @@ public class Options {
         if (includeAuth && nonce != null && this.getAuthHandler() != null) {
             char[] nkey = this.getAuthHandler().getID();
             byte[] sig = this.getAuthHandler().sign(nonce);
+            char[] jwt = this.getAuthHandler().getJWT();
 
             if (sig == null) {
                 sig = new byte[0];
+            }
+
+            if (jwt == null) {
+                jwt = new char[0];
             }
 
             if (nkey == null) {
                 nkey = new char[0];
             }
 
-            String encodedSig = Base64.getEncoder().encodeToString(sig);
+            String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
 
             appendOption(connectString, Options.OPTION_NKEY, new String(nkey), true, true); // public key to string is ok
             appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
+            appendOption(connectString, Options.OPTION_JWT, new String(jwt), true, true); // public JWT to string is ok
         } else if (includeAuth) {
             String uriUser = null;
             String uriPass = null;
@@ -1293,7 +1388,7 @@ public class Options {
             
             // Values from URI override options
             try {
-                URI uri = new URI(serverURI);
+                URI uri = this.createURIForServer(serverURI);
                 String userInfo = uri.getUserInfo();
 
                 if (userInfo != null) {

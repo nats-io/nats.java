@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 
+import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.Options;
 import io.nats.client.Statistics;
@@ -31,5 +32,13 @@ public class NatsImpl {
 
     public static Statistics createEmptyStats() {
         return new NatsStatistics(false);
+    }
+
+    public static AuthHandler credentials(String chainFile) {
+        return new FileAuthHandler(chainFile);
+    }
+
+    public static AuthHandler credentials(String jwtFile, String nkeyFile) {
+        return new FileAuthHandler(jwtFile, nkeyFile);
     }
 }

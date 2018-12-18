@@ -46,6 +46,13 @@ public class TestSSLUtils {
         return store;
     }
 
+    public static void setKeystoreSystemParameters() {
+        System.setProperty("javax.net.ssl.keyStore",KEYSTORE_PATH);
+        System.setProperty("javax.net.ssl.keyStorePassword",KEY_PASSWORD);
+        System.setProperty("javax.net.ssl.trustStore",TRUSTSTORE_PATH);
+        System.setProperty("javax.net.ssl.trustStorePassword",STORE_PASSWORD);
+    }
+
     public static KeyManager[] createTestKeyManagers() throws Exception {
         KeyStore store = loadKeystore(KEYSTORE_PATH);
         KeyManagerFactory factory = KeyManagerFactory.getInstance(ALGORITHM);

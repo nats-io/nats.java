@@ -1,6 +1,16 @@
 
 # Change Log
 
+## Version 2.4.0
+
+* [ADDED] - support for JWT-based authentication and NGS
+* [FIXED] - issue with norandomize server connect order, it was broken at some point
+* [FIXED] ##199 - import of a private package
+* [FIXED] #195 - issue with "discovered" servers not having a protocol but we tried to parse as uri
+* [FIXED] #186, #191 - sneaky issue with connection reader not reseting state on reconnect
+* [ADDED] #192 - option to set inbox prefix, default remains the same
+* [FIXED] #196 - updated all the versions i could find, and added note in gradle file about them
+
 ## Version 2.3.0
 
 * [BREAKING CHANGE] Replaced use of strings for seeds and public keys in NKey code to use char[] to allow better memory security.

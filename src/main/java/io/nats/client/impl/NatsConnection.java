@@ -19,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -60,8 +59,6 @@ import io.nats.client.ConnectionListener.Events;
 
 class NatsConnection implements Connection {
     static final byte[] EMPTY_BODY = new byte[0];
-
-    static final String INBOX_PREFIX = "_INBOX.";
 
     static final byte CR = 0x0D;
     static final byte LF = 0x0A;
@@ -222,6 +219,7 @@ class NatsConnection implements Connection {
                 }
 
                 updateStatus(Status.RECONNECTING);
+
                 tryToConnect(server);
                 lastServer = server;
                 tries++;
@@ -262,6 +260,8 @@ class NatsConnection implements Connection {
             this.processException(exp);
         }
         
+        // When the flush returns we are done sending internal messages, so we can switch to the
+        // non-reconnect queue
         this.writer.setReconnectMode(false);
 
         processConnectionEvent(Events.RESUBSCRIBED);
@@ -293,7 +293,7 @@ class NatsConnection implements Connection {
             this.reader.stop().get();
             this.writer.stop().get();
 
-            this.cleanUpPongQueue();
+            cleanUpPongQueue();
 
             DataPort newDataPort = this.options.buildDataPort();
             newDataPort.connect(serverURI, this);
@@ -308,7 +308,7 @@ class NatsConnection implements Connection {
             checkVersionRequirements();
             upgradeToSecureIfNeeded();
 
-            // Start the reader and writer after we secured the connection, if necessary
+            // start the reader and writer after we secured the connection, if necessary
             this.reader.start(this.dataPortFuture);
             this.writer.start(this.dataPortFuture);
 
@@ -753,17 +753,21 @@ class NatsConnection implements Connection {
     }
 
     String createInbox() {
+        String prefix = options.getInboxPrefix();
         StringBuilder builder = new StringBuilder();
-        builder.append(INBOX_PREFIX);
+        builder.append(prefix);
         builder.append(this.nuid.next());
         return builder.toString();
     }
 
-    static final int RESP_INBOX_PREFIX_LEN = INBOX_PREFIX.length() + 22 + 1; // 22 for nuid, 1 for .
+    int getRespInboxLength() {
+        String prefix = options.getInboxPrefix();
+        return prefix.length() + 22 + 1; // 22 for nuid, 1 for .
+    }
 
     String createResponseInbox(String inbox) {
         StringBuilder builder = new StringBuilder();
-        builder.append(inbox.substring(0, RESP_INBOX_PREFIX_LEN)); // Get rid of the *
+        builder.append(inbox.substring(0, getRespInboxLength())); // Get rid of the *
         builder.append(this.nuid.next());
         return builder.toString();
     }
@@ -771,10 +775,11 @@ class NatsConnection implements Connection {
     // If the inbox is long enough, pull out the end part, otherwise, just use the
     // full thing
     String getResponseToken(String responseInbox) {
-        if (responseInbox.length() <= RESP_INBOX_PREFIX_LEN) {
+        int len = getRespInboxLength();
+        if (responseInbox.length() <= len) {
             return responseInbox;
         }
-        return responseInbox.substring(RESP_INBOX_PREFIX_LEN);
+        return responseInbox.substring(len);
     }
 
     void cleanResponses(boolean cancelIfRunning) {
@@ -966,15 +971,21 @@ class NatsConnection implements Connection {
         }
     }
 
-    void sendConnect(String serverURI) {
-        NatsServerInfo info = this.serverInfo.get();
-        StringBuilder connectString = new StringBuilder();
-        connectString.append(NatsConnection.OP_CONNECT);
-        connectString.append(" ");
-        String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-        connectString.append(connectOptions);
-        NatsMessage msg = new NatsMessage(connectString.toString());
-        queueInternalOutgoing(msg);
+    void sendConnect(String serverURI) throws IOException {
+        try {
+            NatsServerInfo info = this.serverInfo.get();
+            StringBuilder connectString = new StringBuilder();
+            connectString.append(NatsConnection.OP_CONNECT);
+            connectString.append(" ");
+            String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
+            connectString.append(connectOptions);
+            NatsMessage msg = new NatsMessage(connectString.toString());
+            
+            queueInternalOutgoing(msg);
+        } catch (Exception exp) {
+            exp.printStackTrace();
+            throw new IOException("Error sending connect string", exp);
+        }
     }
     
     CompletableFuture<Boolean> sendPing() {
@@ -1269,12 +1280,24 @@ class NatsConnection implements Connection {
 
     public Collection<String> getServers() {
         NatsServerInfo info = this.serverInfo.get();
-        ArrayList<String> servers = new ArrayList<String>();
+        HashSet<String> check = new HashSet<String>();
+        ArrayList<String> servers = new ArrayList<>();
 
-        options.getServers().stream().forEach(x -> servers.add(x.toString()));
+        options.getServers().stream().forEach(x -> {
+            String uri = x.toString();
+            if (!check.contains(uri)) {
+                servers.add(uri);
+                check.add(uri);
+            }
+        });
 
         if (info != null && info.getConnectURLs() != null) {
-            servers.addAll(Arrays.asList(info.getConnectURLs()));
+            for (String uri : info.getConnectURLs()) {
+                if (!check.contains(uri)) {
+                    servers.add(uri);
+                    check.add(uri);
+                }
+            }
         }
 
         return servers;
@@ -1559,6 +1582,7 @@ class NatsConnection implements Connection {
                 tracker.complete(false);
             }
         });
+        t.setName("Connection Drain");
         t.start();
 
         return tracker;

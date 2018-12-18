@@ -42,6 +42,7 @@ public class NatsTestServer implements AutoCloseable {
     private Process process;
     private String cmdLine;
     private String[] customArgs;
+    private String[] configInserts;
 
     public static String generateGnatsdVersionString() {
         ArrayList<String> cmd = new ArrayList<String>();
@@ -106,6 +107,14 @@ public class NatsTestServer implements AutoCloseable {
         start();
     }
 
+    public NatsTestServer(String configFilePath, String[] inserts, int port, boolean debug) {
+        this.configFilePath = configFilePath;
+        this.configInserts = inserts;
+        this.debug = debug;
+        this.port = port;
+        start();
+    }
+
     public NatsTestServer(String configFilePath, int port, boolean debug) {
         this.configFilePath = configFilePath;
         this.debug = debug;
@@ -161,6 +170,13 @@ public class NatsTestServer implements AutoCloseable {
 
                     write.write(line);
                     write.write("\n");
+                }
+
+                if (configInserts != null) {
+                    for (String s : configInserts) {
+                        write.write(s);
+                        write.write("\n");
+                    }
                 }
             } catch (Exception exp) {
                 System.out.println("%%% Error parsing config file for port.");
@@ -256,6 +272,7 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     public void shutdown() {
+
         if (this.process == null) {
             return;
         }

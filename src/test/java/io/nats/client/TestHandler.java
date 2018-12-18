@@ -68,7 +68,10 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         this.exceptionCount.incrementAndGet();
 
         if( exp != null && this.printExceptions){
+            System.out.println("Current time - "+System.currentTimeMillis());
             exp.printStackTrace();
+            Statistics stats = conn.getStatistics();
+            System.out.println("Sent "+stats.getOutMsgs()+"/"+stats.getOutBytes()+" - Received "+stats.getInMsgs()+"/"+stats.getInBytes());
         }
     }
 
@@ -101,6 +104,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
                 eventCounts.put(type, counter);
             }
             counter.incrementAndGet();
+
+            System.out.println("Status change "+type);
 
             if (statusChanged != null && type == eventToWaitFor) {
                 statusChanged.complete(Boolean.TRUE);

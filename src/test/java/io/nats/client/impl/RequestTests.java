@@ -47,6 +47,7 @@ public class RequestTests {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             
             Dispatcher d = nc.createDispatcher((msg) -> {
+                assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                 nc.publish(msg.getReplyTo(), null);
             });
             d.subscribe("subject");
@@ -124,6 +125,28 @@ public class RequestTests {
 
             assertNotNull(msg);
             assertEquals("hello", new String(msg.getData(), StandardCharsets.UTF_8));
+        }
+    }
+
+    @Test
+    public void testRequestWithCustomInbox() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                Connection nc = Nats.connect(new Options.Builder().inboxPrefix("myinbox").server(ts.getURI()).maxReconnects(0).build())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                assertTrue(msg.getReplyTo().startsWith("myinbox"));
+                nc.publish(msg.getReplyTo(), null);
+            });
+            d.subscribe("subject");
+
+            Future<Message> incoming = nc.request("subject", null);
+            Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+
+            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertNotNull(msg);
+            assertEquals(0, msg.getData().length);
+            assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
         }
     }
 

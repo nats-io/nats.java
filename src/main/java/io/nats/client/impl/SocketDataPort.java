@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -40,13 +41,13 @@ public class SocketDataPort implements DataPort {
     private OutputStream out;
 
     public void connect(String serverURI, NatsConnection conn) throws IOException {
+
         try {
             this.connection = conn;
 
             Options options = this.connection.getOptions();
-            URI uri = new URI(serverURI);
             long timeout = options.getConnectionTimeout().toMillis();
-
+            URI uri = options.createURIForServer(serverURI);
             this.host = uri.getHost();
             this.port = uri.getPort();
 
@@ -66,13 +67,17 @@ public class SocketDataPort implements DataPort {
      * If the data port type doesn't support SSL it should throw an exception.
      */
     public void upgradeToSecure() throws IOException {
-        SSLSocketFactory factory = this.connection.getOptions().getSslContext().getSocketFactory();
-        Duration timeout = this.connection.getOptions().getConnectionTimeout();
+        Options options = this.connection.getOptions();
+        SSLContext context = options.getSslContext();
+        
+        SSLSocketFactory factory = context.getSocketFactory();
+        Duration timeout = options.getConnectionTimeout();
 
         this.sslSocket = (SSLSocket) factory.createSocket(socket, null, true);
         this.sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
+        
         this.sslSocket.addHandshakeCompletedListener((evt) -> {
             waitForHandshake.complete(null);
         });
@@ -85,7 +90,6 @@ public class SocketDataPort implements DataPort {
             this.connection.handleCommunicationIssue(ex);
         }
 
-        //in = Channels.newChannel(new BufferedInputStream(sslSocket.getInputStream()));
         in = sslSocket.getInputStream();
         out = sslSocket.getOutputStream();
     }

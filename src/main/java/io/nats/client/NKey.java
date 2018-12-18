@@ -27,11 +27,11 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.util.Arrays;
+import java.util.Random;
 
 import net.i2p.crypto.eddsa.EdDSAEngine;
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
 import net.i2p.crypto.eddsa.EdDSAPublicKey;
-import net.i2p.crypto.eddsa.math.GroupElement;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable;
 import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec;
@@ -453,8 +453,7 @@ public class NKey {
         EdDSAPrivateKey privKey = new EdDSAPrivateKey(privKeySpec);
         EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(privKey.getA(), NKey.ed25519);
         EdDSAPublicKey pubKey = new EdDSAPublicKey(pubKeySpec);
-        GroupElement A = pubKey.getA();
-        byte[] pubBytes = A.toByteArray();
+        byte[] pubBytes = pubKey.getAbyte();
 
         byte[] bytes = new byte[pubBytes.length + seed.length];
         System.arraycopy(seed, 0, bytes, 0, seed.length);
@@ -651,6 +650,28 @@ public class NKey {
     }
 
     /**
+     * Clear the seed and public key char arrays by filling them
+     * with random bytes then zero-ing them out.
+     * 
+     * The nkey is unusable after this operation.
+     */
+    public void clear() {
+        Random r = new Random();
+        if (privateKeyAsSeed != null) {
+            for (int i=0; i< privateKeyAsSeed.length ; i++) {
+                privateKeyAsSeed[i] = (char)(r.nextInt(26) + 'a');
+            }
+            Arrays.fill(privateKeyAsSeed, '\0');
+        }
+        if (publicKey != null) {
+            for (int i=0; i< publicKey.length ; i++) {
+                publicKey[i] = (char)(r.nextInt(26) + 'a');
+            }
+            Arrays.fill(publicKey, '\0');
+        }
+    }
+
+    /**
      * @return the string encoded seed for this NKey
      */
     public char[] getSeed() {
@@ -681,8 +702,7 @@ public class NKey {
 
         KeyPair keys = getKeyPair();
         EdDSAPublicKey pubKey = (EdDSAPublicKey) keys.getPublic();
-        GroupElement A = pubKey.getA();
-        byte[] pubBytes = A.toByteArray();
+        byte[] pubBytes = pubKey.getAbyte();
 
         return encode(this.type, pubBytes);
     }
@@ -723,8 +743,7 @@ public class NKey {
 
         EdDSAPrivateKeySpec privKeySpec = new EdDSAPrivateKeySpec(seedBytes, NKey.ed25519);
         EdDSAPrivateKey privKey = new EdDSAPrivateKey(privKeySpec);
-        EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(new GroupElement(NKey.ed25519.getCurve(), pubBytes),
-                NKey.ed25519);
+        EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(pubBytes, NKey.ed25519);
         EdDSAPublicKey pubKey = new EdDSAPublicKey(pubKeySpec);
 
         return new KeyPair(pubKey, privKey);
@@ -775,8 +794,7 @@ public class NKey {
         } else {
             char[] encodedPublicKey = getPublicKey();
             byte[] decodedPublicKey = decode(this.type, encodedPublicKey, false);
-            EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(
-                    new GroupElement(NKey.ed25519.getCurve(), decodedPublicKey), NKey.ed25519);
+            EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(decodedPublicKey, NKey.ed25519);
             sKey = new EdDSAPublicKey(pubKeySpec);
         }
 

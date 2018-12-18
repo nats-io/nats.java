@@ -106,6 +106,8 @@ class NatsConnectionReader implements Runnable {
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             this.mode = Mode.GATHER_OP;
+            this.gotCR = false;
+            this.opPos = 0;
 
             while (this.running.get()) {
                 this.bufferPosition = 0;

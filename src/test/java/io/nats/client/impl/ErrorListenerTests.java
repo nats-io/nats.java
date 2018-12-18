@@ -58,22 +58,23 @@ public class ErrorListenerTests {
                                         build();
             nc = (NatsConnection) Nats.connect(options);
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(nc.getConnectedUrl(), ts.getURI());
-            handler.prepForStatusChange(Events.RECONNECTED);
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            handler.prepForStatusChange(Events.DISCONNECTED);
 
             ts.close();
-
             try {
                 nc.flush(Duration.ofSeconds(1));
             } catch (Exception exp) {
             }
+            handler.waitForStatusChange(5, TimeUnit.SECONDS);
     
+            handler.prepForStatusChange(Events.RECONNECTED);
             handler.waitForStatusChange(5, TimeUnit.SECONDS);
 
             assertNotNull(nc.getLastError());
             assertTrue(nc.getLastError().indexOf("Authorization Violation") >= 0);
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            assertEquals(nc.getConnectedUrl(), ts3.getURI());
+            assertEquals(ts3.getURI(), nc.getConnectedUrl());
         } finally {
             if (nc != null) {
                 nc.close();

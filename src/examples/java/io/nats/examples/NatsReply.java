@@ -17,7 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
-import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
@@ -26,10 +25,11 @@ import io.nats.client.Options;
 public class NatsReply {
 
     static final String usageString =
-            "\nUsage: java NatsReply [server] <subject> <msgCount>"
+            "\nUsage: java NatsReply [server] <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-            + "Set the environment variable NATS_NKEY to use challenge resposne authentication by setting a file containing your seed.\n"
-            + "Use the URL for user/pass/token authentication.\n";
+            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+            + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String args[]) {
         String subject;
@@ -50,17 +50,10 @@ public class NatsReply {
         }
 
         try {
-            
-            Options.Builder builder = new Options.Builder().server(server).noReconnect();
-
-            if (System.getenv("NATS_NKEY") != null) {
-                AuthHandler handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
-                builder.authHandler(handler);
-            }
-
-            Connection nc = Nats.connect(builder.build());
+            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server, true));
             CountDownLatch latch = new CountDownLatch(msgCount); // dispatcher runs callback in another thread
             
+            System.out.println();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 System.out.printf("Received message \"%s\" on subject \"%s\", replying to %s\n", 
                                         new String(msg.getData(), StandardCharsets.UTF_8), 
@@ -70,7 +63,7 @@ public class NatsReply {
             });
             d.subscribe(subject);
 
-            nc.flush(Duration.ZERO);
+            nc.flush(Duration.ofSeconds(5));
 
             latch.await();
 

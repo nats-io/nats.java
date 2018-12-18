@@ -72,7 +72,7 @@ public class Nats {
     /**
      * Current version of the library - {@value #CLIENT_VERSION}
      */
-    public static final String CLIENT_VERSION = "2.1.1";
+    public static final String CLIENT_VERSION = "2.4.0";
 
     /**
      * Current language of the library - {@value #CLIENT_LANGUAGE}
@@ -184,7 +184,33 @@ public class Nats {
                 }
             }
         });
+        t.setName("NATS - async connection");
         t.start();
+    }
+
+    /**
+     * Create an authhandler from a chain file. The handler will read the file each time it needs to respond to a request
+     * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
+     * 
+     * The chain file has a JWT - generally commented with a separator - followed by an nkey - also with a separator.
+     * 
+     * @param chainFile a file containing a user JWT and an nkey
+     * @return an authhandler that will use the chain file to load/clear the nkey and jwt as needed
+     */
+    public static AuthHandler credentials(String chainFile) {
+        return NatsImpl.credentials(chainFile);
+    }
+
+    /**
+     * Create an authhandler from a jwt file and an nkey file. The handler will read the files each time it needs to respond to a request
+     * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
+     * 
+     * @param jwtFile a file containing a user JWT, may or may not contain separators
+     * @param nkeyFile a file containing a user nkey that matches the JWT, may or may not contain separators
+     * @return an authhandler that will use the chain file to load/clear the nkey and jwt as needed
+     */
+    public static AuthHandler credentials(String jwtFile, String nkeyFile) {
+        return NatsImpl.credentials(jwtFile, nkeyFile);
     }
 
     private static Connection createConnection(Options options, boolean reconnectOnConnect)

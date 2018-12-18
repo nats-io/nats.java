@@ -11,11 +11,12 @@ plugins {
 }
 
 // Update version here, repeated check-ins not into master will have snapshot on them
+// Be sure to update Nats.java with the latest version, the change log and the package-info.java
 def versionMajor = 2
-def versionMinor = 3
+def versionMinor = 4
 def versionPatch = 0
 def versionModifier = ""
-def jarVersion = "2.3.0"
+def jarVersion = "2.4.0"
 def branch = System.getenv("TRAVIS_BRANCH");
 
 def getVersionName = { ->
@@ -134,6 +135,17 @@ task javadocJar(type: Jar) {
 task sourcesJar(type: Jar) {
     classifier = 'sources'
     from sourceSets.main.allSource
+}
+
+task fatJar(type: Jar) {
+    classifier = 'fat'
+    manifest {
+        attributes('Implementation-Title': 'Java Nats With Dependencies',
+                   'Implementation-Version': jarVersion,
+                   'Implementation-Vendor': 'nats.io')
+    }
+    from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
 }
 
 jacocoTestReport {
