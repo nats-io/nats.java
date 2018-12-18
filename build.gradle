@@ -53,7 +53,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.i2p.crypto:eddsa:0.3.0'
+    compile 'net.i2p.crypto:eddsa:0.3.0'
     testImplementation 'junit:junit:4.12'
 }
 
@@ -79,6 +79,9 @@ jar {
         attributes('Implementation-Title': 'Java Nats',
                    'Implementation-Version': jarVersion,
                    'Implementation-Vendor': 'nats.io')
+        instruction "Import-Package", "!net.i2p.crypto.eddsa.math"
+        instruction "Import-Package", "net.i2p*"
+        instruction "Import-Package", "io.nats*"
     }
     exclude("io/nats/examples/**")
 }
