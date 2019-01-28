@@ -13,13 +13,8 @@
 
 package io.nats.examples;
 
-import java.time.Duration;
-
-import io.nats.client.AuthHandler;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionListener;
-import io.nats.client.Nats;
-import io.nats.client.Options;
+import io.nats.client.*;
+import org.threeten.bp.Duration;
 
 public class ExampleUtils {
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {

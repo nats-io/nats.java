@@ -13,18 +13,14 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import org.junit.Test;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.Test;
+import static org.junit.Assert.*;
 
 public class SubscriberTests {
     @Test

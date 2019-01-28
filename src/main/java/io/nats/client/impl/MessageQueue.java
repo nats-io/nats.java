@@ -13,7 +13,8 @@
 
 package io.nats.client.impl;
 
-import java.time.Duration;
+import org.threeten.bp.Duration;
+
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;

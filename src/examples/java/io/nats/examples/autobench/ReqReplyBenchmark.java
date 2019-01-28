@@ -13,15 +13,11 @@
 
 package io.nats.examples.autobench;
 
-import java.time.Duration;
+import io.nats.client.*;
+import org.threeten.bp.Duration;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
 
 public class ReqReplyBenchmark extends AutoBenchmark {
 

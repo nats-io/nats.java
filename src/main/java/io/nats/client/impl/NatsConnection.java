@@ -13,49 +13,22 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+import org.threeten.bp.Duration;
+import org.threeten.bp.Instant;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
-
-import io.nats.client.Connection;
-import io.nats.client.ConnectionListener;
-import io.nats.client.Consumer;
-import io.nats.client.Dispatcher;
-import io.nats.client.ErrorListener;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.NUID;
-import io.nats.client.Options;
-import io.nats.client.Statistics;
-import io.nats.client.Subscription;
-import io.nats.client.ConnectionListener.Events;
 
 class NatsConnection implements Connection {
     static final byte[] EMPTY_BODY = new byte[0];

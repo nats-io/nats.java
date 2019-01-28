@@ -13,30 +13,16 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import io.nats.client.*;
+import org.junit.Test;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
+import static org.junit.Assert.*;
 
 public class DispatcherTests {
     @Test

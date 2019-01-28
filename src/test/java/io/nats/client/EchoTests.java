@@ -13,16 +13,13 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+import org.junit.Test;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
-import java.time.Duration;
 
-import org.junit.Test;
-
-import io.nats.client.NatsServerProtocolMock.ExitAt;
+import static org.junit.Assert.*;
 
 public class EchoTests {
     @Test(expected=IOException.class)

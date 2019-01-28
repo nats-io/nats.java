@@ -13,18 +13,18 @@
 
 package io.nats.examples.autobench;
 
+import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
+import io.nats.client.Nats;
+import io.nats.client.Options;
+import org.threeten.bp.Duration;
+
 import java.text.NumberFormat;
-import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Nats;
-import io.nats.client.Options;
 
 public class PubDispatchBenchmark extends ThrottledBenchmark {
 

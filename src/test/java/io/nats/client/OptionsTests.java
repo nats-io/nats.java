@@ -13,28 +13,22 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import io.nats.client.ConnectionListener.Events;
+import io.nats.client.impl.DataPort;
+import io.nats.client.utils.CloseOnUpgradeAttempt;
+import org.junit.Test;
+import org.threeten.bp.Duration;
 
+import javax.net.ssl.SSLContext;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Properties;
 
-import javax.net.ssl.SSLContext;
-
-import org.junit.Test;
-
-import io.nats.client.ConnectionListener.Events;
-import io.nats.client.impl.DataPort;
-import io.nats.client.utils.CloseOnUpgradeAttempt;
+import static org.junit.Assert.*;
 
 public class OptionsTests {
     @Test

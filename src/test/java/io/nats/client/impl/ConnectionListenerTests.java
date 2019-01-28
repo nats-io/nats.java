@@ -12,24 +12,15 @@
 // limitations under the License.
 
 package io.nats.client.impl;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+import org.junit.Test;
+import org.threeten.bp.Duration;
+
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
-
-import io.nats.client.ConnectionListener.Events;
-import io.nats.client.BadHandler;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionListener;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.TestHandler;
+import static org.junit.Assert.*;
 
 public class ConnectionListenerTests {
 

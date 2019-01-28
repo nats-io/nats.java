@@ -13,12 +13,12 @@
 
 package io.nats.examples.autobench;
 
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.LockSupport;
-
 import io.nats.client.Connection;
 import io.nats.client.Options;
+import org.threeten.bp.Duration;
+
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 
 public abstract class ThrottledBenchmark extends AutoBenchmark {
 

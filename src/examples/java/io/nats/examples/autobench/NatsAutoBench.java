@@ -13,11 +13,11 @@
 
 package io.nats.examples.autobench;
 
-import java.time.Duration;
+import io.nats.client.Options;
+import org.threeten.bp.Duration;
+
 import java.util.ArrayList;
 import java.util.List;
-
-import io.nats.client.Options;
 
 /**
  * Implements a benchmark more like the .net client that loops over a number

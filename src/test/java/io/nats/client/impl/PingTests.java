@@ -13,28 +13,16 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import org.junit.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.TestHandler;
+import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import org.junit.Test;
+import org.threeten.bp.Duration;
+
+import java.io.IOException;
+import java.util.concurrent.*;
+
+import static org.junit.Assert.*;
 
 public class PingTests {
     @Test

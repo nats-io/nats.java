@@ -13,22 +13,14 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import io.nats.client.*;
+import org.junit.Test;
+import org.threeten.bp.Duration;
 
-import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.Nats;
+import static org.junit.Assert.*;
 
 public class NatsStatisticsTests {
     @Test

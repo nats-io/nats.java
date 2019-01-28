@@ -13,23 +13,17 @@
 
 package io.nats.client;
 
-import java.util.List;
-import java.util.Properties;
+import io.nats.client.impl.DataPort;
+import io.nats.client.impl.SSLUtils;
+import io.nats.client.impl.SocketDataPort;
+import org.threeten.bp.Duration;
+
+import javax.net.ssl.SSLContext;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
-
-import javax.net.ssl.SSLContext;
-
-import io.nats.client.impl.DataPort;
-import io.nats.client.impl.SSLUtils;
-import io.nats.client.impl.SocketDataPort;
+import java.util.*;
 
 /**
  * The Options class specifies the connection options for a new NATs connection, including the default options.

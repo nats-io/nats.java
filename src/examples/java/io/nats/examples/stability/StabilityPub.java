@@ -13,14 +13,14 @@
 
 package io.nats.examples.stability;
 
-import java.text.NumberFormat;
-import java.time.Duration;
-import java.time.Instant;
-
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.examples.benchmark.Utils;
+import org.threeten.bp.Duration;
+import org.threeten.bp.Instant;
+
+import java.text.NumberFormat;
 
 public class StabilityPub {
 

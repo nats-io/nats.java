@@ -13,14 +13,10 @@
 
 package io.nats.examples;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import io.nats.client.*;
+import org.threeten.bp.Duration;
 
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
+import java.nio.charset.StandardCharsets;
 
 public class NatsSub {
 

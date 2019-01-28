@@ -13,8 +13,9 @@
 
 package io.nats.client.impl;
 
+import org.threeten.bp.Duration;
+
 import java.text.NumberFormat;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public class MessageQueueBenchmark {

@@ -13,7 +13,8 @@
 
 package io.nats.client;
 
-import java.time.Duration;
+import org.threeten.bp.Duration;
+
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;

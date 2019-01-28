@@ -13,10 +13,11 @@
 
 package io.nats.client.impl;
 
+import org.threeten.bp.Duration;
+
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;

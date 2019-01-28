@@ -13,15 +13,15 @@
 
 package io.nats.client.impl;
 
-import java.time.Duration;
-import java.time.Instant;
+import io.nats.client.Consumer;
+import org.threeten.bp.Duration;
+import org.threeten.bp.Instant;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
-import io.nats.client.Consumer;
 
 abstract class NatsConsumer implements Consumer {
 

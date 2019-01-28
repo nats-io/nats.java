@@ -13,14 +13,11 @@
 
 package io.nats.client;
 
+import org.threeten.bp.Duration;
+
 import java.text.NumberFormat;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-
-import io.nats.client.Connection;
-import io.nats.client.Nats;
-import io.nats.client.Options;
 
 public class PublishBenchmarkWithStats {
     public static void main(String args[]) throws InterruptedException {

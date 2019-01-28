@@ -13,18 +13,15 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
-import org.junit.Test;
-
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import org.junit.Test;
+import org.threeten.bp.Duration;
+
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.*;
 
 public class ConnectTests {
     @Test

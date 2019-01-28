@@ -13,22 +13,18 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import io.nats.client.Connection.Status;
+import io.nats.client.ConnectionListener.Events;
+import org.junit.Test;
+import org.threeten.bp.Duration;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
-
-import io.nats.client.Connection.Status;
-import io.nats.client.ConnectionListener.Events;
+import static org.junit.Assert.*;
 
 public class AuthTests {
     @Test

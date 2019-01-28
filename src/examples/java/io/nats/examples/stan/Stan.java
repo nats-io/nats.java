@@ -13,17 +13,17 @@
 
 package io.nats.examples.stan;
 
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.time.Duration;
-import java.time.LocalTime;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
-
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import org.threeten.bp.Duration;
+
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.time.LocalTime;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 public class Stan {
 

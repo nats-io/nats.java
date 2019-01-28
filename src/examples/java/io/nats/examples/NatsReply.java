@@ -13,14 +13,14 @@
 
 package io.nats.examples;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
-
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import org.threeten.bp.Duration;
+
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
 
 public class NatsReply {
 

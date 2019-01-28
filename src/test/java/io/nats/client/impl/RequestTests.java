@@ -13,31 +13,19 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import io.nats.client.*;
+import org.junit.Test;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
+import static org.junit.Assert.*;
 
 public class RequestTests {
     @Test

@@ -13,13 +13,13 @@
 
 package io.nats.client.impl;
 
-import java.time.Duration;
+import io.nats.client.Dispatcher;
+import io.nats.client.MessageHandler;
+import org.threeten.bp.Duration;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import io.nats.client.Dispatcher;
-import io.nats.client.MessageHandler;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 

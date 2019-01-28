@@ -13,29 +13,18 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+import io.nats.client.utils.CloseOnUpgradeAttempt;
+import org.junit.Test;
+import org.threeten.bp.Duration;
 
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.SSLContext;
-
-import org.junit.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.TestHandler;
-import io.nats.client.TestSSLUtils;
-import io.nats.client.ConnectionListener.Events;
-import io.nats.client.utils.CloseOnUpgradeAttempt;
+import static org.junit.Assert.*;
 
 public class TLSConnectTests {
     @Test
