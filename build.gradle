@@ -100,18 +100,17 @@ test {
 
 javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
-    options.encoding = 'UTF-8'
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
     excludes = ['io/nats/client/impl', 'io/nats/examples']
     classpath = sourceSets.main.runtimeClasspath
     doLast {
-//            exec {
-//                println "Updating favicon on all html files"
-//                workingDir 'build/docs/javadoc'
-//                // Only on linux, mac at this point
-//                commandLine 'find', '.', '-name', '*.html', '-exec', 'sed', '-i', '-e', 's#<head>#<head><link rel="icon" type="image/ico" href="favicon.ico">#', '{}', ';'
-//            }
+            exec {
+                println "Updating favicon on all html files"
+                workingDir 'build/docs/javadoc'
+                // Only on linux, mac at this point
+                commandLine 'find', '.', '-name', '*.html', '-exec', 'sed', '-i', '-e', 's#<head>#<head><link rel="icon" type="image/ico" href="favicon.ico">#', '{}', ';'
+            }
             copy {
                 println "Copying images to javadoc folder"
                 from 'src/main/javadoc/images'
