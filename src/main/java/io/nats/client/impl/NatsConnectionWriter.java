@@ -16,20 +16,20 @@ package io.nats.client.impl;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import io.nats.client.Duration;
 
 class NatsConnectionWriter implements Runnable {
 
     private final NatsConnection connection;
 
     private Thread thread;
-    private CompletableFuture<Boolean> stopped;
+    private LatchFuture<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
     private final AtomicBoolean reconnectMode;
@@ -44,8 +44,7 @@ class NatsConnectionWriter implements Runnable {
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
-        this.stopped = new CompletableFuture<>();
-        this.stopped.complete(Boolean.TRUE); // we are stopped on creation
+        this.stopped = new LatchFuture(Boolean.TRUE); // we are stopped on creation
 
         this.sendBuffer = new byte[connection.getOptions().getBufferSize()];
 
@@ -59,7 +58,7 @@ class NatsConnectionWriter implements Runnable {
     void start(Future<DataPort> dataPortFuture) {
         this.dataPortFuture = dataPortFuture;
         this.running.set(true);
-        this.stopped = new CompletableFuture<>(); // New future
+        this.stopped = new LatchFuture<>(); // New future
 
         String name = (this.connection.getOptions().getConnectionName() != null) ? this.connection.getOptions().getConnectionName() : "Nats Connection";
         this.thread = new Thread(this, name + " Writer");

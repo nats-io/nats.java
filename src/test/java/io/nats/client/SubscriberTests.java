@@ -13,18 +13,18 @@
 
 package io.nats.client;
 
+import org.junit.Test;
+
+import java.io.IOException;
+import java.util.concurrent.TimeoutException;
+
+import io.nats.client.impl.LatchFuture;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
-
-import org.junit.Test;
 
 public class SubscriberTests {
     @Test
@@ -48,8 +48,8 @@ public class SubscriberTests {
 
     @Test
     public void testTabInProtocolLine() throws Exception {
-        CompletableFuture<Boolean> gotSub = new CompletableFuture<>();
-        CompletableFuture<Boolean> sendMsg = new CompletableFuture<>();
+        LatchFuture<Boolean> gotSub = new LatchFuture<>();
+        LatchFuture<Boolean> sendMsg = new LatchFuture<>();
 
         NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
             String subLine = "";

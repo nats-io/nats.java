@@ -13,22 +13,17 @@
 
 package io.nats.examples.benchmark;
 
-import io.nats.examples.benchmark.Benchmark;
-import io.nats.examples.benchmark.Sample;
-import io.nats.client.*;
-
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Phaser;
@@ -36,6 +31,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
+
+import io.nats.client.Connection;
+import io.nats.client.Duration;
+import io.nats.client.NUID;
+import io.nats.client.Nats;
+import io.nats.client.Options;
+import io.nats.client.Subscription;
 
 /**
  * A utility class for measuring NATS performance, similar to the version in go and node.
@@ -306,7 +308,7 @@ public class NatsBench {
     public void runTest(String title, int pubCount, int subCount) throws Exception {
         final Phaser subReady = new Phaser();
         final Phaser finisher = new Phaser();
-        final CompletableFuture<Boolean> starter = new CompletableFuture<>();
+        final LatchFuture<Boolean> starter = new LatchFuture<>();
         subReady.register();
         finisher.register();
         sent.set(0);

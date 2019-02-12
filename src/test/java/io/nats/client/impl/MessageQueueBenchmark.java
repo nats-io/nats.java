@@ -14,8 +14,8 @@
 package io.nats.client.impl;
 
 import java.text.NumberFormat;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.Duration;
+import io.nats.client.impl.LatchFuture;
 
 public class MessageQueueBenchmark {
     public static void main(String args[]) throws InterruptedException {
@@ -82,7 +82,7 @@ public class MessageQueueBenchmark {
         }
         final MessageQueue pushPopThreadQueue = new MessageQueue(false);
         final Duration timeout = Duration.ofMillis(10);
-        final CompletableFuture<Void> go = new CompletableFuture<>();
+        final LatchFuture<Void> go = new LatchFuture<>();
         Thread pusher = new Thread(() -> {
             try {
                 go.get();
@@ -120,7 +120,7 @@ public class MessageQueueBenchmark {
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
         
-        final CompletableFuture<Void> go2 = new CompletableFuture<>();
+        final LatchFuture<Void> go2 = new LatchFuture<>();
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
@@ -162,7 +162,7 @@ public class MessageQueueBenchmark {
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
             
-        final CompletableFuture<Void> go3 = new CompletableFuture<>();
+        final LatchFuture<Void> go3 = new LatchFuture<>();
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }        

@@ -20,7 +20,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Handles the begining of the connect sequence, all hard coded, but
@@ -57,7 +56,7 @@ public class NatsServerProtocolMock implements Closeable{
     private ExitAt exitAt;
     private Progress progress;
     private boolean protocolFailure;
-    private CompletableFuture<Boolean> waitForIt;
+    private LatchFuture<Boolean> waitForIt;
     private Customizer customizer;
     private String customInfo;
     private String separator = " ";
@@ -105,7 +104,7 @@ public class NatsServerProtocolMock implements Closeable{
 
     private void start() {
         this.progress = Progress.NO_CLIENT;
-        this.waitForIt = new CompletableFuture<>();
+        this.waitForIt = new LatchFuture<>();
         Thread t = new Thread(() -> {accept();});
         t.start();
         try {

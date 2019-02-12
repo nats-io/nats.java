@@ -14,10 +14,10 @@
 package io.nats.examples.stability;
 
 import java.text.NumberFormat;
-import java.time.Duration;
-import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 import io.nats.client.Connection;
+import io.nats.client.Duration;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.examples.benchmark.Utils;
@@ -51,7 +51,7 @@ public class StabilityPub {
         try {
             Options options = new Options.Builder().server(server).noReconnect().build();
             Connection nc = Nats.connect(options);
-            Instant start = Instant.now();
+            Duration start = new Duration(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
 
             byte[] payload = new byte[msgSize];
             
@@ -76,7 +76,7 @@ public class StabilityPub {
                 }
 
                 if (messageCount != 0 && messageCount % 100_000 == 0) {
-                    Instant finish = Instant.now();
+                    Duration finish = new Duration(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
                     System.out.printf("Running for %s\n", Duration.between(start, finish).toString()
                                                         .substring(2)
                                                         .replaceAll("(\\d[HMS])(?!$)", "$1 ")

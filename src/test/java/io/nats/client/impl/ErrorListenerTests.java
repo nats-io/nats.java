@@ -19,7 +19,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -29,6 +28,7 @@ import org.junit.Test;
 import io.nats.client.BadHandler;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
+import io.nats.client.Duration;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;

@@ -13,10 +13,10 @@
 
 package io.nats.client;
 
-import java.time.Duration;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
+
+import io.nats.client.impl.LatchFuture;
 
 /**
  * The Connection class is at the heart of the NATS Java client. Fundamentally a connection represents
@@ -155,7 +155,7 @@ public interface Connection extends AutoCloseable {
      * @param data the content of the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    public CompletableFuture<Message> request(String subject, byte[] data);
+    public LatchFuture<Message> request(String subject, byte[] data);
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
@@ -275,7 +275,7 @@ public interface Connection extends AutoCloseable {
      * @throws InterruptedException if the thread is interrupted
      * @throws TimeoutException if the initial flush times out
      */
-    public CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException;
+    public LatchFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException;
 
     /**
      * Close the connection and release all blocking calls like {@link #flush flush}

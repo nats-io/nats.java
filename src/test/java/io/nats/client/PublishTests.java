@@ -19,7 +19,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -100,7 +99,7 @@ public class PublishTests {
     }
 
     public void runSimplePublishTest(String subject, String replyTo, String bodyString) throws IOException, InterruptedException,ExecutionException {
-        CompletableFuture<Boolean> gotPub = new CompletableFuture<>();
+        LatchFuture<Boolean> gotPub = new LatchFuture<>();
         AtomicReference<String> body  = new AtomicReference<>("");
         AtomicReference<String> protocol  = new AtomicReference<>("");
 

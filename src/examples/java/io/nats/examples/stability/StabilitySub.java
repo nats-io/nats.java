@@ -14,10 +14,10 @@
 package io.nats.examples.stability;
 
 import java.text.NumberFormat;
-import java.time.Duration;
-import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 import io.nats.client.Connection;
+import io.nats.client.Duration;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
@@ -49,7 +49,7 @@ public class StabilitySub {
             return;
         }
 
-        Instant start = Instant.now();
+        Duration start = new Duration(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
 
         System.out.println("Running stability subscriber for indefinite test, ctrl-c to cancel...\n");
 
@@ -72,7 +72,7 @@ public class StabilitySub {
                         messageCount++;
 
                         if (messageCount != 0 && messageCount % 100_000 == 0) {
-                            Instant finish = Instant.now();
+                            Duration finish = new Duration(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
                             System.out.printf("Running for %s\n", Duration.between(start, finish).toString()
                                                                 .substring(2)
                                                                 .replaceAll("(\\d[HMS])(?!$)", "$1 ")

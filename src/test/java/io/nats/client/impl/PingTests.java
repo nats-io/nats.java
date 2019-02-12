@@ -18,8 +18,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +27,7 @@ import java.util.concurrent.TimeoutException;
 import org.junit.Test;
 
 import io.nats.client.Connection;
+import io.nats.client.Duration;
 import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
@@ -39,7 +39,7 @@ import io.nats.client.NatsServerProtocolMock.ExitAt;
 public class PingTests {
     @Test
     public void testHandlingPing() throws IOException, InterruptedException,ExecutionException {
-        CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
+        LatchFuture<Boolean> gotPong = new LatchFuture<>();
 
         NatsServerProtocolMock.Customizer pingPongCustomizer = (ts, r,w) -> {
             

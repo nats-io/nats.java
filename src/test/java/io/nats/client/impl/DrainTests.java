@@ -19,9 +19,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -32,6 +30,7 @@ import org.junit.Test;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
+import io.nats.client.Duration;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
@@ -61,7 +60,7 @@ public class DrainTests {
             assertNotNull(msg);
 
             subCon.flush(Duration.ofSeconds(1));
-            CompletableFuture<Boolean> tracker = sub.drain(Duration.ofSeconds(1));
+            LatchFuture<Boolean> tracker = sub.drain(Duration.ofSeconds(1));
 
             msg = sub.nextMessage(Duration.ofSeconds(1)); // read the second one, should be there because we drained
             assertNotNull(msg);
@@ -99,7 +98,7 @@ public class DrainTests {
 
             // Drain will unsub the dispatcher, only messages that already arrived
             // are there
-            CompletableFuture<Boolean> tracker = d.drain(Duration.ofSeconds(4));
+            LatchFuture<Boolean> tracker = d.drain(Duration.ofSeconds(4));
 
             assertTrue(tracker.get(5, TimeUnit.SECONDS)); // wait for the drain to complete
             assertEquals(count.get(), 2); // Should get both
@@ -141,7 +140,7 @@ public class DrainTests {
 
             }
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(5));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(5));
 
             Message msg = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(msg);
@@ -188,7 +187,7 @@ public class DrainTests {
 
             }
 
-            CompletableFuture<Boolean> tracker = subCon.drain(null);
+            LatchFuture<Boolean> tracker = subCon.drain(null);
 
             Message msg = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(msg);
@@ -221,7 +220,7 @@ public class DrainTests {
             assertNotNull(msg);
 
             subCon.flush(Duration.ofSeconds(1));
-            CompletableFuture<Boolean> tracker = sub.drain(Duration.ZERO);
+            LatchFuture<Boolean> tracker = sub.drain(Duration.ZERO);
 
             msg = sub.nextMessage(Duration.ofSeconds(1)); // read the second one, should be there because we drained
             assertNotNull(msg);
@@ -248,7 +247,7 @@ public class DrainTests {
 
             subCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
 
             // Try to subscribe while we are draining the sub
             subCon.subscribe("another"); // Should throw
@@ -273,7 +272,7 @@ public class DrainTests {
 
             subCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
 
             subCon.createDispatcher((msg) -> {
             });
@@ -314,7 +313,7 @@ public class DrainTests {
 
             }
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(5));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(5));
 
             try {
                 Thread.sleep(1000); // give the drain time to get started
@@ -346,7 +345,7 @@ public class DrainTests {
 
             AtomicInteger count = new AtomicInteger();
             AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
-            AtomicReference<CompletableFuture<Boolean>> tracker = new AtomicReference<>();
+            AtomicReference<LatchFuture<Boolean>> tracker = new AtomicReference<>();
             Dispatcher d = subCon.createDispatcher((msg) -> {
                 count.incrementAndGet();
                 tracker.set(dispatcher.get().drain(Duration.ofSeconds(1)));
@@ -406,7 +405,7 @@ public class DrainTests {
 
             }
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(5));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(5));
 
             assertTrue(tracker == sub.drain(Duration.ZERO));
             assertTrue(tracker == sub.drain(Duration.ZERO));
@@ -447,12 +446,12 @@ public class DrainTests {
             pubCon.publish("draintest", null);
             pubCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
 
             Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
             assertNotNull(msg);
 
-            CompletableFuture<Message> response = subCon.request("reply", null);
+            LatchFuture<Message> response = subCon.request("reply", null);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
             assertNotNull(response.get(200, TimeUnit.SECONDS));
 
@@ -485,11 +484,11 @@ public class DrainTests {
             pubCon.publish("draintest", null);
             pubCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Message> response = subCon.request("reply", null);
+            LatchFuture<Message> response = subCon.request("reply", null);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
             assertNotNull(response.get(1, TimeUnit.SECONDS));
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(1));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(1));
 
             Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
             assertNotNull(msg);
@@ -519,8 +518,8 @@ public class DrainTests {
             final Duration drainTimeout = testTimeout;
             final Duration waitTimeout = drainTimeout.plusSeconds(1);
             AtomicInteger count = new AtomicInteger();
-            Instant start = Instant.now();
-            Instant now = start;
+            Duration start = Duration.now();
+            Duration now = start;
             Connection working = null;
             NatsDispatcher workingD = null;
             NatsDispatcher drainingD = null;
@@ -566,7 +565,7 @@ public class DrainTests {
 
                 }
 
-                CompletableFuture<Boolean> tracker = draining.drain(drainTimeout);
+                LatchFuture<Boolean> tracker = draining.drain(drainTimeout);
 
                 assertTrue(tracker.get(waitTimeout.toMillis(), TimeUnit.MILLISECONDS)); // wait for the drain to complete
                 assertTrue(drainingD.isDrained());
@@ -575,7 +574,7 @@ public class DrainTests {
 
                 draining = working;
                 drainingD = workingD;
-                now = Instant.now();
+                now = Duration.now();
             }
 
             draining.close();
@@ -618,7 +617,7 @@ public class DrainTests {
             assertNotNull(msg);
             subCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Boolean> tracker = sub.drain(Duration.ofSeconds(10));
+            LatchFuture<Boolean> tracker = sub.drain(Duration.ofSeconds(10));
 
             for (int i = 1; i < total; i++) { // we read 1 so start there
                 msg = sub.nextMessage(Duration.ofSeconds(1)); // read the second one, should be there because we drained
@@ -665,7 +664,7 @@ public class DrainTests {
 
             }
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(4));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(4));
 
             assertTrue(tracker.get(5, TimeUnit.SECONDS));
             assertTrue(((NatsConnection) subCon).isDrained());
@@ -710,7 +709,7 @@ public class DrainTests {
             }
 
             assertTrue(handler.getExceptionCount() == 0);
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(2));
+            LatchFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(2));
 
             assertFalse(tracker.get(3, TimeUnit.SECONDS));
             assertFalse(((NatsConnection) subCon).isDrained());

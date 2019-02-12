@@ -16,7 +16,6 @@ package io.nats.client;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -33,8 +32,8 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     private AtomicInteger exceptionCount = new AtomicInteger();
 
-    private CompletableFuture<Boolean> statusChanged;
-    private CompletableFuture<Boolean> slowSubscriber;
+    private LatchFuture<Boolean> statusChanged;
+    private LatchFuture<Boolean> slowSubscriber;
     private Events eventToWaitFor;
 
     private Connection connection;
@@ -45,7 +44,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     public void prepForStatusChange(Events waitFor) {
         lock.lock();
         try {
-            statusChanged = new CompletableFuture<>();
+            statusChanged = new LatchFuture<>();
             eventToWaitFor = waitFor;
         } finally {
             lock.unlock();
@@ -117,7 +116,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     public Future<Boolean> waitForSlow() {
-        this.slowSubscriber = new CompletableFuture<>();
+        this.slowSubscriber = new LatchFuture<>();
         return this.slowSubscriber;
     }
 

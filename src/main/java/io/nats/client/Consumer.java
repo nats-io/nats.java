@@ -13,8 +13,7 @@
 
 package io.nats.client;
 
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 
 /**
  * A Consumer in the NATS library is an object that represents an incoming queue of
@@ -23,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
  * The {@link Dispatcher} and {@link Subscription} deal with the mechanics of their specialized roles.
  * 
  * <p>A slow consumer is defined as a consumer that is not handling messages as quickly as they are arriving. For example,
- * if the application code doesn't call {@link Subscription#nextMessage(java.time.Duration) nextMessage()}
+ * if the application code doesn't call {@link Subscription#nextMessage(Duration) nextMessage()}
  * often enough on a Subscription.
  * 
  * <p>By default the library will allow a consumer to be a bit slow, at times, by caching messages for it in a queue.
@@ -114,5 +113,5 @@ public interface Consumer {
      * @return A future that can be used to check if the drain has completed
      * @throws InterruptedException if the thread is interrupted
      */
-    public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException;
+    public LatchFuture<Boolean> drain(Duration timeout) throws InterruptedException;
 }

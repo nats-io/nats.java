@@ -14,8 +14,7 @@
 package io.nats.client;
 
 import java.text.NumberFormat;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.Duration;
 import java.util.concurrent.CountDownLatch;
 
 import io.nats.client.Connection;
@@ -29,7 +28,7 @@ public class PublishBenchmarkWithStats {
         int messageSize = 256;
         long totalMessages = threads * msgsPerThread;
         CountDownLatch latch = new CountDownLatch(threads);
-        CompletableFuture<Boolean> starter = new CompletableFuture<>();
+        LatchFuture<Boolean> starter = new LatchFuture<>();
 
         System.out.println("###");
         System.out.printf("### Running publish benchmark with %s %s byte messages across %s threads.\n",

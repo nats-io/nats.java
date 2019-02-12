@@ -20,7 +20,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -132,7 +132,7 @@ public class MessageContentTests {
     
     @Test
     public void testDisconnectOnMissingLineFeedContent() throws Exception {
-        CompletableFuture<Boolean> ready = new CompletableFuture<>();
+        LatchFuture<Boolean> ready = new LatchFuture<>();
         NatsServerProtocolMock.Customizer badServer = (ts, r, w) -> {
 
             // Wait for client to be ready.
@@ -152,7 +152,7 @@ public class MessageContentTests {
     
     @Test
     public void testDisconnectOnTooMuchData() throws Exception {
-        CompletableFuture<Boolean> ready = new CompletableFuture<>();
+        LatchFuture<Boolean> ready = new LatchFuture<>();
         NatsServerProtocolMock.Customizer badServer = (ts, r, w) -> {
 
             // Wait for client to be ready.
@@ -172,7 +172,7 @@ public class MessageContentTests {
     
     @Test
     public void testDisconnectOnNoLineFeedAfterData() throws Exception {
-        CompletableFuture<Boolean> ready = new CompletableFuture<>();
+        LatchFuture<Boolean> ready = new LatchFuture<>();
         NatsServerProtocolMock.Customizer badServer = (ts, r, w) -> {
 
             // Wait for client to be ready.
@@ -192,7 +192,7 @@ public class MessageContentTests {
     
     @Test
     public void testDisconnectOnBadProtocol() throws Exception {
-        CompletableFuture<Boolean> ready = new CompletableFuture<>();
+        LatchFuture<Boolean> ready = new LatchFuture<>();
         NatsServerProtocolMock.Customizer badServer = (ts, r, w) -> {
             // Wait for client to be ready.
             try {
@@ -209,7 +209,7 @@ public class MessageContentTests {
         runBadContentTest(badServer, ready);
     }
 
-    void runBadContentTest(NatsServerProtocolMock.Customizer badServer, CompletableFuture<Boolean> ready) throws Exception {
+    void runBadContentTest(NatsServerProtocolMock.Customizer badServer, LatchFuture<Boolean> ready) throws Exception {
         TestHandler handler = new TestHandler();
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(badServer, null)) {

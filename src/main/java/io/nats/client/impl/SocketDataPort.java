@@ -19,14 +19,13 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
+import io.nats.client.Duration;
 import io.nats.client.Options;
 
 public class SocketDataPort implements DataPort {
@@ -73,10 +72,10 @@ public class SocketDataPort implements DataPort {
         SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = options.getConnectionTimeout();
 
-        this.sslSocket = (SSLSocket) factory.createSocket(socket, null, true);
+        this.sslSocket = (SSLSocket) factory.createSocket(socket, null, 0,true);
         this.sslSocket.setUseClientMode(true);
 
-        final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
+        final LatchFuture<Void> waitForHandshake = new LatchFuture<>();
         
         this.sslSocket.addHandshakeCompletedListener((evt) -> {
             waitForHandshake.complete(null);

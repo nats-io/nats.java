@@ -13,10 +13,10 @@
 
 package io.nats.examples.autobench;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.nats.client.Duration;
 import io.nats.client.Options;
 
 /**

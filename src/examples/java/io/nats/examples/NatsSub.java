@@ -14,8 +14,8 @@
 package io.nats.examples;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 
+import io.nats.client.Duration;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Nats;

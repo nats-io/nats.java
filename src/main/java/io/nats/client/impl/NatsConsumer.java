@@ -13,15 +13,13 @@
 
 package io.nats.client.impl;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.nats.client.Consumer;
+import io.nats.client.Duration;
 
 abstract class NatsConsumer implements Consumer {
 
@@ -31,7 +29,7 @@ abstract class NatsConsumer implements Consumer {
     private AtomicLong droppedMessages;
     private AtomicLong messagesDelivered;
     private AtomicBoolean slow;
-    private AtomicReference<CompletableFuture<Boolean>> drainingFuture;
+    private AtomicReference<LatchFuture<Boolean>> drainingFuture;
 
     NatsConsumer(NatsConnection conn) {
         this.connection = conn;
@@ -144,7 +142,7 @@ abstract class NatsConsumer implements Consumer {
                         && this.getPendingMessageLimit() > 0));
     }
 
-    void markDraining(CompletableFuture<Boolean> future) {
+    void markDraining(LatchFuture<Boolean> future) {
         this.drainingFuture.set(future);
     }
 
@@ -154,7 +152,7 @@ abstract class NatsConsumer implements Consumer {
         }
     }
 
-    CompletableFuture<Boolean> getDrainingFuture() {
+    LatchFuture<Boolean> getDrainingFuture() {
         return this.drainingFuture.get();
     }
 
@@ -177,7 +175,7 @@ abstract class NatsConsumer implements Consumer {
     * @return A future that can be used to check if the drain has completed
     * @throws InterruptedException if the thread is interrupted
     */
-   public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException {
+   public LatchFuture<Boolean> drain(Duration timeout) throws InterruptedException {
        if (!this.isActive() || this.connection==null) {
            throw new IllegalStateException("Consumer is closed");
        }
@@ -186,8 +184,8 @@ abstract class NatsConsumer implements Consumer {
            return this.getDrainingFuture();
        }
 
-       Instant start = Instant.now();
-       final CompletableFuture<Boolean> tracker = new CompletableFuture<>();
+       Duration start = Duration.now();
+       final LatchFuture<Boolean> tracker = new LatchFuture<>();
        this.markDraining(tracker);
        this.sendUnsubForDrain();
 
@@ -203,7 +201,7 @@ abstract class NatsConsumer implements Consumer {
         // draining
         Thread t = new Thread(() -> {
             try {
-                Instant now = Instant.now();
+                Duration now = Duration.now();
 
                 while (timeout == null || timeout.equals(Duration.ZERO)
                         || Duration.between(start, now).compareTo(timeout) < 0) {
@@ -213,7 +211,7 @@ abstract class NatsConsumer implements Consumer {
 
                     Thread.sleep(1); // Sleep 1 milli
 
-                    now = Instant.now();
+                    now = Duration.now();
                 }
 
                 this.cleanUpAfterDrain();

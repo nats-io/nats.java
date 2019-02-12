@@ -15,7 +15,6 @@ package io.nats.client;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +25,7 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import io.nats.client.impl.LatchFuture;
 
 public class RequestBenchmarkWithStats {
     public static void main(String args[]) throws InterruptedException {
@@ -34,7 +34,7 @@ public class RequestBenchmarkWithStats {
         int messageSize = 256;
         long totalMessages = threads * msgsPerThread;
         CountDownLatch latch = new CountDownLatch(threads);
-        CompletableFuture<Boolean> starter = new CompletableFuture<>();
+        LatchFuture<Boolean> starter = new LatchFuture<>();
         AtomicLong msgsHandled = new AtomicLong();
         AtomicLong futureExceptions = new AtomicLong();
 

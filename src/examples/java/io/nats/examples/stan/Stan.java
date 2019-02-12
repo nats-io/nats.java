@@ -15,13 +15,13 @@ package io.nats.examples.stan;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.time.LocalTime;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.TimeoutException;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
+import io.nats.client.Duration;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 
@@ -51,7 +51,7 @@ public class Stan {
 
         try {
             SecureRandom random = new SecureRandom();
-            CompletableFuture<Void> latch = new CompletableFuture<>();
+            LatchFuture<Void> latch = new LatchFuture<>();
             Options options = new Options.Builder().server(server).noReconnect().build();
             Connection nc = Nats.connect(options);
 

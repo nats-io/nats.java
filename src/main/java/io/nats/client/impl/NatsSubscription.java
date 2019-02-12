@@ -13,10 +13,10 @@
 
 package io.nats.client.impl;
 
-import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.nats.client.Dispatcher;
+import io.nats.client.Duration;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 

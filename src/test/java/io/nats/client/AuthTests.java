@@ -22,7 +22,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.time.Duration;
+import io.nats.client.Duration;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;

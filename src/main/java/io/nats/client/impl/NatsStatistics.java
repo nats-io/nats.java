@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.Statistics;
 
 import java.text.NumberFormat;
-import java.util.LongSummaryStatistics;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -249,5 +248,57 @@ class NatsStatistics implements Statistics {
         }
 
         return builder.toString();
+    }
+}
+
+class LongSummaryStatistics {
+    private long count;
+    private long sum;
+    private long min = 9223372036854775807L;
+    private long max = -9223372036854775808L;
+
+    public LongSummaryStatistics() {
+    }
+
+    public void accept(int var1) {
+        this.accept((long)var1);
+    }
+
+    public void accept(long var1) {
+        ++this.count;
+        this.sum += var1;
+        this.min = Math.min(this.min, var1);
+        this.max = Math.max(this.max, var1);
+    }
+
+    public void combine(LongSummaryStatistics var1) {
+        this.count += var1.count;
+        this.sum += var1.sum;
+        this.min = Math.min(this.min, var1.min);
+        this.max = Math.max(this.max, var1.max);
+    }
+
+    public final long getCount() {
+        return this.count;
+    }
+
+    public final long getSum() {
+        return this.sum;
+    }
+
+    public final long getMin() {
+        return this.min;
+    }
+
+    public final long getMax() {
+        return this.max;
+    }
+
+    public final double getAverage() {
+        return this.getCount() > 0L ? (double)this.getSum() / (double)this.getCount() : 0.0D;
+    }
+
+    public String toString() {
+        return String.format("%s{count=%d, sum=%d, min=%d, average=%f, max=%d}", this.getClass().getSimpleName(), this.getCount(), this.getSum(), this.getMin(), this.getAverage(), this.getMax());
     }
 }

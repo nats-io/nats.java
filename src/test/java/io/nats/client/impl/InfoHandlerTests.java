@@ -17,7 +17,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
@@ -47,8 +47,8 @@ public class InfoHandlerTests {
     @Test
     public void testUnsolicitedInfo() throws IOException, InterruptedException, ExecutionException {
         String customInfo = "{\"server_id\":\"myid\"}";
-        CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
-        CompletableFuture<Boolean> sendInfo = new CompletableFuture<>();
+        LatchFuture<Boolean> gotPong = new LatchFuture<>();
+        LatchFuture<Boolean> sendInfo = new LatchFuture<>();
 
         NatsServerProtocolMock.Customizer infoCustomizer = (ts, r, w) -> {
 

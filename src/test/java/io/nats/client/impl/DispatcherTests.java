@@ -20,9 +20,10 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.Duration;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -45,7 +46,7 @@ public class DispatcherTests {
                 Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
-            final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
+            final LatchFuture<Message> msgFuture = new LatchFuture<>();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 msgFuture.complete(msg);
             });
@@ -71,8 +72,8 @@ public class DispatcherTests {
                 Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
-            final CompletableFuture<Message> one = new CompletableFuture<>();
-            final CompletableFuture<Message> two = new CompletableFuture<>();
+            final LatchFuture<Message> one = new LatchFuture<>();
+            final LatchFuture<Message> two = new LatchFuture<>();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 if (msg.getSubject().equals("one")) {
                     one.complete(msg);
@@ -99,7 +100,7 @@ public class DispatcherTests {
     public void testMultiMessage() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            final LatchFuture<Boolean> done = new LatchFuture<>();
             int msgCount = 100;
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
@@ -132,16 +133,17 @@ public class DispatcherTests {
     public void testClose() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
-            final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
+
+            final CountDownLatch phase1 = new CountDownLatch(1);
+            final CountDownLatch phase2 = new CountDownLatch(1);
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 if (msg.getSubject().equals("phase1")) {
-                    phase1.complete(Boolean.TRUE);
-                } else if (msg.getSubject().equals("phase1")) {
-                    phase2.complete(Boolean.TRUE);
+                    phase1.countDown();
+                } else if (msg.getSubject().equals("phase2")) {
+                    phase2.countDown();
                 } else {
                     q.add(msg);
                 }
@@ -156,7 +158,7 @@ public class DispatcherTests {
             nc.publish("phase1", null);
 
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            phase1.get(200, TimeUnit.MILLISECONDS);
+            phase1.await(200, TimeUnit.MILLISECONDS);
 
             assertEquals(1, q.size());
 
@@ -168,7 +170,7 @@ public class DispatcherTests {
             nc.publish("phase2", new byte[16]);
 
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            phase2.get(200, TimeUnit.MILLISECONDS);
+            phase2.await(200, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -182,8 +184,8 @@ public class DispatcherTests {
             AtomicInteger sub1Count = new AtomicInteger();
             AtomicInteger sub2Count = new AtomicInteger();
 
-            final CompletableFuture<Boolean> done1 = new CompletableFuture<>();
-            final CompletableFuture<Boolean> done2 = new CompletableFuture<>();
+            final LatchFuture<Boolean> done1 = new LatchFuture<>();
+            final LatchFuture<Boolean> done2 = new LatchFuture<>();
 
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
@@ -237,7 +239,7 @@ public class DispatcherTests {
                             Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
-            final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
+            final LatchFuture<Message> msgFuture = new LatchFuture<>();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 msgFuture.complete(msg);
             });
@@ -261,7 +263,7 @@ public class DispatcherTests {
                             Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
-            final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
+            final LatchFuture<Message> msgFuture = new LatchFuture<>();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 msgFuture.complete(msg);
             });
@@ -285,7 +287,7 @@ public class DispatcherTests {
                     Connection nc = Nats.connect(ts.getURI())) {
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
-            final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
+            final LatchFuture<Message> msgFuture = new LatchFuture<>();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 try {
                     nc.flush(Duration.ofMillis(1000));
@@ -312,8 +314,8 @@ public class DispatcherTests {
     public void testUnsub() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
-            final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
+            final LatchFuture<Boolean> phase1 = new LatchFuture<>();
+            final LatchFuture<Boolean> phase2 = new LatchFuture<>();
             int msgCount = 10;
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
@@ -360,8 +362,8 @@ public class DispatcherTests {
     public void testAutoUnsub() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
-            final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
+            final LatchFuture<Boolean> phase1 = new LatchFuture<>();
+            final LatchFuture<Boolean> phase2 = new LatchFuture<>();
             int msgCount = 100;
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
@@ -409,7 +411,7 @@ public class DispatcherTests {
     public void testUnsubFromCallback() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            final LatchFuture<Boolean> done = new LatchFuture<>();
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
@@ -444,7 +446,7 @@ public class DispatcherTests {
             throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            final LatchFuture<Boolean> done = new LatchFuture<>();
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
@@ -480,7 +482,7 @@ public class DispatcherTests {
     public void testCloseFromCallback() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            final LatchFuture<Boolean> done = new LatchFuture<>();
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
             final Dispatcher d = nc.createDispatcher((msg) -> {
@@ -509,7 +511,7 @@ public class DispatcherTests {
     public void testDispatchHandlesExceptionInHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            final LatchFuture<Boolean> done = new LatchFuture<>();
             int msgCount = 100;
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
@@ -680,7 +682,7 @@ public class DispatcherTests {
     public void testDoubleSubscribe() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            final LatchFuture<Boolean> done = new LatchFuture<>();
             int msgCount = 100;
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 

@@ -23,7 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
+import io.nats.client.Duration;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Properties;

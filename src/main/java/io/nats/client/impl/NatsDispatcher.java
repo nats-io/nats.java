@@ -13,12 +13,12 @@
 
 package io.nats.client.impl;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.nats.client.Dispatcher;
+import io.nats.client.Duration;
 import io.nats.client.MessageHandler;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
@@ -32,8 +32,9 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     private String id;
 
     private Map<String, NatsSubscription> subscriptions;
-    private Duration waitForMessage;
 
+
+    private Duration waitForMessage;
 
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
         super(conn);

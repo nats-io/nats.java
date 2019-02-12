@@ -13,10 +13,10 @@
 
 package io.nats.examples.autobench;
 
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 
 import io.nats.client.Connection;
+import io.nats.client.Duration;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
@@ -32,11 +32,11 @@ public class PubSubBenchmark extends ThrottledBenchmark {
         byte[] payload = createPayload();
         String subject = getSubject();
 
-        final CompletableFuture<Void> go = new CompletableFuture<>();
-        final CompletableFuture<Void> subReady = new CompletableFuture<>();
-        final CompletableFuture<Void> pubReady = new CompletableFuture<>();
-        final CompletableFuture<Void> subDone = new CompletableFuture<>();
-        final CompletableFuture<Void> pubDone = new CompletableFuture<>();
+        final LatchFuture<Void> go = new LatchFuture<>();
+        final LatchFuture<Void> subReady = new LatchFuture<>();
+        final LatchFuture<Void> pubReady = new LatchFuture<>();
+        final LatchFuture<Void> subDone = new LatchFuture<>();
+        final LatchFuture<Void> pubDone = new LatchFuture<>();
 
         Thread subThread = new Thread(() -> {
             try {

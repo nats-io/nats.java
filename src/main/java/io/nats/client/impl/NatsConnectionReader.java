@@ -18,7 +18,6 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -60,7 +59,7 @@ class NatsConnectionReader implements Runnable {
     private int bufferPosition;
     
     private Thread thread;
-    private CompletableFuture<Boolean> stopped;
+    private LatchFuture<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
 
@@ -70,8 +69,7 @@ class NatsConnectionReader implements Runnable {
         this.connection = connection;
 
         this.running = new AtomicBoolean(false);
-        this.stopped = new CompletableFuture<>();
-        this.stopped.complete(Boolean.TRUE); // we are stopped on creation
+        this.stopped = new LatchFuture(Boolean.TRUE); // we are stopped on creation
 
         this.protocolBuffer = ByteBuffer.allocate(this.connection.getOptions().getMaxControlLine());
         this.msgLineChars = new char[this.connection.getOptions().getMaxControlLine()];
@@ -88,7 +86,7 @@ class NatsConnectionReader implements Runnable {
     void start(Future<DataPort> dataPortFuture) {
         this.dataPortFuture = dataPortFuture;
         this.running.set(true);
-        this.stopped = new CompletableFuture<>(); // New future
+        this.stopped = new LatchFuture(); // New future
         String name = (this.connection.getOptions().getConnectionName() != null) ? this.connection.getOptions().getConnectionName() : "Nats Connection";
         this.thread = new Thread(this, name + " Reader");
         this.thread.start();

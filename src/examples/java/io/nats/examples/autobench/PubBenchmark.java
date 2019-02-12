@@ -14,9 +14,9 @@
 package io.nats.examples.autobench;
 
 import java.io.IOException;
-import java.time.Duration;
 
 import io.nats.client.Connection;
+import io.nats.client.Duration;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 

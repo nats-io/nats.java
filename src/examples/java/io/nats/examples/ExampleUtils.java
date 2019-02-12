@@ -13,11 +13,11 @@
 
 package io.nats.examples;
 
-import java.time.Duration;
 
 import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
+import io.nats.client.Duration;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 

@@ -16,15 +16,15 @@ package io.nats.client.impl;
 import static org.junit.Assert.assertEquals;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.time.Duration;
 
 import org.junit.Test;
 
 import io.nats.client.Consumer;
 import io.nats.client.Dispatcher;
+import io.nats.client.Duration;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
@@ -120,7 +120,7 @@ public class SlowConsumerTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
             
-            final CompletableFuture<Void> ok = new CompletableFuture<>();
+            final LatchFuture<Void> ok = new LatchFuture<>();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 ok.complete(null);
                 Thread.sleep(5 * 60 * 1000); // will wait until interrupted
@@ -161,7 +161,7 @@ public class SlowConsumerTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
             
-            final CompletableFuture<Void> ok = new CompletableFuture<>();
+            final LatchFuture<Void> ok = new LatchFuture<>();
             Dispatcher d = nc.createDispatcher((msg) -> {
                 ok.complete(null);
                 Thread.sleep(5 * 60 * 1000); // will wait until interrupted

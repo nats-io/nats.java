@@ -14,19 +14,19 @@
 package io.nats.examples.autobench;
 
 import java.text.NumberFormat;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LongSummaryStatistics;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.nats.client.Connection;
+import io.nats.client.Duration;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.client.Subscription;
+import io.nats.client.impl.LatchFuture;
 
 public class LatencyBenchmark extends AutoBenchmark {
 
@@ -41,11 +41,11 @@ public class LatencyBenchmark extends AutoBenchmark {
         byte[] payload = createPayload();
         String subject = getSubject();
 
-        final CompletableFuture<Void> go = new CompletableFuture<>();
-        final CompletableFuture<Void> subReady = new CompletableFuture<>();
-        final CompletableFuture<Void> pubReady = new CompletableFuture<>();
-        final CompletableFuture<Void> subDone = new CompletableFuture<>();
-        final CompletableFuture<Void> pubDone = new CompletableFuture<>();
+        final LatchFuture<Void> go = new LatchFuture<>();
+        final LatchFuture<Void> subReady = new LatchFuture<>();
+        final LatchFuture<Void> pubReady = new LatchFuture<>();
+        final LatchFuture<Void> subDone = new LatchFuture<>();
+        final LatchFuture<Void> pubDone = new LatchFuture<>();
         final CyclicBarrier lockStep = new CyclicBarrier(2);
 
         final AtomicLong start = new AtomicLong();
@@ -155,6 +155,7 @@ public class LatencyBenchmark extends AutoBenchmark {
         long count = stats.getCount();
         double average = stats.getAverage() / 1e3;
         double median = calcMedian() / 1e3;
+
         double stdDev = Math.sqrt(measurements.stream().
                                             mapToDouble(Long::doubleValue).
                                             map(d -> ((d-average) * (d-average))).

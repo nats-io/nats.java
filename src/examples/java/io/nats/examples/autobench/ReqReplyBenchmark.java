@@ -13,11 +13,11 @@
 
 package io.nats.examples.autobench;
 
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.Future;
 
 import io.nats.client.Connection;
+import io.nats.client.Duration;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
@@ -33,11 +33,11 @@ public class ReqReplyBenchmark extends AutoBenchmark {
         byte[] payload = createPayload();
         String subject = getSubject();
 
-        final CompletableFuture<Void> go = new CompletableFuture<>();
-        final CompletableFuture<Void> replyReady = new CompletableFuture<>();
-        final CompletableFuture<Void> requestReady = new CompletableFuture<>();
-        final CompletableFuture<Void> requestDone = new CompletableFuture<>();
-        final CompletableFuture<Void> replyDone = new CompletableFuture<>();
+        final LatchFuture<Void> go = new LatchFuture<>();
+        final LatchFuture<Void> replyReady = new LatchFuture<>();
+        final LatchFuture<Void> requestReady = new LatchFuture<>();
+        final LatchFuture<Void> requestDone = new LatchFuture<>();
+        final LatchFuture<Void> replyDone = new LatchFuture<>();
 
         Thread replyThread = new Thread(() -> {
             try {

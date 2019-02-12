@@ -14,10 +14,11 @@
 package io.nats.examples.autobench;
 
 import java.text.NumberFormat;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 import io.nats.client.Options;
+import io.nats.client.impl.LatchFuture;
 
 public abstract class AutoBenchmark {
     private String name;
@@ -86,7 +87,7 @@ public abstract class AutoBenchmark {
         return this.exception;
     }
 
-    public void getFutureSafely(CompletableFuture<Void> future) {
+    public void getFutureSafely(LatchFuture<Void> future) {
         try {
             future.get();
         } catch (Exception exp) {

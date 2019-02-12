@@ -17,7 +17,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.time.Duration;
+import io.nats.client.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 

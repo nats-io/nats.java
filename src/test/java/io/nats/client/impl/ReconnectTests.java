@@ -21,8 +21,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import io.nats.client.Duration;
+import io.nats.client.impl.LatchFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -486,10 +486,10 @@ public class ReconnectTests {
         int port = NatsTestServer.nextPort();
         Duration reconnectWait = Duration.ofMillis(100); // thrash
         int thrashCount = 5;
-        CompletableFuture<Boolean> gotSub = new CompletableFuture<>();
-        AtomicReference<CompletableFuture<Boolean>> subRef = new AtomicReference<>(gotSub);
-        CompletableFuture<Boolean> sendMsg = new CompletableFuture<>();
-        AtomicReference<CompletableFuture<Boolean>> sendRef = new AtomicReference<>(sendMsg);
+        LatchFuture<Boolean> gotSub = new LatchFuture<>();
+        AtomicReference<LatchFuture<Boolean>> subRef = new AtomicReference<>(gotSub);
+        LatchFuture<Boolean> sendMsg = new LatchFuture<>();
+        AtomicReference<LatchFuture<Boolean>> sendRef = new AtomicReference<>(sendMsg);
 
         NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
             String subLine = "";
@@ -550,9 +550,9 @@ public class ReconnectTests {
                 flushAndWait(nc, handler); // nats won't close until we tell it, so put this outside the curly
                 checkReconnectingStatus(nc);
 
-                gotSub = new CompletableFuture<>();
+                gotSub = new LatchFuture<>();
                 subRef.set(gotSub);
-                sendMsg = new CompletableFuture<>();
+                sendMsg = new LatchFuture<>();
                 sendRef.set(sendMsg);
 
                 handler.prepForStatusChange(Events.RESUBSCRIBED);

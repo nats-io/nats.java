@@ -13,7 +13,6 @@
 
 package io.nats.client;
 
-import java.time.Duration;
 
 /**
  * A Subscription encapsulates an incoming queue of messages associated with a single

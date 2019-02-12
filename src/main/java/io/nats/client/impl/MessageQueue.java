@@ -13,12 +13,13 @@
 
 package io.nats.client.impl;
 
-import java.time.Duration;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
-import java.util.function.Predicate;
+
+import io.nats.client.Duration;
+import io.nats.client.Predicate;
 
 class MessageQueue {
     private final static int STOPPED = 0;
