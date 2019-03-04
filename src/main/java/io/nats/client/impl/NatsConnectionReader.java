@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -58,9 +59,8 @@ class NatsConnectionReader implements Runnable {
     
     private byte[] buffer;
     private int bufferPosition;
-    
-    private Thread thread;
-    private CompletableFuture<Boolean> stopped;
+
+    private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
 
@@ -71,7 +71,7 @@ class NatsConnectionReader implements Runnable {
 
         this.running = new AtomicBoolean(false);
         this.stopped = new CompletableFuture<>();
-        this.stopped.complete(Boolean.TRUE); // we are stopped on creation
+        ((CompletableFuture)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
         this.protocolBuffer = ByteBuffer.allocate(this.connection.getOptions().getMaxControlLine());
         this.msgLineChars = new char[this.connection.getOptions().getMaxControlLine()];
@@ -88,10 +88,7 @@ class NatsConnectionReader implements Runnable {
     void start(Future<DataPort> dataPortFuture) {
         this.dataPortFuture = dataPortFuture;
         this.running.set(true);
-        this.stopped = new CompletableFuture<>(); // New future
-        String name = (this.connection.getOptions().getConnectionName() != null) ? this.connection.getOptions().getConnectionName() : "Nats Connection";
-        this.thread = new Thread(this, name + " Reader");
-        this.thread.start();
+        this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
     }
 
     // May be called several times on an error.
@@ -102,6 +99,7 @@ class NatsConnectionReader implements Runnable {
         return stopped;
     }
 
+    @Override
     public void run() {
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
@@ -151,8 +149,6 @@ class NatsConnectionReader implements Runnable {
             // Clear the buffers, since they are only used inside this try/catch
             // We will reuse later
             this.protocolBuffer.clear();
-            this.stopped.complete(Boolean.TRUE);
-            this.thread = null;
         }
     }
 
