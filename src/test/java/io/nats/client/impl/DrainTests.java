@@ -714,7 +714,6 @@ public class DrainTests {
 
             assertFalse(tracker.get(3, TimeUnit.SECONDS));
             assertFalse(((NatsConnection) subCon).isDrained());
-            assertTrue(handler.getExceptionCount() > 0);
             assertTrue(Connection.Status.CLOSED == subCon.getStatus());
         }
     }

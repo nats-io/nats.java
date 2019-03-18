@@ -1379,6 +1379,15 @@ class NatsConnection implements Connection {
         }
     }
 
+    boolean isClosingOrDraining() {
+        statusLock.lock();
+        try {
+            return this.closing || this.isDraining();
+        } finally {
+            statusLock.unlock();
+        }
+    }
+
     void waitForDisconnectOrClose(Duration timeout) throws InterruptedException {
         waitFor(timeout, (Void) -> {
             return this.isDisconnecting() && !this.isClosed();

@@ -143,7 +143,10 @@ class NatsConnectionReader implements Runnable {
                 }
             }
         } catch (IOException io) {
-            this.connection.handleCommunicationIssue(io);
+            // SocketException is thrown when connection is closing or draining, no need to handle
+            if (!this.connection.isClosingOrDraining()) {
+                this.connection.handleCommunicationIssue(io);
+            }
         } catch (CancellationException | ExecutionException | InterruptedException ex) {
             // Exit
         } finally {
@@ -352,7 +355,7 @@ class NatsConnectionReader implements Runnable {
             } else if (chars[0] == '-' && 
                         (chars[1] == 'E' || chars[1] == 'e') &&
                         (chars[2] == 'R' || chars[2] == 'r') && 
-                        (chars[3] == 'R' || chars[3] == 'R')) {
+                        (chars[3] == 'R' || chars[3] == 'r')) {
                 return NatsConnection.OP_ERR;
             } else if ((chars[0] == 'I' || chars[0] == 'i') && 
                         (chars[1] == 'N' || chars[1] == 'n') && 
