@@ -352,7 +352,7 @@ class NatsConnectionReader implements Runnable {
             } else if (chars[0] == '-' && 
                         (chars[1] == 'E' || chars[1] == 'e') &&
                         (chars[2] == 'R' || chars[2] == 'r') && 
-                        (chars[3] == 'R' || chars[3] == 'R')) {
+                        (chars[3] == 'R' || chars[3] == 'r')) {
                 return NatsConnection.OP_ERR;
             } else if ((chars[0] == 'I' || chars[0] == 'i') && 
                         (chars[1] == 'N' || chars[1] == 'n') && 

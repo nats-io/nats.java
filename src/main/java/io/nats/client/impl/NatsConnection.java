@@ -409,7 +409,7 @@ class NatsConnection implements Connection {
         // If we are connecting or disconnecting, note exception and leave
         statusLock.lock();
         try {
-            if (this.connecting || this.disconnecting || this.status == Status.CLOSED) {
+            if (this.connecting || this.disconnecting || this.status == Status.CLOSED || this.isDraining()) {
                 this.exceptionDuringConnectChange = io;
                 return;
             }
@@ -531,10 +531,11 @@ class NatsConnection implements Connection {
         try {
             updateStatus(Status.CLOSED); // will signal, we also signal when we stop disconnecting
 
+            /*
             if (exceptionDuringConnectChange != null) {
                 processException(exceptionDuringConnectChange);
                 exceptionDuringConnectChange = null;
-            }
+            }*/
         } finally {
             statusLock.unlock();
         }
