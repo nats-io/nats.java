@@ -426,6 +426,20 @@ public class OptionsTests {
     }
 
     @Test
+    public void testServersWithCommas() {
+        String url1 = "nats://localhost:8080";
+        String url2 = "nats://localhost:8081";
+        String serverURLs = url1 + "," + url2;
+        Options o = new Options.Builder().server(serverURLs).build();
+
+        Collection<URI> servers = o.getServers();
+        URI[] serverArray = servers.toArray(new URI[0]);
+        assertEquals(2, serverArray.length);
+        assertEquals("property server", url1, serverArray[0].toString());
+        assertEquals("property server", url2, serverArray[1].toString());
+    }
+
+    @Test
     public void testEmptyStringInServers() {
         String url1 = "nats://localhost:8080";
         String url2 = "";

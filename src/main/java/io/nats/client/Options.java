@@ -634,12 +634,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder server(String serverURL) {
-            try {
-                this.servers.add(Options.parseURIForServer(serverURL.trim()));
-            } catch (URISyntaxException e) {
-                throw new IllegalArgumentException("Bad server URL: " + serverURL, e);
-            }
-            return this;
+            return this.servers(serverURL.trim().split(","));
         }
 
         /**

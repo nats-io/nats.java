@@ -1,6 +1,11 @@
 
 # Change Log
 
+## Version 2.4.2
+
+* [FIXED] - #217 - added check to "ignore" exceptions from reader during drain
+* [CHANGED] - no longer call exception handler for "ignored" communication exceptions during close/drain after close occurs
+
 ## Version 2.4.1
 
 * [FIXED] - #199 - turns out we had to hard code the manifest to remove the private package

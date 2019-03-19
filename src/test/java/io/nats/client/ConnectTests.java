@@ -188,6 +188,21 @@ public class ConnectTests {
         }
     }
 
+    @Test
+    public void testConnectWithCommas() throws IOException, InterruptedException {
+        try (NatsTestServer ts1 = new NatsTestServer(false)) {
+            try (NatsTestServer ts2 = new NatsTestServer(false)) {
+                Connection nc = Nats.connect(ts1.getURI() + "," + ts2.getURI());
+                try {
+                    assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                } finally {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
+            }
+        }
+    }
+
     @Test(expected=IOException.class)
     public void testFailWithMissingLineFeedAfterInfo() throws IOException, InterruptedException {
         Connection nc = null;
