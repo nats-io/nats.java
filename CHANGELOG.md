@@ -5,6 +5,8 @@
 
 * [FIXED] - #217 - added check to "ignore" exceptions from reader during drain
 * [CHANGED] - no longer call exception handler for "ignored" communication exceptions during close/drain after close occurs
+* [ADDED] - #209 - support for comma separated urls in connect() or server()
+* [FIXED] - #206 - incorrect error message when reconnect buffer is overrun
 
 ## Version 2.4.1
 
