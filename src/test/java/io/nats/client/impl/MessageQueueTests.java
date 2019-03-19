@@ -100,7 +100,7 @@ public class MessageQueueTests {
 
         Thread t = new Thread(() -> {
             try {
-                Thread.sleep(100);
+                Thread.sleep(500);
                 q.push(new NatsMessage("test"));
             } catch (Exception exp) {
                 // eat the exception, test will fail
@@ -109,7 +109,7 @@ public class MessageQueueTests {
         t.start();
 
         // Thread timing, so could be flaky
-        NatsMessage msg = q.pop(Duration.ofMillis(200));
+        NatsMessage msg = q.pop(Duration.ofMillis(5000));
         assertNotNull(msg);
     }
 
