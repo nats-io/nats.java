@@ -18,6 +18,7 @@ import java.nio.BufferOverflowException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -28,8 +29,7 @@ class NatsConnectionWriter implements Runnable {
 
     private final NatsConnection connection;
 
-    private Thread thread;
-    private CompletableFuture<Boolean> stopped;
+    private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
     private final AtomicBoolean reconnectMode;
@@ -45,7 +45,7 @@ class NatsConnectionWriter implements Runnable {
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
         this.stopped = new CompletableFuture<>();
-        this.stopped.complete(Boolean.TRUE); // we are stopped on creation
+        ((CompletableFuture)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
         this.sendBuffer = new byte[connection.getOptions().getBufferSize()];
 
@@ -59,11 +59,7 @@ class NatsConnectionWriter implements Runnable {
     void start(Future<DataPort> dataPortFuture) {
         this.dataPortFuture = dataPortFuture;
         this.running.set(true);
-        this.stopped = new CompletableFuture<>(); // New future
-
-        String name = (this.connection.getOptions().getConnectionName() != null) ? this.connection.getOptions().getConnectionName() : "Nats Connection";
-        this.thread = new Thread(this, name + " Writer");
-        this.thread.start();
+        this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
     }
 
     // May be called several times on an error.
@@ -83,6 +79,7 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
+    @Override
     public void run() {
         Duration waitForMessage = Duration.ofMinutes(2); // This can be long since no one is sending
         Duration reconnectWait = Duration.ofMillis(1); // This can be long since no one is sending
@@ -157,8 +154,6 @@ class NatsConnectionWriter implements Runnable {
             // Exit
         } finally {
             this.running.set(false);
-            this.stopped.complete(Boolean.TRUE);
-            this.thread = null;
         }
     }
 

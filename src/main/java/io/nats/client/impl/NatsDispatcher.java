@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.nats.client.Dispatcher;
@@ -26,7 +27,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     private MessageQueue incoming;
     private MessageHandler handler;
 
-    private Thread thread;
+    private Future thread;
     private final AtomicBoolean running;
 
     private String id;
@@ -48,8 +49,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.id = id;
         this.running.set(true);
         String name = (this.connection.getOptions().getConnectionName() != null) ? this.connection.getOptions().getConnectionName() : "Nats Connection";
-        this.thread = new Thread(this, name + " Dispatcher");
-        this.thread.start();
+
+        thread = connection.getExecutor().submit(this);
     }
 
     boolean breakRunLoop() {
@@ -109,8 +110,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
         if (this.thread != null) {
             try {
-                if (this.thread.isAlive()) {
-                    this.thread.interrupt();
+                if (!this.thread.isCancelled()) {
+                    this.thread.cancel(true);
                 }
             } catch (Exception exp) {
                 // let it go

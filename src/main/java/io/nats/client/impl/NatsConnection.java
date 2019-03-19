@@ -46,6 +46,7 @@ import java.util.function.Predicate;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
+import io.nats.client.ConnectionListener.Events;
 import io.nats.client.Consumer;
 import io.nats.client.Dispatcher;
 import io.nats.client.ErrorListener;
@@ -55,7 +56,6 @@ import io.nats.client.NUID;
 import io.nats.client.Options;
 import io.nats.client.Statistics;
 import io.nats.client.Subscription;
-import io.nats.client.ConnectionListener.Events;
 
 class NatsConnection implements Connection {
     static final byte[] EMPTY_BODY = new byte[0];
@@ -118,6 +118,10 @@ class NatsConnection implements Connection {
 
     private ExecutorService callbackRunner;
 
+    private ExecutorService executor;
+
+    ExecutorService getExecutor() { return executor; }
+
     NatsConnection(Options options) {
         this.options = options;
 
@@ -149,6 +153,8 @@ class NatsConnection implements Connection {
         this.writer = new NatsConnectionWriter(this);
 
         this.callbackRunner = Executors.newSingleThreadExecutor();
+
+        this.executor = Executors.newCachedThreadPool();
     }
 
     // Connect is only called after creation
@@ -421,16 +427,13 @@ class NatsConnection implements Connection {
 
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
-        String name = (this.getOptions().getConnectionName() != null) ? this.getOptions().getConnectionName()
-                : "Nats Connection";
-        Thread t = new Thread(() -> {
+        executor.submit(() -> {
             try {
                 this.closeSocket(true);
             } catch (InterruptedException e) {
                 processException(e);
             }
-        }, name + " Reconnect");
-        t.start();
+        });
     }
 
     // Close socket is called when another connect attempt is possible
@@ -1530,8 +1533,7 @@ class NatsConnection implements Connection {
         });
 
         // Wait for the timeout or the pending count to go to 0
-        Thread t = new Thread(() -> {
-
+        executor.submit(() -> {
             try {
                 Instant now = Instant.now();
 
@@ -1583,8 +1585,6 @@ class NatsConnection implements Connection {
                 tracker.complete(false);
             }
         });
-        t.setName("Connection Drain");
-        t.start();
 
         return tracker;
     }
