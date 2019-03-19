@@ -1021,10 +1021,11 @@ public class Options {
         }
 
         /**
-         * Set the {@link Executor Executor} used to run threaded tasks. The default is a
-         * cached thread pull that names threads after the connection name (or a default).
+         * Set the {@link ExecutorService ExecutorService} used to run threaded tasks. The default is a
+         * cached thread pool that names threads after the connection name (or a default). This executor
+         * is used for reading and writing the underlying sockets as well as for each Dispatcher.
          * 
-         * @param exectuor The Executor to use for connections built with these options.
+         * @param executor The ExecutorService to use for connections built with these options.
          * @return the Builder for chaining
          */
         public Builder executor(ExecutorService executor) {
@@ -1127,7 +1128,7 @@ public class Options {
     }
 
     /**
-     * @return the executor, see {@link Builder#exector(Executor) exector()} in the builder doc
+     * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
     public ExecutorService getExecutor() {
         return this.executor;
