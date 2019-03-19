@@ -8,6 +8,9 @@
 * [ADDED] - #209 - support for comma separated urls in connect() or server()
 * [FIXED] - #206 - incorrect error message when reconnect buffer is overrun
 * [CHANGED] - #214 - moved to an executor instead of 1-off threads
+* [FIXED] - #220 - an icky timing issue that could delay messages
+* [CHANGED] - added larger TCP defaults to improve network performance
+* [ADDED] - public method to create an inbox subject using the prefix from options
 
 ## Version 2.4.1
 

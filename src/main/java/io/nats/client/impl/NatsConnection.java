@@ -754,7 +754,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    String createInbox() {
+    public String createInbox() {
         String prefix = options.getInboxPrefix();
         StringBuilder builder = new StringBuilder();
         builder.append(prefix);

@@ -330,4 +330,11 @@ public interface Connection extends AutoCloseable {
      * @return the error text from the last error sent by the server to this client
      */
     public String getLastError();
+
+    /**
+     * @return a new inbox subject, can be used for directed replies from
+     * subscribers. These are guaranteed to be unique, but can be shared and subscribed
+     * to by others.
+     */
+    public String createInbox();
 }
