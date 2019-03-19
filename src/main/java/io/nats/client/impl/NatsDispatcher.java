@@ -27,7 +27,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     private MessageQueue incoming;
     private MessageHandler handler;
 
-    private Future thread;
+    private Future<Boolean> thread;
     private final AtomicBoolean running;
 
     private String id;
@@ -48,9 +48,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     void start(String id) {
         this.id = id;
         this.running.set(true);
-        String name = (this.connection.getOptions().getConnectionName() != null) ? this.connection.getOptions().getConnectionName() : "Nats Connection";
-
-        thread = connection.getExecutor().submit(this);
+        thread = connection.getExecutor().submit(this, Boolean.TRUE);
     }
 
     boolean breakRunLoop() {

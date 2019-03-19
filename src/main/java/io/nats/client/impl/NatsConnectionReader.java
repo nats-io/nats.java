@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -71,7 +70,7 @@ class NatsConnectionReader implements Runnable {
 
         this.running = new AtomicBoolean(false);
         this.stopped = new CompletableFuture<>();
-        ((CompletableFuture)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
+        ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
         this.protocolBuffer = ByteBuffer.allocate(this.connection.getOptions().getMaxControlLine());
         this.msgLineChars = new char[this.connection.getOptions().getMaxControlLine()];

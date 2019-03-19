@@ -27,6 +27,11 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Properties;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 
@@ -488,6 +493,34 @@ public class OptionsTests {
         String[] serverUrls = {url1, url2};
         new Options.Builder().servers(serverUrls).build();
         assertFalse(true);
+    }
+    
+    @Test
+    public void testSetExectuor() {
+        ExecutorService exec = Executors.newCachedThreadPool();
+        Options options = new Options.Builder().executor(exec).build();
+        assertEquals(exec, options.getExecutor());
+    }
+    
+    @Test
+    public void testDefaultExecutor() throws Exception {
+        Options options = new Options.Builder().connectionName("test").build();
+        Future<String> future = options.getExecutor().submit(new Callable<String>(){
+            public String call() {
+                return Thread.currentThread().getName();
+            }
+        });
+        String name = future.get(5, TimeUnit.SECONDS);
+        assertTrue(name.startsWith("test"));
+
+        options = new Options.Builder().build();
+        future = options.getExecutor().submit(new Callable<String>(){
+            public String call() {
+                return Thread.currentThread().getName();
+            }
+        });
+        name = future.get(5, TimeUnit.SECONDS);
+        assertTrue(name.startsWith(Options.DEFAULT_THREAD_NAME_PREFIX));
     }
 
     @Test

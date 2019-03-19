@@ -120,8 +120,6 @@ class NatsConnection implements Connection {
 
     private ExecutorService executor;
 
-    ExecutorService getExecutor() { return executor; }
-
     NatsConnection(Options options) {
         this.options = options;
 
@@ -154,7 +152,7 @@ class NatsConnection implements Connection {
 
         this.callbackRunner = Executors.newSingleThreadExecutor();
 
-        this.executor = Executors.newCachedThreadPool();
+        this.executor = options.getExecutor();
     }
 
     // Connect is only called after creation
@@ -1317,6 +1315,10 @@ class NatsConnection implements Connection {
 
     public String getLastError() {
         return this.lastError.get();
+    }
+
+    ExecutorService getExecutor() {
+        return executor;
     }
 
     void updateStatus(Status newStatus) {

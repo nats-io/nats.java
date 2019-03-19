@@ -18,7 +18,6 @@ import java.nio.BufferOverflowException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -45,7 +44,7 @@ class NatsConnectionWriter implements Runnable {
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
         this.stopped = new CompletableFuture<>();
-        ((CompletableFuture)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
+        ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
         this.sendBuffer = new byte[connection.getOptions().getBufferSize()];
 

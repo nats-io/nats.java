@@ -15,6 +15,10 @@ package io.nats.client;
 
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -156,6 +160,14 @@ public class Options {
      */
     public static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
 
+
+    /**
+     * Default thread name prefix. Used by the default exectuor when creating threads.
+     *
+     * <p>
+     * This property is defined as {@value #DEFAULT_THREAD_NAME_PREFIX}
+     */
+    public static final String DEFAULT_THREAD_NAME_PREFIX = "nats";
     
     /**
      * Default prefix used for inboxes, you can change this to manage authorization of subjects.
@@ -406,6 +418,22 @@ public class Options {
 
     private final boolean trackAdvancedStats;
 
+    private final ExecutorService executor;
+
+    static class DefaultThreadFactory implements ThreadFactory {
+        String name;
+        AtomicInteger threadNo = new AtomicInteger(0);
+
+        public DefaultThreadFactory (String name){
+            this.name = name;
+        }
+
+        public Thread newThread(Runnable r) {
+            String threadName = name+":"+threadNo.incrementAndGet();
+            return new Thread(r,threadName );
+        }
+    }
+
     /**
      * Options are created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls. The builder can also
@@ -447,6 +475,7 @@ public class Options {
         private ErrorListener errorListener = null;
         private ConnectionListener connectionListener = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
+        private ExecutorService executor;
 
         /**
          * Constructs a new Builder with the default values.
@@ -992,6 +1021,18 @@ public class Options {
         }
 
         /**
+         * Set the {@link Executor Executor} used to run threaded tasks. The default is a
+         * cached thread pull that names threads after the connection name (or a default).
+         * 
+         * @param exectuor The Executor to use for connections built with these options.
+         * @return the Builder for chaining
+         */
+        public Builder executor(ExecutorService executor) {
+            this.executor = executor;
+            return this;
+        }
+
+        /**
          * The class to use for this connections data port. This is an advanced setting
          * and primarily useful for testing.
          * 
@@ -1044,6 +1085,11 @@ public class Options {
                     this.sslContext = SSLUtils.createOpenTLSContext();
                 }
             }
+
+            if (this.executor == null) {
+                String threadPrefix = (this.connectionName != null && this.connectionName != "") ? this.connectionName : DEFAULT_THREAD_NAME_PREFIX;
+                this.executor = Executors.newCachedThreadPool(new DefaultThreadFactory(threadPrefix));
+            }
             return new Options(this);
         }
     }
@@ -1077,6 +1123,14 @@ public class Options {
         this.connectionListener = b.connectionListener;
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
+        this.executor = b.executor;
+    }
+
+    /**
+     * @return the executor, see {@link Builder#exector(Executor) exector()} in the builder doc
+     */
+    public ExecutorService getExecutor() {
+        return this.executor;
     }
 
     /**
