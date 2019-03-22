@@ -11,6 +11,7 @@
 * [FIXED] - #220 - an icky timing issue that could delay messages
 * [CHANGED] - added larger TCP defaults to improve network performance
 * [ADDED] - public method to create an inbox subject using the prefix from options
+* [FIXED] - #203 & #204 - Fixed a thread/timing issue with writer and cleaning pong queues
 
 ## Version 2.4.1
 
