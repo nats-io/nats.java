@@ -52,7 +52,9 @@ public class SocketDataPort implements DataPort {
             this.port = uri.getPort();
 
             this.socket = new Socket();
-
+            socket.setTcpNoDelay(true);
+            socket.setReceiveBufferSize(2 * 1024 * 1024);
+            socket.setSendBufferSize(2 * 1024 * 1024);
             socket.connect(new InetSocketAddress(host, port), (int) timeout);
 
             in = socket.getInputStream();

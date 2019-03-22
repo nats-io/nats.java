@@ -149,8 +149,19 @@ class MessageQueue {
                     }
                 }
 
+                // Thread.sleep(1000) <- use this to test the "isEmpty" fix below
+                // see https://github.com/nats-io/java-nats/issues/220 for discussion
+
+                // once we are in the waiters, we can be signaled, but
+                // until then we can't, so there is a possible timing bug
+                // where we aren't in waiters, aren't checking queue and
+                // miss the signalone when we are the only reader. By double
+                // checking isEmpty we insure that we either get the signal in park
+                // or we have a very short park here
                 waiters.add(t);
-                if (timeoutNanos == 0) {
+                if (!this.queue.isEmpty()) {
+                    LockSupport.parkNanos(SPIN_WAIT);
+                } else if (timeoutNanos == 0) {
                     LockSupport.park();
                 } else {
                     LockSupport.parkNanos(timeoutNanos);

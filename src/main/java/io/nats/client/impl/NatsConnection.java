@@ -46,6 +46,7 @@ import java.util.function.Predicate;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
+import io.nats.client.ConnectionListener.Events;
 import io.nats.client.Consumer;
 import io.nats.client.Dispatcher;
 import io.nats.client.ErrorListener;
@@ -55,7 +56,6 @@ import io.nats.client.NUID;
 import io.nats.client.Options;
 import io.nats.client.Statistics;
 import io.nats.client.Subscription;
-import io.nats.client.ConnectionListener.Events;
 
 class NatsConnection implements Connection {
     static final byte[] EMPTY_BODY = new byte[0];
@@ -118,6 +118,8 @@ class NatsConnection implements Connection {
 
     private ExecutorService callbackRunner;
 
+    private ExecutorService executor;
+
     NatsConnection(Options options) {
         this.options = options;
 
@@ -149,6 +151,8 @@ class NatsConnection implements Connection {
         this.writer = new NatsConnectionWriter(this);
 
         this.callbackRunner = Executors.newSingleThreadExecutor();
+
+        this.executor = options.getExecutor();
     }
 
     // Connect is only called after creation
@@ -409,7 +413,7 @@ class NatsConnection implements Connection {
         // If we are connecting or disconnecting, note exception and leave
         statusLock.lock();
         try {
-            if (this.connecting || this.disconnecting || this.status == Status.CLOSED) {
+            if (this.connecting || this.disconnecting || this.status == Status.CLOSED || this.isDraining()) {
                 this.exceptionDuringConnectChange = io;
                 return;
             }
@@ -421,16 +425,13 @@ class NatsConnection implements Connection {
 
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
-        String name = (this.getOptions().getConnectionName() != null) ? this.getOptions().getConnectionName()
-                : "Nats Connection";
-        Thread t = new Thread(() -> {
+        executor.submit(() -> {
             try {
                 this.closeSocket(true);
             } catch (InterruptedException e) {
                 processException(e);
             }
-        }, name + " Reconnect");
-        t.start();
+        });
     }
 
     // Close socket is called when another connect attempt is possible
@@ -531,10 +532,11 @@ class NatsConnection implements Connection {
         try {
             updateStatus(Status.CLOSED); // will signal, we also signal when we stop disconnecting
 
+            /*
             if (exceptionDuringConnectChange != null) {
                 processException(exceptionDuringConnectChange);
                 exceptionDuringConnectChange = null;
-            }
+            }*/
         } finally {
             statusLock.unlock();
         }
@@ -596,7 +598,9 @@ class NatsConnection implements Connection {
             try {
                 b.cancel(true);
             } catch (CancellationException e) {
-                processException(e);
+                if (!b.isDone() && !b.isCancelled()) {
+                    processException(e);
+                }
             }
         }
     }
@@ -633,7 +637,7 @@ class NatsConnection implements Connection {
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
             throw new IllegalStateException(
-                    "Unable to queue any more messages during reconnect, max buffer is " + getMaxPayload());
+                    "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());
         }
         queueOutgoing(msg);
     }
@@ -752,7 +756,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    String createInbox() {
+    public String createInbox() {
         String prefix = options.getInboxPrefix();
         StringBuilder builder = new StringBuilder();
         builder.append(prefix);
@@ -1315,6 +1319,10 @@ class NatsConnection implements Connection {
         return this.lastError.get();
     }
 
+    ExecutorService getExecutor() {
+        return executor;
+    }
+
     void updateStatus(Status newStatus) {
         Status oldStatus = this.status;
 
@@ -1462,6 +1470,16 @@ class NatsConnection implements Connection {
         return this.reader;
     }
 
+    // For testing
+    NatsConnectionWriter getWriter() {
+        return this.writer;
+    }
+
+    // For testing
+    Future<DataPort> getDataPortFuture() {
+        return this.dataPortFuture;
+    }
+
     boolean isDraining() {
         return this.draining.get() != null;
     }
@@ -1529,8 +1547,7 @@ class NatsConnection implements Connection {
         });
 
         // Wait for the timeout or the pending count to go to 0
-        Thread t = new Thread(() -> {
-
+        executor.submit(() -> {
             try {
                 Instant now = Instant.now();
 
@@ -1582,8 +1599,6 @@ class NatsConnection implements Connection {
                 tracker.complete(false);
             }
         });
-        t.setName("Connection Drain");
-        t.start();
 
         return tracker;
     }

@@ -21,12 +21,29 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.Test;
 
 public class SubscriberTests {
+
+    @Test
+    public void testCreateInbox() throws IOException, InterruptedException {
+        HashSet<String> check = new HashSet<>();
+        try (NatsTestServer ts = new NatsTestServer(false);
+            Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            for (int i=0; i < 10_000; i++) {
+                String inbox = nc.createInbox();
+                assertFalse(check.contains(inbox));
+                check.add(inbox);
+            }
+        }
+    }
+
     @Test
     public void testSingleMessage() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);

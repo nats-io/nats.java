@@ -500,7 +500,7 @@ public class DispatcherTests {
             nc.publish("done", new byte[16]); // when we get this we know the others are dispatched
             nc.flush(Duration.ofMillis(5000)); // Wait for the publish
 
-            done.get(2000, TimeUnit.MILLISECONDS); // make sure we got them
+            done.get(5000, TimeUnit.MILLISECONDS); // make sure we got them
             assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
         }
     }

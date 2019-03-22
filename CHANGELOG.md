@@ -1,6 +1,18 @@
 
 # Change Log
 
+## Version 2.4.2
+
+* [FIXED] - #217 - added check to "ignore" exceptions from reader during drain
+* [CHANGED] - no longer call exception handler for "ignored" communication exceptions during close/drain after close occurs
+* [ADDED] - #209 - support for comma separated urls in connect() or server()
+* [FIXED] - #206 - incorrect error message when reconnect buffer is overrun
+* [CHANGED] - #214 - moved to an executor instead of 1-off threads
+* [FIXED] - #220 - an icky timing issue that could delay messages
+* [CHANGED] - added larger TCP defaults to improve network performance
+* [ADDED] - public method to create an inbox subject using the prefix from options
+* [FIXED] - #203 & #204 - Fixed a thread/timing issue with writer and cleaning pong queues
+
 ## Version 2.4.1
 
 * [FIXED] - #199 - turns out we had to hard code the manifest to remove the private package

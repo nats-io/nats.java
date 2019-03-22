@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -689,4 +688,38 @@ public class ReconnectTests {
             }
         }
     }
+
+    @Test
+    public void testWriterFilterTiming() throws Exception {
+        NatsConnection nc = null;
+        TestHandler handler = new TestHandler();
+        int port = NatsTestServer.nextPort();
+
+        try {
+            try (NatsTestServer ts = new NatsTestServer(port, false)) {
+                Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    noReconnect().
+                                    connectionListener(handler).
+                                    build();
+                                    port = ts.getPort();
+                nc = (NatsConnection) Nats.connect(options);
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+                for (int i=0;i<100;i++) {
+                    // stop and start in a loop without waiting for the future to complete
+                    nc.getWriter().stop();
+                    nc.getWriter().start(nc.getDataPortFuture());
+                }
+
+                // Should have thrown an exception if #203 isn't fixed
+            }
+        } finally {
+            if (nc != null) {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
 }

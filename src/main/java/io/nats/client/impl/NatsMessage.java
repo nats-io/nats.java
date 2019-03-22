@@ -171,9 +171,6 @@ class NatsMessage implements Message {
     }
 
     public String getReplyTo() {
-        if (this.replyTo == null) {
-            return null;
-        }
         return this.replyTo;
     }
 
