@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 class NatsConnectionWriter implements Runnable {
 
@@ -32,6 +33,7 @@ class NatsConnectionWriter implements Runnable {
     private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
     private final AtomicBoolean reconnectMode;
+    private final ReentrantLock startStopLock;
 
     private byte[] sendBuffer;
 
@@ -43,6 +45,7 @@ class NatsConnectionWriter implements Runnable {
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
+        this.startStopLock = new ReentrantLock();
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
@@ -56,25 +59,37 @@ class NatsConnectionWriter implements Runnable {
     // Use the Future from stop() to determine if it is ok to call this.
     // This method resets that future so mistiming can result in badness.
     void start(Future<DataPort> dataPortFuture) {
-        this.dataPortFuture = dataPortFuture;
-        this.running.set(true);
-        this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
+        this.startStopLock.lock();
+        try {
+            this.dataPortFuture = dataPortFuture;
+            this.running.set(true);
+            this.outgoing.resume();
+            this.reconnectOutgoing.resume();
+            this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
+        } finally {
+            this.startStopLock.unlock();
+        }
     }
 
     // May be called several times on an error.
     // Returns a future that is completed when the thread completes, not when this
     // method does.
     Future<Boolean> stop() {
-        this.running.set(false);
-        this.outgoing.pause();
-        this.reconnectOutgoing.pause();
-
-        // Clear old ping/pong requests
-        byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
-        byte[] pongRequest = NatsConnection.OP_PONG.getBytes(StandardCharsets.UTF_8);
-        this.outgoing.filter((msg) -> {
-            return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());
-        });
+        this.startStopLock.lock();
+        try {
+            this.running.set(false);
+            this.outgoing.pause();
+            this.reconnectOutgoing.pause();
+    
+            // Clear old ping/pong requests
+            byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
+            byte[] pongRequest = NatsConnection.OP_PONG.getBytes(StandardCharsets.UTF_8);
+            this.outgoing.filter((msg) -> {
+                return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());
+            });
+        } finally {
+            this.startStopLock.unlock();
+        }
         return this.stopped;
     }
 
@@ -87,8 +102,6 @@ class NatsConnectionWriter implements Runnable {
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             NatsStatistics stats = this.connection.getNatsStatistics();
-            this.outgoing.resume();
-            this.reconnectOutgoing.resume();
 
             while (this.running.get()) {
                 int sendPosition = 0;

@@ -598,7 +598,9 @@ class NatsConnection implements Connection {
             try {
                 b.cancel(true);
             } catch (CancellationException e) {
-                processException(e);
+                if (!b.isDone() && !b.isCancelled()) {
+                    processException(e);
+                }
             }
         }
     }
@@ -1466,6 +1468,16 @@ class NatsConnection implements Connection {
     // For testing
     NatsConnectionReader getReader() {
         return this.reader;
+    }
+
+    // For testing
+    NatsConnectionWriter getWriter() {
+        return this.writer;
+    }
+
+    // For testing
+    Future<DataPort> getDataPortFuture() {
+        return this.dataPortFuture;
     }
 
     boolean isDraining() {
