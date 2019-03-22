@@ -38,6 +38,7 @@ ossrhPassword=<YOUR_JIRA_PASSWORD>
 the last line, if uncommented, will cause the deploy to go to your build folder, so that you can manually check it. Once you have the properties set up, simple type
 
 ```bash
+> export TRAVIS_BRANCH=master
 > ./gradlew uploadArchives
 ```
 
