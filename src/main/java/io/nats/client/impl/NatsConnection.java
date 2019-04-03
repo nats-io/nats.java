@@ -26,17 +26,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -119,6 +109,7 @@ class NatsConnection implements Connection {
     private ExecutorService callbackRunner;
 
     private ExecutorService executor;
+    private ExecutorService connectExecutor;
 
     NatsConnection(Options options) {
         this.options = options;
@@ -153,6 +144,7 @@ class NatsConnection implements Connection {
         this.callbackRunner = Executors.newSingleThreadExecutor();
 
         this.executor = options.getExecutor();
+        this.connectExecutor = Executors.newSingleThreadExecutor();
     }
 
     // Connect is only called after creation
@@ -308,9 +300,21 @@ class NatsConnection implements Connection {
 
             // Wait for the INFO message manually
             // all other traffic will use the reader and writer
-            readInitialInfo();
-            checkVersionRequirements();
-            upgradeToSecureIfNeeded();
+            Callable<Object> connectTask = new Callable<Object>() {
+                public Object call() throws IOException {
+                    readInitialInfo();
+                    checkVersionRequirements();
+                    upgradeToSecureIfNeeded();
+                    return null;
+                }
+            };
+
+            Future<Object> future = this.connectExecutor.submit(connectTask);
+            try {
+                future.get(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+            } finally {
+                future.cancel(true);
+            }
 
             // start the reader and writer after we secured the connection, if necessary
             this.reader.start(this.dataPortFuture);
@@ -459,6 +463,7 @@ class NatsConnection implements Connection {
         statusLock.lock();
         try {
             updateStatus(Status.DISCONNECTED);
+            this.exceptionDuringConnectChange = null; // Ignore IOExceptions during closeSocketImpl()
             this.disconnecting = false;
             statusChanged.signalAll();
         } finally {
