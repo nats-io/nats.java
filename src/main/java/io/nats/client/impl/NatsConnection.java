@@ -26,7 +26,18 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.*;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -546,13 +557,16 @@ class NatsConnection implements Connection {
             statusLock.unlock();
         }
 
-        // Stop the error handler code
+        // Stop the error handling and connect executors
         callbackRunner.shutdown();
         try {
             callbackRunner.awaitTermination(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
         } finally {
             callbackRunner.shutdownNow();
         }
+
+        // There's no need to wait for running tasks since we're told to close
+        connectExecutor.shutdownNow();
 
         statusLock.lock();
         try {
