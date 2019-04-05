@@ -140,6 +140,7 @@ task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
+// run build before running fat jar to get classes
 task fatJar(type: Jar) {
     classifier = 'fat'
     manifest {
