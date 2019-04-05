@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -364,5 +365,36 @@ public class ConnectTests {
 
         assertTrue(1 <= handler.getExceptionCount());
         assertTrue(handler.getConnection() == null || Connection.Status.CLOSED == handler.getConnection().getStatus());
+    }
+
+    @Test(expected=IOException.class)
+    public void testConnectionTimeout() throws IOException, InterruptedException {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.SLEEP_BEFORE_INFO)) { // will sleep for 3
+            Options options = new Options.Builder().
+                                        server(ts.getURI()).
+                                        noReconnect().
+                                        connectionTimeout(Duration.ofSeconds(2)). // 2 is also the default but explicit for test
+                                        build();
+            Connection nc = Nats.connect(options);
+            assertFalse("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+        }
+    }
+
+    @Test
+    public void testSlowConnectionNoTimeout() throws IOException, InterruptedException {
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.SLEEP_BEFORE_INFO)) {
+            Options options = new Options.Builder().
+                                        server(ts.getURI()).
+                                        noReconnect().
+                                        connectionTimeout(Duration.ofSeconds(6)). // longer than the sleep
+                                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
     }
 }

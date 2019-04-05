@@ -185,4 +185,45 @@ public class PingTests {
             }
         }
     }
+
+    @Test
+    public void testPingTimerThroughReconnect() throws IOException, InterruptedException {
+        TestHandler handler = new TestHandler();
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            try (NatsTestServer ts2 = new NatsTestServer()) {
+                Options options = new Options.Builder().connectionListener(handler).
+                                        server(ts.getURI()).
+                                        server(ts2.getURI()).
+                                        pingInterval(Duration.ofMillis(5)).build();
+                NatsConnection nc = (NatsConnection) Nats.connect(options);
+                NatsStatistics stats = nc.getNatsStatistics();
+
+                try {
+                    assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                    try {
+                        Thread.sleep(200); // should get 10+ pings
+                    } catch (Exception exp)
+                    {
+                        //Ignore
+                    }
+                    long pings = stats.getPings();
+                    assertTrue("got pings", pings > 10);
+                    handler.prepForStatusChange(Events.RECONNECTED);
+                    ts.close();
+                    handler.waitForStatusChange(5, TimeUnit.SECONDS);
+                    pings = stats.getPings();
+                    try {
+                        Thread.sleep(200); // should get more pings
+                    } catch (Exception exp)
+                    {
+                        //Ignore
+                    }
+                    assertTrue("more pings", stats.getPings() > pings);
+                } finally {
+                    nc.close();
+                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                }
+            }
+        }
+    }
 }
