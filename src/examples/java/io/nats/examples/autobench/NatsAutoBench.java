@@ -122,8 +122,6 @@ public class NatsAutoBench {
         } catch (Exception exp) {
             exp.printStackTrace();
         }
-
-        System.exit(0);
     }
 
     public static void runWarmup(Options connectOptions) throws Exception {

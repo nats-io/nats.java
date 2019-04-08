@@ -17,7 +17,10 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.lang.reflect.Constructor;
 import java.net.URI;
@@ -430,7 +433,14 @@ public class Options {
 
         public Thread newThread(Runnable r) {
             String threadName = name+":"+threadNo.incrementAndGet();
-            return new Thread(r,threadName );
+            Thread t = new Thread(r,threadName);
+            if (t.isDaemon()) {
+                t.setDaemon(false);
+            }
+            if (t.getPriority() != Thread.NORM_PRIORITY) {
+                t.setPriority(Thread.NORM_PRIORITY);
+            }
+            return t;
         }
     }
 
@@ -1025,6 +1035,11 @@ public class Options {
          * cached thread pool that names threads after the connection name (or a default). This executor
          * is used for reading and writing the underlying sockets as well as for each Dispatcher.
          * 
+         * The default executor uses a short keepalive time, 500ms, to insure quick shutdowns. This is reasonable
+         * since most threads from the executor are long lived. If you customize, be sure to keep the shutdown
+         * effect in mind, exectors can block for their keepalive time. The default executor also marks threads
+         * with priority normal and as non-daemon.
+         * 
          * @param executor The ExecutorService to use for connections built with these options.
          * @return the Builder for chaining
          */
@@ -1089,7 +1104,11 @@ public class Options {
 
             if (this.executor == null) {
                 String threadPrefix = (this.connectionName != null && this.connectionName != "") ? this.connectionName : DEFAULT_THREAD_NAME_PREFIX;
-                this.executor = Executors.newCachedThreadPool(new DefaultThreadFactory(threadPrefix));
+                this.executor = Executors.newCachedThreadPool();
+                this.executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+                                                        500L, TimeUnit.MILLISECONDS,
+                                                        new SynchronousQueue<Runnable>(),
+                                                        new DefaultThreadFactory(threadPrefix));
             }
             return new Options(this);
         }
