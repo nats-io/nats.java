@@ -64,6 +64,15 @@ public class MessageQueueTests {
     }
 
     @Test
+    public void testTimeoutZero() throws InterruptedException {
+        MessageQueue q = new MessageQueue(false);
+        NatsMessage expected = new NatsMessage("test");
+        q.push(expected);
+        NatsMessage msg = q.pop(Duration.ZERO);
+        assertNotNull(msg);
+    }
+
+    @Test
     public void testInterupt() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue(false);
