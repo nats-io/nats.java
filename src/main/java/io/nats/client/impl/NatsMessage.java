@@ -148,7 +148,7 @@ class NatsMessage implements Message {
         return sizeInBytes;
     }
 
-    String getSID() {
+    public String getSID() {
         return this.sid;
     }
 

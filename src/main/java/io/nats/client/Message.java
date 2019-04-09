@@ -42,4 +42,9 @@ public interface Message {
 	 * @return the Subscription associated with this message, may be owned by a Dispatcher
 	 */
 	public Subscription getSubscription();
+
+	/**
+	 * @return the id associated with the subscription, used in the 
+	 */
+	public String getSID();
 }
