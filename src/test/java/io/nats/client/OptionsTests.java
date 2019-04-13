@@ -27,11 +27,8 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Properties;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLContext;
 
@@ -191,6 +188,22 @@ public class OptionsTests {
     }
 
     @Test
+    public void testPropertiesThreadFactory() {
+        final Semaphore customThreadSemaphore = new Semaphore(0);
+
+        Options o = new Options.Builder().threadFactory(r -> {
+            customThreadSemaphore.release(1);
+            return new Thread(r);
+        }).build();
+        o.getExecutor().submit(() -> customThreadSemaphore.release(1)); // dummy task, should create a new thread
+        try {
+            assertTrue("new thread should be called within 250ms", customThreadSemaphore.tryAcquire(2, 250, TimeUnit.MILLISECONDS));
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
     public void testPropertiesSSLOptions() throws Exception {
         // don't use default for tests, issues with forcing algorithm exception in other tests break it
         SSLContext.setDefault(TestSSLUtils.createTestSSLContext());
@@ -333,7 +346,7 @@ public class OptionsTests {
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
-                + ",\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\",\"jwt\":\"\"}";
+                + ",\"nkey\":\"" + new String(th.getID()) + "\",\"sig\":\"" + sig + "\",\"jwt\":\"\"}";
         assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce));
         assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce));
     }
@@ -381,7 +394,7 @@ public class OptionsTests {
         assertFalse(connectString.contains("\"pass\":"));
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testThrowOnNoProps() throws NoSuchAlgorithmException {
         new Options.Builder(null);
         assertFalse(true);
@@ -457,7 +470,7 @@ public class OptionsTests {
         assertEquals("property server", url1, serverArray[0].toString());
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testBadClassInPropertyConnectionListeners() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_CONNECTION_CB, "foo");
@@ -465,19 +478,19 @@ public class OptionsTests {
         assertFalse(true);
     }
 
-    @Test(expected=IllegalStateException.class)
+    @Test(expected = IllegalStateException.class)
     public void testTokenAndUserThrows() {
         new Options.Builder().token("foo").userInfo("foo", "bar").build();
         assertFalse(true);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testThrowOnBadServerURI() {
         new Options.Builder().server("foo:/bar\\:blammer").build();
         assertFalse(true);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testThrowOnEmptyServersProp() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_SERVERS, "");
@@ -486,7 +499,7 @@ public class OptionsTests {
         assertFalse(true);
     }
 
-    @Test(expected=IllegalArgumentException.class)
+    @Test(expected = IllegalArgumentException.class)
     public void testThrowOnBadServersURI() {
         String url1 = "nats://localhost:8080";
         String url2 = "foo:/bar\\:blammer";
@@ -505,7 +518,7 @@ public class OptionsTests {
     @Test
     public void testDefaultExecutor() throws Exception {
         Options options = new Options.Builder().connectionName("test").build();
-        Future<String> future = options.getExecutor().submit(new Callable<String>(){
+        Future<String> future = options.getExecutor().submit(new Callable<String>() {
             public String call() {
                 return Thread.currentThread().getName();
             }
@@ -514,7 +527,7 @@ public class OptionsTests {
         assertTrue(name.startsWith("test"));
 
         options = new Options.Builder().build();
-        future = options.getExecutor().submit(new Callable<String>(){
+        future = options.getExecutor().submit(new Callable<String>() {
             public String call() {
                 return Thread.currentThread().getName();
             }
@@ -557,7 +570,7 @@ public class OptionsTests {
             {"192.168.0.1","nats://192.168.0.1:4222"},
         };
 
-        for (int i=0 ;i<test.length;i++) {
+        for (int i = 0; i < test.length; i++) {
             URI actual = Options.parseURIForServer(test[i][0]);
             URI expected = new URI(test[i][1]);
             assertEquals(expected.toASCIIString(), actual.toASCIIString());

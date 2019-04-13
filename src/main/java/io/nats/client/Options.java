@@ -100,7 +100,7 @@ public class Options {
      * Default server ping interval. The client will send a ping to the server on this interval to insure liveness.
      * The server may send pings to the client as well, these are handled automatically by the library
      * , see {@link #getPingInterval() getPingInterval()}.
-     * 
+     *
      * <p>A value of {@code <=0} means disabled.
      *
      * <p>This property is defined as 2 minutes.
@@ -118,7 +118,7 @@ public class Options {
     public static final Duration DEFAULT_REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
 
     /**
-     * Default maximum number of pings have not received a response allowed by the 
+     * Default maximum number of pings have not received a response allowed by the
      * client, {@link #getMaxPingsOut() getMaxPingsOut()}.
      *
      * <p>This property is defined as {@value #DEFAULT_MAX_PINGS_OUT}
@@ -314,6 +314,11 @@ public class Options {
     public static final String PROP_INBOX_PREFIX = "inbox.prefix";
 
     /**
+     * You can supply custom ThreadFactory object here. {@value #PROP_THREAD_FACTORY}, see {@link Builder#threadFactory(ThreadFactory)
+     */
+    public static final String PROP_THREAD_FACTORY = "threadfactory";
+
+    /**
      * Protocol key {@value #OPTION_VERBOSE}, see {@link Builder#verbose() verbose}.
      */
     static final String OPTION_VERBOSE = "verbose";
@@ -479,6 +484,7 @@ public class Options {
         private boolean noEcho = false;
         private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
+        private ThreadFactory threadFactory = null;
 
         private AuthHandler authHandler;
 
@@ -651,6 +657,10 @@ public class Options {
             if (props.containsKey(PROP_INBOX_PREFIX)) {
                 this.inboxPrefix(props.getProperty(PROP_INBOX_PREFIX, DEFAULT_INBOX_PREFIX));
             }
+
+            if (props.containsKey(PROP_THREAD_FACTORY)) {
+                throw new IllegalArgumentException(PROP_THREAD_FACTORY + " should not be set via Properties, its not serializable to String");
+            }
         }
 
         static Object createInstanceOf(String className) {
@@ -763,6 +773,17 @@ public class Options {
             if (!this.inboxPrefix.endsWith(".")) {
                 this.inboxPrefix = this.inboxPrefix + ".";
             }
+            return this;
+        }
+
+        /**
+         * Set the connection's thread factory.
+         *
+         * @param threadFactory thread factory object to use
+         * @return the Builder for chaining
+         */
+        public Builder threadFactory(ThreadFactory threadFactory) {
+            this.threadFactory = threadFactory;
             return this;
         }
 
@@ -1103,12 +1124,17 @@ public class Options {
             }
 
             if (this.executor == null) {
-                String threadPrefix = (this.connectionName != null && this.connectionName != "") ? this.connectionName : DEFAULT_THREAD_NAME_PREFIX;
+                String threadPrefix = DEFAULT_THREAD_NAME_PREFIX;
+                if (this.connectionName != null && !this.connectionName.isEmpty()){
+                    threadPrefix = this.connectionName;
+                }
+                ThreadFactory threadFactory = this.threadFactory != null ? this.threadFactory : new DefaultThreadFactory(threadPrefix);
+
                 this.executor = Executors.newCachedThreadPool();
                 this.executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE,
                                                         500L, TimeUnit.MILLISECONDS,
                                                         new SynchronousQueue<Runnable>(),
-                                                        new DefaultThreadFactory(threadPrefix));
+                                                        threadFactory);
             }
             return new Options(this);
         }
@@ -1385,8 +1411,8 @@ public class Options {
 
         if (uri.getHost() != null && uri.getHost() != "") {
             if (uri.getPort() == -1) {
-                uri = new URI(uri.getScheme(), 
-                                uri.getUserInfo(), 
+                uri = new URI(uri.getScheme(),
+                                uri.getUserInfo(),
                                 uri.getHost(),
                                 4222,
                                 uri.getPath(),
