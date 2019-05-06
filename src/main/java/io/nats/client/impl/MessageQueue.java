@@ -25,10 +25,15 @@ class MessageQueue {
     private final static int RUNNING = 1;
     private final static int DRAINING = 2;
 
+    public static final int MAX_SPINS = 200; // Default max spins
+    public static final int SPIN_WAIT = 50;
+    public static final int MAX_SPIN_TIME = SPIN_WAIT * MAX_SPINS;
+
     private final AtomicLong length;
     private final AtomicLong sizeInBytes;
     private final AtomicInteger running;
     private final boolean singleThreadedReader;
+    private final int maxSpins;
     private final ConcurrentLinkedQueue<NatsMessage> queue;
     private final ConcurrentLinkedQueue<Thread> waiters;
 
@@ -40,6 +45,16 @@ class MessageQueue {
         
         this.waiters = new ConcurrentLinkedQueue<>();
         this.singleThreadedReader = singleReaderMode;
+
+        String os = System.getProperty("os.name");
+        os = os != null ? os.toLowerCase() : "";
+
+        // Windows does not like spin locks, see issue #224
+        if(os.contains("windows")) {
+            this.maxSpins = 0;
+        } else {
+            this.maxSpins = MAX_SPINS;
+        }
     }
 
     boolean isSingleReaderMode() {
@@ -101,10 +116,6 @@ class MessageQueue {
         signalOne();
     }
 
-    public static final int MAX_SPINS = 200;
-    public static final int SPIN_WAIT = 50;
-    public static final int MAX_SPIN_TIME = SPIN_WAIT * MAX_SPINS;
-
     NatsMessage waitForTimeout(Duration timeout) throws InterruptedException {
         long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
         NatsMessage retVal = null;
@@ -116,7 +127,7 @@ class MessageQueue {
             // Semi-spin for at most MAX_SPIN_TIME
             if (timeoutNanos > MAX_SPIN_TIME) {
                 int count = 0;
-                while (this.isRunning() && (retVal = this.queue.poll()) == null && count < MAX_SPINS) {
+                while (this.isRunning() && (retVal = this.queue.poll()) == null && count < this.maxSpins) {
 
                     if (this.isDraining()) {
                         break;
