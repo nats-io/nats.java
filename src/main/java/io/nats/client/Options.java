@@ -906,7 +906,15 @@ public class Options {
 
         /**
          * Set the interval between attempts to pings the server. These pings are automated,
-         * and capped by {@link #maxPingsOut(int) maxPingsOut()}.
+         * and capped by {@link #maxPingsOut(int) maxPingsOut()}. As of 2.4.4 the library
+         * may way up to 2 * time to send a ping. Incoming traffic from the server can postpone
+         * the next ping to avoid pings taking up bandwidth during busy messaging.
+         * 
+         * Keep in mind that a ping requires a round trip to the server. Setting this value to a small
+         * number can result in quick failures due to maxPingsOut being reached, these failures will
+         * force a disconnect/reconnect which can result in messages being held back or failed. In general,
+         * the ping interval should be set in seconds but this value is not enforced as it would result in
+         * an API change from the 2.0 release.
          * 
          * @param time the time between client to server pings
          * @return the Builder for chaining
@@ -956,6 +964,10 @@ public class Options {
          * Set the maximum number of bytes to buffer in the client when trying to
          * reconnect. When this value is exceeded the client will start to drop messages.
          * The count of dropped messages can be read from the {@link Statistics#getDroppedCount() Statistics}.
+         * 
+         * A value of zero will disable the reconnect buffer, a value less than zero means unlimited. Caution
+         * should be used for negative numbers as they can result in an unreliable network connection plus a
+         * high message rate leading to an out of memory error.
          * 
          * @param size the size in bytes
          * @return the Builder for chaining

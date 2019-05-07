@@ -17,7 +17,9 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
 class MessageQueue {
@@ -36,12 +38,15 @@ class MessageQueue {
     private final int maxSpins;
     private final ConcurrentLinkedQueue<NatsMessage> queue;
     private final ConcurrentLinkedQueue<Thread> waiters;
+    private final Lock filterLock;
 
     MessageQueue(boolean singleReaderMode) {
         this.queue = new ConcurrentLinkedQueue<>();
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
+
+        this.filterLock = new ReentrantLock();
         
         this.waiters = new ConcurrentLinkedQueue<>();
         this.singleThreadedReader = singleReaderMode;
@@ -110,6 +115,19 @@ class MessageQueue {
     }
 
     void push(NatsMessage msg) {
+
+        // If we aren't running, then we need to obey the filter lock
+        // to avoid ordering problems
+        if(!this.isRunning()) {
+            this.filterLock.lock();
+            this.queue.add(msg);
+            this.filterLock.unlock();
+            this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
+            this.length.incrementAndGet();
+            signalOne();
+            return;
+        }
+
         this.queue.add(msg);
         this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
         this.length.incrementAndGet();
@@ -207,7 +225,7 @@ class MessageQueue {
 
         return retVal;
     }
-
+    
     // Waits up to the timeout to try to accumulate multiple messages
     // Use the next field to read the entire set accumulated.
     // maxSize and maxMessages are both checked and if either is exceeded
@@ -250,7 +268,7 @@ class MessageQueue {
 
         long count = 1;
         NatsMessage cursor = msg;
-
+        
         while (cursor != null) {
             NatsMessage next = this.queue.peek();
             if (next != null) {
@@ -300,6 +318,7 @@ class MessageQueue {
             throw new IllegalStateException("Filter is only supported when the queue is paused");
         }
     
+        this.filterLock.lock();
         ConcurrentLinkedQueue<NatsMessage> newQueue = new ConcurrentLinkedQueue<>();
         NatsMessage cursor = this.queue.poll();
 
@@ -315,5 +334,6 @@ class MessageQueue {
         }
 
         this.queue.addAll(newQueue);
+        this.filterLock.unlock();
     }
 }
