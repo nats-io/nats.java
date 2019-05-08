@@ -1116,7 +1116,6 @@ public class Options {
 
             if (this.executor == null) {
                 String threadPrefix = (this.connectionName != null && this.connectionName != "") ? this.connectionName : DEFAULT_THREAD_NAME_PREFIX;
-                this.executor = Executors.newCachedThreadPool();
                 this.executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE,
                                                         500L, TimeUnit.MILLISECONDS,
                                                         new SynchronousQueue<Runnable>(),
