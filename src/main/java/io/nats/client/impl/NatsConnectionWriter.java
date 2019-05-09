@@ -96,7 +96,7 @@ class NatsConnectionWriter implements Runnable {
     @Override
     public void run() {
         Duration waitForMessage = Duration.ofMinutes(2); // This can be long since no one is sending
-        Duration reconnectWait = Duration.ofMillis(1); // This can be long since no one is sending
+        Duration reconnectWait = Duration.ofMillis(1); // This should be short, since we are trying to get the reconnect through
         long maxMessages = 1000;
 
         try {
@@ -107,7 +107,7 @@ class NatsConnectionWriter implements Runnable {
                 int sendPosition = 0;
                 NatsMessage msg = null;
                 
-                if (reconnectMode.get()) {
+                if (this.reconnectMode.get()) {
                     msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxMessages, reconnectWait);
                 } else {
                     msg = this.outgoing.accumulate(this.sendBuffer.length, maxMessages, waitForMessage);

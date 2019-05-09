@@ -28,6 +28,7 @@ import java.util.concurrent.TimeoutException;
 import org.junit.Test;
 
 import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
@@ -223,6 +224,51 @@ public class PingTests {
                     nc.close();
                     assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
                 }
+            }
+        }
+    }
+
+
+    @Test
+    public void testMessagesDelayPings() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI()).
+                                    pingInterval(Duration.ofMillis(200)).build();
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+            NatsStatistics stats = nc.getNatsStatistics();
+
+            try {
+                final CompletableFuture<Boolean> done = new CompletableFuture<>();
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+                Dispatcher d = nc.createDispatcher((msg) -> {
+                    if (msg.getSubject().equals("done")) {
+                        done.complete(Boolean.TRUE);
+                    }
+                });
+
+                d.subscribe("subject");
+                d.subscribe("done");
+                nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+
+                long b4 = stats.getPings();
+                for (int i=0;i<10;i++) {
+                    Thread.sleep(50);
+                    nc.publish("subject", new byte[16]);
+                }
+                long after = stats.getPings();
+                assertTrue("pings hidden", after == b4);
+                nc.publish("done", new byte[16]);
+                nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+                done.get(500, TimeUnit.MILLISECONDS);
+
+                // no more messages, pings should start to go through
+                b4 = stats.getPings();
+                Thread.sleep(500);
+                after = stats.getPings();
+                assertTrue("pings restarted", after > b4);
+            } finally {
+                nc.close();
             }
         }
     }

@@ -17,7 +17,9 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
 class MessageQueue {
@@ -25,21 +27,39 @@ class MessageQueue {
     private final static int RUNNING = 1;
     private final static int DRAINING = 2;
 
+    public static final int MAX_SPINS = 200; // Default max spins
+    public static final int SPIN_WAIT = 50;
+    public static final int MAX_SPIN_TIME = SPIN_WAIT * MAX_SPINS;
+
     private final AtomicLong length;
     private final AtomicLong sizeInBytes;
     private final AtomicInteger running;
     private final boolean singleThreadedReader;
+    private final int maxSpins;
     private final ConcurrentLinkedQueue<NatsMessage> queue;
     private final ConcurrentLinkedQueue<Thread> waiters;
+    private final Lock filterLock;
 
     MessageQueue(boolean singleReaderMode) {
         this.queue = new ConcurrentLinkedQueue<>();
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
+
+        this.filterLock = new ReentrantLock();
         
         this.waiters = new ConcurrentLinkedQueue<>();
         this.singleThreadedReader = singleReaderMode;
+
+        String os = System.getProperty("os.name");
+        os = os != null ? os.toLowerCase() : "";
+
+        // Windows does not like spin locks, see issue #224
+        if(os.contains("windows")) {
+            this.maxSpins = 0;
+        } else {
+            this.maxSpins = MAX_SPINS;
+        }
     }
 
     boolean isSingleReaderMode() {
@@ -95,15 +115,24 @@ class MessageQueue {
     }
 
     void push(NatsMessage msg) {
+
+        // If we aren't running, then we need to obey the filter lock
+        // to avoid ordering problems
+        if(!this.isRunning()) {
+            this.filterLock.lock();
+            this.queue.add(msg);
+            this.filterLock.unlock();
+            this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
+            this.length.incrementAndGet();
+            signalOne();
+            return;
+        }
+
         this.queue.add(msg);
         this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
         this.length.incrementAndGet();
         signalOne();
     }
-
-    public static final int MAX_SPINS = 200;
-    public static final int SPIN_WAIT = 50;
-    public static final int MAX_SPIN_TIME = SPIN_WAIT * MAX_SPINS;
 
     NatsMessage waitForTimeout(Duration timeout) throws InterruptedException {
         long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
@@ -116,7 +145,7 @@ class MessageQueue {
             // Semi-spin for at most MAX_SPIN_TIME
             if (timeoutNanos > MAX_SPIN_TIME) {
                 int count = 0;
-                while (this.isRunning() && (retVal = this.queue.poll()) == null && count < MAX_SPINS) {
+                while (this.isRunning() && (retVal = this.queue.poll()) == null && count < this.maxSpins) {
 
                     if (this.isDraining()) {
                         break;
@@ -196,7 +225,7 @@ class MessageQueue {
 
         return retVal;
     }
-
+    
     // Waits up to the timeout to try to accumulate multiple messages
     // Use the next field to read the entire set accumulated.
     // maxSize and maxMessages are both checked and if either is exceeded
@@ -239,7 +268,7 @@ class MessageQueue {
 
         long count = 1;
         NatsMessage cursor = msg;
-
+        
         while (cursor != null) {
             NatsMessage next = this.queue.peek();
             if (next != null) {
@@ -289,6 +318,7 @@ class MessageQueue {
             throw new IllegalStateException("Filter is only supported when the queue is paused");
         }
     
+        this.filterLock.lock();
         ConcurrentLinkedQueue<NatsMessage> newQueue = new ConcurrentLinkedQueue<>();
         NatsMessage cursor = this.queue.poll();
 
@@ -304,5 +334,6 @@ class MessageQueue {
         }
 
         this.queue.addAll(newQueue);
+        this.filterLock.unlock();
     }
 }

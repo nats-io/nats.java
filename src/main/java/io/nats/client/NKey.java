@@ -77,7 +77,7 @@ class DecodedSeed {
  * </p>
  * <p>
  * The NKey libraries encode 32 byte public keys using Base32 and a CRC16
- * checksum plus a prefix based on the key type, e.g. “U...” for a user key.
+ * checksum plus a prefix based on the key type, e.g. U for a user key.
  * </p>
  * <p>
  * The NKey libraries have support for exporting a 64 byte private key. This

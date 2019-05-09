@@ -38,6 +38,7 @@ public class NatsAutoBench {
         boolean utf8 = false;
         int baseMsgs = 100_000;
         int latencyMsgs = 5_000;
+        long maxSize = 8*1024;
 
         if (args.length > 0) {
             for (String s : args) {
@@ -49,12 +50,15 @@ public class NatsAutoBench {
                 }  else if (s.equals("small")) {
                     baseMsgs = 5_000;
                     latencyMsgs = 250;
+                    maxSize = 1024;
                 } else if (s.equals("tiny")) {
                     baseMsgs = 1_000;
                     latencyMsgs = 50;
+                    maxSize = 1024;
                 } else if (s.equals("nano")) {
                     baseMsgs = 10;
                     latencyMsgs = 5;
+                    maxSize = 512;
                 } else if (s.equals("help")) {
                     usage();
                     return;
@@ -64,7 +68,7 @@ public class NatsAutoBench {
             }
         }
 
-        System.out.printf("Connecting to gnatsd at %s\n", server);
+        System.out.printf("Connecting to NATS server at %s\n", server);
 
         try {
             Options.Builder builder = new Options.Builder().
@@ -78,7 +82,7 @@ public class NatsAutoBench {
             }
                     
             Options connectOptions = builder.build();                   
-            List<AutoBenchmark> tests = buildTestList(baseMsgs, latencyMsgs);
+            List<AutoBenchmark> tests = buildTestList(baseMsgs, latencyMsgs, maxSize);
 
             System.out.println("Running warmup");
             runWarmup(connectOptions);
@@ -125,7 +129,7 @@ public class NatsAutoBench {
     }
 
     public static void runWarmup(Options connectOptions) throws Exception {
-        AutoBenchmark warmup = (new PubSubBenchmark("warmup", 1_000_000, 64));
+        AutoBenchmark warmup = (new PubSubBenchmark("warmup", 100_000, 64));
         warmup.execute(connectOptions);
 
         if (warmup.getException() != null) {
@@ -134,56 +138,69 @@ public class NatsAutoBench {
         }
     }
 
-    public static List<AutoBenchmark> buildTestList(int baseMsgs, int latencyMsgs) {
+    public static List<AutoBenchmark> buildTestList(int baseMsgs, int latencyMsgs, long maxSize) {
         ArrayList<AutoBenchmark> tests = new ArrayList<>();
         
-        /**/
-        tests.add(new PubBenchmark("PubOnly 0b", 100 * baseMsgs, 0));
-        tests.add(new PubBenchmark("PubOnly 8b", 100 * baseMsgs, 8));
-        tests.add(new PubBenchmark("PubOnly 32b", 100 * baseMsgs, 32));
-        tests.add(new PubBenchmark("PubOnly 256b", 100 * baseMsgs, 256));
-        tests.add(new PubBenchmark("PubOnly 512b", 100 * baseMsgs, 512));
-        tests.add(new PubBenchmark("PubOnly 1k", 10 * baseMsgs, 1024));
-        tests.add(new PubBenchmark("PubOnly 4k", 5 * baseMsgs, 4*1024));
-        tests.add(new PubBenchmark("PubOnly 8k", baseMsgs, 8*1024));
+        int[] sizes = {0, 8, 32, 256, 512, 1024, 4*1024, 8*1024};
+        int[] msgsMultiple = {100, 100, 100, 100, 100, 10, 5, 1};
+        int[] msgsDivider = {5, 5, 10, 10, 10, 10, 10, 10};
 
-        tests.add(new PubSubBenchmark("PubSub 0b", 100 * baseMsgs, 0));
-        tests.add(new PubSubBenchmark("PubSub 8b", 100 * baseMsgs, 8));
-        tests.add(new PubSubBenchmark("PubSub 32b", 100 * baseMsgs, 32));
-        tests.add(new PubSubBenchmark("PubSub 256b", 100 * baseMsgs, 256));
-        tests.add(new PubSubBenchmark("PubSub 512b", 50 * baseMsgs, 512));
-        tests.add(new PubSubBenchmark("PubSub 1k", 10 * baseMsgs, 1024));
-        tests.add(new PubSubBenchmark("PubSub 4k", baseMsgs, 4*1024));
-        tests.add(new PubSubBenchmark("PubSub 8k", baseMsgs, 8*1024));
-        
-        tests.add(new PubDispatchBenchmark("PubDispatch 0b", 100 * baseMsgs, 0));
-        tests.add(new PubDispatchBenchmark("PubDispatch 8b", 100 * baseMsgs, 8));
-        tests.add(new PubDispatchBenchmark("PubDispatch 32b", 100 * baseMsgs, 32));
-        tests.add(new PubDispatchBenchmark("PubDispatch 256b", 100 * baseMsgs, 256));
-        tests.add(new PubDispatchBenchmark("PubDispatch 512b", 50 * baseMsgs, 512));
-        tests.add(new PubDispatchBenchmark("PubDispatch 1k", 10 * baseMsgs, 1024));
-        tests.add(new PubDispatchBenchmark("PubDispatch 4k", baseMsgs, 4*1024));
-        tests.add(new PubDispatchBenchmark("PubDispatch 8k", baseMsgs, 8*1024));
-        
+        /**/
+        for(int i=0; i<sizes.length; i++) {
+            int size = sizes[i];
+            int msgMult = msgsMultiple[i];
+
+            if(size > maxSize) {
+                break;
+            }
+
+            tests.add(new PubBenchmark("PubOnly "+size, msgMult * baseMsgs, size));
+        }
+
+        for(int i=0; i<sizes.length; i++) {
+            int size = sizes[i];
+            int msgMult = msgsMultiple[i];
+
+            if(size > maxSize) {
+                break;
+            }
+
+            tests.add(new PubSubBenchmark("PubSub "+size, msgMult * baseMsgs, size));
+        }
+
+        for(int i=0; i<sizes.length; i++) {
+            int size = sizes[i];
+            int msgMult = msgsMultiple[i];
+
+            if(size > maxSize) {
+                break;
+            }
+
+            tests.add(new PubDispatchBenchmark("PubDispatch "+size, msgMult * baseMsgs, size));
+        }
+
         // Request reply is a 4 message trip, and runs the full loop before sending another message
         // so we run fewer because the client cannot batch any socket calls to the server together
-        tests.add(new ReqReplyBenchmark("ReqReply 0b", baseMsgs / 5, 0));
-        tests.add(new ReqReplyBenchmark("ReqReply 8b", baseMsgs / 5, 8));
-        tests.add(new ReqReplyBenchmark("ReqReply 32b", baseMsgs / 10, 32));
-        tests.add(new ReqReplyBenchmark("ReqReply 256b", baseMsgs / 10, 256));
-        tests.add(new ReqReplyBenchmark("ReqReply 512b", baseMsgs / 10, 512));
-        tests.add(new ReqReplyBenchmark("ReqReply 1k", baseMsgs / 10, 1024));
-        tests.add(new ReqReplyBenchmark("ReqReply 4k", baseMsgs / 10, 4*1024));
-        tests.add(new ReqReplyBenchmark("ReqReply 8k", baseMsgs / 10, 8*1024));
+        for(int i=0; i<sizes.length; i++) {
+            int size = sizes[i];
+            int msgDivide = msgsDivider[i];
 
-        tests.add(new LatencyBenchmark("Latency 0b", latencyMsgs, 0));
-        tests.add(new LatencyBenchmark("Latency 8b", latencyMsgs, 8));
-        tests.add(new LatencyBenchmark("Latency 32b", latencyMsgs, 32));
-        tests.add(new LatencyBenchmark("Latency 256b", latencyMsgs, 256));
-        tests.add(new LatencyBenchmark("Latency 512b", latencyMsgs, 512));
-        tests.add(new LatencyBenchmark("Latency 1k", latencyMsgs, 1024));
-        tests.add(new LatencyBenchmark("Latency 4k", latencyMsgs, 4 * 1024));
-        tests.add(new LatencyBenchmark("Latency 8k", latencyMsgs, 8 * 1024));
+            if(size > maxSize) {
+                break;
+            }
+
+            tests.add(new ReqReplyBenchmark("ReqReply "+size, baseMsgs / msgDivide, size));
+        }
+
+        for(int i=0; i<sizes.length; i++) {
+            int size = sizes[i];
+
+            if(size > maxSize) {
+                break;
+            }
+
+            tests.add(new LatencyBenchmark("Latency "+size, latencyMsgs, size));
+        }
         /**/
 
         return tests;

@@ -20,7 +20,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * The Connection class is at the heart of the NATS Java client. Fundamentally a connection represents
- * a single network connection to the gnatsd server.
+ * a single network connection to the NATS server.
  * 
  * <p>Each connection you create will result in the creation of a single socket and several threads:
  * <ul>
@@ -72,7 +72,7 @@ import java.util.concurrent.TimeoutException;
  * 
  * <p><em>Note</em>: The publish methods take an array of bytes. These arrays <strong>will not be copied</strong>. This design choice
  * is based on the common case of strings or objects being converted to bytes. Once a client can be sure a message was received by
- * the gnatsd it is theoretically possible to reuse that byte array, but this pattern should be treated as advanced and only used
+ * the NATS server it is theoretically possible to reuse that byte array, but this pattern should be treated as advanced and only used
  * after thorough testing. 
  */
 public interface Connection extends AutoCloseable {

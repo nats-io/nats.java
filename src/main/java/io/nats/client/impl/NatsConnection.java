@@ -110,6 +110,8 @@ class NatsConnection implements Connection {
     private AtomicReference<NatsDispatcher> inboxDispatcher;
     private Timer timer;
 
+    private AtomicBoolean needPing;
+
     private AtomicLong nextSid;
     private NUID nuid;
 
@@ -156,6 +158,8 @@ class NatsConnection implements Connection {
 
         this.executor = options.getExecutor();
         this.connectExecutor = Executors.newSingleThreadExecutor();
+
+        this.needPing = new AtomicBoolean(true);
     }
 
     // Connect is only called after creation
@@ -186,7 +190,7 @@ class NatsConnection implements Connection {
                 reconnect();
             } else {
                 close();
-                throw new IOException("Unable to connect to gnatsd server.");
+                throw new IOException("Unable to connect to NATS server.");
             }
         }
     }
@@ -1032,6 +1036,13 @@ class NatsConnection implements Connection {
             return retVal;
         }
 
+        if (!treatAsInternal && !this.needPing.get()) {
+            CompletableFuture<Boolean> retVal = new CompletableFuture<Boolean>();
+            retVal.complete(Boolean.TRUE);
+            this.needPing.set(true);
+            return retVal;
+        }
+
         if (max > 0 && pongQueue.size() + 1 > max) {
             handleCommunicationIssue(new IllegalStateException("Max outgoing Ping count exceeded."));
             return null;
@@ -1047,6 +1058,7 @@ class NatsConnection implements Connection {
             queueOutgoing(msg);
         }
 
+        this.needPing.set(true);
         this.statistics.incrementPingCount();
         return pongFuture;
     }
@@ -1151,6 +1163,7 @@ class NatsConnection implements Connection {
     }
 
     void deliverMessage(NatsMessage msg) {
+        this.needPing.set(false);
         this.statistics.incrementInMsgs();
         this.statistics.incrementInBytes(msg.getSizeInBytes());
 

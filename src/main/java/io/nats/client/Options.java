@@ -709,7 +709,7 @@ public class Options {
         /**
          * Turn off server pool randomization. By default the server will pick
          * servers from its list randomly on a reconnect. When set to noRandom the server
-         * goes in the order they were configured or provided by gnatsd.
+         * goes in the order they were configured or provided by a server in a cluster update.
          * @return the Builder for chaining
          */
         public Builder noRandomize() {
@@ -718,7 +718,7 @@ public class Options {
         }
 
         /**
-         * Turn off echo. If supported by the gnatsd version you are connecting to this
+         * Turn off echo. If supported by the nats-server version you are connecting to this
          * flag will prevent the server from echoing messages back to the connection if it
          * has subscriptions on the subject being published to.
          * @return the Builder for chaining
@@ -906,7 +906,15 @@ public class Options {
 
         /**
          * Set the interval between attempts to pings the server. These pings are automated,
-         * and capped by {@link #maxPingsOut(int) maxPingsOut()}.
+         * and capped by {@link #maxPingsOut(int) maxPingsOut()}. As of 2.4.4 the library
+         * may way up to 2 * time to send a ping. Incoming traffic from the server can postpone
+         * the next ping to avoid pings taking up bandwidth during busy messaging.
+         * 
+         * Keep in mind that a ping requires a round trip to the server. Setting this value to a small
+         * number can result in quick failures due to maxPingsOut being reached, these failures will
+         * force a disconnect/reconnect which can result in messages being held back or failed. In general,
+         * the ping interval should be set in seconds but this value is not enforced as it would result in
+         * an API change from the 2.0 release.
          * 
          * @param time the time between client to server pings
          * @return the Builder for chaining
@@ -956,6 +964,10 @@ public class Options {
          * Set the maximum number of bytes to buffer in the client when trying to
          * reconnect. When this value is exceeded the client will start to drop messages.
          * The count of dropped messages can be read from the {@link Statistics#getDroppedCount() Statistics}.
+         * 
+         * A value of zero will disable the reconnect buffer, a value less than zero means unlimited. Caution
+         * should be used for negative numbers as they can result in an unreliable network connection plus a
+         * high message rate leading to an out of memory error.
          * 
          * @param size the size in bytes
          * @return the Builder for chaining
@@ -1104,7 +1116,6 @@ public class Options {
 
             if (this.executor == null) {
                 String threadPrefix = (this.connectionName != null && this.connectionName != "") ? this.connectionName : DEFAULT_THREAD_NAME_PREFIX;
-                this.executor = Executors.newCachedThreadPool();
                 this.executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE,
                                                         500L, TimeUnit.MILLISECONDS,
                                                         new SynchronousQueue<Runnable>(),

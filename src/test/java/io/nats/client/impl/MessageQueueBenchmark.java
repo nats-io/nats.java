@@ -25,8 +25,10 @@ public class MessageQueueBenchmark {
 
         System.out.printf("Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
         System.out.println("Warmed up ...");
+        MessageQueue warm = new MessageQueue(false);
         for (int j = 0; j < msgCount; j++) {
             msgs[j] = new NatsMessage("a");
+            warm.push(msgs[j]);
         }
 
         System.out.println("Starting tests ...");

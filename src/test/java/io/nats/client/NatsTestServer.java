@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
  */
 public class NatsTestServer implements AutoCloseable {
 
-    private static final String GNATSD = "gnatsd";
+    private static final String NATS_SERVER = "gnatsd";
 
     // Use a new port each time, we increment and get so start at the normal port
     private static AtomicInteger portCounter = new AtomicInteger(Options.DEFAULT_PORT + 1);
@@ -44,16 +44,16 @@ public class NatsTestServer implements AutoCloseable {
     private String[] customArgs;
     private String[] configInserts;
 
-    public static String generateGnatsdVersionString() {
+    public static String generateNatsServerVersionString() {
         ArrayList<String> cmd = new ArrayList<String>();
 
-        String gnatsd = System.getenv("gnatsd_path");
+        String server_path = System.getenv("nats_server_path");
 
-        if(gnatsd == null){
-            gnatsd = NatsTestServer.GNATSD;
+        if(server_path == null){
+            server_path = NatsTestServer.NATS_SERVER;
         }
 
-        cmd.add(gnatsd);
+        cmd.add(server_path);
         cmd.add("--version");
 
         try {
@@ -139,13 +139,13 @@ public class NatsTestServer implements AutoCloseable {
     public void start() {
         ArrayList<String> cmd = new ArrayList<String>();
 
-        String gnatsd = System.getenv("gnatsd_path");
+        String server_path = System.getenv("nats_server_path");
 
-        if(gnatsd == null){
-            gnatsd = NatsTestServer.GNATSD;
+        if(server_path == null){
+            server_path = NatsTestServer.NATS_SERVER;
         }
 
-        cmd.add(gnatsd);
+        cmd.add(server_path);
 
         // Rewrite the port to a new one, so we don't reuse the same one over and over
         if (this.configFilePath != null) {
@@ -252,8 +252,8 @@ public class NatsTestServer implements AutoCloseable {
         } catch (IOException ex) {
             System.out.println("%%% Failed to start [" + this.cmdLine + "] with message:");
             System.out.println("\t" + ex.getMessage());
-            System.out.println("%%% Make sure that gnatsd is installed and in your PATH.");
-            System.out.println("%%% See https://github.com/nats-io/gnatsd for information on installing gnatsd");
+            System.out.println("%%% Make sure that the nats-server is installed and in your PATH.");
+            System.out.println("%%% See https://github.com/nats-io/nats-server for information on installation");
 
             throw new IllegalStateException("Failed to run [" + this.cmdLine +"]");
         }
