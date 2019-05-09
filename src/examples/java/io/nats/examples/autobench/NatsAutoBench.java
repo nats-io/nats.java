@@ -68,7 +68,7 @@ public class NatsAutoBench {
             }
         }
 
-        System.out.printf("Connecting to gnatsd at %s\n", server);
+        System.out.printf("Connecting to NATS server at %s\n", server);
 
         try {
             Options.Builder builder = new Options.Builder().

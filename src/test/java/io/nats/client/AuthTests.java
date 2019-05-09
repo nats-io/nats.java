@@ -470,7 +470,7 @@ public class AuthTests {
         assertNotNull(theKey);
 
         String configFile = createNKeyConfigFile(theKey.getPublicKey());
-        String version = NatsTestServer.generateGnatsdVersionString();
+        String version = NatsTestServer.generateNatsServerVersionString();
 
         if (!version.contains("version 2")) {
             // Server version doesn't support this test
@@ -498,7 +498,7 @@ public class AuthTests {
         NKey theKey = NKey.createUser(null);
         assertNotNull(theKey);
 
-        String version = NatsTestServer.generateGnatsdVersionString();
+        String version = NatsTestServer.generateNatsServerVersionString();
 
         if (!version.contains("version 2")) {
             // Server version doesn't support this test
@@ -527,7 +527,7 @@ public class AuthTests {
         assertNotNull(theKey);
 
         String configFile = createNKeyConfigFile(theKey.getPublicKey());
-        String version = NatsTestServer.generateGnatsdVersionString();
+        String version = NatsTestServer.generateNatsServerVersionString();
 
         if (!version.contains("version 2")) {
             // Server version doesn't support this test

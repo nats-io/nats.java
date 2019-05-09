@@ -709,7 +709,7 @@ public class Options {
         /**
          * Turn off server pool randomization. By default the server will pick
          * servers from its list randomly on a reconnect. When set to noRandom the server
-         * goes in the order they were configured or provided by gnatsd.
+         * goes in the order they were configured or provided by a server in a cluster update.
          * @return the Builder for chaining
          */
         public Builder noRandomize() {
@@ -718,7 +718,7 @@ public class Options {
         }
 
         /**
-         * Turn off echo. If supported by the gnatsd version you are connecting to this
+         * Turn off echo. If supported by the nats-server version you are connecting to this
          * flag will prevent the server from echoing messages back to the connection if it
          * has subscriptions on the subject being published to.
          * @return the Builder for chaining

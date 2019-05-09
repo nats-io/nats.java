@@ -19,7 +19,7 @@ package io.nats.client;
  */
 public interface ConnectionListener {
     public enum Events {
-        /** The connection has successfully completed the handshake with the gnatsd. */
+        /** The connection has successfully completed the handshake with the nats-server. */
         CONNECTED("nats: connection opened"),
         /** The connection is permanently closed, either by manual action or failed reconnects. */
         CLOSED("nats: connection closed"),

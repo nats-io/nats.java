@@ -190,7 +190,7 @@ class NatsConnection implements Connection {
                 reconnect();
             } else {
                 close();
-                throw new IOException("Unable to connect to gnatsd server.");
+                throw new IOException("Unable to connect to NATS server.");
             }
         }
     }

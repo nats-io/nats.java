@@ -12,6 +12,8 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 
 ## A Note on Versions
 
+The NATS server renamed itself from gnatsd to nats-server around 2.4.4. This and other files try to use the new names, but some underlying code may change over several versions. If you are building yourself, please keep an eye out for issues and report them.
+
 This is version 2.1 of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
 
 The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
@@ -101,7 +103,7 @@ NATS uses RNG to generate unique inbox names. A peculiarity of the JDK on Linux 
 
 ## Basic Usage
 
-Sending and receiving with NATS is as simple as connecting to the gnatsd and publishing or subscribing for messages. A number of examples are provided in this repo as described in [examples.md](src/examples/java/io/nats/examples/examples.md).
+Sending and receiving with NATS is as simple as connecting to the nats-server and publishing or subscribing for messages. A number of examples are provided in this repo as described in [examples.md](src/examples/java/io/nats/examples/examples.md).
 
 ### Connecting
 
@@ -232,7 +234,7 @@ If you want to try out these techniques, take a look at the [examples.md](src/ex
 
 ### Clusters & Reconnecting
 
-The Java client will automatically reconnect if it loses its connection the gnatsd. If given a single server, the client will keep trying that one. If given a list of servers, the client will rotate between them. When the gnatsd servers are in a cluster, they will tell the client about the other servers, so that in the simplest case a client could connect to one server, learn about the cluster and reconnect to another server if its initial one goes down.
+The Java client will automatically reconnect if it loses its connection the nats-server. If given a single server, the client will keep trying that one. If given a list of servers, the client will rotate between them. When the nats servers are in a cluster, they will tell the client about the other servers, so that in the simplest case a client could connect to one server, learn about the cluster and reconnect to another server if its initial one goes down.
 
 To tell the connection about multiple servers for the initial connection, use the `servers()` method on the options builder, or call `server()` multiple times.
 
@@ -245,7 +247,7 @@ Reconnection behavior is controlled via a few options, see the javadoc for the O
 
 ## Benchmarking
 
-The `io.nats.examples` package contains two benchmarking tools, modeled after tools in other NATS clients. Both examples run against an existing gnatsd. The first called `io.nats.examples.benchmark.NatsBench` runs two simple tests, the first simply publishes messages, the second also receives messages. Tests are run with 1 thread/connection per publisher or subscriber. Running on an iMac (2017), with 4.2 GHz Intel Core i7 and 64GB of memory produced results like:
+The `io.nats.examples` package contains two benchmarking tools, modeled after tools in other NATS clients. Both examples run against an existing nats-server. The first called `io.nats.examples.benchmark.NatsBench` runs two simple tests, the first simply publishes messages, the second also receives messages. Tests are run with 1 thread/connection per publisher or subscriber. Running on an iMac (2017), with 4.2 GHz Intel Core i7 and 64GB of memory produced results like:
 
 ```AsciiDoc
 Starting benchmark(s) [msgs=5000000, msgsize=256, pubs=2, subs=2]
@@ -371,7 +373,7 @@ The java doc is located in `build/docs` and the example jar is in `build/libs`. 
 
 which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
 
-Many of the tests run gnatsd on a custom port. If gnatsd is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the gnatsd location with the environment variable `gnatsd_path`.
+Many of the tests run nats-server on a custom port. If nats-server is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the nats-server location with the environment variable `nats_-_server_path`.
 
 ## License
 

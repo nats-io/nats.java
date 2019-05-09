@@ -19,14 +19,14 @@ import io.nats.client.impl.NatsImpl;
 
 /**
  * The Nats class is the entry point into the NATS client for Java. This class
- * is used to create a connection to the Nats server, gnatsd. Connecting is a
+ * is used to create a connection to the NATS server. Connecting is a
  * synchronous process, with a new asynchronous version available for experimenting.
  * 
  * <p>Simple connections can be created with a URL, while more control is provided
  * when an {@link Options Options} object is used. There are a number of options that
  * effect every connection, as described in the {@link Options Options} documentation.
  * 
- * <p>At its simplest, you can connect to a gnatsd on the local host using the default port with:
+ * <p>At its simplest, you can connect to a nats-server on the local host using the default port with:
  * <pre>Connection nc = Nats.connect()</pre>
  * <p>and start sending or receiving messages immediately after that.
  * 
