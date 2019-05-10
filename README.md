@@ -12,7 +12,7 @@ A [Java](http://java.com) client for the [NATS messaging system](https://nats.io
 
 ## A Note on Versions
 
-The NATS server renamed itself from gnatsd to nats-server around 2.4.4. This and other files try to use the new names, but some underlying code may change over several versions. If you are building yourself, please keep an eye out for issues and report them.
+The NATS server renamed itself from gnatsd to nats-server around 2.4.6. This and other files try to use the new names, but some underlying code may change over several versions. If you are building yourself, please keep an eye out for issues and report them.
 
 This is version 2.1 of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
 
@@ -38,9 +38,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.4.4/jnats-2.4.4.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.4.4/jnats-2.4.4.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.4.6/jnats-2.4.6.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.4.6/jnats-2.4.6.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.4.4/jnats-2.4.4-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.4.4/jnats-2.4.4-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.4.6/jnats-2.4.6-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.4.6/jnats-2.4.6-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -50,7 +50,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.4.4'
+    implementation 'io.nats:jnats:2.4.6'
 }
 ```
 
@@ -76,7 +76,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.4.4</version>
+    <version>2.4.6</version>
 </dependency>
 ```
 
