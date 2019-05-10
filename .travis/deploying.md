@@ -52,7 +52,7 @@ The global/secure values are used to deploy, they can be regenerated/created by 
 the sonatype repository
 
 You can use --add or copy and paste to the global section manually.
-I had issues with the repo, so you may want to add -r nats-io/java-nats
+I had issues with the repo, so you may want to add -r nats-io/nats.java
 
 ```bash
 > cd java-nats
