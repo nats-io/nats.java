@@ -1,7 +1,7 @@
 
 # Change Log
 
-## Version 2.4.5
+## Version 2.4.5 & 2.4.6
 
 * Clean up for rename to nats.java
 
