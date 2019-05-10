@@ -194,7 +194,7 @@ uploadArchives {
                 name 'jnats'
                 packaging 'jar'
                 description 'Client library for working with the NATS messaging system.'
-                url 'https://github.com/nats-io/java-nats'
+                url 'https://github.com/nats-io/nats.java'
                 licenses {
                     license {
                         name = 'The Apache License, Version 2.0'
@@ -210,7 +210,7 @@ uploadArchives {
                     }
                 }
                 scm {
-                    url = 'https://github.com/nats-io/java-nats'
+                    url = 'https://github.com/nats-io/nats.java'
                 }
             }
         }

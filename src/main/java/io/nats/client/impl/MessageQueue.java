@@ -179,7 +179,7 @@ class MessageQueue {
                 }
 
                 // Thread.sleep(1000) <- use this to test the "isEmpty" fix below
-                // see https://github.com/nats-io/java-nats/issues/220 for discussion
+                // see https://github.com/nats-io/nats.java/issues/220 for discussion
 
                 // once we are in the waiters, we can be signaled, but
                 // until then we can't, so there is a possible timing bug

@@ -1,6 +1,10 @@
 
 # Change Log
 
+## Version 2.4.5
+
+* Clean up for rename to nats.java
+
 ## Version 2.4.4
 
 * [FIXED] - #230 - removed extra executor allocation

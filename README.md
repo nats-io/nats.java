@@ -5,8 +5,8 @@
 A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Build Status](https://travis-ci.org/nats-io/java-nats.svg?branch=master)](http://travis-ci.org/nats-io/java-nats?branch=master)
-[![Coverage Status](https://coveralls.io/repos/nats-io/java-nats/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/java-nats?branch=master)
+[![Build Status](https://travis-ci.org/nats-io/nats.java.svg?branch=master)](http://travis-ci.org/nats-io/nats.java?branch=master)
+[![Coverage Status](https://coveralls.io/repos/nats-io/nats.java/badge.svg?branch=master&service=github)](https://coveralls.io/github/nats-io/nats.java?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
 [![Javadoc](http://javadoc.io/badge/io.nats/jnats.svg?branch=master)](http://javadoc.io/doc/io.nats/jnats?branch=master)
 
@@ -345,7 +345,7 @@ Final memory usage is 317.62 mb / 960.50 mb / 960.50 mb free/total/max
 The build depends on Gradle, and contains `gradlew` to simplify the process. After cloning, you can build the repository and run the tests with a single command:
 
 ```bash
-> git clone https://github.com/nats-io/java-nats.git
+> git clone https://github.com/nats-io/nats.java.git
 > cd java-nats
 > ./gradlew build
 ```
