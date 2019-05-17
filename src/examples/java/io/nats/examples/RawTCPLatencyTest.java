@@ -44,22 +44,23 @@ public class RawTCPLatencyTest {
     }
 
     private static void runServer() throws IOException {
-        ServerSocket serverSocket = new ServerSocket(port);
-        while (true) {
-            Socket socket = serverSocket.accept();
-            System.out.println("Connected");
-            socket.setTcpNoDelay(true);
-            socket.setReceiveBufferSize(2 * 1024 * 1024);
-            socket.setSendBufferSize(2 * 1024 * 1024);
-            in = socket.getInputStream();
-            out = socket.getOutputStream();
-            try {
-                while (true) {
-                    int rq = in.read();
-                    out.write(rq);
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            while (true) {
+                Socket socket = serverSocket.accept();
+                System.out.println("Connected");
+                socket.setTcpNoDelay(true);
+                socket.setReceiveBufferSize(2 * 1024 * 1024);
+                socket.setSendBufferSize(2 * 1024 * 1024);
+                in = socket.getInputStream();
+                out = socket.getOutputStream();
+                try {
+                    while (true) {
+                        int rq = in.read();
+                        out.write(rq);
+                    }
+                } catch (IOException e) {
+                    System.out.println("Disconnected");
                 }
-            } catch (IOException e) {
-                System.out.println("Disconnected");
             }
         }
     }

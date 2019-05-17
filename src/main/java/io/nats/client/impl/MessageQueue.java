@@ -14,11 +14,12 @@
 package io.nats.client.impl;
 
 import java.time.Duration;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.ArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
@@ -27,39 +28,30 @@ class MessageQueue {
     private final static int RUNNING = 1;
     private final static int DRAINING = 2;
 
-    public static final int MAX_SPINS = 200; // Default max spins
-    public static final int SPIN_WAIT = 50;
-    public static final int MAX_SPIN_TIME = SPIN_WAIT * MAX_SPINS;
-
     private final AtomicLong length;
     private final AtomicLong sizeInBytes;
     private final AtomicInteger running;
     private final boolean singleThreadedReader;
-    private final int maxSpins;
-    private final ConcurrentLinkedQueue<NatsMessage> queue;
-    private final ConcurrentLinkedQueue<Thread> waiters;
+    private final LinkedBlockingQueue<NatsMessage> queue;
     private final Lock filterLock;
+    private final NatsMessage poisonPill;
 
-    MessageQueue(boolean singleReaderMode) {
-        this.queue = new ConcurrentLinkedQueue<>();
+    MessageQueue(boolean singleReaderMode, int publishHighwaterMark) {
+        this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
 
+        // The poisonPill is used to stop poll and accumulate when the queue is stopped
+        this.poisonPill = new NatsMessage("_poison", null, NatsConnection.EMPTY_BODY, false);
+
         this.filterLock = new ReentrantLock();
         
-        this.waiters = new ConcurrentLinkedQueue<>();
         this.singleThreadedReader = singleReaderMode;
+    }
 
-        String os = System.getProperty("os.name");
-        os = os != null ? os.toLowerCase() : "";
-
-        // Windows does not like spin locks, see issue #224
-        if(os.contains("windows")) {
-            this.maxSpins = 0;
-        } else {
-            this.maxSpins = MAX_SPINS;
-        }
+    MessageQueue(boolean singleReaderMode) {
+        this(singleReaderMode, 0);
     }
 
     boolean isSingleReaderMode() {
@@ -76,134 +68,79 @@ class MessageQueue {
 
     void pause() {
         this.running.set(STOPPED);
-        signalAll();
+        this.poisonTheQueue();
     }
 
     void resume() {
         this.running.set(RUNNING);
-        signalAll();
     }
 
     void drain() {
         this.running.set(DRAINING);
-        signalAll();
+        this.poisonTheQueue();
     }
 
     boolean isDrained() {
+        // poison pill is not included in the length count, or the size
         return this.running.get() == DRAINING && this.length() == 0;
     }
 
-    void signalOne() {
-        Thread t = waiters.poll();
-        if (t != null) {
-            LockSupport.unpark(t);
-        }
-    }
-
-    void signalIfNotEmpty() {
-        if (this.length.get() > 0) {
-            signalOne();
-        }
-    }
-
-    void signalAll() {
-        Thread t = waiters.poll();
-        while(t != null) {
-            LockSupport.unpark(t);
-            t = waiters.poll();
-        }
-    }
-
     void push(NatsMessage msg) {
-
         // If we aren't running, then we need to obey the filter lock
         // to avoid ordering problems
         if(!this.isRunning()) {
             this.filterLock.lock();
-            this.queue.add(msg);
+            this.put(msg);
             this.filterLock.unlock();
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
             this.length.incrementAndGet();
-            signalOne();
             return;
         }
 
-        this.queue.add(msg);
+        this.put(msg);
         this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
         this.length.incrementAndGet();
-        signalOne();
     }
 
-    NatsMessage waitForTimeout(Duration timeout) throws InterruptedException {
-        long timeoutNanos = (timeout != null) ? timeout.toNanos() : -1;
-        NatsMessage retVal = null;
+    void poisonTheQueue() {
+        try {
+            this.queue.add(this.poisonPill);
+        } catch (IllegalStateException ie) { // queue was full, so we don't really need poison pill
+            // ok to ignore this
+        }
+    }
 
-        if (timeoutNanos >= 0) {
-            Thread t = Thread.currentThread();
-            long start = System.nanoTime();
+    void put(NatsMessage msg) {
+        try {
+            this.queue.put(msg);
+        } catch (InterruptedException ie) {
+            // ok to ignore this
+        }
+    }
 
-            // Semi-spin for at most MAX_SPIN_TIME
-            if (timeoutNanos > MAX_SPIN_TIME) {
-                int count = 0;
-                while (this.isRunning() && (retVal = this.queue.poll()) == null && count < this.maxSpins) {
+    NatsMessage poll(Duration timeout) throws InterruptedException {
+        NatsMessage msg = null;
+        
+        if (timeout == null || this.isDraining()) { // try immediately
+            msg = this.queue.poll();
+        } else {
+            long nanos = timeout.toNanos();
 
-                    if (this.isDraining()) {
-                        break;
-                    }
-
-                    count++;
-                    LockSupport.parkNanos(SPIN_WAIT);
-                }
-            }
-
-            if (retVal != null) {
-                return retVal;
-            }
-            
-            long now = start;
-
-            while (this.isRunning() && (retVal = this.queue.poll()) == null) {
-                
-                if (this.isDraining()) {
-                    break;
-                }
-                
-                if (timeoutNanos > 0) { // If it is 0, keep it as zero, otherwise reduce based on time
-                    now = System.nanoTime();
-                    timeoutNanos = timeoutNanos - (now - start); //include the semi-spin time
-                    start = now;
-
-                    if (timeoutNanos <= 0) { // just in case we hit it exactly
-                        break;
-                    }
-                }
-
-                // Thread.sleep(1000) <- use this to test the "isEmpty" fix below
-                // see https://github.com/nats-io/nats.java/issues/220 for discussion
-
-                // once we are in the waiters, we can be signaled, but
-                // until then we can't, so there is a possible timing bug
-                // where we aren't in waiters, aren't checking queue and
-                // miss the signalone when we are the only reader. By double
-                // checking isEmpty we insure that we either get the signal in park
-                // or we have a very short park here
-                waiters.add(t);
-                if (!this.queue.isEmpty()) {
-                    LockSupport.parkNanos(SPIN_WAIT);
-                } else if (timeoutNanos == 0) {
-                    LockSupport.park();
-                } else {
-                    LockSupport.parkNanos(timeoutNanos);
-                }
-                waiters.remove(t);
-
-                if (Thread.interrupted()) {
-                    throw new InterruptedException("Interrupted during timeout");
+            if (nanos != 0) {
+                msg = this.queue.poll(nanos, TimeUnit.NANOSECONDS);
+            } else {
+                while (this.isRunning()) {
+                    msg = this.queue.poll(100, TimeUnit.DAYS);
+                    if (msg != null) break;
                 }
             }
         }
 
-        return retVal;
+        if (msg == poisonPill) {
+            return null;
+        }
+
+        return msg;
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
@@ -211,19 +148,16 @@ class MessageQueue {
             return null;
         }
 
-        NatsMessage retVal = this.queue.poll();
+        NatsMessage msg = this.poll(timeout);
 
-        if (retVal == null && timeout != null) {
-            retVal = waitForTimeout(timeout);
+        if (msg == null) {
+            return null;
         }
 
-        if(retVal != null) {
-            this.sizeInBytes.getAndAdd(-retVal.getSizeInBytes());
-            this.length.decrementAndGet();
-            signalIfNotEmpty();
-        }
+        this.sizeInBytes.getAndAdd(-msg.getSizeInBytes());
+        this.length.decrementAndGet();
 
-        return retVal;
+        return msg;
     }
     
     // Waits up to the timeout to try to accumulate multiple messages
@@ -231,7 +165,7 @@ class MessageQueue {
     // maxSize and maxMessages are both checked and if either is exceeded
     // the method returns.
     //
-    // A timeout of 0 will wait indefinitely
+    // A timeout of 0 will wait forever (or until the queue is stopped/drained)
     //
     // Only works in single reader mode, because we want to maintain order.
     // accumulate reads off the concurrent queue one at a time, so if multiple
@@ -247,14 +181,10 @@ class MessageQueue {
             return null;
         }
 
-        NatsMessage msg = this.queue.poll();
+        NatsMessage msg = this.poll(timeout);
 
         if (msg == null) {
-            msg = waitForTimeout(timeout);
-            
-            if (!this.isRunning() || (msg == null)) {
-                return null;
-            }
+            return null;
         }
 
         long size = msg.getSizeInBytes();
@@ -262,7 +192,6 @@ class MessageQueue {
         if (maxMessages <= 1 || size >= maxSize) {
             this.sizeInBytes.addAndGet(-size);
             this.length.decrementAndGet();
-            signalIfNotEmpty();
             return msg;
         }
 
@@ -271,7 +200,7 @@ class MessageQueue {
         
         while (cursor != null) {
             NatsMessage next = this.queue.peek();
-            if (next != null) {
+            if (next != null && next != this.poisonPill) {
                 long s = next.getSizeInBytes();
 
                 if (maxSize<0 || (size + s) < maxSize) { // keep going
@@ -295,7 +224,6 @@ class MessageQueue {
         this.sizeInBytes.addAndGet(-size);
         this.length.addAndGet(-count);
 
-        signalIfNotEmpty();
         return msg;
     }
 
@@ -319,7 +247,7 @@ class MessageQueue {
         }
     
         this.filterLock.lock();
-        ConcurrentLinkedQueue<NatsMessage> newQueue = new ConcurrentLinkedQueue<>();
+        ArrayList<NatsMessage> newQueue = new ArrayList<>();
         NatsMessage cursor = this.queue.poll();
 
         while (cursor != null) {
