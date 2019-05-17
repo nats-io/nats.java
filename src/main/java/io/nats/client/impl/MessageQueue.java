@@ -34,17 +34,21 @@ class MessageQueue {
     private final AtomicLong length;
     private final AtomicLong sizeInBytes;
     private final AtomicInteger running;
+    private final long publishHighwaterMark;
+    private final long publishHighwaterMarkBytes;
     private final boolean singleThreadedReader;
     private final int maxSpins;
     private final ConcurrentLinkedQueue<NatsMessage> queue;
     private final ConcurrentLinkedQueue<Thread> waiters;
     private final Lock filterLock;
 
-    MessageQueue(boolean singleReaderMode) {
+    MessageQueue(boolean singleReaderMode, long publishHighwaterMark, long publishHighwaterMarkBytes) {
         this.queue = new ConcurrentLinkedQueue<>();
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
+        this.publishHighwaterMark = publishHighwaterMark;
+        this.publishHighwaterMarkBytes = publishHighwaterMarkBytes;
 
         this.filterLock = new ReentrantLock();
         
@@ -60,6 +64,10 @@ class MessageQueue {
         } else {
             this.maxSpins = MAX_SPINS;
         }
+    }
+
+    MessageQueue(boolean singleReaderMode) {
+        this(singleReaderMode, 0, 0);
     }
 
     boolean isSingleReaderMode() {
@@ -115,6 +123,24 @@ class MessageQueue {
     }
 
     void push(NatsMessage msg) {
+        // if we are at the highwater mark, yield the send thread until we get some
+        // data on the wire
+        Thread t = Thread.currentThread();
+        boolean checkHighwater = this.isRunning() && this.publishHighwaterMark > 0 && this.publishHighwaterMarkBytes > 0;
+        long length = this.length.get();
+        long bytes = this.sizeInBytes.get();
+
+        while (checkHighwater && (length >= this.publishHighwaterMark || bytes >= this.publishHighwaterMarkBytes)) {
+            signalOne();
+            
+            waiters.add(t);
+            LockSupport.park(); // wait for someone to signal us
+            waiters.remove(t);
+            
+            checkHighwater = this.isRunning() && this.publishHighwaterMark > 0 && this.publishHighwaterMarkBytes > 0;
+            length = this.length.get();
+            bytes = this.sizeInBytes.get();
+        }
 
         // If we aren't running, then we need to obey the filter lock
         // to avoid ordering problems

@@ -105,6 +105,23 @@ public class NatsBench {
         builder.noReconnect();
         builder.connectionName("NatsBench");
         builder.servers(servers);
+        builder.errorListener(new ErrorListener(){
+            @Override
+            public void errorOccurred(Connection conn, String error) {
+                System.out.printf("An error occurred %s\n", error);
+            }
+
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                System.out.println("An exception occurred...");
+                exp.printStackTrace();
+            }
+
+            @Override
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {
+                System.out.println("Slow consumer detected");
+            }
+        });
         //builder.turnOnAdvancedStats();
 
         if (secure) {
@@ -213,10 +230,12 @@ public class NatsBench {
                     nc.publish(subject, payload);
                     sent.incrementAndGet();
                 }
-                nc.flush(Duration.ofSeconds(5));
+                nc.flush(Duration.ofSeconds(15));
                 long end = System.nanoTime();
 
                 bench.addPubSample(new Sample(numMsgs, size, start.get(), end, nc.getStatistics()));
+
+                //System.out.println(nc.getStatistics());
                 nc.close();
             } catch (Exception e) {
                 errorQueue.add(e);
@@ -265,7 +284,7 @@ public class NatsBench {
             
             // Flush small messages regularly
             if (this.size < 64 && count != 0 && count % 100_000 == 0) {
-                try {nc.flush(Duration.ofSeconds(5));}catch(Exception e){}
+                try {nc.flush(Duration.ofSeconds(15));}catch(Exception e){}
             }
         }
     }
