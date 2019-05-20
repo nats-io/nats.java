@@ -53,9 +53,16 @@ class NatsConnectionWriter implements Runnable {
         int bufSize = connection.getOptions().getBufferSize();
         this.sendBuffer = new byte[bufSize];
 
-        // Limit the messages that we can push on the queue to 5x the number we would send in a single batch
+        // The value of 1000 is arbitrary, based on performance testing, a send buffer is also configured above and
+        // that size is used first, only if many small messages are being sent on a big buffer will this value
+        // come into play.
         this.maxAccumulate = 1000;
+        
+        // We limit the messages that we can push before blocking to 5x the number we would send in a single batch
+        // Again this is arbitrary, based on testing
         outgoing = new MessageQueue(true, (int) (5 * maxAccumulate));
+
+        // The reconnect buffer contains internal messages, and we will keep it unlimited in size
         reconnectOutgoing = new MessageQueue(true, 0);
     }
 

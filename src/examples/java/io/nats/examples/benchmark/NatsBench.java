@@ -35,7 +35,6 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * A utility class for measuring NATS performance, similar to the version in go and node.
@@ -57,6 +56,7 @@ public class NatsBench {
     private final AtomicLong sent = new AtomicLong();
     private final AtomicLong received = new AtomicLong();
     private boolean csv = false;
+    private boolean stats = false;
 
     private Thread shutdownHook;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -72,7 +72,8 @@ public class NatsBench {
                     + "    -ns                             Number of concurrent subscribers (0)\n"
                     + "    -n                              Number of messages to publish (100,000)\n"
                     + "    -ms                             Size of the message (128)\n"
-                    + "    -csv                            Print results to stdout as csv (false)\n";
+                    + "    -csv                            Print results to stdout as csv (false)\n"
+                    + "    -stats                          Track and print out internal statistics (false)\n";
 
     public NatsBench(String[] args) throws Exception {
         if (args == null || args.length < 1) {
@@ -122,7 +123,10 @@ public class NatsBench {
                 System.out.println("Slow consumer detected");
             }
         });
-        //builder.turnOnAdvancedStats();
+
+        if (stats) {
+            builder.turnOnAdvancedStats();
+        }
 
         if (secure) {
             builder.secure();
@@ -187,7 +191,9 @@ public class NatsBench {
 
                 bench.addSubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
 
-                //System.out.println(nc.getStatistics());
+                if (stats) {
+                    System.out.println(nc.getStatistics());
+                }
 
                 // Clean up
                 sub.unsubscribe();
@@ -204,12 +210,10 @@ public class NatsBench {
     class PubWorker extends Worker {
 
         private AtomicLong start;
-        private long targetPubRate;
 
         PubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure, long targetPubRate) {
             super(starter, finisher, numMsgs, size, secure);
             this.start = new AtomicLong();
-            this.targetPubRate = targetPubRate;
         }
 
         @Override
@@ -235,56 +239,14 @@ public class NatsBench {
 
                 bench.addPubSample(new Sample(numMsgs, size, start.get(), end, nc.getStatistics()));
 
-                //System.out.println(nc.getStatistics());
+                if (stats) {
+                    System.out.println(nc.getStatistics());
+                }
                 nc.close();
             } catch (Exception e) {
                 errorQueue.add(e);
             } finally {
                 finisher.arrive();
-            }
-        }
-
-
-        void adjustAndSleep(Connection nc) throws InterruptedException {
-
-            if (this.targetPubRate <= 0) {
-                return;
-            }
-
-            long count = sent.incrementAndGet();
-
-            if (count % 1000 != 0) { // Only sleep every 1000 message
-                return;
-            }
-
-            long now = System.nanoTime();
-            long start = this.start.get();
-            double rate = (1e9 * (double) count)/((double)(now - start));
-            double delay = (1.0/((double) this.targetPubRate));
-            double adjust = delay / 20.0; // 5%
-            
-            if (adjust == 0) {
-                adjust = 1e-9; // 1ns min
-            }
-            
-            if (rate < this.targetPubRate) {
-                delay -= adjust;
-            } else if (rate > this.targetPubRate) {
-                delay += adjust;
-            }
-            
-            if (delay < 0) {
-                delay = 0;
-            }
-
-            delay = delay * 1000; // we are doing this every 1000 messages
-            
-            long nanos = (long)(delay * 1e9);
-            LockSupport.parkNanos(nanos);
-            
-            // Flush small messages regularly
-            if (this.size < 64 && count != 0 && count % 100_000 == 0) {
-                try {nc.flush(Duration.ofSeconds(15));}catch(Exception e){}
             }
         }
     }
@@ -481,11 +443,18 @@ public class NatsBench {
                     it.remove();
                     continue;
                 case "-csv":
-                    if (!it.hasNext()) {
+                    if (it.hasNext()) {
                         usage();
                     }
                     it.remove();
                     csv = true;
+                    continue;
+                case "-stats":
+                    if (it.hasNext()) {
+                        usage();
+                    }
+                    it.remove();
+                    stats = true;
                     continue;
                 default:
                     System.err.printf("Unexpected token: '%s'\n", arg);

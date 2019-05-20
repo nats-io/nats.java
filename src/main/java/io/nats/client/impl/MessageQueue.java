@@ -34,8 +34,18 @@ class MessageQueue {
     private final boolean singleThreadedReader;
     private final LinkedBlockingQueue<NatsMessage> queue;
     private final Lock filterLock;
+
+    // Poison pill is a graphic, but common term for an item that breaks loops or forces some other action
+    // In this class the poisonPill is used to break out of timed waits on the blocking queue.
     private final NatsMessage poisonPill;
 
+    /**
+     * If publishHighwaterMark is set to 0 the underlying queue can grow forever. This is used by readers
+     * to prevent the read thread from blocking. If set to a number, the publish command will block, which provides
+     * backpressure on a publisher if the writer is slow to push things onto the network.
+     * @param singleReaderMode allows the use of "accumulate"
+     * @param publishHighwaterMark sets a limit on the size of the underlying queue
+     */
     MessageQueue(boolean singleReaderMode, int publishHighwaterMark) {
         this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
         this.running = new AtomicInteger(RUNNING);
@@ -102,6 +112,10 @@ class MessageQueue {
         this.length.incrementAndGet();
     }
 
+    /**
+     * poisoning the queue puts the known poison pill into the queue, forcing any waiting code to stop
+     * waiting and return.
+     */
     void poisonTheQueue() {
         try {
             this.queue.add(this.poisonPill);
@@ -114,7 +128,9 @@ class MessageQueue {
         try {
             this.queue.put(msg);
         } catch (InterruptedException ie) {
-            // ok to ignore this
+            // ok to ignore this, thread was interrupted, so success is not required
+            // and throwing will change the API
+            // This change went in with 2.5 which switched to a blocking queue
         }
     }
 
@@ -129,6 +145,9 @@ class MessageQueue {
             if (nanos != 0) {
                 msg = this.queue.poll(nanos, TimeUnit.NANOSECONDS);
             } else {
+                // A value of 0 means wait forever
+                // We will loop and wait for a LONG time
+                // if told to suspend/drain the poison pill will break this loop
                 while (this.isRunning()) {
                     msg = this.queue.poll(100, TimeUnit.DAYS);
                     if (msg != null) break;
