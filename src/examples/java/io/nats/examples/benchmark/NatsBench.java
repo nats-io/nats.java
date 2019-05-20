@@ -211,7 +211,7 @@ public class NatsBench {
 
         private AtomicLong start;
 
-        PubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure, long targetPubRate) {
+        PubWorker(Future<Boolean> starter, Phaser finisher, int numMsgs, int size, boolean secure) {
             super(starter, finisher, numMsgs, size, secure);
             this.start = new AtomicLong();
         }
@@ -323,9 +323,9 @@ public class NatsBench {
                 }
                 
                 if (subCount == 0) {
-                    new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure, 0), "Pub-"+i).start();
+                    new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure), "Pub-"+i).start();
                 } else {
-                    new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure, 2_000_000), "Pub-"+i).start();
+                    new Thread(new PubWorker(starter, finisher, perPubMsgs, this.size, secure), "Pub-"+i).start();
                 }
                 
                 remaining -= perPubMsgs;

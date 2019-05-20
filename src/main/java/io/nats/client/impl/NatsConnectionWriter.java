@@ -25,6 +25,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
+import io.nats.client.Options;
+
 class NatsConnectionWriter implements Runnable {
 
     private final NatsConnection connection;
@@ -39,7 +41,6 @@ class NatsConnectionWriter implements Runnable {
 
     private MessageQueue outgoing;
     private MessageQueue reconnectOutgoing;
-    private final long maxAccumulate;
 
     NatsConnectionWriter(NatsConnection connection) {
         this.connection = connection;
@@ -52,15 +53,8 @@ class NatsConnectionWriter implements Runnable {
 
         int bufSize = connection.getOptions().getBufferSize();
         this.sendBuffer = new byte[bufSize];
-
-        // The value of 1000 is arbitrary, based on performance testing, a send buffer is also configured above and
-        // that size is used first, only if many small messages are being sent on a big buffer will this value
-        // come into play.
-        this.maxAccumulate = 1000;
         
-        // We limit the messages that we can push before blocking to 5x the number we would send in a single batch
-        // Again this is arbitrary, based on testing
-        outgoing = new MessageQueue(true, (int) (5 * maxAccumulate));
+        outgoing = new MessageQueue(true, Options.MAX_MESSAGES_IN_OUTGOING_QUEUE);
 
         // The reconnect buffer contains internal messages, and we will keep it unlimited in size
         reconnectOutgoing = new MessageQueue(true, 0);
@@ -112,15 +106,16 @@ class NatsConnectionWriter implements Runnable {
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             NatsStatistics stats = this.connection.getNatsStatistics();
+            int maxAccumulate = Options.MAX_MESSAGES_IN_NETWORK_BUFFER;
 
             while (this.running.get()) {
                 int sendPosition = 0;
                 NatsMessage msg = null;
                 
                 if (this.reconnectMode.get()) {
-                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, this.maxAccumulate, reconnectWait);
+                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxAccumulate, reconnectWait);
                 } else {
-                    msg = this.outgoing.accumulate(this.sendBuffer.length, this.maxAccumulate, waitForMessage);
+                    msg = this.outgoing.accumulate(this.sendBuffer.length, maxAccumulate, waitForMessage);
                 }
 
                 if (msg == null) { // Make sure we are still running

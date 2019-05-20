@@ -35,14 +35,16 @@ class MessageQueue {
     private final LinkedBlockingQueue<NatsMessage> queue;
     private final Lock filterLock;
 
-    // Poison pill is a graphic, but common term for an item that breaks loops or forces some other action
+    // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poisonPill is used to break out of timed waits on the blocking queue.
+    // A simple == is used to check if any message in the queue is this message.
     private final NatsMessage poisonPill;
 
     /**
-     * If publishHighwaterMark is set to 0 the underlying queue can grow forever. This is used by readers
-     * to prevent the read thread from blocking. If set to a number, the publish command will block, which provides
-     * backpressure on a publisher if the writer is slow to push things onto the network.
+     * If publishHighwaterMark is set to 0 the underlying queue can grow forever (or until the max size of a linked blocking queue that is).
+     * A value of 0 is used by readers to prevent the read thread from blocking.
+     * If set to a number of messages, the publish command will block, which provides
+     * backpressure on a publisher if the writer is slow to push things onto the network. Publishers use the value of Options.MAX_MESSAGES_IN_OUTGOING_QUEUE.
      * @param singleReaderMode allows the use of "accumulate"
      * @param publishHighwaterMark sets a limit on the size of the underlying queue
      */

@@ -70,7 +70,7 @@ public abstract class ThrottledBenchmark extends AutoBenchmark {
 
     /**
      * Throttled benchmarks use an optional target send rate. This is to make sure the subscribers are not overrun,
-     * become slow consumers. The addition of this code was motivated by the assymetry in the java library between
+     * become slow consumers. The addition of this code was motivated by the asymetry in the java library between
      * publishers and subscribers, especially if UTF-8 subjects are enabled.
      * @param nc the connection
      * @throws InterruptedException
