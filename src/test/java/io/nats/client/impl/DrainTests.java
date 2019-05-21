@@ -625,7 +625,7 @@ public class DrainTests {
                 assertNotNull(msg);
             }
 
-            assertTrue(tracker.get(1, TimeUnit.SECONDS));
+            assertTrue(tracker.get(5, TimeUnit.SECONDS));
             assertFalse(sub.isActive());
             assertEquals(((NatsConnection) subCon).getConsumerCount(), 0);
         }

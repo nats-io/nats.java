@@ -177,6 +177,29 @@ public class Options {
      */
     public static final String DEFAULT_INBOX_PREFIX = "_INBOX.";
 
+    /**
+     * This value is used internally to limit the number of messages sent in a single network I/O.
+     * The value returned by {@link #getBufferSize() getBufferSize()} is used first, but if the buffer
+     * size is large and the message sizes are small, this limit comes into play.
+     * 
+     * The choice of 1000 is arbitrary and based on testing across several operating systems. Use buffer
+     * size for tuning.
+     */
+    public static final int MAX_MESSAGES_IN_NETWORK_BUFFER = 1000;
+
+    /**
+     * This value is used internally to limit the number of messages allowed in the outgoing queue. When
+     * this limit is reached, publish requests will be blocked until the queue can clear.
+     * 
+     * Because this value is in messages, the memory size associated with this value depends on the actual
+     * size of messages. If 0 byte messages are used, then MAX_MESSAGES_IN_OUTGOING_QUEUE will take up the minimal
+     * space. If 1024 byte messages are used then approximately 5Mb is used for the queue (plus overhead for subjects, etc..)
+     * 
+     * We are using messages, not bytes, to allow a simplification in the underlying library, and use LinkedBlockingQueue as
+     * the core element in the queue.
+     */
+    public static final int MAX_MESSAGES_IN_OUTGOING_QUEUE = 5000;
+
     static final String PFX = "io.nats.client.";
 
     /**

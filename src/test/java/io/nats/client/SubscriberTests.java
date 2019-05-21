@@ -109,6 +109,7 @@ public class SubscriberTests {
             Message msg = sub.nextMessage(Duration.ZERO);//Duration.ofMillis(1000));
 
             assertTrue(sub.isActive());
+            assertNotNull(msg);
             assertEquals("subject", msg.getSubject());
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());

@@ -25,6 +25,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
+import io.nats.client.Options;
+
 class NatsConnectionWriter implements Runnable {
 
     private final NatsConnection connection;
@@ -49,10 +51,13 @@ class NatsConnectionWriter implements Runnable {
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
-        this.sendBuffer = new byte[connection.getOptions().getBufferSize()];
+        int bufSize = connection.getOptions().getBufferSize();
+        this.sendBuffer = new byte[bufSize];
+        
+        outgoing = new MessageQueue(true, Options.MAX_MESSAGES_IN_OUTGOING_QUEUE);
 
-        outgoing = new MessageQueue(true);
-        reconnectOutgoing = new MessageQueue(true);
+        // The reconnect buffer contains internal messages, and we will keep it unlimited in size
+        reconnectOutgoing = new MessageQueue(true, 0);
     }
 
     // Should only be called if the current thread has exited.
@@ -97,20 +102,20 @@ class NatsConnectionWriter implements Runnable {
     public void run() {
         Duration waitForMessage = Duration.ofMinutes(2); // This can be long since no one is sending
         Duration reconnectWait = Duration.ofMillis(1); // This should be short, since we are trying to get the reconnect through
-        long maxMessages = 1000;
 
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             NatsStatistics stats = this.connection.getNatsStatistics();
+            int maxAccumulate = Options.MAX_MESSAGES_IN_NETWORK_BUFFER;
 
             while (this.running.get()) {
                 int sendPosition = 0;
                 NatsMessage msg = null;
                 
                 if (this.reconnectMode.get()) {
-                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxMessages, reconnectWait);
+                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxAccumulate, reconnectWait);
                 } else {
-                    msg = this.outgoing.accumulate(this.sendBuffer.length, maxMessages, waitForMessage);
+                    msg = this.outgoing.accumulate(this.sendBuffer.length, maxAccumulate, waitForMessage);
                 }
 
                 if (msg == null) { // Make sure we are still running

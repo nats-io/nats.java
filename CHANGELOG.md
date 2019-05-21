@@ -1,6 +1,10 @@
 
 # Change Log
 
+## Version 2.5.0
+
+* [CHANGED] added back pressure to message queue on publish, this may effect behavior of multi-threaded publishers so moving minor version
+
 ## Version 2.4.5 & 2.4.6
 
 * Clean up for rename to nats.java
