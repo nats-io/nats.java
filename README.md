@@ -24,6 +24,18 @@ Version 2.5.0 adds some back pressure to publish calls to alleviate issues when 
 
 Previous versions are still available in the repo.
 
+### SSL/TLS Performance
+
+After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
+
+* TLS performance for the native JDK has not be historically great
+* TLS performance is better in JDK12 than JDK8
+* A small fix to the library in 2.5.1 allows the use of https://github.com/google/conscrypt and https://github.com/wildfly/wildfly-openssl, conscrypt provides the best performance in our tests
+* TLS still comes at a price (1gb/s vs 4gb/s in some tests), but using the JNI libraries can result in a 10x boost in our testing
+* If TLS performance is reasonable for your application we recommend using the j2se implementation for simplicity
+
+To use conscrypt or wildfly, you will need to add the appropriate jars to your class path and create an SSL context manually. This context can be passed to the Options used when creating a connection. The NATSAutoBench example provides a conscrypt flag which can be used to try out the library,  manually including the jar is required.
+
 ### UTF-8 Subjects
 
 The client protocol spec doesn't explicitly state the encoding on subjects. Some clients use ASCII and some use UTF-8 which matches ASCII for a-Z and 0-9. Until 2.1.2 the 2.0+ version of the Java client used ASCII for performance reasons. As of 2.1.2 you can choose to support UTF-8 subjects via the Options. Keep in mind that there is a small performance penalty for UTF-8 encoding and decoding in benchmarks, but depending on your application this cost may be negligible. Also, keep in mind that not all clients support UTF-8 and test accordingly.
@@ -40,9 +52,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.5.0/jnats-2.5.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.5.0/jnats-2.5.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.5.1/jnats-2.5.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.5.1/jnats-2.5.1.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.5.0/jnats-2.5.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.5.0/jnats-2.5.0-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.5.1/jnats-2.5.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.5.1/jnats-2.5.1-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -52,7 +64,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.5.0'
+    implementation 'io.nats:jnats:2.5.1'
 }
 ```
 
@@ -78,7 +90,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.5.0</version>
+    <version>2.5.1</version>
 </dependency>
 ```
 

@@ -1010,7 +1010,6 @@ class NatsConnection implements Connection {
             
             queueInternalOutgoing(msg);
         } catch (Exception exp) {
-            exp.printStackTrace();
             throw new IOException("Error sending connect string", exp);
         }
     }

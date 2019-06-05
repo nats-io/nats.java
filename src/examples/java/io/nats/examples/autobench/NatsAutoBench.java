@@ -13,9 +13,13 @@
 
 package io.nats.examples.autobench;
 
+import java.security.Provider;
+import java.security.Security;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.net.ssl.SSLContext;
 
 import io.nats.client.Options;
 
@@ -36,6 +40,7 @@ public class NatsAutoBench {
     public static void main(String args[]) {
         String server = Options.DEFAULT_URL;
         boolean utf8 = false;
+        boolean conscrypt = false;
         int baseMsgs = 100_000;
         int latencyMsgs = 5_000;
         long maxSize = 8*1024;
@@ -44,10 +49,12 @@ public class NatsAutoBench {
             for (String s : args) {
                 if (s.equals("utf8")) {
                     utf8 = true;
-                }else if (s.equals("med")) {
+                } else if (s.equals("conscrypt")) {
+                    conscrypt = true;
+                } else if (s.equals("med")) {
                     baseMsgs = 50_000;
                     latencyMsgs = 2_500;
-                }  else if (s.equals("small")) {
+                } else if (s.equals("small")) {
                     baseMsgs = 5_000;
                     latencyMsgs = 250;
                     maxSize = 1024;
@@ -79,6 +86,24 @@ public class NatsAutoBench {
             if (utf8) {
                 System.out.printf("Enabling UTF-8 subjects\n");
                 builder.supportUTF8Subjects();
+            }
+            
+            /**
+             * The conscrypt flag is provided for testing with the conscrypt jar. Using it through reflection is
+             * deprecated but allows the library to ship without a dependency. Using conscrypt should only require the
+             * jar plus the flag. For example, to run after building locally and using the test cert files:
+             * java -cp ./build/libs/jnats-2.5.1-SNAPSHOT-examples.jar:./build/libs/jnats-2.5.1-SNAPSHOT-fat.jar:<path to conscrypt.jar> \
+             * -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password \
+             * -Djavax.net.ssl.trustStore=src/test/resources/cacerts -Djavax.net.ssl.trustStorePassword=password \
+             * io.nats.examples.autobench.NatsAutoBench tls://localhost:4443 med conscrypt
+             */
+            if (conscrypt) {
+                Provider provider = (Provider) Class.forName("org.conscrypt.OpenSSLProvider").newInstance();
+                Security.insertProviderAt(provider, 1);
+            }
+
+            if (server.startsWith("tls")) {
+                System.out.println("Security Provider - "+ SSLContext.getDefault().getProvider().getInfo());
             }
                     
             Options connectOptions = builder.build();                   

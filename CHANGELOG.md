@@ -1,6 +1,13 @@
 
 # Change Log
 
+## Version 2.5.1
+
+* [FIXED] - #239 - cleaned up extra code after SSL connect failure
+* [FIXED] - #240 - removed stack trace that was left from debugging
+* [FIXED] - #241 - changed method used to create an ssl socket to allow support for conscrypt/wildfly native libraries
+* [ADDED] - conscrypt flag to natsautobench to allow testing with native library, requires Jar in class path
+
 ## Version 2.5.0
 
 * [CHANGED] added back pressure to message queue on publish, this may effect behavior of multi-threaded publishers so moving minor version
