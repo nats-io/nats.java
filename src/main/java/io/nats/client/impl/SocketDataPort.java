@@ -90,6 +90,7 @@ public class SocketDataPort implements DataPort {
             waitForHandshake.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (Exception ex) {
             this.connection.handleCommunicationIssue(ex);
+            return;
         }
 
         in = sslSocket.getInputStream();
