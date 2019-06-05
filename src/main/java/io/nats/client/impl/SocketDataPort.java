@@ -75,7 +75,7 @@ public class SocketDataPort implements DataPort {
         SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = options.getConnectionTimeout();
 
-        this.sslSocket = (SSLSocket) factory.createSocket(socket, null, true);
+        this.sslSocket = (SSLSocket) factory.createSocket(socket, this.host, this.port, true);
         this.sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
