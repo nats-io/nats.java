@@ -88,6 +88,15 @@ public class NatsAutoBench {
                 builder.supportUTF8Subjects();
             }
             
+            /**
+             * The conscrypt flag is provided for testing with the conscrypt jar. Using it through reflection is
+             * deprecated but allows the library to ship without a dependency. Using conscrypt should only require the
+             * jar plus the flag. For example, to run after building locally and using the test cert files:
+             * java -cp ./build/libs/jnats-2.5.1-SNAPSHOT-examples.jar:./build/libs/jnats-2.5.1-SNAPSHOT-fat.jar:<path to conscrypt.jar> \
+             * -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password \
+             * -Djavax.net.ssl.trustStore=src/test/resources/cacerts -Djavax.net.ssl.trustStorePassword=password \
+             * io.nats.examples.autobench.NatsAutoBench tls://localhost:4443 med conscrypt
+             */
             if (conscrypt) {
                 Provider provider = (Provider) Class.forName("org.conscrypt.OpenSSLProvider").newInstance();
                 Security.insertProviderAt(provider, 1);
