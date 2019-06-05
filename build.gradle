@@ -14,9 +14,9 @@ plugins {
 // Be sure to update Nats.java with the latest version, the change log and the package-info.java
 def versionMajor = 2
 def versionMinor = 5
-def versionPatch = 0
+def versionPatch = 1
 def versionModifier = ""
-def jarVersion = "2.5.0"
+def jarVersion = "2.5.1"
 def branch = System.getenv("TRAVIS_BRANCH");
 
 def getVersionName = { ->
