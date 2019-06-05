@@ -26,8 +26,9 @@ Previous versions are still available in the repo.
 
 ### SSL/TLS Performance
 
-Initial testing was focused on TLS support, not performance. After some performance tests we discovered that TLS performance is poor. After researching the problem and possible solutions we came to a few conclusions:
+After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
 
+* TLS performance for the native JDK has not be historically great
 * TLS performance is better in JDK12 than JDK8
 * A small fix to the library in 2.5.1 allows the use of https://github.com/google/conscrypt and https://github.com/wildfly/wildfly-openssl, conscrypt provides the best performance in our tests
 * TLS still comes at a price (1gb/s vs 4gb/s in some tests), but using the JNI libraries can result in a 10x boost in our testing
