@@ -102,7 +102,7 @@ class NatsServerInfo {
     private static final String grabString = "\\s*\"(.+?)\"";
     private static final String grabBoolean = "\\s*(true|false)";
     private static final String grabNumber = "\\s*(\\d+)";
-    private static final String grabArray = "\\s*\\[(.+?)\\]";
+    private static final String grabStringArray = "\\s*\\[(\".+?\")\\]";
     private static final String grabObject = "\\{(.+?)\\}";
 
     void parseInfo(String jsonString) {
@@ -116,7 +116,7 @@ class NatsServerInfo {
         Pattern portRE = Pattern.compile("\""+PORT+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
         Pattern maxRE = Pattern.compile("\""+MAX_PAYLOAD+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
         Pattern protoRE = Pattern.compile("\""+PROTOCOL_VERSION+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
-        Pattern connectRE = Pattern.compile("\""+CONNECT_URLS+"\":" + grabArray, Pattern.CASE_INSENSITIVE);
+        Pattern connectRE = Pattern.compile("\""+CONNECT_URLS+"\":" + grabStringArray, Pattern.CASE_INSENSITIVE);
         Pattern infoObject = Pattern.compile(grabObject, Pattern.CASE_INSENSITIVE);
 
         Matcher m = infoObject.matcher(jsonString);
