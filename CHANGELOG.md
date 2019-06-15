@@ -1,6 +1,10 @@
 
 # Change Log
 
+## Version 2.5.2
+
+* [FIXED] - #244 - fixed an issue with parsing ipv6 addresses in the info JSON
+
 ## Version 2.5.1
 
 * [FIXED] - #239 - cleaned up extra code after SSL connect failure
