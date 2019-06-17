@@ -73,12 +73,12 @@ public class NatsServerInfoTests {
     public void testIPV6InBrackets() {
         String json = "{" +
                         "\"server_id\":\"myserver\"" + "," +
-                        "\"connect_urls\":[\"one:4222\", \"[a:b:c]:4222\"]" + "," +
+                        "\"connect_urls\":[\"one:4222\", \"[a:b:c]:4222\", \"[d:e:f]:4223\"]" + "," +
                         "\"max_payload\":100000000000" +
                        "}";
         NatsServerInfo info = new NatsServerInfo(json);
         assertEquals(info.getServerId(), "myserver");
-        String[] urls = {"one:4222", "[a:b:c]:4222"};
+        String[] urls = {"one:4222", "[a:b:c]:4222", "[d:e:f]:4223"};
         assertTrue(Arrays.equals(info.getConnectURLs(), urls));
     }
     
