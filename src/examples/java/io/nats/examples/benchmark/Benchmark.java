@@ -132,7 +132,7 @@ public class Benchmark extends Sample {
     public final String csv() {
         StringBuilder sb = new StringBuilder();
         String header =
-                "#RunID, ClientID, MsgCount, MsgBytes, MsgsPerSec, BytesPerSec, DurationSecs";
+                "#RunID, ClientID, Test Msgs, MsgsPerSec, BytesPerSec, Total Msgs, Total Bytes, DurationSecs";
 
         sb.append(String.format("%s stats: %s\n", name, this));
         sb.append(header); sb.append("\n");
@@ -145,8 +145,10 @@ public class Benchmark extends Sample {
         StringBuilder sb = new StringBuilder();
         int j = 0;
         for (Sample stat : grp.getSamples()) {
-            String line = String.format("%s,%s%d,%d,%d,%d,%f,%f", runId, prefix, j++, stat.msgCnt,
-                    stat.msgBytes, stat.rate(), stat.throughput(),
+            String line = String.format("%s,%s%d,%d,%d,%.2f,%d,%d,%.4f", runId,
+                    prefix, j++,
+                    stat.getJobMsgCnt(), stat.rate(), stat.throughput(),
+                    stat.msgCnt, stat.msgBytes, 
                     (double) stat.duration() / 1000000000.0);
                     sb.append(line); sb.append("\n");
         }
