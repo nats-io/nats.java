@@ -39,6 +39,7 @@ Thumbs.db
 ################
 *~
 *.swp
+.sts4-cache/*
 
 # Gradle Files #
 ################
