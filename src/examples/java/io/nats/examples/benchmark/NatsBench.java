@@ -38,8 +38,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import javax.net.ssl.SSLContext;
-
 /**
  * A utility class for measuring NATS performance, similar to the version in go
  * and node. The various tradeoffs to make this code act/work like the other
@@ -181,9 +179,12 @@ public class NatsBench {
 
     class SyncSubWorker extends Worker {
         final Phaser subReady;
+        private AtomicLong start;
+
         SyncSubWorker(Future<Boolean> starter, Phaser subReady, Phaser finisher, int numMsgs, int size, boolean secure) {
             super(starter, finisher, numMsgs, size, secure);
             this.subReady = subReady;
+            this.start = new AtomicLong();
         }
 
         @Override
@@ -204,16 +205,22 @@ public class NatsBench {
                 Duration timeout = Duration.ofMillis(1000);
 
                 int receivedCount = 0;
-                long start = System.nanoTime();
                 while (receivedCount < numMsgs) {
                     if(sub.nextMessage(timeout) != null) {
+                        if (receivedCount == 0) {
+                            start.set(System.nanoTime());
+                        }
                         received.incrementAndGet();
                         receivedCount++;
                     }
                 }
                 long end = System.nanoTime();
 
-                bench.addSubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
+                if (start.get() > 0) {
+                    bench.addSubSample(new Sample(numMsgs, size, start.get(), end, nc.getStatistics()));
+                } else {
+                    throw new Exception("start time was never set");
+                }
 
                 if (stats) {
                     System.out.println(nc.getStatistics());
@@ -293,11 +300,13 @@ public class NatsBench {
         System.out.println("Use ctrl-C to cancel.");
         System.out.println();
 
-        if (this.numPubs > 0) {
+        if (this.numPubs > 0 && this.numSubs > 0) {
             runTest("Pub Only", this.numPubs, 0);
             runTest("Pub/Sub", this.numPubs, this.numSubs);
+        } else if (this.numPubs > 0) {
+            runTest("Pub Only", this.numPubs, 0);
         } else {
-            runTest("Sub", this.numPubs, this.numSubs);
+            runTest("Sub Only", 0, this.numSubs);
         }
 
         System.out.println();
