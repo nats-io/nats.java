@@ -3,7 +3,11 @@
 
 ## Version 2.5.2
 
-* [FIXED] - #244 - fixed an issue with parsing ipv6 addresses in the info JSON
+* [FIXED] - #244 - fixed an issue with parsing ipv6 addresses in the info JSON, added unit test for parser
+* [FIXED] - #245 - fixed a timing bug in nats bench, now subscribers start timing at the first receive
+* [FIXED/CHANGED] - #246 - fixed a confusing output from nats bench in CSV mode, now the test count and the total count are printed
+* [ADDED] - spring cache to git ignore file
+* [ADDED] - support for running nats bench with conscrypt
 
 ## Version 2.5.1
 
