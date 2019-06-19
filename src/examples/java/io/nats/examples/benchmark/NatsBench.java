@@ -21,6 +21,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.NoSuchAlgorithmException;
+import java.security.Provider;
+import java.security.Security;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,10 +39,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * A utility class for measuring NATS performance, similar to the version in go and node.
- * The various tradeoffs to make this code act/work like the other versions, including the
- * previous java version, make it a bit &quot;crufty&quot; for an example. See autobench for
- * an example with minimal boilerplate.
+ * A utility class for measuring NATS performance, similar to the version in go
+ * and node. The various tradeoffs to make this code act/work like the other
+ * versions, including the previous java version, make it a bit
+ * &quot;crufty&quot; for an example. See autobench for an example with minimal
+ * boilerplate.
  */
 public class NatsBench {
     final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();
@@ -57,6 +60,7 @@ public class NatsBench {
     private final AtomicLong received = new AtomicLong();
     private boolean csv = false;
     private boolean stats = false;
+    private boolean conscrypt = false;
 
     private Thread shutdownHook;
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -64,16 +68,16 @@ public class NatsBench {
     private boolean secure = false;
     private Benchmark bench;
 
-    static final String usageString =
-            "\nUsage: java NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
-                    + "[-csv file] <subject>\n\nOptions:\n"
-                    + "    -s   <urls>                    The nats server URLs (comma-separated), use tls:// or opentls:// to require tls\n"
-                    + "    -np                             Number of concurrent publishers (1)\n"
-                    + "    -ns                             Number of concurrent subscribers (0)\n"
-                    + "    -n                              Number of messages to publish (100,000)\n"
-                    + "    -ms                             Size of the message (128)\n"
-                    + "    -csv                            Print results to stdout as csv (false)\n"
-                    + "    -stats                          Track and print out internal statistics (false)\n";
+    static final String usageString = "\nUsage: java NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
+            + "[-csv file] <subject>\n\nOptions:\n"
+            + "    -s  <urls>                     The nats server URLs (comma-separated), use tls:// or opentls:// to require tls\n"
+            + "    -np <int>                       Number of concurrent publishers (1)\n"
+            + "    -ns <int>                       Number of concurrent subscribers (0)\n"
+            + "    -n  <int>                       Number of messages to publish (100,000)\n"
+            + "    -ms <int>                       Size of the message (128)\n"
+            + "    -csv                            Print results to stdout as csv (false)\n"
+            + "    -tls                            Set the secure flag on the SSL context to true (false)\n"
+            + "    -stats                          Track and print out internal statistics (false)\n";
 
     public NatsBench(String[] args) throws Exception {
         if (args == null || args.length < 1) {
@@ -85,18 +89,12 @@ public class NatsBench {
 
     public NatsBench(Properties properties) throws NoSuchAlgorithmException {
         urls = properties.getProperty("bench.nats.servers", urls);
-        secure = Boolean.parseBoolean(
-                properties.getProperty("bench.nats.secure", Boolean.toString(secure)));
-        numMsgs = Integer.parseInt(
-                properties.getProperty("bench.nats.msg.count", Integer.toString(numMsgs)));
-        size = Integer
-                .parseInt(properties.getProperty("bench.nats.msg.size", Integer.toString(numSubs)));
-        numPubs = Integer
-                .parseInt(properties.getProperty("bench.nats.pubs", Integer.toString(numPubs)));
-        numSubs = Integer
-                .parseInt(properties.getProperty("bench.nats.subs", Integer.toString(numSubs)));
-        csv = Boolean.parseBoolean(
-            properties.getProperty("bench.nats.csv", Boolean.toString(csv)));
+        secure = Boolean.parseBoolean(properties.getProperty("bench.nats.secure", Boolean.toString(secure)));
+        numMsgs = Integer.parseInt(properties.getProperty("bench.nats.msg.count", Integer.toString(numMsgs)));
+        size = Integer.parseInt(properties.getProperty("bench.nats.msg.size", Integer.toString(numSubs)));
+        numPubs = Integer.parseInt(properties.getProperty("bench.nats.pubs", Integer.toString(numPubs)));
+        numSubs = Integer.parseInt(properties.getProperty("bench.nats.subs", Integer.toString(numSubs)));
+        csv = Boolean.parseBoolean(properties.getProperty("bench.nats.csv", Boolean.toString(csv)));
         subject = properties.getProperty("bench.nats.subject", NUID.nextGlobal());
     }
 
@@ -106,7 +104,7 @@ public class NatsBench {
         builder.noReconnect();
         builder.connectionName("NatsBench");
         builder.servers(servers);
-        builder.errorListener(new ErrorListener(){
+        builder.errorListener(new ErrorListener() {
             @Override
             public void errorOccurred(Connection conn, String error) {
                 System.out.printf("An error occurred %s\n", error);
@@ -126,6 +124,30 @@ public class NatsBench {
 
         if (stats) {
             builder.turnOnAdvancedStats();
+        }
+
+        /**
+         * The conscrypt flag is provided for testing with the conscrypt jar. Using it
+         * through reflection is deprecated but allows the library to ship without a
+         * dependency. Using conscrypt should only require the jar plus the flag. For
+         * example, to run after building locally and using the test cert files: java
+         * -cp
+         * ./build/libs/jnats-2.5.1-SNAPSHOT-examples.jar:./build/libs/jnats-2.5.1-SNAPSHOT-fat.jar:<path
+         * to conscrypt.jar> \ -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks
+         * -Djavax.net.ssl.keyStorePassword=password \
+         * -Djavax.net.ssl.trustStore=src/test/resources/cacerts
+         * -Djavax.net.ssl.trustStorePassword=password \
+         * io.nats.examples.autobench.NatsAutoBench tls://localhost:4443 med conscrypt
+         */
+        if (conscrypt) {
+            try {
+                Provider provider = null;
+                provider = (Provider) Class.forName("org.conscrypt.OpenSSLProvider").newInstance();
+                Security.insertProviderAt(provider, 1);
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(-1);
+            }
         }
 
         if (secure) {
@@ -157,9 +179,12 @@ public class NatsBench {
 
     class SyncSubWorker extends Worker {
         final Phaser subReady;
+        private AtomicLong start;
+
         SyncSubWorker(Future<Boolean> starter, Phaser subReady, Phaser finisher, int numMsgs, int size, boolean secure) {
             super(starter, finisher, numMsgs, size, secure);
             this.subReady = subReady;
+            this.start = new AtomicLong();
         }
 
         @Override
@@ -180,16 +205,22 @@ public class NatsBench {
                 Duration timeout = Duration.ofMillis(1000);
 
                 int receivedCount = 0;
-                long start = System.nanoTime();
                 while (receivedCount < numMsgs) {
                     if(sub.nextMessage(timeout) != null) {
+                        if (receivedCount == 0) {
+                            start.set(System.nanoTime());
+                        }
                         received.incrementAndGet();
                         receivedCount++;
                     }
                 }
                 long end = System.nanoTime();
 
-                bench.addSubSample(new Sample(numMsgs, size, start, end, nc.getStatistics()));
+                if (start.get() > 0) {
+                    bench.addSubSample(new Sample(numMsgs, size, start.get(), end, nc.getStatistics()));
+                } else {
+                    throw new Exception("start time was never set");
+                }
 
                 if (stats) {
                     System.out.println(nc.getStatistics());
@@ -269,11 +300,13 @@ public class NatsBench {
         System.out.println("Use ctrl-C to cancel.");
         System.out.println();
 
-        if (this.numPubs > 0) {
+        if (this.numPubs > 0 && this.numSubs > 0) {
             runTest("Pub Only", this.numPubs, 0);
             runTest("Pub/Sub", this.numPubs, this.numSubs);
+        } else if (this.numPubs > 0) {
+            runTest("Pub Only", this.numPubs, 0);
         } else {
-            runTest("Sub", this.numPubs, this.numSubs);
+            runTest("Sub Only", 0, this.numSubs);
         }
 
         System.out.println();
@@ -394,7 +427,6 @@ public class NatsBench {
             String arg = it.next();
             switch (arg) {
                 case "-s":
-                case "--server":
                     if (!it.hasNext()) {
                         usage();
                     }
@@ -403,9 +435,6 @@ public class NatsBench {
                     it.remove();
                     continue;
                 case "-tls":
-                    if (!it.hasNext()) {
-                        usage();
-                    }
                     it.remove();
                     secure = true;
                     continue;
@@ -443,18 +472,16 @@ public class NatsBench {
                     it.remove();
                     continue;
                 case "-csv":
-                    if (it.hasNext()) {
-                        usage();
-                    }
                     it.remove();
                     csv = true;
                     continue;
                 case "-stats":
-                    if (it.hasNext()) {
-                        usage();
-                    }
                     it.remove();
                     stats = true;
+                    continue;
+                case "-conscrypt":
+                    it.remove();
+                    conscrypt = true;
                     continue;
                 default:
                     System.err.printf("Unexpected token: '%s'\n", arg);
