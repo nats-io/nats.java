@@ -720,7 +720,7 @@ public class DispatcherTests {
 
             done.get(5, TimeUnit.SECONDS);
 
-            assertEquals(msgCount * 2, q.size()); // We should get 2x the messages because we subscribed 3 times.
+            assertEquals(msgCount * 2, q.size()); // We should get 2x the messages because we subscribed 2 times.
         }
     }
 
@@ -748,10 +748,11 @@ public class DispatcherTests {
 
             done.get(5, TimeUnit.SECONDS);
 
-            assertEquals(msgCount * 2, q.size()); // We should get 2x the messages because we subscribed 3 times.
+            assertEquals(msgCount * 2, q.size()); // We should get 2x the messages because we subscribed 2 times.
 
             q.clear();
             d.unsubscribe(s1);
+            nc.flush(Duration.ofSeconds(5)); // wait for the unsub to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
