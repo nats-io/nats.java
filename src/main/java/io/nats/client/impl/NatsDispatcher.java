@@ -296,6 +296,14 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     }
 
     public Dispatcher unsubscribe(Subscription subscription, int after) {
+        if (!this.running.get()) {
+            throw new IllegalStateException("Dispatcher is closed");
+        }
+
+        if (isDraining()) { // No op while draining
+            return this;
+        }
+
         if (subscription.getDispatcher() != this) {
             throw new IllegalStateException("Subscription is not managed by this Dispatcher");
         }
