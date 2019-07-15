@@ -290,10 +290,6 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalStateException("Subscription is not managed by this Dispatcher");
         }
 
-        if (this.subscriptionsUsingDefaultHandler.get(subscription.getSubject()) != null) {
-            throw new IllegalStateException("Subscription uses default handler and cannot call unsubscribe");
-        }
-
         // We can probably optimize this path by adding getSID() to the Subscription interface.
         if (!(subscription instanceof NatsSubscription)) {
             throw new IllegalArgumentException("This Subscription implementation is not known by Dispatcher");
