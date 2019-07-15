@@ -90,6 +90,7 @@ public class DrainTests {
                 }
             });
             d.subscribe("draintest");
+            d.subscribe("draintest", (msg) -> { count.incrementAndGet(); });
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
             pubCon.publish("draintest", null);
@@ -102,7 +103,7 @@ public class DrainTests {
             CompletableFuture<Boolean> tracker = d.drain(Duration.ofSeconds(4));
 
             assertTrue(tracker.get(5, TimeUnit.SECONDS)); // wait for the drain to complete
-            assertEquals(count.get(), 2); // Should get both
+            assertEquals(count.get(), 4); // Should get both, two times.
             assertFalse(d.isActive());
             assertEquals(((NatsConnection) subCon).getConsumerCount(), 0);
         }
