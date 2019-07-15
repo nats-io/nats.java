@@ -194,7 +194,7 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
     String response = new String(msg.getData(), StandardCharsets.UTF_8);
     ```
 
-2. A Dispatcher that will call application code in a background thread. Dispatchers can manage multiple subjects with a single thread and single callback.
+2. A Dispatcher that will call application code in a background thread. Dispatchers can manage multiple subjects with a single thread and shared callback.
 
     ```java
     Dispatcher d = nc.createDispatcher((msg) -> {
@@ -203,6 +203,18 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
     });
 
     d.subscribe("subject");
+    ```
+
+    A dispatcher can also accept individual callbacks for any given subscription.
+
+    ```java
+    Dispatcher d = nc.createDispatcher((msg) -> {});
+
+    Subscription s = d.subscribe("some.subject", (msg) -> {
+        String response = new String(msg.getData(), StandardCharsets.UTF_8);
+        System.out.println("Message received (up to 100 times): " + response);
+    });
+    d.unsubscribe(s, 100);
     ```
 
 ## Advanced Usage
