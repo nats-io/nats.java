@@ -561,16 +561,6 @@ public class DispatcherTests {
         }
     }
 
-    // @Test(expected=IllegalArgumentException.class)
-    // public void testThrowOnNullQueue() throws IOException, InterruptedException, TimeoutException {
-    //     try (NatsTestServer ts = new NatsTestServer(false);
-    //                 Connection nc = Nats.connect(ts.getURI())) {
-    //         Dispatcher d = nc.createDispatcher((msg) -> {});
-    //         d.subscribe("subject", null);
-    //         assertFalse(true);
-    //     }
-    // }
-
     @Test(expected=IllegalArgumentException.class)
     public void testThrowOnEmptyQueue() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
@@ -666,16 +656,6 @@ public class DispatcherTests {
             assertFalse(true);
         }
     }
-
-    // @Test(expected=IllegalArgumentException.class)
-    // public void testThrowOnNullSubjectInUnsub() throws IOException, InterruptedException, TimeoutException {
-    //     try (NatsTestServer ts = new NatsTestServer(false);
-    //                 Connection nc = Nats.connect(ts.getURI())) {
-    //         Dispatcher d = nc.createDispatcher((msg) -> {});
-    //         d.unsubscribe(null);
-    //         assertFalse(true);
-    //     }
-    // }
 
     @Test
     public void testDoubleSubscribe() throws IOException, InterruptedException, ExecutionException, TimeoutException {
