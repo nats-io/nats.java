@@ -64,7 +64,41 @@ public interface Dispatcher extends Consumer {
      */
     public Dispatcher subscribe(String subject, String queue);
 
+    /**
+     * Create a subscription to the specified subject under the control of this
+     * dispatcher. Since a MessageHandler is also required, the Dispatcher will
+     * not prevent duplicate subscriptions from being made.
+     *
+     * <p>
+     * Every call creates a new subscription, unlike the
+     * {@link Dispatcher#subscribe(String)} method that does not take a
+     * MessageHandler.
+     *
+     *
+     * @param subject The subject to subscribe to.
+     * @param handler The target for the messages
+     * @return The Subscription, so subscriptions may be later unsubscribed manually.
+     * @throws IllegalStateException if the dispatcher was previously closed
+     */
     public Subscription subscribe(String subject, MessageHandler handler);
+
+    /**
+     * Create a subscription to the specified subject under the control of this
+     * dispatcher. Since a MessageHandler is also required, the Dispatcher will
+     * not prevent duplicate subscriptions from being made.
+     *
+     * <p>
+     * Every call creates a new subscription, unlike the
+     * {@link Dispatcher#subscribe(String, String)} method that does not take a
+     * MessageHandler.
+     *
+     *
+     * @param subject The subject to subscribe to.
+     * @param queue The queue group to join.
+     * @param handler The target for the messages
+     * @return The Subscription, so subscriptions may be later unsubscribed manually.
+     * @throws IllegalStateException if the dispatcher was previously closed
+     */
     public Subscription subscribe(String subject, String queue, MessageHandler handler);
 
     /**
@@ -78,6 +112,18 @@ public interface Dispatcher extends Consumer {
      */
     public Dispatcher unsubscribe(String subject);
 
+    /**
+     * Unsubscribe from the specified Subscription.
+     *
+     * <p>Stops messages to the subscription locally and notifies the server.
+     * This method is to be used to unsubscribe from subscriptions created by
+     * the Dispatcher using {@link Dispatcher#subscribe(String, MessageHandler)}.
+     *
+     * @param subscription The Subscription to unsubscribe from.
+     * @return The Dispatcher, so calls can be chained.
+     * @throws IllegalStateException if the dispatcher was previously closed
+     * @throws IllegalStateException if the Subscription is not managed by this dispatcher
+     */
     public Dispatcher unsubscribe(Subscription subscription);
 
     /**
@@ -103,5 +149,24 @@ public interface Dispatcher extends Consumer {
      */
     public Dispatcher unsubscribe(String subject, int after);
 
+    /**
+     * Unsubscribe from the specified subject, the queue is implicit, after the
+     * specified number of messages.
+     *
+     * <p>If the subscription has already received <code>after</code> messages, it will not receive
+     * more. The provided limit is a lifetime total for the subscription, with the caveat
+     * that if the subscription already received more than <code>after</code> when unsubscribe is called
+     * the client will not travel back in time to stop them.
+     *
+     * <p>Stops messages to the subscription locally and notifies the server.
+     * This method is to be used to unsubscribe from subscriptions created by
+     * the Dispatcher using {@link Dispatcher#subscribe(String, MessageHandler)}.
+     *
+     * @param subscription The Subscription to unsubscribe from.
+     * @param after The number of messages to accept before unsubscribing
+     * @return The Dispatcher, so calls can be chained.
+     * @throws IllegalStateException if the dispatcher was previously closed
+     * @throws IllegalStateException if the Subscription is not managed by this dispatcher
+     */
     public Dispatcher unsubscribe(Subscription subscription, int after);
 }
