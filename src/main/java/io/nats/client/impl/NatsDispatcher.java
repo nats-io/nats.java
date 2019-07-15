@@ -26,7 +26,7 @@ import io.nats.client.MessageHandler;
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     private MessageQueue incoming;
-    private MessageHandler handler;
+    private MessageHandler defaultHandler;
 
     private Future<Boolean> thread;
     private final AtomicBoolean running;
@@ -35,7 +35,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     // We will use the subject as the key for subscriptions that use the
     // default handler.
-    private Map<String, NatsSubscription> subscriptions;
+    private Map<String, NatsSubscription> subscriptionsUsingDefaultHandler;
     // We will use the SID as the key. Sicne these subscriptions provide
     // their own handlers, we allow duplicates. There is a subtle but very
     // important difference here.
@@ -48,9 +48,9 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
         super(conn);
-        this.handler = handler;
+        this.defaultHandler = handler;
         this.incoming = new MessageQueue(true);
-        this.subscriptions = new ConcurrentHashMap<>();
+        this.subscriptionsUsingDefaultHandler = new ConcurrentHashMap<>();
         this.subscriptionsWithHandlers = new ConcurrentHashMap<>();
         this.subscriptionHandlers = new ConcurrentHashMap<>();
         this.running = new AtomicBoolean(false);
@@ -88,7 +88,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                     sub.incrementDeliveredCount();
                     this.incrementDeliveredCount();
 
-                    MessageHandler currentHandler = this.handler;
+                    MessageHandler currentHandler = this.defaultHandler;
                     MessageHandler customHandler = this.subscriptionHandlers.get(sub.getSID());
                     if (customHandler != null) {
                         currentHandler = customHandler;
@@ -135,14 +135,14 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         }
 
         if (unsubscribeAll) {
-            this.subscriptions.forEach((subj, sub) -> {
+            this.subscriptionsUsingDefaultHandler.forEach((subj, sub) -> {
                 this.connection.unsubscribe(sub, -1);
             });
             this.subscriptionsWithHandlers.forEach((sid, sub) -> {
                 this.connection.unsubscribe(sub, -1);
             });
         } else {
-            this.subscriptions.clear();
+            this.subscriptionsUsingDefaultHandler.clear();
             this.subscriptionsWithHandlers.clear();
             this.subscriptionHandlers.clear();
         }
@@ -161,7 +161,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     }
 
     void resendSubscriptions() {
-        this.subscriptions.forEach((id, sub)->{
+        this.subscriptionsUsingDefaultHandler.forEach((id, sub)->{
             this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
         });
         this.subscriptionsWithHandlers.forEach((sid, sub)->{
@@ -171,11 +171,9 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     // Called by the connection when the subscription is removed
     void remove(NatsSubscription sub) {
-        subscriptions.remove(sub.getSubject());
-
-        // TODO: Can we optimize this somehow?
-        subscriptionsWithHandlers.remove(sub.getSID());
-        subscriptionHandlers.remove(sub.getSID());
+        this.subscriptionsUsingDefaultHandler.remove(sub.getSubject());
+        this.subscriptionsWithHandlers.remove(sub.getSID());
+        this.subscriptionHandlers.remove(sub.getSID());
     }
 
     public Dispatcher subscribe(String subject) {
@@ -238,11 +236,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         // If the handler is null, then we use the default handler, which will not allow
         // duplicate subscriptions to exist.
         if (handler == null) {
-            NatsSubscription sub = subscriptions.get(subject);
+            NatsSubscription sub = this.subscriptionsUsingDefaultHandler.get(subject);
 
             if (sub == null) {
                 sub = connection.createSubscription(subject, queueName, this);
-                NatsSubscription actual = subscriptions.putIfAbsent(subject, sub);
+                NatsSubscription actual = this.subscriptionsUsingDefaultHandler.putIfAbsent(subject, sub);
                 if (actual != null) {
                     this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
                 }
@@ -251,8 +249,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             return sub;
         } else {
             NatsSubscription sub = connection.createSubscription(subject, queueName, this);
-            subscriptionsWithHandlers.put(sub.getSID(), sub);
-            subscriptionHandlers.put(sub.getSID(), handler);
+            this.subscriptionsWithHandlers.put(sub.getSID(), sub);
+            this.subscriptionHandlers.put(sub.getSID(), handler);
             return sub;
         }
     }
@@ -278,7 +276,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalArgumentException("Subject is required in unsubscribe");
         }
 
-        NatsSubscription sub = subscriptions.get(subject);
+        NatsSubscription sub = this.subscriptionsUsingDefaultHandler.get(subject);
 
         if (sub != null) {
             this.connection.unsubscribe(sub, after); // Connection will tell us when to remove from the map
@@ -292,7 +290,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalStateException("Subscription is not managed by this Dispatcher");
         }
 
-        if (this.subscriptions.get(subscription.getSubject()) != null) {
+        if (this.subscriptionsUsingDefaultHandler.get(subscription.getSubject()) != null) {
             throw new IllegalStateException("Subscription uses default handler and cannot call unsubscribe");
         }
 
@@ -312,7 +310,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     }
 
     void sendUnsubForDrain() {
-        this.subscriptions.forEach((id, sub)->{
+        this.subscriptionsUsingDefaultHandler.forEach((id, sub)->{
             this.connection.sendUnsub(sub, -1);
         });
         this.subscriptionsWithHandlers.forEach((sid, sub)->{
