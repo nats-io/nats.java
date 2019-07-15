@@ -21,7 +21,7 @@ import java.io.IOException;
  * the core communication code.
  */
 public interface DataPort {
-    public void connect(String serverURI, NatsConnection conn) throws IOException;
+    public void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException;
 
     /**
      * Upgrade the port to SSL. If it is already secured, this is a no-op.

@@ -164,7 +164,7 @@ public class ConnectTests {
         
         try (NatsTestServer ts = new NatsTestServer(false)) {
             try (NatsServerProtocolMock fake = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
-                Options options = new Options.Builder().server(fake.getURI()).server(ts.getURI()).build();
+                Options options = new Options.Builder().connectionTimeout(Duration.ofSeconds(5)).server(fake.getURI()).server(ts.getURI()).build();
                 Connection nc = Nats.connect(options);
                 try {
                     assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());

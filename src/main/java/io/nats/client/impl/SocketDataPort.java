@@ -40,13 +40,13 @@ public class SocketDataPort implements DataPort {
     private InputStream in;
     private OutputStream out;
 
-    public void connect(String serverURI, NatsConnection conn) throws IOException {
+    public void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException {
 
         try {
             this.connection = conn;
 
             Options options = this.connection.getOptions();
-            long timeout = options.getConnectionTimeout().toMillis();
+            long timeout = timeoutNanos / 1_000_000; // convert to millis
             URI uri = options.createURIForServer(serverURI);
             this.host = uri.getHost();
             this.port = uri.getPort();

@@ -442,6 +442,7 @@ public class Options {
     private final String dataPortType;
 
     private final boolean trackAdvancedStats;
+    private final boolean traceConnection;
 
     private final ExecutorService executor;
 
@@ -498,6 +499,7 @@ public class Options {
         private boolean useOldRequestStyle = false;
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private boolean trackAdvancedStats = false;
+        private boolean traceConnection = false;
         private boolean noEcho = false;
         private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
@@ -813,6 +815,16 @@ public class Options {
          */
         public Builder turnOnAdvancedStats() {
             this.trackAdvancedStats = true;
+            return this;
+        }
+
+        /**
+         * Enable connection trace messages. Messages are printed to standard out. This options is for very fine
+         * grained debugging of connection issues.
+         * @return the Builder for chaining
+         */
+        public Builder traceConnection() {
+            this.traceConnection = true;
             return this;
         }
 
@@ -1170,6 +1182,7 @@ public class Options {
         this.noEcho = b.noEcho;
         this.utf8Support = b.utf8Support;
         this.inboxPrefix = b.inboxPrefix;
+        this.traceConnection = b.traceConnection;
 
         this.authHandler = b.authHandler;
         this.errorListener = b.errorListener;
@@ -1275,6 +1288,13 @@ public class Options {
      */
     public boolean isTrackAdvancedStats() {
         return trackAdvancedStats;
+    }
+
+    /**
+     * @return should we trace the connection process to system.out
+     */
+    public boolean isTraceConnection() {
+        return traceConnection;
     }
 
     /**
