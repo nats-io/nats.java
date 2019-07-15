@@ -1,6 +1,11 @@
 
 # Change Log
 
+## Version 2.5.3
+
+* [ADDED] - an option to trace connect timing, including a test and example
+* [FIXED/ADDED] - the ability to use a single dispatcher for multiple message handlers, including multiple subscriptions on a single subject
+
 ## Version 2.5.2
 
 * [FIXED] - #244 - fixed an issue with parsing ipv6 addresses in the info JSON, added unit test for parser
