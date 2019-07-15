@@ -169,11 +169,21 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         });
     }
 
-    // Called by the connection when the subscription is removed
+    // Called by the connection when a subscription is removed.
+    // We will first attempt to remove from subscriptionsWithHandlers
+    // using the sub's SID, and if we don't find it there, we'll check
+    // the subscriptionsUsingDefaultHandler Map and verify the SID
+    // matches before removing. By verifying the SID in all cases we can
+    // be certain we're removing the correct Subscription.
     void remove(NatsSubscription sub) {
-        this.subscriptionsUsingDefaultHandler.remove(sub.getSubject());
-        this.subscriptionsWithHandlers.remove(sub.getSID());
-        this.subscriptionHandlers.remove(sub.getSID());
+        if (this.subscriptionsWithHandlers.remove(sub.getSID()) != null) {
+            this.subscriptionHandlers.remove(sub.getSID());
+        } else {
+            NatsSubscription s = this.subscriptionsUsingDefaultHandler.get(sub.getSubject());
+            if (s.getSID() == sub.getSID()) {
+                this.subscriptionsUsingDefaultHandler.remove(sub.getSubject());
+            }
+        }
     }
 
     public Dispatcher subscribe(String subject) {
