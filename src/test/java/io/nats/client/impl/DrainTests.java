@@ -91,7 +91,7 @@ public class DrainTests {
             });
             d.subscribe("draintest");
             d.subscribe("draintest", (msg) -> { count.incrementAndGet(); });
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+            subCon.flush(Duration.ofSeconds(5)); // Get the sub to the server
 
             pubCon.publish("draintest", null);
             pubCon.publish("draintest", null);
@@ -100,9 +100,9 @@ public class DrainTests {
 
             // Drain will unsub the dispatcher, only messages that already arrived
             // are there
-            CompletableFuture<Boolean> tracker = d.drain(Duration.ofSeconds(4));
+            CompletableFuture<Boolean> tracker = d.drain(Duration.ofSeconds(8));
 
-            assertTrue(tracker.get(5, TimeUnit.SECONDS)); // wait for the drain to complete
+            assertTrue(tracker.get(10, TimeUnit.SECONDS)); // wait for the drain to complete
             assertEquals(count.get(), 4); // Should get both, two times.
             assertFalse(d.isActive());
             assertEquals(((NatsConnection) subCon).getConsumerCount(), 0);

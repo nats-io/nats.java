@@ -39,6 +39,12 @@ import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import io.nats.client.Subscription;
 
+
+
+// Some tests are a bit tricky, and depend on the fact that the dispatcher
+// uses a single queue, so the "subject" messages go through before
+// the done message (or should) - wanted to note that somewhere
+
 public class DispatcherTests {
     @Test
     public void testSingleMessage() throws IOException, InterruptedException, ExecutionException, TimeoutException {
@@ -675,15 +681,15 @@ public class DispatcherTests {
             });
 
             d.subscribe("subject").subscribe("subject").subscribe("subject").subscribe("done");
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
-            done.get(500, TimeUnit.MILLISECONDS);
+            done.get(5, TimeUnit.SECONDS);
 
             assertEquals(msgCount, q.size()); // Shoudl only get one since all the extra subs do nothing??
         }
@@ -704,15 +710,15 @@ public class DispatcherTests {
             d.subscribe("subject", (msg) -> { q.add(msg); });
             d.subscribe("done", (msg) -> { done.complete(Boolean.TRUE); });
 
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
-            done.get(500, TimeUnit.MILLISECONDS);
+            done.get(5, TimeUnit.SECONDS);
 
             assertEquals(msgCount * 2, q.size()); // We should get 2x the messages because we subscribed 3 times.
         }
@@ -732,15 +738,15 @@ public class DispatcherTests {
             d.subscribe("subject", (msg) -> { q.add(msg); });
             d.subscribe("done", (msg) -> { done.complete(Boolean.TRUE); });
 
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
-            done.get(500, TimeUnit.MILLISECONDS);
+            done.get(5, TimeUnit.SECONDS);
 
             assertEquals(msgCount * 2, q.size()); // We should get 2x the messages because we subscribed 3 times.
 
@@ -751,9 +757,9 @@ public class DispatcherTests {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
-            done.get(500, TimeUnit.MILLISECONDS);
+            done.get(5, TimeUnit.SECONDS);
 
             assertEquals(msgCount, q.size()); // We only have 1 active subscription, so we should only get msgCount.
         }
