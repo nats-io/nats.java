@@ -312,6 +312,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (!(subscription instanceof NatsSubscription)) {
             throw new IllegalArgumentException("This Subscription implementation is not known by Dispatcher");
         }
+        
         NatsSubscription ns = ((NatsSubscription) subscription);
         // Grab the NatsSubscription to verify we weren't given a different manager's subscription.
         NatsSubscription sub = this.subscriptionsWithHandlers.get(ns.getSID());

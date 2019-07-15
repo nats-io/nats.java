@@ -703,11 +703,11 @@ public class DispatcherTests {
             int msgCount = 100;
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
-            final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
+            final AtomicInteger count = new AtomicInteger(0);
             Dispatcher d = nc.createDispatcher((msg) -> {});
 
-            d.subscribe("subject", (msg) -> { q.add(msg); });
-            d.subscribe("subject", (msg) -> { q.add(msg); });
+            d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
+            d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
             d.subscribe("done", (msg) -> { done.complete(Boolean.TRUE); });
 
             nc.flush(Duration.ofSeconds(5)); // wait for them to go through
@@ -720,7 +720,7 @@ public class DispatcherTests {
 
             done.get(5, TimeUnit.SECONDS);
 
-            assertEquals(msgCount * 2, q.size()); // We should get 2x the messages because we subscribed 2 times.
+            assertEquals(msgCount * 2, count.get()); // We should get 2x the messages because we subscribed 2 times.
         }
     }
 
@@ -728,41 +728,44 @@ public class DispatcherTests {
     public void testDoubleSubscribeWithUnsubscribeAfterWithCustomHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            final CompletableFuture<Boolean> done1 = new CompletableFuture<>();
+            final CompletableFuture<Boolean> done2 = new CompletableFuture<>();
             int msgCount = 100;
             assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
 
-            final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
+            final AtomicInteger count = new AtomicInteger(0);
             Dispatcher d = nc.createDispatcher((msg) -> {});
-            Subscription s1 = d.subscribe("subject", (msg) -> { q.add(msg); });
-            d.subscribe("subject", (msg) -> { q.add(msg); });
-            d.subscribe("done", (msg) -> { done.complete(Boolean.TRUE); });
+            Subscription s1 = d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
+            Subscription doneSub = d.subscribe("done", (msg) -> { done1.complete(Boolean.TRUE); });
+            d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
 
-            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for the subs to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for the messages to go through
 
-            done.get(5, TimeUnit.SECONDS);
+            done1.get(5, TimeUnit.SECONDS);
 
-            assertEquals(msgCount * 2, q.size()); // We should get 2x the messages because we subscribed 2 times.
+            assertEquals(msgCount * 2, count.get()); // We should get 2x the messages because we subscribed 2 times.
 
-            q.clear();
+            count.set(0);
             d.unsubscribe(s1);
+            d.unsubscribe(doneSub);
+            d.subscribe("done", (msg) -> { done2.complete(Boolean.TRUE); });
             nc.flush(Duration.ofSeconds(5)); // wait for the unsub to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for the messages to go through
 
-            done.get(5, TimeUnit.SECONDS);
+            done2.get(5, TimeUnit.SECONDS);
 
-            assertEquals(msgCount, q.size()); // We only have 1 active subscription, so we should only get msgCount.
+            assertEquals(msgCount, count.get()); // We only have 1 active subscription, so we should only get msgCount.
         }
     }
 
