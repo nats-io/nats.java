@@ -1,10 +1,12 @@
 
 # Change Log
 
-## Version 2.5.3
+## Version 2.6.0
 
+* [FIXED] - #252 - deprecated strings for username/pass/token and use char arrays instead, required changing some other code to CharBuffer
+* [ADDED] - Openjdk11 to travis build and updated gradle wrapper to 5.5
 * [ADDED] - an option to trace connect timing, including a test and example
-* [FIXED/ADDED] - the ability to use a single dispatcher for multiple message handlers, including multiple subscriptions on a single subject
+* [FIXED/ADDED] - #197 - the ability to use a single dispatcher for multiple message handlers, including multiple subscriptions on a single subject
 
 ## Version 2.5.2
 
