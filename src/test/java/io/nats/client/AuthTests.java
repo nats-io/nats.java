@@ -39,7 +39,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        userInfo("stephen", "password").
+                        userInfo("stephen".toCharArray(), "password".toCharArray()).
                         build();
             Connection nc = Nats.connect(options);
             try {
@@ -64,7 +64,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(-1).
-                        userInfo("stephen", "password").
+                        userInfo("stephen".toCharArray(), "password".toCharArray()).
                         connectionListener(handler).
                         build();
             nc = Nats.connect(options);
@@ -116,7 +116,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        userInfo("ginger", "password").
+                        userInfo("ginger".toCharArray(), "password".toCharArray()).
                         build();
             Connection nc = Nats.connect(options);
             try {
@@ -240,7 +240,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server("nats://stephen:password@localhost:"+ts1.getPort()).
                         server("nats://localhost:"+ts2.getPort()).
-                        userInfo("alberto", "casadecampo").
+                        userInfo("alberto".toCharArray(), "casadecampo".toCharArray()).
                         maxReconnects(4).
                         noRandomize().
                         connectionListener(handler).
@@ -301,7 +301,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server("nats://token_one@localhost:"+ts1.getPort()).
                         server("nats://localhost:"+ts2.getPort()).
-                        token("token_two").
+                        token("token_two".toCharArray()).
                         maxReconnects(4).
                         noRandomize().
                         connectionListener(handler).
@@ -329,7 +329,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        token("derek").
+                        token("derek".toCharArray()).
                         build();
             Connection nc = Nats.connect(options);
             try {
@@ -369,7 +369,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        userInfo("sam", "notthepassword").
+                        userInfo("sam".toCharArray(), "notthepassword".toCharArray()).
                         build();
             try {
                 nc = Nats.connect(options);
@@ -412,7 +412,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        token("notthetoken").
+                        token("notthetoken".toCharArray()).
                         build();
             try {
                 nc = Nats.connect(options);

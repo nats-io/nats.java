@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -58,9 +59,9 @@ public class OptionsTests {
         assertEquals("default noEcho", false, o.isNoEcho());
         assertEquals("default UTF8 Support", false, o.supportUTF8Subjects());
 
-        assertNull("default username", o.getUsername());
-        assertNull("default password", o.getPassword());
-        assertNull("default token", o.getToken());
+        assertNull("default username", o.getUsernameChars());
+        assertNull("default password", o.getPasswordChars());
+        assertNull("default token", o.getTokenChars());
         assertNull("default connection name", o.getConnectionName());
 
         assertNull("default ssl context", o.getSslContext());
@@ -82,7 +83,7 @@ public class OptionsTests {
     @Test
     public void testChainedBooleanOptions() throws NoSuchAlgorithmException {
         Options o = new Options.Builder().verbose().pedantic().noRandomize().supportUTF8Subjects().noEcho().oldRequestStyle().build();
-        assertNull("default username", o.getUsername());
+        assertNull("default username", o.getUsernameChars());
         assertEquals("chained verbose", true, o.isVerbose());
         assertEquals("chained pedantic", true, o.isPedantic());
         assertEquals("chained norandomize", true, o.isNoRandomize());
@@ -93,10 +94,10 @@ public class OptionsTests {
 
     @Test
     public void testChainedStringOptions() throws NoSuchAlgorithmException {
-        Options o = new Options.Builder().userInfo("hello", "world").connectionName("name").build();
+        Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).connectionName("name").build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertEquals("chained username", "hello", o.getUsername());
-        assertEquals("chained password", "world", o.getPassword());
+        assertArrayEquals("chained username", "hello".toCharArray(), o.getUsernameChars());
+        assertArrayEquals("chained password", "world".toCharArray(), o.getPasswordChars());
         assertEquals("chained connection name", "name", o.getConnectionName());
     }
 
@@ -166,7 +167,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_UTF8_SUBJECTS, "true");
 
         Options o = new Options.Builder(props).build();
-        assertNull("default username", o.getUsername());
+        assertNull("default username chars", o.getUsernameChars());
         assertEquals("property verbose", true, o.isVerbose());
         assertEquals("property pedantic", true, o.isPedantic());
         assertEquals("property norandomize", true, o.isNoRandomize());
@@ -185,8 +186,8 @@ public class OptionsTests {
 
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertEquals("property username", "hello", o.getUsername());
-        assertEquals("property password", "world", o.getPassword());
+        assertArrayEquals("property username", "hello".toCharArray(), o.getUsernameChars());
+        assertArrayEquals("property password", "world".toCharArray(), o.getPasswordChars());
         assertEquals("property connection name", "name", o.getConnectionName());
     }
 
@@ -289,7 +290,7 @@ public class OptionsTests {
 
         Options o = new Options.Builder(props).connectionName("newname").build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
-        assertEquals("property token", "token", o.getToken());
+        assertArrayEquals("property token", "token".toCharArray(), o.getTokenChars());
         assertEquals("property connection name", "newname", o.getConnectionName());
     }
 
@@ -298,7 +299,7 @@ public class OptionsTests {
         Options o = new Options.Builder().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
-        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null));
+        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString());
     }
 
     @Test
@@ -307,19 +308,19 @@ public class OptionsTests {
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true}";
-        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null));
+        assertEquals("default connect options", expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString());
     }
 
     @Test
     public void testAuthConnectOptions() {
-        Options o = new Options.Builder().userInfo("hello", "world").build();
+        Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
                 + ",\"user\":\"hello\",\"pass\":\"world\"}";
-        assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null));
-        assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, null));
+        assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString());
+        assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, null).toString());
     }
 
     @Test
@@ -334,8 +335,8 @@ public class OptionsTests {
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
                 + ",\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\",\"jwt\":\"\"}";
-        assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce));
-        assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce));
+        assertEquals("no auth connect options", expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce).toString());
+        assertEquals("auth connect options", expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString());
     }
 
     @Test
@@ -364,7 +365,7 @@ public class OptionsTests {
         String serverURI = "nats://derek:password@localhost:2222";
         Options o = new Options.Builder().server(serverURI).build();
 
-        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null);
+        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertTrue(connectString.contains("\"user\":\"derek\""));
         assertTrue(connectString.contains("\"pass\":\"password\""));
         assertFalse(connectString.contains("\"token\":"));
@@ -375,7 +376,7 @@ public class OptionsTests {
         String serverURI = "nats://alberto@localhost:2222";
         Options o = new Options.Builder().server(serverURI).build();
 
-        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null);
+        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertTrue(connectString.contains("\"auth_token\":\"alberto\""));
         assertFalse(connectString.contains("\"user\":"));
         assertFalse(connectString.contains("\"pass\":"));
@@ -467,7 +468,7 @@ public class OptionsTests {
 
     @Test(expected=IllegalStateException.class)
     public void testTokenAndUserThrows() {
-        new Options.Builder().token("foo").userInfo("foo", "bar").build();
+        new Options.Builder().token("foo".toCharArray()).userInfo("foo".toCharArray(), "bar".toCharArray()).build();
         assertFalse(true);
     }
 

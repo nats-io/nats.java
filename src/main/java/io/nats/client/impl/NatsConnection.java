@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -788,7 +789,7 @@ class NatsConnection implements Connection {
 
     void sendUnsub(NatsSubscription sub, int after) {
         String sid = sub.getSID();
-        StringBuilder protocolBuilder = new StringBuilder();
+        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine());
         protocolBuilder.append(OP_UNSUB);
         protocolBuilder.append(" ");
         protocolBuilder.append(sid);
@@ -797,7 +798,8 @@ class NatsConnection implements Connection {
             protocolBuilder.append(" ");
             protocolBuilder.append(String.valueOf(after));
         }
-        NatsMessage unsubMsg = new NatsMessage(protocolBuilder.toString());
+        protocolBuilder.flip();
+        NatsMessage unsubMsg = new NatsMessage(protocolBuilder);
         queueInternalOutgoing(unsubMsg);
     }
 
@@ -825,7 +827,10 @@ class NatsConnection implements Connection {
             return;// We will setup sub on reconnect or ignore
         }
 
-        StringBuilder protocolBuilder = new StringBuilder();
+        // use a big buffer, may fail at server, but we don't want to fail here
+        int subLength = (subject != null) ? subject.length() : 0;
+        int qLength = (queueName != null) ? queueName.length() : 0;
+        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine() + subLength + qLength);
         protocolBuilder.append(OP_SUB);
         protocolBuilder.append(" ");
         protocolBuilder.append(subject);
@@ -837,7 +842,8 @@ class NatsConnection implements Connection {
 
         protocolBuilder.append(" ");
         protocolBuilder.append(sid);
-        NatsMessage subMsg = new NatsMessage(protocolBuilder.toString());
+        protocolBuilder.flip();
+        NatsMessage subMsg = new NatsMessage(protocolBuilder);
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -1068,12 +1074,14 @@ class NatsConnection implements Connection {
     void sendConnect(String serverURI) throws IOException {
         try {
             NatsServerInfo info = this.serverInfo.get();
-            StringBuilder connectString = new StringBuilder();
+            CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
+            // Use a bigger buffer than the max length, better to fail on the server than here
+            CharBuffer connectString = CharBuffer.allocate(this.options.getMaxControlLine() + connectOptions.limit());
             connectString.append(NatsConnection.OP_CONNECT);
             connectString.append(" ");
-            String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
             connectString.append(connectOptions);
-            NatsMessage msg = new NatsMessage(connectString.toString());
+            connectString.flip();
+            NatsMessage msg = new NatsMessage(connectString);
             
             queueInternalOutgoing(msg);
         } catch (Exception exp) {
@@ -1088,7 +1096,7 @@ class NatsConnection implements Connection {
     CompletableFuture<Boolean> softPing() {
         return this.sendPing(false);
     }
-    
+
     // Send a ping request and push a pong future on the queue.
     // futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns the wait will not return
@@ -1115,7 +1123,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(NatsConnection.OP_PING);
+        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PING));
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1130,7 +1138,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        NatsMessage msg = new NatsMessage(NatsConnection.OP_PONG);
+        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PONG));
         queueInternalOutgoing(msg);
     }
 
