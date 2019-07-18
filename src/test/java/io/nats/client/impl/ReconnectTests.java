@@ -211,7 +211,7 @@ public class ReconnectTests {
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(-1).
-                                    userInfo("stephen", "password").
+                                    userInfo("stephen".toCharArray(), "password".toCharArray()).
                                     reconnectWait(Duration.ofMillis(1000)).
                                     connectionListener(handler).
                                     build();

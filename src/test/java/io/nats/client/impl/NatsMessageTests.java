@@ -13,11 +13,11 @@
 
 package io.nats.client.impl;
 
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 
 import org.junit.Test;
@@ -32,7 +32,7 @@ import io.nats.client.NatsServerProtocolMock.ExitAt;
 public class NatsMessageTests {
     @Test
     public void testSizeOnProtocolMessage() {
-        NatsMessage msg = new NatsMessage("PING");
+        NatsMessage msg = new NatsMessage(CharBuffer.wrap("PING"));
 
         assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + 2, msg.getSizeInBytes());
         assertEquals("Size is correct", "PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes());

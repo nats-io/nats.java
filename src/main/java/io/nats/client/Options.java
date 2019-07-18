@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.CharBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -426,9 +427,9 @@ public class Options {
     private final Duration requestCleanupInterval;
     private final int maxPingsOut;
     private final long reconnectBufferSize;
-    private final String username;
-    private final String password;
-    private final String token;
+    private final char[] username;
+    private final char[] password;
+    private final char[] token;
     private final String inboxPrefix;
     private final boolean useOldRequestStyle;
     private final int bufferSize;
@@ -493,9 +494,9 @@ public class Options {
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
         private long reconnectBufferSize = DEFAULT_RECONNECT_BUF_SIZE;
-        private String username = null;
-        private String password = null;
-        private String token = null;
+        private char[] username = null;
+        private char[] password = null;
+        private char[] token = null;
         private boolean useOldRequestStyle = false;
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private boolean trackAdvancedStats = false;
@@ -543,15 +544,15 @@ public class Options {
             }
 
             if (props.containsKey(PROP_USERNAME)) {
-                this.username = props.getProperty(PROP_USERNAME, null);
+                this.username = props.getProperty(PROP_USERNAME, null).toCharArray();
             }
 
             if (props.containsKey(PROP_PASSWORD)) {
-                this.password = props.getProperty(PROP_PASSWORD, null);
+                this.password = props.getProperty(PROP_PASSWORD, null).toCharArray();
             }
 
             if (props.containsKey(PROP_TOKEN)) {
-                this.token = props.getProperty(PROP_TOKEN, null);
+                this.token = props.getProperty(PROP_TOKEN, null).toCharArray();
             }
 
             if (props.containsKey(PROP_SERVERS)) {
@@ -928,7 +929,8 @@ public class Options {
         }
 
         /**
-         * Set the timeout for connection attempts.
+         * Set the timeout for connection attempts. Each server in the options is allowed this timeout
+         * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
          * 
          * @param time the time to wait
          * @return the Builder for chaining
@@ -1020,8 +1022,25 @@ public class Options {
          * @param userName a non-empty user name
          * @param password the password, in plain text
          * @return the Builder for chaining
+         * @deprecated use the char[] version instead for better security
          */
         public Builder userInfo(String userName, String password) {
+            this.username = userName.toCharArray();
+            this.password = password.toCharArray();
+            return this;
+        }
+
+        /**
+         * Set the username and password for basic authentication.
+         * 
+         * If the user and password are set in the server URL, they will override these values. However, in a clustering situation,
+         * these values can be used as a fallback.
+         * 
+         * @param userName a non-empty user name
+         * @param password the password, in plain text
+         * @return the Builder for chaining
+         */
+        public Builder userInfo(char[] userName, char[] password) {
             this.username = userName;
             this.password = password;
             return this;
@@ -1034,8 +1053,22 @@ public class Options {
          * 
          * @param token The token
          * @return the Builder for chaining
+         * @deprecated use the char[] version instead for better security
          */
         public Builder token(String token) {
+            this.token = token.toCharArray();
+            return this;
+        }
+
+        /**
+         * Set the token for token-based authentication.
+         * 
+         * If a token is provided in a server URI it overrides this value.
+         * 
+         * @param token The token
+         * @return the Builder for chaining
+         */
+        public Builder token(char[] token) {
             this.token = token;
             return this;
         }
@@ -1377,23 +1410,47 @@ public class Options {
     }
 
     /**
+     * @deprecated converts the char array to a string, use getUserNameChars instead for more security
      * @return the username to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
      */
     public String getUsername() {
+        return username == null ? null : new String(username);
+    }
+
+    /**
+     * @return the username to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     */
+    public char[] getUsernameChars() {
         return username;
+    }
+
+    /**
+     * @deprecated converts the char array to a string, use getPasswordChars instead for more security
+     * @return the password the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     */
+    public String getPassword() {
+        return password == null ? null : new String(password);
     }
 
     /**
      * @return the password the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
      */
-    public String getPassword() {
+    public char[] getPasswordChars() {
         return password;
+    }
+
+    /**
+     * @deprecated converts the char array to a string, use getTokenChars instead for more security
+     * @return the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
+     */
+    public String getToken() {
+        return token == null ? null : new String(token);
     }
 
     /**
      * @return the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
      */
-    public String getToken() {
+    public char[] getTokenChars() {
         return token;
     }
 
@@ -1463,8 +1520,8 @@ public class Options {
      * @param nonce if the client is supposed to sign the nonce for authentication
      * @return the options String, basically JSON
      */
-    public String buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
-        StringBuilder connectString = new StringBuilder();
+    public CharBuffer buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
+        CharBuffer connectString = CharBuffer.allocate(this.maxControlLine);
         connectString.append("{");
 
         appendOption(connectString, Options.OPTION_LANG, Nats.CLIENT_LANGUAGE, true, false);
@@ -1500,9 +1557,9 @@ public class Options {
 
             String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
 
-            appendOption(connectString, Options.OPTION_NKEY, new String(nkey), true, true); // public key to string is ok
+            appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
             appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
-            appendOption(connectString, Options.OPTION_JWT, new String(jwt), true, true); // public JWT to string is ok
+            appendOption(connectString, Options.OPTION_JWT, jwt, true, true);
         } else if (includeAuth) {
             String uriUser = null;
             String uriPass = null;
@@ -1547,10 +1604,11 @@ public class Options {
         }
 
         connectString.append("}");
-        return connectString.toString();
+        connectString.flip();
+        return connectString;
     }
 
-    private void appendOption(StringBuilder builder, String key, String value, boolean quotes, boolean comma) {
+    private void appendOption(CharBuffer builder, String key, String value, boolean quotes, boolean comma) {
         if (comma) {
             builder.append(",");
         }
@@ -1562,6 +1620,23 @@ public class Options {
             builder.append("\"");
         }
         builder.append(value);
+        if (quotes) {
+            builder.append("\"");
+        }
+    }
+
+    private void appendOption(CharBuffer builder, String key, char[] value, boolean quotes, boolean comma) {
+        if (comma) {
+            builder.append(",");
+        }
+        builder.append("\"");
+        builder.append(key);
+        builder.append("\"");
+        builder.append(":");
+        if (quotes) {
+            builder.append("\"");
+        }
+        builder.put(value);
         if (quotes) {
             builder.append("\"");
         }
