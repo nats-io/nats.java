@@ -34,8 +34,8 @@ public class NatsImpl {
         return new NatsStatistics(false);
     }
 
-    public static AuthHandler credentials(String chainFile) {
-        return new FileAuthHandler(chainFile);
+    public static AuthHandler credentials(String credsFile) {
+        return new FileAuthHandler(credsFile);
     }
 
     public static AuthHandler credentials(String jwtFile, String nkeyFile) {

@@ -13,7 +13,10 @@
 
 package io.nats.client.impl;
 
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import io.nats.client.Message;
 import io.nats.client.Subscription;
@@ -114,8 +117,10 @@ class NatsMessage implements Message {
     }
 
     // Create a protocol only message to publish
-    NatsMessage(String protocol) {
-        this.protocolBytes = protocol.getBytes(StandardCharsets.UTF_8);
+    NatsMessage(CharBuffer protocol) {
+        ByteBuffer byteBuffer = StandardCharsets.UTF_8.encode(protocol);
+        this.protocolBytes = Arrays.copyOfRange(byteBuffer.array(), byteBuffer.position(), byteBuffer.limit());
+        Arrays.fill(byteBuffer.array(), (byte) 0); // clear sensitive data
         this.sizeInBytes = this.protocolBytes.length + 2;// for \r\n
     }
 

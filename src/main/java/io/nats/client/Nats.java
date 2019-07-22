@@ -72,7 +72,7 @@ public class Nats {
     /**
      * Current version of the library - {@value #CLIENT_VERSION}
      */
-    public static final String CLIENT_VERSION = "2.5.2";
+    public static final String CLIENT_VERSION = "2.6.0";
 
     /**
      * Current language of the library - {@value #CLIENT_LANGUAGE}
@@ -131,12 +131,18 @@ public class Nats {
      * Options can be used to set the server URL, or multiple URLS, callback
      * handlers for various errors, and connection events.
      * 
-     * 
      * <p>This is a synchronous call, and the connection should be ready for use on return
      * there are network timing issues that could result in a successful connect call but
      * the connection is invalid soon after return, where soon is in the network/thread world.
      * 
      * <p>If the connection fails, an IOException is thrown
+     * 
+     * <p>As of 2.6 the connect call with throw an io.nats.AuthenticationException if an authentication
+     * error occurred during connect, and the connect failed. Because multiple servers are tried, this exception
+     * may not indicate a problem on the "last server" tried, only that all the servers were tried and at least
+     * one failed because of authentication. In situations with heterogeneous authentication for multiple servers
+     * you may need to use an ErrorListener to determine which one had the problem. Authentication failures are not
+     * immediate connect failures because of the server list, and the existing 2.x API contract.
      * 
      * @param options the options object to use to create the connection
      * @throws IOException if a networking issue occurs
@@ -189,16 +195,16 @@ public class Nats {
     }
 
     /**
-     * Create an authhandler from a chain file. The handler will read the file each time it needs to respond to a request
+     * Create an authhandler from a creds file. The handler will read the file each time it needs to respond to a request
      * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
      * 
-     * The chain file has a JWT - generally commented with a separator - followed by an nkey - also with a separator.
+     * The creds file has a JWT - generally commented with a separator - followed by an nkey - also with a separator.
      * 
-     * @param chainFile a file containing a user JWT and an nkey
-     * @return an authhandler that will use the chain file to load/clear the nkey and jwt as needed
+     * @param credsFile a file containing a user JWT and an nkey
+     * @return an authhandler that will use the creds file to load/clear the nkey and jwt as needed
      */
-    public static AuthHandler credentials(String chainFile) {
-        return NatsImpl.credentials(chainFile);
+    public static AuthHandler credentials(String credsFile) {
+        return NatsImpl.credentials(credsFile);
     }
 
     /**
@@ -207,7 +213,7 @@ public class Nats {
      * 
      * @param jwtFile a file containing a user JWT, may or may not contain separators
      * @param nkeyFile a file containing a user nkey that matches the JWT, may or may not contain separators
-     * @return an authhandler that will use the chain file to load/clear the nkey and jwt as needed
+     * @return an authhandler that will use the creds file to load/clear the nkey and jwt as needed
      */
     public static AuthHandler credentials(String jwtFile, String nkeyFile) {
         return NatsImpl.credentials(jwtFile, nkeyFile);

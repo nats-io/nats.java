@@ -39,7 +39,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        userInfo("stephen", "password").
+                        userInfo("stephen".toCharArray(), "password".toCharArray()).
                         build();
             Connection nc = Nats.connect(options);
             try {
@@ -64,7 +64,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(-1).
-                        userInfo("stephen", "password").
+                        userInfo("stephen".toCharArray(), "password".toCharArray()).
                         connectionListener(handler).
                         build();
             nc = Nats.connect(options);
@@ -116,7 +116,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        userInfo("ginger", "password").
+                        userInfo("ginger".toCharArray(), "password".toCharArray()).
                         build();
             Connection nc = Nats.connect(options);
             try {
@@ -240,7 +240,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server("nats://stephen:password@localhost:"+ts1.getPort()).
                         server("nats://localhost:"+ts2.getPort()).
-                        userInfo("alberto", "casadecampo").
+                        userInfo("alberto".toCharArray(), "casadecampo".toCharArray()).
                         maxReconnects(4).
                         noRandomize().
                         connectionListener(handler).
@@ -301,7 +301,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server("nats://token_one@localhost:"+ts1.getPort()).
                         server("nats://localhost:"+ts2.getPort()).
-                        token("token_two").
+                        token("token_two".toCharArray()).
                         maxReconnects(4).
                         noRandomize().
                         connectionListener(handler).
@@ -329,7 +329,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        token("derek").
+                        token("derek".toCharArray()).
                         build();
             Connection nc = Nats.connect(options);
             try {
@@ -360,7 +360,7 @@ public class AuthTests {
         }
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=AuthenticationException.class)
     public void testBadUserBadPass() throws Exception {
         Connection nc = null;
         String[] customArgs = {"--user","stephen","--pass","password"};
@@ -369,7 +369,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        userInfo("sam", "notthepassword").
+                        userInfo("sam".toCharArray(), "notthepassword".toCharArray()).
                         build();
             try {
                 nc = Nats.connect(options);
@@ -382,7 +382,7 @@ public class AuthTests {
         }
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=AuthenticationException.class)
     public void testMissingUserPass() throws Exception {
         Connection nc = null;
         String[] customArgs = {"--user","wally","--pass","password"};
@@ -403,7 +403,7 @@ public class AuthTests {
         }
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=AuthenticationException.class)
     public void testBadToken() throws Exception {
         Connection nc = null;
         String[] customArgs = {"--auth","colin"};
@@ -412,7 +412,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        token("notthetoken").
+                        token("notthetoken".toCharArray()).
                         build();
             try {
                 nc = Nats.connect(options);
@@ -425,7 +425,7 @@ public class AuthTests {
         }
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=AuthenticationException.class)
     public void testMissingToken() throws Exception {
         Connection nc = null;
         String[] customArgs = {"--auth","ivan"};
@@ -494,7 +494,7 @@ public class AuthTests {
     }
 
     @Test
-    public void testJWTAuthWithChainFile() throws Exception {
+    public void testJWTAuthWithCredsFile() throws Exception {
         NKey theKey = NKey.createUser(null);
         assertNotNull(theKey);
 
@@ -509,7 +509,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.chain")).
+                        authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).
                         build();
             Connection nc = Nats.connect(options);
             try {

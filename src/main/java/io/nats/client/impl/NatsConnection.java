@@ -15,9 +15,12 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -45,6 +48,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
+import io.nats.client.AuthenticationException;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
 import io.nats.client.ConnectionListener.Events;
@@ -125,6 +129,9 @@ class NatsConnection implements Connection {
     private ExecutorService connectExecutor;
 
     NatsConnection(Options options) {
+        boolean trace = options.isTraceConnection();
+        timeTrace(trace, "creating connection object");
+
         this.options = options;
 
         this.statistics = new NatsStatistics(this.options.isTrackAdvancedStats());
@@ -151,15 +158,17 @@ class NatsConnection implements Connection {
         this.draining = new AtomicReference<>();
         this.blockPublishForDrain = new AtomicBoolean();
 
-        this.reader = new NatsConnectionReader(this);
-        this.writer = new NatsConnectionWriter(this);
-
+        timeTrace(trace, "creating executors");
         this.callbackRunner = Executors.newSingleThreadExecutor();
-
         this.executor = options.getExecutor();
         this.connectExecutor = Executors.newSingleThreadExecutor();
 
+        timeTrace(trace, "creating reader and writer");
+        this.reader = new NatsConnectionReader(this);
+        this.writer = new NatsConnectionWriter(this);
+
         this.needPing = new AtomicBoolean(true);
+        timeTrace(trace, "connection object created");
     }
 
     // Connect is only called after creation
@@ -168,30 +177,54 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("No servers provided in options");
         }
 
-        for (String serverURI : getServers()) {
+        boolean trace = options.isTraceConnection();
+        long start = System.nanoTime();
 
+        this.lastError.set("");
+
+        timeTrace(trace, "starting connect loop");
+
+        for (String serverURI : getServers()) {
             if (isClosed()) {
                 break;
             }
 
+            timeTrace(trace, "setting status to connecting");
             updateStatus(Status.CONNECTING);
 
-            tryToConnect(serverURI);
+            timeTrace(trace, "trying to connect to %s", serverURI);
+            tryToConnect(serverURI, System.nanoTime());
 
             if (isConnected()) {
                 break;
             } else {
+                timeTrace(trace, "setting status to disconnected");
                 updateStatus(Status.DISCONNECTED);
             }
         }
 
         if (!isConnected() && !isClosed()) {
             if (reconnectOnConnect) {
+                timeTrace(trace, "trying to reconnect on connect");
                 reconnect();
             } else {
+                timeTrace(trace, "connection failed, closing to cleanup");
                 close();
-                throw new IOException("Unable to connect to NATS server.");
+
+                String err = lastError.get();
+
+                err = (err != null) ? err.toLowerCase() : "";
+
+                if (err.startsWith("authentication") || err.contains("authorization violation")) {
+                    throw new AuthenticationException("Authentication error connecting to NATS server: "+err);
+                } else {
+                    throw new IOException("Unable to connect to NATS server.");
+                }
             }
+        } else if (trace) {
+            long end = System.nanoTime();
+            double seconds = ((double) (end - start)) / 1_000_000_000.0;
+            timeTrace(trace, "connect complete in %.3f seconds", seconds);
         }
     }
 
@@ -231,7 +264,7 @@ class NatsConnection implements Connection {
 
                 updateStatus(Status.RECONNECTING);
 
-                tryToConnect(server);
+                tryToConnect(server, System.nanoTime());
                 lastServer = server;
                 tries++;
 
@@ -278,11 +311,47 @@ class NatsConnection implements Connection {
         processConnectionEvent(Events.RESUBSCRIBED);
     }
 
+    void timeTrace(boolean trace, String format, Object... args) {
+        if (trace) {
+            String timeStr = DateTimeFormatter.ISO_TIME.format(LocalDateTime.now());
+            System.out.printf("[%s] connect trace: ", timeStr);
+            System.out.printf(format, args);
+            System.out.println();
+
+        }
+    }
+
+    long timeCheck(boolean trace, long endNanos, String format, Object... args) throws TimeoutException {
+        long now = System.nanoTime();
+        long remaining = endNanos - now;
+
+        if (trace) {
+            String timeStr = DateTimeFormatter.ISO_TIME.format(LocalDateTime.now());
+            double seconds = ((double) remaining) / 1_000_000_000.0;
+            System.out.printf("[%s] connect trace: ", timeStr);
+            System.out.printf(format, args);
+            System.out.printf(", %.3f (s) remaining", seconds);
+            System.out.println();
+
+        }
+
+        if (remaining < 0) {
+            throw new TimeoutException("connection timed out");
+        }
+
+        return remaining;
+    }
+
     // is called from reconnect and connect
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
-    void tryToConnect(String serverURI) {
+    void tryToConnect(String serverURI, long now) {
         try {
+            Duration connectTimeout = options.getConnectionTimeout();
+            boolean trace = options.isTraceConnection();
+            long end = now + connectTimeout.toNanos();
+            long timeoutNanos = timeCheck(trace, end, "starting connection attempt");
+
             statusLock.lock();
             try {
                 if (this.connecting) {
@@ -294,20 +363,22 @@ class NatsConnection implements Connection {
                 statusLock.unlock();
             }
 
-            Duration connectTimeout = options.getConnectionTimeout();
-
             // Create a new future for the dataport, the reader/writer will use this
             // to wait for the connect/failure.
             this.dataPortFuture = new CompletableFuture<>();
 
             // Make sure the reader and writer are stopped
-            this.reader.stop().get();
-            this.writer.stop().get();
+            timeoutNanos = timeCheck(trace, end, "waiting for reader");
+            this.reader.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
+            timeoutNanos = timeCheck(trace, end, "waiting for writer");
+            this.writer.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
 
+            timeoutNanos = timeCheck(trace, end, "cleaning pong queue");
             cleanUpPongQueue();
 
+            timeoutNanos = timeCheck(trace, end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
-            newDataPort.connect(serverURI, this);
+            newDataPort.connect(serverURI, this, timeoutNanos);
 
             // Notify the any threads waiting on the sockets
             this.dataPort = newDataPort;
@@ -324,25 +395,32 @@ class NatsConnection implements Connection {
                 }
             };
 
+            timeoutNanos = timeCheck(trace, end, "reading info, version and upgrading to secure if necessary");
             Future<Object> future = this.connectExecutor.submit(connectTask);
             try {
-                future.get(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+                future.get(timeoutNanos, TimeUnit.NANOSECONDS);
             } finally {
                 future.cancel(true);
             }
 
             // start the reader and writer after we secured the connection, if necessary
+            timeoutNanos = timeCheck(trace, end, "starting reader");
             this.reader.start(this.dataPortFuture);
+            timeoutNanos = timeCheck(trace, end, "starting writer");
             this.writer.start(this.dataPortFuture);
 
+            timeoutNanos = timeCheck(trace, end, "sending connect message");
             this.sendConnect(serverURI);
+
+            timeoutNanos = timeCheck(trace, end, "sending initial ping");
             Future<Boolean> pongFuture = sendPing();
 
             if (pongFuture != null) {
-                pongFuture.get(connectTimeout.toNanos(), TimeUnit.NANOSECONDS);
+                pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
             }
 
             if (this.timer == null) {
+                timeoutNanos = timeCheck(trace, end, "starting ping and cleanup timers");
                 this.timer = new Timer("Nats Connection Timer");
 
                 long pingMillis = this.options.getPingInterval().toMillis();
@@ -369,6 +447,7 @@ class NatsConnection implements Connection {
             }
 
             // Set connected status
+            timeoutNanos = timeCheck(trace, end, "updating status to connected");
             statusLock.lock();
             try {
                 this.connecting = false;
@@ -382,6 +461,7 @@ class NatsConnection implements Connection {
             } finally {
                 statusLock.unlock();
             }
+            timeTrace(trace, "status updated");
         } catch (RuntimeException exp) { // runtime exceptions, like illegalArgs
             processException(exp);
             throw exp;
@@ -721,7 +801,7 @@ class NatsConnection implements Connection {
 
     void sendUnsub(NatsSubscription sub, int after) {
         String sid = sub.getSID();
-        StringBuilder protocolBuilder = new StringBuilder();
+        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine());
         protocolBuilder.append(OP_UNSUB);
         protocolBuilder.append(" ");
         protocolBuilder.append(sid);
@@ -730,7 +810,8 @@ class NatsConnection implements Connection {
             protocolBuilder.append(" ");
             protocolBuilder.append(String.valueOf(after));
         }
-        NatsMessage unsubMsg = new NatsMessage(protocolBuilder.toString());
+        protocolBuilder.flip();
+        NatsMessage unsubMsg = new NatsMessage(protocolBuilder);
         queueInternalOutgoing(unsubMsg);
     }
 
@@ -758,7 +839,10 @@ class NatsConnection implements Connection {
             return;// We will setup sub on reconnect or ignore
         }
 
-        StringBuilder protocolBuilder = new StringBuilder();
+        // use a big buffer, may fail at server, but we don't want to fail here
+        int subLength = (subject != null) ? subject.length() : 0;
+        int qLength = (queueName != null) ? queueName.length() : 0;
+        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine() + subLength + qLength);
         protocolBuilder.append(OP_SUB);
         protocolBuilder.append(" ");
         protocolBuilder.append(subject);
@@ -770,7 +854,8 @@ class NatsConnection implements Connection {
 
         protocolBuilder.append(" ");
         protocolBuilder.append(sid);
-        NatsMessage subMsg = new NatsMessage(protocolBuilder.toString());
+        protocolBuilder.flip();
+        NatsMessage subMsg = new NatsMessage(protocolBuilder);
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -1001,12 +1086,14 @@ class NatsConnection implements Connection {
     void sendConnect(String serverURI) throws IOException {
         try {
             NatsServerInfo info = this.serverInfo.get();
-            StringBuilder connectString = new StringBuilder();
+            CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
+            // Use a bigger buffer than the max length, better to fail on the server than here
+            CharBuffer connectString = CharBuffer.allocate(this.options.getMaxControlLine() + connectOptions.limit());
             connectString.append(NatsConnection.OP_CONNECT);
             connectString.append(" ");
-            String connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
             connectString.append(connectOptions);
-            NatsMessage msg = new NatsMessage(connectString.toString());
+            connectString.flip();
+            NatsMessage msg = new NatsMessage(connectString);
             
             queueInternalOutgoing(msg);
         } catch (Exception exp) {
@@ -1021,7 +1108,7 @@ class NatsConnection implements Connection {
     CompletableFuture<Boolean> softPing() {
         return this.sendPing(false);
     }
-    
+
     // Send a ping request and push a pong future on the queue.
     // futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns the wait will not return
@@ -1048,7 +1135,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(NatsConnection.OP_PING);
+        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PING));
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1063,7 +1150,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        NatsMessage msg = new NatsMessage(NatsConnection.OP_PONG);
+        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PONG));
         queueInternalOutgoing(msg);
     }
 

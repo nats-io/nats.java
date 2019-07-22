@@ -37,6 +37,13 @@ import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.Subscription;
+
+
+
+// Some tests are a bit tricky, and depend on the fact that the dispatcher
+// uses a single queue, so the "subject" messages go through before
+// the done message (or should) - wanted to note that somewhere
 
 public class DispatcherTests {
     @Test
@@ -123,7 +130,7 @@ public class DispatcherTests {
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
 
             done.get(500, TimeUnit.MILLISECONDS);
-            
+
             assertEquals(msgCount, q.size());
         }
     }
@@ -161,7 +168,7 @@ public class DispatcherTests {
             assertEquals(1, q.size());
 
             nc.closeDispatcher(d);
-            
+
             assertFalse(d.isActive());
 
             // This won't arrive
@@ -534,7 +541,7 @@ public class DispatcherTests {
 
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
             done.get(200, TimeUnit.MILLISECONDS);
-            
+
             assertEquals(msgCount, q.size());
         }
     }
@@ -556,16 +563,6 @@ public class DispatcherTests {
             Dispatcher d = nc.createDispatcher((msg) -> {});
 
             d.subscribe("");
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected=IllegalArgumentException.class)
-    public void testThrowOnNullQueue() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            Dispatcher d = nc.createDispatcher((msg) -> {});
-            d.subscribe("subject", null);
             assertFalse(true);
         }
     }
@@ -666,16 +663,6 @@ public class DispatcherTests {
         }
     }
 
-    @Test(expected=IllegalArgumentException.class)
-    public void testThrowOnNullSubjectInUnsub() throws IOException, InterruptedException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            Dispatcher d = nc.createDispatcher((msg) -> {});
-            d.unsubscribe(null);
-            assertFalse(true);
-        }
-    }
-
     @Test
     public void testDoubleSubscribe() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
@@ -694,17 +681,131 @@ public class DispatcherTests {
             });
 
             d.subscribe("subject").subscribe("subject").subscribe("subject").subscribe("done");
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
                 nc.publish("subject", new byte[16]);
             }
             nc.publish("done", new byte[16]);
-            nc.flush(Duration.ofMillis(500)); // wait for them to go through
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
-            done.get(500, TimeUnit.MILLISECONDS);
-            
+            done.get(5, TimeUnit.SECONDS);
+
             assertEquals(msgCount, q.size()); // Shoudl only get one since all the extra subs do nothing??
+        }
+    }
+
+    @Test
+    public void testDoubleSubscribeWithCustomHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+            int msgCount = 100;
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            final AtomicInteger count = new AtomicInteger(0);
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+
+            d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
+            d.subscribe("subject", "queue", (msg) -> { count.incrementAndGet(); });
+            d.subscribe("done", (msg) -> { done.complete(Boolean.TRUE); });
+
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
+
+            for (int i = 0; i < msgCount; i++) {
+                nc.publish("subject", new byte[16]);
+            }
+            nc.publish("done", new byte[16]);
+            nc.flush(Duration.ofSeconds(5)); // wait for them to go through
+
+            done.get(5, TimeUnit.SECONDS);
+
+            assertEquals(msgCount * 2, count.get()); // We should get 2x the messages because we subscribed 2 times.
+        }
+    }
+
+    @Test
+    public void testDoubleSubscribeWithUnsubscribeAfterWithCustomHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            final CompletableFuture<Boolean> done1 = new CompletableFuture<>();
+            final CompletableFuture<Boolean> done2 = new CompletableFuture<>();
+            int msgCount = 100;
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            final AtomicInteger count = new AtomicInteger(0);
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            Subscription s1 = d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
+            Subscription doneSub = d.subscribe("done", (msg) -> { done1.complete(Boolean.TRUE); });
+            d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
+
+            nc.flush(Duration.ofSeconds(5)); // wait for the subs to go through
+
+            for (int i = 0; i < msgCount; i++) {
+                nc.publish("subject", new byte[16]);
+            }
+            nc.publish("done", new byte[16]);
+            nc.flush(Duration.ofSeconds(5)); // wait for the messages to go through
+
+            done1.get(5, TimeUnit.SECONDS);
+
+            assertEquals(msgCount * 2, count.get()); // We should get 2x the messages because we subscribed 2 times.
+
+            count.set(0);
+            d.unsubscribe(s1);
+            d.unsubscribe(doneSub);
+            d.subscribe("done", (msg) -> { done2.complete(Boolean.TRUE); });
+            nc.flush(Duration.ofSeconds(5)); // wait for the unsub to go through
+
+            for (int i = 0; i < msgCount; i++) {
+                nc.publish("subject", new byte[16]);
+            }
+            nc.publish("done", new byte[16]);
+            nc.flush(Duration.ofSeconds(5)); // wait for the messages to go through
+
+            done2.get(5, TimeUnit.SECONDS);
+
+            assertEquals(msgCount, count.get()); // We only have 1 active subscription, so we should only get msgCount.
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubjectWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("", (msg) -> {});
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptyQueueWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("subject", "", (msg) -> {});
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullSubjectWithQueueWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe(null, "quque", (msg) -> {});
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubjectWithQueueWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("", "quque", (msg) -> {});
+            assertFalse(true);
         }
     }
 }
