@@ -494,7 +494,7 @@ public class AuthTests {
     }
 
     @Test
-    public void testJWTAuthWithChainFile() throws Exception {
+    public void testJWTAuthWithCredsFile() throws Exception {
         NKey theKey = NKey.createUser(null);
         assertNotNull(theKey);
 
@@ -509,7 +509,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
-                        authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.chain")).
+                        authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).
                         build();
             Connection nc = Nats.connect(options);
             try {

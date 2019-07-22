@@ -26,10 +26,10 @@ import io.nats.client.NKey;
 class FileAuthHandler implements AuthHandler {
     private String jwtFile;
     private String nkeyFile;
-    private String chainFile;
+    private String credsFile;
 
-    FileAuthHandler(String chain) {
-        this.chainFile = chain;
+    FileAuthHandler(String creds) {
+        this.credsFile = creds;
     }
 
     FileAuthHandler(String jwtFile, String nkeyFile) {
@@ -111,8 +111,8 @@ class FileAuthHandler implements AuthHandler {
     private char[] readKeyChars() throws IOException {
         char[] keyChars = null;
 
-        if (this.chainFile != null) {
-            byte[] data = Files.readAllBytes(Paths.get(this.chainFile));
+        if (this.credsFile != null) {
+            byte[] data = Files.readAllBytes(Paths.get(this.credsFile));
             ByteBuffer bb = ByteBuffer.wrap(data);
             CharBuffer chars = StandardCharsets.UTF_8.decode(bb);
             keyChars = this.extract(chars, 3); // we are 2nd so 3 headers
@@ -191,8 +191,8 @@ class FileAuthHandler implements AuthHandler {
             char[] jwtChars = null;
             String fileToUse = this.jwtFile;
 
-            if (this.chainFile != null) {
-                fileToUse = this.chainFile;
+            if (this.credsFile != null) {
+                fileToUse = this.credsFile;
             }
 
             byte[] data = Files.readAllBytes(Paths.get(fileToUse));

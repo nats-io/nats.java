@@ -29,8 +29,8 @@ public class FileAuthHandlerTests {
     private final static String SEED = "SUAGVDADILKKEQSTWF7RTC25D3F433K3VWMQOGNJRE2VJGEP3LSSO7PHUE";
     
     @Test
-    public void testChainFile() throws Exception {
-        AuthHandler auth = Nats.credentials("src/test/resources/jwt_nkey/test.chain");
+    public void testCredsFile() throws Exception {
+        AuthHandler auth = Nats.credentials("src/test/resources/jwt_nkey/test.creds");
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world".getBytes(StandardCharsets.UTF_8);
 
