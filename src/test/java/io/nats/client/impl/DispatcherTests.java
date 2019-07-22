@@ -707,7 +707,7 @@ public class DispatcherTests {
             Dispatcher d = nc.createDispatcher((msg) -> {});
 
             d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
-            d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
+            d.subscribe("subject", "queue", (msg) -> { count.incrementAndGet(); });
             d.subscribe("done", (msg) -> { done.complete(Boolean.TRUE); });
 
             nc.flush(Duration.ofSeconds(5)); // wait for them to go through
@@ -769,4 +769,43 @@ public class DispatcherTests {
         }
     }
 
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubjectWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("", (msg) -> {});
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptyQueueWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("subject", "", (msg) -> {});
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullSubjectWithQueueWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe(null, "quque", (msg) -> {});
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubjectWithQueueWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("", "quque", (msg) -> {});
+            assertFalse(true);
+        }
+    }
 }

@@ -373,6 +373,7 @@ public class ConnectTests {
             Options options = new Options.Builder().
                                         server(ts.getURI()).
                                         noReconnect().
+                                        traceConnection().
                                         connectionTimeout(Duration.ofSeconds(2)). // 2 is also the default but explicit for test
                                         build();
             Connection nc = Nats.connect(options);
@@ -387,6 +388,23 @@ public class ConnectTests {
                                         server(ts.getURI()).
                                         noReconnect().
                                         connectionTimeout(Duration.ofSeconds(6)). // longer than the sleep
+                                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+    
+    @Test
+    public void testTimeCheckCoverage() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
+            Options options = new Options.Builder().
+                                        server(ts.getURI()).
+                                        traceConnection().
                                         build();
             Connection nc = Nats.connect(options);
             try {
