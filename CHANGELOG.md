@@ -3,6 +3,8 @@
 
 ## Version 2.6.0
 
+* [FIXED] - cleaned up use of "chain" instead of "creds"
+* [FIXED] - #255 - added special ioexception when possible to indicate an authentication problem on connect
 * [FIXED] - #252 - deprecated strings for username/pass/token and use char arrays instead, required changing some other code to CharBuffer
 * [ADDED] - Openjdk11 to travis build and updated gradle wrapper to 5.5
 * [ADDED] - an option to trace connect timing, including a test and example
