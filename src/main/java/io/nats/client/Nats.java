@@ -131,12 +131,18 @@ public class Nats {
      * Options can be used to set the server URL, or multiple URLS, callback
      * handlers for various errors, and connection events.
      * 
-     * 
      * <p>This is a synchronous call, and the connection should be ready for use on return
      * there are network timing issues that could result in a successful connect call but
      * the connection is invalid soon after return, where soon is in the network/thread world.
      * 
      * <p>If the connection fails, an IOException is thrown
+     * 
+     * <p>As of 2.6 the connect call with throw an io.nats.AuthenticationException if an authentication
+     * error occurred during connect, and the connect failed. Because multiple servers are tried, this exception
+     * may not indicate a problem on the "last server" tried, only that all the servers were tried and at least
+     * one failed because of authentication. In situations with heterogeneous authentication for multiple servers
+     * you may need to use an ErrorListener to determine which one had the problem. Authentication failures are not
+     * immediate connect failures because of the server list, and the existing 2.x API contract.
      * 
      * @param options the options object to use to create the connection
      * @throws IOException if a networking issue occurs

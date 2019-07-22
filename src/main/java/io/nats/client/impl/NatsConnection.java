@@ -48,6 +48,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
+import io.nats.client.AuthenticationException;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
 import io.nats.client.ConnectionListener.Events;
@@ -179,6 +180,8 @@ class NatsConnection implements Connection {
         boolean trace = options.isTraceConnection();
         long start = System.nanoTime();
 
+        this.lastError.set("");
+
         timeTrace(trace, "starting connect loop");
 
         for (String serverURI : getServers()) {
@@ -207,7 +210,16 @@ class NatsConnection implements Connection {
             } else {
                 timeTrace(trace, "connection failed, closing to cleanup");
                 close();
-                throw new IOException("Unable to connect to NATS server.");
+
+                String err = lastError.get();
+
+                err = (err != null) ? err.toLowerCase() : "";
+
+                if (err.startsWith("authentication") || err.contains("authorization violation")) {
+                    throw new AuthenticationException("Authentication error connecting to NATS server: "+err);
+                } else {
+                    throw new IOException("Unable to connect to NATS server.");
+                }
             }
         } else if (trace) {
             long end = System.nanoTime();

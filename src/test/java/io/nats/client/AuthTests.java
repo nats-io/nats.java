@@ -360,7 +360,7 @@ public class AuthTests {
         }
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=AuthenticationException.class)
     public void testBadUserBadPass() throws Exception {
         Connection nc = null;
         String[] customArgs = {"--user","stephen","--pass","password"};
@@ -382,7 +382,7 @@ public class AuthTests {
         }
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=AuthenticationException.class)
     public void testMissingUserPass() throws Exception {
         Connection nc = null;
         String[] customArgs = {"--user","wally","--pass","password"};
@@ -403,7 +403,7 @@ public class AuthTests {
         }
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=AuthenticationException.class)
     public void testBadToken() throws Exception {
         Connection nc = null;
         String[] customArgs = {"--auth","colin"};
@@ -425,7 +425,7 @@ public class AuthTests {
         }
     }
 
-    @Test(expected=IOException.class)
+    @Test(expected=AuthenticationException.class)
     public void testMissingToken() throws Exception {
         Connection nc = null;
         String[] customArgs = {"--auth","ivan"};

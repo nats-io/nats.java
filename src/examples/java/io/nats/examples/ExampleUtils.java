@@ -18,6 +18,8 @@ import java.time.Duration;
 import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
+import io.nats.client.Consumer;
+import io.nats.client.ErrorListener;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 
@@ -28,6 +30,19 @@ public class ExampleUtils {
                         connectionTimeout(Duration.ofSeconds(5)).
                         pingInterval(Duration.ofSeconds(10)).
                         reconnectWait(Duration.ofSeconds(1)).
+                        errorListener(new ErrorListener(){
+                            public void exceptionOccurred(Connection conn, Exception exp) {
+                                System.out.println("Exception " + exp.getMessage());
+                            }
+
+                            public void errorOccurred(Connection conn, String type) {
+                                System.out.println("Error " + type);
+                            }
+                            
+                            public void slowConsumerDetected(Connection conn, Consumer consumer) {
+                                System.out.println("Slow consumer");
+                            }
+                        }).
                         connectionListener(new ConnectionListener(){
                             public void connectionEvent(Connection conn, Events type) {
                                     System.out.println("Status change "+type);
