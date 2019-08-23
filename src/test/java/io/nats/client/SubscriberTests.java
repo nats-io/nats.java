@@ -475,4 +475,100 @@ public class SubscriberTests {
             assertTrue(false);
         }
     }
+
+    @Test
+    public void testWhiteSpaceInSubject() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+            Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            boolean gotIt = false;
+            try {
+                nc.subscribe("foo bar");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
+
+            gotIt = false;
+            try {
+                nc.subscribe("foo\tbar");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
+            
+            gotIt = false;
+            try {
+                nc.subscribe("foo ");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
+            
+            gotIt = false;
+            try {
+                nc.subscribe(" foo");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
+        }
+    }
+
+    @Test
+    public void testWhiteSpaceInQueue() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+            Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            boolean gotIt = false;
+            try {
+                nc.subscribe("test", "foo bar");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
+
+            gotIt = false;
+            try {
+                nc.subscribe("test", "foo\tbar");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
+            
+            gotIt = false;
+            try {
+                nc.subscribe("test", "foo ");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
+            
+            gotIt = false;
+            try {
+                nc.subscribe("test", " foo");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
+        }
+    }
 }

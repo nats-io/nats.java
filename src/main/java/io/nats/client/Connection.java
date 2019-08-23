@@ -179,6 +179,8 @@ public interface Connection extends AutoCloseable {
      * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
      * 
+     * <p>As of 2.6.1 this method will throw an IllegalArgumentException if the subject contains whitespace.
+     * 
      * @param subject the subject to subscribe to
      * @return an object representing the subscription
      */
@@ -193,6 +195,7 @@ public interface Connection extends AutoCloseable {
      * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
      * 
+     * <p>As of 2.6.1 this method will throw an IllegalArgumentException if either string contains whitespace.
      * 
      * @param subject the subject to subscribe to
      * @param queueName the queue group to join

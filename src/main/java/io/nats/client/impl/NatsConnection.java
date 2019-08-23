@@ -47,6 +47,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.nats.client.AuthenticationException;
 import io.nats.client.Connection;
@@ -746,20 +748,42 @@ class NatsConnection implements Connection {
     }
 
     public Subscription subscribe(String subject) {
+
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        Pattern pattern = Pattern.compile("\\s");
+        Matcher matcher = pattern.matcher(subject);
+
+        if (matcher.find()) {
+            throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
         return createSubscription(subject, null, null);
     }
 
     public Subscription subscribe(String subject, String queueName) {
+
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+        
+        Pattern pattern = Pattern.compile("\\s");
+        Matcher smatcher = pattern.matcher(subject);
+
+        if (smatcher.find()) {
+            throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
         if (queueName == null || queueName.length() == 0) {
             throw new IllegalArgumentException("QueueName is required in subscribe");
+        }
+
+        Matcher qmatcher = pattern.matcher(queueName);
+
+        if (qmatcher.find()) {
+            throw new IllegalArgumentException("Queue names cannot contain whitespace");
         }
 
         return createSubscription(subject, queueName, null);
