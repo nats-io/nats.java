@@ -1024,6 +1024,7 @@ public class Options {
          * @return the Builder for chaining
          * @deprecated use the char[] version instead for better security
          */
+        @Deprecated
         public Builder userInfo(String userName, String password) {
             this.username = userName.toCharArray();
             this.password = password.toCharArray();
@@ -1055,6 +1056,7 @@ public class Options {
          * @return the Builder for chaining
          * @deprecated use the char[] version instead for better security
          */
+        @Deprecated
         public Builder token(String token) {
             this.token = token.toCharArray();
             return this;
@@ -1413,6 +1415,7 @@ public class Options {
      * @deprecated converts the char array to a string, use getUserNameChars instead for more security
      * @return the username to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
      */
+    @Deprecated
     public String getUsername() {
         return username == null ? null : new String(username);
     }
@@ -1428,6 +1431,7 @@ public class Options {
      * @deprecated converts the char array to a string, use getPasswordChars instead for more security
      * @return the password the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
      */
+    @Deprecated
     public String getPassword() {
         return password == null ? null : new String(password);
     }
@@ -1443,6 +1447,7 @@ public class Options {
      * @deprecated converts the char array to a string, use getTokenChars instead for more security
      * @return the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
      */
+    @Deprecated
     public String getToken() {
         return token == null ? null : new String(token);
     }
