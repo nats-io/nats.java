@@ -472,7 +472,7 @@ public class AuthTests {
         String configFile = createNKeyConfigFile(theKey.getPublicKey());
         String version = NatsTestServer.generateNatsServerVersionString();
 
-        if (!version.contains("version 2")) {
+        if (!version.contains("v2")) {
             // Server version doesn't support this test
             return;
         }
@@ -494,22 +494,77 @@ public class AuthTests {
     }
 
     @Test
-    public void testJWTAuthWithCredsFile() throws Exception {
+    public void testStaticNKeyAuth() throws Exception {
         NKey theKey = NKey.createUser(null);
         assertNotNull(theKey);
 
+        String configFile = createNKeyConfigFile(theKey.getPublicKey());
         String version = NatsTestServer.generateNatsServerVersionString();
 
-        if (!version.contains("version 2")) {
+        if (!version.contains("v2")) {
             // Server version doesn't support this test
             return;
         }
 
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", true)) {
+        try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        authHandler(Nats.staticCredentials(null, theKey.getSeed())).
+                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
+    @Test
+    public void testJWTAuthWithCredsFile() throws Exception {
+        String version = NatsTestServer.generateNatsServerVersionString();
+
+        if (!version.contains("v2")) {
+            // Server version doesn't support this test
+            return;
+        }
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", false)) {
             Options options = new Options.Builder().
                         server(ts.getURI()).
                         maxReconnects(0).
                         authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).
+                        build();
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+    }
+
+    @Test
+    public void testStaticJWTAuth() throws Exception {
+        String version = NatsTestServer.generateNatsServerVersionString();
+
+        if (!version.contains("v2")) {
+            // Server version doesn't support this test
+            return;
+        }
+
+        // from src/test/resources/jwt_nkey/user.creds
+        String jwt = "eyJ0eXAiOiJqd3QiLCJhbGciOiJlZDI1NTE5In0.eyJqdGkiOiI3UE1GTkc0R1c1WkE1NEg3N09TUUZKNkJNQURaSUQ2NTRTVk1XMkRFQVZINVIyUVU0MkhBIiwiaWF0IjoxNTY1ODg5ODk4LCJpc3MiOiJBQUhWU0k1NVlQTkJRWjVQN0Y2NzZDRkFPNFBIQlREWUZRSUVHVEtMUVRJUEVZUEZEVEpOSEhPNCIsIm5hbWUiOiJkZW1vIiwic3ViIjoiVUMzT01MSlhUWVBZN0ZUTVVZNUNaNExHRVdRSTNZUzZKVFZXU0VGRURBMk9MTEpZSVlaVFo3WTMiLCJ0eXBlIjoidXNlciIsIm5hdHMiOnsicHViIjp7fSwic3ViIjp7fX19.ROSJ7D9ETt9c8ZVHxsM4_FU2dBRLh5cNfb56MxPQth74HAxxtGMl0nn-9VVmWjXgFQn4JiIbwrGfFDBRMzxsAA";
+        String nkey = "SUAFYHVVQVOIDOOQ4MTOCTLGNZCJ5PZ4HPV5WAPROGTEIOF672D3R7GBY4";
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", false)) {
+            Options options = new Options.Builder().
+                        server(ts.getURI()).
+                        maxReconnects(0).
+                        authHandler(Nats.staticCredentials(jwt.toCharArray(), nkey.toCharArray())).
                         build();
             Connection nc = Nats.connect(options);
             try {
@@ -529,7 +584,7 @@ public class AuthTests {
         String configFile = createNKeyConfigFile(theKey.getPublicKey());
         String version = NatsTestServer.generateNatsServerVersionString();
 
-        if (!version.contains("version 2")) {
+        if (!version.contains("v2")) {
             // Server version doesn't support this test
             throw new IOException();// to pass the test
         }

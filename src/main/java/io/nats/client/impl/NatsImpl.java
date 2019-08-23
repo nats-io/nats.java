@@ -41,4 +41,8 @@ public class NatsImpl {
     public static AuthHandler credentials(String jwtFile, String nkeyFile) {
         return new FileAuthHandler(jwtFile, nkeyFile);
     }
+
+    public static AuthHandler staticCredentials(char[] jwt, char[] nkey) {
+        return new StringAuthHandler(jwt, nkey);
+    }
 }

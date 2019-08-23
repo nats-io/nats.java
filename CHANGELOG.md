@@ -3,8 +3,13 @@
 
 ## Version 2.6.1
 
+* [FIXED] - #263 - Added server URLs to connect exception (not to auth exception)
 * [FIXED] - #262 - Added @deprecated as needed
-* [FIXED] - #260 - moved to nats-server from gnatsd for testing
+* [FIXED] - #261 - Added a static credentials implementation that uses char arrays
+* [FIXED] - #260 - Moved to nats-server from gnatsd for testing
+* [FIXED] - #257 - Added connection method to messages that come from subscriptions, dispatchers and requests
+* [FIXED] - #243 - Added check for whitespace in subjects and queue names
+* [FIXED] - A couple flaky tests
 
 ## Version 2.6.0
 

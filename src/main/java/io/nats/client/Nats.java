@@ -219,6 +219,18 @@ public class Nats {
         return NatsImpl.credentials(jwtFile, nkeyFile);
     }
 
+    /**
+     * Create an auth handler from an nkey and an option JWT. This credentials object is static, and will not change
+     * over the course of its lifetime. Create a custom AuthHandler or use the file-based handler for dynamic credentials.
+     * 
+     * @param jwt the contents of a user JWT file (optional if nkey authentication is being used)
+     * @param nkey an nkey seed
+     * @return an authhandler that will return the JWT, public key or sign a nonce appropriately
+     */
+    public static AuthHandler staticCredentials(char[] jwt, char[] nkey) {
+        return NatsImpl.staticCredentials(jwt, nkey);
+    }
+
     private static Connection createConnection(Options options, boolean reconnectOnConnect)
             throws IOException, InterruptedException {
         return NatsImpl.createConnection(options, reconnectOnConnect);
