@@ -1,6 +1,8 @@
 
 # Change Log
 
+## Version 2.6.1
+
 ## Version 2.6.0
 
 * [FIXED] - cleaned up use of "chain" instead of "creds"
