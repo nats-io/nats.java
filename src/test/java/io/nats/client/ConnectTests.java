@@ -415,4 +415,14 @@ public class ConnectTests {
             }
         }
     }
+
+    @Test
+    public void testConnectExceptionHasURLS() throws IOException, InterruptedException {
+        try {
+            Nats.connect("nats://testserver.notnats:4222, nats://testserver.alsonotnats:4223");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("testserver.notnats:4222"));
+            assertTrue(e.getMessage().contains("testserver.alsonotnats:4223"));
+        }
+    }
 }

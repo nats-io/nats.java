@@ -218,9 +218,11 @@ class NatsConnection implements Connection {
                 err = (err != null) ? err.toLowerCase() : "";
 
                 if (err.startsWith("authentication") || err.contains("authorization violation")) {
-                    throw new AuthenticationException("Authentication error connecting to NATS server: "+err);
+                    String msg = String.format("Authentication error connecting to NATS server: %s.", err);
+                    throw new AuthenticationException(msg);
                 } else {
-                    throw new IOException("Unable to connect to NATS server.");
+                    String msg = String.format("Unable to connect to NATS servers: %s.", String.join(", ", getServers()));
+                    throw new IOException(msg);
                 }
             }
         } else if (trace) {
