@@ -18,6 +18,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
+import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
@@ -169,6 +170,14 @@ class NatsMessage implements Message {
 
     NatsSubscription getNatsSubscription() {
         return this.subscription;
+    }
+
+    public Connection getConnection() {
+        if (this.subscription == null) {
+            return null;
+        }
+
+        return this.subscription.connection;
     }
 
     public String getSubject() {

@@ -64,6 +64,26 @@ public class SubscriberTests {
     }
 
     @Test
+    public void testMessageFromSubscriptionContainsConnection() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+            Subscription sub = nc.subscribe("subject");
+            nc.publish("subject", new byte[16]);
+
+            Message msg = sub.nextMessage(Duration.ofMillis(500));
+
+            assertTrue(sub.isActive());
+            assertEquals("subject", msg.getSubject());
+            assertEquals(sub, msg.getSubscription());
+            assertNull(msg.getReplyTo());
+            assertEquals(16, msg.getData().length);
+            assertTrue(msg.getConnection() == nc);
+        }
+    }
+
+    @Test
     public void testTabInProtocolLine() throws Exception {
         CompletableFuture<Boolean> gotSub = new CompletableFuture<>();
         CompletableFuture<Boolean> sendMsg = new CompletableFuture<>();
