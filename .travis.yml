@@ -9,10 +9,10 @@ jdk:
 - openjdk10
 - openjdk11
 before_script:
-- wget "https://github.com/nats-io/nats-server/releases/download/$nats_server_version/gnatsd-$nats_server_version-linux-amd64.zip"
+- wget "https://github.com/nats-io/nats-server/releases/download/$nats_server_version/nats-server-$nats_server_version-linux-amd64.zip"
   -O tmp.zip
 - unzip tmp.zip
-- mv gnatsd-$nats_server_version-linux-amd64 nats-server
+- mv nats-server-$nats_server_version-linux-amd64 nats-server
 before_install:
 - openssl aes-256-cbc -K $encrypted_f07928735f08_key -iv $encrypted_f07928735f08_iv
   -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
@@ -34,7 +34,7 @@ after_success:
 env:
   global:
   - nats_server_version=v1.4.0
-  - nats_server_path=$TRAVIS_BUILD_DIR/nats-server/gnatsd
+  - nats_server_path=$TRAVIS_BUILD_DIR/nats-server/nats-server
   - GPG_KEYRING_FILE=.travis/nats.travis.gpg
   - secure: yvOfk7kJzzTQ38n444jTDets24FZmxewwb3lrhXwpHTwOnQyq/B8QaHeqvhneECMc0Bq5M4blTlJ/wOWJAvs61POv2QVkyw+u8cVNROzkb8GPaH4ybPo8HMl33EHFNqh1KRo2C9hAPMYbbTjKCVY2UdkdfJ2l4lN/Awk7uEDX8ckc/sENhDeQjY/xoGZUP28O568Eg4ZxN3fr3WEV/0T+R15YyL2X0ev8MiGJM5TojXnNFKdb5fkUodRWwiY8JDn5xzP7xUzzen7MqE/5YNTcIC6haU8LToJM2gXEQtdoWLZqMPWr7k4A+eTBO5vl9qWrPBaOodFJYKzEjrEDfHj5RR9uaufEsnwQzXKw1ODrIFVZiC2n73j/tatWDI+vjnJ5tO+VMwWj53qdBYrvYeyewIT3cz9rrDHH8fGINsKAsk6HgWM3SMgeNSuXjRN0ePxEph5FVQ3ZUjF1ZXp90O7kjD5kXg/jVs6GrhCviRT3fx6Z4hyat9ytshy66jqcttHEfJ5sSOBg8fVbWJjLbxmghWUFp1fuc0HGNiMJStEyOBai5AkG6uJccTlgjlNL/8mgEF+fxo8HGVyStQzRnr7LJuCmWW9hx/aBVmqXR4p6cRgsSO09PvHRmcsLQoktCxVxsvcfblQqMbiQKjsJ4tXLe0U88DMOHnEGOgtik/tt+4=
   - secure: isW18c01AJEDAPUUl6rKcewHxOqItTW0TiiEIrWQqQP/C3O06WgAbiFYVFPJ9zCi6me0Wj3YMmEoxiYBhFdgH/O5xoQnnU7xIfD9hcmByglsoyGsK/Wz0wcERoVf9bfbVQkj9q/Mg7kaUZCMWqcFR3CqHEGu8UH5x7ecDW5FXfAQDjN5czT1j1VAwhHZCfIktJuy/GzoFGgRJpvnFPSlHmi0I8fApoX43tmOCkTVHnaXt9CDL3A5EIKtok5dwu0FF5d9hQFncJB8gqGxd+r8a3W3+0Gfgdou3x+AlGTf3R62LgB03GY0MFrMVfanWJE1ORdV0o9hC3AiwOsKBTungZ0arQeXtDXHSeMY52O6u7C8MCwQgbTmzO2YsmMwwTL98PPQxEJ6c8r7WBAfxzxxRTJ/QjPqQdyWV9dFWOnsmEhBLM2Wi858dJlw5fDEoHgy8EUZTQcquUWqEzTJca1VdrLza/PlND8dqfAjxqINtpsXu88JsLUu5VjFiLwln5NpdNKfcY4oaPiLLYdrSgdxBfHCCISP+r8iqgKLDguFwza3xcPSFwqtEq8aYmy0fjgd0c9hlz6oe0NvLc4kPJf4q9NDjffUXBciiv8VXdL3YyRG67h9AF+ndbM8NHsup5FfmALfq2bGIpe4USIqoOAZFUSa35hPDW87C7Z4vvPvb9I=

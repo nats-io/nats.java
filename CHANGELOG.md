@@ -3,6 +3,9 @@
 
 ## Version 2.6.1
 
+* [FIXED] - #262 - Added @deprecated as needed
+* [FIXED] - #260 - moved to nats-server from gnatsd for testing
+
 ## Version 2.6.0
 
 * [FIXED] - cleaned up use of "chain" instead of "creds"
