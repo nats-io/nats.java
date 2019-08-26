@@ -589,6 +589,16 @@ public class SubscriberTests {
             }
 
             assertTrue(gotIt);
+
+            // one in subject for coverage
+            try {
+                nc.subscribe("test ", " foo");
+            } catch (IllegalArgumentException ie) {
+                gotIt = true;
+            } catch (Exception e) {
+            }
+
+            assertTrue(gotIt);
         }
     }
 }

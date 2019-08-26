@@ -541,7 +541,7 @@ public class ReconnectTests {
                 // connect good then bad
                 handler.prepForStatusChange(Events.RESUBSCRIBED);
                 try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                    handler.waitForStatusChange(10000, TimeUnit.MILLISECONDS);
+                    handler.waitForStatusChange(10, TimeUnit.SECONDS);
                     assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());
                     handler.prepForStatusChange(Events.DISCONNECTED);
                 }
@@ -556,7 +556,7 @@ public class ReconnectTests {
 
                 handler.prepForStatusChange(Events.RESUBSCRIBED);
                 try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
-                    handler.waitForStatusChange(10000, TimeUnit.MILLISECONDS);
+                    handler.waitForStatusChange(10, TimeUnit.SECONDS);
                     assertEquals("Connected Status", Connection.Status.CONNECTED, nc.getStatus());
                     subRef.get().get();
                     handler.prepForStatusChange(Events.DISCONNECTED);

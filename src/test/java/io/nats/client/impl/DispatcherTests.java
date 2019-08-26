@@ -34,6 +34,7 @@ import org.junit.Test;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
+import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
@@ -810,6 +811,26 @@ public class DispatcherTests {
     }
 
     @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullHandler() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("test", (MessageHandler)null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnNullHandlerWithQueue() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.subscribe("test", "queue", (MessageHandler)null);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
     public void testThrowOnEmptyQueueWithMessageHandler() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
@@ -835,6 +856,39 @@ public class DispatcherTests {
                     Connection nc = Nats.connect(ts.getURI())) {
             Dispatcher d = nc.createDispatcher((msg) -> {});
             d.subscribe("", "quque", (msg) -> {});
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testThrowOnEmptySubjectInUnsub() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            d.unsubscribe("");
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalStateException.class)
+    public void testThrowOnUnsubWhenClosed() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            Subscription sub = d.subscribe("subject", (msg) -> {});
+            nc.closeDispatcher(d);
+            d.unsubscribe(sub);
+            assertFalse(true);
+        }
+    }
+
+    @Test(expected=IllegalStateException.class)
+    public void testThrowOnWrongSubscription() throws IOException, InterruptedException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection nc = Nats.connect(ts.getURI())) {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            Subscription sub2 = nc.subscribe("test");
+            d.unsubscribe(sub2);
             assertFalse(true);
         }
     }

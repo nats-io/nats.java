@@ -37,6 +37,14 @@ public class MessageQueueTests {
         MessageQueue q = new MessageQueue(false);
         NatsMessage msg = q.popNow();
         assertNull(msg);
+        assertFalse(q.isSingleReaderMode());
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testAccumulateThrowsOnNonSingleReader() throws InterruptedException {
+        MessageQueue q = new MessageQueue(false);
+        q.push(new NatsMessage(CharBuffer.wrap("PING")));
+        NatsMessage msg = q.accumulate(100,1,null);
     }
 
     @Test
@@ -240,6 +248,7 @@ public class MessageQueueTests {
         MessageQueue q = new MessageQueue(true);
         NatsMessage msg = q.accumulate(1,1,null);
         assertNull(msg);
+        assertTrue(q.isSingleReaderMode());
     }
 
     @Test

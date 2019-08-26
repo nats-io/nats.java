@@ -565,6 +565,11 @@ public class OptionsTests {
         }
     }
 
+    @Test(expected = URISyntaxException.class)
+    public void testParseBadURIForServer() throws URISyntaxException {
+        Options.parseURIForServer("unk://123.1.1.1");
+    }
+
 /* These next three require that no default is set anywhere, if another test
     requires SSLContext.setDefault() and runs before these, they will fail. Commenting
     out for now, this can be run manually.

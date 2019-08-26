@@ -17,6 +17,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -356,6 +357,8 @@ public class NKeyTests {
 
         NKey pubOnly = NKey.fromPublicKey(publicKey);
 
+        assertTrue(pubOnly.equals(pubOnly)); // for coverage
+
         byte[] data = "Public and Private".getBytes(StandardCharsets.UTF_8);
         byte[] sig = theKey.sign(data);
 
@@ -365,6 +368,10 @@ public class NKeyTests {
         assertFalse(otherKey.verify(data, sig));
         assertNotEquals(otherKey, theKey);
         assertNotEquals(otherKey, pubOnly);
+
+        assertTrue(pubOnly.getPublicKey()[0] != '\0');
+        pubOnly.clear();
+        assertTrue(pubOnly.getPublicKey()[0] == '\0');
     }
 
     @Test(expected=IllegalStateException.class)
