@@ -7,9 +7,10 @@
 * [FIXED] - #262 - Added @deprecated as needed
 * [FIXED] - #261 - Added a static credentials implementation that uses char arrays
 * [FIXED] - #260 - Moved to nats-server from gnatsd for testing
+* [FIXED/CHANGED] - #259 - Double authentication errors from a server during reconnect attempts will result in the connection being closed.
 * [FIXED] - #257 - Added connection method to messages that come from subscriptions, dispatchers and requests
 * [FIXED] - #243 - Added check for whitespace in subjects and queue names
-* [FIXED] - A couple flaky tests
+* [FIXED] - Improved a couple flaky tests
 
 ## Version 2.6.0
 

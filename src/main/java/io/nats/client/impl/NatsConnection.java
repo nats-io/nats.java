@@ -24,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -100,6 +101,7 @@ class NatsConnection implements Connection {
     private DataPort dataPort;
     private String currentServerURI;
     private CompletableFuture<Boolean> reconnectWaiter;
+    private HashMap<String, String> serverAuthErrors;
 
     private NatsConnectionReader reader;
     private NatsConnectionWriter writer;
@@ -121,6 +123,7 @@ class NatsConnection implements Connection {
     private AtomicLong nextSid;
     private NUID nuid;
 
+    private AtomicReference<String> connectError;
     private AtomicReference<String> lastError;
     private AtomicReference<CompletableFuture<Boolean>> draining;
     private AtomicBoolean blockPublishForDrain;
@@ -148,11 +151,14 @@ class NatsConnection implements Connection {
         this.subscribers = new ConcurrentHashMap<>();
         this.responses = new ConcurrentHashMap<>();
 
+        this.serverAuthErrors = new HashMap<>();
+
         this.nextSid = new AtomicLong(1);
         this.nuid = new NUID();
         this.mainInbox = createInbox() + ".*";
 
         this.lastError = new AtomicReference<>();
+        this.connectError = new AtomicReference<>();
 
         this.serverInfo = new AtomicReference<>();
         this.inboxDispatcher = new AtomicReference<>();
@@ -190,6 +196,7 @@ class NatsConnection implements Connection {
             if (isClosed()) {
                 break;
             }
+            this.connectError.set(""); // new on each attempt
 
             timeTrace(trace, "setting status to connecting");
             updateStatus(Status.CONNECTING);
@@ -202,6 +209,12 @@ class NatsConnection implements Connection {
             } else {
                 timeTrace(trace, "setting status to disconnected");
                 updateStatus(Status.DISCONNECTED);
+
+                String err = connectError.get();
+
+                if (this.isAuthenticationError(err)) {
+                    this.serverAuthErrors.put(serverURI, err);
+                }
             }
         }
 
@@ -213,11 +226,8 @@ class NatsConnection implements Connection {
                 timeTrace(trace, "connection failed, closing to cleanup");
                 close();
 
-                String err = lastError.get();
-
-                err = (err != null) ? err.toLowerCase() : "";
-
-                if (err.startsWith("authentication") || err.contains("authorization violation")) {
+                String err = connectError.get();
+                if (this.isAuthenticationError(err)) {
                     String msg = String.format("Authentication error connecting to NATS server: %s.", err);
                     throw new AuthenticationException(msg);
                 } else {
@@ -249,6 +259,8 @@ class NatsConnection implements Connection {
 
         this.writer.setReconnectMode(true);
 
+        boolean doubleAuthError = false;
+
         while (!isConnected() && !isClosed() && !this.isClosing()) {
             Collection<String> serversToTry = buildReconnectList();
 
@@ -256,6 +268,8 @@ class NatsConnection implements Connection {
                 if (isClosed()) {
                     break;
                 }
+
+                connectError.set(""); // reset on each loop
 
                 if (server.equals(lastServer)) {
                     this.reconnectWaiter = new CompletableFuture<>();
@@ -277,7 +291,22 @@ class NatsConnection implements Connection {
                 } else if (isConnected()) {
                     this.statistics.incrementReconnects();
                     break;
+                } else {
+                    String err = connectError.get();
+
+                    if (this.isAuthenticationError(err)) {
+                        if (err.equals(this.serverAuthErrors.get(server))) {
+                            doubleAuthError = true;
+                            break; // will close below
+                        }
+
+                        this.serverAuthErrors.put(server, err);
+                    }
                 }
+            }
+
+            if (doubleAuthError) {
+                break;
             }
 
             if (maxTries > 0 && tries >= maxTries) {
@@ -461,6 +490,7 @@ class NatsConnection implements Connection {
                 }
 
                 this.currentServerURI = serverURI;
+                this.serverAuthErrors.remove(serverURI); // reset on successful connection
                 updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
                 statusLock.unlock();
@@ -1357,6 +1387,13 @@ class NatsConnection implements Connection {
         this.statistics.incrementErrCount();
 
         this.lastError.set(errorText);
+        this.connectError.set(errorText); // even if this isn't during connection, save it just in case
+
+        // If we are connected && we get an authentication error, save it
+        String url = this.getConnectedUrl();
+        if (this.isConnected() && this.isAuthenticationError(errorText) && url != null) {
+            this.serverAuthErrors.put(url, errorText);
+        }
 
         if (handler != null && !this.callbackRunner.isShutdown()) {
             try {
@@ -1745,5 +1782,13 @@ class NatsConnection implements Connection {
         });
 
         return tracker;
+    }
+
+    boolean isAuthenticationError(String err) {
+        if (err == null) {
+            return false;
+        }
+        err = err.toLowerCase();
+        return err.startsWith("user authentication") || err.contains("authorization violation");
     }
 }
