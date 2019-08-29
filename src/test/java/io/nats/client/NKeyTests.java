@@ -356,6 +356,8 @@ public class NKeyTests {
 
         NKey pubOnly = NKey.fromPublicKey(publicKey);
 
+        assertTrue(pubOnly.equals(pubOnly)); // for coverage
+
         byte[] data = "Public and Private".getBytes(StandardCharsets.UTF_8);
         byte[] sig = theKey.sign(data);
 
@@ -365,6 +367,10 @@ public class NKeyTests {
         assertFalse(otherKey.verify(data, sig));
         assertNotEquals(otherKey, theKey);
         assertNotEquals(otherKey, pubOnly);
+
+        assertTrue(pubOnly.getPublicKey()[0] != '\0');
+        pubOnly.clear();
+        assertTrue(pubOnly.getPublicKey()[0] == '\0');
     }
 
     @Test(expected=IllegalStateException.class)

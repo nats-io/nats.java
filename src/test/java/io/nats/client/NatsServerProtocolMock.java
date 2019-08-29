@@ -20,6 +20,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -175,6 +177,9 @@ public class NatsServerProtocolMock implements Closeable{
                     // ignore
                 }
             }
+            
+            byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
+            String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
 
             if (this.customInfo != null) {
                 if (customInfoIsFullInfo) {
@@ -183,7 +188,7 @@ public class NatsServerProtocolMock implements Closeable{
                     writer.write("INFO" + this.separator + customInfo + "\r\n");
                 }
             } else {
-                writer.write("INFO" + this.separator + "{\"server_id\":\"test\"}\r\n");
+                writer.write("INFO" + this.separator + "{\"server_id\":\"test\", \"nonce\":\""+encoded+"\""+"}\r\n");
             }
             writer.flush();
             this.progress = Progress.SENT_INFO;

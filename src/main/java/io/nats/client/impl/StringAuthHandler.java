@@ -11,18 +11,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
-/**
- * NATS provides a challenge-response based authentication scheme based on {@link NKey NKeys}. Since 
- * NKeys depend on a private seed, we do not handle them directly in the client library. Instead you can 
- * work with them inside an AuthHandler that only makes the public key available to the library.
- * 
- * <pre>
- * {@code
-    char[] nkey;
-    char[] jwt;
-    
+import io.nats.client.AuthHandler;
+import io.nats.client.NKey;
+
+class StringAuthHandler implements AuthHandler {
+    private char[] nkey;
+    private char[] jwt;
+
+    StringAuthHandler(char[] jwt, char[] nkey) {
+        this.jwt = jwt;
+        this.nkey = nkey;
+    }
+
+    /**
+     * Sign is called by the library when the server sends a nonce.
+     * The client's NKey should be used to sign the provided value.
+     * 
+     * @param nonce the nonce to sign
+     * @return the signature for the nonce
+     */ 
     public byte[] sign(byte[] nonce) {
         try {
             NKey nkey =  NKey.fromSeed(this.nkey);
@@ -34,6 +43,12 @@ package io.nats.client;
         }
     }
 
+    /**
+     * getID should return a public key associated with a client key known to the server.
+     * If the server is not in nonce-mode, this array can be empty.
+     * 
+     * @return the public key as a char array
+     */
     public char[] getID() {
         try {
             NKey nkey =  NKey.fromSeed(this.nkey);
@@ -45,30 +60,6 @@ package io.nats.client;
         }
     }
 
-    public char[] getJWT() {
-        return this.jwt;
-    }
-}
- * </pre>
- */
-public interface AuthHandler {
-    /**
-     * Sign is called by the library when the server sends a nonce.
-     * The client's NKey should be used to sign the provided value.
-     * 
-     * @param nonce the nonce to sign
-     * @return the signature for the nonce
-     */ 
-    public byte[] sign(byte[] nonce);
-
-    /**
-     * getID should return a public key associated with a client key known to the server.
-     * If the server is not in nonce-mode, this array can be empty.
-     * 
-     * @return the public key as a char array
-     */
-    public char[] getID();
-
     /**
      * getJWT should return the user JWT associated with this connection.
      * This can return null for challenge only authentication, but for account/user
@@ -76,5 +67,7 @@ public interface AuthHandler {
      * 
      * @return the user JWT
      */ 
-    public char[] getJWT();
+    public char[] getJWT() {
+        return this.jwt;
+    }
 }

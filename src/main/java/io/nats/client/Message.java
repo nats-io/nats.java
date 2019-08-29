@@ -47,4 +47,9 @@ public interface Message {
 	 * @return the id associated with the subscription, used in the 
 	 */
 	public String getSID();
+
+	/**
+	 * @return the connection which can be used for publishing, will be null if the subscription is null
+	 */
+	public Connection getConnection();
 }

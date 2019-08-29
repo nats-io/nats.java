@@ -72,7 +72,7 @@ public class Nats {
     /**
      * Current version of the library - {@value #CLIENT_VERSION}
      */
-    public static final String CLIENT_VERSION = "2.6.0";
+    public static final String CLIENT_VERSION = "2.6.1";
 
     /**
      * Current language of the library - {@value #CLIENT_LANGUAGE}
@@ -88,6 +88,8 @@ public class Nats {
      * the connection is invalid soon after return, where soon is in the network/thread world.
      * 
      * <p>If the connection fails, an IOException is thrown
+     * 
+     * <p>See {@link connect(Options) connect(Options)} for more information on exceptions.
      * 
      * @throws IOException if a networking issue occurs
      * @throws InterruptedException if the current thread is interrupted
@@ -117,6 +119,8 @@ public class Nats {
      * 
      * <p>If the connection fails, an IOException is thrown
      * 
+     * <p>See {@link connect(Options) connect(Options)} for more information on exceptions.
+     * 
      * @param url the url of the server, ie. nats://localhost:4222
      * @throws IOException if a networking issue occurs
      * @throws InterruptedException if the current thread is interrupted
@@ -143,6 +147,13 @@ public class Nats {
      * one failed because of authentication. In situations with heterogeneous authentication for multiple servers
      * you may need to use an ErrorListener to determine which one had the problem. Authentication failures are not
      * immediate connect failures because of the server list, and the existing 2.x API contract.
+     * 
+     * <p>As of 2.6.1 authentication errors play an even stronger role. If a server returns an authentication error
+     * twice without a successful connection, the connection is closed. This will require a reconnect scenario, since
+     * the initial connection only tries each server one time. However, if you have two servers S1 and S2, and S1 returns
+     * and authentication error on connect, but S2 succeeds. Later, if S2 fails and S1 returns the same error the connection
+     * will be closed. However, if S1 succeeds on reconnect the "last error" will be cleared so it would be allowed to fail
+     * again in the future.
      * 
      * @param options the options object to use to create the connection
      * @throws IOException if a networking issue occurs
@@ -217,6 +228,18 @@ public class Nats {
      */
     public static AuthHandler credentials(String jwtFile, String nkeyFile) {
         return NatsImpl.credentials(jwtFile, nkeyFile);
+    }
+
+    /**
+     * Create an auth handler from an nkey and an option JWT. This credentials object is static, and will not change
+     * over the course of its lifetime. Create a custom AuthHandler or use the file-based handler for dynamic credentials.
+     * 
+     * @param jwt the contents of a user JWT file (optional if nkey authentication is being used)
+     * @param nkey an nkey seed
+     * @return an authhandler that will return the JWT, public key or sign a nonce appropriately
+     */
+    public static AuthHandler staticCredentials(char[] jwt, char[] nkey) {
+        return NatsImpl.staticCredentials(jwt, nkey);
     }
 
     private static Connection createConnection(Options options, boolean reconnectOnConnect)
