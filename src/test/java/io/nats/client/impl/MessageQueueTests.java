@@ -44,7 +44,7 @@ public class MessageQueueTests {
     public void testAccumulateThrowsOnNonSingleReader() throws InterruptedException {
         MessageQueue q = new MessageQueue(false);
         q.push(new NatsMessage(CharBuffer.wrap("PING")));
-        NatsMessage msg = q.accumulate(100,1,null);
+        q.accumulate(100,1,null);
     }
 
     @Test
