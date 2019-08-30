@@ -4,10 +4,12 @@ plugins {
     id 'java'
     id 'jacoco'
     id 'maven'
+    id 'maven-publish'
     id 'signing'
-    id 'com.github.kt3k.coveralls' version '2.6.3'
-    id "io.codearte.nexus-staging" version "0.11.0"
+    id 'com.github.kt3k.coveralls' version '2.8.4'
     id 'osgi'
+    id 'io.codearte.nexus-staging' version '0.21.0'
+    id "de.marcphilipp.nexus-publish" version "0.3.0"
 }
 
 // Update version here, repeated check-ins not into master will have snapshot on them
@@ -18,9 +20,11 @@ def versionPatch = 2
 def versionModifier = ""
 def jarVersion = "2.6.2"
 def branch = System.getenv("TRAVIS_BRANCH");
+def tag = System.getenv("TRAVIS_TAG");
+def travisTestBranch = "travis_deploy"
 
 def getVersionName = { ->
-    if ("true".equals(System.getenv("TRAVIS_PULL_REQUEST")) || !"master".equals(branch))  {
+    if (!"master".equals(branch) || tag == "")  {
         versionModifier = "-SNAPSHOT"
     }
 
@@ -45,7 +49,7 @@ if (System.getenv('SONATYPE_USERNAME') != null) {
 }
 
 tasks.withType(Sign) {
-    onlyIf { "master".equals(branch) }
+    onlyIf { "master".equals(branch) || travisTestBranch.equals(branch) }
 }
 
 repositories {
@@ -173,28 +177,24 @@ signing {
     sign configurations.archives
 }
 
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            if (project.hasProperty("local_archives") || ("true".equals(System.getenv("TRAVIS_PULL_REQUEST")))) {
-                repository(url: "file://$buildDir/repos")
-            } else if (project.hasProperty('ossrhUsername') && project.hasProperty('ossrhPassword')) {
-                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+nexusStaging {
+    packageGroup = group
+}
 
-                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                    authentication(userName: project.getProperty('ossrhUsername'), password: project.getProperty('ossrhPassword'))
-                }
-
-                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
-                    authentication(userName: project.getProperty('ossrhUsername'), password: project.getProperty('ossrhPassword'))
-                }
-            }
-
-            pom.project {
-                name 'jnats'
-                packaging 'jar'
-                description 'Client library for working with the NATS messaging system.'
-                url 'https://github.com/nats-io/nats.java'
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact examplesJar
+            artifact javadocJar
+            pom {
+                name = 'jnats'
+                packaging = 'jar'
+                groupId = group
+                artifactId = archivesBaseName
+                description = 'Client library for working with the NATS messaging system.'
+                url = 'https://github.com/nats-io/nats.java'
                 licenses {
                     license {
                         name = 'The Apache License, Version 2.0'
@@ -203,15 +203,24 @@ uploadArchives {
                 }
                 developers {
                     developer {
-                        id="synadia"
-                        name "Synadia"
-                        email "info@synadia.com"
-                        url "https://nats.io"
+                        id = "synadia"
+                        name = "Synadia"
+                        email = "info@synadia.com"
+                        url = "https://nats.io"
                     }
                 }
                 scm {
                     url = 'https://github.com/nats-io/nats.java'
                 }
+            }
+        }
+    }
+
+    nexusPublishing {
+        repositories {
+            sonatype {
+                username = project.getProperty('ossrhUsername')
+                password = project.getProperty('ossrhPassword')
             }
         }
     }

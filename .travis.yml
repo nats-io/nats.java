@@ -2,12 +2,12 @@ dist: trusty
 language: java
 sudo: required
 jdk:
-- oraclejdk8
-- oraclejdk9
 - openjdk8
 - openjdk9
 - openjdk10
 - openjdk11
+- oraclejdk8
+- oraclejdk9
 before_script:
 - wget "https://github.com/nats-io/nats-server/releases/download/$nats_server_version/nats-server-$nats_server_version-linux-amd64.zip"
   -O tmp.zip
@@ -20,6 +20,7 @@ install:
 - "./gradlew assemble -x signArchives"
 script:
 - "./gradlew check"
+#for testing - "./gradlew build -x test"
 before_cache:
 - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
 - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
@@ -29,8 +30,19 @@ cache:
   - "$HOME/.gradle/wrapper/"
 after_success:
 - "./gradlew test jacocoTestReport coveralls"
-- test ${TRAVIS_BRANCH} != 'master' && test ${TRAVIS_JDK_VERSION} == 'oraclejdk8' && "./gradlew uploadArchives" # Disable master for now, it fails due to ip address issues
-#Disable for now, upload archives fails because of IP address changes - "test ${TRAVIS_PULL_REQUEST} != 'true' && test ${TRAVIS_BRANCH} = 'master' && ./gradlew closeAndReleaseRepository"
+- |
+  if [ "${TRAVIS_BRANCH}" == "travis_deploy" ] && [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
+    ./gradlew -i sign publishToSonatype
+  fi
+- |
+  if [ "${TRAVIS_BRANCH}" == "master" ] && [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
+    ./gradlew -i sign publishToSonatype
+  fi
+- |
+  if [ "${TRAVIS_BRANCH}" == "master" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
+    ./gradlew -i sign publishToSonatype closeAndReleaseRepository
+  fi
+
 env:
   global:
   - nats_server_version=v2.0.4

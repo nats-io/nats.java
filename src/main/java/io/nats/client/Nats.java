@@ -89,7 +89,7 @@ public class Nats {
      * 
      * <p>If the connection fails, an IOException is thrown
      * 
-     * <p>See {@link connect(Options) connect(Options)} for more information on exceptions.
+     * <p>See {@link Nats#connect(Options) connect(Options)} for more information on exceptions.
      * 
      * @throws IOException if a networking issue occurs
      * @throws InterruptedException if the current thread is interrupted
@@ -119,7 +119,7 @@ public class Nats {
      * 
      * <p>If the connection fails, an IOException is thrown
      * 
-     * <p>See {@link connect(Options) connect(Options)} for more information on exceptions.
+     * <p>See {@link Nats#connect(Options) connect(Options)} for more information on exceptions.
      * 
      * @param url the url of the server, ie. nats://localhost:4222
      * @throws IOException if a networking issue occurs
