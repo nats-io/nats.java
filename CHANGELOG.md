@@ -1,6 +1,10 @@
 
 # Change Log
 
+## Version 2.6.2
+
+* [FIXED] - problem with jars being built with jdk 11
+
 ## Version 2.6.1
 
 * [FIXED] - #263 - Added server URLs to connect exception (not to auth exception)
