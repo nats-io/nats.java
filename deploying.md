@@ -21,6 +21,8 @@ The travis file uses two items to decide to deploy to sonatype/nexus:
 * The branch is master
 * There is a tag value
 
+Pushing to master without a tag will result in a snapshot deployment, these can override each other.
+
 The Java repository/build will have issues if you try to tag non-releases that have the same version number as an existing release. The gradle close and release process will fail if there is more than one repository staged. You may need to manually drop repositories from staging during testing on a single version number. These are in the sonatype UI under staging repositories and will start with io.nats.
 
 If a release fails from travis, you can release manually, by clearing any staging repositories and following the steps below.
