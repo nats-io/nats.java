@@ -188,6 +188,8 @@ signing {
 
 nexusStaging {
     packageGroup = group
+    username = project.getProperty('ossrhUsername')
+    password = project.getProperty('ossrhPassword')
 }
 
 publishing {
