@@ -47,8 +47,17 @@ if (System.getenv('SONATYPE_USERNAME') != null) {
     project.ext['signing.password'] =  System.getenv('GPG_KEY_PASSPHRASE')
 }
 
-tasks.withType(Sign) {
-    onlyIf {!"".equals(tag) || master.equals(branch)}
+tasks {
+    signing {
+        onlyIf {!version.endsWith("SNAPSHOT")}
+    }
+
+    closeRepository {
+        onlyIf { nexusPublishing.useStaging.get() }
+    }
+    releaseRepository{
+        onlyIf { nexusPublishing.useStaging.get() }
+    }
 }
 
 repositories {
@@ -174,6 +183,7 @@ artifacts {
 
 signing {
     sign configurations.archives
+    //sign publishing.publications.mavenJava
 }
 
 nexusStaging {
@@ -212,6 +222,29 @@ publishing {
                     url = 'https://github.com/nats-io/nats.java'
                 }
             }
+
+            pom.withXml {
+                def pomFile = file("${project.buildDir}/generated-pom.xml")
+                writeTo(pomFile)
+                def pomAscFile = signing.sign(pomFile).signatureFiles[0]
+                artifact(pomAscFile) {
+                    classifier = null
+                    extension = 'pom.asc'
+                }
+            }
+
+            // create the signed artifacts
+            project.tasks.signArchives.signatureFiles.each {
+                artifact(it) {
+                    def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
+                    if (matcher.find()) {
+                        classifier = matcher.group(1)
+                    } else {
+                        classifier = null
+                    }
+                    extension = 'jar.asc'
+                }
+            }
         }
     }
 
@@ -221,6 +254,18 @@ publishing {
                 username = project.getProperty('ossrhUsername')
                 password = project.getProperty('ossrhPassword')
             }
+        }
+    }
+
+    model {
+        tasks.generatePomFileForMavenJavaPublication {
+            destination = file("$buildDir/generated-pom.xml")
+        }
+        tasks.publishMavenJavaPublicationToMavenLocal {
+            dependsOn project.tasks.signArchives
+        }
+        tasks.publishMavenJavaPublicationToSonatypeRepository {
+            dependsOn project.tasks.signArchives
         }
     }
 }

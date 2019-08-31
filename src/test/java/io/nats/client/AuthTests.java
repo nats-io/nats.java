@@ -626,7 +626,7 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator_noacct.conf", false);
                 NatsTestServer ts2 = new NatsTestServer("src/test/resources/operator.conf", false)) {
             Options options = new Options.Builder().servers(new String[] { ts.getURI(), ts2.getURI() })
-                    .maxReconnects(-1).connectionTimeout(Duration.ofSeconds(2)).reconnectWait(Duration.ofSeconds(1)) // wait a tad to allow restarts
+                    .maxReconnects(-1).connectionTimeout(Duration.ofSeconds(5)).reconnectWait(Duration.ofSeconds(1)) // wait a tad to allow restarts
                     .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
             try {
@@ -646,7 +646,7 @@ public class AuthTests {
                     ts2.close();
 
                     // reconnect should work because we are now running with the good config
-                    handler.waitForStatusChange(5, TimeUnit.SECONDS);
+                    handler.waitForStatusChange(10, TimeUnit.SECONDS);
 
                     assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                     assertEquals(ts3.getURI(), nc.getConnectedUrl());
@@ -658,7 +658,7 @@ public class AuthTests {
 
                     try (NatsTestServer ts4 = new NatsTestServer("src/test/resources/operator_noacct.conf", port, false);
                             NatsTestServer ts5 = new NatsTestServer("src/test/resources/operator.conf", port2, false)) {
-                        handler.waitForStatusChange(5, TimeUnit.SECONDS);
+                        handler.waitForStatusChange(10, TimeUnit.SECONDS);
                         assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
                         assertEquals(ts5.getURI(), nc.getConnectedUrl());
                     }
