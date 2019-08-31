@@ -16,15 +16,16 @@ plugins {
 // Be sure to update Nats.java with the latest version, the change log and the package-info.java
 def versionMajor = 2
 def versionMinor = 6
-def versionPatch = 4
+def versionPatch = 3
 def versionModifier = ""
-def jarVersion = "2.6.4"
+def jarVersion = "2.6.3"
 def branch = System.getenv("TRAVIS_BRANCH");
 def tag = System.getenv("TRAVIS_TAG");
 def travisTestBranch = "travis_deploy"
 
 def getVersionName = { ->
-    if (!"master".equals(branch) || tag == "")  {
+    // tag == branch when tagging
+    if (!branch.equals(tag) || tag == "")  {
         versionModifier = "-SNAPSHOT"
     }
 
@@ -49,7 +50,7 @@ if (System.getenv('SONATYPE_USERNAME') != null) {
 }
 
 tasks.withType(Sign) {
-    onlyIf { "master".equals(branch) || travisTestBranch.equals(branch) }
+    onlyIf { "master".equals(branch) || (branch.equals(tag) && tag != "") || travisTestBranch.equals(branch) }
 }
 
 repositories {
