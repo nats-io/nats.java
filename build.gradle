@@ -24,8 +24,7 @@ def tag = System.getenv("TRAVIS_TAG");
 def travisTestBranch = "travis_deploy"
 
 def getVersionName = { ->
-    // tag == branch when tagging
-    if (!branch.equals(tag) || tag == "")  {
+    if (tag == "")  {
         versionModifier = "-SNAPSHOT"
     }
 
@@ -50,7 +49,7 @@ if (System.getenv('SONATYPE_USERNAME') != null) {
 }
 
 tasks.withType(Sign) {
-    onlyIf { "master".equals(branch) || (branch.equals(tag) && tag != "") || travisTestBranch.equals(branch) }
+    onlyIf { "master".equals(branch) || tag != "" }
 }
 
 repositories {
