@@ -21,10 +21,9 @@ def versionModifier = ""
 def jarVersion = "2.6.4"
 def branch = System.getenv("TRAVIS_BRANCH");
 def tag = System.getenv("TRAVIS_TAG");
-def travisTestBranch = "travis_deploy"
 
 def getVersionName = { ->
-    if (tag == "")  {
+    if ("".equals(tag))  {
         versionModifier = "-SNAPSHOT"
     }
 
@@ -49,7 +48,7 @@ if (System.getenv('SONATYPE_USERNAME') != null) {
 }
 
 tasks.withType(Sign) {
-    onlyIf { "master".equals(branch) || tag != "" }
+    onlyIf {!"".equals(tag) || master.equals(branch)}
 }
 
 repositories {
