@@ -39,7 +39,7 @@ after_success:
     ./gradlew -i sign publishToSonatype
   fi
 - |
-  if [ "${TRAVIS_BRANCH}" == "master" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
+  if [ "${TRAVIS_BRANCH}" == "${TRAVIS_TAG}" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
     ./gradlew -i sign publishToSonatype closeAndReleaseRepository
   fi
 

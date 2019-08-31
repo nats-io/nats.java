@@ -14,7 +14,7 @@ There are currently two pieces to the deployment, travis + sonatype, with a few 
 
 ## Automated release
 
-As of 2.6.3 the release is automated using gradle nexus plugins. See the build.gradle file for details. To do a release, simply update values in "before you release" and tag a release on master.
+As of 2.6.4 the release is automated using gradle nexus plugins. See the build.gradle file for details. To do a release, simply update values in "before you release" and tag a release on master.
 
 The travis file uses two items to decide to deploy to sonatype/nexus:
 

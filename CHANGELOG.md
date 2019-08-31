@@ -1,7 +1,7 @@
 
 # Change Log
 
-## Version 2.6.2 & 2.6.3
+## Version 2.6.2, 2.6.3 & 2.6.4
 
 * [FIXED] - problem with jars being built with jdk 11
 * [ADDED] - Automated deploy
