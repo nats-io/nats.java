@@ -54,10 +54,6 @@ if (!project.hasProperty('ossrhUsername')) {
 }
 
 tasks {
-    signing {
-        onlyIf {!version.endsWith("SNAPSHOT")}
-    }
-
     closeRepository {
         onlyIf { nexusPublishing.useStaging.get() }
     }
@@ -187,9 +183,10 @@ artifacts {
     archives javadocJar, sourcesJar, examplesJar
 }
 
-signing {
-    sign configurations.archives
-    //sign publishing.publications.mavenJava
+if (!version.endsWith("SNAPSHOT")) {
+    signing {
+        sign configurations.archives
+    }
 }
 
 nexusStaging {
@@ -234,23 +231,28 @@ publishing {
             pom.withXml {
                 def pomFile = file("${project.buildDir}/generated-pom.xml")
                 writeTo(pomFile)
-                def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-                artifact(pomAscFile) {
-                    classifier = null
-                    extension = 'pom.asc'
+
+                if (!version.endsWith("SNAPSHOT")) {
+                    def pomAscFile = signing.sign(pomFile).signatureFiles[0]
+                    artifact(pomAscFile) {
+                        classifier = null
+                        extension = 'pom.asc'
+                    }
                 }
             }
 
             // create the signed artifacts
-            project.tasks.signArchives.signatureFiles.each {
-                artifact(it) {
-                    def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
-                    if (matcher.find()) {
-                        classifier = matcher.group(1)
-                    } else {
-                        classifier = null
+            if (!version.endsWith("SNAPSHOT")) {
+                project.tasks.signArchives.signatureFiles.each {
+                    artifact(it) {
+                        def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
+                        if (matcher.find()) {
+                            classifier = matcher.group(1)
+                        } else {
+                            classifier = null
+                        }
+                        extension = 'jar.asc'
                     }
-                    extension = 'jar.asc'
                 }
             }
         }
@@ -268,9 +270,6 @@ publishing {
     model {
         tasks.generatePomFileForMavenJavaPublication {
             destination = file("$buildDir/generated-pom.xml")
-        }
-        tasks.publishMavenJavaPublicationToMavenLocal {
-            dependsOn project.tasks.signArchives
         }
         tasks.publishMavenJavaPublicationToSonatypeRepository {
             dependsOn project.tasks.signArchives
