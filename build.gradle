@@ -47,6 +47,12 @@ if (System.getenv('SONATYPE_USERNAME') != null) {
     project.ext['signing.password'] =  System.getenv('GPG_KEY_PASSPHRASE')
 }
 
+// If these aren't set, just set them to empty so we don't have issues getting them
+if (!project.hasProperty('ossrhUsername')) {
+    project.ext['ossrhUsername'] = ""
+    project.ext['ossrhPassword'] = ""
+}
+
 tasks {
     signing {
         onlyIf {!version.endsWith("SNAPSHOT")}
@@ -188,10 +194,8 @@ signing {
 
 nexusStaging {
     packageGroup = group
-    if (project.hasProperty('ossrhUsername')) {
-        username = project.getProperty('ossrhUsername')
-        password = project.getProperty('ossrhPassword')
-    }
+    username = project.getProperty('ossrhUsername')
+    password = project.getProperty('ossrhPassword')
 }
 
 publishing {
