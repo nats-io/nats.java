@@ -44,7 +44,7 @@ The client protocol spec doesn't explicitly state the encoding on subjects. Some
 
 The NATS server is adding support for a challenge response authentication scheme based on [NKeys](https://github.com/nats-io/nkeys). Version 2.2.0 of
 the Java client supports this scheme via an AuthHandler interface. *Version 2.3.0 replaced several NKey methods that used strings with methods using char[]
-to improve security.
+to improve security.*
 
 ## Installation
 
