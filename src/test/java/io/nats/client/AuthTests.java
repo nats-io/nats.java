@@ -217,7 +217,7 @@ public class AuthTests {
                 NatsTestServer ts2 = new NatsTestServer(customArgs2, false)) {
             // See config file for user/pass
             Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts1.getPort())
-                    .server("nats://localhost:" + ts2.getPort())
+                    .server("nats://localhost:" + ts2.getPort()).noRandomize()
                     .userInfo("alberto".toCharArray(), "casadecampo".toCharArray()).maxReconnects(4).noRandomize()
                     .connectionListener(handler).pingInterval(Duration.ofMillis(100)).build();
             Connection nc = Nats.connect(options);
@@ -556,7 +556,7 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", false);
                 NatsTestServer ts2 = new NatsTestServer("src/test/resources/operator.conf", false)) {
             Options options = new Options.Builder().servers(new String[] { ts.getURI(), ts2.getURI() })
-                    .maxReconnects(-1).authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
+                    .noRandomize().maxReconnects(-1).authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
@@ -591,7 +591,7 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator_noacct.conf", false);
                 NatsTestServer ts2 = new NatsTestServer("src/test/resources/operator.conf", false)) {
             Options options = new Options.Builder().servers(new String[] { ts.getURI(), ts2.getURI() })
-                    .maxReconnects(-1).connectionTimeout(Duration.ofSeconds(2))
+                    .maxReconnects(-1).connectionTimeout(Duration.ofSeconds(2)).noRandomize()
                     .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
             try {
@@ -625,7 +625,7 @@ public class AuthTests {
         // Connect should fail on ts1
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator_noacct.conf", false);
                 NatsTestServer ts2 = new NatsTestServer("src/test/resources/operator.conf", false)) {
-            Options options = new Options.Builder().servers(new String[] { ts.getURI(), ts2.getURI() })
+            Options options = new Options.Builder().servers(new String[] { ts.getURI(), ts2.getURI() }).noRandomize()
                     .maxReconnects(-1).connectionTimeout(Duration.ofSeconds(5)).reconnectWait(Duration.ofSeconds(1)) // wait a tad to allow restarts
                     .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
@@ -696,6 +696,7 @@ public class AuthTests {
             Options options = new Options.Builder().
                         servers(new String[] {ts.getURI(), ts2.getURI()}).
                         maxReconnects(-1).
+                        noRandomize().
                         authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).
                         build();
             Connection nc = Nats.connect(options);
