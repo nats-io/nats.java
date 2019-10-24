@@ -1510,7 +1510,7 @@ class NatsConnection implements Connection {
 
         statusLock.lock();
         try {
-            if (oldStatus == Status.CLOSED) {
+            if (oldStatus == Status.CLOSED || newStatus == oldStatus) {
                 return;
             }
             this.status = newStatus;
