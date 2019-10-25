@@ -1,6 +1,12 @@
 
 # Change Log
 
+## Version 2.6.6
+
+* [FIXED] - #274 - Added a check to prevent double event notification
+* [CHANGED] - #276 - Updated TLS certs to match go client
+* [FIXED] - #275 - Updated connect to randomize with the same code as reconnect
+
 ## Version 2.6.2, 2.6.3, 2.6.4 & 2.6.5
 
 * [FIXED] - problem with jars being built with jdk 11

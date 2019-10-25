@@ -52,9 +52,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.6.5/jnats-2.6.5.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.6.5/jnats-2.6.5.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.6.6/jnats-2.6.6.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.6.6/jnats-2.6.6.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.6.5/jnats-2.6.5-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.6.5/jnats-2.6.5-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.6.6/jnats-2.6.6-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.6.6/jnats-2.6.6-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -64,7 +64,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.6.5'
+    implementation 'io.nats:jnats:2.6.6'
 }
 ```
 
@@ -90,7 +90,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.6.5</version>
+    <version>2.6.6</version>
 </dependency>
 ```
 
@@ -226,7 +226,7 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
 1. The Java library allows the use of the tls:// protocol in its urls. This setting expects a default SSLContext to be set. You can set this default context using System properties, or in code. For example, you could run the publish example using:
 
     ```bash
-    java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password -Djavax.net.ssl.trustStore=src/test/resources/cacerts -Djavax.net.ssl.trustStorePassword=password io.nats.examples.NatsPub tls://localhost:4443 test "hello world"
+    java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password -Djavax.net.ssl.trustStore=src/test/resources/truststore.jks -Djavax.net.ssl.trustStorePassword=password io.nats.examples.NatsPub tls://localhost:4443 test "hello world"
     ```
 
     where the following properties are being set:
@@ -234,7 +234,7 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
     ```bash
     -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks
     -Djavax.net.ssl.keyStorePassword=password
-    -Djavax.net.ssl.trustStore=src/test/resources/cacerts
+    -Djavax.net.ssl.trustStore=src/test/resources/truststore.jks
     -Djavax.net.ssl.trustStorePassword=password
     ```
 
@@ -400,6 +400,20 @@ The java doc is located in `build/docs` and the example jar is in `build/libs`. 
 which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
 
 Many of the tests run nats-server on a custom port. If nats-server is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the nats-server location with the environment variable `nats_-_server_path`.
+
+## TLS Certs
+
+The raw TLS test certs are in [src/test/resources/certs](src/test/resources/certs) and come from the [nats.go](https://github.com/nats-io/nats.go) repository. However, the java client also needs a keystore and truststore.jks files for creating a context. These can be created using:
+
+```bash
+> cd src/test/resources
+> keytool -keystore truststore.jks -alias CARoot -import -file certs/ca.pem -storepass password -noprompt -storetype pkcs12
+> cat certs/client-key.pem certs/client-cert.pem > combined.pem
+> openssl pkcs12 -export -in combined.pem -out cert.p12
+> keytool -importkeystore -srckeystore cert.p12 -srcstoretype pkcs12 -deststoretype pkcs12 -destkeystore keystore.jks
+> keytool -keystore keystore.jks -alias CARoot -import -file certs/ca.pem -storepass password -noprompt
+> rm cert.p12 combined.pem
+```
 
 ## License
 

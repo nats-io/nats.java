@@ -204,6 +204,68 @@ public class ConnectTests {
         }
     }
 
+    @Test
+    public void testConnectRandomize() throws IOException, InterruptedException {
+        try (NatsTestServer ts1 = new NatsTestServer(false)) {
+            try (NatsTestServer ts2 = new NatsTestServer(false)) {
+                int one = 0;
+                int two = 0;
+
+                // should get at least 1 for each
+                for (int i=0; i < 10; i++) {
+                    Connection nc = Nats.connect(ts1.getURI() + "," + ts2.getURI());
+                    try {
+                        assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+                        if (nc.getConnectedUrl().equals(ts1.getURI())) {
+                            one++;
+                        } else {
+                            two++;
+                        }
+                    } finally {
+                        nc.close();
+                        assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                    }
+                }
+
+                assertTrue("randomly got one", one > 0);
+                assertTrue("randomly got two", two > 0);
+            }
+        }
+    }
+
+    @Test
+    public void testConnectNoRandomize() throws IOException, InterruptedException {
+        try (NatsTestServer ts1 = new NatsTestServer(false)) {
+            try (NatsTestServer ts2 = new NatsTestServer(false)) {
+                int one = 0;
+                int two = 0;
+
+                // should get at least 1 for each
+                for (int i=0; i < 10; i++) {
+                    String[] servers = {ts1.getURI(), ts2.getURI()};
+                    Options options = new Options.Builder().noRandomize().servers(servers).build();
+                    Connection nc = Nats.connect(options);
+                    try {
+                        assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+
+                        if (nc.getConnectedUrl().equals(ts1.getURI())) {
+                            one++;
+                        } else {
+                            two++;
+                        }
+                    } finally {
+                        nc.close();
+                        assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                    }
+                }
+
+                assertTrue("always got one", one == 10);
+                assertTrue("never got two", two == 0);
+            }
+        }
+    }
+
     @Test(expected=IOException.class)
     public void testFailWithMissingLineFeedAfterInfo() throws IOException, InterruptedException {
         Connection nc = null;

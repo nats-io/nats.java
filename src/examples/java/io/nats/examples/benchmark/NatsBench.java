@@ -135,7 +135,7 @@ public class NatsBench {
          * ./build/libs/jnats-2.5.1-SNAPSHOT-examples.jar:./build/libs/jnats-2.5.1-SNAPSHOT-fat.jar:<path
          * to conscrypt.jar> \ -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks
          * -Djavax.net.ssl.keyStorePassword=password \
-         * -Djavax.net.ssl.trustStore=src/test/resources/cacerts
+         * -Djavax.net.ssl.trustStore=src/test/resources/truststore.jks
          * -Djavax.net.ssl.trustStorePassword=password \
          * io.nats.examples.autobench.NatsAutoBench tls://localhost:4443 med conscrypt
          */

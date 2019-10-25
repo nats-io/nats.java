@@ -30,7 +30,7 @@ To see how queues split messages, run the `NatsQSub` in multiple windows and the
 A set of sample certificates are provided in the repo for testing. These use the highly secure password `password`. To run with the full client and trust default keystore you can use command line arguments to set System properties.
 
 ```bash
-java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password -Djavax.net.ssl.trustStore=src/test/resources/cacerts -Djavax.net.ssl.trustStorePassword=password io.nats.examples.NatsPub tls://localhost:4443 test "hello world"
+java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password -Djavax.net.ssl.trustStore=src/test/resources/truststore.jks -Djavax.net.ssl.trustStorePassword=password io.nats.examples.NatsPub tls://localhost:4443 test "hello world"
 ```
 
 To run with the completely unverified client:

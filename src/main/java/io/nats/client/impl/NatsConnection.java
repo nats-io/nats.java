@@ -192,7 +192,8 @@ class NatsConnection implements Connection {
 
         timeTrace(trace, "starting connect loop");
 
-        for (String serverURI : getServers()) {
+        Collection<String> serversToTry = buildServerList();
+        for (String serverURI : serversToTry) {
             if (isClosed()) {
                 break;
             }
@@ -262,7 +263,7 @@ class NatsConnection implements Connection {
         boolean doubleAuthError = false;
 
         while (!isConnected() && !isClosed() && !this.isClosing()) {
-            Collection<String> serversToTry = buildReconnectList();
+            Collection<String> serversToTry = buildServerList();
 
             for (String server : serversToTry) {
                 if (isClosed()) {
@@ -1509,7 +1510,7 @@ class NatsConnection implements Connection {
 
         statusLock.lock();
         try {
-            if (oldStatus == Status.CLOSED) {
+            if (oldStatus == Status.CLOSED || newStatus == oldStatus) {
                 return;
             }
             this.status = newStatus;
@@ -1623,7 +1624,7 @@ class NatsConnection implements Connection {
         this.reconnectWaiter.complete(Boolean.TRUE);
     }
 
-    Collection<String> buildReconnectList() {
+    Collection<String> buildServerList() {
         ArrayList<String> reconnectList = new ArrayList<>();
 
         reconnectList.addAll(getServers());
