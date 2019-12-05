@@ -41,7 +41,7 @@ after_success:
 
 env:
   global:
-  - nats_server_version=v2.0.4
+  - nats_server_version=v2.1.2
   - nats_server_path=$TRAVIS_BUILD_DIR/nats-server/nats-server
   - GPG_KEYRING_FILE=.travis/nats.travis.gpg
   - secure: yvOfk7kJzzTQ38n444jTDets24FZmxewwb3lrhXwpHTwOnQyq/B8QaHeqvhneECMc0Bq5M4blTlJ/wOWJAvs61POv2QVkyw+u8cVNROzkb8GPaH4ybPo8HMl33EHFNqh1KRo2C9hAPMYbbTjKCVY2UdkdfJ2l4lN/Awk7uEDX8ckc/sENhDeQjY/xoGZUP28O568Eg4ZxN3fr3WEV/0T+R15YyL2X0ev8MiGJM5TojXnNFKdb5fkUodRWwiY8JDn5xzP7xUzzen7MqE/5YNTcIC6haU8LToJM2gXEQtdoWLZqMPWr7k4A+eTBO5vl9qWrPBaOodFJYKzEjrEDfHj5RR9uaufEsnwQzXKw1ODrIFVZiC2n73j/tatWDI+vjnJ5tO+VMwWj53qdBYrvYeyewIT3cz9rrDHH8fGINsKAsk6HgWM3SMgeNSuXjRN0ePxEph5FVQ3ZUjF1ZXp90O7kjD5kXg/jVs6GrhCviRT3fx6Z4hyat9ytshy66jqcttHEfJ5sSOBg8fVbWJjLbxmghWUFp1fuc0HGNiMJStEyOBai5AkG6uJccTlgjlNL/8mgEF+fxo8HGVyStQzRnr7LJuCmWW9hx/aBVmqXR4p6cRgsSO09PvHRmcsLQoktCxVxsvcfblQqMbiQKjsJ4tXLe0U88DMOHnEGOgtik/tt+4=
