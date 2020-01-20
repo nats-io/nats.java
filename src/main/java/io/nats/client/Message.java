@@ -44,7 +44,8 @@ public interface Message {
 	public Subscription getSubscription();
 
 	/**
-	 * @return the id associated with the subscription, used in the 
+	 * @return the id associated with the subscription, used by the connection when processing an incoming
+	 * message from the server
 	 */
 	public String getSID();
 
