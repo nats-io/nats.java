@@ -221,6 +221,8 @@ public class Nats {
     /**
      * Create an authhandler from a jwt file and an nkey file. The handler will read the files each time it needs to respond to a request
      * and clear the memory after. This has a small price, but will only be encountered during connect or reconnect.
+     *
+     * <p>The {@code jwtFile} parameter can be set to {@code null} for challenge only authentication.
      * 
      * @param jwtFile a file containing a user JWT, may or may not contain separators
      * @param nkeyFile a file containing a user nkey that matches the JWT, may or may not contain separators

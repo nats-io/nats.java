@@ -195,6 +195,12 @@ class FileAuthHandler implements AuthHandler {
                 fileToUse = this.credsFile;
             }
 
+            // If no file is provided, assume this is challenge only authentication
+            // and simply return null here.
+            if (fileToUse == null) {
+                return null;
+            }
+
             byte[] data = Files.readAllBytes(Paths.get(fileToUse));
             ByteBuffer bb = ByteBuffer.wrap(data);
             CharBuffer chars = StandardCharsets.UTF_8.decode(bb);

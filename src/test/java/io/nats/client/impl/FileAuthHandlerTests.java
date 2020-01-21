@@ -53,6 +53,18 @@ public class FileAuthHandlerTests {
     }
 
     @Test
+    public void testSeparateNKeyWrappedFile() throws Exception {
+        AuthHandler auth = Nats.credentials(null, "src/test/resources/jwt_nkey/test_wrapped.nk");
+        NKey key = NKey.fromSeed(SEED.toCharArray());
+        byte[] test = "hello world again".getBytes(StandardCharsets.UTF_8);
+
+        char[] pubKey = auth.getID();
+        assertArrayEquals(key.getPublicKey(), pubKey);
+        assertArrayEquals(key.sign(test), auth.sign(test));
+        assertArrayEquals(null, auth.getJWT());
+    }
+
+    @Test
     public void testSeparateBareFiles() throws Exception {
         AuthHandler auth = Nats.credentials("src/test/resources/jwt_nkey/test.jwt", "src/test/resources/jwt_nkey/test.nk");
         NKey key = NKey.fromSeed(SEED.toCharArray());
