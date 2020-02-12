@@ -179,7 +179,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     boolean canQueue(NatsMessage msg, long maxSize) {
-        return (maxSize <= 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < maxSize);
+        return (maxSize < 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < maxSize);
     }
 
     void queue(NatsMessage msg) {
