@@ -17,7 +17,7 @@ All of these examples take the server URL on the command line, which means that 
 
 ## Running the examples
 
-The examples require the client library and the examples to be compiled. See the [readme.md](/readme.md) for specifics on building these.
+The examples require the client library and the examples to be compiled. See the [readme.md](/README.md) for specifics on building these.
 
 ```bash
 java -cp build/libs/jnats-2.0.0.jar:build/libs/jnats-examples-2.0.0.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
