@@ -699,35 +699,41 @@ class NatsConnection implements Connection {
     // Should only be called from closeSocket or close
     void closeSocketImpl() {
         this.currentServerURI = null;
+        boolean readerStopped = false;
+        boolean writerStopped = false; 
 
-        // Signal the reader and writer
-        this.reader.stop();
-        this.writer.stop();
-
-        // Close the current socket and cancel anyone waiting for it
-        this.dataPortFuture.cancel(true);
-
+        //Signal both to stop. 
+        final Future<Boolean> readStop = this.reader.stop();
+        final Future<Boolean> writeStop = this.writer.stop();
+        
+        // Now wait until they both stop before closing the socket. 
         try {
-            if (this.dataPort != null) {
-                this.dataPort.close();
+            readerStopped = readStop.get(10, TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            processException(ex);
+        }
+        try {
+            writerStopped = writeStop.get(10, TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            processException(ex);
+        }
+
+        if (readerStopped && writerStopped) {
+            // Close the current socket and cancel anyone waiting for it
+            this.dataPortFuture.cancel(true);
+            try {
+                if (this.dataPort != null) {
+                    this.dataPort.close();
+                }
+            } catch (IOException ex) {
+                processException(ex);
             }
-        } catch (IOException ex) {
-            processException(ex);
+            cleanUpPongQueue();
+        } else {
+            processException(new IllegalStateException("Unable to stop both Connection reader and writer threads."));
         }
 
-        cleanUpPongQueue();
 
-        // We signaled now wait for them to stop
-        try {
-            this.reader.stop().get(10, TimeUnit.SECONDS);
-        } catch (Exception ex) {
-            processException(ex);
-        }
-        try {
-            this.writer.stop().get(10, TimeUnit.SECONDS);
-        } catch (Exception ex) {
-            processException(ex);
-        }
     }
 
     void cleanUpPongQueue() {
