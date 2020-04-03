@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -50,9 +49,7 @@ class MessageQueue {
      * @param publishHighwaterMark sets a limit on the size of the underlying queue
      */
     MessageQueue(boolean singleReaderMode, int publishHighwaterMark) {
-        this.queue = new LinkedBlockingQueue<NatsMessage>();
-        
-        //publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
+        this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
@@ -106,19 +103,12 @@ class MessageQueue {
         try {
             // If we aren't running, then we need to obey the filter lock
             // to avoid ordering problems
-            if(!this.isRunning()) {
-
-                this.put(msg);
-                this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
-                this.length.incrementAndGet();
-                return;
+            if (!this.offer(msg)) {
+                throw new IllegalStateException("Output queue is full " + queue.size());
             }
-            this.put(msg);
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
             this.length.incrementAndGet();
-        } catch(Exception ex) {
-            ex.printStackTrace();
-        }finally {
+        } finally {
             this.filterLock.unlock();
         }
     }
@@ -135,13 +125,11 @@ class MessageQueue {
         }
     }
 
-    void put(NatsMessage msg) {
+    boolean offer(NatsMessage msg) {
         try {
-            this.queue.put(msg);
+            return this.queue.offer(msg, 5, TimeUnit.SECONDS);
         } catch (InterruptedException ie) {
-            // ok to ignore this, thread was interrupted, so success is not required
-            // and throwing will change the API
-            // This change went in with 2.5 which switched to a blocking queue
+            return false;
         }
     }
 
@@ -272,50 +260,25 @@ class MessageQueue {
     }
 
     void filter(Predicate<NatsMessage> p) {
-
+        this.filterLock.lock();
         try {
-
-            System.out.println("FILTER 1");
             if (this.isRunning()) {
-                System.out.println("FILTER 2");
                 throw new IllegalStateException("Filter is only supported when the queue is paused");
             }
-            this.filterLock.lock();
-
-            System.out.println("FILTER 3");
-        
             ArrayList<NatsMessage> newQueue = new ArrayList<>();
             NatsMessage cursor = this.queue.poll();
-
             while (cursor != null) {
-                System.out.println("FILTER 4 " + cursor + " " + cursor.getSubject() + " " + new String(cursor.getProtocolBytes(), StandardCharsets.UTF_8) );
-
-
                 if (!p.test(cursor)) {
                     newQueue.add(cursor);
                 } else {
                     this.sizeInBytes.addAndGet(-cursor.getSizeInBytes());
                     this.length.decrementAndGet();
                 }
-                
                 cursor = this.queue.poll();
             }
-
-        
             this.queue.addAll(newQueue);
-            
-             System.out.println("FILTER 6 " + cursor);
-        } catch (Exception ex) {
-            System.out.println("FILTER 7 " );
-            ex.printStackTrace();
-
-        } finally {
-
-            System.out.println("FILTER 8 " );        
+        } finally {    
             this.filterLock.unlock();
-            System.out.println("FILTER 9 " );
         }
-
-
     }
 }

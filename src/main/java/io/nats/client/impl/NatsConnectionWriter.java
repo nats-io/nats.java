@@ -81,32 +81,22 @@ class NatsConnectionWriter implements Runnable {
     // method does.
     Future<Boolean> stop() {
         this.running.set(false);
-
-        System.out.println("WRITER STOP " + Thread.currentThread().getName());
-
-        if (this.startStopLock.tryLock()) {
-            try {
-
-                System.out.println("WRITER STOP 2" + Thread.currentThread().getName());
-
+        this.startStopLock.lock();
+        try {
                 this.outgoing.pause();
                 this.reconnectOutgoing.pause();
-    
                 // Clear old ping/pong requests
                 byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
                 byte[] pongRequest = NatsConnection.OP_PONG.getBytes(StandardCharsets.UTF_8);
-
-                System.out.println("WRITER STOP 3" + Thread.currentThread().getName());
 
                 this.outgoing.filter((msg) -> {
                     return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());
                 });
 
-                System.out.println("WRITER STOP 4" + Thread.currentThread().getName());
-            } finally {
+        } finally {
                 this.startStopLock.unlock();
-            }
         }
+        
         return this.stopped;
     }
 

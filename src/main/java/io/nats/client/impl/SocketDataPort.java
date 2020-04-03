@@ -106,7 +106,6 @@ public class SocketDataPort implements DataPort {
     }
 
     public void close() throws IOException {
-        System.out.println("SocketDataPort CLOSE CALLED");
         if (sslSocket != null) {
             sslSocket.close(); // autocloses the underlying socket
         } else {

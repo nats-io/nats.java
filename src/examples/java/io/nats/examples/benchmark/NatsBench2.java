@@ -282,7 +282,22 @@ public class NatsBench2 {
                 starter.get(60, TimeUnit.SECONDS);
                 start.set(System.nanoTime());
                 for (int i = 0; i < numMsgs; i++) {
-                    nc.publish(subject, payload);
+
+                    boolean success = false ;
+                    
+                    for (int idx = 5; idx < 10 && success == false; idx++) {
+                        try {
+                            nc.publish(subject, payload);
+                            success = true;
+                        } catch (IllegalStateException ex) {
+                            if (ex.getMessage().contains("Output queue is full")) {
+                                success = false; 
+                                Thread.sleep(1000);
+                            } else {
+                                throw ex; 
+                            }
+                        }
+                    }
                     //Thread.sleep(100);
                     sent.incrementAndGet();
                 }
