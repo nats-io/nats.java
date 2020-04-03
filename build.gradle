@@ -21,7 +21,7 @@ def versionModifier = ""
 def jarVersion = "2.6.6"
 def branch = System.getenv("TRAVIS_BRANCH");
 def tag = System.getenv("TRAVIS_TAG");
-def useSigning = false //"master".equals(branch) || (!"".equals(tag) && tag.equals(branch)) // tag will be the branch on a tag event for travis
+def useSigning = "master".equals(branch) || (!"".equals(tag) && tag.equals(branch)) // tag will be the branch on a tag event for travis
 
 def getVersionName = { ->
     if ("".equals(tag))  {
