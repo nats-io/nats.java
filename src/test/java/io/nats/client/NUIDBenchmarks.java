@@ -15,7 +15,6 @@ package io.nats.client;
 
 import java.text.NumberFormat;
 
-import io.nats.client.NUID;
 
 public class NUIDBenchmarks {
 
