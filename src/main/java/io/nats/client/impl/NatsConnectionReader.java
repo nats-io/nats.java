@@ -94,6 +94,7 @@ class NatsConnectionReader implements Runnable {
     // Returns a future that is completed when the thread completes, not when this
     // method does.
     Future<Boolean> stop() {
+        System.out.println("READER STOP " + Thread.currentThread().getName());
         this.running.set(false);
         return stopped;
     }

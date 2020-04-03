@@ -702,36 +702,52 @@ class NatsConnection implements Connection {
         boolean readerStopped = false;
         boolean writerStopped = false; 
 
+        System.out.println("closeSocketImpl 1");
         //Signal both to stop. 
         final Future<Boolean> readStop = this.reader.stop();
+        System.out.println("closeSocketImpl after stop 1");
         final Future<Boolean> writeStop = this.writer.stop();
+        System.out.println("closeSocketImpl after stop 2");
+
+        System.out.println("closeSocketImpl 1.1");
         
         // Now wait until they both stop before closing the socket. 
         try {
             readerStopped = readStop.get(10, TimeUnit.SECONDS);
         } catch (Exception ex) {
+            System.out.println("closeSocketImpl 1.3");
             processException(ex);
         }
+
+        System.out.println("closeSocketImpl 2");
         try {
             writerStopped = writeStop.get(10, TimeUnit.SECONDS);
         } catch (Exception ex) {
             processException(ex);
         }
+        System.out.println("closeSocketImpl 3");
+
+
 
         if (readerStopped && writerStopped) {
+            System.out.println("closeSocketImpl 4");
             // Close the current socket and cancel anyone waiting for it
             this.dataPortFuture.cancel(true);
             try {
                 if (this.dataPort != null) {
                     this.dataPort.close();
                 }
+                System.out.println("closeSocketImpl 5");
             } catch (IOException ex) {
                 processException(ex);
             }
             cleanUpPongQueue();
         } else {
             processException(new IllegalStateException("Unable to stop both Connection reader and writer threads."));
+            System.out.println("closeSocketImpl 6");
         }
+
+        System.out.println("closeSocketImpl 7");
 
 
     }

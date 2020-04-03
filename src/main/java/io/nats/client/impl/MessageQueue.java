@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -49,7 +50,9 @@ class MessageQueue {
      * @param publishHighwaterMark sets a limit on the size of the underlying queue
      */
     MessageQueue(boolean singleReaderMode, int publishHighwaterMark) {
-        this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
+        this.queue = new LinkedBlockingQueue<NatsMessage>();
+        
+        //publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
@@ -98,20 +101,26 @@ class MessageQueue {
     }
 
     void push(NatsMessage msg) {
-        // If we aren't running, then we need to obey the filter lock
-        // to avoid ordering problems
-        if(!this.isRunning()) {
-            this.filterLock.lock();
+
+        this.filterLock.lock();
+        try {
+            // If we aren't running, then we need to obey the filter lock
+            // to avoid ordering problems
+            if(!this.isRunning()) {
+
+                this.put(msg);
+                this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
+                this.length.incrementAndGet();
+                return;
+            }
             this.put(msg);
-            this.filterLock.unlock();
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
             this.length.incrementAndGet();
-            return;
+        } catch(Exception ex) {
+            ex.printStackTrace();
+        }finally {
+            this.filterLock.unlock();
         }
-
-        this.put(msg);
-        this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
-        this.length.incrementAndGet();
     }
 
     /**
@@ -263,26 +272,50 @@ class MessageQueue {
     }
 
     void filter(Predicate<NatsMessage> p) {
-        if (this.isRunning()) {
-            throw new IllegalStateException("Filter is only supported when the queue is paused");
-        }
-    
-        this.filterLock.lock();
-        ArrayList<NatsMessage> newQueue = new ArrayList<>();
-        NatsMessage cursor = this.queue.poll();
 
-        while (cursor != null) {
-            if (!p.test(cursor)) {
-                newQueue.add(cursor);
-            } else {
-                this.sizeInBytes.addAndGet(-cursor.getSizeInBytes());
-                this.length.decrementAndGet();
+        try {
+
+            System.out.println("FILTER 1");
+            if (this.isRunning()) {
+                System.out.println("FILTER 2");
+                throw new IllegalStateException("Filter is only supported when the queue is paused");
             }
+            this.filterLock.lock();
+
+            System.out.println("FILTER 3");
+        
+            ArrayList<NatsMessage> newQueue = new ArrayList<>();
+            NatsMessage cursor = this.queue.poll();
+
+            while (cursor != null) {
+                System.out.println("FILTER 4 " + cursor + " " + cursor.getSubject() + " " + new String(cursor.getProtocolBytes(), StandardCharsets.UTF_8) );
+
+
+                if (!p.test(cursor)) {
+                    newQueue.add(cursor);
+                } else {
+                    this.sizeInBytes.addAndGet(-cursor.getSizeInBytes());
+                    this.length.decrementAndGet();
+                }
+                
+                cursor = this.queue.poll();
+            }
+
+        
+            this.queue.addAll(newQueue);
             
-            cursor = this.queue.poll();
+             System.out.println("FILTER 6 " + cursor);
+        } catch (Exception ex) {
+            System.out.println("FILTER 7 " );
+            ex.printStackTrace();
+
+        } finally {
+
+            System.out.println("FILTER 8 " );        
+            this.filterLock.unlock();
+            System.out.println("FILTER 9 " );
         }
 
-        this.queue.addAll(newQueue);
-        this.filterLock.unlock();
+
     }
 }
