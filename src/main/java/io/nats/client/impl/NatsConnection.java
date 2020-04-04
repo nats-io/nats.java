@@ -699,25 +699,47 @@ class NatsConnection implements Connection {
     // Should only be called from closeSocket or close
     void closeSocketImpl() {
         this.currentServerURI = null;
+        boolean readerStopped = false;
+        boolean writerStopped = false; 
 
-        // Signal the reader and writer
-        this.reader.stop();
-        this.writer.stop();
+        //Signal both to stop. 
+        final Future<Boolean> readStop = this.reader.stop();
+        final Future<Boolean> writeStop = this.writer.stop();
+        
+        // Now wait until they both stop before closing the socket. 
+        try {
+            readerStopped = readStop.get(1, TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            //
+        }
+        try {
+            writerStopped = writeStop.get(1, TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            //
+        }
+
+        if (!readerStopped) {
+            System.out.println("Unable to stop reader thread");
+        }
+        if (!writerStopped) {
+            System.out.println("Unable to stop writer thread");
+        }
+
+        this.dataPortFuture.cancel(true);
+        
 
         // Close the current socket and cancel anyone waiting for it
-        this.dataPortFuture.cancel(true);
-
         try {
             if (this.dataPort != null) {
                 this.dataPort.close();
             }
+
         } catch (IOException ex) {
             processException(ex);
         }
-
         cleanUpPongQueue();
+        
 
-        // We signaled now wait for them to stop
         try {
             this.reader.stop().get(10, TimeUnit.SECONDS);
         } catch (Exception ex) {
@@ -728,6 +750,7 @@ class NatsConnection implements Connection {
         } catch (Exception ex) {
             processException(ex);
         }
+
     }
 
     void cleanUpPongQueue() {
@@ -1115,7 +1138,7 @@ class NatsConnection implements Connection {
         try {
             Future<Boolean> waitForIt = sendPing();
 
-            if (waitForIt == null) { // error in the sendping code
+            if (waitForIt == null) { // error in the send ping code
                 return;
             }
 

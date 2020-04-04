@@ -80,21 +80,23 @@ class NatsConnectionWriter implements Runnable {
     // Returns a future that is completed when the thread completes, not when this
     // method does.
     Future<Boolean> stop() {
+        this.running.set(false);
         this.startStopLock.lock();
         try {
-            this.running.set(false);
-            this.outgoing.pause();
-            this.reconnectOutgoing.pause();
-    
-            // Clear old ping/pong requests
-            byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
-            byte[] pongRequest = NatsConnection.OP_PONG.getBytes(StandardCharsets.UTF_8);
-            this.outgoing.filter((msg) -> {
-                return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());
-            });
+                this.outgoing.pause();
+                this.reconnectOutgoing.pause();
+                // Clear old ping/pong requests
+                byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
+                byte[] pongRequest = NatsConnection.OP_PONG.getBytes(StandardCharsets.UTF_8);
+
+                this.outgoing.filter((msg) -> {
+                    return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());
+                });
+
         } finally {
-            this.startStopLock.unlock();
+                this.startStopLock.unlock();
         }
+        
         return this.stopped;
     }
 

@@ -15,9 +15,6 @@ package io.nats.client;
 
 import java.text.NumberFormat;
 
-import io.nats.client.Connection;
-import io.nats.client.Nats;
-import io.nats.client.Options;
 
 public class FlushBenchmark {
     public static void main(String args[]) throws InterruptedException {

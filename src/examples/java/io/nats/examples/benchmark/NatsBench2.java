@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * &quot;crufty&quot; for an example. See autobench for an example with minimal
  * boilerplate.
  */
-public class NatsBench {
+public class NatsBench2 {
     final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();
 
     // Default test values
@@ -65,7 +65,9 @@ public class NatsBench {
 
     private boolean secure = false;
     private Benchmark bench;
-
+    private long succPubMsgCount;
+    private long succSubMsgCount;
+    
     static final String usageString = "\nUsage: java NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
             + "[-csv file] <subject>\n\nOptions:\n"
             + "    -s  <urls>                     The nats server URLs (comma-separated), use tls:// or opentls:// to require tls\n"
@@ -77,7 +79,7 @@ public class NatsBench {
             + "    -tls                            Set the secure flag on the SSL context to true (false)\n"
             + "    -stats                          Track and print out internal statistics (false)\n";
 
-    public NatsBench(String[] args) throws Exception {
+    public NatsBench2(String[] args) throws Exception {
         if (args == null || args.length < 1) {
             usage();
             return;
@@ -85,7 +87,7 @@ public class NatsBench {
         parseArgs(args);
     }
 
-    public NatsBench(Properties properties) throws NoSuchAlgorithmException {
+    public NatsBench2(Properties properties) throws NoSuchAlgorithmException {
         urls = properties.getProperty("bench.nats.servers", urls);
         secure = Boolean.parseBoolean(properties.getProperty("bench.nats.secure", Boolean.toString(secure)));
         numMsgs = Integer.parseInt(properties.getProperty("bench.nats.msg.count", Integer.toString(numMsgs)));
@@ -99,9 +101,26 @@ public class NatsBench {
     Options prepareOptions(boolean secure) throws NoSuchAlgorithmException {
         String[] servers = urls.split(",");
         Options.Builder builder = new Options.Builder();
-        builder.noReconnect();
+        //builder.noReconnect();
+        builder.maxReconnects(-1);
         builder.connectionName("NatsBench");
         builder.servers(servers);
+        builder.connectionListener(new ConnectionListener() {
+
+            @Override
+            public void connectionEvent(Connection conn, Events type) {
+                System.out.println("Connection Event:" + type);
+                if (type == Events.DISCOVERED_SERVERS)
+                {
+                    conn.getServers().forEach(System.out::println);
+                }
+                if (type == Events.RECONNECTED)
+                {
+                    System.out.println("Reconnected to:" + conn.getConnectedUrl());
+                }
+            }
+
+        });
         builder.errorListener(new ErrorListener() {
             @Override
             public void errorOccurred(Connection conn, String error) {
@@ -226,6 +245,7 @@ public class NatsBench {
 
                 // Clean up
                 sub.unsubscribe();
+                succSubMsgCount = receivedCount;
                 nc.close();
             } catch (Exception e) {
                 errorQueue.add(e);
@@ -260,7 +280,23 @@ public class NatsBench {
                 starter.get(60, TimeUnit.SECONDS);
                 start.set(System.nanoTime());
                 for (int i = 0; i < numMsgs; i++) {
-                    nc.publish(subject, payload);
+
+                    boolean success = false ;
+                    
+                    for (int idx = 5; idx < 10 && success == false; idx++) {
+                        try {
+                            nc.publish(subject, payload);
+                            success = true;
+                        } catch (IllegalStateException ex) {
+                            if (ex.getMessage().contains("Output queue is full")) {
+                                success = false; 
+                                Thread.sleep(1000);
+                            } else {
+                                throw ex; 
+                            }
+                        }
+                    }
+                    //Thread.sleep(100);
                     sent.incrementAndGet();
                 }
                 nc.flush(Duration.ofSeconds(15));
@@ -271,6 +307,7 @@ public class NatsBench {
                 if (stats) {
                     System.out.println(nc.getStatistics());
                 }
+                //succPubMsgCount += ((io.nats.client.impl.NatsStatistics)nc.getStatistics()).getOKs();
                 nc.close();
             } catch (Exception e) {
                 errorQueue.add(e);
@@ -299,7 +336,7 @@ public class NatsBench {
         System.out.println();
 
         if (this.numPubs > 0 && this.numSubs > 0) {
-            runTest("Pub Only", this.numPubs, 0);
+            //runTest("Pub Only", this.numPubs, 0);
             runTest("Pub/Sub", this.numPubs, this.numSubs);
         } else if (this.numPubs > 0) {
             runTest("Pub Only", this.numPubs, 0);
@@ -308,6 +345,8 @@ public class NatsBench {
         }
 
         System.out.println();
+        System.out.println("Successfully Published messages: " + getSuccPubMsgCount());
+        System.out.println("Successfully Received messages: " + getSuccResMsgCount());
         System.out.printf("Final memory usage is %s / %s / %s free/total/max\n", 
                             Utils.humanBytes(Runtime.getRuntime().freeMemory()),
                             Utils.humanBytes(Runtime.getRuntime().totalMemory()),
@@ -510,9 +549,9 @@ public class NatsBench {
         try {
             if (args.length == 1 && args[0].endsWith(".properties")) {
                 properties = loadProperties(args[0]);
-                new NatsBench(properties).start();
+                new NatsBench2(properties).start();
             } else {
-                new NatsBench(args).start();
+                new NatsBench2(args).start();
             }
         } catch (Exception e) {
             System.err.printf("Exiting due to exception [%s]\n", e.getMessage());
@@ -520,6 +559,14 @@ public class NatsBench {
             System.exit(-1);
         }
         System.exit(0);
+    }
+    
+    public long getSuccPubMsgCount() {
+    	return this.succPubMsgCount;
+    }
+    
+    public long getSuccResMsgCount() {
+    	return this.succSubMsgCount;
     }
 
 }

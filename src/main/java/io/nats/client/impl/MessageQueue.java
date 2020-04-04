@@ -98,20 +98,19 @@ class MessageQueue {
     }
 
     void push(NatsMessage msg) {
-        // If we aren't running, then we need to obey the filter lock
-        // to avoid ordering problems
-        if(!this.isRunning()) {
-            this.filterLock.lock();
-            this.put(msg);
-            this.filterLock.unlock();
+
+        this.filterLock.lock();
+        try {
+            // If we aren't running, then we need to obey the filter lock
+            // to avoid ordering problems
+            if (!this.offer(msg)) {
+                throw new IllegalStateException("Output queue is full " + queue.size());
+            }
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
             this.length.incrementAndGet();
-            return;
+        } finally {
+            this.filterLock.unlock();
         }
-
-        this.put(msg);
-        this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
-        this.length.incrementAndGet();
     }
 
     /**
@@ -126,13 +125,11 @@ class MessageQueue {
         }
     }
 
-    void put(NatsMessage msg) {
+    boolean offer(NatsMessage msg) {
         try {
-            this.queue.put(msg);
+            return this.queue.offer(msg, 5, TimeUnit.SECONDS);
         } catch (InterruptedException ie) {
-            // ok to ignore this, thread was interrupted, so success is not required
-            // and throwing will change the API
-            // This change went in with 2.5 which switched to a blocking queue
+            return false;
         }
     }
 
@@ -263,26 +260,25 @@ class MessageQueue {
     }
 
     void filter(Predicate<NatsMessage> p) {
-        if (this.isRunning()) {
-            throw new IllegalStateException("Filter is only supported when the queue is paused");
-        }
-    
         this.filterLock.lock();
-        ArrayList<NatsMessage> newQueue = new ArrayList<>();
-        NatsMessage cursor = this.queue.poll();
-
-        while (cursor != null) {
-            if (!p.test(cursor)) {
-                newQueue.add(cursor);
-            } else {
-                this.sizeInBytes.addAndGet(-cursor.getSizeInBytes());
-                this.length.decrementAndGet();
+        try {
+            if (this.isRunning()) {
+                throw new IllegalStateException("Filter is only supported when the queue is paused");
             }
-            
-            cursor = this.queue.poll();
+            ArrayList<NatsMessage> newQueue = new ArrayList<>();
+            NatsMessage cursor = this.queue.poll();
+            while (cursor != null) {
+                if (!p.test(cursor)) {
+                    newQueue.add(cursor);
+                } else {
+                    this.sizeInBytes.addAndGet(-cursor.getSizeInBytes());
+                    this.length.decrementAndGet();
+                }
+                cursor = this.queue.poll();
+            }
+            this.queue.addAll(newQueue);
+        } finally {    
+            this.filterLock.unlock();
         }
-
-        this.queue.addAll(newQueue);
-        this.filterLock.unlock();
     }
 }

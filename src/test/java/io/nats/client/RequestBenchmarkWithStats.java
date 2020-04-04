@@ -21,11 +21,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
 
 public class RequestBenchmarkWithStats {
     public static void main(String args[]) throws InterruptedException {

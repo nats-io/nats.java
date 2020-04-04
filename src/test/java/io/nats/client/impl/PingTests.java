@@ -220,6 +220,7 @@ public class PingTests {
                         //Ignore
                     }
                     assertTrue("more pings", stats.getPings() > pings);
+                    Thread.sleep(1000);
                 } finally {
                     nc.close();
                     assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
