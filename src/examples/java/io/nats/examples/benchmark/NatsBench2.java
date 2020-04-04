@@ -13,8 +13,6 @@
 
 package io.nats.examples.benchmark;
 
-import io.nats.examples.benchmark.Benchmark;
-import io.nats.examples.benchmark.Sample;
 import io.nats.client.*;
 
 import java.io.FileInputStream;

@@ -708,12 +708,12 @@ class NatsConnection implements Connection {
         
         // Now wait until they both stop before closing the socket. 
         try {
-            readerStopped = readStop.get(10, TimeUnit.SECONDS);
+            readerStopped = readStop.get(1, TimeUnit.SECONDS);
         } catch (Exception ex) {
             //
         }
         try {
-            writerStopped = writeStop.get(10, TimeUnit.SECONDS);
+            writerStopped = writeStop.get(1, TimeUnit.SECONDS);
         } catch (Exception ex) {
             //
         }
@@ -725,10 +725,11 @@ class NatsConnection implements Connection {
             System.out.println("Unable to stop writer thread");
         }
 
-        if (readerStopped && writerStopped) {
+        this.dataPortFuture.cancel(true);
+        
 
+        if (readerStopped && writerStopped) {
             // Close the current socket and cancel anyone waiting for it
-            this.dataPortFuture.cancel(true);
             try {
                 if (this.dataPort != null) {
                     this.dataPort.close();
@@ -1127,7 +1128,7 @@ class NatsConnection implements Connection {
         try {
             Future<Boolean> waitForIt = sendPing();
 
-            if (waitForIt == null) { // error in the sendping code
+            if (waitForIt == null) { // error in the send ping code
                 return;
             }
 

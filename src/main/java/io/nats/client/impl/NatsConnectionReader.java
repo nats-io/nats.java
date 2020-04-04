@@ -151,7 +151,7 @@ class NatsConnectionReader implements Runnable {
         }
     }
 
-    // Gather the op, either up to the first space or the first carraige return.
+    // Gather the op, either up to the first space or the first carriage return.
     void gatherOp(int maxPos) throws IOException {
         try {
             while(this.bufferPosition < maxPos) {
