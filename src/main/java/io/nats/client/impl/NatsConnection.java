@@ -741,6 +741,17 @@ class NatsConnection implements Connection {
             cleanUpPongQueue();
         } 
 
+        try {
+            this.reader.stop().get(10, TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            processException(ex);
+        }
+        try {
+            this.writer.stop().get(10, TimeUnit.SECONDS);
+        } catch (Exception ex) {
+            processException(ex);
+        }
+
     }
 
     void cleanUpPongQueue() {
