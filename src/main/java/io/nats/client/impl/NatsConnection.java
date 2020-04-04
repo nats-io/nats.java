@@ -728,18 +728,17 @@ class NatsConnection implements Connection {
         this.dataPortFuture.cancel(true);
         
 
-        if (readerStopped && writerStopped) {
-            // Close the current socket and cancel anyone waiting for it
-            try {
-                if (this.dataPort != null) {
-                    this.dataPort.close();
-                }
-
-            } catch (IOException ex) {
-                processException(ex);
+        // Close the current socket and cancel anyone waiting for it
+        try {
+            if (this.dataPort != null) {
+                this.dataPort.close();
             }
-            cleanUpPongQueue();
-        } 
+
+        } catch (IOException ex) {
+            processException(ex);
+        }
+        cleanUpPongQueue();
+        
 
         try {
             this.reader.stop().get(10, TimeUnit.SECONDS);

@@ -668,7 +668,7 @@ public class DrainTests {
 
             CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(4));
 
-            assertTrue(tracker.get(5, TimeUnit.SECONDS));
+            assertTrue(tracker.get(10, TimeUnit.SECONDS));
             assertTrue(((NatsConnection) subCon).isDrained());
             assertEquals(count.get(), 2); // Should get both
             assertTrue(Connection.Status.CLOSED == subCon.getStatus());
@@ -713,7 +713,7 @@ public class DrainTests {
             assertTrue(handler.getExceptionCount() == 0);
             CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(2));
 
-            assertFalse(tracker.get(5, TimeUnit.SECONDS));
+            assertFalse(tracker.get(10, TimeUnit.SECONDS));
             assertFalse(((NatsConnection) subCon).isDrained());
             assertTrue(handler.getExceptionCount() == 0); // Don't throw during drain from reader
             assertTrue(Connection.Status.CLOSED == subCon.getStatus());
