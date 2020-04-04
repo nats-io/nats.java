@@ -712,6 +712,8 @@ public class ReconnectTests {
                     nc.getWriter().start(nc.getDataPortFuture());
                 }
 
+                nc.getWriter().stop();
+                Thread.sleep(1000);
                 // Should have thrown an exception if #203 isn't fixed
             }
         } finally {
