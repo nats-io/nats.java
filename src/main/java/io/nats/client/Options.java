@@ -193,13 +193,19 @@ public class Options {
      * this limit is reached, publish requests will be blocked until the queue can clear.
      * 
      * Because this value is in messages, the memory size associated with this value depends on the actual
-     * size of messages. If 0 byte messages are used, then MAX_MESSAGES_IN_OUTGOING_QUEUE will take up the minimal
+     * size of messages. If 0 byte messages are used, then DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE will take up the minimal
      * space. If 1024 byte messages are used then approximately 5Mb is used for the queue (plus overhead for subjects, etc..)
      * 
      * We are using messages, not bytes, to allow a simplification in the underlying library, and use LinkedBlockingQueue as
      * the core element in the queue.
      */
-    public static final int MAX_MESSAGES_IN_OUTGOING_QUEUE = 5000;
+    public static final int DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE = 5000;
+
+    /**
+     * This value is used internally to discard messages when the outgoing queue is full.
+     * See {@link #DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE}
+     */
+    public static final boolean DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL = false;
 
     static final String PFX = "io.nats.client.";
 
@@ -315,6 +321,17 @@ public class Options {
      * its own. The server must have tls_verify turned OFF for this option to work.
      */
     public static final String PROP_OPENTLS = PFX + "opentls";
+    /**
+     * Property used to configure a builder from a Properties object.
+     * {@value #PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE}, see {@link Builder#maxMessagesInOutgoingQueue(int) maxMessagesInOutgoingQueue}.
+     */
+    public static final String PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE = PFX + "outgoingqueue.maxmessages";
+    /**
+     * Property used to configure a builder from a Properties object.
+     * {@value #PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL}, see {@link Builder#discardMessagesWhenOutgoingQueueFull()
+     * discardMessagesWhenOutgoingQueueFull}.
+     */
+    public static final String PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL = PFX + "outgoingqueue.discardwhenfull";
     /**
      * Property used to configure a builder from a Properties object. {@value #PROP_USE_OLD_REQUEST_STYLE}, see {@link Builder#oldRequestStyle()
      * oldRequestStyle}.
@@ -435,6 +452,8 @@ public class Options {
     private final int bufferSize;
     private final boolean noEcho;
     private final boolean utf8Support;
+    private final int maxMessagesInOutgoingQueue;
+    private final boolean discardMessagesWhenOutgoingQueueFull;
 
     private final AuthHandler authHandler;
 
@@ -504,6 +523,8 @@ public class Options {
         private boolean noEcho = false;
         private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
+        private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
+        private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
 
         private AuthHandler authHandler;
 
@@ -675,6 +696,16 @@ public class Options {
 
             if (props.containsKey(PROP_INBOX_PREFIX)) {
                 this.inboxPrefix(props.getProperty(PROP_INBOX_PREFIX, DEFAULT_INBOX_PREFIX));
+            }
+
+            if (props.containsKey(PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE)) {
+                int maxMessagesInOutgoingQueue = Integer.parseInt(props.getProperty(PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1"));
+                this.maxMessagesInOutgoingQueue = (maxMessagesInOutgoingQueue < 0) ? DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE : maxMessagesInOutgoingQueue;
+            }
+
+            if (props.containsKey(PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL)) {
+                this.discardMessagesWhenOutgoingQueueFull = Boolean.parseBoolean(props.getProperty(
+                        PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, Boolean.toString(DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL)));
             }
         }
 
@@ -1142,6 +1173,27 @@ public class Options {
         }
 
         /**
+         * Set the maximum number of messages in the outgoing queue.
+         *
+         * @param maxMessagesInOutgoingQueue the maximum number of messages in the outgoing queue
+         * @return the Builder for chaining
+         */
+        public Builder maxMessagesInOutgoingQueue(int maxMessagesInOutgoingQueue) {
+            this.maxMessagesInOutgoingQueue = maxMessagesInOutgoingQueue;
+            return this;
+        }
+
+        /**
+         * Enable discard messages when the outgoing queue full. See {@link Builder#maxMessagesInOutgoingQueue(int) maxMessagesInOutgoingQueue}
+         *
+         * @return the Builder for chaining
+         */
+        public Builder discardMessagesWhenOutgoingQueueFull() {
+            this.discardMessagesWhenOutgoingQueueFull = true;
+            return this;
+        }
+
+        /**
          * Build an Options object from this Builder.
          * 
          * <p>If the Options builder was not provided with a server, a default one will be included
@@ -1218,6 +1270,8 @@ public class Options {
         this.utf8Support = b.utf8Support;
         this.inboxPrefix = b.inboxPrefix;
         this.traceConnection = b.traceConnection;
+        this.maxMessagesInOutgoingQueue = b.maxMessagesInOutgoingQueue;
+        this.discardMessagesWhenOutgoingQueueFull = b.discardMessagesWhenOutgoingQueueFull;
 
         this.authHandler = b.authHandler;
         this.errorListener = b.errorListener;
@@ -1472,7 +1526,23 @@ public class Options {
     public String getInboxPrefix() {
         return inboxPrefix;
     }
-    
+
+    /**
+     * @return the maximum number of messages in the outgoing queue, see {@link Builder#maxMessagesInOutgoingQueue(int)
+     * maxMessagesInOutgoingQueue(int)} in the builder doc
+     */
+    public int getMaxMessagesInOutgoingQueue() {
+        return maxMessagesInOutgoingQueue;
+    }
+
+    /**
+     * @return should we discard messages when the outgoing queue is full, see {@link Builder#discardMessagesWhenOutgoingQueueFull()
+     * discardMessagesWhenOutgoingQueueFull()} in the builder doc
+     */
+    public boolean isDiscardMessagesWhenOutgoingQueueFull() {
+        return discardMessagesWhenOutgoingQueueFull;
+    }
+
     public URI createURIForServer(String serverURI) throws URISyntaxException {
         return Options.parseURIForServer(serverURI);
     }

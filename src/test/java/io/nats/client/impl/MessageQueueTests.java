@@ -18,6 +18,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.CharBuffer;
@@ -537,5 +538,34 @@ public class MessageQueueTests {
         MessageQueue q = new MessageQueue(true);
         q.filter((msg) -> {return true;});
         assertFalse(true);
+    }
+
+    @Test
+    public void testExceptionWhenQueueIsFull() {
+        MessageQueue q  = new MessageQueue(true, 2);
+        NatsMessage msg1 = new NatsMessage(CharBuffer.wrap("one"));
+        NatsMessage msg2 = new NatsMessage(CharBuffer.wrap("two"));
+        NatsMessage msg3 = new NatsMessage(CharBuffer.wrap("three"));
+
+        assertTrue(q.push(msg1));
+        assertTrue(q.push(msg2));
+        try {
+            q.push(msg3);
+            fail("Expected " + IllegalStateException.class.getSimpleName());
+        } catch (IllegalStateException e) {
+            assertEquals("Output queue is full 2", e.getMessage());
+        }
+    }
+
+    @Test
+    public void testDiscardMessageWhenQueueFull() {
+        MessageQueue q  = new MessageQueue(true, 2, true);
+        NatsMessage msg1 = new NatsMessage(CharBuffer.wrap("one"));
+        NatsMessage msg2 = new NatsMessage(CharBuffer.wrap("two"));
+        NatsMessage msg3 = new NatsMessage(CharBuffer.wrap("three"));
+
+        assertTrue(q.push(msg1));
+        assertTrue(q.push(msg2));
+        assertFalse(q.push(msg3));
     }
 }

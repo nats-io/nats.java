@@ -14,7 +14,7 @@
 package io.nats.client;
 
 /**
- * This library groups problems into three categories:
+ * This library groups problems into four categories:
  * <dl>
  * <dt>Errors</dt>
  * <dd>The server sent an error message using the {@code -err} protocol operation.</dd>
@@ -22,6 +22,8 @@ package io.nats.client;
  * <dd>A Java exception occurred, and was handled by the library.</dd>
  * <dt>Slow Consumers</dt>
  * <dd>One of the connections consumers, Subscription or Dispatcher, is slow, and starting to drop messages.</dd>
+ * <dt>Fast Producers</dt>
+ * <dd>One of the connections producers is too fast, and is discarding messages</dd>
  * </dl>
  * <p>All of these problems are reported to the application code using the ErrorListener. The 
  * listener is configured in the {@link Options Options} at creation time.
@@ -65,4 +67,12 @@ public interface ErrorListener {
      * @param consumer The consumer that is being marked slow
      */
     public void slowConsumerDetected(Connection conn, Consumer consumer);
+
+    /**
+     * Called by the connection when a message is discarded.
+     *
+     * @param conn The connection that discarded the message
+     * @param msg The message that is discarded
+     */
+    default void messageDiscarded(Connection conn, Message msg) {}
 }

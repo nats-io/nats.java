@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -230,5 +231,32 @@ public class ErrorListenerTests {
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
         }
+    }
+
+    @Test
+    public void testDiscardedMessage() throws Exception {
+        TestHandler handler = new TestHandler();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = new Options.Builder().
+                    server(ts.getURI()).
+                    maxMessagesInOutgoingQueue(2).
+                    discardMessagesWhenOutgoingQueueFull().
+                    errorListener(handler).
+                    build();
+            Connection nc = Nats.connect(options);
+            try {
+                nc.publish("subject1", "message1".getBytes());
+                nc.publish("subject2", "message2".getBytes());
+                nc.publish("subject3", "message3".getBytes());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+
+        List<Message> discardedMessages = handler.getDiscardedMessages();
+        assertEquals(1, discardedMessages.size());
+        assertEquals("subject3", discardedMessages.get(0).getSubject());
+        assertEquals("message3", new String(discardedMessages.get(0).getData()));
     }
 }

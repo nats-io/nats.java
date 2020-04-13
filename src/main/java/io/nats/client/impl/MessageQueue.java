@@ -34,6 +34,7 @@ class MessageQueue {
     private final boolean singleThreadedReader;
     private final LinkedBlockingQueue<NatsMessage> queue;
     private final Lock filterLock;
+    private final boolean discardWhenFull;
 
     // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poisonPill is used to break out of timed waits on the blocking queue.
@@ -44,12 +45,14 @@ class MessageQueue {
      * If publishHighwaterMark is set to 0 the underlying queue can grow forever (or until the max size of a linked blocking queue that is).
      * A value of 0 is used by readers to prevent the read thread from blocking.
      * If set to a number of messages, the publish command will block, which provides
-     * backpressure on a publisher if the writer is slow to push things onto the network. Publishers use the value of Options.MAX_MESSAGES_IN_OUTGOING_QUEUE.
+     * backpressure on a publisher if the writer is slow to push things onto the network. Publishers use the value of Options.getMaxMessagesInOutgoingQueue().
      * @param singleReaderMode allows the use of "accumulate"
      * @param publishHighwaterMark sets a limit on the size of the underlying queue
+     * @param discardWhenFull allows to discard messages when the underlying queue is full
      */
-    MessageQueue(boolean singleReaderMode, int publishHighwaterMark) {
+    MessageQueue(boolean singleReaderMode, int publishHighwaterMark, boolean discardWhenFull) {
         this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
+        this.discardWhenFull = discardWhenFull;
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
@@ -64,6 +67,10 @@ class MessageQueue {
 
     MessageQueue(boolean singleReaderMode) {
         this(singleReaderMode, 0);
+    }
+
+    MessageQueue(boolean singleReaderMode, int publishHighwaterMark) {
+        this(singleReaderMode, publishHighwaterMark, false);
     }
 
     boolean isSingleReaderMode() {
@@ -97,17 +104,21 @@ class MessageQueue {
         return this.running.get() == DRAINING && this.length() == 0;
     }
 
-    void push(NatsMessage msg) {
+    boolean push(NatsMessage msg) {
 
         this.filterLock.lock();
         try {
             // If we aren't running, then we need to obey the filter lock
             // to avoid ordering problems
             if (!this.offer(msg)) {
+                if (this.discardWhenFull) {
+                    return false;
+                }
                 throw new IllegalStateException("Output queue is full " + queue.size());
             }
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
             this.length.incrementAndGet();
+            return true;
         } finally {
             this.filterLock.unlock();
         }
@@ -126,6 +137,10 @@ class MessageQueue {
     }
 
     boolean offer(NatsMessage msg) {
+        if (this.discardWhenFull) {
+            return this.queue.offer(msg);
+        }
+
         try {
             return this.queue.offer(msg, 5, TimeUnit.SECONDS);
         } catch (InterruptedException ie) {

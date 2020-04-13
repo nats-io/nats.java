@@ -58,6 +58,8 @@ public class OptionsTests {
         assertEquals("default oldstyle", false, o.isOldRequestStyle());
         assertEquals("default noEcho", false, o.isNoEcho());
         assertEquals("default UTF8 Support", false, o.supportUTF8Subjects());
+        assertEquals("default discard messages when outgoing queue full", Options.DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL,
+                o.isDiscardMessagesWhenOutgoingQueueFull());
 
         assertNull("default username", o.getUsernameChars());
         assertNull("default password", o.getPasswordChars());
@@ -69,6 +71,8 @@ public class OptionsTests {
         assertEquals("default max reconnect", Options.DEFAULT_MAX_RECONNECT, o.getMaxReconnect());
         assertEquals("default ping max", Options.DEFAULT_MAX_PINGS_OUT, o.getMaxPingsOut());
         assertEquals("default reconnect buffer size", Options.DEFAULT_RECONNECT_BUF_SIZE, o.getReconnectBufferSize());
+        assertEquals("default max messages in outgoing queue", Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE,
+                o.getMaxMessagesInOutgoingQueue());
 
         assertEquals("default reconnect wait", Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait());
         assertEquals("default connection timeout", Options.DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout());
@@ -82,7 +86,9 @@ public class OptionsTests {
 
     @Test
     public void testChainedBooleanOptions() throws NoSuchAlgorithmException {
-        Options o = new Options.Builder().verbose().pedantic().noRandomize().supportUTF8Subjects().noEcho().oldRequestStyle().build();
+        Options o = new Options.Builder().verbose().pedantic().noRandomize().supportUTF8Subjects().noEcho().oldRequestStyle()
+                .discardMessagesWhenOutgoingQueueFull()
+                .build();
         assertNull("default username", o.getUsernameChars());
         assertEquals("chained verbose", true, o.isVerbose());
         assertEquals("chained pedantic", true, o.isPedantic());
@@ -90,6 +96,7 @@ public class OptionsTests {
         assertEquals("chained oldstyle", true, o.isOldRequestStyle());
         assertEquals("chained noecho", true, o.isNoEcho());
         assertEquals("chained utf8", true, o.supportUTF8Subjects());
+        assertEquals("chained discard messages when outgoing queue full", true, o.isDiscardMessagesWhenOutgoingQueueFull());
     }
 
     @Test
@@ -119,11 +126,16 @@ public class OptionsTests {
 
     @Test
     public void testChainedIntOptions() {
-        Options o = new Options.Builder().maxReconnects(100).maxPingsOut(200).reconnectBufferSize(300).build();
+        Options o = new Options.Builder().maxReconnects(100).maxPingsOut(200).reconnectBufferSize(300)
+                .maxControlLine(400)
+                .maxMessagesInOutgoingQueue(500)
+                .build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
         assertEquals("chained max reconnect", 100, o.getMaxReconnect());
         assertEquals("chained ping max", 200, o.getMaxPingsOut());
         assertEquals("chained reconnect buffer size", 300, o.getReconnectBufferSize());
+        assertEquals("chained max control line", 400, o.getMaxControlLine());
+        assertEquals("chained max messages in outgoing queue", 500, o.getMaxMessagesInOutgoingQueue());
     }
 
     @Test
@@ -165,6 +177,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_OPENTLS, "true");
         props.setProperty(Options.PROP_NO_ECHO, "true");
         props.setProperty(Options.PROP_UTF8_SUBJECTS, "true");
+        props.setProperty(Options.PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, "true");
 
         Options o = new Options.Builder(props).build();
         assertNull("default username chars", o.getUsernameChars());
@@ -174,6 +187,7 @@ public class OptionsTests {
         assertEquals("property oldstyle", true, o.isOldRequestStyle());
         assertEquals("property noecho", true, o.isNoEcho());
         assertEquals("property utf8", true, o.supportUTF8Subjects());
+        assertEquals("property discard messages when outgoing queue full", true, o.isDiscardMessagesWhenOutgoingQueueFull());
         assertNotNull("property opentls", o.getSslContext());
     }
 
@@ -210,6 +224,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_MAX_PINGS, "200");
         props.setProperty(Options.PROP_RECONNECT_BUF_SIZE, "300");
         props.setProperty(Options.PROP_MAX_CONTROL_LINE, "400");
+        props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "500");
 
         Options o = new Options.Builder(props).build();
         assertEquals("default verbose", false, o.isVerbose()); // One from a different type
@@ -217,6 +232,7 @@ public class OptionsTests {
         assertEquals("property ping max", 200, o.getMaxPingsOut());
         assertEquals("property reconnect buffer size", 300, o.getReconnectBufferSize());
         assertEquals("property max control line", 400, o.getMaxControlLine());
+        assertEquals("property max messages in outgoing queue", 500, o.getMaxMessagesInOutgoingQueue());
     }
 
     @Test
@@ -227,6 +243,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_PING_INTERVAL, "-1");
         props.setProperty(Options.PROP_CLEANUP_INTERVAL, "-1");
         props.setProperty(Options.PROP_MAX_CONTROL_LINE, "-1");
+        props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1");
 
         Options o = new Options.Builder(props).build();
         assertEquals("default max control line", Options.DEFAULT_MAX_CONTROL_LINE, o.getMaxControlLine());
@@ -235,6 +252,8 @@ public class OptionsTests {
         assertEquals("default ping interval", Options.DEFAULT_PING_INTERVAL, o.getPingInterval());
         assertEquals("default cleanup interval", Options.DEFAULT_REQUEST_CLEANUP_INTERVAL,
                 o.getRequestCleanupInterval());
+        assertEquals("default max messages in outgoing queue", Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE,
+                o.getMaxMessagesInOutgoingQueue());
     }
 
     @Test

@@ -51,10 +51,13 @@ class NatsConnectionWriter implements Runnable {
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
-        int bufSize = connection.getOptions().getBufferSize();
+        Options options = connection.getOptions();
+        int bufSize = options.getBufferSize();
         this.sendBuffer = new byte[bufSize];
         
-        outgoing = new MessageQueue(true, Options.MAX_MESSAGES_IN_OUTGOING_QUEUE);
+        outgoing = new MessageQueue(true,
+            options.getMaxMessagesInOutgoingQueue(),
+            options.isDiscardMessagesWhenOutgoingQueueFull());
 
         // The reconnect buffer contains internal messages, and we will keep it unlimited in size
         reconnectOutgoing = new MessageQueue(true, 0);
@@ -184,8 +187,8 @@ class NatsConnectionWriter implements Runnable {
         return (maxSize <= 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < maxSize);
     }
 
-    void queue(NatsMessage msg) {
-        this.outgoing.push(msg);
+    boolean queue(NatsMessage msg) {
+        return this.outgoing.push(msg);
     }
 
     void queueInternalMessage(NatsMessage msg) {
