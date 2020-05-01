@@ -234,20 +234,28 @@ public class ErrorListenerTests {
     }
 
     @Test
-    public void testDiscardedMessage() throws Exception {
+    public void testDiscardedMessageFastProducer() throws Exception {
+        int maxMessages = 10;
         TestHandler handler = new TestHandler();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = new Options.Builder().
                     server(ts.getURI()).
-                    maxMessagesInOutgoingQueue(2).
+                    maxMessagesInOutgoingQueue(maxMessages).
                     discardMessagesWhenOutgoingQueueFull().
                     errorListener(handler).
                     build();
-            Connection nc = Nats.connect(options);
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+
             try {
-                nc.publish("subject1", "message1".getBytes());
-                nc.publish("subject2", "message2".getBytes());
-                nc.publish("subject3", "message3".getBytes());
+                nc.flush(Duration.ofSeconds(2));
+
+                nc.getWriter().stop().get(2, TimeUnit.SECONDS);
+                for (int i = 0; i < maxMessages + 1; i++) {
+                    nc.publish("subject" + i, ("message" + i).getBytes());
+                }
+                nc.getWriter().start(nc.getDataPortFuture());
+
+                nc.flush(Duration.ofSeconds(2));
             } finally {
                 nc.close();
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
@@ -256,7 +264,43 @@ public class ErrorListenerTests {
 
         List<Message> discardedMessages = handler.getDiscardedMessages();
         assertEquals(1, discardedMessages.size());
-        assertEquals("subject3", discardedMessages.get(0).getSubject());
-        assertEquals("message3", new String(discardedMessages.get(0).getData()));
+        assertEquals("subject10", discardedMessages.get(0).getSubject());
+        assertEquals("message10", new String(discardedMessages.get(0).getData()));
+    }
+
+    @Test
+    public void testDiscardedMessageServerClosed() throws Exception {
+        int maxMessages = 10;
+        TestHandler handler = new TestHandler();
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().
+                    server(ts.getURI()).
+                    maxMessagesInOutgoingQueue(maxMessages).
+                    discardMessagesWhenOutgoingQueueFull().
+                    connectionListener(handler).
+                    errorListener(handler).
+                    build();
+            Connection nc = Nats.connect(options);
+            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            try {
+                nc.flush(Duration.ofSeconds(1)); // Get the sub to the server
+
+                handler.prepForStatusChange(Events.DISCONNECTED);
+                ts.close();
+                handler.waitForStatusChange(2, TimeUnit.SECONDS); // make sure the connection is down
+
+                for (int i = 0; i < maxMessages + 1; i++) {
+                    nc.publish("subject" + i, ("message" + i).getBytes());
+                }
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+
+        List<Message> discardedMessages = handler.getDiscardedMessages();
+        assertTrue("At least one message discarded", discardedMessages.size() >= 1);
+        assertTrue("Message subject", discardedMessages.get(0).getSubject().startsWith("subject"));
+        assertTrue("Message data", new String(discardedMessages.get(0).getData()).startsWith("message"));
     }
 }

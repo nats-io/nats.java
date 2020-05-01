@@ -105,15 +105,20 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg) {
+        return push(msg, false);
+    }
+
+    boolean push(NatsMessage msg, boolean internal) {
 
         this.filterLock.lock();
         try {
             // If we aren't running, then we need to obey the filter lock
             // to avoid ordering problems
+            if (!internal && this.discardWhenFull) {
+                boolean myOffer = this.queue.offer(msg);
+                return myOffer;
+            }
             if (!this.offer(msg)) {
-                if (this.discardWhenFull) {
-                    return false;
-                }
                 throw new IllegalStateException("Output queue is full " + queue.size());
             }
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
@@ -137,10 +142,6 @@ class MessageQueue {
     }
 
     boolean offer(NatsMessage msg) {
-        if (this.discardWhenFull) {
-            return this.queue.offer(msg);
-        }
-
         try {
             return this.queue.offer(msg, 5, TimeUnit.SECONDS);
         } catch (InterruptedException ie) {

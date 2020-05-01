@@ -195,7 +195,7 @@ class NatsConnectionWriter implements Runnable {
         if (this.reconnectMode.get()) {
             this.reconnectOutgoing.push(msg);
         } else {
-            this.outgoing.push(msg);
+            this.outgoing.push(msg, true);
         }
     }
 }
