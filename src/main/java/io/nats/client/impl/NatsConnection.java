@@ -699,8 +699,6 @@ class NatsConnection implements Connection {
     // Should only be called from closeSocket or close
     void closeSocketImpl() {
         this.currentServerURI = null;
-        boolean readerStopped = false;
-        boolean writerStopped = false; 
 
         //Signal both to stop. 
         final Future<Boolean> readStop = this.reader.stop();
