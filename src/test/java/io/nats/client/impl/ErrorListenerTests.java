@@ -243,6 +243,7 @@ public class ErrorListenerTests {
                     maxMessagesInOutgoingQueue(maxMessages).
                     discardMessagesWhenOutgoingQueueFull().
                     errorListener(handler).
+                    pingInterval(Duration.ofSeconds(100)). // make this long so we don't ping during test
                     build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
@@ -277,6 +278,7 @@ public class ErrorListenerTests {
                     server(ts.getURI()).
                     maxMessagesInOutgoingQueue(maxMessages).
                     discardMessagesWhenOutgoingQueueFull().
+                    pingInterval(Duration.ofSeconds(100)). // make this long so we don't ping during test
                     connectionListener(handler).
                     errorListener(handler).
                     build();
