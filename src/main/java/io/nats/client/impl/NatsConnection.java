@@ -718,13 +718,6 @@ class NatsConnection implements Connection {
             //
         }
 
-        if (!readerStopped) {
-            System.out.println("Unable to stop reader thread");
-        }
-        if (!writerStopped) {
-            System.out.println("Unable to stop writer thread");
-        }
-
         this.dataPortFuture.cancel(true);
         
 
