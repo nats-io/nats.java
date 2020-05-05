@@ -39,6 +39,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     private Connection connection;
     private ArrayList<Consumer> slowConsumers = new ArrayList<>();
+    private ArrayList<Message> discardedMessages = new ArrayList<>();
 
     private boolean printExceptions = true;
 
@@ -92,6 +93,18 @@ public class TestHandler implements ErrorListener, ConnectionListener {
         }
     }
 
+    public void messageDiscarded(Connection conn, Message msg) {
+        this.connection = conn;
+        this.count.incrementAndGet();
+
+        lock.lock();
+        try {
+            this.discardedMessages.add(msg);
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public void connectionEvent(Connection conn, Events type) {
         this.connection = conn;
         this.count.incrementAndGet();
@@ -138,6 +151,10 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
     public List<Consumer> getSlowConsumers() {
         return this.slowConsumers;
+    }
+
+    public List<Message> getDiscardedMessages() {
+        return this.discardedMessages;
     }
 
     public int getCount() {
