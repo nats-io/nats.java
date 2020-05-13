@@ -133,6 +133,8 @@ class NatsConnection implements Connection {
     private ExecutorService executor;
     private ExecutorService connectExecutor;
 
+    private String currentServer = null;
+
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
         timeTrace(trace, "creating connection object");
@@ -192,7 +194,7 @@ class NatsConnection implements Connection {
 
         timeTrace(trace, "starting connect loop");
 
-        Collection<String> serversToTry = buildServerList(false);
+        Collection<String> serversToTry = buildServerList();
         for (String serverURI : serversToTry) {
             if (isClosed()) {
                 break;
@@ -206,6 +208,7 @@ class NatsConnection implements Connection {
             tryToConnect(serverURI, System.nanoTime());
 
             if (isConnected()) {
+                this.currentServer = serverURI;
                 break;
             } else {
                 timeTrace(trace, "setting status to disconnected");
@@ -263,7 +266,7 @@ class NatsConnection implements Connection {
         boolean doubleAuthError = false;
 
         while (!isConnected() && !isClosed() && !this.isClosing()) {
-            Collection<String> serversToTry = buildServerList(true);
+            Collection<String> serversToTry = buildServerList();
 
             for (String server : serversToTry) {
                 if (isClosed()) {
@@ -291,6 +294,7 @@ class NatsConnection implements Connection {
                     break;
                 } else if (isConnected()) {
                     this.statistics.incrementReconnects();
+                    this.currentServer = server;
                     break;
                 } else {
                     String err = connectError.get();
@@ -1643,7 +1647,7 @@ class NatsConnection implements Connection {
         this.reconnectWaiter.complete(Boolean.TRUE);
     }
 
-    Collection<String> buildServerList(boolean isReconnecting) {
+    Collection<String> buildServerList() {
         ArrayList<String> reconnectList = new ArrayList<>();
 
         reconnectList.addAll(getServers());
@@ -1652,17 +1656,17 @@ class NatsConnection implements Connection {
             return reconnectList;
         }
 
-        if (!isReconnecting) {
+        if (currentServer == null) {
             Collections.shuffle(reconnectList);
         } else {
-            // Remove the current (first) server from the list, shuffle if it makes sense,
+            // Remove the current server from the list, shuffle if it makes sense,
             // and then add it to the end of the list.  This prevents the client
             // from immediately reconnecting to a server it just lost connection with.
-            String s = reconnectList.remove(0);
+            reconnectList.remove(this.currentServer);
             if (reconnectList.size() > 1) {
                 Collections.shuffle(reconnectList);
             }
-            reconnectList.add(s);
+            reconnectList.add(this.currentServer);
         }
         return reconnectList;
     }
