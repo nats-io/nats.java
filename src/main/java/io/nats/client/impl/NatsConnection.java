@@ -192,7 +192,7 @@ class NatsConnection implements Connection {
 
         timeTrace(trace, "starting connect loop");
 
-        Collection<String> serversToTry = buildServerList();
+        Collection<String> serversToTry = buildServerList(false);
         for (String serverURI : serversToTry) {
             if (isClosed()) {
                 break;
@@ -263,7 +263,7 @@ class NatsConnection implements Connection {
         boolean doubleAuthError = false;
 
         while (!isConnected() && !isClosed() && !this.isClosing()) {
-            Collection<String> serversToTry = buildServerList();
+            Collection<String> serversToTry = buildServerList(true);
 
             for (String server : serversToTry) {
                 if (isClosed()) {
@@ -1643,7 +1643,7 @@ class NatsConnection implements Connection {
         this.reconnectWaiter.complete(Boolean.TRUE);
     }
 
-    Collection<String> buildServerList() {
+    Collection<String> buildServerList(boolean isReconnecting) {
         ArrayList<String> reconnectList = new ArrayList<>();
 
         reconnectList.addAll(getServers());
@@ -1652,8 +1652,18 @@ class NatsConnection implements Connection {
             return reconnectList;
         }
 
-        Collections.shuffle(reconnectList);
-
+        if (!isReconnecting) {
+            Collections.shuffle(reconnectList);
+        } else {
+            // Remove the current (first) server from the list, shuffle if it makes sense,
+            // and then add it to the end of the list.  This prevents the client
+            // from immediately reconnecting to a server it just lost connection with.
+            String s = reconnectList.remove(0);
+            if (reconnectList.size() > 1) {
+                Collections.shuffle(reconnectList);
+            }
+            reconnectList.add(s);
+        }
         return reconnectList;
     }
 
