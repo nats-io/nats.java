@@ -133,6 +133,8 @@ class NatsConnection implements Connection {
     private ExecutorService executor;
     private ExecutorService connectExecutor;
 
+    private String currentServer = null;
+
     NatsConnection(Options options) {
         boolean trace = options.isTraceConnection();
         timeTrace(trace, "creating connection object");
@@ -206,6 +208,7 @@ class NatsConnection implements Connection {
             tryToConnect(serverURI, System.nanoTime());
 
             if (isConnected()) {
+                this.currentServer = serverURI;
                 break;
             } else {
                 timeTrace(trace, "setting status to disconnected");
@@ -291,6 +294,7 @@ class NatsConnection implements Connection {
                     break;
                 } else if (isConnected()) {
                     this.statistics.incrementReconnects();
+                    this.currentServer = server;
                     break;
                 } else {
                     String err = connectError.get();
@@ -1652,8 +1656,18 @@ class NatsConnection implements Connection {
             return reconnectList;
         }
 
-        Collections.shuffle(reconnectList);
-
+        if (currentServer == null) {
+            Collections.shuffle(reconnectList);
+        } else {
+            // Remove the current server from the list, shuffle if it makes sense,
+            // and then add it to the end of the list.  This prevents the client
+            // from immediately reconnecting to a server it just lost connection with.
+            reconnectList.remove(this.currentServer);
+            if (reconnectList.size() > 1) {
+                Collections.shuffle(reconnectList);
+            }
+            reconnectList.add(this.currentServer);
+        }
         return reconnectList;
     }
 

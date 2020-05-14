@@ -341,7 +341,6 @@ public class ReconnectTests {
         }
     }
 
-
     @Test
     public void testNoRandomizeReconnectToSecondServer() throws Exception {
         NatsConnection nc = null;
@@ -615,7 +614,7 @@ public class ReconnectTests {
                                         server(ts.getURI()).
                                         secure().
                                         connectionListener(handler).
-                                        maxReconnects(10). // we get multiples for some, so need enough
+                                        maxReconnects(20). // we get multiples for some, so need enough
                                         reconnectWait(Duration.ofMillis(100)).
                                         connectionTimeout(Duration.ofSeconds(5)).
                                         noRandomize().
