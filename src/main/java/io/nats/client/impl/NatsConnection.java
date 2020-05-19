@@ -706,12 +706,12 @@ class NatsConnection implements Connection {
         
         // Now wait until they both stop before closing the socket. 
         try {
-            readerStopped = readStop.get(1, TimeUnit.SECONDS);
+            readStop.get(1, TimeUnit.SECONDS);
         } catch (Exception ex) {
             //
         }
         try {
-            writerStopped = writeStop.get(1, TimeUnit.SECONDS);
+            writeStop.get(1, TimeUnit.SECONDS);
         } catch (Exception ex) {
             //
         }
