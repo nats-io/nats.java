@@ -1,6 +1,13 @@
 
 # Change Log
 
+## Version 2.6.8
+
+* [FIXED] - #309 - Removed some debug printf statements
+* [CHANGED] - Allow disable reconnect buffer by using size of zero
+* [CHANGED] - Added option to set the max unsent size at the writer and fail or discard messages
+* [CHANGED] - Updated build.gradle to not fail if TRAVIS_BRANCH isn't set
+
 ## Version 2.6.6
 
 * [FIXED] - #274 - Added a check to prevent double event notification
