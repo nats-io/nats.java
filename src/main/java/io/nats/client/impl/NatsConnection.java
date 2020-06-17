@@ -156,7 +156,15 @@ class NatsConnection implements Connection {
         this.serverAuthErrors = new HashMap<>();
 
         this.nextSid = new AtomicLong(1);
+        long start = System.nanoTime();
         this.nuid = new NUID();
+        if (trace) {
+            long seconds = TimeUnit.SECONDS.convert(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+            if (seconds > 1L) {
+                // If you see this trace check: https://github.com/nats-io/nats.java#linux-platform-note
+                timeTrace(trace, "NUID initialization took long: %d (s)", seconds);
+            }
+        }
         this.mainInbox = createInbox() + ".*";
 
         this.lastError = new AtomicReference<>();
