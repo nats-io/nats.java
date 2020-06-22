@@ -2,7 +2,7 @@
 
 Maintainership is on a per project basis.
 
-### Core-maintainers
+### Maintainers
   - Alberto Ricart <alberto@nats.io> [@aricart](https://github.com/aricart)
   - Stephen Asbury <sasbury@sasbury.com> [@sasbury](https://github.com/sasbury)
   - Colin Sullivan <colin@nats.io> [@ColinSullivan1](https://github.com/ColinSullivan1)
