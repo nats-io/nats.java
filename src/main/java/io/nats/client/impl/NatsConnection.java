@@ -156,7 +156,15 @@ class NatsConnection implements Connection {
         this.serverAuthErrors = new HashMap<>();
 
         this.nextSid = new AtomicLong(1);
+        long start = System.nanoTime();
         this.nuid = new NUID();
+        if (trace) {
+            long seconds = TimeUnit.SECONDS.convert(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+            if (seconds > 1L) {
+                // If you see this trace check: https://github.com/nats-io/nats.java#linux-platform-note
+                timeTrace(trace, "NUID initialization took long: %d (s)", seconds);
+            }
+        }
         this.mainInbox = createInbox() + ".*";
 
         this.lastError = new AtomicReference<>();
@@ -428,7 +436,14 @@ class NatsConnection implements Connection {
                 public Object call() throws IOException {
                     readInitialInfo();
                     checkVersionRequirements();
+                    long start = System.nanoTime();
                     upgradeToSecureIfNeeded();
+                    if (trace && options.isTLSRequired()) {
+                        // If the time appears too long it might be related to
+                        // https://github.com/nats-io/nats.java#linux-platform-note
+                        timeTrace(trace, "TLS upgrade took: %.3f (s)",
+                                ((double)(System.nanoTime() - start)) / 1_000_000_000.0);
+                    }
                     return null;
                 }
             };
