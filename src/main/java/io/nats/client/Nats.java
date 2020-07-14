@@ -132,6 +132,28 @@ public class Nats {
     }
 
     /**
+     * Connect to the specified URL with the specified username, password and default options.
+     *
+     * <p>This is a synchronous call, and the connection should be ready for use on return
+     * there are network timing issues that could result in a successful connect call but
+     * the connection is invalid soon after return, where soon is in the network/thread world.
+     *
+     * <p>If the connection fails, an IOException is thrown
+     *
+     * <p>See {@link Nats#connect(Options) connect(Options)} for more information on exceptions.
+     *
+     * @param url the url of the server, ie. nats://localhost:4222
+     * @param handler the authentication handler implementation
+     * @return the connection
+     * @throws IOException if a networking issue occurs
+     * @throws InterruptedException if the current thread is interrupted
+     */
+    public static Connection connect(String url, AuthHandler handler) throws IOException, InterruptedException {
+        Options options = new Options.Builder().server(url).authHandler(handler).build();
+        return createConnection(options, false);
+    }
+
+    /**
      * Options can be used to set the server URL, or multiple URLS, callback
      * handlers for various errors, and connection events.
      * 
