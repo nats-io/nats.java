@@ -142,7 +142,7 @@ public class Nats {
      *
      * <p>See {@link Nats#connect(Options) connect(Options)} for more information on exceptions.
      *
-     * @param url the url of the server, ie. nats://localhost:4222
+     * @param url comma separated list of the URLs of the server, ie. nats://localhost:4222,nats://localhost:4223
      * @param handler the authentication handler implementation
      * @return the connection
      * @throws IOException if a networking issue occurs

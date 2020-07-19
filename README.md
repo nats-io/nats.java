@@ -129,10 +129,14 @@ There are four different ways to connect using the Java library:
     Connection nc = Nats.connect();
     ```
 
-2. Connect to a server using a URL:
+2. Connect to one or more servers using a URL:
 
     ```java
+    //single URL
     Connection nc = Nats.connect("nats://myhost:4222");
+
+    //comma-separated list of URLs
+    Connection nc = Nats.connect("nats://myhost:4222,nats://myhost:4223");
     ```
 
 3. Connect to one or more servers with a custom configuration:
@@ -147,11 +151,18 @@ There are four different ways to connect using the Java library:
 4. Connect asynchronously, this requires a callback to tell the application when the client is connected:
 
     ```java
-     Options options = new Options.Builder().server(Options.DEFAULT_URL).connectionListener(handler).build();
-     Nats.connectAsynchronously(options, true);
+    Options options = new Options.Builder().server(Options.DEFAULT_URL).connectionListener(handler).build();
+    Nats.connectAsynchronously(options, true);
     ```
 
     This feature is experimental, please let us know if you like it.
+
+5. Connect with authentication handler:
+
+    ```java
+    AuthHandler authHandler = Nats.credentials(System.getenv("NATS_CREDS")
+    Connection nc = Nats.connect("nats://myhost:4222", authHandler);
+    ```
 
 ### Publishing
 
