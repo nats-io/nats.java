@@ -465,6 +465,17 @@ public class AuthTests {
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
         }
+
+        //test Nats.connect method
+        try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
+            Connection nc = Nats.connect(ts.getURI(), Nats.staticCredentials(null, theKey.getSeed()));
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
     }
 
     @Test
@@ -480,6 +491,17 @@ public class AuthTests {
             Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
                     .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+
+        //test Nats.connect method
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", false)) {
+            Connection nc = Nats.connect(ts.getURI(), Nats.credentials("src/test/resources/jwt_nkey/user.creds"));
             try {
                 assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
             } finally {
