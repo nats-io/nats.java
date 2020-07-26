@@ -1009,8 +1009,10 @@ class NatsConnection implements Connection {
         Future<Message> incoming = this.request(subject, body);
         try {
             reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (ExecutionException | TimeoutException e) {
-            reply = null;
+        } catch (TimeoutException e) {
+            incoming.cancel(true);
+        } catch (Throwable e) {
+            throw new AssertionError(e);
         }
 
         return reply;
@@ -1068,6 +1070,13 @@ class NatsConnection implements Connection {
             NatsDispatcher dispatcher = this.inboxDispatcher.get();
             NatsSubscription sub = dispatcher.subscribeReturningSubscription(responseInbox);
             dispatcher.unsubscribe(responseInbox, 1);
+            // Unsubscribe when future is cancelled:
+            String finalResponseInbox = responseInbox;
+            future.whenComplete((msg, exception) -> {
+                if ( null != exception && exception instanceof CancellationException ) {
+                    dispatcher.unsubscribe(finalResponseInbox);
+                }
+            });
             responses.put(sub.getSID(), future);
         }
 
