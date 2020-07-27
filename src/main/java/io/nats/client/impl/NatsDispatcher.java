@@ -194,7 +194,13 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.subscribeImpl(subject, null, null);
         return this;
     }
+    NatsSubscription subscribeReturningSubscription(String subject) {
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
 
+        return this.subscribeImpl(subject, null, null);
+    }
     public Subscription subscribe(String subject, MessageHandler handler) {
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
@@ -234,7 +240,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     }
 
     // Assumes the subj/queuename checks are done, does check for closed status
-    Subscription subscribeImpl(String subject, String queueName, MessageHandler handler) {
+    NatsSubscription subscribeImpl(String subject, String queueName, MessageHandler handler) {
         if (!this.running.get()) {
             throw new IllegalStateException("Dispatcher is closed");
         }

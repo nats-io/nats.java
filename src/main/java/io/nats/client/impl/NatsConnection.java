@@ -1009,8 +1009,10 @@ class NatsConnection implements Connection {
         Future<Message> incoming = this.request(subject, body);
         try {
             reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (ExecutionException | TimeoutException e) {
-            reply = null;
+        } catch (TimeoutException e) {
+            incoming.cancel(true);
+        } catch (Throwable e) {
+            throw new AssertionError(e);
         }
 
         return reply;
@@ -1059,11 +1061,23 @@ class NatsConnection implements Connection {
         String responseToken = getResponseToken(responseInbox);
         CompletableFuture<Message> future = new CompletableFuture<>();
 
-        responses.put(responseToken, future);
+        if (!oldStyle) {
+            responses.put(responseToken, future);
+        }
         statistics.incrementOutstandingRequests();
 
         if (oldStyle) {
-            this.inboxDispatcher.get().subscribe(responseInbox).unsubscribe(responseInbox, 1);
+            NatsDispatcher dispatcher = this.inboxDispatcher.get();
+            NatsSubscription sub = dispatcher.subscribeReturningSubscription(responseInbox);
+            dispatcher.unsubscribe(responseInbox, 1);
+            // Unsubscribe when future is cancelled:
+            String finalResponseInbox = responseInbox;
+            future.whenComplete((msg, exception) -> {
+                if ( null != exception && exception instanceof CancellationException ) {
+                    dispatcher.unsubscribe(finalResponseInbox);
+                }
+            });
+            responses.put(sub.getSID(), future);
         }
 
         this.publish(subject, responseInbox, body);
@@ -1073,16 +1087,23 @@ class NatsConnection implements Connection {
     }
 
     void deliverReply(Message msg) {
+        boolean oldStyle = options.isOldRequestStyle();
         String subject = msg.getSubject();
         String token = getResponseToken(subject);
         CompletableFuture<Message> f = null;
 
-        f = responses.remove(token);
+        if (oldStyle) {
+            f = responses.remove(msg.getSID());
+        } else {
+            f = responses.remove(token);
+        }
 
         if (f != null) {
             statistics.decrementOutstandingRequests();
             f.complete(msg);
             statistics.incrementRepliesReceived();
+        } else if (!oldStyle && !subject.startsWith(mainInbox)) {
+            System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection");
         }
     }
 

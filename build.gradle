@@ -274,7 +274,9 @@ publishing {
         }
         
         tasks.publishMavenJavaPublicationToSonatypeRepository {
-            dependsOn project.tasks.signArchives
+            if (useSigning) {
+                dependsOn project.tasks.signArchives
+            }
         }
     }
 }
