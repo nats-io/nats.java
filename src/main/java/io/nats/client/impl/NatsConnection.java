@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -274,7 +275,9 @@ class NatsConnection implements Connection {
         boolean doubleAuthError = false;
 
         while (!isConnected() && !isClosed() && !this.isClosing()) {
-            Collection<String> serversToTry = buildServerList();
+            List<String> serversToTry = buildServerList();
+            lastServer = serversToTry.get(serversToTry.size()-1);
+            boolean shouldWait = false;
 
             for (String server : serversToTry) {
                 if (isClosed()) {
@@ -283,19 +286,17 @@ class NatsConnection implements Connection {
 
                 connectError.set(""); // reset on each loop
 
-                if (server.equals(lastServer)) {
-                    this.reconnectWaiter = new CompletableFuture<>();
-                    waitForReconnectTimeout();
-                }
-
                 if (isDisconnectingOrClosed() || this.isClosing()) {
                     break;
                 }
 
+                if (server.equals(lastServer)) {
+                    shouldWait = true;
+                } 
+
                 updateStatus(Status.RECONNECTING);
 
                 tryToConnect(server, System.nanoTime());
-                lastServer = server;
                 tries++;
 
                 if (maxTries > 0 && tries >= maxTries) {
@@ -324,6 +325,11 @@ class NatsConnection implements Connection {
 
             if (maxTries > 0 && tries >= maxTries) {
                 break;
+            }
+
+            if (shouldWait) {
+                this.reconnectWaiter = new CompletableFuture<>();
+                waitForReconnectTimeout();
             }
         }
 
@@ -1683,7 +1689,7 @@ class NatsConnection implements Connection {
         this.reconnectWaiter.complete(Boolean.TRUE);
     }
 
-    Collection<String> buildServerList() {
+    List<String> buildServerList() {
         ArrayList<String> reconnectList = new ArrayList<>();
 
         reconnectList.addAll(getServers());
