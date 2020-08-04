@@ -277,7 +277,6 @@ class NatsConnection implements Connection {
         while (!isConnected() && !isClosed() && !this.isClosing()) {
             List<String> serversToTry = buildServerList();
             lastServer = serversToTry.get(serversToTry.size()-1);
-            boolean shouldWait = false;
 
             for (String server : serversToTry) {
                 if (isClosed()) {
@@ -289,10 +288,6 @@ class NatsConnection implements Connection {
                 if (isDisconnectingOrClosed() || this.isClosing()) {
                     break;
                 }
-
-                if (server.equals(lastServer)) {
-                    shouldWait = true;
-                } 
 
                 updateStatus(Status.RECONNECTING);
 
@@ -317,6 +312,11 @@ class NatsConnection implements Connection {
                         this.serverAuthErrors.put(server, err);
                     }
                 }
+
+                if (server.equals(lastServer)) {
+                    this.reconnectWaiter = new CompletableFuture<>();
+                    waitForReconnectTimeout();
+                }
             }
 
             if (doubleAuthError) {
@@ -325,11 +325,6 @@ class NatsConnection implements Connection {
 
             if (maxTries > 0 && tries >= maxTries) {
                 break;
-            }
-
-            if (shouldWait) {
-                this.reconnectWaiter = new CompletableFuture<>();
-                waitForReconnectTimeout();
             }
         }
 
