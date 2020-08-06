@@ -1791,8 +1791,13 @@ class NatsConnection implements Connection {
             cons.sendUnsubForDrain();
         });
 
-        this.flush(timeout); // Flush and wait up to the timeout, if this fails, let the caller know
-        
+        try {
+            this.flush(timeout); // Flush and wait up to the timeout, if this fails, let the caller know
+        } catch (Exception e) {
+            this.close(false);
+            throw e;
+        }
+
         consumers.forEach((cons) -> {
             cons.markUnsubedForDrain();
         });
@@ -1843,7 +1848,7 @@ class NatsConnection implements Connection {
                 this.processException(e);
             } finally {
                 try {
-                    this.close();// close the connection after the last flush
+                    this.close(false);// close the connection after the last flush
                 } catch (InterruptedException e) {
                     this.processException(e);
                 }

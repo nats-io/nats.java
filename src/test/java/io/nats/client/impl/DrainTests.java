@@ -43,6 +43,29 @@ import io.nats.client.ConnectionListener.Events;
 public class DrainTests {
 
     @Test
+    public void testCloseOnDrainFailure() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+            final Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())){
+            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
+
+            Subscription sub = subCon.subscribe("draintest");
+            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
+
+            ts.shutdown(); // shut down the server to fail drain and subsequent close
+            boolean timedOut = false;
+            try {
+                subCon.drain(Duration.ofSeconds(1));
+            } catch (java.util.concurrent.TimeoutException e) {
+                timedOut = true;
+            } finally {
+                assertTrue("Expect closed connection", Connection.Status.CLOSED == subCon.getStatus());
+                subCon.close(); // this is what I'd expect common code to do
+            }
+            assertTrue("Expect timeout exception", timedOut);
+        }
+    }
+
+    @Test
     public void testSimpleSubDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
