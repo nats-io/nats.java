@@ -1,6 +1,15 @@
 
 # Change Log
 
+## Version 2.7.0
+
+ - [ADDED] #323 Nats.connect v2 credentials (@olicuzo)
+ - [CHANGED]  #320 Update MAINTAINERS.md (@gcolliso)
+ - [FIXED] #318 Printing trace when NUID initialization takes long (@matthiashanel)
+ - [FIXED] #327 Subject Remapping Fix (@brimworks)
+ - [FIXED] #331 Close connection when flush fails during drain (@matthiashanel)
+ - [FIXED] #330 Reconnect wait was not being honored (@ColinSullivan1)
+
 ## Version 2.6.8
 
 * [FIXED] - #309 - Removed some debug printf statements
