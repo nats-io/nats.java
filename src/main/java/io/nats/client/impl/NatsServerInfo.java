@@ -31,6 +31,7 @@ class NatsServerInfo {
     static final String CONNECT_URLS = "connect_urls";
     static final String PROTOCOL_VERSION = "proto";
     static final String NONCE = "nonce";
+    static final String LAME_DUCK_MODE = "ldm";
 
     private String serverId;
     private String version;
@@ -44,10 +45,15 @@ class NatsServerInfo {
     private String rawInfoJson;
     private int protocolVersion;
     private byte[] nonce;
+    private boolean lameDuckMode;
 
     public NatsServerInfo(String json) {
         this.rawInfoJson = json;
         parseInfo(json);
+    }
+
+    public boolean isLameDuckMode() {
+        return lameDuckMode;
     }
 
     public String getServerId() {
@@ -106,6 +112,7 @@ class NatsServerInfo {
     private static final String grabObject = "\\{(.+?)\\}";
 
     void parseInfo(String jsonString) {
+        Pattern lameDuckMode = Pattern.compile("\""+LAME_DUCK_MODE+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
         Pattern serverIdRE = Pattern.compile("\""+SERVER_ID+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern versionRE = Pattern.compile("\""+VERSION+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern goRE = Pattern.compile("\""+GO+"\":" + grabString, Pattern.CASE_INSENSITIVE);
@@ -168,7 +175,13 @@ class NatsServerInfo {
         if (m.find()) {
             this.tlsRequired = Boolean.parseBoolean(m.group(1));
         }
-        
+
+        m = lameDuckMode.matcher(jsonString);
+        if (m.find()) {
+            this.lameDuckMode = Boolean.parseBoolean(m.group(1));
+        }
+
+
         m = portRE.matcher(jsonString);
         if (m.find()) {
             this.port = Integer.parseInt(m.group(1));
