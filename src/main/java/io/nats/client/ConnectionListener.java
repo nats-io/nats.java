@@ -30,7 +30,9 @@ public interface ConnectionListener {
         /** The connection was reconnected and the server has been notified of all subscriptions. */
         RESUBSCRIBED("nats: subscriptions re-established"),
         /** The connection was told about new servers from, from the current server. */ 
-        DISCOVERED_SERVERS("nats: discovered servers");
+        DISCOVERED_SERVERS("nats: discovered servers"),
+        /** Server Sent a lame duck mode. */
+        LAME_DUCK("nats: lame duck mode");
 
         private String event;
 

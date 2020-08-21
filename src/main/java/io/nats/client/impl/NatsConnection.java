@@ -1344,6 +1344,10 @@ class NatsConnection implements Connection {
         if (urls != null && urls.length > 0) {
             processConnectionEvent(Events.DISCOVERED_SERVERS);
         }
+
+        if (serverInfo.isLameDuckMode()) {
+            processConnectionEvent(Events.LAME_DUCK);
+        }
     }
 
     void queueOutgoing(NatsMessage msg) {

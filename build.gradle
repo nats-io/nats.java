@@ -15,10 +15,10 @@ plugins {
 // Update version here, repeated check-ins not into master will have snapshot on them
 // Be sure to update Nats.java with the latest version, the change log and the package-info.java
 def versionMajor = 2
-def versionMinor = 7
+def versionMinor = 8
 def versionPatch = 0
 def versionModifier = ""
-def jarVersion = "2.7.0"
+def jarVersion = "2.8.0"
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : "";
 def tag = System.getenv("TRAVIS_TAG") != null ? System.getenv("TRAVIS_TAG") : "";
 def useSigning = "master".equals(branch) || (!"".equals(tag) && tag.equals(branch)) // tag will be the branch on a tag event for travis
