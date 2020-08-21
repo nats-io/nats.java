@@ -13,18 +13,16 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import io.nats.client.*;
 import org.junit.Test;
 
-import io.nats.client.Connection;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.Nats;
+import static org.junit.Assert.*;
 
 public class InfoHandlerTests {
     @Test
@@ -43,6 +41,8 @@ public class InfoHandlerTests {
             }
         }
     }
+
+
 
     @Test
     public void testUnsolicitedInfo() throws IOException, InterruptedException, ExecutionException {
@@ -102,5 +102,80 @@ public class InfoHandlerTests {
                 assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
         }
+    }
+
+
+
+    @Test
+    public void testLDM() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        String customInfo = "{\"server_id\":\"myid\", \"ldm\":true}";
+        CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
+        CompletableFuture<Boolean> sendInfo = new CompletableFuture<>();
+        CompletableFuture<ConnectionListener.Events> connectLDM = new CompletableFuture<>();
+
+        NatsServerProtocolMock.Customizer infoCustomizer = (ts, r, w) -> {
+
+            // Wait for client to be ready.
+            try {
+                sendInfo.get();
+            } catch (Exception e) {
+                // return, we will fail the test
+                gotPong.cancel(true);
+                return;
+            }
+
+            System.out.println("*** Mock Server @" + ts.getPort() + " sending INFO ...");
+            w.write("INFO {\"server_id\":\"replacement\"}\r\n");
+            w.flush();
+
+            System.out.println("*** Mock Server @" + ts.getPort() + " sending PING ...");
+            w.write("PING\r\n");
+            w.flush();
+
+            String pong = "";
+
+            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
+            try {
+                pong = r.readLine();
+            } catch (Exception e) {
+                gotPong.cancel(true);
+                return;
+            }
+
+            if (pong != null && pong.startsWith("PONG")) {
+                System.out.println("*** Mock Server @" + ts.getPort() + " got PONG ...");
+                gotPong.complete(Boolean.TRUE);
+            } else {
+                System.out.println("*** Mock Server @" + ts.getPort() + " got something else... " + pong);
+                gotPong.complete(Boolean.FALSE);
+            }
+        };
+
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
+
+            Options options = new Options.Builder().server(ts.getURI()).connectionListener(new ConnectionListener() {
+                @Override
+                public void connectionEvent(Connection conn, Events type) {
+                    if (type.equals(Events.LAME_DUCK)) connectLDM.complete(type);
+                }
+            }).build();
+
+            Connection nc = Nats.connect(options);
+            try {
+                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
+                sendInfo.complete(Boolean.TRUE);
+
+                assertTrue("Got pong.", gotPong.get().booleanValue()); // Server round tripped so we should have new info
+                assertEquals("got replacement info", "replacement", ((NatsConnection) nc).getInfo().getServerId());
+            } finally {
+                nc.close();
+                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            }
+        }
+
+        ConnectionListener.Events event = connectLDM.get(5, TimeUnit.SECONDS);
+        assertEquals(event, ConnectionListener.Events.LAME_DUCK);
+        System.out.println(event);
     }
 }
