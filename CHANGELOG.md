@@ -1,7 +1,7 @@
 
 # Change Log
 
-## Version 2.7.0
+## Version 2.8.0
 
  - [ADDED] #323 Nats.connect v2 credentials (@olicuzo)
  - [CHANGED]  #320 Update MAINTAINERS.md (@gcolliso)
