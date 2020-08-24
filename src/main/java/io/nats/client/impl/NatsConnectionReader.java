@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Options;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -20,10 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class NatsConnectionReader implements Runnable {
@@ -31,6 +30,7 @@ class NatsConnectionReader implements Runnable {
     static final String UNKNOWN_OP = "UNKNOWN";
     static final char SPACE = ' ';
     static final char TAB = '\t';
+    private final ExecutorService executor;
     private LinkedHashMap<String, List<String>> headers;
     private int headerLen;
     private int headerStart;
@@ -44,7 +44,9 @@ class NatsConnectionReader implements Runnable {
         GATHER_HEADER
     };
 
-    private final NatsConnection connection;
+    //private final NatsConnection connection;
+
+    private final ProtocolHandler connection;
 
     private ByteBuffer protocolBuffer; // use a byte buffer to assist character decoding
 
@@ -72,20 +74,28 @@ class NatsConnectionReader implements Runnable {
 
     private final boolean utf8Mode;
 
-    NatsConnectionReader(NatsConnection connection) {
+    private final NatsStatistics statistics;
+
+
+
+
+    NatsConnectionReader(ProtocolHandler connection, final Options options, final NatsStatistics statistics,
+                         final ExecutorService executor) {
         this.connection = connection;
+        this.statistics = statistics;
+        this.executor = executor;
 
         this.running = new AtomicBoolean(false);
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
-        this.protocolBuffer = ByteBuffer.allocate(this.connection.getOptions().getMaxControlLine());
-        this.msgLineChars = new char[this.connection.getOptions().getMaxControlLine()];
+        this.protocolBuffer = ByteBuffer.allocate(options.getMaxControlLine());
+        this.msgLineChars = new char[options.getMaxControlLine()];
         this.opArray = new char[MAX_PROTOCOL_OP_LENGTH];
-        this.buffer = new byte[connection.getOptions().getBufferSize()];
+        this.buffer = new byte[options.getBufferSize()];
         this.bufferPosition = 0;
 
-        this.utf8Mode = connection.getOptions().supportUTF8Subjects();
+        this.utf8Mode = options.supportUTF8Subjects();
     }
 
     // Should only be called if the current thread has exited.
@@ -94,7 +104,7 @@ class NatsConnectionReader implements Runnable {
     void start(Future<DataPort> dataPortFuture) {
         this.dataPortFuture = dataPortFuture;
         this.running.set(true);
-        this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
+        this.stopped =this.executor.submit(this, Boolean.TRUE);
     }
 
     // May be called several times on an error.
@@ -114,41 +124,7 @@ class NatsConnectionReader implements Runnable {
             this.opPos = 0;
 
             while (this.running.get()) {
-                this.bufferPosition = 0;
-                int bytesRead = dataPort.read(this.buffer, 0, this.buffer.length);
-
-                if (bytesRead > 0) {
-                    connection.getNatsStatistics().registerRead(bytesRead);
-
-                    while (this.bufferPosition < bytesRead) {
-                        if (this.mode == Mode.GATHER_OP) {
-                            this.gatherOp(bytesRead);
-                        } else if (this.mode == Mode.GATHER_MSG_PROTO) {
-                            if (this.utf8Mode) {
-                                this.gatherProtocol(bytesRead);
-                            } else {
-                                this.gatherMessageProtocol(bytesRead);
-                            }
-                        } else if (this.mode == Mode.GATHER_PROTO) {
-                            this.gatherProtocol(bytesRead);
-                        } else if (this.mode == Mode.GATHER_DATA){
-                            this.gatherMessageData(bytesRead);
-                        } else if (this.mode == Mode.GATHER_HEADER) {
-                            this.gatherHeaders(bytesRead);
-                        } else {
-                            this.gatherMessageData(bytesRead);
-                        }
-
-                        if (this.mode == Mode.PARSE_PROTO) { // Could be the end of the read
-                            this.parseProtocolMessage();
-                            this.protocolBuffer.clear();
-                        }
-                    }
-                } else if (bytesRead < 0) {
-                    throw new IOException("Read channel closed.");
-                } else {
-                    this.connection.getNatsStatistics().registerRead(bytesRead); // track the 0
-                }
+                runOnce(dataPort);
             }
         } catch (IOException io) {
             this.connection.handleCommunicationIssue(io);
@@ -159,6 +135,44 @@ class NatsConnectionReader implements Runnable {
             // Clear the buffers, since they are only used inside this try/catch
             // We will reuse later
             this.protocolBuffer.clear();
+        }
+    }
+
+    void runOnce(DataPort dataPort) throws IOException {
+        this.bufferPosition = 0;
+        int bytesRead = dataPort.read(this.buffer, 0, this.buffer.length);
+
+        if (bytesRead > 0) {
+            statistics.registerRead(bytesRead);
+
+            while (this.bufferPosition < bytesRead) {
+                if (this.mode == Mode.GATHER_OP) {
+                    this.gatherOp(bytesRead);
+                } else if (this.mode == Mode.GATHER_MSG_PROTO) {
+                    if (this.utf8Mode) {
+                        this.gatherProtocol(bytesRead);
+                    } else {
+                        this.gatherMessageProtocol(bytesRead);
+                    }
+                } else if (this.mode == Mode.GATHER_PROTO) {
+                    this.gatherProtocol(bytesRead);
+                } else if (this.mode == Mode.GATHER_DATA){
+                    this.gatherMessageData(bytesRead);
+                } else if (this.mode == Mode.GATHER_HEADER) {
+                    this.gatherHeaders(bytesRead);
+                } else {
+                    this.gatherMessageData(bytesRead);
+                }
+
+                if (this.mode == Mode.PARSE_PROTO) { // Could be the end of the read
+                    this.parseProtocolMessage();
+                    this.protocolBuffer.clear();
+                }
+            }
+        } else if (bytesRead < 0) {
+            throw new IOException("Read channel closed.");
+        } else {
+            statistics.registerRead(bytesRead); // track the 0
         }
     }
 
@@ -308,7 +322,7 @@ class NatsConnectionReader implements Runnable {
                     this.gotCR = true;
                 } else {
                     if (!protocolBuffer.hasRemaining()) {
-                        this.protocolBuffer = this.connection.enlargeBuffer(this.protocolBuffer, 0); // just double it
+                        this.protocolBuffer = ByteBufferUtil.enlargeBuffer(this.protocolBuffer, 0); // just double it
                     }
                     this.protocolBuffer.put(b);
                 }
@@ -350,6 +364,7 @@ class NatsConnectionReader implements Runnable {
                         this.connection.deliverMessage(incoming);
                         msgData = null;
                         msgDataPosition = 0;
+                        // TODO just for test
                         incoming = null;
                         gotCR = false;
                         this.op = UNKNOWN_OP;
@@ -395,12 +410,6 @@ class NatsConnectionReader implements Runnable {
                         (chars[1] == 'S' || chars[1] == 's') && 
                         (chars[2] == 'G' || chars[2] == 'g')) {
                 return NatsConnection.OP_MSG;
-            } else if (
-                    (chars[0] == 'H' || chars[0] == 'h') &&
-                    (chars[1] == 'M' || chars[1] == 'm') &&
-                    (chars[2] == 'S' || chars[2] == 's') &&
-                    (chars[3] == 'G' || chars[3] == 'g')) {
-                return NatsConnection.OP_HMSG;
             } else if (chars[0] == '+' &&
                 (chars[1] == 'O' || chars[1] == 'o') && 
                 (chars[2] == 'K' || chars[2] == 'k')) {
@@ -429,6 +438,12 @@ class NatsConnectionReader implements Runnable {
                         (chars[2] == 'F' || chars[2] == 'f') &&
                         (chars[3] == 'O' || chars[3] == 'o')) {
                 return NatsConnection.OP_INFO;
+            } else if (
+                    (chars[0] == 'H' || chars[0] == 'h') &&
+                            (chars[1] == 'M' || chars[1] == 'm') &&
+                            (chars[2] == 'S' || chars[2] == 's') &&
+                            (chars[3] == 'G' || chars[3] == 'g')) {
+                return NatsConnection.OP_HMSG;
             }  else {
                 return UNKNOWN_OP;
             }
@@ -625,5 +640,9 @@ class NatsConnectionReader implements Runnable {
 
     String currentOp() {
         return this.op;
+    }
+
+    public NatsMessage getIncoming() {
+        return incoming;
     }
 }

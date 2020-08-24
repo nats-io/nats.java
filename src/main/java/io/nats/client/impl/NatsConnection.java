@@ -185,7 +185,42 @@ class NatsConnection implements Connection {
         this.connectExecutor = Executors.newSingleThreadExecutor();
 
         timeTrace(trace, "creating reader and writer");
-        this.reader = new NatsConnectionReader(this);
+        this.reader = new NatsConnectionReader(new ProtocolHandler() {
+            @Override
+            public void handleCommunicationIssue(Exception io) {
+                NatsConnection.this.handleCommunicationIssue(io);
+            }
+
+            @Override
+            public void deliverMessage(NatsMessage msg) {
+                NatsConnection.this.deliverMessage(msg);
+            }
+
+            @Override
+            public void processOK() {
+                NatsConnection.this.processOK();
+            }
+
+            @Override
+            public void processError(String errorText) {
+                NatsConnection.this.processError(errorText);
+            }
+
+            @Override
+            public void sendPong() {
+                NatsConnection.this.sendPong();
+            }
+
+            @Override
+            public void handlePong() {
+                NatsConnection.this.handlePong();
+            }
+
+            @Override
+            public void handleInfo(String infoJson) {
+                NatsConnection.this.handleInfo(infoJson);
+            }
+        }, this.options, this.statistics, this.executor);
         this.writer = new NatsConnectionWriter(this);
 
         this.needPing = new AtomicBoolean(true);
@@ -1309,7 +1344,7 @@ class NatsConnection implements Connection {
                     gotCR = true;
                 } else {
                     if (!protocolBuffer.hasRemaining()) {
-                        protocolBuffer = enlargeBuffer(protocolBuffer, 0); // just double it
+                        protocolBuffer = ByteBufferUtil.enlargeBuffer(protocolBuffer, 0); // just double it
                     }
                     protocolBuffer.put(b);
                 }
@@ -1714,14 +1749,7 @@ class NatsConnection implements Connection {
         return reconnectList;
     }
 
-    ByteBuffer enlargeBuffer(ByteBuffer buffer, int atLeast) {
-        int current = buffer.capacity();
-        int newSize = Math.max(current * 2, atLeast);
-        ByteBuffer newBuffer = ByteBuffer.allocate(newSize);
-        buffer.flip();
-        newBuffer.put(buffer);
-        return newBuffer;
-    }
+
 
     // For testing
     NatsConnectionReader getReader() {
