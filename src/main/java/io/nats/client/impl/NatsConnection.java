@@ -79,6 +79,8 @@ class NatsConnection implements Connection {
     static final String OP_PUB = "PUB";
     static final String OP_UNSUB = "UNSUB";
     static final String OP_MSG = "MSG";
+    static final String OP_HMSG = "HMSG";
+
     static final String OP_PING = "PING";
     static final String OP_PONG = "PONG";
     static final String OP_OK = "+OK";
