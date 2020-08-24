@@ -17,6 +17,8 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
@@ -32,6 +34,17 @@ class NatsMessage implements Message {
     private long sizeInBytes;
     
     NatsMessage next; // for linked list
+
+    LinkedHashMap<String, List<String>> headers;
+
+    public LinkedHashMap<String, List<String>> getHeaders() {
+        return headers;
+    }
+
+    public NatsMessage setHeaders(LinkedHashMap<String, List<String>> headers) {
+        this.headers = headers;
+        return this;
+    }
 
     static final byte[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 

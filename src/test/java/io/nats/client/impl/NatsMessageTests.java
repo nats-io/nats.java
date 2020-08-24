@@ -55,6 +55,7 @@ public class NatsMessageTests {
         assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes());
         assertEquals("Size is correct", protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes());
     }
+
     
     @Test(expected=IllegalArgumentException.class)
     public void testCustomMaxControlLine() throws Exception {

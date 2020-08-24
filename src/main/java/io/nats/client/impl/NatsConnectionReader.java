@@ -17,6 +17,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -28,13 +31,17 @@ class NatsConnectionReader implements Runnable {
     static final String UNKNOWN_OP = "UNKNOWN";
     static final char SPACE = ' ';
     static final char TAB = '\t';
+    private LinkedHashMap<String, List<String>> headers;
+    private int headerLen;
+    private int headerStart;
 
     enum Mode {
         GATHER_OP,
         GATHER_PROTO,
         GATHER_MSG_PROTO,
         PARSE_PROTO,
-        GATHER_DATA
+        GATHER_DATA,
+        GATHER_HEADER
     };
 
     private final NatsConnection connection;
@@ -124,6 +131,10 @@ class NatsConnectionReader implements Runnable {
                             }
                         } else if (this.mode == Mode.GATHER_PROTO) {
                             this.gatherProtocol(bytesRead);
+                        } else if (this.mode == Mode.GATHER_DATA){
+                            this.gatherMessageData(bytesRead);
+                        } else if (this.mode == Mode.GATHER_HEADER) {
+                            this.gatherHeaders(bytesRead);
                         } else {
                             this.gatherMessageData(bytesRead);
                         }
@@ -149,6 +160,62 @@ class NatsConnectionReader implements Runnable {
             // We will reuse later
             this.protocolBuffer.clear();
         }
+    }
+
+    private void gatherHeaders(int maxPos)  throws IOException  {
+
+        final int donePosition = headerLen + headerStart;
+
+        if (donePosition > bufferPosition + maxPos) {
+            bufferPosition = donePosition;
+
+
+            boolean gotCR = false;
+            boolean foundKey = false;
+
+            int startHeader = headerStart;
+            String key = "";
+            int startValue = 0;
+
+            for (int i = headerStart; i < donePosition; i++) {
+
+                byte b = this.buffer[i];
+                switch (b) {
+
+                    case ' ' :
+                    case '\t':
+                        if (foundKey)
+                        startValue++;
+                        break;
+
+                    case ':' :
+                        key = new String(buffer, startHeader, i).intern();
+                        foundKey = true;
+                        startValue = i +1;
+                        break;
+
+                    case NatsConnection.LF:
+                        if (gotCR && foundKey) {
+                            List<String> values = this.headers.computeIfAbsent(key, k -> new ArrayList<>());
+                            String value = new String(buffer, startValue , i-1).intern();
+                            values.add(value);
+                            gotCR = false;
+                            startValue = 0;
+                            key = null;
+                            startHeader = i;
+                        }
+                        break;
+
+                    case NatsConnection.CR:
+                        gotCR = true;
+                        break;
+                }
+            }
+
+            this.mode = Mode.GATHER_DATA;
+        }
+
+
     }
 
     // Gather the op, either up to the first space or the first carriage return.
@@ -277,6 +344,8 @@ class NatsConnectionReader implements Runnable {
 
                 if (gotCR) {
                     if (b == NatsConnection.LF) {
+                        incoming.setHeaders(this.headers);
+                        this.headers = null;
                         incoming.setData(msgData);
                         this.connection.deliverMessage(incoming);
                         msgData = null;
@@ -399,8 +468,6 @@ class NatsConnectionReader implements Runnable {
                 handleProtocolOpMsg();
                 break;
             case NatsConnection.OP_HMSG:
-
-
                 handleProtocolOpHMsg();
                 break;
             case NatsConnection.OP_OK:
@@ -447,6 +514,61 @@ class NatsConnectionReader implements Runnable {
         // create
         // set incoming
         // you may need to subclass or just add headers to it .. headers are more or less Map<String, List<String>>
+
+        int protocolLength = this.msgLinePosition; //This is just after the last character
+        int protocolLineLength = protocolLength + 5; // 4 for the "HMSG "
+
+        if (this.utf8Mode) {
+            protocolLineLength = protocolBuffer.remaining() + 5;
+
+            CharBuffer buff = StandardCharsets.UTF_8.decode(protocolBuffer);
+            protocolLength = buff.remaining();
+            buff.get(this.msgLineChars, 0, protocolLength);
+        }
+
+        this.msgLinePosition = 0;
+        String subject = grabNextMessageLineElement(protocolLength);
+        String sid = grabNextMessageLineElement(protocolLength);
+        String possibleReplyTo = grabNextMessageLineElement(protocolLength);
+        String possibleHeaderLength = grabNextMessageLineElement(protocolLength);
+        String possiblePayloadLength = null;
+
+        if (this.msgLinePosition < protocolLength) {
+            possiblePayloadLength = grabNextMessageLineElement(protocolLength);
+        } else {
+            possiblePayloadLength = possibleHeaderLength;
+            possibleHeaderLength = possibleReplyTo;
+            possibleReplyTo = null;
+        }
+
+
+
+        if(subject==null || subject.length() == 0 || sid==null || sid.length() == 0
+                || possiblePayloadLength==null || possibleHeaderLength == null) {
+            throw new IllegalStateException("Bad HMSG control line, missing required fields");
+        }
+
+        final String replyTo = possibleReplyTo;
+        final String headerLength = possibleHeaderLength;
+        final String payloadLength = possiblePayloadLength;
+
+        int headerLen = parseLength(headerLength);
+        int payloadLen = parseLength(headerLength);
+
+
+        this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
+        this.mode = Mode.GATHER_HEADER;
+        this.headerLen = headerLen;
+        this.headerStart = this.bufferPosition;
+
+
+        if (headerLen>0) {
+            this.headers = new LinkedHashMap<String, List<String>>();
+        }
+        this.msgData = new byte[payloadLen];
+        this.msgDataPosition = 0;
+        this.msgLinePosition = 0;
+        return;
     }
 
     private void handleProtocolOpMsg() {

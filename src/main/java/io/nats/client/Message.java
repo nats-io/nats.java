@@ -13,6 +13,9 @@
 
 package io.nats.client;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
  * publish and send requests with raw strings and byte[] but incoming messages can have a few
@@ -53,4 +56,6 @@ public interface Message {
 	 * @return the connection which can be used for publishing, will be null if the subscription is null
 	 */
 	public Connection getConnection();
+
+	default LinkedHashMap<String, List<String>> getHeaders() {return  null;}
 }
