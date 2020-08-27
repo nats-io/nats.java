@@ -194,7 +194,6 @@ class NatsServerInfo {
             this.headers = Boolean.parseBoolean(m.group(1));
         }
 
-
         m = portRE.matcher(jsonString);
         if (m.find()) {
             this.port = Integer.parseInt(m.group(1));
