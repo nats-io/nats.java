@@ -182,9 +182,9 @@ class NatsConnectionReader implements Runnable {
 
     private void gatherHeaders(int maxPos)  throws IOException  {
 
-        final int donePosition = headerLen + headerStart;
+        final int donePosition = headerLen + headerStart + 2;
 
-        if (donePosition > bufferPosition + maxPos) {
+        if (donePosition > bufferPosition && maxPos > bufferPosition) {
             bufferPosition = donePosition;
 
 
@@ -198,6 +198,7 @@ class NatsConnectionReader implements Runnable {
             for (int i = headerStart; i < donePosition; i++) {
 
                 byte b = this.buffer[i];
+
                 switch (b) {
 
                     case ' ' :
@@ -207,7 +208,7 @@ class NatsConnectionReader implements Runnable {
                         break;
 
                     case ':' :
-                        key = new String(buffer, startHeader, i).intern();
+                        key = new String(buffer, startHeader, i - startHeader).intern();
                         foundKey = true;
                         startValue = i +1;
                         break;
@@ -215,12 +216,13 @@ class NatsConnectionReader implements Runnable {
                     case NatsConnection.LF:
                         if (gotCR && foundKey) {
                             List<String> values = this.headers.computeIfAbsent(key, k -> new ArrayList<>());
-                            String value = new String(buffer, startValue , i-1).intern();
+                            String value = new String(buffer, startValue , (i-1) - startValue).intern();
                             values.add(value);
                             gotCR = false;
                             startValue = 0;
                             key = null;
-                            startHeader = i;
+                            startHeader = i + 1;
+                            foundKey = false;
                         }
                         break;
 
@@ -229,9 +231,8 @@ class NatsConnectionReader implements Runnable {
                         break;
                 }
             }
-
-            this.mode = Mode.GATHER_DATA;
         }
+        this.mode = Mode.GATHER_DATA;
 
 
     }
@@ -572,7 +573,7 @@ class NatsConnectionReader implements Runnable {
         final String payloadLength = possiblePayloadLength;
 
         int headerLen = parseLength(headerLength);
-        int payloadLen = parseLength(headerLength);
+        int payloadLen = parseLength(payloadLength);
 
 
         this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
@@ -584,7 +585,7 @@ class NatsConnectionReader implements Runnable {
         if (headerLen>0) {
             this.headers = new LinkedHashMap<String, List<String>>();
         }
-        this.msgData = new byte[payloadLen];
+        this.msgData = new byte[payloadLen - headerLen];
         this.msgDataPosition = 0;
         this.msgLinePosition = 0;
         return;

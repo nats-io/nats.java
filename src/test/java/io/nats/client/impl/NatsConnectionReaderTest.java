@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -27,6 +27,7 @@ public class NatsConnectionReaderTest {
         int pongCount;
         int pingCount;
         String infoJSON;
+
         @Override
         public void handleCommunicationIssue(Exception io) {
             lastException = io;
@@ -34,6 +35,8 @@ public class NatsConnectionReaderTest {
 
         @Override
         public void deliverMessage(NatsMessage msg) {
+
+            System.out.println("################### MESSAGE " + msg);
 
             lastMessage = msg;
         }
@@ -65,7 +68,7 @@ public class NatsConnectionReaderTest {
     }
 
 
-    class NatsStatisticsMock extends  NatsStatistics {
+    class NatsStatisticsMock extends NatsStatistics {
 
         public NatsStatisticsMock(boolean trackAdvanced) {
             super(trackAdvanced);
@@ -89,7 +92,7 @@ public class NatsConnectionReaderTest {
         public int read(byte[] dst, int off, int len) throws IOException {
 
             System.out.println("READ CALLED");
-            if (bytes!=null) {
+            if (bytes != null) {
                 if (len < bytes.length) {
                     System.arraycopy(bytes, 0, dst, off, len);
                     return len;
@@ -123,12 +126,12 @@ public class NatsConnectionReaderTest {
     }
 
     @Test
-    public void runOnce() throws IOException{
+    public void runOnce() throws IOException {
         reader.runOnce(dataPort);
     }
 
     @Test
-    public void connect() throws IOException{
+    public void connect() throws IOException {
         dataPort.bytes = "INFO {[\"foo\":bar]}\r\n".getBytes(StandardCharsets.UTF_8);
 
         for (int i = 0; i < 10; i++) {
@@ -152,7 +155,7 @@ public class NatsConnectionReaderTest {
     }
 
     @Test
-    public void message() throws IOException{
+    public void message() throws IOException {
         dataPort.bytes = "MSG subj sid reply-to 1\r\nA\r\n".getBytes(StandardCharsets.UTF_8);
 
         for (int i = 0; i < 10; i++) {
@@ -178,6 +181,43 @@ public class NatsConnectionReaderTest {
         assertEquals("sid", protocolHandler.lastMessage.getSID());
         assertEquals(1, protocolHandler.lastMessage.getData().length);
         assertEquals('A', protocolHandler.lastMessage.getData()[0]);
+
+    }
+
+
+    @Test
+    public void hMessage() throws IOException {
+
+        final String headers = "HEADER1: VALUE1\r\n" +
+                "HEADER2: VALUE2\r\n";
+        final int headerLength = headers.length();
+        final String body = "A";
+        final int bodyLength = body.length();
+        final String subject = "subj";
+        final String replyTo = "reply-to";
+        final String sid = "sid";
+        ////////////////////////////////////////////sb si rt hl tl    hd    payload
+        final String protocol = String.format("HMSG %s %s %s %s %s\r\n%s\r\n%s\r\n",
+                subject, sid, replyTo, headerLength, headerLength + bodyLength, headers, body);
+        dataPort.bytes = protocol.getBytes(StandardCharsets.UTF_8);
+
+
+        reader.runOnce(dataPort);
+
+        assertNull(protocolHandler.lastError);
+        assertNull(protocolHandler.lastException);
+
+        assertEquals("subj", protocolHandler.lastMessage.getSubject());
+        assertEquals("reply-to", protocolHandler.lastMessage.getReplyTo());
+        assertEquals("sid", protocolHandler.lastMessage.getSID());
+        assertEquals(1, protocolHandler.lastMessage.getData().length);
+        assertEquals('A', protocolHandler.lastMessage.getData()[0]);
+
+        assertEquals(2, protocolHandler.lastMessage.headers.size());
+
+        assertEquals(List.of("VALUE1"), protocolHandler.lastMessage.headers.get("HEADER1"));
+        assertEquals(List.of("VALUE2"), protocolHandler.lastMessage.headers.get("HEADER2"));
+
 
     }
 
