@@ -59,7 +59,7 @@ class NatsConnectionReader implements Runnable {
     private char[] msgLineChars;
     private int msgLinePosition;
 
-    private Mode mode;
+    private Mode mode = Mode.GATHER_OP;
 
     private NatsMessage incoming;
     private byte[] msgData;
@@ -119,9 +119,7 @@ class NatsConnectionReader implements Runnable {
     public void run() {
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
-            this.mode = Mode.GATHER_OP;
-            this.gotCR = false;
-            this.opPos = 0;
+            init();
 
             while (this.running.get()) {
                 runOnce(dataPort);
@@ -136,6 +134,12 @@ class NatsConnectionReader implements Runnable {
             // We will reuse later
             this.protocolBuffer.clear();
         }
+    }
+
+    void init() {
+        this.mode = Mode.GATHER_OP;
+        this.gotCR = false;
+        this.opPos = 0;
     }
 
     void runOnce(DataPort dataPort) throws IOException {
@@ -640,6 +644,10 @@ class NatsConnectionReader implements Runnable {
 
     String currentOp() {
         return this.op;
+    }
+
+    public Mode getMode() {
+        return mode;
     }
 
     public NatsMessage getIncoming() {
