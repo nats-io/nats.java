@@ -59,7 +59,7 @@ class NatsMessage implements Message {
     }
 
     private static String PUB_SPACE = NatsConnection.OP_PUB + " ";
-    private static String HPUB_SPACE = NatsConnection.OP_PUB + " ";
+    private static String HPUB_SPACE = NatsConnection.OP_HPUB + " ";
     private static String SPACE = " ";
 
     NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
@@ -93,6 +93,7 @@ class NatsMessage implements Message {
                 protocolStringBuilder.append(headerLength);
                 protocolStringBuilder.append(SPACE);
                 protocolStringBuilder.append(data.length + headerLength);
+                protocolStringBuilder.append("\r\n");
                 outputHeaders(headers, protocolStringBuilder);
                 this.headers = headers;
             } else {
@@ -153,6 +154,7 @@ class NatsMessage implements Message {
 
 
     private void outputHeaders(LinkedHashMap<String, List<String>> headers, StringBuilder protocolStringBuilder) {
+        if (headers!=null)
         for (Map.Entry<String, List<String>> header :  headers.entrySet()) {
             final String headerName = header.getKey();
             for (final String headerValue : header.getValue()) {
@@ -203,7 +205,7 @@ class NatsMessage implements Message {
     }
 
     // Will be null on an incoming message
-    byte[] getProtocolBytes() {
+    public byte[] getProtocolBytes() {
         return this.protocolBytes;
     }
 

@@ -111,6 +111,10 @@ public class NatMessageBuilderImpl implements MessageBuilder {
 
     @Override
     public Message build() {
-        return new NatsMessage(subject, replyTo, data, utf8mode, hpub, (LinkedHashMap<String, List<String>>) headers);
+        if (headers!=null)
+            return new NatsMessage(subject, replyTo, data, utf8mode, hpub, (LinkedHashMap<String, List<String>>) headers);
+        else
+            return new NatsMessage(subject, replyTo, data, utf8mode, hpub, null);
+
     }
 }
