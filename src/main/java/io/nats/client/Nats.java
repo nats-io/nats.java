@@ -15,6 +15,7 @@ package io.nats.client;
 
 import java.io.IOException;
 
+import io.nats.client.impl.NatMessageBuilderImpl;
 import io.nats.client.impl.NatsImpl;
 
 /**
@@ -98,6 +99,14 @@ public class Nats {
     public static Connection connect() throws IOException, InterruptedException {
         Options options = new Options.Builder().server(Options.DEFAULT_URL).build();
         return createConnection(options, false);
+    }
+
+    /**
+     *
+     * @return a new message builder
+     */
+    public static MessageBuilder messageBuilder() {
+        return new NatMessageBuilderImpl();
     }
 
     /**

@@ -213,10 +213,10 @@ public class NatsConnectionReaderTest {
         assertEquals(1, protocolHandler.lastMessage.getData().length);
         assertEquals('A', protocolHandler.lastMessage.getData()[0]);
 
-        assertEquals(2, protocolHandler.lastMessage.headers.size());
+        assertEquals(2, protocolHandler.lastMessage.getHeaders().size());
 
-        assertEquals(List.of("VALUE1"), protocolHandler.lastMessage.headers.get("HEADER1"));
-        assertEquals(List.of("VALUE2"), protocolHandler.lastMessage.headers.get("HEADER2"));
+        assertEquals(List.of("VALUE1"), protocolHandler.lastMessage.getHeaders().get("HEADER1"));
+        assertEquals(List.of("VALUE2"), protocolHandler.lastMessage.getHeaders().get("HEADER2"));
 
 
     }

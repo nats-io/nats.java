@@ -15,6 +15,7 @@ package io.nats.client;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
@@ -57,5 +58,5 @@ public interface Message {
 	 */
 	public Connection getConnection();
 
-	default LinkedHashMap<String, List<String>> getHeaders() {return  null;}
+	default Map<String, List<String>> getHeaders() {return  null;}
 }

@@ -13,16 +13,17 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Connection;
+import io.nats.client.Message;
+import io.nats.client.Subscription;
+
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
-
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Subscription;
+import java.util.Map;
 
 class NatsMessage implements Message {
     private String sid;
@@ -32,12 +33,12 @@ class NatsMessage implements Message {
     private byte[] protocolBytes;
     private NatsSubscription subscription;
     private long sizeInBytes;
-    
+
     NatsMessage next; // for linked list
 
-    LinkedHashMap<String, List<String>> headers;
+    private Map<String, List<String>> headers;
 
-    public LinkedHashMap<String, List<String>> getHeaders() {
+    public Map<String, List<String>> getHeaders() {
         return headers;
     }
 
@@ -49,7 +50,7 @@ class NatsMessage implements Message {
     static final byte[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 
     static int copy(byte[] dest, int pos, String toCopy) {
-        for (int i=0, max=toCopy.length(); i<max ;i++) {
+        for (int i = 0, max = toCopy.length(); i < max; i++) {
             dest[pos] = (byte) toCopy.charAt(i);
             pos++;
         }
@@ -58,31 +59,48 @@ class NatsMessage implements Message {
     }
 
     private static String PUB_SPACE = NatsConnection.OP_PUB + " ";
+    private static String HPUB_SPACE = NatsConnection.OP_PUB + " ";
     private static String SPACE = " ";
 
-    // Create a message to publish
     NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
+        this(subject, replyTo, data, utf8mode, false, null);
+    }
+
+    // Create a message to publish
+    NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode, boolean hpub,
+                LinkedHashMap<String, List<String>> headers) {
         this.subject = subject;
         this.replyTo = replyTo;
         this.data = data;
-        
-        if (utf8mode) {
+
+        if (utf8mode || hpub) {
             int subjectSize = subject.length() * 2;
             int replySize = (replyTo != null) ? replyTo.length() * 2 : 0;
             StringBuilder protocolStringBuilder = new StringBuilder(4 + subjectSize + 1 + replySize + 1);
-            protocolStringBuilder.append(PUB_SPACE);
+            if (!hpub) {
+                protocolStringBuilder.append(PUB_SPACE);
+            } else {
+                protocolStringBuilder.append(HPUB_SPACE);
+            }
             protocolStringBuilder.append(subject);
             protocolStringBuilder.append(SPACE);
-    
             if (replyTo != null) {
                 protocolStringBuilder.append(replyTo);
                 protocolStringBuilder.append(SPACE);
             }
-    
-            protocolStringBuilder.append(String.valueOf(data.length));
-
+            if (hpub) {
+                int headerLength = (headers == null || headers.size() == 0) ? 2 : calculateHeaderLength(headers);
+                protocolStringBuilder.append(headerLength);
+                protocolStringBuilder.append(SPACE);
+                protocolStringBuilder.append(data.length + headerLength);
+                outputHeaders(headers, protocolStringBuilder);
+                this.headers = headers;
+            } else {
+                protocolStringBuilder.append(data.length);
+            }
             this.protocolBytes = protocolStringBuilder.toString().getBytes(StandardCharsets.UTF_8);
         } else {
+
             // Convert the length to bytes
             byte[] lengthBytes = new byte[12];
             int idx = lengthBytes.length;
@@ -100,6 +118,7 @@ class NatsMessage implements Message {
 
             // Build the array
             int len = 4 + subject.length() + 1 + (lengthBytes.length - idx);
+
 
             if (replyTo != null) {
                 len += replyTo.length() + 1;
@@ -124,10 +143,39 @@ class NatsMessage implements Message {
                 pos++;
             }
 
+
+
             System.arraycopy(lengthBytes, idx, protocolBytes, pos, lengthBytes.length - idx);
         }
 
         this.sizeInBytes = this.protocolBytes.length + data.length + 4;// for 2x \r\n
+    }
+
+
+    private void outputHeaders(LinkedHashMap<String, List<String>> headers, StringBuilder protocolStringBuilder) {
+        for (Map.Entry<String, List<String>> header :  headers.entrySet()) {
+            final String headerName = header.getKey();
+            for (final String headerValue : header.getValue()) {
+                protocolStringBuilder.append(headerName);
+                protocolStringBuilder.append(": ");
+                protocolStringBuilder.append(headerValue);
+                protocolStringBuilder.append("\r\n");
+            }
+        }
+        protocolStringBuilder.append("\r\n");
+    }
+
+    private int calculateHeaderLength(LinkedHashMap<String, List<String>> headers) {
+        int headerLength = 2; //closing \r\n
+        for (Map.Entry<String, List<String>> header :  headers.entrySet()) {
+
+            int keyLen = header.getKey().length() + 2;
+
+            for (String value : header.getValue()) {
+                headerLength += value.length() + 2 + keyLen; // add the key plus \r\n
+            }
+        }
+        return  headerLength;
     }
 
     // Create a protocol only message to publish
