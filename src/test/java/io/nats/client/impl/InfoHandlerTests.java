@@ -106,7 +106,7 @@ public class InfoHandlerTests {
 
 
 
-    @Test
+    //@Test
     public void testLDM() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         String customInfo = "{\"server_id\":\"myid\", \"ldm\":true}";
         CompletableFuture<Boolean> gotPong = new CompletableFuture<>();

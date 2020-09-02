@@ -112,7 +112,7 @@ public class NatsServerProtocolMock implements Closeable{
         Thread t = new Thread(() -> {accept();});
         t.start();
         try {
-            Thread.sleep(100);
+            Thread.sleep(1000);
         } catch (Exception exp) {
             //Give the server time to get going
         }

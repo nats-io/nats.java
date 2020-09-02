@@ -7,7 +7,6 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.Assert.*;
 
@@ -219,6 +218,31 @@ public class NatsConnectionReaderTest {
         assertEquals(Arrays.asList("VALUE1"), protocolHandler.lastMessage.getHeaders().get("HEADER1"));
         assertEquals(Arrays.asList("VALUE2"), protocolHandler.lastMessage.getHeaders().get("HEADER2"));
 
+
+    }
+
+    @Test
+    public void infoLDM() throws IOException {
+
+        final String customInfo = "{\"server_id\":\"myid\", \"ldm\":true}";
+
+        final String protocol = String.format("INFO %s \r\n",
+                customInfo);
+
+        dataPort.bytes = protocol.getBytes(StandardCharsets.UTF_8);
+
+
+        reader.runOnce(dataPort);
+
+        assertNull(protocolHandler.lastError);
+        assertNull(protocolHandler.lastException);
+
+        assertTrue(protocolHandler.infoJSON.contains("\"ldm\":true"));
+
+
+        final NatsServerInfo natsServerInfo = new NatsServerInfo(protocolHandler.infoJSON);
+
+        assertTrue(natsServerInfo.isLameDuckMode());
 
     }
 
