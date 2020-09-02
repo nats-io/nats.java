@@ -74,21 +74,35 @@ public class NatMessageBuilderImpl implements MessageBuilder {
 
     @Override
     public Map<String, List<String>> getHeaders() {
+        if (headers == null) {
+            headers = new LinkedHashMap<>();
+        }
         return headers;
     }
 
     @Override
     public MessageBuilder withHeaders(LinkedHashMap<String, List<String>> headers) {
         this.headers = headers;
-        this.hpub = true;
+        if (headers != null)
+            this.hpub = true;
+        return this;
+    }
+
+    @Override
+    public MessageBuilder withHeaders(Map<String, List<String>> headers) {
+        if (headers instanceof LinkedHashMap) {
+            this.headers = headers;
+            this.hpub = true;
+        } else {
+            if (headers!=null)
+            this.getHeaders().putAll(headers);
+        }
         return this;
     }
 
     @Override
     public MessageBuilder addHeader(String headerName, String headerValue) {
-        if (headers == null) {
-            headers = new LinkedHashMap<>();
-        }
+        Map<String, List<String>> headers = this.getHeaders();
         List<String> list = headers.computeIfAbsent(headerName, k -> new ArrayList<>());
         list.add(headerValue);
         this.hpub = true;

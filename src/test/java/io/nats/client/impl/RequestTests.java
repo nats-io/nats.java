@@ -406,7 +406,7 @@ public class RequestTests {
     public void testThrowsWithoutSubject() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            nc.request(null, null);
+            nc.request("", null);
             assertFalse(true);
         }
     }

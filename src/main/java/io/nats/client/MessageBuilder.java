@@ -29,6 +29,8 @@ public interface MessageBuilder {
 
     MessageBuilder withHeaders(LinkedHashMap<String, List<String>> headers);
 
+    MessageBuilder withHeaders(Map<String, List<String>> headers);
+
     MessageBuilder addHeader(String headerName, String headerValue);
 
     Message build();

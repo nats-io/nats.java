@@ -52,19 +52,8 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.nats.client.AuthenticationException;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionListener;
+import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.Consumer;
-import io.nats.client.Dispatcher;
-import io.nats.client.ErrorListener;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.NUID;
-import io.nats.client.Options;
-import io.nats.client.Statistics;
-import io.nats.client.Subscription;
 
 class NatsConnection implements Connection {
     static final byte[] EMPTY_BODY = new byte[0];
@@ -815,6 +804,18 @@ class NatsConnection implements Connection {
         }
     }
 
+    public void publish(final Message message) {
+
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        } else if (blockPublishForDrain.get()) {
+            throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
+        }
+
+        doQueue((NatsMessage) message);
+    }
+
+
     public void publish(String subject, byte[] body) {
         this.publish(subject, null, body);
     }
@@ -844,6 +845,10 @@ class NatsConnection implements Connection {
 
         NatsMessage msg = new NatsMessage(subject, replyTo, body, options.supportUTF8Subjects());
 
+        doQueue(msg);
+    }
+
+    private void doQueue(NatsMessage msg) {
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
             throw new IllegalStateException(
@@ -1056,6 +1061,87 @@ class NatsConnection implements Connection {
 
         return reply;
     }
+
+    @Override
+    public Message request(Message requestMessage, Duration timeout) throws InterruptedException {
+        Message reply = null;
+        Future<Message> incoming = this.request(requestMessage);
+        try {
+            reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        } catch (TimeoutException e) {
+            incoming.cancel(true);
+        } catch (Throwable e) {
+            throw new AssertionError(e);
+        }
+
+        return reply;
+    }
+
+    public CompletableFuture<Message> request(final Message requestMessage) {
+        String responseInbox = null;
+        boolean oldStyle = options.isOldRequestStyle();
+
+        if (isClosed()) {
+            throw new IllegalStateException("Connection is Closed");
+        } else if (isDraining()) {
+            throw new IllegalStateException("Connection is Draining");
+        }
+
+
+        if (inboxDispatcher.get() == null) {
+            NatsDispatcher d = new NatsDispatcher(this, (msg) -> {
+                deliverReply(msg);
+            });
+
+            if (inboxDispatcher.compareAndSet(null, d)) {
+                String id = this.nuid.next();
+                this.dispatchers.put(id, d);
+                d.start(id);
+                d.subscribe(this.mainInbox);
+            }
+        }
+
+        if (oldStyle) {
+            responseInbox = createInbox();
+        } else {
+            responseInbox = createResponseInbox(this.mainInbox);
+        }
+
+        String responseToken = getResponseToken(responseInbox);
+        CompletableFuture<Message> future = new CompletableFuture<>();
+
+        if (!oldStyle) {
+            responses.put(responseToken, future);
+        }
+        statistics.incrementOutstandingRequests();
+
+        if (oldStyle) {
+            NatsDispatcher dispatcher = this.inboxDispatcher.get();
+            NatsSubscription sub = dispatcher.subscribeReturningSubscription(responseInbox);
+            dispatcher.unsubscribe(responseInbox, 1);
+            // Unsubscribe when future is cancelled:
+            String finalResponseInbox = responseInbox;
+            future.whenComplete((msg, exception) -> {
+                if ( null != exception && exception instanceof CancellationException ) {
+                    dispatcher.unsubscribe(finalResponseInbox);
+                }
+            });
+            responses.put(sub.getSID(), future);
+        }
+
+        if (requestMessage.getReplyTo() == null) {
+            MessageBuilder messageBuilder = Nats.messageBuilder().withSubject(requestMessage.getSubject())
+                    .withReplyTo(responseInbox).withData(requestMessage.getData()).withHeaders(requestMessage.getHeaders());
+            this.publish(messageBuilder.build());
+
+        } else {
+            throw new IllegalArgumentException("Reply To must not be set");
+        }
+        statistics.incrementRequestsSent();
+
+        return future;
+    }
+
 
     public CompletableFuture<Message> request(String subject, byte[] body) {
         String responseInbox = null;
