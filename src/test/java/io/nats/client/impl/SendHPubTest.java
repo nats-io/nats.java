@@ -16,6 +16,8 @@ public class SendHPubTest {
     public void testNoHeader() throws Exception {
 
         final NatsTestServer natsTestServer = new NatsTestServer(true);
+        Thread.sleep(1000);
+
         final Connection connect1 = Nats.connect(natsTestServer.getURI());
         final Connection connect2 = Nats.connect(natsTestServer.getURI());
 
@@ -29,6 +31,9 @@ public class SendHPubTest {
             final Subscription subscribe = connect2.subscribe(subject);
 
             connect1.publish(subject, "foo".getBytes(StandardCharsets.UTF_8));
+            connect1.flush(Duration.ofSeconds(1));
+
+            Thread.sleep(1000);
 
 
             final Message message = subscribe.nextMessage(Duration.ofSeconds(10));
@@ -66,8 +71,12 @@ public class SendHPubTest {
             final Subscription subscribe = connect2.subscribe(subject);
 
             connect1.publish(Nats.messageBuilder().withData("foo".getBytes(StandardCharsets.UTF_8)).withSubject(subject).build());
+            connect1.flush(Duration.ofSeconds(1));
+            Thread.sleep(1000);
 
             final Message message = subscribe.nextMessage(Duration.ofSeconds(10));
+
+
 
             assertNotNull(message);
 

@@ -146,7 +146,7 @@ class NatsConnectionWriter implements Runnable {
                     }
 
                     byte[] bytes = msg.getProtocolBytes();
-                    System.out.println(new String(bytes, StandardCharsets.UTF_8));
+                    //System.out.println(new String(bytes, StandardCharsets.UTF_8));
                     System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
                     sendPosition += bytes.length;
 
@@ -158,7 +158,8 @@ class NatsConnectionWriter implements Runnable {
                     if (!msg.isProtocol()) {
                         bytes = msg.getData();
 
-                        System.out.println(new String(bytes, StandardCharsets.UTF_8));
+
+                        //System.out.println(new String(bytes, StandardCharsets.UTF_8));
                         System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
                         sendPosition += bytes.length;
 
