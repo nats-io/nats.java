@@ -31,7 +31,7 @@ public class SendHPubTest {
             final Subscription subscribe = connect2.subscribe(subject);
 
             connect1.publish(subject, "foo".getBytes(StandardCharsets.UTF_8));
-            connect1.flush(Duration.ofSeconds(1));
+            connect1.flush(Duration.ofSeconds(10));
 
             Thread.sleep(1000);
 
@@ -71,7 +71,7 @@ public class SendHPubTest {
             final Subscription subscribe = connect2.subscribe(subject);
 
             connect1.publish(Nats.messageBuilder().withData("foo".getBytes(StandardCharsets.UTF_8)).withSubject(subject).build());
-            connect1.flush(Duration.ofSeconds(1));
+            connect1.flush(Duration.ofSeconds(10));
             Thread.sleep(1000);
 
             final Message message = subscribe.nextMessage(Duration.ofSeconds(10));
@@ -108,6 +108,9 @@ public class SendHPubTest {
             connect1.publish(Nats.messageBuilder()
                     .withData("foo".getBytes(StandardCharsets.UTF_8))
                     .withSubject(subject).addHeader("foo", "bar").build());
+
+            connect1.flush(Duration.ofSeconds(10));
+            Thread.sleep(1000);
 
             final Message message = subscribe.nextMessage(Duration.ofSeconds(10));
 
