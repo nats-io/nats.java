@@ -20,9 +20,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import io.nats.client.*;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class InfoHandlerTests {
     @Test
@@ -32,12 +32,12 @@ public class InfoHandlerTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
                 assertEquals(customInfo, ((NatsConnection) nc).getInfo().getRawJson());
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -91,15 +91,15 @@ public class InfoHandlerTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
-                assertTrue("Got pong.", gotPong.get().booleanValue()); // Server round tripped so we should have new info
-                assertEquals("got replacement info", "replacement", ((NatsConnection) nc).getInfo().getServerId());
+                assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
+                assertEquals("replacement", ((NatsConnection) nc).getInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -162,15 +162,15 @@ public class InfoHandlerTests {
 
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertEquals("got custom info", "myid", ((NatsConnection) nc).getInfo().getServerId());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
-                assertTrue("Got pong.", gotPong.get().booleanValue()); // Server round tripped so we should have new info
-                assertEquals("got replacement info", "replacement", ((NatsConnection) nc).getInfo().getServerId());
+                assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
+                assertEquals("replacement", ((NatsConnection) nc).getInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
 

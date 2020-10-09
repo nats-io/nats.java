@@ -12,14 +12,14 @@
 // limitations under the License.
 
 package io.nats.client.impl;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.BadHandler;
@@ -48,11 +48,11 @@ public class ConnectionListenerTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
                 assertNull(nc.getConnectedUrl());
             }
             assertEquals(1, handler.getEventCount(Events.CLOSED));
@@ -76,10 +76,10 @@ public class ConnectionListenerTests {
                 Connection nc = Nats.connect(options);
                 try {
                     handler.waitForStatusChange(5, TimeUnit.SECONDS);
-                    assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 } finally {
                     nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
                     assertEquals(1, handler.getEventCount(Events.DISCOVERED_SERVERS));
                 }
             }
@@ -101,7 +101,7 @@ public class ConnectionListenerTests {
                                     build();
                 port = ts.getPort();
                 nc = Nats.connect(options);
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
@@ -122,7 +122,7 @@ public class ConnectionListenerTests {
                     Thread.sleep(200);
                 } catch (Exception e) {
                 }
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             
                 assertEquals(1, handler.getEventCount(Events.RECONNECTED));
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
@@ -143,10 +143,10 @@ public class ConnectionListenerTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
             assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
         }

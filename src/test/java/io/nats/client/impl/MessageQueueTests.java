@@ -13,12 +13,13 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.CharBuffer;
@@ -29,7 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class MessageQueueTests {
 
@@ -41,11 +42,13 @@ public class MessageQueueTests {
         assertFalse(q.isSingleReaderMode());
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testAccumulateThrowsOnNonSingleReader() throws InterruptedException {
-        MessageQueue q = new MessageQueue(false);
-        q.push(new NatsMessage(CharBuffer.wrap("PING")));
-        q.accumulate(100,1,null);
+    @Test
+    public void testAccumulateThrowsOnNonSingleReader() {
+        assertThrows(IllegalStateException.class, () -> {
+            MessageQueue q = new MessageQueue(false);
+            q.push(new NatsMessage(CharBuffer.wrap("PING")));
+            q.accumulate(100,1,null);
+        });
     }
 
     @Test
@@ -533,11 +536,13 @@ public class MessageQueueTests {
         assertNull(msg);
     }
 
-    @Test(expected=IllegalStateException.class)
-    public void testThrowOnFilterIfRunning() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
-        q.filter((msg) -> {return true;});
-        assertFalse(true);
+    @Test
+    public void testThrowOnFilterIfRunning() {
+        assertThrows(IllegalStateException.class, () -> {
+            MessageQueue q = new MessageQueue(true);
+            q.filter((msg) -> {return true;});
+            assertFalse(true);
+        });
     }
 
     @Test

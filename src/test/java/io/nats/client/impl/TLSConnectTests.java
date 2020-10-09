@@ -13,9 +13,10 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -24,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLContext;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
@@ -50,10 +51,10 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -70,10 +71,10 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -89,10 +90,10 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -107,10 +108,10 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -125,10 +126,10 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -143,10 +144,10 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -160,10 +161,10 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -180,7 +181,7 @@ public class TLSConnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
                 Dispatcher d = nc.createDispatcher((msg) -> {
                     nc.publish(msg.getReplyTo(), new byte[16]);
@@ -195,7 +196,7 @@ public class TLSConnectTests {
                 }
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -220,8 +221,8 @@ public class TLSConnectTests {
                                     reconnectWait(Duration.ofMillis(10)).
                                     build();
                 nc = Nats.connect(options);
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-                assertTrue("Correct data port class", ((NatsConnection)nc).getDataPort() instanceof SocketDataPort);
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertTrue(((NatsConnection)nc).getDataPort() instanceof SocketDataPort, "Correct data port class");
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
@@ -230,96 +231,104 @@ public class TLSConnectTests {
 
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
                 handler.waitForStatusChange(10, TimeUnit.SECONDS);
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             }
         } finally {
             if (nc != null) {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
 
-    @Test(expected=IOException.class)
-    public void testDisconnectOnUpgrade() throws Exception {
-        Connection nc = null;
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                dataPortType(CloseOnUpgradeAttempt.class.getCanonicalName()).
-                                sslContext(ctx).
-                                build();
-            try {
-                nc = Nats.connect(options);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+    @Test
+    public void testDisconnectOnUpgrade() {
+        assertThrows(IOException.class, () -> {
+            Connection nc = null;
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+                SSLContext ctx = TestSSLUtils.createTestSSLContext();
+                Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    maxReconnects(0).
+                                    dataPortType(CloseOnUpgradeAttempt.class.getCanonicalName()).
+                                    sslContext(ctx).
+                                    build();
+                try {
+                    nc = Nats.connect(options);
+                } finally {
+                    if (nc != null) {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
             }
-        }
+        });
     }
 
-    @Test(expected=IOException.class)
-    public void testServerSecureClientNotMismatch() throws Exception {
-        Connection nc = null;
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                build();
-            try {
-                nc = Nats.connect(options);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+    @Test
+    public void testServerSecureClientNotMismatch() {
+        assertThrows(IOException.class, () -> {
+            Connection nc = null;
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+                Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    maxReconnects(0).
+                                    build();
+                try {
+                    nc = Nats.connect(options);
+                } finally {
+                    if (nc != null) {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
             }
-        }
+        });
     }
 
-    @Test(expected=IOException.class)
-    public void testClientSecureServerNotMismatch() throws Exception {
-        Connection nc = null;
-        try (NatsTestServer ts = new NatsTestServer()) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                sslContext(ctx).
-                                build();
-            try {
-                nc = Nats.connect(options);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+    @Test
+    public void testClientSecureServerNotMismatch() {
+        assertThrows(IOException.class, () -> {
+            Connection nc = null;
+            try (NatsTestServer ts = new NatsTestServer()) {
+                SSLContext ctx = TestSSLUtils.createTestSSLContext();
+                Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    maxReconnects(0).
+                                    sslContext(ctx).
+                                    build();
+                try {
+                    nc = Nats.connect(options);
+                } finally {
+                    if (nc != null) {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
             }
-        }
+        });
     }
 
-    @Test(expected=IOException.class)
-    public void testClientServerCertMismatch() throws Exception {
-        Connection nc = null;
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            SSLContext ctx = TestSSLUtils.createEmptySSLContext();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                sslContext(ctx).
-                                build();
-            try {
-                nc = Nats.connect(options);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+    @Test
+    public void testClientServerCertMismatch() {
+        assertThrows(IOException.class, () -> {
+            Connection nc = null;
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+                SSLContext ctx = TestSSLUtils.createEmptySSLContext();
+                Options options = new Options.Builder().
+                                    server(ts.getURI()).
+                                    maxReconnects(0).
+                                    sslContext(ctx).
+                                    build();
+                try {
+                    nc = Nats.connect(options);
+                } finally {
+                    if (nc != null) {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
             }
-        }
+        });
     }
 }

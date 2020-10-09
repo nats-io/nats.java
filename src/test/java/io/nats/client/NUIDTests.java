@@ -13,28 +13,30 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 public class NUIDTests {
     @Test
     public void testDigits() {
-        assertEquals("digits length does not match base modulo", NUID.digits.length, NUID.base);
+        assertEquals(NUID.digits.length, NUID.base, "digits length does not match base modulo");
     }
 
     @Test
     public void testGlobalNUIDInit() {
         NUID nuid = NUID.getInstance();
         assertNotNull(nuid);
-        assertNotNull("Expected prefix to be initialized", nuid.getPre());
+        assertNotNull(nuid.getPre(), "Expected prefix to be initialized");
         assertEquals(NUID.preLen, nuid.getPre().length);
-        assertNotEquals("Expected seq to be non-zero", 0, nuid.getSeq());
+        assertNotEquals(0, nuid.getSeq(), "Expected seq to be non-zero");
     }
 
     @Test
@@ -44,24 +46,25 @@ public class NUIDTests {
         // copy
         char[] oldPre = Arrays.copyOf(gnuid.getPre(), gnuid.getPre().length);
         gnuid.next();
-        assertNotEquals("Expected new pre, got the old one", oldPre, gnuid.getPre());
+        assertNotEquals(oldPre, gnuid.getPre(), "Expected new pre, got the old one");
     }
 
     @Test
     public void testGUIDLen() {
         String nuid = new NUID().next();
-        assertEquals(String.format("Expected len of %d, got %d", NUID.totalLen, nuid.length()), NUID.totalLen,
-                nuid.length());
+        assertEquals(NUID.totalLen,
+                nuid.length(), String.format("Expected len of %d, got %d", NUID.totalLen, nuid.length()));
     }
 
     @Test
     public void testGlobalGUIDLen() {
         String nuid = NUID.nextGlobal();
-        assertEquals(String.format("Expected len of %d, got %d", NUID.totalLen, nuid.length()), NUID.totalLen,
-                nuid.length());
+        assertEquals(NUID.totalLen,
+                nuid.length(), String.format("Expected len of %d, got %d", NUID.totalLen, nuid.length()));
     }
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(value = 5000, unit = TimeUnit.MILLISECONDS)
     public void testProperPrefix() {
         char min = (char) 255;
         char max = (char) 0;
@@ -83,7 +86,7 @@ public class NUIDTests {
                     String msg = String.format(
                             "Iter %d. Valid range for bytes prefix: [%d..%d]\n" + "Incorrect prefix at pos %d: %s", i,
                             (int) min, (int) max, j, new String(nuid.pre));
-                    assertTrue(msg, false);
+                    assertTrue(false, msg);
                 }
             }
         }

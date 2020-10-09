@@ -20,9 +20,14 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,9 +37,7 @@ import java.util.regex.Pattern;
 public class NatsTestServer implements AutoCloseable {
 
     private static final String NATS_SERVER = "nats-server";
-
-    // Use a new port each time, we increment and get so start at the normal port
-    private static AtomicInteger portCounter = new AtomicInteger(Options.DEFAULT_PORT + 1);
+    private Logger LOG = Logger.getLogger(NatsTestServer.class.getName());
 
     private int port;
     private boolean debug;
@@ -43,6 +46,8 @@ public class NatsTestServer implements AutoCloseable {
     private String cmdLine;
     private String[] customArgs;
     private String[] configInserts;
+    private final ProcessBuilder.Redirect errorRedirector = ProcessBuilder.Redirect.PIPE;
+    private final ProcessBuilder.Redirect outputRedirector = ProcessBuilder.Redirect.PIPE;
 
     public static String generateNatsServerVersionString() {
         ArrayList<String> cmd = new ArrayList<String>();
@@ -59,7 +64,9 @@ public class NatsTestServer implements AutoCloseable {
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd);
             Process process = pb.start();
-            process.waitFor();
+            if (0 != process.waitFor()) {
+                throw new IllegalStateException(String.format("Process %s failed", pb.command()));
+            }
 			BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             ArrayList<String> lines = new ArrayList<String>();
             String line = "";			
@@ -78,19 +85,28 @@ public class NatsTestServer implements AutoCloseable {
         }
     }
 
-    public static int nextPort() {
-        return NatsTestServer.portCounter.incrementAndGet();
+    private static int detectPort() throws IOException
+    {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            while(!socket.isBound()) {
+                Thread.sleep(50);
+            }
+            return socket.getLocalPort();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Thread interrupted", e);
+        }
     }
 
-    public static int currentPort() {
-        return NatsTestServer.portCounter.get();
+    public static int nextPort() throws IOException {
+        return detectPort();
     }
 
-    public NatsTestServer() {
+    public NatsTestServer() throws IOException {
         this(false);
     }
 
-    public NatsTestServer(boolean debug) {
+    public NatsTestServer(boolean debug) throws IOException {
         this(NatsTestServer.nextPort(), debug);
     }
 
@@ -100,7 +116,7 @@ public class NatsTestServer implements AutoCloseable {
         start();
     }
 
-    public NatsTestServer(String configFilePath, boolean debug) {
+    public NatsTestServer(String configFilePath, boolean debug) throws IOException {
         this.configFilePath = configFilePath;
         this.debug = debug;
         this.port = nextPort();
@@ -122,7 +138,7 @@ public class NatsTestServer implements AutoCloseable {
         start();
     }
 
-    public NatsTestServer(String[] customArgs, boolean debug) {
+    public NatsTestServer(String[] customArgs, boolean debug) throws IOException {
         this.port = NatsTestServer.nextPort();
         this.debug = debug;
         this.customArgs = customArgs;
@@ -208,34 +224,22 @@ public class NatsTestServer implements AutoCloseable {
         if (this.customArgs != null) {
             cmd.addAll(Arrays.asList(this.customArgs));
         }
-            
-        if (debug) {
-            cmd.add("-DV");
-        }
+
+        cmd.add("-DV");
 
         this.cmdLine = String.join(" ", cmd);
 
         try {
             ProcessBuilder pb = new ProcessBuilder(cmd);
 
-            if (debug) {
-                System.out.println("%%% Starting [" + this.cmdLine + "] with redirected IO");
-                pb.inheritIO();
-            } else {
-                String errFile = null;
-                String osName = System.getProperty("os.name");
-
-                if (osName != null && osName.contains("Windows")) {
-                    // Windows uses the "nul" file.
-                    errFile = "nul";
-                } else {                
-                    errFile = "/dev/null";
-                }
-
-                pb.redirectError(new File(errFile));
-            }
+            pb.redirectErrorStream(true);
+            pb.redirectError(errorRedirector);
+            pb.redirectOutput(outputRedirector);
+            LOG.info("%%% Starting [" + this.cmdLine + "] with redirected IO");
 
             this.process = pb.start();
+
+            NatsOutputLogger.logOutput(LOG, this.process, NATS_SERVER, port);
             
             int tries = 10;
             // wait at least 1x and maybe 10
@@ -247,6 +251,21 @@ public class NatsTestServer implements AutoCloseable {
                 }
                 tries--;
             } while(!this.process.isAlive() && tries > 0);
+
+            SocketAddress addr = new InetSocketAddress("localhost", port);
+            SocketChannel socketChannel = SocketChannel.open();
+            socketChannel.configureBlocking(true);
+            boolean scanning=true;
+            while(scanning)
+            {
+                try {
+                    socketChannel.connect(addr);
+                }
+                finally {
+                    socketChannel.close();
+                }
+                scanning=false;
+            }
 
             System.out.println("%%% Started [" + this.cmdLine + "]");
         } catch (IOException ex) {
@@ -271,7 +290,7 @@ public class NatsTestServer implements AutoCloseable {
         return "nats://localhost:" + port;
     }
 
-    public void shutdown() {
+    public void shutdown(boolean wait) throws InterruptedException {
 
         if (this.process == null) {
             return;
@@ -281,13 +300,20 @@ public class NatsTestServer implements AutoCloseable {
         
         System.out.println("%%% Shut down ["+ this.cmdLine +"]");
 
+        if (wait)
+            this.process.waitFor();
+
         this.process = null;
+    }
+
+    public void shutdown() throws InterruptedException {
+        shutdown(true);
     }
 
     /**
      * Synonomous with shutdown.
      */
-    public void close() {
+    public void close() throws InterruptedException {
         shutdown();
     }
 }

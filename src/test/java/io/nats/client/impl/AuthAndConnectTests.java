@@ -13,12 +13,12 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -30,7 +30,7 @@ public class AuthAndConnectTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
                 NatsConnection nats = (NatsConnection)nc;
 
@@ -43,7 +43,7 @@ public class AuthAndConnectTests {
                 
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -53,19 +53,19 @@ public class AuthAndConnectTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
                 NatsConnection nats = (NatsConnection)nc;
 
                 nats.close();
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Connected Status");
                 nats.connect(false); // should do nothing
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Connected Status");
                 nats.reconnect(); // should do nothing
-                assertTrue("Connected Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }

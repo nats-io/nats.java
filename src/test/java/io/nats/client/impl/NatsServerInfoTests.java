@@ -13,15 +13,16 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class NatsServerInfoTests {
     @Test
@@ -82,19 +83,23 @@ public class NatsServerInfoTests {
         assertTrue(Arrays.equals(info.getConnectURLs(), urls));
     }
     
-    @Test(expected=IllegalArgumentException.class)
+    @Test
     public void testThrowsOnNonJson() {
-        String json = "foo";
-        new NatsServerInfo(json);
-        assertFalse(true);
+        assertThrows(IllegalArgumentException.class, () -> {
+            String json = "foo";
+            new NatsServerInfo(json);
+            assertFalse(true);
+        });
     }
        
     
-    @Test(expected=IllegalArgumentException.class)
+    @Test
     public void testThrowsOnShortString() {
-        String json = "{}";
-        new NatsServerInfo(json);
-        assertFalse(true);
+        assertThrows(IllegalArgumentException.class, () -> {
+            String json = "{}";
+            new NatsServerInfo(json);
+            assertFalse(true);
+        });
     }
 
     @Test

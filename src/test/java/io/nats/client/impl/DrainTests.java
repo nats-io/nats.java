@@ -13,11 +13,12 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -28,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
@@ -46,7 +47,7 @@ public class DrainTests {
     public void testCloseOnDrainFailure() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
             final Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())){
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
 
             Subscription sub = subCon.subscribe("draintest");
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
@@ -58,10 +59,10 @@ public class DrainTests {
             } catch (java.util.concurrent.TimeoutException e) {
                 timedOut = true;
             } finally {
-                assertTrue("Expect closed connection", Connection.Status.CLOSED == subCon.getStatus());
+                assertTrue(Connection.Status.CLOSED == subCon.getStatus(), "Expect closed connection");
                 subCon.close(); // this is what I'd expect common code to do
             }
-            assertTrue("Expect timeout exception", timedOut);
+            assertTrue(timedOut, "Expect timeout exception");
         }
     }
 
@@ -70,8 +71,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             Subscription sub = subCon.subscribe("draintest");
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
@@ -100,8 +101,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher((msg) -> {
@@ -137,8 +138,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher((msg) -> {
@@ -184,8 +185,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher((msg) -> {
@@ -231,8 +232,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             Subscription sub = subCon.subscribe("draintest");
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
@@ -255,54 +256,58 @@ public class DrainTests {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testSubDuringDrainThrows() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+    @Test
+    public void testSubDuringDrainThrows() {
+        assertThrows(IllegalStateException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+                assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
-            subCon.subscribe("draintest");
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                subCon.subscribe("draintest");
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
-            pubCon.flush(Duration.ofSeconds(1));
+                pubCon.publish("draintest", null);
+                pubCon.publish("draintest", null);
+                pubCon.flush(Duration.ofSeconds(1));
 
-            subCon.flush(Duration.ofSeconds(1));
+                subCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
+                CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
 
-            // Try to subscribe while we are draining the sub
-            subCon.subscribe("another"); // Should throw
-            assertTrue(tracker.get(1000, TimeUnit.SECONDS));
-        }
+                // Try to subscribe while we are draining the sub
+                subCon.subscribe("another"); // Should throw
+                assertTrue(tracker.get(1000, TimeUnit.SECONDS));
+            }
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testCreateDispatcherDuringDrainThrows() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+    @Test
+    public void testCreateDispatcherDuringDrainThrows() {
+        assertThrows(IllegalStateException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+                assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
-            subCon.subscribe("draintest");
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                subCon.subscribe("draintest");
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
-            pubCon.flush(Duration.ofSeconds(1));
+                pubCon.publish("draintest", null);
+                pubCon.publish("draintest", null);
+                pubCon.flush(Duration.ofSeconds(1));
 
-            subCon.flush(Duration.ofSeconds(1));
+                subCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
+                CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
 
-            subCon.createDispatcher((msg) -> {
-            });
-            assertTrue(tracker.get(1000, TimeUnit.SECONDS));
-        }
+                subCon.createDispatcher((msg) -> {
+                });
+                assertTrue(tracker.get(1000, TimeUnit.SECONDS));
+            }
+        });
     }
 
     @Test
@@ -310,8 +315,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher((msg) -> {
@@ -365,8 +370,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
             AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
@@ -402,8 +407,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher((msg) -> {
@@ -450,91 +455,95 @@ public class DrainTests {
         }
     }
 
-    @Test(expected=IllegalStateException.class)
-    public void testFirstTimeRequestReplyDuringDrain() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+    @Test
+    public void testFirstTimeRequestReplyDuringDrain() {
+        assertThrows(IllegalStateException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+                assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
-            Subscription sub = subCon.subscribe("draintest");
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                Subscription sub = subCon.subscribe("draintest");
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            Dispatcher d = pubCon.createDispatcher((msg) -> {
-                pubCon.publish(msg.getReplyTo(), null);
-            });
-            d.subscribe("reply");
-            pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                Dispatcher d = pubCon.createDispatcher((msg) -> {
+                    pubCon.publish(msg.getReplyTo(), null);
+                });
+                d.subscribe("reply");
+                pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
-            pubCon.flush(Duration.ofSeconds(1));
+                pubCon.publish("draintest", null);
+                pubCon.publish("draintest", null);
+                pubCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
+                CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
 
-            Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
-            assertNotNull(msg);
+                Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
+                assertNotNull(msg);
 
-            CompletableFuture<Message> response = subCon.request("reply", null);
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-            assertNotNull(response.get(200, TimeUnit.SECONDS));
+                CompletableFuture<Message> response = subCon.request("reply", null);
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                assertNotNull(response.get(200, TimeUnit.SECONDS));
 
-            msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
-            assertNotNull(msg);
+                msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
+                assertNotNull(msg);
 
-            assertTrue(tracker.get(500, TimeUnit.SECONDS)); // wait for the drain to complete
-            assertTrue(Connection.Status.CLOSED == subCon.getStatus());
-        }
+                assertTrue(tracker.get(500, TimeUnit.SECONDS)); // wait for the drain to complete
+                assertTrue(Connection.Status.CLOSED == subCon.getStatus());
+            }
+        });
     }
 
-    @Test(expected=IllegalStateException.class)
-    public void testRequestReplyDuringDrain() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+    @Test
+    public void testRequestReplyDuringDrain() {
+        assertThrows(IllegalStateException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+                assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
-            Subscription sub = subCon.subscribe("draintest");
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                Subscription sub = subCon.subscribe("draintest");
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            Dispatcher d = pubCon.createDispatcher((msg) -> {
-                pubCon.publish(msg.getReplyTo(), null);
-            });
-            d.subscribe("reply");
-            pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                Dispatcher d = pubCon.createDispatcher((msg) -> {
+                    pubCon.publish(msg.getReplyTo(), null);
+                });
+                d.subscribe("reply");
+                pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
-            pubCon.flush(Duration.ofSeconds(1));
+                pubCon.publish("draintest", null);
+                pubCon.publish("draintest", null);
+                pubCon.flush(Duration.ofSeconds(1));
 
-            CompletableFuture<Message> response = subCon.request("reply", null);
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-            assertNotNull(response.get(1, TimeUnit.SECONDS));
+                CompletableFuture<Message> response = subCon.request("reply", null);
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                assertNotNull(response.get(1, TimeUnit.SECONDS));
 
-            CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(1));
+                CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(1));
 
-            Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
-            assertNotNull(msg);
+                Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
+                assertNotNull(msg);
 
-            response = subCon.request("reply", null);
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-            assertNotNull(response.get(200, TimeUnit.SECONDS));
+                response = subCon.request("reply", null);
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+                assertNotNull(response.get(200, TimeUnit.SECONDS));
 
-            msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
-            assertNotNull(msg);
+                msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
+                assertNotNull(msg);
 
-            assertTrue(tracker.get(500, TimeUnit.SECONDS)); // wait for the drain to complete
-            assertTrue(Connection.Status.CLOSED == subCon.getStatus());
-        }
+                assertTrue(tracker.get(500, TimeUnit.SECONDS)); // wait for the drain to complete
+                assertTrue(Connection.Status.CLOSED == subCon.getStatus());
+            }
+        });
     }
 
     @Test
     public void testQueueHandoffWithDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             final int total = 5_000;
             final Duration sleepBetweenDrains = Duration.ofMillis(250);
@@ -550,7 +559,7 @@ public class DrainTests {
             NatsDispatcher drainingD = null;
 
             Connection draining = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == draining.getStatus());
+            assertTrue(Connection.Status.CONNECTED == draining.getStatus(), "Connected Status");
 
             drainingD = (NatsDispatcher) draining.createDispatcher((msg) -> {
                 count.incrementAndGet();
@@ -578,7 +587,7 @@ public class DrainTests {
             while (count.get() < total && Duration.between(start, now).compareTo(testTimeout) < 0) {
 
                 working = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                assertTrue("Connected Status", Connection.Status.CONNECTED == working.getStatus());
+                assertTrue(Connection.Status.CONNECTED == working.getStatus(), "Connected Status");
                 workingD = (NatsDispatcher) working.createDispatcher((msg) -> {
                     count.incrementAndGet();
                 }).subscribe("draintest", "queue");
@@ -614,8 +623,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             int total = 1000;
             Subscription sub = subCon.subscribe("draintest");
@@ -660,8 +669,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher((msg) -> {
@@ -704,8 +713,8 @@ public class DrainTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).errorListener(handler).maxReconnects(0).build());
                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            assertTrue("Connected Status", Connection.Status.CONNECTED == pubCon.getStatus());
+            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+            assertTrue(Connection.Status.CONNECTED == pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher((msg) -> {
@@ -743,29 +752,33 @@ public class DrainTests {
         }
     }
 
-    @Test(expected=TimeoutException.class)
-    public void testThrowIfCantFlush() throws Exception {
-        TestHandler handler = new TestHandler();
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().connectionListener(handler).server(ts.getURI()).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+    @Test
+    public void testThrowIfCantFlush() {
+        assertThrows(TimeoutException.class, () -> {
+            TestHandler handler = new TestHandler();
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection subCon = Nats.connect(new Options.Builder().connectionListener(handler).server(ts.getURI()).build())) {
+                assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            handler.prepForStatusChange(Events.DISCONNECTED);
-            ts.close(); // make the drain flush fail
-            handler.waitForStatusChange(2, TimeUnit.SECONDS); // make sure the connection is down
-            subCon.drain(Duration.ofSeconds(1)); //should throw
-        }
+                handler.prepForStatusChange(Events.DISCONNECTED);
+                ts.close(); // make the drain flush fail
+                handler.waitForStatusChange(2, TimeUnit.SECONDS); // make sure the connection is down
+                subCon.drain(Duration.ofSeconds(1)); //should throw
+            }
+        });
     }
 
-    @Test(expected=IllegalStateException.class)
-    public void testThrowIfClosing() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == subCon.getStatus());
+    @Test
+    public void testThrowIfClosing() {
+        assertThrows(IllegalStateException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
 
-            subCon.close();
-            subCon.drain(Duration.ofSeconds(1));
-        }
+                subCon.close();
+                subCon.drain(Duration.ofSeconds(1));
+            }
+        });
     }
 }

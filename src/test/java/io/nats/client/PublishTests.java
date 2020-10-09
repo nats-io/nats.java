@@ -13,9 +13,10 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -24,59 +25,69 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class PublishTests {
-    @Test(expected = IllegalStateException.class)
-    public void throwsIfClosedOnPublish() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            nc.close();
-            nc.publish("subject", "replyto", null);
-            assertFalse(true);
-        }
+    @Test
+    public void throwsIfClosedOnPublish() {
+        assertThrows(IllegalStateException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                        Connection nc = Nats.connect(ts.getURI())) {
+                nc.close();
+                nc.publish("subject", "replyto", null);
+                assertFalse(true);
+            }
+        });
     }
 
-    @Test(expected = TimeoutException.class)
-    public void throwsIfClosedOnFlush() throws IOException, TimeoutException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            nc.close();
-            nc.flush(null);
-            assertFalse(true);
-        }
+    @Test
+    public void throwsIfClosedOnFlush() {
+        assertThrows(TimeoutException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                        Connection nc = Nats.connect(ts.getURI())) {
+                nc.close();
+                nc.flush(null);
+                assertFalse(true);
+            }
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testThrowsWithoutSubject() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            nc.publish(null, null);
-            assertFalse(true);
-        }
+    @Test
+    public void testThrowsWithoutSubject() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                        Connection nc = Nats.connect(ts.getURI())) {
+                nc.publish(null, null);
+                assertFalse(true);
+            }
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testThrowsWithoutReplyTo() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            nc.publish("subject", "", null);
-            assertFalse(true);
-        }
+    @Test
+    public void testThrowsWithoutReplyTo() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                        Connection nc = Nats.connect(ts.getURI())) {
+                nc.publish("subject", "", null);
+                assertFalse(true);
+            }
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testThrowsIfTooBig() throws IOException, InterruptedException {
-        String customInfo = "{\"server_id\":\"myid\",\"max_payload\": 1000}";
+    @Test
+    public void testThrowsIfTooBig() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            String customInfo = "{\"server_id\":\"myid\",\"max_payload\": 1000}";
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            
-            byte[] body = new byte[1001];
-            nc.publish("subject", null, body);
-            assertFalse(true);
-        }
+            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
+                        Connection nc = Nats.connect(ts.getURI())) {
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+
+                byte[] body = new byte[1001];
+                nc.publish("subject", null, body);
+                assertFalse(true);
+            }
+        });
     }
 
     @Test
@@ -129,7 +140,7 @@ public class PublishTests {
                     Connection  nc = Nats.connect(ts.getURI())) {
             byte[] bodyBytes = (bodyString != null) ? bodyString.getBytes(StandardCharsets.UTF_8) : null;
 
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             nc.publish(subject, replyTo, bodyBytes);
 
@@ -139,9 +150,9 @@ public class PublishTests {
                 bodyString = "";
             }
 
-            assertTrue("Got pub.", gotPub.get().booleanValue()); //wait for receipt to close up
+            assertTrue(gotPub.get().booleanValue(), "Got pub."); //wait for receipt to close up
             nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
 
             String expectedProtocol = null;
             if (replyTo == null) {
@@ -149,9 +160,9 @@ public class PublishTests {
             } else {
                 expectedProtocol = "PUB "+subject+" "+replyTo+" "+bodyBytes.length;
             }
-            assertEquals("Protocol matches", expectedProtocol, protocol.get());
+            assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
 
-            assertEquals("Body matches", bodyString, body.get());
+            assertEquals(bodyString, body.get(), "Body matches");
         }
     }
 }

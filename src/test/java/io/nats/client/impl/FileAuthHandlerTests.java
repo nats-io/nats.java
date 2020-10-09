@@ -13,11 +13,11 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 import java.nio.charset.StandardCharsets;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.AuthHandler;
 import io.nats.client.NKey;
