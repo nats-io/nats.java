@@ -13,10 +13,11 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -26,7 +27,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
@@ -41,10 +42,10 @@ public class AuthTests {
                     .userInfo("stephen".toCharArray(), "password".toCharArray()).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -62,7 +63,7 @@ public class AuthTests {
             Options options = new Options.Builder().server(ts.getURI()).maxReconnects(-1)
                     .userInfo("stephen".toCharArray(), "password".toCharArray()).connectionListener(handler).build();
             nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             sub = nc.subscribe("test");
             nc.publish("test", null);
@@ -78,13 +79,13 @@ public class AuthTests {
         }
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
-        assertTrue("Reconnecting status",
-                Connection.Status.RECONNECTING == nc.getStatus() || Connection.Status.DISCONNECTED == nc.getStatus());
+        assertTrue(
+                Connection.Status.RECONNECTING == nc.getStatus() || Connection.Status.DISCONNECTED == nc.getStatus(), "Reconnecting status");
         handler.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
             handler.waitForStatusChange(5, TimeUnit.SECONDS);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             nc.publish("test", null);
             nc.flush(Duration.ofSeconds(5));
@@ -92,7 +93,7 @@ public class AuthTests {
             assertNotNull(msg);
 
             nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
         }
     }
 
@@ -110,10 +111,10 @@ public class AuthTests {
                     .userInfo("ginger".toCharArray(), "password".toCharArray()).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -127,10 +128,10 @@ public class AuthTests {
                     .maxReconnects(0).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -148,7 +149,7 @@ public class AuthTests {
             Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts.getPort())
                     .maxReconnects(-1).connectionListener(handler).build();
             nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             sub = nc.subscribe("test");
             nc.publish("test", null);
@@ -165,13 +166,13 @@ public class AuthTests {
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
         Status status = nc.getStatus();
-        assertTrue("Reconnecting status",
-                Connection.Status.RECONNECTING == status || Connection.Status.DISCONNECTED == status);
+        assertTrue(
+                Connection.Status.RECONNECTING == status || Connection.Status.DISCONNECTED == status, "Reconnecting status");
         handler.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
             handler.waitForStatusChange(5, TimeUnit.SECONDS);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             nc.publish("test", null);
             nc.flush(Duration.ofSeconds(5));
@@ -179,7 +180,7 @@ public class AuthTests {
             assertNotNull(msg);
 
             nc.close();
-            assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
         }
     }
 
@@ -195,14 +196,14 @@ public class AuthTests {
                     .server("nats://alberto:casadecampo@localhost:" + ts2.getPort()).maxReconnects(4).noRandomize()
                     .connectionListener(handler).pingInterval(Duration.ofMillis(100)).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(nc.getConnectedUrl(), "nats://stephen:password@localhost:" + ts1.getPort());
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
             handler.waitForStatusChange(2, TimeUnit.SECONDS);
 
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(nc.getConnectedUrl(), "nats://alberto:casadecampo@localhost:" + ts2.getPort());
             nc.close();
         }
@@ -221,14 +222,14 @@ public class AuthTests {
                     .userInfo("alberto".toCharArray(), "casadecampo".toCharArray()).maxReconnects(4).noRandomize()
                     .connectionListener(handler).pingInterval(Duration.ofMillis(100)).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(nc.getConnectedUrl(), "nats://stephen:password@localhost:" + ts1.getPort());
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
             handler.waitForStatusChange(2, TimeUnit.SECONDS);
 
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getPort());
             nc.close();
         }
@@ -246,14 +247,14 @@ public class AuthTests {
                     .server("nats://token_two@localhost:" + ts2.getPort()).maxReconnects(4).noRandomize()
                     .connectionListener(handler).pingInterval(Duration.ofMillis(100)).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(nc.getConnectedUrl(), "nats://token_one@localhost:" + ts1.getPort());
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
             handler.waitForStatusChange(2, TimeUnit.SECONDS);
 
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(nc.getConnectedUrl(), "nats://token_two@localhost:" + ts2.getPort());
             nc.close();
         }
@@ -271,14 +272,14 @@ public class AuthTests {
                     .server("nats://localhost:" + ts2.getPort()).token("token_two".toCharArray()).maxReconnects(4)
                     .noRandomize().connectionListener(handler).pingInterval(Duration.ofMillis(100)).build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(nc.getConnectedUrl(), "nats://token_one@localhost:" + ts1.getPort());
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
             handler.waitForStatusChange(2, TimeUnit.SECONDS);
 
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getPort());
             nc.close();
         }
@@ -293,10 +294,10 @@ public class AuthTests {
                     .build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -310,86 +311,94 @@ public class AuthTests {
                     .build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
 
-    @Test(expected = AuthenticationException.class)
-    public void testBadUserBadPass() throws Exception {
-        Connection nc = null;
-        String[] customArgs = { "--user", "stephen", "--pass", "password" };
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            // See config file for user/pass
-            Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
-                    .userInfo("sam".toCharArray(), "notthepassword".toCharArray()).build();
-            try {
-                nc = Nats.connect(options);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+    @Test
+    public void testBadUserBadPass() {
+        assertThrows(AuthenticationException.class, () -> {
+            Connection nc = null;
+            String[] customArgs = { "--user", "stephen", "--pass", "password" };
+            try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+                // See config file for user/pass
+                Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
+                        .userInfo("sam".toCharArray(), "notthepassword".toCharArray()).build();
+                try {
+                    nc = Nats.connect(options);
+                } finally {
+                    if (nc != null) {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
             }
-        }
+        });
     }
 
-    @Test(expected = AuthenticationException.class)
-    public void testMissingUserPass() throws Exception {
-        Connection nc = null;
-        String[] customArgs = { "--user", "wally", "--pass", "password" };
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            // See config file for user/pass
-            Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0).build();
-            try {
-                nc = Nats.connect(options);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+    @Test
+    public void testMissingUserPass() {
+        assertThrows(AuthenticationException.class, () -> {
+            Connection nc = null;
+            String[] customArgs = { "--user", "wally", "--pass", "password" };
+            try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+                // See config file for user/pass
+                Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0).build();
+                try {
+                    nc = Nats.connect(options);
+                } finally {
+                    if (nc != null) {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
             }
-        }
+        });
     }
 
-    @Test(expected = AuthenticationException.class)
-    public void testBadToken() throws Exception {
-        Connection nc = null;
-        String[] customArgs = { "--auth", "colin" };
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            // See config file for user/pass
-            Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
-                    .token("notthetoken".toCharArray()).build();
-            try {
-                nc = Nats.connect(options);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+    @Test
+    public void testBadToken() {
+        assertThrows(AuthenticationException.class, () -> {
+            Connection nc = null;
+            String[] customArgs = { "--auth", "colin" };
+            try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+                // See config file for user/pass
+                Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
+                        .token("notthetoken".toCharArray()).build();
+                try {
+                    nc = Nats.connect(options);
+                } finally {
+                    if (nc != null) {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
             }
-        }
+        });
     }
 
-    @Test(expected = AuthenticationException.class)
-    public void testMissingToken() throws Exception {
-        Connection nc = null;
-        String[] customArgs = { "--auth", "ivan" };
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            // See config file for user/pass
-            Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0).build();
-            try {
-                nc = Nats.connect(options);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+    @Test
+    public void testMissingToken() {
+        assertThrows(AuthenticationException.class, () -> {
+            Connection nc = null;
+            String[] customArgs = { "--auth", "ivan" };
+            try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+                // See config file for user/pass
+                Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0).build();
+                try {
+                    nc = Nats.connect(options);
+                } finally {
+                    if (nc != null) {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
             }
-        }
+        });
     }
 
     String createNKeyConfigFile(char[] nkey) throws Exception {
@@ -433,10 +442,10 @@ public class AuthTests {
                     .authHandler(new TestAuthHandler(theKey)).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -459,10 +468,10 @@ public class AuthTests {
                     .authHandler(Nats.staticCredentials(null, theKey.getSeed())).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
 
@@ -470,10 +479,10 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
             Connection nc = Nats.connect(ts.getURI(), Nats.staticCredentials(null, theKey.getSeed()));
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -492,10 +501,10 @@ public class AuthTests {
                     .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
 
@@ -503,10 +512,10 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", false)) {
             Connection nc = Nats.connect(ts.getURI(), Nats.credentials("src/test/resources/jwt_nkey/user.creds"));
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -529,39 +538,41 @@ public class AuthTests {
                     .authHandler(Nats.staticCredentials(jwt.toCharArray(), nkey.toCharArray())).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
 
-    @Test(expected = IOException.class)
-    public void testBadAuthHandler() throws Exception {
-        NKey theKey = NKey.createUser(null);
-        assertNotNull(theKey);
+    @Test
+    public void testBadAuthHandler() {
+        assertThrows(IOException.class, () -> {
+            NKey theKey = NKey.createUser(null);
+            assertNotNull(theKey);
 
-        String configFile = createNKeyConfigFile(theKey.getPublicKey());
-        String version = NatsTestServer.generateNatsServerVersionString();
+            String configFile = createNKeyConfigFile(theKey.getPublicKey());
+            String version = NatsTestServer.generateNatsServerVersionString();
 
-        if (!version.contains("v2")) {
-            // Server version doesn't support this test
-            throw new IOException();// to pass the test
-        }
-
-        try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
-            Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
-                    .authHandler(new TestAuthHandler(null)). // No nkey
-                    build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertFalse("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+            if (!version.contains("v2")) {
+                // Server version doesn't support this test
+                throw new IOException();// to pass the test
             }
-        }
+
+            try (NatsTestServer ts = new NatsTestServer(configFile, false)) {
+                Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
+                        .authHandler(new TestAuthHandler(null)). // No nkey
+                        build();
+                Connection nc = Nats.connect(options);
+                try {
+                    assertFalse(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                } finally {
+                    nc.close();
+                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                }
+            }
+        });
     }
 
     @Test
@@ -581,7 +592,7 @@ public class AuthTests {
                     .noRandomize().maxReconnects(-1).authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
 
                 handler.prepForStatusChange(Events.RECONNECTED);
@@ -590,11 +601,11 @@ public class AuthTests {
 
                 // Reconnect will fail because ts has the same auth error
                 handler.waitForStatusChange(5, TimeUnit.SECONDS);
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals(ts2.getURI(), nc.getConnectedUrl());
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -617,7 +628,7 @@ public class AuthTests {
                     .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals(ts2.getURI(), nc.getConnectedUrl());
 
                 handler.prepForStatusChange(Events.CLOSED);
@@ -626,10 +637,10 @@ public class AuthTests {
 
                 // Reconnect will fail because ts has the same auth error
                 handler.waitForStatusChange(6, TimeUnit.SECONDS);
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -652,7 +663,7 @@ public class AuthTests {
                     .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals(ts2.getURI(), nc.getConnectedUrl());
 
                 String tsURI = ts.getURI();
@@ -670,7 +681,7 @@ public class AuthTests {
                     // reconnect should work because we are now running with the good config
                     handler.waitForStatusChange(10, TimeUnit.SECONDS);
 
-                    assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                     assertEquals(ts3.getURI(), nc.getConnectedUrl());
                     assertEquals(tsURI, ts3.getURI());
 
@@ -681,13 +692,13 @@ public class AuthTests {
                     try (NatsTestServer ts4 = new NatsTestServer("src/test/resources/operator_noacct.conf", port, false);
                             NatsTestServer ts5 = new NatsTestServer("src/test/resources/operator.conf", port2, false)) {
                         handler.waitForStatusChange(10, TimeUnit.SECONDS);
-                        assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                        assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                         assertEquals(ts5.getURI(), nc.getConnectedUrl());
                     }
                 }
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -723,7 +734,7 @@ public class AuthTests {
                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
 
                 handler.prepForStatusChange(Events.RECONNECTED);
@@ -731,7 +742,7 @@ public class AuthTests {
                 f.complete(true);
 
                 handler.waitForStatusChange(5, TimeUnit.SECONDS);
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals(ts2.getURI(), nc.getConnectedUrl());
 
                 String err = nc.getLastError();
@@ -739,7 +750,7 @@ public class AuthTests {
                 assertTrue(err.toLowerCase().startsWith("user authentication"));
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }

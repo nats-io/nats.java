@@ -6,6 +6,10 @@ jdk:
 - openjdk9
 - openjdk10
 - openjdk11
+- openjdk12
+- openjdk13
+- openjdk14
+- openjdk15
 - oraclejdk8
 - oraclejdk9
 before_script:
@@ -14,8 +18,11 @@ before_script:
 - unzip tmp.zip
 - mv nats-server-$nats_server_version-linux-amd64 nats-server
 before_install:
-- openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv
-  -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
+- |
+  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ]; then
+    openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv
+      -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
+  fi
 install:
 - "./gradlew assemble"
 script:
@@ -31,11 +38,11 @@ cache:
 after_success:
 - "./gradlew test jacocoTestReport coveralls"
 - |
-  if [ "${TRAVIS_BRANCH}" == "master" ] && [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
+  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "master" ] && [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
     ./gradlew -i publishToSonatype
   fi
 - |
-  if [ "${TRAVIS_BRANCH}" == "${TRAVIS_TAG}" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
+  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "${TRAVIS_TAG}" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
     ./gradlew -i sign publishToSonatype closeAndReleaseRepository
   fi
 

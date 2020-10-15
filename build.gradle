@@ -3,14 +3,16 @@ plugins {
     id 'java-library'
     id 'java'
     id 'jacoco'
-    id 'maven'
     id 'maven-publish'
     id 'signing'
     id 'com.github.kt3k.coveralls' version '2.8.4'
-    id 'osgi'
+    id 'biz.aQute.bnd.builder' version '5.1.2'
     id 'io.codearte.nexus-staging' version '0.21.0'
     id "de.marcphilipp.nexus-publish" version "0.3.0"
+    id "org.gradle.test-retry" version "1.1.9"
 }
+
+import aQute.bnd.gradle.Bundle
 
 // Update version here, repeated check-ins not into master will have snapshot on them
 // Be sure to update Nats.java with the latest version, the change log and the package-info.java
@@ -19,9 +21,10 @@ def versionMinor = 8
 def versionPatch = 0
 def versionModifier = ""
 def jarVersion = "2.8.0"
+def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false";
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : "";
 def tag = System.getenv("TRAVIS_TAG") != null ? System.getenv("TRAVIS_TAG") : "";
-def useSigning = "master".equals(branch) || (!"".equals(tag) && tag.equals(branch)) // tag will be the branch on a tag event for travis
+def useSigning = "true".equals(secureEnv) && ("master".equals(branch) || (!"".equals(tag) && tag.equals(branch))) // tag will be the branch on a tag event for travis
 
 def getVersionName = { ->
     if ("".equals(tag))  {
@@ -63,13 +66,18 @@ tasks {
     }
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
 repositories {
     jcenter()
 }
 
 dependencies {
-    compile 'net.i2p.crypto:eddsa:0.3.0'
-    testImplementation 'junit:junit:4.12'
+    implementation 'net.i2p.crypto:eddsa:0.3.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
 }
 
 sourceSets {
@@ -85,23 +93,24 @@ sourceSets {
     }
 }
 
-osgiClasses {
+task bundle(type: Bundle) {
+    from sourceSets.main.output
     exclude("io/nats/examples/**")
 }
 
 jar {
-    manifest {
-        attributes('Implementation-Title': 'Java Nats',
-                   'Implementation-Version': jarVersion,
-                   'Implementation-Vendor': 'nats.io')
-        instruction "Import-Package", "!net.i2p.crypto.eddsa.math"
-        instruction "Import-Package", "net.i2p*"
-        instruction "Import-Package", "io.nats*"
-    }
+    bnd (['Implementation-Title': 'Java Nats',
+          'Implementation-Version': jarVersion,
+          'Implementation-Vendor': 'nats.io',
+          "Import-Package": "!net.i2p.crypto.eddsa.math",
+          "Import-Package": "net.i2p*",
+          "Import-Package": "io.nats*"]
+    )
     exclude("io/nats/examples/**")
 }
 
 test {
+    useJUnitPlatform()
     maxHeapSize = "2g"
     if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
         jvmArgs '-Djava.security.egd=file:/dev/./urandom'
@@ -110,6 +119,12 @@ test {
         exceptionFormat = 'full'
         events "started", "passed", "skipped", "failed"
     }
+    retry {
+        failOnPassedAfterRetry = false
+        maxFailures = 5
+        maxRetries = 5
+    }
+    maxParallelForks = Runtime.runtime.availableProcessors()
 }
 
 javadoc {
@@ -134,7 +149,7 @@ javadoc {
 }
 
 task examplesJar(type: Jar) {
-    classifier = 'examples'
+    archiveClassifier.set('examples')
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
                    'Implementation-Version': jarVersion,
@@ -146,18 +161,18 @@ task examplesJar(type: Jar) {
 }
 
 task javadocJar(type: Jar) {
-    classifier = 'javadoc'
+    archiveClassifier.set('javadoc')
     from javadoc
 }
 
 task sourcesJar(type: Jar) {
-    classifier = 'sources'
+    archiveClassifier.set('sources')
     from sourceSets.main.allSource
 }
 
 // run build before running fat jar to get classes
 task fatJar(type: Jar) {
-    classifier = 'fat'
+    archiveClassifier.set('fat')
     manifest {
         attributes('Implementation-Title': 'Java Nats With Dependencies',
                    'Implementation-Version': jarVersion,
@@ -167,16 +182,20 @@ task fatJar(type: Jar) {
     with jar
 }
 
+jacoco {
+    toolVersion = "0.8.6"
+}
+
 jacocoTestReport {
     reports {
         xml.enabled = true // coveralls plugin depends on xml format report
         html.enabled = true
     }
     afterEvaluate { // only report on main library not examples
-        classDirectories = files(classDirectories.files.collect {
+        classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it,
                     exclude: ['**/examples**'])
-        })
+        }))
     }
 }
 

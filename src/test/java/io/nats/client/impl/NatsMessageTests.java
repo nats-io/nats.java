@@ -13,14 +13,15 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -34,8 +35,8 @@ public class NatsMessageTests {
     public void testSizeOnProtocolMessage() {
         NatsMessage msg = new NatsMessage(CharBuffer.wrap("PING"));
 
-        assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + 2, msg.getSizeInBytes());
-        assertEquals("Size is correct", "PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes());
+        assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
     }
     
     @Test
@@ -47,77 +48,83 @@ public class NatsMessageTests {
 
         NatsMessage msg = new NatsMessage(subject, replyTo, body, false);
 
-        assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes());
-        assertEquals("Size is correct", protocol.getBytes(StandardCharsets.US_ASCII).length + body.length + 4, msg.getSizeInBytes());
+        assertEquals(msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(protocol.getBytes(StandardCharsets.US_ASCII).length + body.length + 4, msg.getSizeInBytes(), "Size is correct");
     
         msg = new NatsMessage(subject, replyTo, body, true);
 
-        assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes());
-        assertEquals("Size is correct", protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes());
+        assertEquals(msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes(), "Size is correct");
     }
     
-    @Test(expected=IllegalArgumentException.class)
-    public void testCustomMaxControlLine() throws Exception {
-        byte[] body = new byte[10];
-        String subject = "subject";
-        String replyTo = "reply";
-        int maxControlLine = 1024;
+    @Test
+    public void testCustomMaxControlLine() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            byte[] body = new byte[10];
+            String subject = "subject";
+            String replyTo = "reply";
+            int maxControlLine = 1024;
 
-        while (subject.length() <= maxControlLine) {
-            subject = subject + subject;
-        }
+            while (subject.length() <= maxControlLine) {
+                subject = subject + subject;
+            }
 
-        try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = new Options.Builder().
-                        server(ts.getURI()).
-                        maxReconnects(0).
-                        maxControlLine(maxControlLine).
-                        build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            try (NatsTestServer ts = new NatsTestServer()) {
+                Options options = new Options.Builder().
+                            server(ts.getURI()).
+                            maxReconnects(0).
+                            maxControlLine(maxControlLine).
+                            build();
+                Connection nc = Nats.connect(options);
+                try {
+                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                    nc.publish(subject, replyTo, body);
+                    assertFalse(true);
+                } finally {
+                    nc.close();
+                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                }
+            }
+        });
+    }
+    
+    @Test
+    public void testBigProtocolLineWithoutBody() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            String subject = "subject";
+
+            while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
+                subject = subject + subject;
+            }
+
+            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
+                        NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+
+                nc.subscribe(subject);
+                assertFalse(true);
+            }
+        });
+    }
+    
+    @Test
+    public void testBigProtocolLineWithBody() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            byte[] body = new byte[10];
+            String subject = "subject";
+            String replyTo = "reply";
+
+            while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
+                subject = subject + subject;
+            }
+
+            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
+                        NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+
                 nc.publish(subject, replyTo, body);
                 assertFalse(true);
-            } finally {
-                nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
             }
-        }
-    }
-    
-    @Test(expected=IllegalArgumentException.class)
-    public void testBigProtocolLineWithoutBody() throws Exception {
-        String subject = "subject";
-
-        while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
-            subject = subject + subject;
-        }
-
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            
-            nc.subscribe(subject);
-            assertFalse(true);
-        }
-    }
-    
-    @Test(expected=IllegalArgumentException.class)
-    public void testBigProtocolLineWithBody() throws Exception {
-        byte[] body = new byte[10];
-        String subject = "subject";
-        String replyTo = "reply";
-
-        while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
-            subject = subject + subject;
-        }
-
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
-            
-            nc.publish(subject, replyTo, body);
-            assertFalse(true);
-        }
+        });
     }
 }

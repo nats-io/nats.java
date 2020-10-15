@@ -14,9 +14,9 @@
 package io.nats.client.impl;
 
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
@@ -42,7 +42,7 @@ public class MessageContentTests {
     public void testSimpleString() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), msg.getData());
@@ -64,7 +64,7 @@ public class MessageContentTests {
     public void testUTF8String() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), msg.getData());
@@ -86,7 +86,7 @@ public class MessageContentTests {
     public void testDifferentSizes() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), msg.getData());
@@ -113,7 +113,7 @@ public class MessageContentTests {
     public void testZeros() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), msg.getData());
@@ -221,18 +221,18 @@ public class MessageContentTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
                 handler.prepForStatusChange(Events.DISCONNECTED);
                 ready.complete(Boolean.TRUE);
                 handler.waitForStatusChange(200, TimeUnit.MILLISECONDS);
 
                 assertTrue(handler.getExceptionCount() > 0);
-                assertTrue("Disconnected Status", Connection.Status.DISCONNECTED == nc.getStatus()
-                                                    || Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.DISCONNECTED == nc.getStatus()
+                                                    || Connection.Status.CLOSED == nc.getStatus(), "Disconnected Status");
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }

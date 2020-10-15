@@ -13,11 +13,12 @@
 
 package io.nats.client;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,7 +27,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class NKeyTests {
     private static final int ED25519_SIGNATURE_SIZE = 64;
@@ -64,7 +65,7 @@ public class NKeyTests {
             byte[] input = inputs[i];
             int crc = expected[i];
             int actual = NKey.crc16(input);
-            assertEquals(String.format("CRC for \"%s\", should be 0x%08X but was 0x%08X", input, crc, actual), crc, actual);
+            assertEquals(crc, actual, String.format("CRC for \"%s\", should be 0x%08X but was 0x%08X", input, crc, actual));
         }
     }
 
@@ -129,31 +130,37 @@ public class NKeyTests {
         assertTrue(Arrays.equals(bytes, decoded));
     }
 
-    @Test(expected=IllegalArgumentException.class)
-    public void testDecodeWrongType() throws Exception {
-        byte[] bytes = new byte[32];
-        SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
-        random.nextBytes(bytes);
+    @Test
+    public void testDecodeWrongType() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            byte[] bytes = new byte[32];
+            SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+            random.nextBytes(bytes);
 
-        char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
-        NKey.decode(NKey.Type.USER, encoded, false);
-        assertFalse(true);
+            char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
+            NKey.decode(NKey.Type.USER, encoded, false);
+            assertFalse(true);
+        });
     }
 
-    @Test(expected=IllegalArgumentException.class)
-    public void testEncodeSeedSize() throws Exception {
-        byte[] bytes = new byte[48];
-        SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
-        random.nextBytes(bytes);
+    @Test
+    public void testEncodeSeedSize() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            byte[] bytes = new byte[48];
+            SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+            random.nextBytes(bytes);
 
-        NKey.encodeSeed(NKey.Type.ACCOUNT, bytes);
-        assertFalse(true);
+            NKey.encodeSeed(NKey.Type.ACCOUNT, bytes);
+            assertFalse(true);
+        });
     }
 
-    @Test(expected=IllegalArgumentException.class)
-    public void testDecodeSize() throws Exception {
-        NKey.decode(NKey.Type.ACCOUNT, "".toCharArray(), false);
-        assertFalse(true);
+    @Test
+    public void testDecodeSize() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            NKey.decode(NKey.Type.ACCOUNT, "".toCharArray(), false);
+            assertFalse(true);
+        });
     }
 
     @Test
@@ -373,39 +380,49 @@ public class NKeyTests {
         assertTrue(pubOnly.getPublicKey()[0] == '\0');
     }
 
-    @Test(expected=IllegalStateException.class)
-    public void testPublicOnlyCantSign() throws Exception {
-        NKey theKey = NKey.createUser(null);
-        NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
+    @Test
+    public void testPublicOnlyCantSign() {
+        assertThrows(IllegalStateException.class, () -> {
+            NKey theKey = NKey.createUser(null);
+            NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
 
-        byte[] data = "Public and Private".getBytes(StandardCharsets.UTF_8);
-        pubOnly.sign(data);
+            byte[] data = "Public and Private".getBytes(StandardCharsets.UTF_8);
+            pubOnly.sign(data);
+        });
     }
 
-    @Test(expected=IllegalStateException.class)
-    public void testPublicOnlyCantProvideSeed() throws Exception {
-        NKey theKey = NKey.createUser(null);
-        NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
-        pubOnly.getSeed();
+    @Test
+    public void testPublicOnlyCantProvideSeed() {
+        assertThrows(IllegalStateException.class, () -> {
+            NKey theKey = NKey.createUser(null);
+            NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
+            pubOnly.getSeed();
+        });
     }
 
-    @Test(expected=IllegalStateException.class)
-    public void testPublicOnlyCantProvidePrivate() throws Exception {
-        NKey theKey = NKey.createUser(null);
-        NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
-        pubOnly.getPrivateKey();
+    @Test
+    public void testPublicOnlyCantProvidePrivate() {
+        assertThrows(IllegalStateException.class, () -> {
+            NKey theKey = NKey.createUser(null);
+            NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
+            pubOnly.getPrivateKey();
+        });
     }
 
-    @Test(expected=IllegalArgumentException.class)
-    public void testPublicFromSeedShouldFail() throws Exception {
-        NKey theKey = NKey.createUser(null);
-        NKey.fromPublicKey(theKey.getSeed());
+    @Test
+    public void testPublicFromSeedShouldFail() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            NKey theKey = NKey.createUser(null);
+            NKey.fromPublicKey(theKey.getSeed());
+        });
     }
 
-    @Test(expected=IllegalArgumentException.class)
-    public void testSeedFromPublicShouldFail() throws Exception {
-        NKey theKey = NKey.createUser(null);
-        NKey.fromSeed(theKey.getPublicKey());
+    @Test
+    public void testSeedFromPublicShouldFail() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            NKey theKey = NKey.createUser(null);
+            NKey.fromSeed(theKey.getPublicKey());
+        });
     }
 
     @Test
@@ -434,14 +451,18 @@ public class NKeyTests {
         assertNotEquals(otherKey, fromSeed);
     }
 
-    @Test(expected=IllegalArgumentException.class)
-    public void testFromBadSeed() throws Exception {
-        NKey.fromSeed("BadSeed".toCharArray());
+    @Test
+    public void testFromBadSeed() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            NKey.fromSeed("BadSeed".toCharArray());
+        });
     }
 
-    @Test(expected=IllegalArgumentException.class)
-    public void testFromBadPublicKey() throws Exception {
-        NKey.fromPublicKey("BadSeed".toCharArray());
+    @Test
+    public void testFromBadPublicKey() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            NKey.fromPublicKey("BadSeed".toCharArray());
+        });
     }
 
     @Test

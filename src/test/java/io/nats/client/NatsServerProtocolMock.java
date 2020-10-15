@@ -67,7 +67,7 @@ public class NatsServerProtocolMock implements Closeable{
 
     private boolean customInfoIsFullInfo = false;
 
-    public NatsServerProtocolMock(ExitAt exitAt) {
+    public NatsServerProtocolMock(ExitAt exitAt) throws IOException {
         this(NatsTestServer.nextPort(), exitAt);
     }
 
@@ -77,7 +77,7 @@ public class NatsServerProtocolMock implements Closeable{
         start();
     }
 
-    public NatsServerProtocolMock(Customizer custom) {
+    public NatsServerProtocolMock(Customizer custom) throws IOException {
         this.port = NatsTestServer.nextPort();
         this.exitAt = ExitAt.NO_EXIT;
         this.customizer = custom;
@@ -98,7 +98,7 @@ public class NatsServerProtocolMock implements Closeable{
     
     // CustomInfo is just the JSON string, not the full protocol string 
     // or the \r\n.
-    public NatsServerProtocolMock(Customizer custom, String customInfo) {
+    public NatsServerProtocolMock(Customizer custom, String customInfo) throws IOException {
         this.port = NatsTestServer.nextPort();
         this.exitAt = ExitAt.NO_EXIT;
         this.customizer = custom;

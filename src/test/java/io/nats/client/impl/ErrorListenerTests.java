@@ -12,11 +12,11 @@
 // limitations under the License.
 
 package io.nats.client.impl;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -25,7 +25,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.BadHandler;
 import io.nats.client.Connection;
@@ -58,7 +58,7 @@ public class ErrorListenerTests {
                                         maxReconnects(-1).
                                         build();
             nc = (NatsConnection) Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(ts.getURI(), nc.getConnectedUrl());
             handler.prepForStatusChange(Events.DISCONNECTED);
 
@@ -74,12 +74,12 @@ public class ErrorListenerTests {
 
             assertNotNull(nc.getLastError());
             assertTrue(nc.getLastError().indexOf("Authorization Violation") >= 0);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             assertEquals(ts3.getURI(), nc.getConnectedUrl());
         } finally {
             if (nc != null) {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -105,7 +105,7 @@ public class ErrorListenerTests {
             } finally {
                 if (nc != null) {
                     nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
                 }
             }
         }
@@ -140,7 +140,7 @@ public class ErrorListenerTests {
                 assertEquals(1, handler.getCount());
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -166,7 +166,7 @@ public class ErrorListenerTests {
             } finally {
                 if (nc != null) {
                     nc.close();
-                    assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
                 }
             }
         }
@@ -228,7 +228,7 @@ public class ErrorListenerTests {
                 assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() == 2); // 1 for the dispatcher, 1 for the handlers
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -259,7 +259,7 @@ public class ErrorListenerTests {
                 nc.flush(Duration.ofSeconds(2));
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
 
@@ -283,7 +283,7 @@ public class ErrorListenerTests {
                     errorListener(handler).
                     build();
             Connection nc = Nats.connect(options);
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             try {
                 nc.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
@@ -296,13 +296,13 @@ public class ErrorListenerTests {
                 }
             } finally {
                 nc.close();
-                assertTrue("Closed Status", Connection.Status.CLOSED == nc.getStatus());
+                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
             }
         }
 
         List<Message> discardedMessages = handler.getDiscardedMessages();
-        assertTrue("At least one message discarded", discardedMessages.size() >= 1);
-        assertTrue("Message subject", discardedMessages.get(0).getSubject().startsWith("subject"));
-        assertTrue("Message data", new String(discardedMessages.get(0).getData()).startsWith("message"));
+        assertTrue(discardedMessages.size() >= 1, "At least one message discarded");
+        assertTrue(discardedMessages.get(0).getSubject().startsWith("subject"), "Message subject");
+        assertTrue(new String(discardedMessages.get(0).getData()).startsWith("message"), "Message data");
     }
 }

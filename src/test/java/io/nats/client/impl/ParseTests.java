@@ -13,13 +13,14 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
@@ -39,137 +40,157 @@ public class ParseTests {
 
     }
 
-    @Test(expected=NumberFormatException.class)
+    @Test
     public void testBadChars() {
-        NatsConnectionReader.parseLength("2221a");
-        assertFalse(true);
+        assertThrows(NumberFormatException.class, () -> {
+            NatsConnectionReader.parseLength("2221a");
+            assertFalse(true);
+        });
     }
 
-    @Test(expected=NumberFormatException.class)
+    @Test
     public void testTooBig() {
-        NatsConnectionReader.parseLength(String.valueOf(100_000_000_000L));
-        assertFalse(true);
-    }
-
-    @Test(expected=IOException.class)
-    public void testLongProtocolOpThrows() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            NatsConnectionReader reader = nc.getReader();
-            byte[] bytes = ("thisistoolong\r\n").getBytes(StandardCharsets.US_ASCII);
-            reader.fakeReadForTest(bytes);
-            reader.gatherOp(bytes.length);
+        assertThrows(NumberFormatException.class, () -> {
+            NatsConnectionReader.parseLength(String.valueOf(100_000_000_000L));
             assertFalse(true);
-        }
+        });
     }
 
-    @Test(expected=IOException.class)
-    public void testMissingLineFeed() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            NatsConnectionReader reader = nc.getReader();
-            byte[] bytes = ("PING\rPONG").getBytes(StandardCharsets.US_ASCII);
-            reader.fakeReadForTest(bytes);
-            reader.gatherOp(bytes.length);
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected=IOException.class)
-    public void testMissingSubject() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            NatsConnectionReader reader = nc.getReader();
-            byte[] bytes = ("MSG  1 1\r\n").getBytes(StandardCharsets.US_ASCII);
-            reader.fakeReadForTest(bytes);
-            reader.gatherOp(bytes.length);
-            reader.gatherMessageProtocol(bytes.length);
-            reader.parseProtocolMessage();
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected=IOException.class)
-    public void testMissingSID() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            NatsConnectionReader reader = nc.getReader();
-            byte[] bytes = ("MSG subject  1\r\n").getBytes(StandardCharsets.US_ASCII);
-            reader.fakeReadForTest(bytes);
-            reader.gatherOp(bytes.length);
-            reader.gatherMessageProtocol(bytes.length);
-            reader.parseProtocolMessage();
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected=IOException.class)
-    public void testMissingLength() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            NatsConnectionReader reader = nc.getReader();
-            byte[] bytes = ("MSG subject 2 \r\n").getBytes(StandardCharsets.US_ASCII);
-            reader.fakeReadForTest(bytes);
-            reader.gatherOp(bytes.length);
-            reader.gatherMessageProtocol(bytes.length);
-            reader.parseProtocolMessage();
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected=IOException.class)
-    public void testBadLength() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            NatsConnectionReader reader = nc.getReader();
-            byte[] bytes = ("MSG subject 2 x\r\n").getBytes(StandardCharsets.US_ASCII);
-            reader.fakeReadForTest(bytes);
-            reader.gatherOp(bytes.length);
-            reader.gatherMessageProtocol(bytes.length);
-            reader.parseProtocolMessage();
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected=IOException.class)
-    public void testMessageLineTooLong() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                    server(ts.getURI()).
-                                                                    maxControlLine(16).
-                                                                    build())) {
-            NatsConnectionReader reader = nc.getReader();
-            byte[] bytes = ("MSG reallylongsubjectobreakthelength 1 1\r\n").getBytes(StandardCharsets.US_ASCII);
-            reader.fakeReadForTest(bytes);
-            reader.gatherOp(bytes.length);
-            reader.gatherMessageProtocol(bytes.length);
-            reader.parseProtocolMessage();
-            assertFalse(true);
-        }
-    }
-
-    @Test(expected=IllegalArgumentException.class)
-    public void testProtocolLineTooLong() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                    server(ts.getURI()).
-                                                                    maxControlLine(1024).
-                                                                    build())) {
-            NatsConnectionReader reader = nc.getReader();
-            StringBuilder longString = new StringBuilder();
-
-            longString.append("INFO ");
-            for (int i=0;i<500;i++ ){
-                longString.append("helloworld");
+    @Test
+    public void testLongProtocolOpThrows() {
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("thisistoolong\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                assertFalse(true);
             }
+        });
+    }
 
-            byte[] bytes = longString.toString().getBytes(StandardCharsets.US_ASCII);
-            reader.fakeReadForTest(bytes);
-            reader.gatherOp(bytes.length);
-            reader.gatherProtocol(bytes.length);
-            reader.parseProtocolMessage();
-            assertFalse(true);
-        }
+    @Test
+    public void testMissingLineFeed() {
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("PING\rPONG").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                assertFalse(true);
+            }
+        });
+    }
+
+    @Test
+    public void testMissingSubject() {
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("MSG  1 1\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                reader.gatherMessageProtocol(bytes.length);
+                reader.parseProtocolMessage();
+                assertFalse(true);
+            }
+        });
+    }
+
+    @Test
+    public void testMissingSID() {
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("MSG subject  1\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                reader.gatherMessageProtocol(bytes.length);
+                reader.parseProtocolMessage();
+                assertFalse(true);
+            }
+        });
+    }
+
+    @Test
+    public void testMissingLength() {
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("MSG subject 2 \r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                reader.gatherMessageProtocol(bytes.length);
+                reader.parseProtocolMessage();
+                assertFalse(true);
+            }
+        });
+    }
+
+    @Test
+    public void testBadLength() {
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("MSG subject 2 x\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                reader.gatherMessageProtocol(bytes.length);
+                reader.parseProtocolMessage();
+                assertFalse(true);
+            }
+        });
+    }
+
+    @Test
+    public void testMessageLineTooLong() {
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
+                                                                        server(ts.getURI()).
+                                                                        maxControlLine(16).
+                                                                        build())) {
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("MSG reallylongsubjectobreakthelength 1 1\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                reader.gatherMessageProtocol(bytes.length);
+                reader.parseProtocolMessage();
+                assertFalse(true);
+            }
+        });
+    }
+
+    @Test
+    public void testProtocolLineTooLong() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
+                                                                        server(ts.getURI()).
+                                                                        maxControlLine(1024).
+                                                                        build())) {
+                NatsConnectionReader reader = nc.getReader();
+                StringBuilder longString = new StringBuilder();
+
+                longString.append("INFO ");
+                for (int i=0;i<500;i++ ){
+                    longString.append("helloworld");
+                }
+
+                byte[] bytes = longString.toString().getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                reader.gatherProtocol(bytes.length);
+                reader.parseProtocolMessage();
+                assertFalse(true);
+            }
+        });
     }
 
     @Test
@@ -203,7 +224,7 @@ public class ParseTests {
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
                 String op = reader.currentOp();
-                assertEquals(serverStrings[i], expected[i], op);
+                assertEquals(expected[i], op, serverStrings[i]);
             }
 
             for (int i=0; i<badStrings.length; i++) {
@@ -211,7 +232,7 @@ public class ParseTests {
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
                 String op = reader.currentOp();
-                assertEquals(badStrings[i], NatsConnectionReader.UNKNOWN_OP, op);
+                assertEquals(NatsConnectionReader.UNKNOWN_OP, op, badStrings[i]);
             }
         }
     }

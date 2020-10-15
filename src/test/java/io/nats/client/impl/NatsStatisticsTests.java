@@ -13,15 +13,15 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
@@ -39,7 +39,7 @@ public class NatsStatisticsTests {
                                                 .server(ts.getURI())
                                                 .turnOnAdvancedStats()
                                                 .build())) {
-            assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), new byte[16]);
@@ -68,7 +68,7 @@ public class NatsStatisticsTests {
             NatsStatistics stats = ((NatsConnection) nc).getNatsStatistics();
 
             try {
-                assertTrue("Connected Status", Connection.Status.CONNECTED == nc.getStatus());
+                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 
                 Dispatcher d = nc.createDispatcher((msg) -> {
                     nc.publish(msg.getReplyTo(), new byte[16]);
@@ -79,12 +79,12 @@ public class NatsStatisticsTests {
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
                 assertNotNull(msg);
-                assertEquals("outstanding", 0, stats.getOutstandingRequests());
-                assertTrue("bytes in", stats.getInBytes() > 100);
-                assertTrue("bytes out", stats.getInBytes() > 100);
-                assertEquals("messages in", 2, stats.getInMsgs()); // reply & request
-                assertEquals("messages out", 6, stats.getOutMsgs()); // ping, sub, pub, msg, pub, msg
-                assertEquals("oks", 5, stats.getOKs()); //sub, pub, msg, pub, msg
+                assertEquals(0, stats.getOutstandingRequests(), "outstanding");
+                assertTrue(stats.getInBytes() > 100, "bytes in");
+                assertTrue(stats.getInBytes() > 100, "bytes out");
+                assertEquals(2, stats.getInMsgs(), "messages in"); // reply & request
+                assertEquals(6, stats.getOutMsgs(), "messages out"); // ping, sub, pub, msg, pub, msg
+                assertEquals(5, stats.getOKs(), "oks"); //sub, pub, msg, pub, msg
             } finally {
                 nc.close();
             }
