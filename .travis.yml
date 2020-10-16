@@ -20,7 +20,7 @@ before_script:
 before_install:
 - |
   if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ]; then
-    openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv
+    openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv \
       -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
   fi
 install:
