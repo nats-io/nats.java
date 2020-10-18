@@ -793,6 +793,13 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Subject is required in publish");
         }
 
+        Pattern pattern = Pattern.compile("\\s");
+        Matcher matcher = pattern.matcher(subject);
+
+        if (matcher.find()) {
+            throw new IllegalArgumentException("Subject cannot contain whitespace");
+        }
+
         if (replyTo != null && replyTo.length() == 0) {
             throw new IllegalArgumentException("ReplyTo cannot be the empty string");
         }
