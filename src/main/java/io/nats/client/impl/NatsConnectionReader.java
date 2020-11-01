@@ -13,15 +13,13 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Headers;
 import io.nats.client.Options;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -30,8 +28,10 @@ class NatsConnectionReader implements Runnable {
     static final String UNKNOWN_OP = "UNKNOWN";
     static final char SPACE = ' ';
     static final char TAB = '\t';
+
     private final ExecutorService executor;
-    private LinkedHashMap<String, List<String>> headers;
+
+    private Headers headers;
     private int headerLen;
     private int headerStart;
 
@@ -215,9 +215,8 @@ class NatsConnectionReader implements Runnable {
 
                     case NatsConnection.LF:
                         if (gotCR && foundKey) {
-                            List<String> values = this.headers.computeIfAbsent(key, k -> new ArrayList<>());
                             String value = new String(buffer, startValue , (i-1) - startValue).intern();
-                            values.add(value);
+                            headers.add(key, value);
                             gotCR = false;
                             startValue = 0;
                             key = null;
@@ -497,10 +496,7 @@ System.out.println("NCR 365 " + incoming);
                 this.mode = Mode.GATHER_OP;
                 break;
             case NatsConnection.OP_ERR:
-                String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
-                if (errorText != null) {
-                    errorText = errorText.replace("\'", "");
-                }
+                String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString().replace("'", "");
                 this.connection.processError(errorText);
                 this.op = UNKNOWN_OP;
                 this.mode = Mode.GATHER_OP;
@@ -562,10 +558,8 @@ System.out.println("NCR 365 " + incoming);
             possibleReplyTo = null;
         }
 
-
-
-        if(subject==null || subject.length() == 0 || sid==null || sid.length() == 0
-                || possiblePayloadLength==null || possibleHeaderLength == null) {
+        if (subject==null || subject.length() == 0 || sid == null || sid.length() == 0
+                || possiblePayloadLength == null || possibleHeaderLength == null) {
             throw new IllegalStateException("Bad HMSG control line, missing required fields");
         }
 
@@ -576,20 +570,18 @@ System.out.println("NCR 365 " + incoming);
         int headerLen = parseLength(headerLength);
         int payloadLen = parseLength(payloadLength);
 
-
-        this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
+        this.incoming = new NatsMessage.IncomingBuilder()
+                .sid(sid).subject(subject).replyTo(replyTo).protocolLength(protocolLineLength);
         this.mode = Mode.GATHER_HEADER;
         this.headerLen = headerLen;
         this.headerStart = this.bufferPosition;
 
-
-        if (headerLen>0) {
-            this.headers = new LinkedHashMap<String, List<String>>();
+        if (headerLen > 0) {
+            this.headers = new Headers();
         }
         this.msgData = new byte[payloadLen - headerLen];
         this.msgDataPosition = 0;
         this.msgLinePosition = 0;
-        return;
     }
 
     private void handleProtocolOpMsg() {

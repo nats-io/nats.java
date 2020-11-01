@@ -24,12 +24,12 @@ public class MessageProtocolCreationBenchmark {
         System.out.printf("### Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
 
         for (int j = 0; j < warmup; j++) {
-            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, true);
+            new NatsMessage.PublishBuilder().subject("subject").replyTo("replyTo").utf8mode(true).build();
         }
 
         long start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, false);
+            new NatsMessage.PublishBuilder().subject("subject").replyTo("replyTo").build();
         }
         long end = System.nanoTime();
 
@@ -41,7 +41,7 @@ public class MessageProtocolCreationBenchmark {
 
         start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, true);
+            new NatsMessage.PublishBuilder().subject("subject").replyTo("replyTo").utf8mode(true).build();
         }
         end = System.nanoTime();
 

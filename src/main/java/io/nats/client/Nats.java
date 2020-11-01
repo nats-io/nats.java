@@ -101,14 +101,6 @@ public class Nats {
     }
 
     /**
-     *
-     * @return a new message builder
-     */
-    public static MessageBuilder messageBuilder() {
-        return new NatMessageBuilderImpl();
-    }
-
-    /**
      * The Java client generally expects URLs of the form {@code nats://hostname:port}
      * 
      * <p>but also allows urls with a user password {@code nats://user:pass@hostname:port}.

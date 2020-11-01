@@ -14,19 +14,18 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
+import io.nats.client.Headers;
 import io.nats.client.Message;
-import io.nats.client.Subscription;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Collection;
+import java.util.concurrent.atomic.AtomicInteger;
 
-class NatsMessage implements Message {
+public class NatsMessage implements Message {
     private String sid;
     private String subject;
     private String replyTo;
@@ -38,17 +37,6 @@ class NatsMessage implements Message {
     private long sizeInBytes;
 
     NatsMessage next; // for linked list
-
-    private Map<String, List<String>> headers;
-
-    public Map<String, List<String>> getHeaders() {
-        return headers;
-    }
-
-    public NatsMessage setHeaders(LinkedHashMap<String, List<String>> headers) {
-        this.headers = headers;
-        return this;
-    }
 
     static final byte[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 
@@ -265,7 +253,7 @@ class NatsMessage implements Message {
         return this.subject == null;
     }
 
-    int getControlLineLength() {
+    public int getControlLineLength() {
         return (this.protocolBytes != null) ? this.protocolBytes.length + 2 : -1;
     }
 
@@ -274,16 +262,12 @@ class NatsMessage implements Message {
     }
 
     NatsSubscription getNatsSubscription() {
-        return this.subscription;
+        return subscription;
     }
 
     @Override
     public Connection getConnection() {
-        if (this.subscription == null) {
-            return null;
-        }
-
-        return this.subscription.connection;
+        return subscription == null ? null : subscription.connection;
     }
 
     @Override
@@ -316,7 +300,8 @@ class NatsMessage implements Message {
         return this.sid;
     }
 
-    public Subscription getSubscription() {
+    @Override
+    public NatsSubscription getSubscription() {
         return this.subscription;
     }
 

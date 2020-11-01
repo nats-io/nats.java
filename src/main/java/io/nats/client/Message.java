@@ -13,10 +13,6 @@
 
 package io.nats.client;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
  * publish and send requests with raw strings and byte[] but incoming messages can have a few
@@ -26,6 +22,7 @@ import java.util.Map;
  * and is safe to manipulate.
  */
 public interface Message {
+	byte[] EMPTY_BODY = new byte[0];
 
 	/**
 	 * @return the subject that this message was sent to
@@ -67,8 +64,6 @@ public interface Message {
 	 * @return the connection which can be used for publishing, will be null if the subscription is null
 	 */
 	Connection getConnection();
-
-	default Map<String, List<String>> getHeaders() {return  null;}
 
 	/**
 	 * @return the protocol bytes

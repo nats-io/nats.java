@@ -75,7 +75,7 @@ import java.util.concurrent.TimeoutException;
  * the NATS server it is theoretically possible to reuse that byte array, but this pattern should be treated as advanced and only used
  * after thorough testing.
  */
-public interface Connection extends AutoCloseable {
+public interface Connection<T extends Message> extends AutoCloseable {
 
     enum Status {
         /**
@@ -123,6 +123,28 @@ public interface Connection extends AutoCloseable {
     void publish(String subject, byte[] body);
 
     /**
+     * Send a message to the specified subject. The message body <strong>will
+     * not</strong> be copied. The expected usage with string content is something
+     * like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * nc.publish("destination", "message".getBytes("UTF-8"))
+     * </pre>
+     * <p>
+     * where the sender creates a byte array immediately before calling publish.
+     * <p>
+     * See {@link #publish(String, String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * @param subject the subject to send the message to
+     * @param body    the message body
+     * @param headers the message headers
+     * @throws IllegalStateException if the reconnect buffer is exceeded
+     */
+    void publish(String subject, byte[] body, Headers headers);
+
+    /**
      * Send a request to the specified subject, providing a replyTo subject. The
      * message body <strong>will not</strong> be copied. The expected usage with
      * string content is something like:
@@ -149,14 +171,40 @@ public interface Connection extends AutoCloseable {
     void publish(String subject, String replyTo, byte[] body);
 
     /**
+     * Send a request to the specified subject, providing a replyTo subject. The
+     * message body <strong>will not</strong> be copied. The expected usage with
+     * string content is something like:
+     *
+     * <pre>
+     * nc = Nats.connect()
+     * nc.publish("destination", "reply-to", "message".getBytes("UTF-8"))
+     * </pre>
+     * <p>
+     * where the sender creates a byte array immediately before calling publish.
+     * <p>
+     * During reconnect the client will try to buffer messages. The buffer size is set
+     * in the connect options, see {@link Options.Builder#reconnectBufferSize(long) reconnectBufferSize()}
+     * with a default value of {@link Options#DEFAULT_RECONNECT_BUF_SIZE 8 * 1024 * 1024} bytes.
+     * If the buffer is exceeded an IllegalStateException is thrown. Applications should use
+     * this exception as a signal to wait for reconnect before continuing.
+     * </p>
+     *
+     * @param subject the subject to send the message to
+     * @param replyTo the subject the receiver should send the response to
+     * @param body    the message body
+     * @param headers the headers
+     * @throws IllegalStateException if the reconnect buffer is exceeded
+     */
+    void publish(String subject, String replyTo, byte[] body, Headers headers);
+
+    /**
      *
      * Send a request to the specified subject, providing a replyTo subject. The
      * message body <strong>will not</strong> be copied.
      *
      * @param message that you are sending.
      */
-    void publish(final Message message);
-
+    void publish(final T message);
 
     /**
      * Send a request. The returned future will be completed when the
