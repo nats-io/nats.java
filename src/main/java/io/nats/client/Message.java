@@ -38,6 +38,16 @@ public interface Message {
 	String getReplyTo();
 
 	/**
+	 * @return the headers from the message
+	 */
+	Headers getHeaders();
+
+	/**
+	 * @return if is utf8Mode
+	 */
+	boolean isUtf8mode();
+
+	/**
 	 * @return the data from the message
 	 */
 	byte[] getData();
@@ -60,5 +70,13 @@ public interface Message {
 
 	default Map<String, List<String>> getHeaders() {return  null;}
 
+	/**
+	 * @return the protocol bytes
+	 */
 	byte[] getProtocolBytes();
+
+	/**
+	 * @return the message size in bytes
+	 */
+	long getSizeInBytes();
 }

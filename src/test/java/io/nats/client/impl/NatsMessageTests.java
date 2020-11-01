@@ -13,21 +13,14 @@
 
 package io.nats.client.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import io.nats.client.*;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+import org.junit.Test;
 
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.NatsServerProtocolMock.ExitAt;
+import static org.junit.Assert.*;
 
 public class NatsMessageTests {
     @Test
@@ -45,12 +38,14 @@ public class NatsMessageTests {
         String replyTo = "reply";
         String protocol = "PUB "+subject+" "+replyTo+" "+body.length;
 
-        NatsMessage msg = new NatsMessage(subject, replyTo, body, false);
+        NatsMessage msg = new NatsMessage.PublishBuilder()
+                .subject(subject).replyTo(replyTo).data(body).maxPayload(10000L).build();
 
         assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes());
         assertEquals("Size is correct", protocol.getBytes(StandardCharsets.US_ASCII).length + body.length + 4, msg.getSizeInBytes());
     
-        msg = new NatsMessage(subject, replyTo, body, true);
+        msg = new NatsMessage.PublishBuilder()
+                .subject(subject).replyTo(replyTo).data(body).utf8mode(true).maxPayload(10000L).build();
 
         assertEquals("Size is set, with CRLF", msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes());
         assertEquals("Size is correct", protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes());

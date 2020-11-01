@@ -24,7 +24,6 @@ public class SendHPubTest {
         final String subject = "foo";
 
         try {
-
             Thread.sleep(1000);
             System.out.println(connect1.getConnectedUrl());
 
@@ -34,7 +33,6 @@ public class SendHPubTest {
             connect1.flush(Duration.ofSeconds(10));
 
             Thread.sleep(1000);
-
 
             final Message message = subscribe.nextMessage(Duration.ofSeconds(10));
 
@@ -47,12 +45,7 @@ public class SendHPubTest {
             connect2.close();
             natsTestServer.close();
         }
-
-
-
-
     }
-
 
     @Test
     public void testWithMessageBuilderNoHeader() throws Exception {
@@ -70,14 +63,16 @@ public class SendHPubTest {
 
             final Subscription subscribe = connect2.subscribe(subject);
 
-            connect1.publish(Nats.messageBuilder().withData("foo".getBytes(StandardCharsets.UTF_8)).withSubject(subject).build());
+            connect1.publish(new NatsMessage.PublishBuilder()
+                    .data("foo", StandardCharsets.UTF_8)
+                    .subject(subject)
+                    .maxPayload(10000L)
+                    .build());
+
             connect1.flush(Duration.ofSeconds(10));
             Thread.sleep(1000);
 
             final Message message = subscribe.nextMessage(Duration.ofSeconds(10));
-
-
-
             assertNotNull(message);
 
             assertEquals("foo", new String(message.getData(), StandardCharsets.UTF_8));
@@ -89,7 +84,7 @@ public class SendHPubTest {
         }
     }
 
-    //@Test
+    @Test
     public void testWithMessageBuilderWithHeader() throws Exception {
 
         final NatsTestServer natsTestServer = new NatsTestServer(true);
@@ -105,17 +100,18 @@ public class SendHPubTest {
 
             final Subscription subscribe = connect2.subscribe(subject);
 
-            connect1.publish(Nats.messageBuilder()
-                    .withData("foo".getBytes(StandardCharsets.UTF_8))
-                    .withSubject(subject).addHeader("foo", "bar").build());
+            connect1.publish(new NatsMessage.PublishBuilder()
+                    .data("foo", StandardCharsets.UTF_8)
+                    .subject(subject)
+                    .addHeader("foo", "bar")
+                    .maxPayload(10000L)
+                    .build());
 
             connect1.flush(Duration.ofSeconds(10));
             Thread.sleep(1000);
 
             final Message message = subscribe.nextMessage(Duration.ofSeconds(10));
-
             assertNotNull(message);
-
             assertEquals("foo", new String(message.getData(), StandardCharsets.UTF_8));
 
         } finally {

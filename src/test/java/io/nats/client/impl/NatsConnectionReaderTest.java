@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.Collection;
 
 import static org.junit.Assert.*;
 
@@ -215,10 +215,13 @@ public class NatsConnectionReaderTest {
 
         assertEquals(2, protocolHandler.lastMessage.getHeaders().size());
 
-        assertEquals(Arrays.asList("VALUE1"), protocolHandler.lastMessage.getHeaders().get("HEADER1"));
-        assertEquals(Arrays.asList("VALUE2"), protocolHandler.lastMessage.getHeaders().get("HEADER2"));
+        Collection<String> values = protocolHandler.lastMessage.getHeaders().getValues("HEADER1");
+        assertEquals(1, values.size());
+        assertTrue(values.contains("VALUE1"));
 
-
+        values = protocolHandler.lastMessage.getHeaders().getValues("HEADER2");
+        assertEquals(1, values.size());
+        assertTrue(values.contains("VALUE2"));
     }
 
     @Test

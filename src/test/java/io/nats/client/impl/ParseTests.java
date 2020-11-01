@@ -227,16 +227,12 @@ public class ParseTests {
                 + "\"connect_urls\":[\"one\", \"two\"]" + "}"
         };
 
-
         String[] expected = {
                 NatsConnection.OP_OK, NatsConnection.OP_PONG, NatsConnection.OP_PING,  NatsConnection.OP_INFO
         };
 
-
         final String protocol = "MSG longer.subject.abitlikeaninbox 22 longer.replyto.abitlikeaninbox 234\r\n";
         final byte[] hBytes = (protocol + "\r\n").getBytes(StandardCharsets.US_ASCII);
-
-
 
         try (NatsTestServer ts = new NatsTestServer(false);
              NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
@@ -250,19 +246,15 @@ public class ParseTests {
                 assertEquals(serverStrings[i], expected[i], op);
             }
 
-
             reader.fakeReadForTest(hBytes);
             reader.gatherOp(hBytes.length);
             final String op = reader.currentOp();
             assertEquals(protocol, "MSG", op);
 
-
             Thread.sleep(1000);
 
             NatsMessage incoming = reader.getIncoming();
             System.out.println(incoming);
-
-
         }
     }
 }

@@ -61,7 +61,7 @@ class NatsConnectionReader implements Runnable {
 
     private Mode mode = Mode.GATHER_OP;
 
-    private NatsMessage incoming;
+    private NatsMessage.IncomingBuilder incoming;
     private byte[] msgData;
     private int msgDataPosition;
     
@@ -363,10 +363,11 @@ class NatsConnectionReader implements Runnable {
 
                 if (gotCR) {
                     if (b == NatsConnection.LF) {
-                        incoming.setHeaders(this.headers);
+System.out.println("NCR 365 " + incoming);
+                        incoming.headers(this.headers);
                         this.headers = null;
-                        incoming.setData(msgData);
-                        this.connection.deliverMessage(incoming);
+                        incoming.data(msgData);
+                        this.connection.deliverMessage(incoming.build());
                         msgData = null;
                         msgDataPosition = 0;
                         // TODO just for test
@@ -622,7 +623,9 @@ class NatsConnectionReader implements Runnable {
 
         int incomingLength = parseLength(lengthChars);
 
-        this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
+        this.incoming = new NatsMessage.IncomingBuilder()
+                .sid(sid).subject(subject).replyTo(replyTo).protocolLength(protocolLineLength);
+
         this.mode = Mode.GATHER_DATA;
         this.msgData = new byte[incomingLength];
         this.msgDataPosition = 0;
@@ -652,6 +655,6 @@ class NatsConnectionReader implements Runnable {
     }
 
     public NatsMessage getIncoming() {
-        return incoming;
+        return incoming == null ? null : incoming.build();
     }
 }
