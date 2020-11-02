@@ -23,8 +23,8 @@ public class NatsMessagePublishBuilderTest {
 
         assertNotNull(message.getHeaders());
         assertEquals(2, message.getHeaders().size());
-        assertEquals(2, message.getHeaders().get("header1").size());
-        assertEquals(1, message.getHeaders().get("header2").size());
+        assertEquals(2, message.getHeaders().header("header1").size());
+        assertEquals(1, message.getHeaders().header("header2").size());
 
         assertMessageString(message,
                 "HPUB subject replyTo 59 64\r\n",

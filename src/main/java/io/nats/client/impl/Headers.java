@@ -18,28 +18,14 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public class Headers implements Iterable<Header> {
-	private Map<String, Header> headerMap = new HashMap<>();
+	private final Map<String, Header> headerMap = new HashMap<>();
 
 	public Headers add(Header header) {
-		Header headerForKey = headerMap.get(header.getKey());
-		if (headerForKey == null) {
-			headerMap.put(header.getKey(), header);
-		}
-		else {
-			headerForKey.add(header.getValues());
-		}
-		return this;
+		return add(header.getKey(), header.getValues());
 	}
 
 	public Headers add(String key, String... values) {
-		Header headerForKey = headerMap.get(key);
-		if (headerForKey == null) {
-			headerMap.put(key, new Header(key, values));
-		}
-		else {
-			headerForKey.add(values);
-		}
-		return this;
+		return add(key, Arrays.asList(values));
 	}
 
 	public Headers add(String key, Collection<String> values) {
@@ -53,14 +39,31 @@ public class Headers implements Iterable<Header> {
 		return this;
 	}
 
-	public Headers add(Headers headers) {
-		headers.forEach(this::add);
+	public Headers set(Header header) {
+		return set(header.getKey(), header.getValues());
+	}
+
+	public Headers set(String key, String... values) {
+		return set(key, Arrays.asList(values));
+	}
+
+	public Headers set(String key, Collection<String> values) {
+		headerMap.put(key, new Header(key, values));
 		return this;
 	}
 
-	public Headers add(Map<String, Collection<String>> map) {
-		map.forEach(this::add);
-		return this;
+	public boolean remove(String... keys) {
+		return remove(Arrays.asList(keys));
+	}
+
+	public boolean remove(Collection<String> keys) {
+		boolean changed = false;
+		for (String key : keys) {
+			if (headerMap.remove(key) != null) {
+				changed = true;
+			}
+		}
+		return changed;
 	}
 
 	public int size() {
@@ -71,17 +74,29 @@ public class Headers implements Iterable<Header> {
 		return headerMap.isEmpty();
 	}
 
+	public void clear() {
+		headerMap.clear();
+	}
+
 	public boolean containsKey(String key) {
 		return headerMap.containsKey(key);
 	}
 
-	public Header get(String key) {
+	public Header header(String key) {
 		return headerMap.get(key);
 	}
 
-	public Collection<String> getValues(String key) {
+	public Collection<String> headerValues(String key) {
 		Header header = headerMap.get(key);
 		return header == null ? null : header.getValues();
+	}
+
+	public Set<String> keys() {
+		return headerMap.keySet();
+	}
+
+	public Collection<Header> headers() {
+		return Collections.unmodifiableCollection(headerMap.values());
 	}
 
 	public Stream<Header> stream() {
@@ -101,11 +116,5 @@ public class Headers implements Iterable<Header> {
 	@Override
 	public Spliterator<Header> spliterator() {
 		return headerMap.values().spliterator();
-	}
-
-	public Collection<Header> getHeaders() {
-		return headerMap == null || headerMap.isEmpty()
-				? Collections.emptyList()
-				: Collections.unmodifiableCollection(headerMap.values());
 	}
 }

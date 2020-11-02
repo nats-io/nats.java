@@ -8,29 +8,10 @@ import java.util.Collections;
 
 import static org.junit.Assert.*;
 
-public class HeaderTests {
-
-    private static final String KEY = "key";
-    private static final String VAL1 = "val1";
-    private static final String VAL2 = "val2";
-    private static final String VAL3 = "val3";
-    private static final String EMPTY = "";
-    private static final String ANY_VAL = "matters-it-does-not";
-
-    interface IllegalArgumentHandler {
-        void execute();
-    }
-
-    private void assertIllegalArgument(IllegalArgumentHandler handler) {
-        try {
-            handler.execute();
-            fail("IllegalArgumentException was expected to be thrown");
-        } catch (IllegalArgumentException shouldBeThrown) {
-        }
-    }
+public class HeaderTests extends AbstractHeaderTest {
 
     @Test
-    public void header_keyCannotBeNullOrEmpty() {
+    public void keyCannotBeNullOrEmpty() {
         // constructor
         assertIllegalArgument(() -> new Header(null, VAL1));
         assertIllegalArgument(() -> new Header(null, VAL1, VAL2));
@@ -41,166 +22,150 @@ public class HeaderTests {
     }
 
     @Test
-    public void header_valuesCannotBeNullOrEmpty() {
+    public void valuesCannotBeNullOrEmpty() {
         // constructor
-        assertIllegalArgument(() -> new Header(KEY, (String) null));
-        assertIllegalArgument(() -> new Header(KEY, EMPTY));
-        assertIllegalArgument(() -> new Header(KEY, ANY_VAL, EMPTY));
-        assertIllegalArgument(() -> new Header(KEY, ANY_VAL, null));
-        assertIllegalArgument(() -> new Header(KEY, (Collection<String>) null));
-        assertIllegalArgument(() -> new Header(KEY, Arrays.asList(KEY, EMPTY)));
-        assertIllegalArgument(() -> new Header(KEY, Arrays.asList(KEY, null)));
+        assertIllegalArgument(() -> new Header(KEY1, (String) null));
+        assertIllegalArgument(() -> new Header(KEY1, EMPTY));
+        assertIllegalArgument(() -> new Header(KEY1, ANY_VAL, EMPTY));
+        assertIllegalArgument(() -> new Header(KEY1, ANY_VAL, null));
+        assertIllegalArgument(() -> new Header(KEY1, (Collection<String>) null));
+        assertIllegalArgument(() -> new Header(KEY1, Arrays.asList(KEY1, EMPTY)));
+        assertIllegalArgument(() -> new Header(KEY1, Arrays.asList(KEY1, null)));
 
         // regular setters
-        assertIllegalArgument(() -> starterHeader().setValues(EMPTY));
-        assertIllegalArgument(() -> starterHeader().setValues((String) null));
-        assertIllegalArgument(() -> starterHeader().setValues(ANY_VAL, EMPTY));
-        assertIllegalArgument(() -> starterHeader().setValues(ANY_VAL, null));
-        assertIllegalArgument(() -> starterHeader().setValues((Collection<String>) null));
-        assertIllegalArgument(() -> starterHeader().setValues(Arrays.asList(KEY, EMPTY)));
-        assertIllegalArgument(() -> starterHeader().setValues(Arrays.asList(KEY, null)));
+        assertIllegalArgument(() -> testHeader().setValues(EMPTY));
+        assertIllegalArgument(() -> testHeader().setValues((String) null));
+        assertIllegalArgument(() -> testHeader().setValues(ANY_VAL, EMPTY));
+        assertIllegalArgument(() -> testHeader().setValues(ANY_VAL, null));
+        assertIllegalArgument(() -> testHeader().setValues((Collection<String>) null));
+        assertIllegalArgument(() -> testHeader().setValues(Arrays.asList(KEY1, EMPTY)));
+        assertIllegalArgument(() -> testHeader().setValues(Arrays.asList(KEY1, null)));
 
         // fluent setters
-        assertIllegalArgument(() -> starterHeader().values(EMPTY));
-        assertIllegalArgument(() -> starterHeader().values((String) null));
-        assertIllegalArgument(() -> starterHeader().values(ANY_VAL, EMPTY));
-        assertIllegalArgument(() -> starterHeader().values(ANY_VAL, null));
-        assertIllegalArgument(() -> starterHeader().values((Collection<String>) null));
-        assertIllegalArgument(() -> starterHeader().values(Arrays.asList(KEY, EMPTY)));
-        assertIllegalArgument(() -> starterHeader().values(Arrays.asList(KEY, null)));
+        assertIllegalArgument(() -> testHeader().values(EMPTY));
+        assertIllegalArgument(() -> testHeader().values((String) null));
+        assertIllegalArgument(() -> testHeader().values(ANY_VAL, EMPTY));
+        assertIllegalArgument(() -> testHeader().values(ANY_VAL, null));
+        assertIllegalArgument(() -> testHeader().values((Collection<String>) null));
+        assertIllegalArgument(() -> testHeader().values(Arrays.asList(KEY1, EMPTY)));
+        assertIllegalArgument(() -> testHeader().values(Arrays.asList(KEY1, null)));
 
         // adders
-        assertIllegalArgument(() -> starterHeader().add(EMPTY));
-        assertIllegalArgument(() -> starterHeader().add((String) null));
-        assertIllegalArgument(() -> starterHeader().add(ANY_VAL, EMPTY));
-        assertIllegalArgument(() -> starterHeader().add(ANY_VAL, null));
-        assertIllegalArgument(() -> starterHeader().add((Collection<String>) null));
-        assertIllegalArgument(() -> starterHeader().add(Arrays.asList(KEY, EMPTY)));
-        assertIllegalArgument(() -> starterHeader().add(Arrays.asList(KEY, null)));
+        assertIllegalArgument(() -> testHeader().add(EMPTY));
+        assertIllegalArgument(() -> testHeader().add((String) null));
+        assertIllegalArgument(() -> testHeader().add(ANY_VAL, EMPTY));
+        assertIllegalArgument(() -> testHeader().add(ANY_VAL, null));
+        assertIllegalArgument(() -> testHeader().add((Collection<String>) null));
+        assertIllegalArgument(() -> testHeader().add(Arrays.asList(KEY1, EMPTY)));
+        assertIllegalArgument(() -> testHeader().add(Arrays.asList(KEY1, null)));
 
         // remove
-        assertIllegalArgument(() -> starterHeader().remove(VAL1));
-        assertIllegalArgument(() -> starterHeader(VAL1, VAL2).remove(VAL1, VAL2));
-        assertIllegalArgument(() -> starterHeader().remove(Collections.singletonList(VAL1)));
-        assertIllegalArgument(() -> starterHeader(VAL1, VAL2).remove(Arrays.asList(VAL1, VAL2)));
+        assertIllegalArgument(() -> testHeader().remove(VAL1));
+        assertIllegalArgument(() -> testHeader(VAL1, VAL2).remove(VAL1, VAL2));
+        assertIllegalArgument(() -> testHeader().remove(Collections.singletonList(VAL1)));
+        assertIllegalArgument(() -> testHeader(VAL1, VAL2).remove(Arrays.asList(VAL1, VAL2)));
     }
 
     @Test
-    public void header_getKey_works() {
-        assertEquals(KEY, starterHeader().getKey());
+    public void getKey_works() {
+        assertEquals(KEY1, testHeader().getKey());
     }
 
     @Test
-    public void header_adders_work() {
-        Header header = starterHeader();
+    public void adders_work() {
+        Header header = testHeader();
         assertFalse(header.add(VAL1)); // value is already in there, and duplicates are ignored
-        assertHeadersContains(header, VAL1);
+        assertContainsExactly(header, VAL1);
 
-        header = starterHeader();
+        header = testHeader();
         assertTrue(header.add(VAL2));
-        assertHeadersContains(header, VAL1, VAL2);
+        assertContainsExactly(header, VAL1, VAL2);
 
-        header = starterHeader();
+        header = testHeader();
         assertTrue(header.add(VAL1, VAL2));
-        assertHeadersContains(header, VAL1, VAL2);
+        assertContainsExactly(header, VAL1, VAL2);
 
-        header = starterHeader();
+        header = testHeader();
         assertTrue(header.add(VAL2, VAL3));
-        assertHeadersContains(header, VAL1, VAL2, VAL3);
+        assertContainsExactly(header, VAL1, VAL2, VAL3);
 
-        header = starterHeader();
+        header = testHeader();
         assertTrue(header.add(Arrays.asList(VAL1, VAL2)));
-        assertHeadersContains(header, VAL1, VAL2);
+        assertContainsExactly(header, VAL1, VAL2);
 
-        header = starterHeader();
+        header = testHeader();
         assertTrue(header.add(Arrays.asList(VAL2, VAL3)));
-        assertHeadersContains(header, VAL1, VAL2, VAL3);
+        assertContainsExactly(header, VAL1, VAL2, VAL3);
     }
 
     @Test
-    public void header_regularSetters_work() {
-        assertHeadersContains(starterHeader(), VAL1);
+    public void regularSetters_work() {
+        assertContainsExactly(testHeader(), VAL1);
 
-        Header header = starterHeader();
+        Header header = testHeader();
         header.setValues(VAL2);
-        assertHeadersContains(header, VAL2);
+        assertContainsExactly(header, VAL2);
 
-        header = starterHeader();
+        header = testHeader();
         header.setValues(VAL2, VAL3);
-        assertHeadersContains(header, VAL2, VAL3);
+        assertContainsExactly(header, VAL2, VAL3);
 
-        header = starterHeader();
+        header = testHeader();
         header.setValues(Collections.singletonList(VAL2));
-        assertHeadersContains(header, VAL2);
+        assertContainsExactly(header, VAL2);
 
-        header = starterHeader();
+        header = testHeader();
         header.setValues(Arrays.asList(VAL2, VAL3));
-        assertHeadersContains(header, VAL2, VAL3);
+        assertContainsExactly(header, VAL2, VAL3);
     }
 
     @Test
-    public void header_fluentSetters_work() {
-        assertHeadersContains(starterHeader(), VAL1);
+    public void fluentSetters_work() {
+        assertContainsExactly(testHeader(), VAL1);
 
-        Header header = starterHeader().values(VAL2);
-        assertHeadersContains(header, VAL2);
+        Header header = testHeader().values(VAL2);
+        assertContainsExactly(header, VAL2);
 
-        header = starterHeader().values(VAL2, VAL3);
-        assertHeadersContains(header, VAL2, VAL3);
+        header = testHeader().values(VAL2, VAL3);
+        assertContainsExactly(header, VAL2, VAL3);
 
-        header = starterHeader().values(Collections.singletonList(VAL2));
-        assertHeadersContains(header, VAL2);
+        header = testHeader().values(Collections.singletonList(VAL2));
+        assertContainsExactly(header, VAL2);
 
-        header = starterHeader().values(Arrays.asList(VAL2, VAL3));
-        assertHeadersContains(header, VAL2, VAL3);
+        header = testHeader().values(Arrays.asList(VAL2, VAL3));
+        assertContainsExactly(header, VAL2, VAL3);
     }
 
     @Test
-    public void header_removes_work() {
-        Header header = starterHeader();
+    public void removes_work() {
+        Header header = testHeader();
         assertFalse(header.remove(VAL2));
-        assertHeadersContains(header, VAL1);
+        assertContainsExactly(header, VAL1);
 
         assertFalse(header.remove(VAL2, VAL3));
-        assertHeadersContains(header, VAL1);
+        assertContainsExactly(header, VAL1);
 
         assertFalse(header.remove(Arrays.asList(VAL2, VAL3)));
-        assertHeadersContains(header, VAL1);
+        assertContainsExactly(header, VAL1);
 
-        header = starterHeader(VAL1, VAL2);
+        header = testHeader(VAL1, VAL2);
         assertTrue(header.remove(VAL2));
-        assertHeadersContains(header, VAL1);
+        assertContainsExactly(header, VAL1);
 
-        header = starterHeader(VAL1, VAL2, VAL3);
+        header = testHeader(VAL1, VAL2, VAL3);
         assertTrue(header.remove(VAL2, VAL3));
-        assertHeadersContains(header, VAL1);
+        assertContainsExactly(header, VAL1);
 
-        header = starterHeader(VAL1, VAL2, VAL3);
+        header = testHeader(VAL1, VAL2, VAL3);
         assertTrue(header.remove(Arrays.asList(VAL2, VAL3)));
-        assertHeadersContains(header, VAL1);
+        assertContainsExactly(header, VAL1);
     }
 
     @Test
-    public void header_equalsAndHashcode_work() {
-        assertEquals(starterHeader(), starterHeader(VAL1));
-        assertNotEquals(starterHeader(), starterHeader(VAL2));
-        assertEquals(starterHeader().hashCode(), starterHeader(VAL1).hashCode());
-        assertNotEquals(starterHeader().hashCode(), starterHeader(VAL2).hashCode());
-    }
-
-    private void assertHeadersContains(Header header, String... values) {
-        assertNotNull(header.getValues());
-        assertEquals(values.length, header.size());
-        for (String v : values) {
-            assertTrue(header.getValues().contains(v));
-        }
-    }
-
-    private Header starterHeader() {
-        return new Header(KEY, VAL1);
-    }
-
-    private Header starterHeader(String... values) {
-        return new Header(KEY, values);
+    public void equalsAndHashcode_work() {
+        assertEquals(testHeader(), testHeader(VAL1));
+        assertNotEquals(testHeader(), testHeader(VAL2));
+        assertEquals(testHeader().hashCode(), testHeader(VAL1).hashCode());
+        assertNotEquals(testHeader().hashCode(), testHeader(VAL2).hashCode());
     }
 }
