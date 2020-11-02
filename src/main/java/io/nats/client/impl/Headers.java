@@ -14,48 +14,112 @@
 package io.nats.client.impl;
 
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 
-public class Headers implements Iterable<Header> {
-	private final Map<String, Header> headerMap = new HashMap<>();
+public class Headers {
+	private static final String KEY_CANNOT_BE_EMPTY_OR_NULL = "Header key cannot be null.";
+	private static final String VALUES_CANNOT_BE_EMPTY_OR_NULL = "Header values cannot be empty or null.";
 
-	public Headers add(Header header) {
-		return add(header.getKey(), header.getValues());
-	}
+	private final Map<String, Set<String>> headerMap = new HashMap<>();
 
-	public Headers add(String key, String... values) {
+	/**
+	 * If the key is present add the values to the set of values for the key.
+	 * If the key is not present, sets the specified values for the key.
+	 * Duplicate values are ignored. Null and empty values are not allowed
+	 *
+	 * @param key the key
+	 * @param values the values
+	 * @return {@code true} if this object did not already contain values for the key
+	 * @throws IllegalArgumentException if the key is null or empty
+	 *         -or- any value is null or empty.
+	 */
+	public boolean add(String key, String... values) {
 		return add(key, Arrays.asList(values));
 	}
 
-	public Headers add(String key, Collection<String> values) {
-		Header headerForKey = headerMap.get(key);
-		if (headerForKey == null) {
-			headerMap.put(key, new Header(key, values));
+	/**
+	 * If the key is present add the values to the set of values for the key.
+	 * If the key is not present, sets the specified values for the key.
+	 * Duplicate values are ignored. Null and empty values are not allowed.
+	 *
+	 * @param key the key
+	 * @param values the values
+	 * @return {@code true} if this object did not already contain the key or the
+	 *         values for the key changed.
+	 * @throws IllegalArgumentException if the key is null or empty
+	 *         -or- if then input collection is null
+	 *         -or- if any item in the collection is null or empty.
+	 */
+	public boolean add(String key, Collection<String> values) {
+		Set<String> validatedSet = validateKeyAndValues(key, values);
+
+		Set<String> currentSet = headerMap.get(key);
+		if (currentSet == null) {
+			headerMap.put(key, validatedSet);
+			return true;
 		}
-		else {
-			headerForKey.add(values);
+
+		return currentSet.addAll(validatedSet);
+	}
+
+	private Set<String> validateKeyAndValues(String key, Collection<String> values) {
+		keyCannotBeNull(key);
+		valuesCannotBeEmptyOrNull(values);
+		Set<String> validatedSet = new HashSet<>();
+		for (String v : values) {
+			valueCannotBeEmptyOrNull(v);
+			validatedSet.add(v);
 		}
-		return this;
+		return validatedSet;
 	}
 
-	public Headers set(Header header) {
-		return set(header.getKey(), header.getValues());
+	/**
+	 * Associates the specified values with the key. If the key was already present
+	 * any existing values are removed and replaced with the new set.
+	 * Duplicate values are ignored. Null and empty values are not allowed
+	 *
+	 * @param key the key
+	 * @param values the values
+	 * @return {@code true} if this object did not already contain values for the key
+	 * @throws IllegalArgumentException if the key is null or empty
+	 *         -or- any value is null or empty.
+	 */
+	public boolean put(String key, String... values) {
+		return put(key, Arrays.asList(values));
 	}
 
-	public Headers set(String key, String... values) {
-		return set(key, Arrays.asList(values));
+	/**
+	 * Associates the specified values with the key. If the key was already present
+	 * any existing values are removed and replaced with the new set.
+	 * Duplicate values are ignored. Null and empty values are not allowed
+	 *
+	 * @param key the key
+	 * @param values the values
+	 * @return {@code true} if this object did not already contain values for the key
+	 * @throws IllegalArgumentException if the key is null or empty
+	 *         -or- if then input collection is null
+	 *         -or- if any item in the collection is null or empty.
+	 */
+	public boolean put(String key, Collection<String> values) {
+		Set<String> validatedSet = validateKeyAndValues(key, values);
+		return headerMap.put(key, validatedSet) == null;
 	}
 
-	public Headers set(String key, Collection<String> values) {
-		headerMap.put(key, new Header(key, values));
-		return this;
-	}
-
+	/**
+	 * Removes each key and its values if the key was present
+	 *
+	 * @param keys the key or keys to remove
+	 * @return {@code true} if any key was present
+	 */
 	public boolean remove(String... keys) {
 		return remove(Arrays.asList(keys));
 	}
 
+	/**
+	 * Removes each key and its values if the key was present
+	 *
+	 * @param keys the key or keys to remove
+	 * @return {@code true} if any key was present
+	 */
 	public boolean remove(Collection<String> keys) {
 		boolean changed = false;
 		for (String key : keys) {
@@ -82,39 +146,43 @@ public class Headers implements Iterable<Header> {
 		return headerMap.containsKey(key);
 	}
 
-	public Header header(String key) {
-		return headerMap.get(key);
+	public Set<String> values(String key) {
+		Set<String> set = headerMap.get(key);
+		return set == null ? null : Collections.unmodifiableSet(set);
 	}
 
-	public Collection<String> headerValues(String key) {
-		Header header = headerMap.get(key);
-		return header == null ? null : header.getValues();
-	}
-
-	public Set<String> keys() {
+	public Set<String> keySet() {
 		return headerMap.keySet();
 	}
 
-	public Collection<Header> headers() {
-		return Collections.unmodifiableCollection(headerMap.values());
+	private void keyCannotBeNull(String key) {
+		if (key == null || key.length() == 0) {
+			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
+		}
 	}
 
-	public Stream<Header> stream() {
-		return headerMap.values().stream();
+	private void valueCannotBeEmptyOrNull(String val) {
+		if (val == null || val.length() == 0) {
+			throw new IllegalArgumentException(VALUES_CANNOT_BE_EMPTY_OR_NULL);
+		}
+	}
+
+	private void valuesCannotBeEmptyOrNull(Collection<String> vals) {
+		if (vals == null || vals.size() == 0) {
+			throw new IllegalArgumentException(VALUES_CANNOT_BE_EMPTY_OR_NULL);
+		}
 	}
 
 	@Override
-	public Iterator<Header> iterator() {
-		return headerMap.values().iterator();
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		Headers headers = (Headers) o;
+		return Objects.equals(headerMap, headers.headerMap);
 	}
 
 	@Override
-	public void forEach(Consumer<? super Header> action) {
-		headerMap.values().forEach(action);
-	}
-
-	@Override
-	public Spliterator<Header> spliterator() {
-		return headerMap.values().spliterator();
+	public int hashCode() {
+		return Objects.hash(headerMap);
 	}
 }

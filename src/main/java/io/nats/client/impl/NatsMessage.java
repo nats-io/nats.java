@@ -199,9 +199,9 @@ public class NatsMessage implements Message {
 
         private void outputHeaders(Headers headers, StringBuilder protocolStringBuilder) {
             if (headers != null) {
-                headers.forEach(header -> {
-                    header.getValues().forEach(value -> {
-                        protocolStringBuilder.append(header.getKey());
+                headers.keySet().forEach(key -> {
+                    headers.values(key).forEach(value -> {
+                        protocolStringBuilder.append(key);
                         protocolStringBuilder.append(COLON_SPACE);
                         protocolStringBuilder.append(value);
                         protocolStringBuilder.append(CRLF);
@@ -214,10 +214,10 @@ public class NatsMessage implements Message {
         private int calculateHeaderLength(Headers headers) {
             AtomicInteger headerLength = new AtomicInteger(2); //closing \r\n
             if (headers != null) {
-                headers.forEach(header -> {
+                headers.keySet().forEach(key -> {
                     // each line will have the key, colon, space, value, \r\n.
-                    int eachLen = header.getKey().length() + 4; // precalculate all but each value
-                    header.getValues().forEach(v -> headerLength.addAndGet(eachLen + v.length()) );
+                    int eachLen = key.length() + 4; // precalculate all but each value
+                    headers.values(key).forEach(v -> headerLength.addAndGet(eachLen + v.length()) );
                 });
             }
             return headerLength.get();

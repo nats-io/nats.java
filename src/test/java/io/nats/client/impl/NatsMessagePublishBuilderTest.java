@@ -12,19 +12,19 @@ public class NatsMessagePublishBuilderTest {
     @Test
     public void testBuilderHPUB() {
 
-        Message message = starterBuilder()
-                .headers(new Headers()
-                        .add("header1", "value1.1")
-                        .add("header1", "value1.2")
-                        .add("header2", "value2.1"))
-                .build();
+        Headers headers = new Headers();
+        headers.put("header1", "value1.1");
+        headers.add("header1", "value1.2");
+        headers.put("header2", "value2.1");
+
+        Message message = starterBuilder().headers(headers).build();
 
         assertStarter(message, false);
 
         assertNotNull(message.getHeaders());
         assertEquals(2, message.getHeaders().size());
-        assertEquals(2, message.getHeaders().header("header1").size());
-        assertEquals(1, message.getHeaders().header("header2").size());
+        assertEquals(2, message.getHeaders().values("header1").size());
+        assertEquals(1, message.getHeaders().values("header2").size());
 
         assertMessageString(message,
                 "HPUB subject replyTo 59 64\r\n",
