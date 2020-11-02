@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.Headers;
+
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
  * publish and send requests with raw strings and byte[] but incoming messages can have a few

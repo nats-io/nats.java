@@ -23,13 +23,21 @@ public class Header {
     private Set<String> values;
 
     public Header(String key, String... values) {
-        setKey(key);
+        initKey(key);
         setValues(values);
     }
 
     public Header(String key, Collection<String> values) {
-        setKey(key);
+        initKey(key);
         setValues(values);
+    }
+
+    // key can only be set in the constructor
+    private void initKey(String key) {
+        if (key == null || key.length() == 0) {
+            throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
+        }
+        this.key = key;
     }
 
     public String getKey() {
@@ -40,11 +48,6 @@ public class Header {
         return Collections.unmodifiableCollection(values);
     }
 
-    public Header key(String key) {
-        setKey(key);
-        return this;
-    }
-
     public Header values(String... values) {
         setValues(values);
         return this;
@@ -53,11 +56,6 @@ public class Header {
     public Header values(Collection<String> values) {
         setValues(values);
         return this;
-    }
-
-    public void setKey(String key) {
-        keyCannotBeEmptyOrNull(key);
-        this.key = key;
     }
 
     public void setValues(String... values) {
@@ -78,24 +76,36 @@ public class Header {
         }
     }
 
-    public Header add(String... values) {
-        if (values != null) {
-            for (String v : values) {
-                valueCannotBeEmptyOrNull(v);
-                this.values.add(v);
-            }
+    public boolean add(String... values) {
+        valuesCannotBeEmptyOrNull(values);
+        boolean changed = false;
+        for (String v : values) {
+            valueCannotBeEmptyOrNull(v);
+            changed = this.values.add(v) || changed; // order is important!
         }
-        return this;
+        return changed;
     }
 
-    public Header add(Collection<String> values) {
-        if (values != null) {
-            for (String v : values) {
-                valueCannotBeEmptyOrNull(v);
-                this.values.add(v);
-            }
+    public boolean add(Collection<String> values) {
+        valuesCannotBeEmptyOrNull(values);
+        boolean changed = false;
+        for (String v : values) {
+            valueCannotBeEmptyOrNull(v);
+            changed = this.values.add(v) || changed; // order is important!
         }
-        return this;
+        return changed;
+    }
+
+    public boolean remove(String... values) {
+        return remove(Arrays.asList(values));
+    }
+
+    public boolean remove(Collection<String> values) {
+        boolean changed = this.values.removeAll(values);
+        if (changed && this.values.size() == 0) {
+            throw new IllegalArgumentException(VALUES_CANNOT_BE_EMPTY_OR_NULL);
+        }
+        return changed;
     }
 
     public int size() {
@@ -112,12 +122,6 @@ public class Header {
 
     public int hashCode() {
         return Objects.hash(key, values);
-    }
-
-    private void keyCannotBeEmptyOrNull(String key) {
-        if (key == null || key.length() == 0) {
-            throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
-        }
     }
 
     private void valueCannotBeEmptyOrNull(String val) {

@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.Headers;
+
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;

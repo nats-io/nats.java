@@ -1,6 +1,5 @@
 package io.nats.client.impl;
 
-import io.nats.client.Headers;
 import io.nats.client.Message;
 import org.junit.Test;
 
@@ -13,7 +12,7 @@ public class NatsMessagePublishBuilderTest {
     @Test
     public void testBuilderHPUB() {
 
-        Message message = testStarter()
+        Message message = starterBuilder()
                 .headers(new Headers()
                         .add("header1", "value1.1")
                         .add("header1", "value1.2")
@@ -45,18 +44,18 @@ public class NatsMessagePublishBuilderTest {
 
     @Test
     public void testBuilderPubUTF8() {
-        Message message = testStarter().utf8mode(true).build();
+        Message message = starterBuilder().utf8mode(true).build();
         assertStarter(message, true);
         assertMessageString(message, "PUB subject replyTo 5");
     }
 
     @Test
     public void testBuilderPubNoUTF8() {
-        Message message = testStarter().build(); // default is utf8Mode false
+        Message message = starterBuilder().build(); // default is utf8Mode false
         assertStarter(message, false);
         assertMessageString(message, "PUB subject replyTo 5");
 
-        message = testStarter().utf8mode(false).build();
+        message = starterBuilder().utf8mode(false).build();
         assertStarter(message, false);
         assertMessageString(message, "PUB subject replyTo 5");
     }
@@ -71,7 +70,7 @@ public class NatsMessagePublishBuilderTest {
         }
     }
 
-    private NatsMessage.PublishBuilder testStarter() {
+    private NatsMessage.PublishBuilder starterBuilder() {
         return new NatsMessage.PublishBuilder()
                 .subject("subject")
                 .replyTo("replyTo")

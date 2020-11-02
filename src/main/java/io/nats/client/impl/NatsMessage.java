@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
-import io.nats.client.Headers;
 import io.nats.client.Message;
 
 import java.nio.ByteBuffer;

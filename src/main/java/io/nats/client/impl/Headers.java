@@ -11,9 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
-
-import io.nats.client.impl.Header;
+package io.nats.client.impl;
 
 import java.util.*;
 import java.util.function.Consumer;
