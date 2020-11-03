@@ -69,53 +69,11 @@ public class AckTests {
                        "}";   
         try {
             Ack ack = new Ack(json.getBytes());
-            assertEquals("test", ack.getStream());
-            assertEquals(42, ack.getSeqno());
+            assertEquals("not.set", ack.getStream());
+            assertEquals(-1, ack.getSeqno());
         }
         catch (Exception e) {
             fail("Unexpected Exception: " + e.getMessage());
         }
-    }    
-    
-    @Test
-    public void testThrowsOnShortString() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String json = "{}";
-            new NatsServerInfo(json);
-            assertFalse(true);
-        });
-    }
-
-    @Test
-    public void testNonAsciiValue() {
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"version\":\"??????\"" +
-                       "}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getServerId(), "myserver");
-        assertEquals(info.getVersion(), "??????");
-    }
-
-    @Test
-    public void testEncodingInString() {
-        String json = "{" +
-                        "\"server_id\":\"\\\\\\b\\f\\n\\r\\t\"" + "," +
-                        "\"go\":\"my\\u0021server\"" + "," +
-                        "\"host\":\"my\\\\host\"" + "," +
-                        "\"version\":\"1.1.1\\t1\"" +
-                       "}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals("\\\b\f\n\r\t", info.getServerId());
-        assertEquals("my!server", info.getGoVersion());
-        assertEquals("my\\host", info.getHost());
-        assertEquals("1.1.1\t1", info.getVersion());
-    }
-
-    @Test
-    public void testInvalidUnicode() {
-        String json = "{\"server_id\":\"\\"+"u33"+"\"}";
-        NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals("u33", info.getServerId());
     }
 }
