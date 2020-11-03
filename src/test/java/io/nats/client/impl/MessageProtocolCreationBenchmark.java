@@ -53,7 +53,7 @@ public class MessageProtocolCreationBenchmark {
         
         start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage(CharBuffer.allocate(0));
+            NatsMessage.getProtocolInstance(CharBuffer.allocate(0));
         }
         end = System.nanoTime();
 

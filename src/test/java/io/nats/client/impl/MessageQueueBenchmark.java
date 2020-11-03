@@ -30,7 +30,7 @@ public class MessageQueueBenchmark {
 
         MessageQueue warm = new MessageQueue(false);
         for (int j = 0; j < msgCount; j++) {
-            msgs[j] = new NatsMessage(buff);
+            msgs[j] = NatsMessage.getProtocolInstance(buff);
             warm.push(msgs[j]);
         }
 

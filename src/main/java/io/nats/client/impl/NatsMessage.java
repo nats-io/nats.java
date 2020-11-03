@@ -224,13 +224,24 @@ public class NatsMessage implements Message {
         }
     }
 
-    // Create a protocol only message to publish
-    NatsMessage(CharBuffer protocol) {
-        ByteBuffer byteBuffer = StandardCharsets.UTF_8.encode(protocol);
-        this.protocolBytes = Arrays.copyOfRange(byteBuffer.array(), byteBuffer.position(), byteBuffer.limit());
-        Arrays.fill(byteBuffer.array(), (byte) 0); // clear sensitive data
-        this.sizeInBytes = this.protocolBytes.length + 2;// for \r\n
+    public static class ProtocolBuilder extends Builder<ProtocolBuilder> {
+        private CharBuffer buffer;
+        public ProtocolBuilder protocol(CharBuffer buffer) { this.buffer = buffer; return this; }
+        public ProtocolBuilder protocol(String protocol)   { return protocol(CharBuffer.wrap(protocol)); }
+
+        @Override
+        public NatsMessage build() {
+            NatsMessage msg = super.build();
+            ByteBuffer byteBuffer = StandardCharsets.UTF_8.encode(buffer);
+            msg.protocolBytes = Arrays.copyOfRange(byteBuffer.array(), byteBuffer.position(), byteBuffer.limit());
+            Arrays.fill(byteBuffer.array(), (byte) 0); // clear sensitive data
+            msg.sizeInBytes = msg.protocolBytes.length + 2;// for \r\n
+            return msg;
+        }
     }
+
+    public static NatsMessage getProtocolInstance(CharBuffer buffer) { return new NatsMessage.ProtocolBuilder().protocol(buffer).build(); }
+    public static NatsMessage getProtocolInstance(String protocol)   { return new NatsMessage.ProtocolBuilder().protocol(protocol).build(); }
 
     public static class IncomingBuilder extends Builder<IncomingBuilder> {
         private String sid;

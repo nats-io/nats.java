@@ -901,17 +901,17 @@ class NatsConnection implements Connection<NatsMessage> {
 
     void sendUnsub(NatsSubscription sub, int after) {
         String sid = sub.getSID();
-        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine());
-        protocolBuilder.append(OP_UNSUB);
-        protocolBuilder.append(" ");
-        protocolBuilder.append(sid);
+        CharBuffer buffer = CharBuffer.allocate(this.options.getMaxControlLine());
+        buffer.append(OP_UNSUB);
+        buffer.append(" ");
+        buffer.append(sid);
 
         if (after > 0) {
-            protocolBuilder.append(" ");
-            protocolBuilder.append(String.valueOf(after));
+            buffer.append(" ");
+            buffer.append(String.valueOf(after));
         }
-        protocolBuilder.flip();
-        NatsMessage unsubMsg = new NatsMessage(protocolBuilder);
+        buffer.flip();
+        NatsMessage unsubMsg = NatsMessage.getProtocolInstance(buffer);
         queueInternalOutgoing(unsubMsg);
     }
 
@@ -955,7 +955,7 @@ class NatsConnection implements Connection<NatsMessage> {
         protocolBuilder.append(" ");
         protocolBuilder.append(sid);
         protocolBuilder.flip();
-        NatsMessage subMsg = new NatsMessage(protocolBuilder);
+        NatsMessage subMsg = NatsMessage.getProtocolInstance(protocolBuilder);
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -1297,7 +1297,7 @@ class NatsConnection implements Connection<NatsMessage> {
             connectString.append(" ");
             connectString.append(connectOptions);
             connectString.flip();
-            NatsMessage msg = new NatsMessage(connectString);
+            NatsMessage msg = NatsMessage.getProtocolInstance(connectString);
             
             queueInternalOutgoing(msg);
         } catch (Exception exp) {
@@ -1339,7 +1339,7 @@ class NatsConnection implements Connection<NatsMessage> {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PING));
+        NatsMessage msg = NatsMessage.getProtocolInstance(NatsConnection.OP_PING);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1354,7 +1354,7 @@ class NatsConnection implements Connection<NatsMessage> {
     }
 
     void sendPong() {
-        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PONG));
+        NatsMessage msg = NatsMessage.getProtocolInstance(NatsConnection.OP_PONG);
         queueInternalOutgoing(msg);
     }
 
