@@ -63,6 +63,7 @@ import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NUID;
 import io.nats.client.Options;
+import io.nats.client.PublishOptions;
 import io.nats.client.Statistics;
 import io.nats.client.Subscription;
 
@@ -813,6 +814,33 @@ class NatsConnection implements Connection {
         }
         queueOutgoing(msg);
     }
+
+    private static boolean isStreamSpecified(String streamName) {
+        return streamName != null && !PublishOptions.unspecifiedStream.equals(streamName);
+    }
+
+    public void publish(String subject, byte[] body, PublishOptions publishOptions) throws InterruptedException, IOException, TimeoutException {
+        if (publishOptions == null || publishOptions.getStreamTimeout() == Duration.ZERO ||
+                !isStreamSpecified(publishOptions.getStream())) {
+            publish(subject, body);
+        } else {
+            Message resp = this.request(subject, body, publishOptions.getStreamTimeout());
+            if (resp == null) {
+                throw new TimeoutException("timeout waiting for jetstream");
+            }
+            Ack ack = new Ack(resp.getData());
+            
+            String ackStream = ack.getStream();
+            if (ackStream == null || ackStream.length() == 0 || ack.getSeqno() == 0) {
+                throw new IOException("Invalid jetstream ack.");
+            }
+
+            String pubStream = publishOptions.getStream(); 
+            if (isStreamSpecified(pubStream) && !pubStream.equals(ackStream)) {
+                throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
+            }
+        }
+    }    
 
     public Subscription subscribe(String subject) {
 

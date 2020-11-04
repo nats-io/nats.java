@@ -25,7 +25,7 @@ public class PublishOptions {
     public static final String unspecifiedStream = "not.set";
 
     private String stream = unspecifiedStream;
-    private Duration timeout = defaultTimeout;
+    private Duration streamTimeout = defaultTimeout;
 
     /**
      * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_CB}, see
@@ -41,7 +41,7 @@ public class PublishOptions {
 
     public PublishOptions(String stream, Duration timeout) {
         this.stream = stream;
-        this.timeout = timeout;
+        this.streamTimeout = timeout;
     }
 
     /**
@@ -57,8 +57,9 @@ public class PublishOptions {
      * @param stream the name fo the stream.
      */
     public void setStream(String stream) {
-        if (stream == null || stream.length() == 0) {
-            throw new IllegalArgumentException("stream cannot be null or empty");
+        if (stream == null || stream.length() == 0 || stream.contains(">") ||
+            stream.contains(".") || stream.contains("*")) {
+            throw new IllegalArgumentException("stream cannot be null, empty, tokenized, or wildcarded");
         }
         this.stream = stream;
     }
@@ -67,15 +68,15 @@ public class PublishOptions {
      * Gets the publish timeout.
      * @return the publish timeout.
      */
-    public Duration getTimeout() {
-        return timeout;
+    public Duration getStreamTimeout() {
+        return streamTimeout;
     }
 
     /**
      * Sets the publish timeout.
      */
-    public void setTimeout(Duration timeout) {
-        this.timeout = timeout;
+    public void setStreamTimeout(Duration timeout) {
+        this.streamTimeout = timeout;
     }
 
     /**
@@ -86,11 +87,14 @@ public class PublishOptions {
     }
 
     /**
-     * 
+     * PublishOptions are created using a Builder. The builder supports chaining and will
+     * create a default set of options if no methods are calls. The builder can also
+     * be created from a properties object using the property names defined with the
+     * prefix PROP_ in this class.
      */
     public static class Builder {
         String stream = PublishOptions.unspecifiedStream;
-        Duration timeout = PublishOptions.defaultTimeout;
+        Duration streamTimeout = PublishOptions.defaultTimeout;
 
         /**
          * Constructs a new publish options Builder with the default values.
@@ -102,7 +106,7 @@ public class PublishOptions {
         public Builder(Properties properties) {
             String s = properties.getProperty(PublishOptions.PROP_PUBLISH_TIMEOUT);
             if (s != null) {
-                timeout = Duration.parse(s);
+                streamTimeout = Duration.parse(s);
             }
 
             s = properties.getProperty((PublishOptions.PROP_STREAM_NAME));
@@ -127,8 +131,8 @@ public class PublishOptions {
          * @param timeout the publish timeout.
          * @return
          */
-        public Builder timeout(Duration timeout) {
-            this.timeout = timeout;
+        public Builder streamTimeout(Duration timeout) {
+            this.streamTimeout = timeout;
             return this;
         }
 
@@ -137,7 +141,7 @@ public class PublishOptions {
          * @return publish options
          */
         public PublishOptions build() {
-            return new PublishOptions(stream, timeout);
+            return new PublishOptions(stream, streamTimeout);
         }
     }
 

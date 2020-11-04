@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -121,6 +122,33 @@ public interface Connection extends AutoCloseable {
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
     public void publish(String subject, byte[] body);
+
+    /**
+     * Send a message to the specified subject and waits for a response from
+     * Jetstream. The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     * 
+     * <pre>
+     * nc = Nats.connect()
+     * nc.publish("destination", "message".getBytes("UTF-8"), Duration.ofSeconds(2))
+     * </pre>
+     * 
+     * where the sender creates a byte array immediately before calling publish.
+     * 
+     * See {@link #publish(String, String, byte[]) publish()} for more details on 
+     * publish during reconnect.
+     * 
+     * @param subject the subject to send the message to
+     * @param body the message body
+     * @param opts publisher options
+     * @return the reply message or null if the timeout is reached
+     * @throws IllegalStateException if the reconnect buffer is exceeded
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the NATS server does not return a response
+     */
+    public void publish(String subject, byte[] body, PublishOptions options) throws InterruptedException, IOException, TimeoutException;
+
+    // TODO - completeable future
 
     /**
      * Send a request to the specified subject, providing a replyTo subject. The

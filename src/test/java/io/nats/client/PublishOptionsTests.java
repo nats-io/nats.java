@@ -26,15 +26,15 @@ public class PublishOptionsTests {
         PublishOptions o = new PublishOptions.Builder().build();
 
         assertEquals(PublishOptions.unspecifiedStream, o.getStream(), "default stream");
-        assertEquals(PublishOptions.defaultTimeout, o.getTimeout(), "default timeout");
+        assertEquals(PublishOptions.defaultTimeout, o.getStreamTimeout(), "default timeout");
     }
 
     @Test
     public void testChainedOptions() {
-        PublishOptions o = new PublishOptions.Builder().stream("foo").timeout(Duration.ofSeconds(99)).build();
+        PublishOptions o = new PublishOptions.Builder().stream("foo").streamTimeout(Duration.ofSeconds(99)).build();
 
-        assertEquals("foo", o.getStream(), "default stream");
-        assertEquals(Duration.ofSeconds(99), o.getTimeout(), "default timeout");
+        assertEquals("foo", o.getStream(), "stream");
+        assertEquals(Duration.ofSeconds(99), o.getStreamTimeout(), "timeout");
     }
 
     @Test
@@ -44,7 +44,7 @@ public class PublishOptionsTests {
         p.setProperty(PublishOptions.PROP_STREAM_NAME, "foo");
         PublishOptions o = new PublishOptions.Builder(p).build();
         assertEquals("foo", o.getStream(), "stream foo");
-        assertEquals(Duration.ofMinutes(20), o.getTimeout(), "20M timeout");
+        assertEquals(Duration.ofMinutes(20), o.getStreamTimeout(), "20M timeout");
 
     }
 }

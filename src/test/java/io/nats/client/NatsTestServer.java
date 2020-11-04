@@ -25,11 +25,16 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.swing.plaf.basic.BasicInternalFrameTitlePane.IconifyAction;
+
+import org.omg.CosNaming._BindingIteratorImplBase;
 
 /**
  * Class to run gnatds for tests. Highly based on the 1.0 client's NatsServer code.
@@ -41,6 +46,7 @@ public class NatsTestServer implements AutoCloseable {
 
     private int port;
     private boolean debug;
+    private boolean jetstream = false;
     private String configFilePath;
     private Process process;
     private String cmdLine;
@@ -103,16 +109,27 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     public NatsTestServer() throws IOException {
-        this(false);
+        this(false, false);
     }
 
     public NatsTestServer(boolean debug) throws IOException {
-        this(NatsTestServer.nextPort(), debug);
+        this(NatsTestServer.nextPort(), debug, false);
+    }   
+
+    public NatsTestServer(boolean debug, boolean jetstream) throws IOException {
+        this(NatsTestServer.nextPort(), debug, jetstream);
     }
 
     public NatsTestServer(int port, boolean debug) {
         this.port = port;
         this.debug = debug;
+        start();
+    }    
+
+    public NatsTestServer(int port, boolean debug, boolean jetstream) {
+        this.port = port;
+        this.debug = debug;
+        this.jetstream = jetstream;
         start();
     }
 
@@ -221,6 +238,10 @@ public class NatsTestServer implements AutoCloseable {
             cmd.add(String.valueOf(port));
         }
 
+        if (this.jetstream) {
+            cmd.add("-js");
+        }
+
         if (this.customArgs != null) {
             cmd.addAll(Arrays.asList(this.customArgs));
         }
@@ -288,6 +309,32 @@ public class NatsTestServer implements AutoCloseable {
 
     public static String getURIForPort(int port) {
         return "nats://localhost:" + port;
+    }
+
+    public void createMemoryStream(String streamName, String subject) throws Exception {
+
+        if (this.process == null) {
+            throw new Exception("Server must be running with jetstream enabled.");
+        }
+
+        Connection c = Nats.connect(this.getURI());
+
+        String payload = "{\"name\":\"" + streamName + "\",\"subjects\":[\"" + subject + "\"],\"retention\":\"limits\",\"max_consumers\":-1,\"max_msgs\":-1,\"max_bytes\":-1,\"max_age\":0,\"max_msg_size\":-1,\"storage\":\"memory\",\"discard\":\"old\",\"num_replicas\":1}";
+
+        try  {
+            Message msg = c.request("$JS.API.STREAM.CREATE." + streamName, payload.getBytes(), Duration.ofSeconds(2));
+            if (msg == null) {
+                throw new Exception("Timeout creating the stream");
+            }
+            String s = new String(msg.getData());
+            if (s.contains("Error")) {
+                throw new Exception("Error creating stream: " + s);
+            }
+        } catch (Exception ex) {
+           throw ex;
+        } finally {
+            c.close();
+        }
     }
 
     public void shutdown(boolean wait) throws InterruptedException {
