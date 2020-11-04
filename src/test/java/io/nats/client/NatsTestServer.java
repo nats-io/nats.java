@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.time.Duration;
@@ -31,10 +30,6 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.swing.plaf.basic.BasicInternalFrameTitlePane.IconifyAction;
-
-import org.omg.CosNaming._BindingIteratorImplBase;
 
 /**
  * Class to run gnatds for tests. Highly based on the 1.0 client's NatsServer code.
