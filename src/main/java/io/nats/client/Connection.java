@@ -130,7 +130,7 @@ public interface Connection extends AutoCloseable {
      * 
      * <pre>
      * nc = Nats.connect()
-     * nc.publish("destination", "message".getBytes("UTF-8"), Duration.ofSeconds(2))
+     * nc.publish("destination", "message".getBytes("UTF-8"), publishOptions)
      * </pre>
      * 
      * where the sender creates a byte array immediately before calling publish.
@@ -140,7 +140,7 @@ public interface Connection extends AutoCloseable {
      * 
      * @param subject the subject to send the message to
      * @param body the message body
-     * @param opts publisher options
+     * @param options publisher options
      * @return the reply message or null if the timeout is reached
      * @throws IllegalStateException if the reconnect buffer is exceeded
      * @throws TimeoutException if the NATS server does not return a response
