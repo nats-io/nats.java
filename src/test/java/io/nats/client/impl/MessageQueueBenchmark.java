@@ -64,7 +64,7 @@ public class MessageQueueBenchmark {
 
         MessageQueue accumulateQueue = new MessageQueue(true);
         for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
+            msgs[j].setNext(null);
         }
         for (int i = 0; i < msgCount; i++) {
             accumulateQueue.push(msgs[i]);
@@ -83,7 +83,7 @@ public class MessageQueueBenchmark {
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
         
         for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
+            msgs[j].setNext(null);
         }
         final MessageQueue pushPopThreadQueue = new MessageQueue(false);
         final Duration timeout = Duration.ofMillis(10);
@@ -127,7 +127,7 @@ public class MessageQueueBenchmark {
         
         final CompletableFuture<Void> go2 = new CompletableFuture<>();
         for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
+            msgs[j].setNext(null);
         }
         final MessageQueue pushPopNowThreadQueue = new MessageQueue(false);
         pusher = new Thread(() -> {
@@ -169,8 +169,8 @@ public class MessageQueueBenchmark {
             
         final CompletableFuture<Void> go3 = new CompletableFuture<>();
         for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
-        }        
+            msgs[j].setNext(null);
+        }
 
         final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true);
         pusher = new Thread(() -> {
@@ -193,7 +193,7 @@ public class MessageQueueBenchmark {
                     NatsMessage cursor = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
                     while (cursor != null) {
                         remaining--;
-                        cursor = cursor.next;
+                        cursor = cursor.getNext();
                     }
                 }
             } catch (Exception exp) {

@@ -240,9 +240,9 @@ class MessageQueue {
                 if (maxSize<0 || (size + s) < maxSize) { // keep going
                     size += s;
                     count++;
-                    
-                    cursor.next = this.queue.poll();
-                    cursor = cursor.next;
+
+                    cursor.setNext(this.queue.poll());
+                    cursor = cursor.getNext();
 
                     if (count == maxMessages) {
                         break;

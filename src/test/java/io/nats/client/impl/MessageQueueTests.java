@@ -270,7 +270,7 @@ public class MessageQueueTests {
     private void checkCount(NatsMessage first, int expected) {
         while (expected > 0) {
             assertNotNull(first);
-            first = first.next;
+            first = first.getNext();
             expected--;
         }
 
@@ -388,7 +388,7 @@ public class MessageQueueTests {
 
             while (msg != null) {
                 count.incrementAndGet();
-                msg = msg.next;
+                msg = msg.getNext();
             }
             tries--;
             Thread.sleep(1);

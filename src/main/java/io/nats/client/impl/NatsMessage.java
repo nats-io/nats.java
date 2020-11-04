@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.Connection;
 import io.nats.client.Message;
 
 import java.nio.ByteBuffer;
@@ -21,7 +20,6 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class NatsMessage implements Message {
@@ -30,12 +28,12 @@ public class NatsMessage implements Message {
     private String replyTo;
     private Headers headers;
     private boolean utf8mode;
+    protected boolean protocol;
     private byte[] data;
     private byte[] protocolBytes;
     private NatsSubscription subscription;
     private long sizeInBytes;
-
-    NatsMessage next; // for linked list
+    private NatsMessage next; // for linked list
 
     static final byte[] digits = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
 
@@ -54,10 +52,12 @@ public class NatsMessage implements Message {
         protected boolean utf8mode;
         protected byte[] data = Message.EMPTY_BODY;
 
-        public T subject(String subject)    { this.subject = subject; return (T)this; }
-        public T replyTo(String replyTo)    { this.replyTo = replyTo; return (T)this; }
-        public T utf8mode(boolean utf8mode) { this.utf8mode = utf8mode; return (T)this; }
-        public T headers(Headers headers)   { this.headers = headers; return (T)this; }
+        protected abstract T self();
+
+        public T subject(String subject)    { this.subject = subject; return self(); }
+        public T replyTo(String replyTo)    { this.replyTo = replyTo; return self(); }
+        public T utf8mode(boolean utf8mode) { this.utf8mode = utf8mode; return self(); }
+        public T headers(Headers headers)   { this.headers = headers; return self(); }
 
         private Headers getHeaders() {
             if (headers == null) {
@@ -66,17 +66,17 @@ public class NatsMessage implements Message {
             return headers;
         }
 
-        public T addHeader(String key, String value) { getHeaders().add(key, value); return (T)this; }
-        public T addHeader(String key, Collection<String> values) { getHeaders().add(key, values); return (T)this; }
+        public T addHeader(String key, String... values) { getHeaders().add(key, values); return self(); }
+        public T putHeader(String key, String... values) { getHeaders().put(key, values); return self(); }
 
         public T data(byte[] data) {
             this.data = data == null ? Message.EMPTY_BODY : data;
-            return (T)this;
+            return self();
         }
 
         public T data(String data, Charset charset) {
             this.data = data == null ? Message.EMPTY_BODY : data.getBytes(charset);
-            return (T)this;
+            return self();
         }
 
         public NatsMessage build() {
@@ -173,13 +173,11 @@ public class NatsMessage implements Message {
                 msg.protocolBytes = new byte[len];
 
                 // Copy everything
-                int pos = 0;
                 msg.protocolBytes[0] = 'P';
                 msg.protocolBytes[1] = 'U';
                 msg.protocolBytes[2] = 'B';
                 msg.protocolBytes[3] = ' ';
-                pos = 4;
-                pos = copy(msg.protocolBytes, pos, subject);
+                int pos = copy(msg.protocolBytes, 4, subject);
                 msg.protocolBytes[pos] = ' ';
                 pos++;
 
@@ -199,14 +197,14 @@ public class NatsMessage implements Message {
 
         private void outputHeaders(Headers headers, StringBuilder protocolStringBuilder) {
             if (headers != null) {
-                headers.keySet().forEach(key -> {
+                headers.keySet().forEach(key ->
                     headers.values(key).forEach(value -> {
                         protocolStringBuilder.append(key);
                         protocolStringBuilder.append(COLON_SPACE);
                         protocolStringBuilder.append(value);
                         protocolStringBuilder.append(CRLF);
-                    });
-                });
+                    })
+                );
             }
             protocolStringBuilder.append(CRLF);
         }
@@ -222,22 +220,28 @@ public class NatsMessage implements Message {
             }
             return headerLength.get();
         }
+
+        @Override protected PublishBuilder self() { return this; }
     }
 
     public static class ProtocolBuilder extends Builder<ProtocolBuilder> {
         private CharBuffer buffer;
+
         public ProtocolBuilder protocol(CharBuffer buffer) { this.buffer = buffer; return this; }
         public ProtocolBuilder protocol(String protocol)   { return protocol(CharBuffer.wrap(protocol)); }
 
         @Override
         public NatsMessage build() {
-            NatsMessage msg = super.build();
+            NatsMessage msg = new NatsMessage();
+            msg.protocol = true;
             ByteBuffer byteBuffer = StandardCharsets.UTF_8.encode(buffer);
             msg.protocolBytes = Arrays.copyOfRange(byteBuffer.array(), byteBuffer.position(), byteBuffer.limit());
             Arrays.fill(byteBuffer.array(), (byte) 0); // clear sensitive data
             msg.sizeInBytes = msg.protocolBytes.length + 2;// for \r\n
             return msg;
         }
+
+        @Override protected ProtocolBuilder self() { return this; }
     }
 
     public static NatsMessage getProtocolInstance(CharBuffer buffer) { return new NatsMessage.ProtocolBuilder().protocol(buffer).build(); }
@@ -257,14 +261,16 @@ public class NatsMessage implements Message {
             msg.sizeInBytes = protocolLineLength + 2 + data.length + 2; // for \r\n
             return msg;
         }
+
+        @Override protected IncomingBuilder self() { return this; }
     }
 
-    boolean isProtocol() {
-        return this.subject == null;
+    public boolean isProtocol() {
+        return protocol;
     }
 
     public int getControlLineLength() {
-        return (this.protocolBytes != null) ? this.protocolBytes.length + 2 : -1;
+        return this.protocolBytes == null ? -1 : this.protocolBytes.length + 2;
     }
 
     void setSubscription(NatsSubscription sub) {
@@ -276,7 +282,7 @@ public class NatsMessage implements Message {
     }
 
     @Override
-    public Connection getConnection() {
+    public NatsConnection getConnection() {
         return subscription == null ? null : subscription.connection;
     }
 
@@ -332,5 +338,13 @@ public class NatsMessage implements Message {
         }
 
         return pos;
+    }
+
+    public NatsMessage getNext() {
+        return next;
+    }
+
+    public void setNext(NatsMessage next) {
+        this.next = next;
     }
 }

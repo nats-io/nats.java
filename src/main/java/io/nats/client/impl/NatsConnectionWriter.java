@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Options;
+
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.charset.StandardCharsets;
@@ -24,8 +26,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
-
-import io.nats.client.Options;
 
 class NatsConnectionWriter implements Runnable {
 
@@ -137,7 +137,7 @@ class NatsConnectionWriter implements Runnable {
                             dataPort.write(sendBuffer, sendPosition);
                             connection.getNatsStatistics().registerWrite(sendPosition);
                             sendPosition = 0;
-                            msg = msg.next;
+                            msg = msg.getNext();
 
                             if (msg == null) {
                                 break;
@@ -170,7 +170,7 @@ class NatsConnectionWriter implements Runnable {
                     stats.incrementOutMsgs();
                     stats.incrementOutBytes(size);
 
-                    msg = msg.next;
+                    msg = msg.getNext();
                 }
 
                 dataPort.write(sendBuffer, sendPosition);
