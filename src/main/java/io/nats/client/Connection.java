@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;

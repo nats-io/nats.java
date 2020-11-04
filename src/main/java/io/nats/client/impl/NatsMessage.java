@@ -15,72 +15,101 @@ package io.nats.client.impl;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
 class NatsMessage implements Message {
-    private String sid;
-    private String subject;
-    private String replyTo;
+    private ByteBuffer sid;
+    private ByteBuffer subject;
+    private ByteBuffer replyTo;
     private ByteBuffer data;
     private ByteBuffer protocolBytes;
+    private ByteBuffer messageBuffer = null;
     private NatsSubscription subscription;
     private Integer protocolLength = null;
 
     NatsMessage next; // for linked list
 
     // Create a message to publish
-    NatsMessage(String subject, String replyTo, ByteBuffer data, boolean utf8mode) {
-        this.subject = subject;
-        this.replyTo = replyTo;
-        this.data = data;
-        Charset charset;
-
+    NatsMessage(ByteBuffer subject, ByteBuffer replyTo, ByteBuffer data, boolean utf8mode) {
         // Calculate the length in bytes
-        int size = (data != null) ? data.limit() : 0;
-        int len = fastIntLength(size) + 4;
-        if (replyTo != null) {
-            if (utf8mode) {
-                len += fastUtf8Length(replyTo) + 1;
-            } else {
-                len += replyTo.length() + 1;
-            }
-        }
-        if (utf8mode) {
-            len += fastUtf8Length(subject) + 1;
-            charset = StandardCharsets.UTF_8;
+        int size;
+        int len = 6;
+        if (data != null) {
+            size = data.remaining();
+            len += size + 2;
         } else {
-            len += subject.length() + 1;
-            charset = StandardCharsets.US_ASCII;
+            size = 0;
         }
-        this.protocolBytes = ByteBuffer.allocate(len);
-        protocolBytes.put((byte)'P').put((byte)'U').put((byte)'B').put((byte)' ');
-        protocolBytes.put(subject.getBytes(charset));
-        protocolBytes.put((byte)' ');
+        int dataSize = fastIntLength(size);
+        len += dataSize;
+        if (replyTo != null) {
+            len += replyTo.remaining() + 1;
+        }
+        len += subject.remaining() + 1;
+        this.messageBuffer = ByteBuffer.allocate(len);
+        if (data != null)
+            len -= (data.remaining() + 2);
+        len -= 2;
+        this.messageBuffer.limit(len);
+        this.protocolBytes = this.messageBuffer.slice();
+        this.messageBuffer.limit(subject.remaining() + 4);
+        this.messageBuffer.position(4);
+        this.subject = this.messageBuffer.slice();
+        this.messageBuffer.clear();
+        messageBuffer.put((byte)'P').put((byte)'U').put((byte)'B').put((byte)' ');
+        messageBuffer.put(subject.asReadOnlyBuffer());
+        messageBuffer.put((byte)' ');
 
         if (replyTo != null) {
-            protocolBytes.put(replyTo.getBytes(charset));
-            protocolBytes.put((byte)' ');
+            this.messageBuffer.mark();
+            this.messageBuffer.limit(this.messageBuffer.position() + replyTo.remaining());
+            this.replyTo = this.messageBuffer.slice();
+            this.messageBuffer.reset();
+            this.messageBuffer.limit(this.messageBuffer.capacity());
+            messageBuffer.put(replyTo.asReadOnlyBuffer());
+            messageBuffer.put((byte)' ');
+        } else {
+            this.replyTo = null;
         }
 
         if (size > 0) {
-            int base = protocolBytes.limit();
+            int base = messageBuffer.position() + dataSize;
             for (int i = size; i > 0; i /= 10) {
                 base--;
-                protocolBytes.put(base, (byte)(i % 10 + (byte)'0'));
+                messageBuffer.put(base, (byte)(i % 10 + (byte)'0'));
             }
+            messageBuffer.position(messageBuffer.position() + dataSize);
         } else {
-            protocolBytes.put((byte)'0');
+            messageBuffer.put((byte)'0');
         }
-        protocolBytes.clear();
+        messageBuffer.put((byte)'\r');
+        messageBuffer.put((byte)'\n');
+
+        if (data != null) {
+            this.messageBuffer.mark();
+            this.messageBuffer.limit(this.messageBuffer.position() + data.remaining());
+            this.data = this.messageBuffer.slice();
+            this.messageBuffer.reset();
+            this.messageBuffer.limit(this.messageBuffer.capacity());
+            messageBuffer.put(data.asReadOnlyBuffer());
+            messageBuffer.put((byte)'\r');
+            messageBuffer.put((byte)'\n');
+        } else {
+            this.data = null;
+        }
+
+        messageBuffer.clear();
+    }
+
+    NatsMessage(String subject, String replyTo, ByteBuffer data, boolean utf8mode) {
+        this(NatsEncoder.encodeSubject(subject), (replyTo != null) ? NatsEncoder.encodeReplyTo(replyTo) : null, data, utf8mode);
     }
 
     NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
-        this(subject, replyTo, ByteBuffer.wrap(data), utf8mode);
+        this(NatsEncoder.encodeSubject(subject), (replyTo != null) ? NatsEncoder.encodeReplyTo(replyTo) : null, ByteBuffer.wrap(data), utf8mode);
     }
 
     // Create a protocol only message to publish
@@ -89,16 +118,30 @@ class NatsMessage implements Message {
             this.protocolBytes = ByteBuffer.allocate(0);
         } else {
             protocol.mark();
-            this.protocolBytes = ByteBuffer.allocate(fastUtf8Length(protocol));
+            this.messageBuffer = ByteBuffer.allocate(fastUtf8Length(protocol) + 2);
             protocol.reset();
-            StandardCharsets.UTF_8.newEncoder().encode(protocol, this.protocolBytes, true);
-            protocolBytes.clear();
+            NatsEncoder.encodeProtocol(protocol, this.messageBuffer, true);
+            this.messageBuffer.flip();
+            this.protocolBytes = this.messageBuffer.slice();
+            this.messageBuffer.clear();
+            this.messageBuffer.position(this.messageBuffer.limit() - 2);
+            this.messageBuffer.put((byte)'\r');
+            this.messageBuffer.put((byte)'\n');
+            this.messageBuffer.flip();
         }
+    }
+
+    // Create a protocol only message to publish
+    NatsMessage(ByteBuffer protocol) {
+        this.messageBuffer = protocol;
+        this.messageBuffer.limit(this.messageBuffer.limit() - 2);
+        this.protocolBytes = this.messageBuffer.slice();
+        this.messageBuffer.clear();
     }
 
     // Create an incoming message for a subscriber
     // Doesn't check controlline size, since the server sent us the message
-    NatsMessage(String sid, String subject, String replyTo, int protocolLength) {
+    NatsMessage(ByteBuffer sid, ByteBuffer subject, ByteBuffer replyTo, int protocolLength) {
         this.sid = sid;
         this.subject = subject;
         if (replyTo != null) {
@@ -106,6 +149,15 @@ class NatsMessage implements Message {
         }
         this.protocolLength = protocolLength;
         this.data = null; // will set data and size after we read it
+    }
+
+    NatsMessage(String sid, String subject, String replyTo, int protocolLength) {
+        this(
+                NatsEncoder.encodeSID(sid),
+                NatsEncoder.encodeSubject(subject),
+                (replyTo != null) ? NatsEncoder.encodeReplyTo(replyTo) : null,
+                protocolLength
+        );
     }
 
     private static int fastUtf8Length(CharSequence cs) {
@@ -170,9 +222,19 @@ class NatsMessage implements Message {
         return this.subject == null;
     }
 
+    ByteBuffer getProtocolBuffer() {
+        return this.protocolBytes;
+    }
+
     // Will be null on an incoming message
     byte[] getProtocolBytes() {
-        return this.protocolBytes.array();
+        if (this.protocolBytes == null)
+            return null;
+        if (this.messageBuffer == null)
+            return this.protocolBytes.array();
+        byte[] bytes = new byte[this.protocolBytes.remaining()];
+        this.protocolBytes.asReadOnlyBuffer().get(bytes);
+        return bytes;
     }
 
     int getControlLineLength() {
@@ -180,6 +242,8 @@ class NatsMessage implements Message {
     }
 
     long getSizeInBytes() {
+        if (this.messageBuffer != null)
+            return this.messageBuffer.limit();
         long sizeInBytes = 0;
         if (this.protocolBytes != null) {
             sizeInBytes += this.protocolBytes.limit();
@@ -196,6 +260,10 @@ class NatsMessage implements Message {
     }
 
     public String getSID() {
+        return NatsEncoder.decodeSID(this.sid.asReadOnlyBuffer());
+    }
+
+    public ByteBuffer getSIDBuffer() {
         return this.sid;
     }
 
@@ -221,15 +289,38 @@ class NatsMessage implements Message {
     }
 
     public String getSubject() {
+        return NatsEncoder.decodeSubject(this.subject.asReadOnlyBuffer());
+    }
+
+    public ByteBuffer getSubjectBuffer() {
         return this.subject;
     }
 
     public String getReplyTo() {
+        if (this.replyTo == null)
+            return null;
+
+        return NatsEncoder.decodeReplyTo(this.replyTo.asReadOnlyBuffer());
+    }
+
+    public ByteBuffer getReplyToBuffer() {
         return this.replyTo;
     }
 
     public byte[] getData() {
-        return this.data.array();
+        if (this.messageBuffer == null)
+            return this.data.array();
+        byte[] bytes = new byte[this.data.remaining()];
+        this.data.asReadOnlyBuffer().get(bytes);
+        return bytes;
+    }
+
+    public ByteBuffer getDataBuffer() {
+        return this.data;
+    }
+
+    public ByteBuffer getMessageBuffer() {
+        return this.messageBuffer;
     }
 
     public Subscription getSubscription() {

@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
@@ -44,7 +45,7 @@ public class NUIDTests {
         NUID gnuid = NUID.getInstance();
         gnuid.setSeq(NUID.maxSeq);
         // copy
-        char[] oldPre = Arrays.copyOf(gnuid.getPre(), gnuid.getPre().length);
+        byte[] oldPre = Arrays.copyOf(gnuid.getPre(), gnuid.getPre().length);
         gnuid.next();
         assertNotEquals(oldPre, gnuid.getPre(), "Expected new pre, got the old one");
     }

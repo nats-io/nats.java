@@ -15,9 +15,8 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
-import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -37,7 +36,7 @@ class NatsConnectionWriter implements Runnable {
     private final AtomicBoolean reconnectMode;
     private final ReentrantLock startStopLock;
 
-    private byte[] sendBuffer;
+    private ByteBuffer sendBuffer;
 
     private MessageQueue outgoing;
     private MessageQueue reconnectOutgoing;
@@ -53,7 +52,7 @@ class NatsConnectionWriter implements Runnable {
 
         Options options = connection.getOptions();
         int bufSize = options.getBufferSize();
-        this.sendBuffer = new byte[bufSize];
+        this.sendBuffer = ByteBuffer.allocate(bufSize);
         
         outgoing = new MessageQueue(true,
             options.getMaxMessagesInOutgoingQueue(),
@@ -89,11 +88,8 @@ class NatsConnectionWriter implements Runnable {
                 this.outgoing.pause();
                 this.reconnectOutgoing.pause();
                 // Clear old ping/pong requests
-                byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
-                byte[] pongRequest = NatsConnection.OP_PONG.getBytes(StandardCharsets.UTF_8);
-
                 this.outgoing.filter((msg) -> {
-                    return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());
+                    return NatsConnection.OP_PING.equals(msg.getProtocolBytes()) || NatsConnection.OP_PONG.equals(msg.getProtocolBytes());
                 });
 
         } finally {
@@ -114,13 +110,12 @@ class NatsConnectionWriter implements Runnable {
             int maxAccumulate = Options.MAX_MESSAGES_IN_NETWORK_BUFFER;
 
             while (this.running.get()) {
-                int sendPosition = 0;
                 NatsMessage msg = null;
                 
                 if (this.reconnectMode.get()) {
-                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxAccumulate, reconnectWait);
+                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.remaining(), maxAccumulate, reconnectWait);
                 } else {
-                    msg = this.outgoing.accumulate(this.sendBuffer.length, maxAccumulate, waitForMessage);
+                    msg = this.outgoing.accumulate(this.sendBuffer.remaining(), maxAccumulate, waitForMessage);
                 }
 
                 if (msg == null) { // Make sure we are still running
@@ -130,13 +125,14 @@ class NatsConnectionWriter implements Runnable {
                 while (msg != null) {
                     long size = msg.getSizeInBytes();
 
-                    if (sendPosition + size > sendBuffer.length) {
-                        if (sendPosition == 0) { // have to resize
-                            this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2)];
+                    if (size > sendBuffer.remaining()) {
+                        if (sendBuffer.position() == 0) { // have to resize
+                            this.sendBuffer = ByteBuffer.allocate((int)Math.max(sendBuffer.capacity() + size, sendBuffer.capacity() * 2));
                         } else { // else send and go to next message
-                            dataPort.write(sendBuffer, sendPosition);
-                            connection.getNatsStatistics().registerWrite(sendPosition);
-                            sendPosition = 0;
+                            sendBuffer.flip();
+                            dataPort.write(sendBuffer);
+                            connection.getNatsStatistics().registerWrite(sendBuffer.position());
+                            sendBuffer.compact();
                             msg = msg.next;
 
                             if (msg == null) {
@@ -145,20 +141,12 @@ class NatsConnectionWriter implements Runnable {
                         }
                     }
 
-                    byte[] bytes = msg.getProtocolBytes();
-                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                    sendPosition += bytes.length;
-
-                    sendBuffer[sendPosition++] = '\r';
-                    sendBuffer[sendPosition++] = '\n';
-
-                    if (!msg.isProtocol()) {
-                        bytes = msg.getData();
-                        System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                        sendPosition += bytes.length;
-
-                        sendBuffer[sendPosition++] = '\r';
-                        sendBuffer[sendPosition++] = '\n';
+                    ByteBuffer messageBuf = msg.getMessageBuffer().asReadOnlyBuffer();
+                    if (sendBuffer.position() == 0 && msg.next == null) {
+                        dataPort.write(messageBuf.asReadOnlyBuffer());
+                        connection.getNatsStatistics().registerWrite(messageBuf.position());
+                    } else {
+                        sendBuffer.put(msg.getMessageBuffer().asReadOnlyBuffer());
                     }
 
                     stats.incrementOutMsgs();
@@ -167,8 +155,11 @@ class NatsConnectionWriter implements Runnable {
                     msg = msg.next;
                 }
 
-                dataPort.write(sendBuffer, sendPosition);
-                connection.getNatsStatistics().registerWrite(sendPosition);
+                sendBuffer.flip();
+                while (sendBuffer.hasRemaining())
+                    dataPort.write(sendBuffer);
+                connection.getNatsStatistics().registerWrite(sendBuffer.position());
+                sendBuffer.compact();
             }
         } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);
@@ -176,6 +167,7 @@ class NatsConnectionWriter implements Runnable {
             // Exit
         } finally {
             this.running.set(false);
+            this.sendBuffer.clear();
         }
     }
 

@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * A data port represents the connection to the network. This could have been called
@@ -31,9 +32,9 @@ public interface DataPort {
      */
     public void upgradeToSecure() throws IOException;
 
-    public int read(byte[] dst, int off, int len) throws IOException;
+    public int read(ByteBuffer dst) throws IOException;
 
-    public void write(byte[] src, int toWrite) throws IOException;
+    public void write(ByteBuffer src) throws IOException;
 
     public void close() throws IOException;
 }

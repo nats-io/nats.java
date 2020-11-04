@@ -42,12 +42,12 @@ public class ParseTesting {
 
     }
 
-    public static String[] splitCharBuffer(CharBuffer buffer) {
+    public static String[] splitCharBuffer(ByteBuffer buffer) {
         ArrayList<String> list = new ArrayList<>();
         StringBuilder builder = new StringBuilder();
 
         while (buffer.hasRemaining()) {
-            char c = buffer.get();
+            byte c = buffer.get();
 
             if (c == ' ') {
                 list.add(builder.toString());
@@ -105,7 +105,7 @@ public class ParseTesting {
         return retVal;
     }
     
-    public static CharSequence grabNextAsSubsequence(CharBuffer buffer) {
+    public static ByteBuffer grabNextAsSubsequence(ByteBuffer buffer) {
         if (!buffer.hasRemaining()) {
             return null;
         }
@@ -113,25 +113,27 @@ public class ParseTesting {
         int start = buffer.position();
 
         while (buffer.hasRemaining()) {
-            char c = buffer.get();
+            byte c = buffer.get();
 
             if (c == ' ') {
                 int end = buffer.position();
+                buffer.mark();
                 buffer.position(start);
-                CharBuffer slice = buffer.subSequence(0, end-start-1); //don't grab the space
-                buffer.position(end);
+                buffer.limit(end-start-1); //don't grab the space
+                ByteBuffer slice = buffer.slice();
+                buffer.reset();
                 return slice;
             }
         }
 
         buffer.position(start);
-        CharSequence retVal = buffer.subSequence(0, buffer.remaining());
+        ByteBuffer retVal = buffer.slice();
         buffer.position(buffer.limit());
         return retVal;
     }
 
-    static char[] buff = new char[1024];
-    public static String grabNextWithCharArray(CharBuffer buffer) {
+    static byte[] buff = new byte[1024];
+    public static String grabNextWithCharArray(ByteBuffer buffer) {
         int remaining = buffer.remaining();
 
         if (remaining == 0) {
@@ -141,7 +143,7 @@ public class ParseTesting {
         int i = 0;
 
         while (remaining > 0) {
-            char c = buffer.get();
+            byte c = buffer.get();
 
             if (c == ' ') {
                 return new String(buff, 0, i);
@@ -155,7 +157,7 @@ public class ParseTesting {
         return new String(buff, 0, i);
     }
 
-    public static String protocolFor(char[] chars, int length) {
+    public static ByteBuffer protocolFor(byte[] chars, int length) {
         if (length == 3) {
             if (chars[0] == '+' && chars[1] == 'O' && chars[2] == 'K') {
                 return NatsConnection.OP_OK;
@@ -181,7 +183,7 @@ public class ParseTesting {
         }
     }
 
-    public static String grabProtocol(CharBuffer buffer) {
+    public static ByteBuffer grabProtocol(ByteBuffer buffer) {
         int remaining = buffer.remaining();
 
         if (remaining == 0) {
@@ -191,7 +193,7 @@ public class ParseTesting {
         int i = 0;
 
         while (remaining > 0) {
-            char c = buffer.get();
+            byte c = buffer.get();
 
             if (c == ' ') {
                 return protocolFor(buff, i);
@@ -205,12 +207,12 @@ public class ParseTesting {
         return protocolFor(buff, i);
     }
 
-    public static CharSequence grabNext(CharBuffer buffer) {
+    public static ByteBuffer grabNext(ByteBuffer buffer) {
         return grabNextAsSubsequence(buffer);
     }
 
-    public static String grabTheRest(CharBuffer buffer) {
-        return buffer.toString();
+    public static ByteBuffer grabTheRest(ByteBuffer buffer) {
+        return buffer;
     }
 
     public static void runTest(int iterations, String serverMessage) {
@@ -219,7 +221,7 @@ public class ParseTesting {
         protocolBuffer.put(serverMessage.getBytes(StandardCharsets.UTF_8));
         protocolBuffer.flip();
 
-        CharBuffer buffer = StandardCharsets.UTF_8.decode(protocolBuffer);
+        ByteBuffer buffer = protocolBuffer;
         String pl = buffer.toString();
         buffer.rewind();
         protocolBuffer.rewind();
@@ -229,7 +231,7 @@ public class ParseTesting {
 
         buffer.rewind();
         ArrayList<String> opAware = new ArrayList<>();
-        CharSequence s = null;
+        ByteBuffer s = null;
         while((s = grabNext(buffer)) != null) {
             opAware.add(s.toString());
         }
@@ -273,7 +275,7 @@ public class ParseTesting {
 
         start = System.nanoTime();
         for (int i = 0; i < iterations; i++) {
-            CharBuffer charBuffer = StandardCharsets.UTF_8.decode(protocolBuffer);
+            ByteBuffer charBuffer = protocolBuffer;
             splitCharBuffer(charBuffer);
             protocolBuffer.rewind();
         }
@@ -284,27 +286,26 @@ public class ParseTesting {
 
         start = System.nanoTime();
         for (int i = 0; i < iterations; i++) {
-            CharBuffer charBuffer = StandardCharsets.UTF_8.decode(protocolBuffer);
-            String op = grabProtocol(charBuffer);
+            ByteBuffer charBuffer = protocolBuffer;
+            ByteBuffer op = grabProtocol(charBuffer);
 
-            switch (op) {
-            case NatsConnection.OP_MSG:
+            if (op.equals(NatsConnection.OP_MSG))
+            {
                 grabNext(charBuffer); //subject
                 grabNext(charBuffer); // sid
                 grabNext(charBuffer); // replyto or length
                 grabNext(charBuffer); // length or null
-                break;
-            case NatsConnection.OP_ERR:
+            }
+            else if (op.equals(NatsConnection.OP_ERR))
+            {
                 grabTheRest(charBuffer);
-                break;
-            case NatsConnection.OP_OK:
-            case NatsConnection.OP_PING:
-            case NatsConnection.OP_PONG:
-            case NatsConnection.OP_INFO:
+            }
+            else if (op.equals(NatsConnection.OP_OK) ||
+                    op.equals(NatsConnection.OP_PING) ||
+                    op.equals(NatsConnection.OP_PONG) ||
+                    op.equals(NatsConnection.OP_INFO))
+            {
                 grabTheRest(charBuffer);
-                break;
-            default:
-                break;
             }
             protocolBuffer.rewind();
         }

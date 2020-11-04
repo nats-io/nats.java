@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,17 +32,17 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     private Future<Boolean> thread;
     private final AtomicBoolean running;
 
-    private String id;
+    private ByteBuffer id;
 
     // We will use the subject as the key for subscriptions that use the
     // default handler.
-    private Map<String, NatsSubscription> subscriptionsUsingDefaultHandler;
+    private Map<ByteBuffer, NatsSubscription> subscriptionsUsingDefaultHandler;
     // We will use the SID as the key. Sicne these subscriptions provide
     // their own handlers, we allow duplicates. There is a subtle but very
     // important difference here.
-    private Map<String, NatsSubscription> subscriptionsWithHandlers;
+    private Map<ByteBuffer, NatsSubscription> subscriptionsWithHandlers;
     // We use the SID as the key here.
-    private Map<String, MessageHandler> subscriptionHandlers;
+    private Map<ByteBuffer, MessageHandler> subscriptionHandlers;
 
     private Duration waitForMessage;
 
@@ -57,7 +58,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
     }
 
-    void start(String id) {
+    void start(ByteBuffer id) {
         this.id = id;
         this.running.set(true);
         thread = connection.getExecutor().submit(this, Boolean.TRUE);
@@ -89,7 +90,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                     this.incrementDeliveredCount();
 
                     MessageHandler currentHandler = this.defaultHandler;
-                    MessageHandler customHandler = this.subscriptionHandlers.get(sub.getSID());
+                    MessageHandler customHandler = this.subscriptionHandlers.get(sub.getSIDBuffer());
                     if (customHandler != null) {
                         currentHandler = customHandler;
                     }
@@ -152,8 +153,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return this.running.get();
     }
 
-    String getId() {
-        return id;
+    ByteBuffer getId() {
+        return id.duplicate();
     }
 
     MessageQueue getMessageQueue() {
@@ -162,10 +163,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     void resendSubscriptions() {
         this.subscriptionsUsingDefaultHandler.forEach((id, sub)->{
-            this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
+            this.connection.sendSubscriptionMessage(sub.getSIDBuffer(), sub.getSubjectBuffer(), sub.getQueueNameBuffer(), true);
         });
         this.subscriptionsWithHandlers.forEach((sid, sub)->{
-            this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
+            this.connection.sendSubscriptionMessage(sub.getSIDBuffer(), sub.getSubjectBuffer(), sub.getQueueNameBuffer(), true);
         });
     }
 
@@ -176,14 +177,23 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     // matches before removing. By verifying the SID in all cases we can
     // be certain we're removing the correct Subscription.
     void remove(NatsSubscription sub) {
-        if (this.subscriptionsWithHandlers.remove(sub.getSID()) != null) {
-            this.subscriptionHandlers.remove(sub.getSID());
+        if (this.subscriptionsWithHandlers.remove(sub.getSIDBuffer()) != null) {
+            this.subscriptionHandlers.remove(sub.getSIDBuffer());
         } else {
-            NatsSubscription s = this.subscriptionsUsingDefaultHandler.get(sub.getSubject());
-            if (s.getSID() == sub.getSID()) {
-                this.subscriptionsUsingDefaultHandler.remove(sub.getSubject());
+            NatsSubscription s = this.subscriptionsUsingDefaultHandler.get(sub.getSubjectBuffer());
+            if (s.getSIDBuffer().equals(sub.getSIDBuffer())) {
+                this.subscriptionsUsingDefaultHandler.remove(sub.getSubjectBuffer());
             }
         }
+    }
+
+    public Dispatcher subscribe(ByteBuffer subject) {
+        if (subject == null || subject.remaining() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        this.subscribeImpl(subject, null, null);
+        return this;
     }
 
     public Dispatcher subscribe(String subject) {
@@ -194,12 +204,15 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.subscribeImpl(subject, null, null);
         return this;
     }
-    NatsSubscription subscribeReturningSubscription(String subject) {
-        if (subject == null || subject.length() == 0) {
+    NatsSubscription subscribeReturningSubscription(ByteBuffer subject) {
+        if (subject == null || subject.limit() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
 
         return this.subscribeImpl(subject, null, null);
+    }
+    NatsSubscription subscribeReturningSubscription(String subject) {
+        return subscribeReturningSubscription(NatsEncoder.encodeSubject(subject));
     }
     public Subscription subscribe(String subject, MessageHandler handler) {
         if (subject == null || subject.length() == 0) {
@@ -241,6 +254,19 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     // Assumes the subj/queuename checks are done, does check for closed status
     NatsSubscription subscribeImpl(String subject, String queueName, MessageHandler handler) {
+        ByteBuffer subjectBuf = null;
+        if (subject != null)
+            subjectBuf = NatsEncoder.encodeSubject(subject);
+
+        ByteBuffer queueNameBuf = null;
+        if (queueName != null)
+            queueNameBuf = NatsEncoder.encodeQueue(queueName);
+
+        return subscribeImpl(subjectBuf, queueNameBuf, handler);
+    }
+
+    // Assumes the subj/queuename checks are done, does check for closed status
+    NatsSubscription subscribeImpl(ByteBuffer subject, ByteBuffer queueName, MessageHandler handler) {
         if (!this.running.get()) {
             throw new IllegalStateException("Dispatcher is closed");
         }
@@ -265,8 +291,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             return sub;
         } else {
             NatsSubscription sub = connection.createSubscription(subject, queueName, this);
-            this.subscriptionsWithHandlers.put(sub.getSID(), sub);
-            this.subscriptionHandlers.put(sub.getSID(), handler);
+            this.subscriptionsWithHandlers.put(sub.getSIDBuffer(), sub);
+            this.subscriptionHandlers.put(sub.getSIDBuffer(), handler);
             return sub;
         }
     }
@@ -275,11 +301,22 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return this.unsubscribe(subject, -1);
     }
 
+    public Dispatcher unsubscribe(ByteBuffer subject) {
+        return this.unsubscribe(subject, -1);
+    }
+
     public Dispatcher unsubscribe(Subscription subscription) {
         return this.unsubscribe(subscription, -1);
     }
 
     public Dispatcher unsubscribe(String subject, int after) {
+        return this.unsubscribe(
+                NatsEncoder.encodeSubject(subject),
+                after
+        );
+    }
+
+    public Dispatcher unsubscribe(ByteBuffer subject, int after) {
         if (!this.running.get()) {
             throw new IllegalStateException("Dispatcher is closed");
         }
@@ -288,7 +325,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             return this;
         }
 
-        if (subject == null || subject.length() == 0) {
+        if (subject == null || subject.remaining() == 0) {
             throw new IllegalArgumentException("Subject is required in unsubscribe");
         }
 
@@ -321,7 +358,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         
         NatsSubscription ns = ((NatsSubscription) subscription);
         // Grab the NatsSubscription to verify we weren't given a different manager's subscription.
-        NatsSubscription sub = this.subscriptionsWithHandlers.get(ns.getSID());
+        NatsSubscription sub = this.subscriptionsWithHandlers.get(ns.getSIDBuffer());
 
         if (sub != null) {
             this.connection.unsubscribe(sub, after); // Connection will tell us when to remove from the map

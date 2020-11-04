@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -24,10 +23,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class NatsConnectionReader implements Runnable {
-    static final int MAX_PROTOCOL_OP_LENGTH = 4;
-    static final String UNKNOWN_OP = "UNKNOWN";
-    static final char SPACE = ' ';
-    static final char TAB = '\t';
+    static final int MAX_PROTOCOL_OP_LENGTH = 7;
+    static final ByteBuffer UNKNOWN_OP = ByteBuffer.wrap(new byte[] { 'U', 'N', 'K', 'N', 'O', 'W', 'N' });
+    static final byte SPACE = ' ';
+    static final byte TAB = '\t';
 
     enum Mode {
         GATHER_OP,
@@ -43,27 +42,20 @@ class NatsConnectionReader implements Runnable {
 
     private boolean gotCR;
     
-    private String op;
-    private char[] opArray;
-    private int opPos;
+    private ByteBuffer op;
 
-    private char[] msgLineChars;
-    private int msgLinePosition;
+    private ByteBuffer msgLineChars;
 
     private Mode mode;
 
     private NatsMessage incoming;
-    private byte[] msgData;
-    private int msgDataPosition;
+    private ByteBuffer msgData;
     
-    private byte[] buffer;
-    private int bufferPosition;
+    private ByteBuffer buffer;
 
     private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
     private final AtomicBoolean running;
-
-    private final boolean utf8Mode;
 
     NatsConnectionReader(NatsConnection connection) {
         this.connection = connection;
@@ -73,12 +65,9 @@ class NatsConnectionReader implements Runnable {
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
 
         this.protocolBuffer = ByteBuffer.allocate(this.connection.getOptions().getMaxControlLine());
-        this.msgLineChars = new char[this.connection.getOptions().getMaxControlLine()];
-        this.opArray = new char[MAX_PROTOCOL_OP_LENGTH];
-        this.buffer = new byte[connection.getOptions().getBufferSize()];
-        this.bufferPosition = 0;
-
-        this.utf8Mode = connection.getOptions().supportUTF8Subjects();
+        this.msgLineChars = ByteBuffer.allocate(this.connection.getOptions().getMaxControlLine());
+        this.buffer = ByteBuffer.allocate(connection.getOptions().getBufferSize());
+        this.op = ByteBuffer.allocate(MAX_PROTOCOL_OP_LENGTH);
     }
 
     // Should only be called if the current thread has exited.
@@ -104,24 +93,18 @@ class NatsConnectionReader implements Runnable {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             this.mode = Mode.GATHER_OP;
             this.gotCR = false;
-            this.opPos = 0;
 
             while (this.running.get()) {
-                this.bufferPosition = 0;
-                int bytesRead = dataPort.read(this.buffer, 0, this.buffer.length);
+                int bytesRead = dataPort.read(this.buffer);
 
                 if (bytesRead > 0) {
                     connection.getNatsStatistics().registerRead(bytesRead);
 
-                    while (this.bufferPosition < bytesRead) {
+                    while (this.buffer.hasRemaining()) {
                         if (this.mode == Mode.GATHER_OP) {
                             this.gatherOp(bytesRead);
                         } else if (this.mode == Mode.GATHER_MSG_PROTO) {
-                            if (this.utf8Mode) {
-                                this.gatherProtocol(bytesRead);
-                            } else {
-                                this.gatherMessageProtocol(bytesRead);
-                            }
+                            this.gatherMessageProtocol(bytesRead);
                         } else if (this.mode == Mode.GATHER_PROTO) {
                             this.gatherProtocol(bytesRead);
                         } else {
@@ -133,6 +116,7 @@ class NatsConnectionReader implements Runnable {
                             this.protocolBuffer.clear();
                         }
                     }
+                    this.buffer.compact();
                 } else if (bytesRead < 0) {
                     throw new IOException("Read channel closed.");
                 } else {
@@ -147,6 +131,8 @@ class NatsConnectionReader implements Runnable {
             this.running.set(false);
             // Clear the buffers, since they are only used inside this try/catch
             // We will reuse later
+            this.op.clear();
+            this.buffer.clear();
             this.protocolBuffer.clear();
         }
     }
@@ -154,25 +140,22 @@ class NatsConnectionReader implements Runnable {
     // Gather the op, either up to the first space or the first carriage return.
     void gatherOp(int maxPos) throws IOException {
         try {
-            while(this.bufferPosition < maxPos) {
-                byte b = this.buffer[this.bufferPosition];
-                this.bufferPosition++;
+            while(this.buffer.hasRemaining()) {
+                byte b = this.buffer.get();
 
                 if (gotCR) {
                     if (b == NatsConnection.LF) { // Got CRLF, jump to parsing
-                        this.op = opFor(opArray, opPos);
+                        this.op.flip();
                         this.gotCR = false;
-                        this.opPos = 0;
                         this.mode = Mode.PARSE_PROTO;
                         break;
                     } else {
                         throw new IllegalStateException("Bad socket data, no LF after CR");
                     }
                 } else if (b == SPACE || b == TAB) { // Got a space, get the rest of the protocol line
-                    this.op = opFor(opArray, opPos);
-                    this.opPos = 0;
-                    if (this.op == NatsConnection.OP_MSG) {
-                        this.msgLinePosition = 0;
+                    this.op.flip();
+                    if (this.op.equals(NatsConnection.OP_MSG)) {
+                        this.msgLineChars.clear();
                         this.mode = Mode.GATHER_MSG_PROTO;
                     } else {
                         this.mode = Mode.GATHER_PROTO;
@@ -180,9 +163,12 @@ class NatsConnectionReader implements Runnable {
                     break;
                 } else if (b == NatsConnection.CR) {
                     this.gotCR = true;
+                } else if (!this.op.hasRemaining()) {
+                    this.encounteredProtocolError(new IOException("OP > MAX_PROTOCOL_OP_LENGTH"));
+                } else if (b > 0x60 && b < 0x7B) {
+                    this.op.put((byte) (b - 0x20));
                 } else {
-                    this.opArray[opPos] = (char) b;
-                    this.opPos++;
+                    this.op.put(b);
                 }
             }
         } catch (ArrayIndexOutOfBoundsException | IllegalStateException | NumberFormatException | NullPointerException ex) {
@@ -193,14 +179,14 @@ class NatsConnectionReader implements Runnable {
     // Stores the message protocol line in a char buffer that will be grepped for subject, reply
     void gatherMessageProtocol(int maxPos) throws IOException {
         try {
-            while(this.bufferPosition < maxPos) {
-                byte b = this.buffer[this.bufferPosition];
-                this.bufferPosition++;
+            while(this.buffer.hasRemaining()) {
+                byte b = this.buffer.get();
 
                 if (gotCR) {
                     if (b == NatsConnection.LF) {
                         this.mode = Mode.PARSE_PROTO;
                         this.gotCR = false;
+                        this.msgLineChars.flip();
                         break;
                     } else {
                         throw new IllegalStateException("Bad socket data, no LF after CR");
@@ -208,11 +194,10 @@ class NatsConnectionReader implements Runnable {
                 } else if (b == NatsConnection.CR) {
                     this.gotCR = true;
                 } else {
-                    if (this.msgLinePosition >= this.msgLineChars.length) {
+                    if (!this.msgLineChars.hasRemaining()) {
                         throw new IllegalStateException("Protocol line is too long");
                     }
-                    this.msgLineChars[this.msgLinePosition] = (char) b; // Assumes ascii, as per protocol doc
-                    this.msgLinePosition++;
+                    this.msgLineChars.put(b); // Assumes ascii, as per protocol doc
                 }
             }
         } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
@@ -224,9 +209,8 @@ class NatsConnectionReader implements Runnable {
     void gatherProtocol(int maxPos) throws IOException {
         // protocol buffer has max capacity, shouldn't need resizing
         try {
-            while(this.bufferPosition < maxPos) {
-                byte b = this.buffer[this.bufferPosition];
-                this.bufferPosition++;
+            while(this.buffer.hasRemaining()) {
+                byte b = this.buffer.get();
 
                 if (gotCR) {
                     if (b == NatsConnection.LF) {
@@ -241,7 +225,11 @@ class NatsConnectionReader implements Runnable {
                     this.gotCR = true;
                 } else {
                     if (!protocolBuffer.hasRemaining()) {
-                        this.protocolBuffer = this.connection.enlargeBuffer(this.protocolBuffer, 0); // just double it
+                        if (protocolBuffer.limit() == protocolBuffer.capacity()) {
+                            this.protocolBuffer = this.connection.enlargeBuffer(this.protocolBuffer, 0); // just double it
+                        } else {
+                            this.protocolBuffer.limit(this.protocolBuffer.limit() + 1);
+                        }
                     }
                     this.protocolBuffer.put(b);
                 }
@@ -255,35 +243,27 @@ class NatsConnectionReader implements Runnable {
     // given to the message object
     void gatherMessageData(int maxPos) throws IOException {
         try {
-            while(this.bufferPosition < maxPos) {
-                int possible = maxPos - this.bufferPosition;
-                int want = msgData.length - msgDataPosition;
-
-                // Grab all we can, until we get to the CR/LF
-                if (want > 0 && want <= possible) {
-                    System.arraycopy(this.buffer, this.bufferPosition, this.msgData, this.msgDataPosition, want);
-                    msgDataPosition += want;
-                    this.bufferPosition += want;
-                    continue;
-                } else if (want > 0) {
-                    System.arraycopy(this.buffer, this.bufferPosition, this.msgData, this.msgDataPosition, possible);
-                    msgDataPosition += possible;
-                    this.bufferPosition += possible;
+            while(this.buffer.hasRemaining()) {
+                if (this.msgData.hasRemaining()) {
+                    int end = this.buffer.position() + Math.min(this.buffer.remaining(), this.msgData.remaining());
+                    int tmpLimit = this.buffer.limit();
+                    this.buffer.limit(end);
+                    this.msgData.put(this.buffer);
+                    this.buffer.limit(tmpLimit);
                     continue;
                 }
 
-                byte b = this.buffer[this.bufferPosition];
-                this.bufferPosition++;
+                byte b = this.buffer.get();
 
+                // Grab all we can, until we get to the CR/LF
                 if (gotCR) {
                     if (b == NatsConnection.LF) {
-                        incoming.setData(msgData);
+                        byte[] msgDataBytes = this.msgData.array();
+                        incoming.setData(msgDataBytes);
                         this.connection.deliverMessage(incoming);
-                        msgData = null;
-                        msgDataPosition = 0;
                         incoming = null;
                         gotCR = false;
-                        this.op = UNKNOWN_OP;
+                        this.op.clear();
                         this.mode = Mode.GATHER_OP;
                         break;
                     } else {
@@ -300,165 +280,142 @@ class NatsConnectionReader implements Runnable {
         }
     }
 
-    public String grabNextMessageLineElement(int max) {
-        if (this.msgLinePosition >= max) {
+    public ByteBuffer grabNextMessageLineElement(int max) {
+        if (!this.msgLineChars.hasRemaining()) {
             return null;
         }
 
-        int start = this.msgLinePosition;
-
-        while (this.msgLinePosition < max) {
-            char c = this.msgLineChars[this.msgLinePosition];
-            this.msgLinePosition++;
+        int start = this.msgLineChars.position();
+        while (this.msgLineChars.hasRemaining()) {
+            byte c = this.msgLineChars.get();
 
             if (c == SPACE || c == TAB) {
-                String slice = new String(this.msgLineChars, start, this.msgLinePosition - start -1); //don't grab the space, avoid an intermediate char sequence
+                ByteBuffer msg = this.msgLineChars.duplicate();
+                msg.position(start);
+                msg.limit(this.msgLineChars.position() - 1);
+                ByteBuffer slice = ByteBuffer.allocate(this.msgLineChars.position() - start - 1); //don't grab the space, avoid an intermediate char sequence
+                slice.put(msg);
+                slice.flip();
                 return slice;
             }
         }
 
-        return new String(this.msgLineChars, start, this.msgLinePosition-start);
-    }
-
-    public String opFor(char[] chars, int length) {
-        if (length == 3) {
-            if ((chars[0] == 'M' || chars[0] == 'm') &&
-                        (chars[1] == 'S' || chars[1] == 's') && 
-                        (chars[2] == 'G' || chars[2] == 'g')) {
-                return NatsConnection.OP_MSG;
-            } else if (chars[0] == '+' && 
-                (chars[1] == 'O' || chars[1] == 'o') && 
-                (chars[2] == 'K' || chars[2] == 'k')) {
-                return NatsConnection.OP_OK;
-            } else {
-                return UNKNOWN_OP;
-            }
-        } else if (length == 4) { // do them in a unique order for uniqueness when possible to branch asap
-            if ((chars[1] == 'I' || chars[1] == 'i') && 
-                    (chars[0] == 'P' || chars[0] == 'p') && 
-                    (chars[2] == 'N' || chars[2] == 'n') &&
-                    (chars[3] == 'G' || chars[3] == 'g')) {
-                return NatsConnection.OP_PING;
-            } else if ((chars[1] == 'O' || chars[1] == 'o') && 
-                        (chars[0] == 'P' || chars[0] == 'p') && 
-                        (chars[2] == 'N' || chars[2] == 'n') &&
-                        (chars[3] == 'G' || chars[3] == 'g')) {
-                return NatsConnection.OP_PONG;
-            } else if (chars[0] == '-' && 
-                        (chars[1] == 'E' || chars[1] == 'e') &&
-                        (chars[2] == 'R' || chars[2] == 'r') && 
-                        (chars[3] == 'R' || chars[3] == 'r')) {
-                return NatsConnection.OP_ERR;
-            } else if ((chars[0] == 'I' || chars[0] == 'i') && 
-                        (chars[1] == 'N' || chars[1] == 'n') && 
-                        (chars[2] == 'F' || chars[2] == 'f') &&
-                        (chars[3] == 'O' || chars[3] == 'o')) {
-                return NatsConnection.OP_INFO;
-            }  else {
-                return UNKNOWN_OP;
-            }
-        } else {
-            return UNKNOWN_OP;
-        }
+        ByteBuffer msg = this.msgLineChars.duplicate();
+        msg.position(start);
+        msg.limit(this.msgLineChars.position());
+        ByteBuffer slice = ByteBuffer.allocate(this.msgLineChars.position() - start);
+        slice.put(msg);
+        slice.flip();
+        return slice;
     }
 
     private static int[] TENS = new int[] { 1, 10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000};
 
-    public static int parseLength(String s) throws NumberFormatException {
-        int length = s.length();
+    public static int parseLength(ByteBuffer s) throws NumberFormatException {
+        int length = s.remaining();
         int retVal = 0;
 
         if (length > TENS.length) {
             throw new NumberFormatException("Long in message length \"" + s + "\" "+length+" > "+TENS.length);
         }
-        
-        for (int i=length-1;i>=0;i--) {
-            char c = s.charAt(i);
-            int d = (c - '0');
 
-            if (d>9) {
-                throw new NumberFormatException("Invalid char in message length \'" + c + "\'");
+        s.mark();
+        while (s.hasRemaining()) {
+            byte b = s.get();
+            if (b > '9' || b < '0') {
+                s.reset();
+                throw new NumberFormatException("Invalid char in message length \'" + b + "\'");
             }
+            int d = (b - '0');
 
-            retVal += d * TENS[length - i - 1];
+            retVal += d * TENS[length - s.position()];
         }
+        s.reset();
 
         return retVal;
     }
 
     void parseProtocolMessage() throws IOException {
         try {
-            switch (this.op) {
-            case NatsConnection.OP_MSG:
-                int protocolLength = this.msgLinePosition; //This is just after the last character
-                int protocolLineLength = protocolLength + 4; // 4 for the "MSG "
+            switch (this.op.get(0)) {
+                case (byte)'M':
+                    if (this.op.equals(NatsConnection.OP_MSG)) {
+                        int protocolLength = this.msgLineChars.remaining(); //This is just after the last character
+                        int protocolLineLength = protocolLength + 4; // 4 for the "MSG "
 
-                if (this.utf8Mode) {
-                    protocolLineLength = protocolBuffer.remaining() + 4;
+                        ByteBuffer subject = grabNextMessageLineElement(this.msgLineChars.remaining());
+                        ByteBuffer sid = grabNextMessageLineElement(this.msgLineChars.remaining());
+                        ByteBuffer replyTo = grabNextMessageLineElement(this.msgLineChars.remaining());
+                        ByteBuffer lengthChars;
 
-                    CharBuffer buff = StandardCharsets.UTF_8.decode(protocolBuffer);
-                    protocolLength = buff.remaining();
-                    buff.get(this.msgLineChars, 0, protocolLength);
+                        if (this.msgLineChars.hasRemaining()) {
+                            lengthChars = grabNextMessageLineElement(this.msgLineChars.remaining());
+                        } else {
+                            lengthChars = replyTo;
+                            replyTo = null;
+                        }
+
+                        if(subject==null || subject.limit() == 0 || sid==null || sid.limit() == 0 || lengthChars==null) {
+                            throw new IllegalStateException("Bad MSG control line, missing required fields");
+                        }
+
+                        int incomingLength = parseLength(lengthChars);
+
+                        this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
+                        this.mode = Mode.GATHER_DATA;
+                        this.msgData = ByteBuffer.allocate(incomingLength);
+                        this.msgLineChars.clear();
+                        break;
+                    }
+                case (byte)'+':
+                    if (this.op.equals(NatsConnection.OP_OK)) {
+                        this.connection.processOK();
+                        this.op.clear();
+                        this.mode = Mode.GATHER_OP;
+                        break;
+                    }
+                case (byte)'-':
+                    if (this.op.equals(NatsConnection.OP_ERR)) {
+                        String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
+                        if (errorText != null) {
+                            errorText = errorText.replace("\'", "");
+                        }
+                        this.connection.processError(errorText);
+                        this.op.clear();
+                        this.mode = Mode.GATHER_OP;
+                        break;
+                    }
+                case (byte)'P':
+                    switch (this.op.get(1)) {
+                        case (byte)'I':
+                            if (this.op.equals(NatsConnection.OP_PING)) {
+                                this.connection.sendPong();
+                                this.op.clear();
+                                this.mode = Mode.GATHER_OP;
+                                break;
+                            }
+                        case (byte)'O':
+                            if (this.op.equals(NatsConnection.OP_PONG)) {
+                                this.connection.handlePong();
+                                this.op.clear();
+                                this.mode = Mode.GATHER_OP;
+                                break;
+                            }
+                        default:
+                            throw new IllegalStateException("Unknown protocol operation "+op);
+                    }
+                    break;
+                case (byte)'I':
+                    if (this.op.equals(NatsConnection.OP_INFO)) {
+                        String info = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
+                        this.connection.handleInfo(info);
+                        this.op.clear();
+                        this.mode = Mode.GATHER_OP;
+                        break;
+                    }
+                default:
+                    throw new IllegalStateException("Unknown protocol operation "+op);
                 }
-                
-                this.msgLinePosition = 0;
-                String subject = grabNextMessageLineElement(protocolLength);
-                String sid = grabNextMessageLineElement(protocolLength);
-                String replyTo = grabNextMessageLineElement(protocolLength);
-                String lengthChars = null;
-
-                if (this.msgLinePosition < protocolLength) {
-                    lengthChars = grabNextMessageLineElement(protocolLength);
-                } else {
-                    lengthChars = replyTo;
-                    replyTo = null;
-                }
-                
-                if(subject==null || subject.length() == 0 || sid==null || sid.length() == 0 || lengthChars==null) {
-                    throw new IllegalStateException("Bad MSG control line, missing required fields");
-                }
-
-                int incomingLength = parseLength(lengthChars);
-
-                this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
-                this.mode = Mode.GATHER_DATA;
-                this.msgData = new byte[incomingLength];
-                this.msgDataPosition = 0;
-                this.msgLinePosition = 0;
-                break;
-            case NatsConnection.OP_OK:
-                this.connection.processOK();
-                this.op = UNKNOWN_OP;
-                this.mode = Mode.GATHER_OP;
-                break;
-            case NatsConnection.OP_ERR:
-                String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
-                if (errorText != null) {
-                    errorText = errorText.replace("\'", "");
-                }
-                this.connection.processError(errorText);
-                this.op = UNKNOWN_OP;
-                this.mode = Mode.GATHER_OP;
-                break;
-            case NatsConnection.OP_PING:
-                this.connection.sendPong();
-                this.op = UNKNOWN_OP;
-                this.mode = Mode.GATHER_OP;
-                break;
-            case NatsConnection.OP_PONG:
-                this.connection.handlePong();
-                this.op = UNKNOWN_OP;
-                this.mode = Mode.GATHER_OP;
-                break;
-            case NatsConnection.OP_INFO:
-                String info = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
-                this.connection.handleInfo(info);
-                this.op = UNKNOWN_OP;
-                this.mode = Mode.GATHER_OP;
-                break;
-            default:
-                throw new IllegalStateException("Unknown protocol operation "+op);
-            }
         } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
             this.encounteredProtocolError(ex);
         }
@@ -470,13 +427,24 @@ class NatsConnectionReader implements Runnable {
 
     //For testing
     void fakeReadForTest(byte[] bytes) {
-        System.arraycopy(bytes, 0, this.buffer, 0, bytes.length);
-        this.bufferPosition = 0;
-        this.op = UNKNOWN_OP;
+        this.op.clear();
+        this.buffer.clear();
+        this.protocolBuffer.clear();
+        this.buffer.put(bytes);
+        this.buffer.flip();
         this.mode = Mode.GATHER_OP;
     }
 
-    String currentOp() {
-        return this.op;
+    ByteBuffer currentOp() {
+        if (this.mode == Mode.PARSE_PROTO) {
+            ByteBuffer tmp = this.op.duplicate();
+            try {
+                parseProtocolMessage();
+                return tmp;
+            } catch (IOException e) {
+                return UNKNOWN_OP.duplicate();
+            }
+        }
+        return this.op.duplicate();
     }
 }

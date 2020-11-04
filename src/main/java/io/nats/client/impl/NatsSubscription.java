@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -22,16 +23,16 @@ import io.nats.client.Subscription;
 
 class NatsSubscription extends NatsConsumer implements Subscription {
 
-    private String subject;
-    private String queueName;
-    private String sid;
+    private ByteBuffer subject;
+    private ByteBuffer queueName;
+    private ByteBuffer sid;
 
     private NatsDispatcher dispatcher;
     private MessageQueue incoming;
 
     private AtomicLong unSubMessageLimit;
 
-    NatsSubscription(String sid, String subject, String queueName, NatsConnection connection,
+    NatsSubscription(ByteBuffer sid, ByteBuffer subject, ByteBuffer queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(connection);
         this.subject = subject;
@@ -68,7 +69,15 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     }
 
     String getSID() {
-        return this.sid;
+        if (this.sid == null)
+            return null;
+        return NatsEncoder.decodeSID(this.sid.asReadOnlyBuffer());
+    }
+
+    ByteBuffer getSIDBuffer() {
+        if (this.sid == null)
+            return null;
+        return this.sid.duplicate();
     }
 
     NatsDispatcher getNatsDispatcher() {
@@ -84,11 +93,27 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     }
 
     public String getSubject() {
-        return this.subject;
+        if (this.subject == null)
+            return null;
+        return NatsEncoder.decodeSubject(this.subject.asReadOnlyBuffer());
+    }
+
+    public ByteBuffer getSubjectBuffer() {
+        if (this.subject == null)
+            return null;
+        return this.subject.asReadOnlyBuffer();
     }
 
     public String getQueueName() {
-        return this.queueName;
+        if (this.queueName == null)
+            return null;
+        return NatsEncoder.decodeQueue(this.queueName.asReadOnlyBuffer());
+    }
+
+    public ByteBuffer getQueueNameBuffer() {
+        if (this.queueName == null)
+            return null;
+        return this.queueName.asReadOnlyBuffer();
     }
 
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {

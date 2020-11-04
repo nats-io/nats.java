@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
@@ -32,18 +33,18 @@ public class ParseTests {
         int i=1;
 
         while (i < 2_000_000_000 && i > 0) {
-            assertEquals(i, NatsConnectionReader.parseLength(String.valueOf(i)));
+            assertEquals(i, NatsConnectionReader.parseLength(StandardCharsets.US_ASCII.encode(String.valueOf(i))));
             i *= 11;
         }
 
-        assertEquals(0, NatsConnectionReader.parseLength("0"));
+        assertEquals(0, NatsConnectionReader.parseLength(StandardCharsets.US_ASCII.encode("0")));
 
     }
 
     @Test
     public void testBadChars() {
         assertThrows(NumberFormatException.class, () -> {
-            NatsConnectionReader.parseLength("2221a");
+            NatsConnectionReader.parseLength(StandardCharsets.US_ASCII.encode("2221a"));
             assertFalse(true);
         });
     }
@@ -51,7 +52,7 @@ public class ParseTests {
     @Test
     public void testTooBig() {
         assertThrows(NumberFormatException.class, () -> {
-            NatsConnectionReader.parseLength(String.valueOf(100_000_000_000L));
+            NatsConnectionReader.parseLength(StandardCharsets.US_ASCII.encode(String.valueOf(100_000_000_000L)));
             assertFalse(true);
         });
     }
@@ -209,7 +210,7 @@ public class ParseTests {
             "+mk", "+ms", "-msg", "-esg", "poog", "piig", "mkg", "iing", "inng"
         };
 
-        String[] expected = {
+        ByteBuffer[] expected = {
             NatsConnection.OP_OK, NatsConnection.OP_PONG, NatsConnection.OP_PING, NatsConnection.OP_MSG,
             NatsConnection.OP_ERR, NatsConnection.OP_INFO, NatsConnection.OP_PING, NatsConnection.OP_MSG,
             NatsConnection.OP_OK, NatsConnection.OP_PONG, NatsConnection.OP_PONG, NatsConnection.OP_MSG
@@ -223,7 +224,7 @@ public class ParseTests {
                 byte[] bytes = (serverStrings[i]+"\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
-                String op = reader.currentOp();
+                ByteBuffer op = reader.currentOp();
                 assertEquals(expected[i], op, serverStrings[i]);
             }
 
@@ -231,7 +232,7 @@ public class ParseTests {
                 byte[] bytes = (badStrings[i]+"\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
-                String op = reader.currentOp();
+                ByteBuffer op = reader.currentOp();
                 assertEquals(NatsConnectionReader.UNKNOWN_OP, op, badStrings[i]);
             }
         }

@@ -13,6 +13,9 @@
 
 package io.nats.client;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -24,7 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.CharBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -176,7 +178,7 @@ public class Options {
      * Default prefix used for inboxes, you can change this to manage authorization of subjects.
      * See {@link #getInboxPrefix() getInboxPrefix()}, the . is required but will be added if missing.
      */
-    public static final String DEFAULT_INBOX_PREFIX = "_INBOX.";
+    public static final ByteBuffer DEFAULT_INBOX_PREFIX = ByteBuffer.wrap(new byte[] { '_', 'I', 'N', 'B', 'O', 'X', '.' });
 
     /**
      * This value is used internally to limit the number of messages sent in a single network I/O.
@@ -447,7 +449,7 @@ public class Options {
     private final char[] username;
     private final char[] password;
     private final char[] token;
-    private final String inboxPrefix;
+    private final ByteBuffer inboxPrefix;
     private final boolean useOldRequestStyle;
     private final int bufferSize;
     private final boolean noEcho;
@@ -522,7 +524,7 @@ public class Options {
         private boolean traceConnection = false;
         private boolean noEcho = false;
         private boolean utf8Support = false;
-        private String inboxPrefix = DEFAULT_INBOX_PREFIX;
+        private ByteBuffer inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
 
@@ -695,7 +697,7 @@ public class Options {
             }
 
             if (props.containsKey(PROP_INBOX_PREFIX)) {
-                this.inboxPrefix(props.getProperty(PROP_INBOX_PREFIX, DEFAULT_INBOX_PREFIX));
+                this.inboxPrefix(props.getProperty(PROP_INBOX_PREFIX, null));
             }
 
             if (props.containsKey(PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE)) {
@@ -814,11 +816,21 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder inboxPrefix(String prefix) {
-            this.inboxPrefix = prefix;
-
-            if (!this.inboxPrefix.endsWith(".")) {
-                this.inboxPrefix = this.inboxPrefix + ".";
+            if (prefix == null) {
+                this.inboxPrefix = DEFAULT_INBOX_PREFIX;
+                return this;
             }
+
+            if (!prefix.endsWith(".")) {
+                prefix = prefix + ".";
+            }
+
+            if (this.utf8Support) {
+                this.inboxPrefix = StandardCharsets.UTF_8.encode(prefix);
+            } else {
+                this.inboxPrefix = StandardCharsets.US_ASCII.encode(prefix);
+            }
+
             return this;
         }
 
@@ -1524,7 +1536,16 @@ public class Options {
      * @return the inbox prefix to use for requests, see {@link Builder#inboxPrefix(String) inboxPrefix()} in the builder doc
      */
     public String getInboxPrefix() {
-        return inboxPrefix;
+        if (this.utf8Support)
+            return StandardCharsets.UTF_8.decode(this.inboxPrefix.asReadOnlyBuffer()).toString();
+        return StandardCharsets.US_ASCII.decode(this.inboxPrefix.asReadOnlyBuffer()).toString();
+    }
+
+    /**
+     * @return the inbox prefix to use for requests, see {@link Builder#inboxPrefix(String) inboxPrefix()} in the builder doc
+     */
+    public ByteBuffer getInboxPrefixBuffer() {
+        return this.inboxPrefix;
     }
 
     /**
@@ -1595,9 +1616,9 @@ public class Options {
      * @param nonce if the client is supposed to sign the nonce for authentication
      * @return the options String, basically JSON
      */
-    public CharBuffer buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
-        CharBuffer connectString = CharBuffer.allocate(this.maxControlLine);
-        connectString.append("{");
+    public ByteBuffer buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
+        ByteBuffer connectString = ByteBuffer.allocate(this.maxControlLine);
+        connectString.put((byte)'{');
 
         appendOption(connectString, Options.OPTION_LANG, Nats.CLIENT_LANGUAGE, true, false);
         appendOption(connectString, Options.OPTION_VERSION, Nats.CLIENT_VERSION, true, true);
@@ -1678,42 +1699,45 @@ public class Options {
             }
         }
 
-        connectString.append("}");
+        connectString.put((byte)'}');
         connectString.flip();
-        return connectString;
+        ByteBuffer connectStringBuf = ByteBuffer.allocate(connectString.limit());
+        connectStringBuf.put(connectString);
+        connectStringBuf.flip();
+        return connectStringBuf;
     }
 
-    private void appendOption(CharBuffer builder, String key, String value, boolean quotes, boolean comma) {
+    private void appendOption(ByteBuffer builder, String key, String value, boolean quotes, boolean comma) {
         if (comma) {
-            builder.append(",");
+            builder.put((byte)',');
         }
-        builder.append("\"");
-        builder.append(key);
-        builder.append("\"");
-        builder.append(":");
+        builder.put((byte)'\"');
+        builder.put(key.getBytes(StandardCharsets.US_ASCII));
+        builder.put((byte)'\"');
+        builder.put((byte)':');
         if (quotes) {
-            builder.append("\"");
+            builder.put((byte)'\"');
         }
-        builder.append(value);
+        builder.put(value.getBytes(StandardCharsets.US_ASCII));
         if (quotes) {
-            builder.append("\"");
+            builder.put((byte)'\"');
         }
     }
 
-    private void appendOption(CharBuffer builder, String key, char[] value, boolean quotes, boolean comma) {
+    private void appendOption(ByteBuffer builder, String key, char[] value, boolean quotes, boolean comma) {
         if (comma) {
-            builder.append(",");
+            builder.put((byte)',');
         }
-        builder.append("\"");
-        builder.append(key);
-        builder.append("\"");
-        builder.append(":");
+        builder.put((byte)'\"');
+        builder.put(key.getBytes(StandardCharsets.US_ASCII));
+        builder.put((byte)'\"');
+        builder.put((byte)':');
         if (quotes) {
-            builder.append("\"");
+            builder.put((byte)'\"');
         }
-        builder.put(value);
+        builder.put(new String(value).getBytes(StandardCharsets.US_ASCII));
         if (quotes) {
-            builder.append("\"");
+            builder.put((byte)'\"');
         }
     }
 }

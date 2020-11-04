@@ -48,7 +48,7 @@ public class RequestTests {
             assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
-                assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
+                assertTrue(msg.getReplyTo().startsWith(StandardCharsets.US_ASCII.decode(Options.DEFAULT_INBOX_PREFIX.asReadOnlyBuffer()).toString()));
                 nc.publish(msg.getReplyTo(), null);
             });
             d.subscribe("subject");
@@ -70,7 +70,7 @@ public class RequestTests {
             assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
-                assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
+                assertTrue(msg.getReplyTo().startsWith(StandardCharsets.US_ASCII.decode(Options.DEFAULT_INBOX_PREFIX.asReadOnlyBuffer()).toString()));
                 msg.getConnection().publish(msg.getReplyTo(), null);
             });
             d.subscribe("subject");

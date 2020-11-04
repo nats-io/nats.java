@@ -319,7 +319,7 @@ public class OptionsTests {
         Options o = new Options.Builder().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true}";
-        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
+        assertEquals(expected, StandardCharsets.US_ASCII.decode(o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null)).toString(), "default connect options");
     }
 
     @Test
@@ -328,7 +328,7 @@ public class OptionsTests {
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true}";
-        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
+        assertEquals(expected, StandardCharsets.US_ASCII.decode(o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null)).toString(), "default connect options");
     }
 
     @Test
@@ -339,8 +339,8 @@ public class OptionsTests {
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
                 + ",\"user\":\"hello\",\"pass\":\"world\"}";
-        assertEquals(expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "no auth connect options");
-        assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, null).toString(), "auth connect options");
+        assertEquals(expectedNoAuth, StandardCharsets.US_ASCII.decode(o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null)).toString(), "no auth connect options");
+        assertEquals(expectedWithAuth, StandardCharsets.US_ASCII.decode(o.buildProtocolConnectOptionsString("nats://localhost:4222", true, null)).toString(), "auth connect options");
     }
 
     @Test
@@ -355,8 +355,8 @@ public class OptionsTests {
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true"
                 + ",\"nkey\":\""+new String(th.getID())+"\",\"sig\":\""+sig+"\",\"jwt\":\"\"}";
-        assertEquals(expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce).toString(), "no auth connect options");
-        assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString(), "auth connect options");
+        assertEquals(expectedNoAuth, StandardCharsets.US_ASCII.decode(o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce)).toString(), "no auth connect options");
+        assertEquals(expectedWithAuth, StandardCharsets.US_ASCII.decode(o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce)).toString(), "auth connect options");
     }
 
     @Test
@@ -385,7 +385,7 @@ public class OptionsTests {
         String serverURI = "nats://derek:password@localhost:2222";
         Options o = new Options.Builder().server(serverURI).build();
 
-        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        String connectString = StandardCharsets.US_ASCII.decode(o.buildProtocolConnectOptionsString(serverURI, true, null)).toString();
         assertTrue(connectString.contains("\"user\":\"derek\""));
         assertTrue(connectString.contains("\"pass\":\"password\""));
         assertFalse(connectString.contains("\"token\":"));
@@ -396,7 +396,7 @@ public class OptionsTests {
         String serverURI = "nats://alberto@localhost:2222";
         Options o = new Options.Builder().server(serverURI).build();
 
-        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        String connectString = StandardCharsets.US_ASCII.decode(o.buildProtocolConnectOptionsString(serverURI, true, null)).toString();
         assertTrue(connectString.contains("\"auth_token\":\"alberto\""));
         assertFalse(connectString.contains("\"user\":"));
         assertFalse(connectString.contains("\"pass\":"));

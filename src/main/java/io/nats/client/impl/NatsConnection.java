@@ -16,21 +16,12 @@ package io.nats.client.impl;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -73,16 +64,18 @@ class NatsConnection implements Connection {
     static final byte LF = 0x0A;
     static final byte[] CRLF = { CR, LF };
 
-    static final String OP_CONNECT = "CONNECT";
-    static final String OP_INFO = "INFO";
-    static final String OP_SUB = "SUB";
-    static final String OP_PUB = "PUB";
-    static final String OP_UNSUB = "UNSUB";
-    static final String OP_MSG = "MSG";
-    static final String OP_PING = "PING";
-    static final String OP_PONG = "PONG";
-    static final String OP_OK = "+OK";
-    static final String OP_ERR = "-ERR";
+    static final ByteBuffer OP_CONNECT = ByteBuffer.wrap(new byte[] { 'C', 'O', 'N', 'N', 'E', 'C', 'T' });
+    static final ByteBuffer OP_INFO = ByteBuffer.wrap(new byte[] { 'I', 'N', 'F', 'O' });
+    static final ByteBuffer OP_SUB = ByteBuffer.wrap(new byte[] { 'S', 'U', 'B' });
+    static final ByteBuffer OP_PUB = ByteBuffer.wrap(new byte[] { 'P', 'U', 'B' });
+    static final ByteBuffer OP_UNSUB = ByteBuffer.wrap(new byte[] { 'U', 'N', 'S', 'U', 'B' });
+    static final ByteBuffer OP_MSG = ByteBuffer.wrap(new byte[] { 'M', 'S', 'G' });
+    static final ByteBuffer OP_PING = ByteBuffer.wrap(new byte[] { 'P', 'I', 'N', 'G' });
+    static final ByteBuffer OP_PING_LINE = ByteBuffer.wrap(new byte[] { 'P', 'I', 'N', 'G', '\r', '\n' });
+    static final ByteBuffer OP_PONG = ByteBuffer.wrap(new byte[] { 'P', 'O', 'N', 'G'});
+    static final ByteBuffer OP_PONG_LINE = ByteBuffer.wrap(new byte[] { 'P', 'O', 'N', 'G', '\r', '\n' });
+    static final ByteBuffer OP_OK = ByteBuffer.wrap(new byte[] { '+', 'O', 'K' });
+    static final ByteBuffer OP_ERR = ByteBuffer.wrap(new byte[] { '-', 'E', 'R', 'R' });
 
     private Options options;
 
@@ -109,13 +102,13 @@ class NatsConnection implements Connection {
 
     private AtomicReference<NatsServerInfo> serverInfo;
 
-    private Map<String, NatsSubscription> subscribers;
-    private Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
+    private Map<ByteBuffer, NatsSubscription> subscribers;
+    private Map<ByteBuffer, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
                                                      // behavior
-    private Map<String, CompletableFuture<Message>> responses;
+    private Map<ByteBuffer, CompletableFuture<Message>> responses;
     private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
-    private String mainInbox;
+    private ByteBuffer mainInbox;
     private AtomicReference<NatsDispatcher> inboxDispatcher;
     private Timer timer;
 
@@ -166,7 +159,12 @@ class NatsConnection implements Connection {
                 timeTrace(trace, "NUID initialization took long: %d (s)", seconds);
             }
         }
-        this.mainInbox = createInbox() + ".*";
+        ByteBuffer inbox = createInboxBuffer();
+        this.mainInbox = ByteBuffer.allocate(inbox.limit() + 2);
+        this.mainInbox.put(inbox.asReadOnlyBuffer());
+        this.mainInbox.put((byte)'.');
+        this.mainInbox.put((byte)'*');
+        this.mainInbox.flip();
 
         this.lastError = new AtomicReference<>();
         this.connectError = new AtomicReference<>();
@@ -335,7 +333,7 @@ class NatsConnection implements Connection {
 
         this.subscribers.forEach((sid, sub) -> {
             if (sub.getDispatcher() == null && !sub.isDraining()) {
-                sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
+                sendSubscriptionMessage(sub.getSIDBuffer(), sub.getSubjectBuffer(), sub.getQueueNameBuffer(), true);
             }
         });
 
@@ -778,10 +776,14 @@ class NatsConnection implements Connection {
     }
 
     public void publish(String subject, byte[] body) {
-        this.publish(subject, null, body);
+        this.publish((subject != null) ? NatsEncoder.encodeSubject(subject) : null, null, body);
     }
 
     public void publish(String subject, String replyTo, byte[] body) {
+        this.publish((subject != null) ? NatsEncoder.encodeSubject(subject) : null, (replyTo != null) ? NatsEncoder.encodeReplyTo(replyTo) : null, body);
+    }
+
+    public void publish(ByteBuffer subject, ByteBuffer replyTo, byte[] body) {
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -789,11 +791,11 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
         }
 
-        if (subject == null || subject.length() == 0) {
+        if (subject == null || subject.remaining() == 0) {
             throw new IllegalArgumentException("Subject is required in publish");
         }
 
-        if (replyTo != null && replyTo.length() == 0) {
+        if (replyTo != null && replyTo.remaining() == 0) {
             throw new IllegalArgumentException("ReplyTo cannot be the empty string");
         }
 
@@ -804,7 +806,7 @@ class NatsConnection implements Connection {
                     "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }
 
-        NatsMessage msg = new NatsMessage(subject, replyTo, body, options.supportUTF8Subjects());
+        NatsMessage msg = new NatsMessage(subject, replyTo, ByteBuffer.wrap(body), options.supportUTF8Subjects());
 
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
@@ -827,7 +829,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
-        return createSubscription(subject, null, null);
+        return createSubscription(NatsEncoder.encodeSubject(subject), null, null);
     }
 
     public Subscription subscribe(String subject, String queueName) {
@@ -853,11 +855,11 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Queue names cannot contain whitespace");
         }
 
-        return createSubscription(subject, queueName, null);
+        return createSubscription(NatsEncoder.encodeSubject(subject), NatsEncoder.encodeQueue(queueName), null);
     }
 
     void invalidate(NatsSubscription sub) {
-        CharSequence sid = sub.getSID();
+        ByteBuffer sid = sub.getSIDBuffer();
 
         subscribers.remove(sid);
 
@@ -891,23 +893,31 @@ class NatsConnection implements Connection {
     }
 
     void sendUnsub(NatsSubscription sub, int after) {
-        String sid = sub.getSID();
-        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine());
-        protocolBuilder.append(OP_UNSUB);
-        protocolBuilder.append(" ");
-        protocolBuilder.append(sid);
-
+        ByteBuffer sid = sub.getSIDBuffer();
+        byte[] afterBytes = null;
+        int afterSize = 0;
         if (after > 0) {
-            protocolBuilder.append(" ");
-            protocolBuilder.append(String.valueOf(after));
+            afterBytes = String.valueOf(after).getBytes();
+            afterSize = afterBytes.length + 1;
         }
+        ByteBuffer protocolBuilder = ByteBuffer.allocate(5 + 1 + sid.limit() + afterSize + 2);
+        protocolBuilder.put(OP_UNSUB.asReadOnlyBuffer());
+        protocolBuilder.put((byte)' ');
+        protocolBuilder.put(sid);
+
+        if (afterBytes != null) {
+            protocolBuilder.put((byte)' ');
+            protocolBuilder.put(afterBytes);
+        }
+        protocolBuilder.put((byte)'\r');
+        protocolBuilder.put((byte)'\n');
         protocolBuilder.flip();
         NatsMessage unsubMsg = new NatsMessage(protocolBuilder);
         queueInternalOutgoing(unsubMsg);
     }
 
     // Assumes the null/empty checks were handled elsewhere
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher) {
+    NatsSubscription createSubscription(ByteBuffer subject, ByteBuffer queueName, NatsDispatcher dispatcher) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {
@@ -916,7 +926,7 @@ class NatsConnection implements Connection {
 
         NatsSubscription sub = null;
         long sidL = nextSid.getAndIncrement();
-        String sid = String.valueOf(sidL);
+        ByteBuffer sid = NatsEncoder.encodeSID(String.valueOf(sidL));
 
         sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
         subscribers.put(sid, sub);
@@ -925,26 +935,28 @@ class NatsConnection implements Connection {
         return sub;
     }
 
-    void sendSubscriptionMessage(CharSequence sid, String subject, String queueName, boolean treatAsInternal) {
+    void sendSubscriptionMessage(ByteBuffer sid, ByteBuffer subject, ByteBuffer queueName, boolean treatAsInternal) {
         if (!isConnected()) {
             return;// We will setup sub on reconnect or ignore
         }
 
         // use a big buffer, may fail at server, but we don't want to fail here
-        int subLength = (subject != null) ? subject.length() : 0;
-        int qLength = (queueName != null) ? queueName.length() : 0;
-        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine() + subLength + qLength);
-        protocolBuilder.append(OP_SUB);
-        protocolBuilder.append(" ");
-        protocolBuilder.append(subject);
+        int subLength = (subject != null) ? subject.limit() : 0;
+        int qLength = (queueName != null) ? queueName.limit() + 1 : 0;
+        ByteBuffer protocolBuilder = ByteBuffer.allocate(3 + 1 + subLength + qLength + 1 + sid.limit() + 2);
+        protocolBuilder.put(OP_SUB.asReadOnlyBuffer());
+        protocolBuilder.put((byte)' ');
+        protocolBuilder.put(subject.asReadOnlyBuffer());
 
         if (queueName != null) {
-            protocolBuilder.append(" ");
-            protocolBuilder.append(queueName);
+            protocolBuilder.put((byte)' ');
+            protocolBuilder.put(queueName.asReadOnlyBuffer());
         }
 
-        protocolBuilder.append(" ");
-        protocolBuilder.append(sid);
+        protocolBuilder.put((byte)' ');
+        protocolBuilder.put(sid.asReadOnlyBuffer());
+        protocolBuilder.put((byte)'\r');
+        protocolBuilder.put((byte)'\n');
         protocolBuilder.flip();
         NatsMessage subMsg = new NatsMessage(protocolBuilder);
 
@@ -956,37 +968,57 @@ class NatsConnection implements Connection {
     }
 
     public String createInbox() {
-        String prefix = options.getInboxPrefix();
-        StringBuilder builder = new StringBuilder();
-        builder.append(prefix);
-        builder.append(this.nuid.next());
-        return builder.toString();
+        return NatsEncoder.decodeInbox(this.createInboxBuffer());
+    }
+
+    public ByteBuffer createInboxBuffer() {
+        ByteBuffer prefix = options.getInboxPrefixBuffer();
+        ByteBuffer next = this.nuid.nextBuffer();
+        ByteBuffer builder = ByteBuffer.allocate(prefix.remaining() + next.limit());
+        builder.put(prefix.asReadOnlyBuffer());
+        builder.put(next);
+        builder.flip();
+        return builder;
     }
 
     int getRespInboxLength() {
-        String prefix = options.getInboxPrefix();
-        return prefix.length() + 22 + 1; // 22 for nuid, 1 for .
+        ByteBuffer prefix = options.getInboxPrefixBuffer();
+        return prefix.remaining() + 22 + 1; // 22 for nuid, 1 for .
     }
 
-    String createResponseInbox(String inbox) {
-        StringBuilder builder = new StringBuilder();
-        builder.append(inbox.substring(0, getRespInboxLength())); // Get rid of the *
-        builder.append(this.nuid.next());
-        return builder.toString();
+    ByteBuffer createResponseInbox(ByteBuffer inbox) {
+        ByteBuffer next = this.nuid.nextBuffer();
+        ByteBuffer builder = ByteBuffer.allocate(getRespInboxLength() + next.limit());
+        ByteBuffer inboxBuf = inbox.duplicate();
+        inboxBuf.limit(getRespInboxLength()); // Get rid of the *
+
+        builder.put(inboxBuf);
+        builder.put(next);
+        builder.flip();
+        return builder;
+    }
+
+    ByteBuffer getResponseToken(ByteBuffer responseInbox) {
+        int len = getRespInboxLength();
+        if (responseInbox.limit() <= len) {
+            return responseInbox.duplicate();
+        }
+        ByteBuffer tokenBuffer = ByteBuffer.allocate(responseInbox.limit() - len);
+        ByteBuffer responseInboxBuf = responseInbox.duplicate();
+        responseInboxBuf.position(len);
+        tokenBuffer.put(responseInboxBuf);
+        tokenBuffer.flip();
+        return tokenBuffer;
     }
 
     // If the inbox is long enough, pull out the end part, otherwise, just use the
     // full thing
-    String getResponseToken(String responseInbox) {
-        int len = getRespInboxLength();
-        if (responseInbox.length() <= len) {
-            return responseInbox;
-        }
-        return responseInbox.substring(len);
+    ByteBuffer getResponseToken(String responseInbox) {
+        return getResponseToken(NatsEncoder.encodeInbox(responseInbox));
     }
 
     void cleanResponses(boolean cancelIfRunning) {
-        ArrayList<String> toRemove = new ArrayList<>();
+        ArrayList<ByteBuffer> toRemove = new ArrayList<>();
 
         responses.forEach((token, f) -> {
             if (f.isDone() || cancelIfRunning) {
@@ -1000,7 +1032,7 @@ class NatsConnection implements Connection {
             }
         });
 
-        for (String token : toRemove) {
+        for (ByteBuffer token : toRemove) {
             responses.remove(token);
         }
     }
@@ -1020,7 +1052,11 @@ class NatsConnection implements Connection {
     }
 
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        String responseInbox = null;
+        return this.request((subject != null) ? NatsEncoder.encodeSubject(subject) : null, body);
+    }
+
+    public CompletableFuture<Message> request(ByteBuffer subject, byte[] body) {
+        ByteBuffer responseInbox = null;
         boolean oldStyle = options.isOldRequestStyle();
 
         if (isClosed()) {
@@ -1029,7 +1065,7 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining");
         }
 
-        if (subject == null || subject.length() == 0) {
+        if (subject == null || subject.limit() == 0) {
             throw new IllegalArgumentException("Subject is required in publish");
         }
 
@@ -1046,7 +1082,7 @@ class NatsConnection implements Connection {
             });
 
             if (inboxDispatcher.compareAndSet(null, d)) {
-                String id = this.nuid.next();
+                ByteBuffer id = this.nuid.nextBuffer();
                 this.dispatchers.put(id, d);
                 d.start(id);
                 d.subscribe(this.mainInbox);
@@ -1054,12 +1090,12 @@ class NatsConnection implements Connection {
         }
 
         if (oldStyle) {
-            responseInbox = createInbox();
+            responseInbox = createInboxBuffer();
         } else {
             responseInbox = createResponseInbox(this.mainInbox);
         }
 
-        String responseToken = getResponseToken(responseInbox);
+        ByteBuffer responseToken = getResponseToken(responseInbox);
         CompletableFuture<Message> future = new CompletableFuture<>();
 
         if (!oldStyle) {
@@ -1072,13 +1108,13 @@ class NatsConnection implements Connection {
             NatsSubscription sub = dispatcher.subscribeReturningSubscription(responseInbox);
             dispatcher.unsubscribe(responseInbox, 1);
             // Unsubscribe when future is cancelled:
-            String finalResponseInbox = responseInbox;
+            ByteBuffer finalResponseInbox = responseInbox;
             future.whenComplete((msg, exception) -> {
                 if ( null != exception && exception instanceof CancellationException ) {
                     dispatcher.unsubscribe(finalResponseInbox);
                 }
             });
-            responses.put(sub.getSID(), future);
+            responses.put(sub.getSIDBuffer(), future);
         }
 
         this.publish(subject, responseInbox, body);
@@ -1089,12 +1125,12 @@ class NatsConnection implements Connection {
 
     void deliverReply(Message msg) {
         boolean oldStyle = options.isOldRequestStyle();
-        String subject = msg.getSubject();
-        String token = getResponseToken(subject);
+        ByteBuffer subject = msg.getSubjectBuffer();
+        ByteBuffer token = getResponseToken(subject);
         CompletableFuture<Message> f = null;
 
         if (oldStyle) {
-            f = responses.remove(msg.getSID());
+            f = responses.remove(msg.getSIDBuffer());
         } else {
             f = responses.remove(token);
         }
@@ -1103,7 +1139,7 @@ class NatsConnection implements Connection {
             statistics.decrementOutstandingRequests();
             f.complete(msg);
             statistics.incrementRepliesReceived();
-        } else if (!oldStyle && !subject.startsWith(mainInbox)) {
+        } else if (!oldStyle && !subject.duplicate().limit(mainInbox.limit()).equals(mainInbox)) {
             System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection");
         }
     }
@@ -1116,7 +1152,7 @@ class NatsConnection implements Connection {
         }
 
         NatsDispatcher dispatcher = new NatsDispatcher(this, handler);
-        String id = this.nuid.next();
+        ByteBuffer id = this.nuid.nextBuffer();
         this.dispatchers.put(id, dispatcher);
         dispatcher.start(id);
         return dispatcher;
@@ -1198,12 +1234,13 @@ class NatsConnection implements Connection {
     void sendConnect(String serverURI) throws IOException {
         try {
             NatsServerInfo info = this.serverInfo.get();
-            CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-            // Use a bigger buffer than the max length, better to fail on the server than here
-            CharBuffer connectString = CharBuffer.allocate(this.options.getMaxControlLine() + connectOptions.limit());
-            connectString.append(NatsConnection.OP_CONNECT);
-            connectString.append(" ");
-            connectString.append(connectOptions);
+            ByteBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
+            ByteBuffer connectString = ByteBuffer.allocate(7 + 1 + connectOptions.limit() + 2);
+            connectString.put(NatsConnection.OP_CONNECT.asReadOnlyBuffer());
+            connectString.put((byte)' ');
+            connectString.put(connectOptions.asReadOnlyBuffer());
+            connectString.put((byte)'\r');
+            connectString.put((byte)'\n');
             connectString.flip();
             NatsMessage msg = new NatsMessage(connectString);
             
@@ -1247,7 +1284,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PING));
+        NatsMessage msg = new NatsMessage(NatsConnection.OP_PING_LINE.duplicate());
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1262,7 +1299,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PONG));
+        NatsMessage msg = new NatsMessage(NatsConnection.OP_PONG_LINE.duplicate());
         queueInternalOutgoing(msg);
     }
 
@@ -1275,27 +1312,23 @@ class NatsConnection implements Connection {
     }
 
     void readInitialInfo() throws IOException {
-        byte[] readBuffer = new byte[options.getBufferSize()];
+        ByteBuffer readBuffer = ByteBuffer.allocate(options.getBufferSize());
         ByteBuffer protocolBuffer = ByteBuffer.allocate(options.getBufferSize());
         boolean gotCRLF = false;
         boolean gotCR = false;
-        int read = 0;
 
         while (!gotCRLF) {
-            read = this.dataPort.read(readBuffer, 0, readBuffer.length);
-
-            if (read < 0) {
+            if (this.dataPort.read(readBuffer) < 0) {
                 break;
             }
 
-            int i = 0;
-            while (i < read) {
-                byte b = readBuffer[i++];
+            while (readBuffer.hasRemaining()) {
+                byte b = readBuffer.get();
 
                 if (gotCR) {
                     if (b != LF) {
                         throw new IOException("Missed LF after CR waiting for INFO.");
-                    } else if (i < read) {
+                    } else if (readBuffer.hasRemaining()) {
                         throw new IOException("Read past initial info message.");
                     }
 
@@ -1307,11 +1340,16 @@ class NatsConnection implements Connection {
                     gotCR = true;
                 } else {
                     if (!protocolBuffer.hasRemaining()) {
-                        protocolBuffer = enlargeBuffer(protocolBuffer, 0); // just double it
+                        if (protocolBuffer.limit() == protocolBuffer.capacity()) {
+                            protocolBuffer = enlargeBuffer(protocolBuffer, 0); // just double it
+                        } else {
+                            protocolBuffer.limit(protocolBuffer.limit() + 1);
+                        }
                     }
                     protocolBuffer.put(b);
                 }
             }
+            readBuffer.compact();
 
             if (gotCRLF) {
                 break;
@@ -1324,14 +1362,22 @@ class NatsConnection implements Connection {
 
         protocolBuffer.flip();
 
-        String infoJson = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
-        infoJson = infoJson.trim();
-        String msg[] = infoJson.split("\\s");
-        String op = msg[0].toUpperCase();
+        ByteBuffer op = ByteBuffer.allocate(OP_INFO.limit());
+        while (protocolBuffer.hasRemaining()) {
+            byte b = protocolBuffer.get();
+            if (b == (byte)' ' || b == (byte)'\t') {
+                break;
+            } else if (op.hasRemaining()) {
+                op.put(b);
+            }
+        }
+        op.flip();
 
         if (!OP_INFO.equals(op)) {
             throw new IOException("Received non-info initial message.");
         }
+
+        String infoJson = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
 
         handleInfo(infoJson);
     }
@@ -1374,7 +1420,7 @@ class NatsConnection implements Connection {
         this.statistics.incrementInMsgs();
         this.statistics.incrementInBytes(msg.getSizeInBytes());
 
-        NatsSubscription sub = subscribers.get(msg.getSID());
+        NatsSubscription sub = subscribers.get(msg.getSIDBuffer());
 
         if (sub != null) {
             msg.setSubscription(sub);

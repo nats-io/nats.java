@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import java.nio.ByteBuffer;
+
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
  * publish and send requests with raw strings and byte[] but incoming messages can have a few
@@ -29,9 +31,19 @@ public interface Message {
 	public String getSubject();
 
 	/**
+	 * @return the subject that this message was sent to
+	 */
+	public ByteBuffer getSubjectBuffer();
+
+	/**
 	 * @return the subject the application is expected to send a reply message on
 	 */
 	public String getReplyTo();
+
+	/**
+	 * @return the subject the application is expected to send a reply message on
+	 */
+	public ByteBuffer getReplyToBuffer();
 
 	/**
 	 * @return the data from the message
@@ -48,6 +60,12 @@ public interface Message {
 	 * message from the server
 	 */
 	public String getSID();
+
+	/**
+	 * @return the id associated with the subscription, used by the connection when processing an incoming
+	 * message from the server
+	 */
+	public ByteBuffer getSIDBuffer();
 
 	/**
 	 * @return the connection which can be used for publishing, will be null if the subscription is null

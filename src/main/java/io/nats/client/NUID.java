@@ -16,6 +16,7 @@
 package io.nats.client;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Random;
@@ -50,7 +51,7 @@ public final class NUID {
     private final Random prand;
 
     // Instance fields
-    char[] pre;
+    byte[] pre;
     private long seq;
     private long inc;
 
@@ -87,7 +88,7 @@ public final class NUID {
 
         seq = nextLong(prand, maxSeq);
         inc = minInc + nextLong(prand, maxInc - minInc);
-        pre = new char[preLen];
+        pre = new byte[preLen];
         for (int i = 0; i < preLen; i++) {
             pre[i] = '0';
         }
@@ -106,7 +107,16 @@ public final class NUID {
      *
      * @return the next NUID string from this instance.
      */
-    public final synchronized String next() {
+    public final String next() {
+        return StandardCharsets.US_ASCII.decode(getInstance().nextBuffer()).toString();
+    }
+
+    /**
+     * Generate the next NUID ByteBuffer from this instance.
+     *
+     * @return the next NUID ByteBuffer from this instance.
+     */
+    public final synchronized ByteBuffer nextBuffer() {
         // Increment and capture.
         seq += inc;
         if (seq >= maxSeq) {
@@ -115,16 +125,16 @@ public final class NUID {
         }
 
         // Copy prefix
-        char[] b = new char[totalLen];
+        byte[] b = new byte[totalLen];
         System.arraycopy(pre, 0, b, 0, preLen);
 
         // copy in the seq in base36.
         int i = b.length;
         for (long l = seq; i > preLen; l /= base) {
             i--;
-            b[i] = digits[(int) (l % base)];
+            b[i] = (byte) (l % base + (byte)'0');
         }
-        return new String(b);
+        return ByteBuffer.wrap(b);
     }
 
     // Resets the sequntial portion of the NUID
@@ -145,7 +155,7 @@ public final class NUID {
         srand.nextBytes(cb);
 
         for (int i = 0; i < preLen; i++) {
-            pre[i] = digits[(cb[i] & 0xFF) % base];
+            pre[i] = (byte)((cb[i] & 0xFF) % base + (byte)'0');
         }
     }
 
@@ -170,7 +180,7 @@ public final class NUID {
     /**
      * @return the pre
      */
-    char[] getPre() {
+    byte[] getPre() {
         return pre;
     }
 
