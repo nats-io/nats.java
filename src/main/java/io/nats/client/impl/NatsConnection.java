@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.charset.*;
 import java.time.Duration;
 import java.time.Instant;
@@ -423,7 +422,7 @@ class NatsConnection implements Connection {
 
             timeoutNanos = timeCheck(trace, end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
-            newDataPort.connect(serverURI, this, timeoutNanos);
+            newDataPort.connect(serverURI, this, timeoutNanos).get();
 
             // Notify the any threads waiting on the sockets
             this.dataPort = newDataPort;
@@ -432,7 +431,7 @@ class NatsConnection implements Connection {
             // Wait for the INFO message manually
             // all other traffic will use the reader and writer
             Callable<Object> connectTask = new Callable<Object>() {
-                public Object call() throws IOException {
+                public Object call() throws IOException, ExecutionException, InterruptedException {
                     readInitialInfo();
                     checkVersionRequirements();
                     long start = System.nanoTime();
@@ -545,7 +544,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    void upgradeToSecureIfNeeded() throws IOException {
+    void upgradeToSecureIfNeeded() throws IOException, ExecutionException, InterruptedException {
         Options opts = getOptions();
         NatsServerInfo info = getInfo();
 
@@ -1318,8 +1317,16 @@ class NatsConnection implements Connection {
         boolean gotCR = false;
 
         while (!gotCRLF) {
-            if (this.dataPort.read(readBuffer) < 0) {
-                break;
+            try {
+                if (this.dataPort.read(readBuffer).get() < 0) {
+                    break;
+                }
+                readBuffer.flip();
+            } catch (ExecutionException | InterruptedException ex) {
+                final Throwable cause = ex.getCause();
+                if (cause instanceof IOException) {
+                    throw (IOException) cause;
+                }
             }
 
             while (readBuffer.hasRemaining()) {

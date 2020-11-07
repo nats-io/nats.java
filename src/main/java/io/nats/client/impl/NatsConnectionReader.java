@@ -95,9 +95,10 @@ class NatsConnectionReader implements Runnable {
             this.gotCR = false;
 
             while (this.running.get()) {
-                int bytesRead = dataPort.read(this.buffer);
+                int bytesRead = dataPort.read(this.buffer).get();
 
                 if (bytesRead > 0) {
+                    this.buffer.flip();
                     connection.getNatsStatistics().registerRead(bytesRead);
 
                     while (this.buffer.hasRemaining()) {
@@ -125,7 +126,12 @@ class NatsConnectionReader implements Runnable {
             }
         } catch (IOException io) {
             this.connection.handleCommunicationIssue(io);
-        } catch (CancellationException | ExecutionException | InterruptedException ex) {
+        } catch (ExecutionException ex) {
+            final Throwable cause = ex.getCause();
+            if (cause instanceof IOException) {
+                this.connection.handleCommunicationIssue((IOException) cause);
+            }
+        } catch (CancellationException | InterruptedException ex) {
             // Exit
         } finally {
             this.running.set(false);

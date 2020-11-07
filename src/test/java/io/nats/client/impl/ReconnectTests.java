@@ -43,6 +43,8 @@ import io.nats.client.TestHandler;
 import io.nats.client.TestSSLUtils;
 import io.nats.client.ConnectionListener.Events;
 
+import javax.net.ssl.SSLContext;
+
 public class ReconnectTests {
 
     static void flushAndWait(Connection nc, TestHandler handler) {
@@ -614,10 +616,10 @@ public class ReconnectTests {
             ts = new NatsTestServer("src/test/resources/tls_noip.conf", tsInserts, tsPort, false);
             ts2 = new NatsTestServer("src/test/resources/tls_noip.conf", ts2Inserts, ts2Port, false);
 
-            TestSSLUtils.setKeystoreSystemParameters();
+            SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
                                         server(ts.getURI()).
-                                        secure().
+                                        sslContext(ctx).
                                         connectionListener(handler).
                                         maxReconnects(20). // we get multiples for some, so need enough
                                         reconnectWait(Duration.ofMillis(100)).
@@ -658,11 +660,12 @@ public class ReconnectTests {
     @Test
     public void testURISchemeNoIPTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        TestSSLUtils.setKeystoreSystemParameters();
+        SSLContext ctx = TestSSLUtils.createTestSSLContext();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_noip.conf", false)) {
             Options options = new Options.Builder().
                                 server("tls://localhost:"+ts.getPort()).
                                 maxReconnects(0).
+                                sslContext(ctx).
                                 build();
             Connection nc = Nats.connect(options);
             try {
@@ -677,11 +680,12 @@ public class ReconnectTests {
     @Test
     public void testURISchemeNoIPOpenTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        TestSSLUtils.setKeystoreSystemParameters();
+        SSLContext ctx = TestSSLUtils.createTestSSLContext();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_noip.conf", false)) {
             Options options = new Options.Builder().
                                 server("opentls://localhost:"+ts.getPort()).
                                 maxReconnects(0).
+                                sslContext(ctx).
                                 build();
             Connection nc = Nats.connect(options);
             try {

@@ -36,6 +36,7 @@ class NatsConnectionWriter implements Runnable {
     private final AtomicBoolean reconnectMode;
     private final ReentrantLock startStopLock;
 
+    private ByteBuffer accumulateBuffer;
     private ByteBuffer sendBuffer;
 
     private MessageQueue outgoing;
@@ -52,7 +53,8 @@ class NatsConnectionWriter implements Runnable {
 
         Options options = connection.getOptions();
         int bufSize = options.getBufferSize();
-        this.sendBuffer = ByteBuffer.allocate(bufSize);
+        this.accumulateBuffer = ByteBuffer.allocateDirect(bufSize);
+        this.sendBuffer = ByteBuffer.allocateDirect(bufSize);
         
         outgoing = new MessageQueue(true,
             options.getMaxMessagesInOutgoingQueue(),
@@ -103,6 +105,7 @@ class NatsConnectionWriter implements Runnable {
     public void run() {
         Duration waitForMessage = Duration.ofMinutes(2); // This can be long since no one is sending
         Duration reconnectWait = Duration.ofMillis(1); // This should be short, since we are trying to get the reconnect through
+        CompletableFuture<Integer> writeFut = null;
 
         try {
             DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
@@ -113,9 +116,9 @@ class NatsConnectionWriter implements Runnable {
                 NatsMessage msg = null;
                 
                 if (this.reconnectMode.get()) {
-                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.remaining(), maxAccumulate, reconnectWait);
+                    msg = this.reconnectOutgoing.accumulate(this.accumulateBuffer.remaining(), maxAccumulate, reconnectWait);
                 } else {
-                    msg = this.outgoing.accumulate(this.sendBuffer.remaining(), maxAccumulate, waitForMessage);
+                    msg = this.outgoing.accumulate(this.accumulateBuffer.remaining(), maxAccumulate, waitForMessage);
                 }
 
                 if (msg == null) { // Make sure we are still running
@@ -125,29 +128,36 @@ class NatsConnectionWriter implements Runnable {
                 while (msg != null) {
                     long size = msg.getSizeInBytes();
 
-                    if (size > sendBuffer.remaining()) {
-                        if (sendBuffer.position() == 0) { // have to resize
-                            this.sendBuffer = ByteBuffer.allocate((int)Math.max(sendBuffer.capacity() + size, sendBuffer.capacity() * 2));
+                    if (size > accumulateBuffer.remaining()) {
+                        if (accumulateBuffer.position() == 0) { // have to resize
+                            this.accumulateBuffer = ByteBuffer.allocateDirect((int)Math.max(accumulateBuffer.capacity() + size, accumulateBuffer.capacity() * 2));
                         } else { // else send and go to next message
-                            sendBuffer.flip();
-                            dataPort.write(sendBuffer);
-                            connection.getNatsStatistics().registerWrite(sendBuffer.position());
-                            sendBuffer.compact();
+                            if (writeFut != null) {
+                                if (writeFut.get() < 0)
+                                    throw new IOException("Write channel closed.");
+                                while (this.sendBuffer.hasRemaining()) {
+                                    if (dataPort.write(this.sendBuffer).get() < 0)
+                                        throw new IOException("Write channel closed.");
+                                }
+                                connection.getNatsStatistics().registerWrite(this.sendBuffer.position());
+                            }
+                            ByteBuffer sendTmp = this.sendBuffer;
+                            this.sendBuffer = this.accumulateBuffer;
+                            this.accumulateBuffer = sendTmp;
+                            this.sendBuffer.flip();
+                            writeFut = dataPort.write(this.sendBuffer);
+                            this.accumulateBuffer.clear();
                             msg = msg.next;
 
                             if (msg == null) {
                                 break;
+                            } else {
+                                continue;
                             }
                         }
                     }
 
-                    ByteBuffer messageBuf = msg.getMessageBuffer().asReadOnlyBuffer();
-                    if (sendBuffer.position() == 0 && msg.next == null) {
-                        dataPort.write(messageBuf.asReadOnlyBuffer());
-                        connection.getNatsStatistics().registerWrite(messageBuf.position());
-                    } else {
-                        sendBuffer.put(msg.getMessageBuffer().asReadOnlyBuffer());
-                    }
+                    accumulateBuffer.put(msg.getMessageBuffer().asReadOnlyBuffer());
 
                     stats.incrementOutMsgs();
                     stats.incrementOutBytes(size);
@@ -155,18 +165,45 @@ class NatsConnectionWriter implements Runnable {
                     msg = msg.next;
                 }
 
-                sendBuffer.flip();
-                while (sendBuffer.hasRemaining())
-                    dataPort.write(sendBuffer);
-                connection.getNatsStatistics().registerWrite(sendBuffer.position());
-                sendBuffer.compact();
+                if (writeFut != null) {
+                    if (writeFut.get() < 0)
+                        throw new IOException("Write channel closed.");
+                    while (this.sendBuffer.hasRemaining()) {
+                        if (dataPort.write(this.sendBuffer).get() < 0)
+                            throw new IOException("Write channel closed.");
+                    }
+                    connection.getNatsStatistics().registerWrite(this.sendBuffer.position());
+                }
+                ByteBuffer sendTmp = this.sendBuffer;
+                this.sendBuffer = this.accumulateBuffer;
+                this.accumulateBuffer = sendTmp;
+                this.sendBuffer.flip();
+                writeFut = dataPort.write(this.sendBuffer);
+                this.accumulateBuffer.clear();
             }
-        } catch (IOException | BufferOverflowException io) {
+            if (writeFut != null) {
+                if (writeFut.get() < 0)
+                    throw new IOException("Write channel closed.");
+                while (this.sendBuffer.hasRemaining()) {
+                    if (dataPort.write(this.sendBuffer).get() < 0)
+                        throw new IOException("Write channel closed.");
+                }
+                connection.getNatsStatistics().registerWrite(sendBuffer.position());
+            }
+        } catch (IOException io) {
             this.connection.handleCommunicationIssue(io);
-        } catch (CancellationException | ExecutionException | InterruptedException ex) {
+        } catch (ExecutionException ex) {
+            final Throwable cause = ex.getCause();
+            if (cause instanceof IOException) {
+                this.connection.handleCommunicationIssue((IOException) cause);
+            }
+        } catch (BufferOverflowException io) {
+            this.connection.handleCommunicationIssue(io);
+        } catch (CancellationException | InterruptedException ex) {
             // Exit
         } finally {
             this.running.set(false);
+            this.accumulateBuffer.clear();
             this.sendBuffer.clear();
         }
     }

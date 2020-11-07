@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * A data port represents the connection to the network. This could have been called
@@ -22,7 +24,7 @@ import java.nio.ByteBuffer;
  * the core communication code.
  */
 public interface DataPort {
-    public void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException;
+    public CompletableFuture<DataPort> connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException;
 
     /**
      * Upgrade the port to SSL. If it is already secured, this is a no-op.
@@ -30,11 +32,11 @@ public interface DataPort {
      * 
      * @throws IOException if the data port is unable to upgrade.
      */
-    public void upgradeToSecure() throws IOException;
+    public void upgradeToSecure() throws IOException, ExecutionException, InterruptedException;
 
-    public int read(ByteBuffer dst) throws IOException;
+    public CompletableFuture<Integer> read(ByteBuffer dst);
 
-    public void write(ByteBuffer src) throws IOException;
+    public CompletableFuture<Integer> write(ByteBuffer src);
 
     public void close() throws IOException;
 }

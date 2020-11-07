@@ -14,6 +14,7 @@
 package io.nats.client.utils;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 
 import io.nats.client.impl.SocketDataPort;
 
@@ -23,7 +24,7 @@ public class CloseOnUpgradeAttempt extends SocketDataPort {
     }
 
     @Override
-    public void upgradeToSecure() throws IOException {
+    public void upgradeToSecure() throws IOException, ExecutionException, InterruptedException {
         this.close();
         super.upgradeToSecure();
     }
