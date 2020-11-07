@@ -113,9 +113,6 @@ jar {
 test {
     useJUnitPlatform()
     maxHeapSize = "2g"
-    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
-        jvmArgs '-Djava.security.egd=file:/dev/./urandom'
-    }
     testLogging {
         exceptionFormat = 'full'
         events "started", "passed", "skipped", "failed"
