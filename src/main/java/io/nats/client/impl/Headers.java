@@ -38,10 +38,11 @@ public class Headers {
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
-	public void add(String key, String... values) {
+	public Headers add(String key, String... values) {
 		if (values != null) {
 			add(key, Arrays.asList(values));
 		}
+		return this;
 	}
 
 	/**
@@ -53,7 +54,7 @@ public class Headers {
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
-	public void add(String key, Collection<String> values) {
+	public Headers add(String key, Collection<String> values) {
 		if (values != null) {
 			List<String> checked = checkKeyValues(key, values);
 			if (!checked.isEmpty()) {
@@ -66,6 +67,7 @@ public class Headers {
 				valueCsvCache.remove(key); // remove from cache so it will be re-calculated
 			}
 		}
+		return this;
 	}
 
 	/**
@@ -78,10 +80,11 @@ public class Headers {
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
-	public void put(String key, String... values) {
+	public Headers put(String key, String... values) {
 		if (values != null) {
 			put(key, Arrays.asList(values));
 		}
+		return this;
 	}
 
 	/**
@@ -94,7 +97,7 @@ public class Headers {
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
-	public void put(String key, Collection<String> values) {
+	public Headers put(String key, Collection<String> values) {
 		if (values != null) {
 			List<String> checked = checkKeyValues(key, values);
 			if (!checked.isEmpty()) {
@@ -102,6 +105,7 @@ public class Headers {
 				valueCsvCache.remove(key); // remove from cache so it will be re-calculated
 			}
 		}
+		return this;
 	}
 
 	/**

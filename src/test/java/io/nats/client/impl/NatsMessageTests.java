@@ -139,16 +139,17 @@ public class NatsMessageTests {
                         .replyTo("replyTo")
                         .data("data".getBytes())
                         .utf8mode(true)
+                        .headers(new Headers().put("key", "value"))
                         .build()
                         .getKind());
 
         // if you call either of the incoming setters sid / protocolLineLength at any point
         // it will be INCOMING
         assertEquals(NatsMessage.Kind.INCOMING,
-                new NatsMessage.Builder().sid("sid").build().getKind());
+                new NatsMessage.Builder().sid("sid").subject("subject").build().getKind());
 
         assertEquals(NatsMessage.Kind.INCOMING,
-                new NatsMessage.Builder().protocolLineLength(42).build().getKind());
+                new NatsMessage.Builder().protocolLineLength(42).subject("subject").build().getKind());
 
         assertEquals(NatsMessage.Kind.INCOMING,
                 new NatsMessage.Builder().subject("subject").sid("sid").build().getKind());
@@ -161,36 +162,39 @@ public class NatsMessageTests {
                 new NatsMessage.Builder().protocol("proto").build().getKind());
 
         assertEquals(NatsMessage.Kind.PROTOCOL,
-                new NatsMessage.Builder().protocol("").build().getKind());
+                new NatsMessage.Builder().protocol("PING").build().getKind());
     }
 
     @Test
     public void testBuilderInvalidUses() {
         // you have to set something...
-        assertThrows(IllegalStateException.class, () ->
-                new NatsMessage.Builder().build());
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().build());
 
         // once you do PROTOCOL, you can't call these
-        assertThrows(IllegalStateException.class, () ->
-                new NatsMessage.Builder().protocol("proto").subject("nope"));
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().protocol("proto").subject("nope"));
 
-        assertThrows(IllegalStateException.class, () ->
-            new NatsMessage.Builder().protocol("proto").data(ByteBuffer.wrap("nope".getBytes())));
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().protocol("proto").data(ByteBuffer.wrap("nope".getBytes())));
 
-        assertThrows(IllegalStateException.class, () ->
-            new NatsMessage.Builder().protocol("proto").data("nope".getBytes()));
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().protocol("proto").data("nope".getBytes()));
 
-        assertThrows(IllegalStateException.class, () ->
-            new NatsMessage.Builder().protocol("proto").utf8mode(true));
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().protocol("proto").utf8mode(true));
 
-        assertThrows(IllegalStateException.class, () ->
-            new NatsMessage.Builder().protocol("proto").sid("nope"));
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().protocol("proto").headers(new Headers().put("nope", "nope")));
 
-        assertThrows(IllegalStateException.class, () ->
-            new NatsMessage.Builder().protocol("proto").protocolLineLength(42));
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().protocol("proto").sid("nope"));
+
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().protocol("proto").protocolLineLength(42));
 
         // once you do REGULAR or INCOMING, you can't call the protocol
-        assertThrows(IllegalStateException.class, () ->
-                new NatsMessage.Builder().subject("subject").protocol("proto"));
+        assertThrows(IllegalStateException.class,
+                () -> new NatsMessage.Builder().subject("subject").protocol("proto"));
     }
 }

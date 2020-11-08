@@ -227,7 +227,7 @@ public class HeadersTests {
     }
 
     @Test
-    public void valueCsvStringMusstBeCorret() {
+    public void valueCsvStringMustBeCorrect() {
         Headers headers = new Headers();
         headers.put(KEY1, VAL1);
         assertEquals(VAL1, headers.getValueCsv(KEY1));
@@ -236,6 +236,18 @@ public class HeadersTests {
         assertEquals(VAL1 + "," + VAL2, headers.getValueCsv(KEY1));
 
         headers.add(KEY1, "", VAL3);
+        assertEquals(VAL1 + "," + VAL2 + ",," + VAL3, headers.getValueCsv(KEY1));
+    }
+
+    @Test
+    public void fluentWorks() {
+        Headers headers = new Headers();
+        Headers fluent = headers
+                .put(KEY1, VAL1)
+                .add(KEY1, VAL2)
+                .add(KEY1, "", VAL3);
+
+        assertEquals(headers, fluent);
         assertEquals(VAL1 + "," + VAL2 + ",," + VAL3, headers.getValueCsv(KEY1));
     }
 

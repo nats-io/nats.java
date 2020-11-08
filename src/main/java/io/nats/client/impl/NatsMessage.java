@@ -32,6 +32,7 @@ class NatsMessage implements Message {
     private String replyTo;
     private ByteBuffer data;
     private boolean utf8mode;
+    private Headers headers;
 
     // Kind.INCOMING : subject, replyTo, data and these fields
     private String sid;
@@ -46,23 +47,28 @@ class NatsMessage implements Message {
 
     private NatsMessage(Builder builder) {
         kind = builder.kind;
-        if (kind == Kind.REGULAR) {
-            regular(builder);
-        }
-        else if (kind == Kind.INCOMING){
-            incoming(builder);
-        }
-        else {
-            protocol(builder);
-        }
-    }
-
-    private void regular(Builder builder) {
         subject = builder.subject;
         replyTo = builder.replyTo;
         data = builder.data;
-        Charset charset;
+        utf8mode = builder.utf8mode;
+        headers = builder.headers == null || builder.headers.size() == 0 ? null : headers;
 
+        sid = builder.sid;
+        protocolLineLength = builder.protocolLineLength;
+
+        if (kind == Kind.REGULAR) {
+            finishBuildingRegular(builder);
+        }
+        else if (kind == Kind.PROTOCOL){
+            finishBuildingProtocol(builder);
+        }
+
+        // Kind.INCOMING doesn't need to finish / calculate
+        // anything since we only care about the data itself,
+        // not forming a message to the server
+    }
+
+    private void finishBuildingRegular(Builder builder) {
         // Calculate the length in bytes
         int size = (builder.data != null) ? builder.data.limit() : 0;
         int len = fastIntLength(size) + 4;
@@ -73,6 +79,8 @@ class NatsMessage implements Message {
                 len += builder.replyTo.length() + 1;
             }
         }
+
+        Charset charset;
         if (builder.utf8mode) {
             len += fastUtf8Length(builder.subject) + 1;
             charset = StandardCharsets.UTF_8;
@@ -80,6 +88,7 @@ class NatsMessage implements Message {
             len += builder.subject.length() + 1;
             charset = StandardCharsets.US_ASCII;
         }
+
         protocolBytes = ByteBuffer.allocate(len);
         protocolBytes.put((byte)'P').put((byte)'U').put((byte)'B').put((byte)' ');
         protocolBytes.put(builder.subject.getBytes(charset));
@@ -102,17 +111,7 @@ class NatsMessage implements Message {
         protocolBytes.clear();
     }
 
-    private void incoming(Builder builder) {
-        // Create an incoming message for a subscriber
-        // Doesn't check control line size, since the server sent us the message
-        sid = builder.sid;
-        subject = builder.subject;
-        replyTo = builder.replyTo;
-        protocolLineLength = builder.protocolLineLength;
-        data = builder.data;
-    }
-
-    private void protocol(Builder builder) {
+    private void finishBuildingProtocol(Builder builder) {
         if (builder.protocolBuffer.remaining() == 0) {
             protocolBytes = ByteBuffer.allocate(0);
         } else {
@@ -133,6 +132,7 @@ class NatsMessage implements Message {
         private String replyTo;
         private ByteBuffer data = ByteBuffer.wrap(new byte[0]);
         private boolean utf8mode;
+        private Headers headers;
 
         // Kind.INCOMING : subject, replyTo, data and these fields
         private String sid;
@@ -166,6 +166,12 @@ class NatsMessage implements Message {
         public Builder utf8mode(final boolean utf8mode) {
             initKindIfNotInit("utf8mode");
             this.utf8mode = utf8mode;
+            return this;
+        }
+
+        public Builder headers(final Headers headers) {
+            initKindIfNotInit("headers");
+            this.headers = headers;
             return this;
         }
 
@@ -279,20 +285,20 @@ class NatsMessage implements Message {
         }
     }
 
-    boolean isProtocol() {
+    public boolean isProtocol() {
         return kind == Kind.PROTOCOL;
     }
 
     // Will be null on an incoming message
-    byte[] getProtocolBytes() {
+    public byte[] getProtocolBytes() {
         return this.protocolBytes.array();
     }
 
-    int getControlLineLength() {
+    public int getControlLineLength() {
         return (this.protocolBytes != null) ? this.protocolBytes.limit() + 2 : -1;
     }
 
-    long getSizeInBytes() {
+    public long getSizeInBytes() {
         long sizeInBytes = 0;
         if (this.protocolBytes != null) {
             sizeInBytes += this.protocolBytes.limit();
@@ -308,13 +314,29 @@ class NatsMessage implements Message {
         return sizeInBytes;
     }
 
-    public String getSID() {
-        return this.sid;
+    @Override
+    public String getSubject() {
+        return this.subject;
     }
 
-    // Only for incoming messages, with no protocol bytes
-    void setData(byte[] data) {
-        this.data = ByteBuffer.wrap(data);
+    @Override
+    public String getReplyTo() {
+        return this.replyTo;
+    }
+
+    @Override
+    public byte[] getData() {
+        return this.data.array();
+    }
+
+    @Override
+    public Headers getHeaders() {
+        return headers;
+    }
+
+    @Override
+    public Subscription getSubscription() {
+        return this.subscription;
     }
 
     void setSubscription(NatsSubscription sub) {
@@ -325,6 +347,12 @@ class NatsMessage implements Message {
         return this.subscription;
     }
 
+    @Override
+    public String getSID() {
+        return this.sid;
+    }
+
+    @Override
     public Connection getConnection() {
         if (this.subscription == null) {
             return null;
@@ -335,21 +363,5 @@ class NatsMessage implements Message {
 
     public Kind getKind() {
         return kind;
-    }
-
-    public String getSubject() {
-        return this.subject;
-    }
-
-    public String getReplyTo() {
-        return this.replyTo;
-    }
-
-    public byte[] getData() {
-        return this.data.array();
-    }
-
-    public Subscription getSubscription() {
-        return this.subscription;
     }
 }
