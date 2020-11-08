@@ -52,7 +52,7 @@ class NatsConnectionReader implements Runnable {
 
     private Mode mode;
 
-    private NatsMessage incoming;
+    private NatsMessage.Builder incoming;
     private byte[] msgData;
     private int msgDataPosition;
     
@@ -277,8 +277,8 @@ class NatsConnectionReader implements Runnable {
 
                 if (gotCR) {
                     if (b == NatsConnection.LF) {
-                        incoming.setData(msgData);
-                        this.connection.deliverMessage(incoming);
+                        incoming.data(msgData);
+                        this.connection.deliverMessage(incoming.build());
                         msgData = null;
                         msgDataPosition = 0;
                         incoming = null;
@@ -420,7 +420,11 @@ class NatsConnectionReader implements Runnable {
 
                 int incomingLength = parseLength(lengthChars);
 
-                this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
+                this.incoming = new NatsMessage.Builder()
+                        .sid(sid)
+                        .subject(subject)
+                        .replyTo(replyTo)
+                        .protocolLineLength(protocolLineLength);
                 this.mode = Mode.GATHER_DATA;
                 this.msgData = new byte[incomingLength];
                 this.msgDataPosition = 0;

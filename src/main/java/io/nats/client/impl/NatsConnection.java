@@ -804,7 +804,12 @@ class NatsConnection implements Connection {
                     "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }
 
-        NatsMessage msg = new NatsMessage(subject, replyTo, body, options.supportUTF8Subjects());
+        NatsMessage msg = new NatsMessage.Builder()
+                .subject(subject)
+                .replyTo(replyTo)
+                .data(body)
+                .utf8mode(options.supportUTF8Subjects())
+                .build();
 
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
@@ -902,7 +907,7 @@ class NatsConnection implements Connection {
             protocolBuilder.append(String.valueOf(after));
         }
         protocolBuilder.flip();
-        NatsMessage unsubMsg = new NatsMessage(protocolBuilder);
+        NatsMessage unsubMsg = new NatsMessage.Builder().protocol(protocolBuilder).build();
         queueInternalOutgoing(unsubMsg);
     }
 
@@ -946,7 +951,7 @@ class NatsConnection implements Connection {
         protocolBuilder.append(" ");
         protocolBuilder.append(sid);
         protocolBuilder.flip();
-        NatsMessage subMsg = new NatsMessage(protocolBuilder);
+        NatsMessage subMsg = new NatsMessage.Builder().protocol(protocolBuilder).build();
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -1205,7 +1210,7 @@ class NatsConnection implements Connection {
             connectString.append(" ");
             connectString.append(connectOptions);
             connectString.flip();
-            NatsMessage msg = new NatsMessage(connectString);
+            NatsMessage msg = new NatsMessage.Builder().protocol(connectString).build();
             
             queueInternalOutgoing(msg);
         } catch (Exception exp) {
@@ -1247,7 +1252,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PING));
+        NatsMessage msg = new NatsMessage.Builder().protocol(NatsConnection.OP_PING).build();
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1262,7 +1267,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PONG));
+        NatsMessage msg = new NatsMessage.Builder().protocol(NatsConnection.OP_PONG).build();
         queueInternalOutgoing(msg);
     }
 
