@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2020 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
@@ -60,4 +61,31 @@ public class JetstreamTests {
             }
         }
     }   
+
+    @Test
+    public void testJetstreamPublishAndSubscribe() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(true, true);
+             Connection nc = Nats.connect(ts.getURI())) {
+
+            try {
+                ts.createMemoryStream("test-stream", "foo");
+
+                // publish to foo
+                PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
+                nc.publish("foo", "payload".getBytes(), popts);
+
+                // Using subscribe options, let a subscription to "bar" be from our stream.
+                ConsumerConfiguration c = ConsumerConfiguration.builder().build();
+                SubscribeOptions so = SubscribeOptions.builder().consumer(c).stream("test-stream").build();
+                Subscription s = nc.subscribe("bar", so);
+                Message m = s.nextMessage(Duration.ofSeconds(5));
+                assertEquals(new String("payload"), new String(m.getData()));
+            } catch (Exception ex) {
+                Assertions.fail("Exception:  " + ex.getMessage());
+            }
+            finally {
+                nc.close();
+            }
+        }
+    }       
 }

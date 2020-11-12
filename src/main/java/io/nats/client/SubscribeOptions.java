@@ -13,8 +13,6 @@
 
 package io.nats.client;
 
-import java.time.Duration;
-
 /**
  * The PublishOptions class specifies the options for publishing with jetstream enabled servers.
  * Options are created using a {@link PublishOptions.Builder Builder}.
@@ -26,17 +24,17 @@ public class SubscribeOptions {
 
     // TODO:  Add properties
 
+    /**
+     * Constructs a SubscribeOptions object with a stream and consumer configuration.
+     * @param stream the name of the stream
+     * @param consumerConfiguration the consumer configuration
+     */
     public SubscribeOptions(String stream, ConsumerConfiguration consumerConfiguration) {
         if (consumerConfiguration == null) {
             throw new IllegalArgumentException("consumerConfiguration cannot be null");
         }
         this.consumer = consumerConfiguration;
-
-        if (stream == null) {
-            this.stream = "not.set";
-        } else {
-            setStream(stream);
-        }
+        setStream(stream);
     }
 
     /**
@@ -69,6 +67,7 @@ public class SubscribeOptions {
 
     /**
      * Creates a builder for the publish options.
+     * @return the builder.
      */
     public static Builder builder() {
         return new Builder();
@@ -83,18 +82,11 @@ public class SubscribeOptions {
     public static class Builder {
         private String stream = null;
         private ConsumerConfiguration consumer = null;
-
-        /**
-         * Constructs a new subscribe options Builder with the default values.
-         */
-        public Builder() {
-            // NOOP.
-        }
         
         /**
          * Sets the stream name for publishing.  The default is undefined.
          * @param stream The name of the stream.
-         * @return Builder
+         * @return the builder
          */
         public Builder stream(String stream) {
             this.stream = stream;
@@ -103,8 +95,8 @@ public class SubscribeOptions {
 
         /**
          * Sets the consumer configuration for the subscription.
-         * @param timeout the publish timeout.
-         * @return
+         * @param consumerConfig the consumer configuration.
+         * @return the builder
          */
         public Builder consumer(ConsumerConfiguration consumerConfig) {
             this.consumer = consumerConfig;
@@ -113,7 +105,7 @@ public class SubscribeOptions {
 
         /**
          * Builds the publish options.
-         * @return publish options
+         * @return subscribe options
          */
         public SubscribeOptions build() {
             return new SubscribeOptions(stream, consumer);

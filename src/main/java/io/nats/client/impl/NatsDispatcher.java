@@ -13,15 +13,18 @@
 
 package io.nats.client.impl;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.nats.client.Subscription;
 import io.nats.client.Dispatcher;
 import io.nats.client.MessageHandler;
+import io.nats.client.SubscribeOptions;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
@@ -194,6 +197,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         this.subscribeImpl(subject, null, null);
         return this;
     }
+
     NatsSubscription subscribeReturningSubscription(String subject) {
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
@@ -201,6 +205,16 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
         return this.subscribeImpl(subject, null, null);
     }
+
+    public Dispatcher subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        this.subscribeImpl(subject, null, null, options);
+        return this;
+    }
+
     public Subscription subscribe(String subject, MessageHandler handler) {
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
@@ -210,6 +224,18 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalArgumentException("MessageHandler is required in subscribe");
         }
         return this.subscribeImpl(subject, null, handler);
+    }
+
+    public Subscription subscribe(String subject, MessageHandler handler, SubscribeOptions options)
+        throws InterruptedException, TimeoutException, IOException {
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        if (handler == null) {
+            throw new IllegalArgumentException("MessageHandler is required in subscribe");
+        }
+        return this.subscribeImpl(subject, null, handler, options);
     }
 
     public Dispatcher subscribe(String subject, String queueName) {
@@ -224,6 +250,18 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return this;
     }
 
+    public Dispatcher subscribe(String subject, String queueName, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        if (queueName == null || queueName.length() == 0) {
+            throw new IllegalArgumentException("QueueName is required in subscribe");
+        }
+        this.subscribeImpl(subject, queueName, null, options);
+        return this;
+    }    
+
     public Subscription subscribe(String subject, String queueName,  MessageHandler handler) {
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
@@ -236,9 +274,28 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (handler == null) {
             throw new IllegalArgumentException("MessageHandler is required in subscribe");
         }
-        return this.subscribeImpl(subject, queueName, handler);
+        try {
+            return this.subscribeImpl(subject, queueName, handler, null);
+        } catch (Exception e) {
+            return null;
+            // NOOP
+        }
     }
 
+    public Subscription subscribe(String subject, String queueName,  MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        if (queueName == null || queueName.length() == 0) {
+            throw new IllegalArgumentException("QueueName is required in subscribe");
+        }
+
+        if (handler == null) {
+            throw new IllegalArgumentException("MessageHandler is required in subscribe");
+        }
+        return this.subscribeImpl(subject, queueName, handler, options);
+    }    
     // Assumes the subj/queuename checks are done, does check for closed status
     NatsSubscription subscribeImpl(String subject, String queueName, MessageHandler handler) {
         if (!this.running.get()) {
@@ -265,6 +322,38 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             return sub;
         } else {
             NatsSubscription sub = connection.createSubscription(subject, queueName, this);
+            this.subscriptionsWithHandlers.put(sub.getSID(), sub);
+            this.subscriptionHandlers.put(sub.getSID(), handler);
+            return sub;
+        }
+    }
+
+    // Assumes the subj/queuename checks are done, does check for closed status
+    NatsSubscription subscribeImpl(String subject, String queueName, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
+        if (!this.running.get()) {
+            throw new IllegalStateException("Dispatcher is closed");
+        }
+
+        if (this.isDraining()) {
+            throw new IllegalStateException("Dispatcher is draining");
+        }
+
+        // If the handler is null, then we use the default handler, which will not allow
+        // duplicate subscriptions to exist.
+        if (handler == null) {
+            NatsSubscription sub = this.subscriptionsUsingDefaultHandler.get(subject);
+
+            if (sub == null) {
+                sub = connection.createSubscription(subject, queueName, this, options);
+                NatsSubscription actual = this.subscriptionsUsingDefaultHandler.putIfAbsent(subject, sub);
+                if (actual != null) {
+                    this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
+                }
+            }
+
+            return sub;
+        } else {
+            NatsSubscription sub = connection.createSubscription(subject, queueName, this, options);
             this.subscriptionsWithHandlers.put(sub.getSID(), sub);
             this.subscriptionHandlers.put(sub.getSID(), handler);
             return sub;

@@ -114,8 +114,11 @@ public class ConsumerInfo {
         return json.substring(bracketStart, bracketEnd+1);
     }
 
-    // for the response from the server
-    ConsumerInfo(String json) {
+    /**
+     * Internal method to generate consumer information.
+     * @param json JSON represeenting the consumer information.
+     */
+    public ConsumerInfo(String json) {
         Matcher m = streamNameRE.matcher(json);
         if (m.find()) {
             this.stream = m.group(1);

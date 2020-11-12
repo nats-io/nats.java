@@ -140,9 +140,9 @@ public interface Connection extends AutoCloseable {
      * 
      * @param subject the subject to send the message to
      * @param body the message body
-     * @param options publisher options
-     * @return the reply message or null if the timeout is reached
+     * @param options publisher options 
      * @throws IllegalStateException if the reconnect buffer is exceeded
+     * @throws IOException if there are communcation issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the NATS server does not return a response
      */
@@ -215,6 +215,25 @@ public interface Connection extends AutoCloseable {
     public Subscription subscribe(String subject);
 
     /**
+     * Create a synchronous subscription to the specified subject.
+     * 
+     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+     * method to read messages for this subscription.
+     * 
+     * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for
+     * information about creating an asynchronous subscription with callbacks.
+     * 
+     * <p>As of 2.6.1 this method will throw an IllegalArgumentException if the subject contains whitespace.
+     * 
+     * @param subject the subject to subscribe to
+     * @param options subscription options
+     * @return an object representing the subscription
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the NATS server does not return a response
+     */
+    public Subscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+
+    /**
      * Create a synchronous subscription to the specified subject and queue.
      * 
      * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage} method to read
@@ -230,6 +249,26 @@ public interface Connection extends AutoCloseable {
      * @return an object representing the subscription
      */
     public Subscription subscribe(String subject, String queueName);
+
+    /**
+     * Create a synchronous subscription to the specified subject and queue.
+     * 
+     * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage} method to read
+     * messages for this subscription.
+     * 
+     * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for
+     * information about creating an asynchronous subscription with callbacks.
+     * 
+     * <p>As of 2.6.1 this method will throw an IllegalArgumentException if either string contains whitespace.
+     * 
+     * @param subject the subject to subscribe to
+     * @param queueName the queue group to join
+     * @param options subscription options
+     * @return an object representing the subscription
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the NATS server does not return a response
+     */
+    public Subscription subscribe(String subject, String queueName, SubscribeOptions options)  throws InterruptedException, TimeoutException, IOException;    
 
     /**
      * Create a {@code Dispatcher} for this connection. The dispatcher can group one

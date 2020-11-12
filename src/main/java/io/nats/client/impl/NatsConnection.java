@@ -57,6 +57,8 @@ import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.Consumer;
+import io.nats.client.ConsumerConfiguration;
+import io.nats.client.ConsumerInfo;
 import io.nats.client.Dispatcher;
 import io.nats.client.ErrorListener;
 import io.nats.client.Message;
@@ -65,6 +67,7 @@ import io.nats.client.NUID;
 import io.nats.client.Options;
 import io.nats.client.PublishOptions;
 import io.nats.client.Statistics;
+import io.nats.client.SubscribeOptions;
 import io.nats.client.Subscription;
 
 class NatsConnection implements Connection {
@@ -84,6 +87,9 @@ class NatsConnection implements Connection {
     static final String OP_PONG = "PONG";
     static final String OP_OK = "+OK";
     static final String OP_ERR = "-ERR";
+
+    private static final String jSApiConsumerCreateT = "$JS.API.CONSUMER.CREATE.%s";
+    private static final String jSApiDurableCreateT  = "$JS.API.CONSUMER.DURABLE.CREATE.%s.%s";
 
     private Options options;
 
@@ -840,12 +846,22 @@ class NatsConnection implements Connection {
                 throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
             }
         }
-    }    
+    }
 
     public Subscription subscribe(String subject) {
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+        return createSubscription(subject, null, null);
+    }
+
+    public Subscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
 
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+        if (options == null) {
+            throw new IllegalArgumentException("Options are required in subscribe");
         }
 
         Pattern pattern = Pattern.compile("\\s");
@@ -855,10 +871,20 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
-        return createSubscription(subject, null, null);
+        return createSubscription(subject, null, null, options);
+    }
+        
+    public Subscription subscribe(String subject, String queueName) {
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+        if (queueName == null || queueName.length() == 0) {
+            throw new IllegalArgumentException("Queue Name is required in subscribe");
+        }
+        return createSubscription(subject, queueName, null);
     }
 
-    public Subscription subscribe(String subject, String queueName) {
+    public Subscription subscribe(String subject, String queueName, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException{
 
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
@@ -881,8 +907,12 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Queue names cannot contain whitespace");
         }
 
-        return createSubscription(subject, queueName, null);
-    }
+        if (options == null) {
+            throw new IllegalArgumentException("Options are required in subscribe");
+        }
+
+        return createSubscription(subject, queueName, null, options);
+    }    
 
     void invalidate(NatsSubscription sub) {
         CharSequence sid = sub.getSID();
@@ -932,6 +962,66 @@ class NatsConnection implements Connection {
         protocolBuilder.flip();
         NatsMessage unsubMsg = new NatsMessage(protocolBuilder);
         queueInternalOutgoing(unsubMsg);
+    }
+
+   
+    /**
+      * Creates or updates a consumer on NATS servers.  Caller must ensure the
+      * parameters are valid.
+      * @param subject subject of the consumer
+      * @param options options contains the stream and consumer configuration.
+      * @return ConsumerInformation from the server.
+      */
+    ConsumerInfo createOrUpdateConsumer(String deliverySubject, SubscribeOptions subOptions) throws TimeoutException, InterruptedException, IOException {
+        /* SubscribeOptions will ensure strean and consumer are set */
+        String stream = subOptions.getStream();
+        
+        ConsumerConfiguration cc = subOptions.getConsumerConfiguration();
+        String durable = cc.getDurable();
+
+        cc.setDeliverySubject(deliverySubject);
+        String requestJSON = cc.toJSON(stream);
+
+        String subj;
+        if (durable == null) {
+            subj = String.format(jSApiConsumerCreateT, stream);
+        } else {
+            subj = String.format(jSApiDurableCreateT, stream, durable);
+        }
+        
+        Message resp = null;
+        resp = request(subj, requestJSON.getBytes(), options.getConnectionTimeout());
+
+        if (resp == null) {
+            throw new TimeoutException("Consumer request to jetstream timed out.");
+        }
+
+        JetstreamAPIResponse jsResp = new JetstreamAPIResponse(resp.getData());
+        if (jsResp.hasError()) {
+            throw new IOException(jsResp.getError());
+        }
+
+        return new ConsumerInfo(jsResp.getResponse());
+    }
+
+    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException{
+
+        if (options != null && subject == null) {
+            subject = createInbox();
+        }
+
+        NatsSubscription sub = createSubscription(subject, queueName, dispatcher);
+
+        if (options != null) {
+            try {
+                createOrUpdateConsumer(subject, options);
+            } catch (Exception e) {
+                sub.unsubscribe();
+                throw e;
+            }
+        }
+        
+        return sub;
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -1102,7 +1192,7 @@ class NatsConnection implements Connection {
             // Unsubscribe when future is cancelled:
             String finalResponseInbox = responseInbox;
             future.whenComplete((msg, exception) -> {
-                if ( null != exception && exception instanceof CancellationException ) {
+                if (exception instanceof CancellationException ) {
                     dispatcher.unsubscribe(finalResponseInbox);
                 }
             });

@@ -429,7 +429,7 @@ public class SubscriberTests {
         assertThrows(IllegalArgumentException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                nc.subscribe("subject", null);
+                nc.subscribe("subject", (String)null);
                 assertFalse(true);
             }
         });

@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -201,7 +202,6 @@ public class ConsumerConfiguration {
         m = startTimeRE.matcher(json);
         if (m.find()) {
             // Instant can parse rfc 3339... we're making a time zone assumption.
-            // TODO - figure this out - will the NATS server always be zulu?
             Instant inst = Instant.parse(m.group(1));
             this.startTime = LocalDateTime.ofInstant(inst, ZoneId.systemDefault());
         }
@@ -244,7 +244,8 @@ public class ConsumerConfiguration {
             this.rateLimit = Long.parseLong(m.group(1));
         }         
 
-    }    
+    }
+
     // For the builder
     ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
             LocalDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
@@ -265,55 +266,79 @@ public class ConsumerConfiguration {
 
     private static void addFld(StringBuilder sb, String fname, String value) {
         if (value != null) {
-            sb.append("\"" + fname + "\" : \"" + value + "\"");
+            sb.append("\"" + fname + "\" : \"" + value + "\",");
         }
     }
 
-    private static void addFld(StringBuilder sb, String fname, long value, boolean comma) {
+    private static void addFld(StringBuilder sb, String fname, long value) {
         if (value >= 0) {
             sb.append("\"" + fname + "\" : " + value + ",");
-            if (comma) {
-                sb.append(",");
-            }  
         }      
     }
 
     private static void addFld(StringBuilder sb, String fname, Duration value) {
         if (value != Duration.ZERO) {
-            sb.append("\"" + fname + "\" : \"" + value.toNanos() + "\",");
+            sb.append("\"" + fname + "\" : " + value.toNanos() + ",");
         }       
-    }    
+    }
+    
+    private static void addFld(StringBuilder sb, String fname, LocalDateTime time) {
+        if (time == null) {
+            return;
+        }
 
-    String toJSON(String subject) {
+        // rfc 3339
+        String s = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(time);
+        sb.append("\"" + fname + "\" : \"" + s + "\",");
+    }
+
+    /**
+     * Returns a JSON representation of this consumer configuration.
+     * 
+     * @param streamName name of the stream.
+     * @return json consumer configuration to send to the server.
+     */
+    public String toJSON(String streamName) {
         
         StringBuilder sb = new StringBuilder("{");
         
-        addFld(sb, "deliver_subject", subject);
+        addFld(sb, "stream_name", streamName);
         
         sb.append("\"config\" : {");
         
         addFld(sb, durableNameField, durable);
         addFld(sb, deliverSubjField, deliverSubject);
         addFld(sb, deliverPolicyField, deliverPolicy.toString());
-        addFld(sb, startSeqField, startSeq, false);
-        addFld(sb, startTimeField, startTime.toString());  // TODO - convert time - will ISO-8601 work?
+        addFld(sb, startSeqField, startSeq);
+        addFld(sb, startTimeField, startTime);
         addFld(sb, ackPolicyField, ackPolicy.toString());
         addFld(sb, ackWaitField, ackWait);
-        addFld(sb, maxDeliverField, maxDeliver, false);
+        addFld(sb, maxDeliverField, maxDeliver);
         addFld(sb, filterSubjectField, filterSubject);
         addFld(sb, replayPolicyField, replayPolicy.toString());
         addFld(sb, sampleFreqField, sampleFrequency);
-        addFld(sb, rateLimitField, rateLimit, true);
+        addFld(sb, rateLimitField, rateLimit);
+
+        // remove the trailing ','
+        sb.setLength(sb.length()-1);
 
         sb.append("}}");
 
         return sb.toString();
     }
 
+    /**
+     * Gets the name of the durable subscription for this consumer configuration.
+     * @return name of the durable.
+     */
     public String getDurable() {
         return durable;
     }
 
+    /**
+     * Gets the deliver subject of this consumer configuration.
+     * @return the deliver subject.
+     */    
     public String getDeliverSubject() {
         return deliverSubject;
     }
@@ -322,122 +347,225 @@ public class ConsumerConfiguration {
      * Package level API to set the deliver subject in the creation API.
      * @param subject - Subject to deliver messages.
      */
-    void setDeliverySubject(String subject) {
+    public void setDeliverySubject(String subject) {
         this.deliverSubject = subject;
     }
 
+    /**
+     * Gets the deliver policy of this consumer configuration.
+     * @return the deliver policy.
+     */    
     public DeliverPolicy getDeliverPolicy() {
         return deliverPolicy;
     }
 
+    /**
+     * Gets the start sequence of this consumer configuration.
+     * @return the start sequence.
+     */    
     public long getStartSequence() {
         return startSeq;
     }
 
+    /**
+     * Gets the start time of this consumer configuration.
+     * @return the start time.
+     */    
     public LocalDateTime getStartTime() {
         return startTime;
     }
 
+    /**
+     * Gets the acknowledgment policy of this consumer configuration.
+     * @return the acknoledgment policy.
+     */    
     public AckPolicy getAckPolicy() {
         return ackPolicy;
     }
 
+    /**
+     * Gets the acknowledgment wait of this consumer configuration.
+     * @return the acknoledgment wait duration.
+     */     
     public Duration getAckWait() {
         return ackWait;
     }
 
+    /**
+     * Gets the max delivery amount of this consumer configuration.
+     * @return the max delivery amount.
+     */      
     public long getMaxDeliver() {
         return maxDeliver;
     }
 
+    /**
+     * Gets the max filter subject of this consumer configuration.
+     * @return the filter subject.
+     */    
     public String getFilterSubject() {
         return filterSubject;
     }
 
+    /**
+     * Gets the replay policy of this consumer configuration.
+     * @return the replay policy.
+     */     
     public ReplayPolicy getReplayPolicy() {
         return replayPolicy;
     }
 
+    /**
+     * Gets the rate limit for this consumer configuration.
+     * @return the rate limit in msgs per second.
+     */      
     public long getRateLimit() {
         return rateLimit;
     }
 
     /**
      * Creates a builder for the publish options.
+     * @return a publish options builder
      */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * ConsumerConfiguration is created using a Builder. The builder supports chaining and will
+     * create a default set of options if no methods are calls.
+     * 
+     * <p>{@code new ConsumerConfiguration.Builder().build()} will create a new ConsumerConfiguration.
+     * 
+     */
     public static class Builder {
 
         private String durable = null;
         private DeliverPolicy deliverPolicy = DeliverPolicy.All;
-        private long startSeq = -1;
+        private long startSeq = 0;
         private LocalDateTime startTime = null;
         private AckPolicy ackPolicy = AckPolicy.All;
-        private Duration ackWait = Duration.ofSeconds(2);
+        private Duration ackWait = Duration.ofSeconds(30);
         private long maxDeliver = -1;
         private String filterSubject = null;
         private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
         private String sampleFrequency = null;
-        private long rateLimit = -1;
+        private long rateLimit = 0;
     
+        /**
+         * Sets the name of the durable subscription.
+         * @param durable name of the durable subscription.
+         * @return the builder
+         */
         public Builder durable(String durable) {
             this.durable = durable;
             return this;
         }      
 
+        /**
+         * Sets the delivery policy of the ConsumerConfiguration.
+         * @param policy the delivery policy.
+         * @return Builder
+         */
         public Builder deliverPolicy(DeliverPolicy policy) {
             this.deliverPolicy = policy;
             return this;
         }
 
+        /**
+         * Sets the start sequence of the ConsumerConfiguration.
+         * @param sequence the start sequence
+         * @return Builder
+         */
         public Builder startSequence(long sequence) {
             this.startSeq = sequence;
             return this;
         }
 
+        /**
+         * Sets the start time of the ConsumerConfiguration.
+         * @param startTime the start time
+         * @return Builder
+         */        
         public Builder startTime(LocalDateTime startTime) {
             this.startTime = startTime;
             return this;
         }
 
+        /**
+         * Sets the acknowledgement policy of the ConsumerConfiguration.
+         * @param policy the acknowledgement policy.
+         * @return Builder
+         */        
         public Builder ackPolicy(AckPolicy policy) {
             this.ackPolicy = policy;
             return this;
         }
 
+        /**
+         * Sets the acknowledgement wait duration of the ConsumerConfiguration.
+         * @param timeout the wait timeout
+         * @return Builder
+         */ 
         public Builder ackWait(Duration timeout) {
             this.ackWait = timeout;
             return this;
         }
 
+        /**
+         * Sets the maximum delivery amount of the ConsumerConfiguration.
+         * @param maxDeliver the maximum delivery amount
+         * @return Builder
+         */        
         public Builder maxDelivery(long maxDeliver) {
             this.maxDeliver = maxDeliver;
             return this;
         }
 
+        /**
+         * Sets the filter subject of the ConsumerConfiguration.
+         * @param filterSubject the filter subject
+         * @return Builder
+         */         
         public Builder filterSubject(String filterSubject) {
             this.filterSubject = filterSubject;
             return this;
         }
 
+        /**
+         * Sets the replay policy of the ConsumerConfiguration.
+         * @param policy the replay policy.
+         * @return Builder
+         */         
         public Builder replayPolicy(ReplayPolicy policy) {
             this.replayPolicy = policy;
             return this;
         }
 
+        /**
+         * Sets the sample frequency of the ConsumerConfiguration.
+         * @param frequency the frequency
+         * @return Builder
+         */
         public Builder sampleFrequency(String frequency) {
             this.sampleFrequency = frequency;
             return this;
         }
 
+        /**
+         * Set the rate limit of the ConsumerConfiguration.
+         * @param msgsPerSecond messages per second to deliver
+         * @return Builder
+         */
         public Builder rateLimit(int msgsPerSecond) {
             this.rateLimit = msgsPerSecond;
             return this;
         }
 
+        /**
+         * Builds the ConsumerConfiguration
+         * @return a consumer configuration.
+         */
         public ConsumerConfiguration build() {
             return new ConsumerConfiguration(
                 durable,

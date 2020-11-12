@@ -28,14 +28,12 @@ public class PublishOptions {
     private Duration streamTimeout = defaultTimeout;
 
     /**
-     * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_CB}, see
-     * {@link Builder#connectionListener(ConnectionListener) connectionListener}.
+     * Property used to configure a builder from a Properties object.
      */
     public static final String PROP_STREAM_NAME = Options.PFX + "publish.stream";
 
     /**
-     * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_CB}, see
-     * {@link Builder#connectionListener(ConnectionListener) connectionListener}.
+     * Property used to configure a builder from a Properties object..
      */
     public static final String PROP_PUBLISH_TIMEOUT = Options.PFX + "publish.timeout";       
 
@@ -74,6 +72,7 @@ public class PublishOptions {
 
     /**
      * Sets the publish timeout.
+     * @param timeout the publish timeout.
      */
     public void setStreamTimeout(Duration timeout) {
         this.streamTimeout = timeout;
@@ -81,6 +80,7 @@ public class PublishOptions {
 
     /**
      * Creates a builder for the publish options.
+     * @return the builder.s
      */
     public static Builder builder() {
         return new Builder();
@@ -103,6 +103,10 @@ public class PublishOptions {
             // NOOP.
         }
         
+        /**
+         * Constructs a builder from properties
+         * @param properties properties
+         */
         public Builder(Properties properties) {
             String s = properties.getProperty(PublishOptions.PROP_PUBLISH_TIMEOUT);
             if (s != null) {
@@ -126,10 +130,10 @@ public class PublishOptions {
         }
 
         /**
-         * Sets the timeout to wait for a publish acknoledgement from a jetstream
+         * Sets the timeout to wait for a publish acknowledgement from a jetstream
          * enabled NATS server.
          * @param timeout the publish timeout.
-         * @return
+         * @return Builder
          */
         public Builder streamTimeout(Duration timeout) {
             this.streamTimeout = timeout;
