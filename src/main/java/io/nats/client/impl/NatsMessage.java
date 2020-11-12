@@ -17,6 +17,10 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.TimeZone;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
@@ -30,6 +34,7 @@ class NatsMessage implements Message {
     private ByteBuffer protocolBytes;
     private NatsSubscription subscription;
     private Integer protocolLength = null;
+    private JetstreamMetaData jsMetaData = null;
 
     NatsMessage next; // for linked list
 
@@ -58,23 +63,23 @@ class NatsMessage implements Message {
             charset = StandardCharsets.US_ASCII;
         }
         this.protocolBytes = ByteBuffer.allocate(len);
-        protocolBytes.put((byte)'P').put((byte)'U').put((byte)'B').put((byte)' ');
+        protocolBytes.put((byte) 'P').put((byte) 'U').put((byte) 'B').put((byte) ' ');
         protocolBytes.put(subject.getBytes(charset));
-        protocolBytes.put((byte)' ');
+        protocolBytes.put((byte) ' ');
 
         if (replyTo != null) {
             protocolBytes.put(replyTo.getBytes(charset));
-            protocolBytes.put((byte)' ');
+            protocolBytes.put((byte) ' ');
         }
 
         if (size > 0) {
             int base = protocolBytes.limit();
             for (int i = size; i > 0; i /= 10) {
                 base--;
-                protocolBytes.put(base, (byte)(i % 10 + (byte)'0'));
+                protocolBytes.put(base, (byte) (i % 10 + (byte) '0'));
             }
         } else {
-            protocolBytes.put((byte)'0');
+            protocolBytes.put((byte) '0');
         }
         protocolBytes.clear();
     }
@@ -184,7 +189,7 @@ class NatsMessage implements Message {
         if (this.protocolBytes != null) {
             sizeInBytes += this.protocolBytes.limit();
         }
-        if (this.protocolLength != null){
+        if (this.protocolLength != null) {
             sizeInBytes += this.protocolLength;
         }
         if (data != null) {
@@ -234,5 +239,90 @@ class NatsMessage implements Message {
 
     public Subscription getSubscription() {
         return this.subscription;
+    }
+
+    public JetstreamMetaData getJetstreamMetaData() {
+        if (this.jsMetaData == null) {
+            this.jsMetaData = new NatsJetstreamMetaData();
+        }
+        return this.jsMetaData;
+    }
+
+    public class NatsJetstreamMetaData implements Message.JetstreamMetaData {
+
+        private String stream;
+        private String consumer;
+        private long delivered;
+        private long streamSeq;
+        private long consumerSeq;
+        private LocalDateTime timestamp;
+        private long pending = -1;
+
+        private void throwNotJSMsgException(String subject) {
+            throw new IllegalArgumentException("Message is not a jetstream message.  ReplySubject: <" + subject + ">");
+        }
+
+        NatsJetstreamMetaData() {
+            if (replyTo == null || replyTo.isEmpty()) {
+                throwNotJSMsgException(replyTo);
+            }
+
+            String[] parts = replyTo.split("\\.");
+            if (parts.length < 8 || parts.length > 9 || !"$JS".equals(parts[0]) || !"ACK".equals(parts[1])) {
+                throwNotJSMsgException(replyTo);
+            }
+
+            stream = parts[2];
+            consumer = parts[3];
+            delivered = Long.parseLong(parts[4]);
+            streamSeq = Long.parseLong(parts[5]);
+            consumerSeq = Long.parseLong(parts[6]);
+
+            // not so clever way to seperate nanos from seconds
+            long tsi = Long.parseLong(parts[7]);
+            long seconds = tsi/1000000000;
+            int nanos = (int)(tsi - ((tsi/1000000000) * 1000000000));
+            timestamp = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
+
+            if (parts.length == 9) {
+                pending = Long.parseLong(parts[8]);
+            }
+        }
+
+        @Override
+        public String getStream() {
+            return stream;
+        }
+
+        @Override
+        public String getConsumer() {
+            return consumer;
+        }
+
+        @Override
+        public long deliveredCount() {
+            return delivered;
+        }
+
+        @Override
+        public long streamSequence() {
+            return streamSeq;
+        }
+
+        @Override
+        public long consumerSequence() {
+            return consumerSeq;
+        }
+
+        @Override
+        public long pendingCount() {
+            return pending;
+        }
+
+        @Override
+        public LocalDateTime timestamp() {
+            return timestamp;
+        }
+
     }
 }

@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -28,6 +29,7 @@ import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.Message.JetstreamMetaData;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
 
 public class NatsMessageTests {
@@ -126,5 +128,25 @@ public class NatsMessageTests {
                 assertFalse(true);
             }
         });
+    }
+ 
+    @Test
+    public void testJSMetaData() {
+        byte[] body = new byte[10];
+        String subject = "subj";
+        String replyTo = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
+
+        NatsMessage msg = new NatsMessage(subject, replyTo, body, false);
+
+        JetstreamMetaData jsmd = msg.getJetstreamMetaData();
+        assertNotNull(jsmd);
+        assertEquals("test-stream", jsmd.getStream());
+        assertEquals("test-consumer", jsmd.getConsumer());
+        assertEquals(1, jsmd.deliveredCount());
+        assertEquals(2, jsmd.streamSequence());
+        assertEquals(3, jsmd.consumerSequence());
+        assertEquals(2020, jsmd.timestamp().getYear());
+        assertEquals(6, jsmd.timestamp().getMinute());
+        assertEquals(113260000, jsmd.timestamp().getNano());
     }
 }
