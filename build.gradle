@@ -99,6 +99,9 @@ task bundle(type: Bundle) {
 }
 
 jar {
+    manifest {
+        attributes('Automatic-Module-Name': 'io.nats.jnats')
+    }
     bnd (['Implementation-Title': 'Java Nats',
           'Implementation-Version': jarVersion,
           'Implementation-Vendor': 'nats.io',
@@ -291,7 +294,7 @@ publishing {
         tasks.generatePomFileForMavenJavaPublication {
             destination = file("$buildDir/generated-pom.xml")
         }
-        
+
         tasks.publishMavenJavaPublicationToSonatypeRepository {
             if (useSigning) {
                 dependsOn project.tasks.signArchives
