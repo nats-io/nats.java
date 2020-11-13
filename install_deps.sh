@@ -10,6 +10,7 @@ export GOPATH=`pwd`/go
 
 echo "Getting the nats-server"
 mkdir -p $GOPATH/src/github.com/nats-io
+GO111MODULE=on go get golang.org/x/crypto/ed25519
 GO111MODULE=on go get github.com/nats-io/nats-server/v2@398ef78aac066a54867d10b73fccf50089de0d02
 
 # nats-server should be in `pwd`/go/bin
