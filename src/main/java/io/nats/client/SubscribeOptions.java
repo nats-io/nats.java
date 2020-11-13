@@ -84,21 +84,12 @@ public class SubscribeOptions {
         private ConsumerConfiguration consumer = null;
         
         /**
-         * Sets the stream name for publishing.  The default is undefined.
-         * @param stream The name of the stream.
-         * @return the builder
-         */
-        public Builder stream(String stream) {
-            this.stream = stream;
-            return this;
-        }
-
-        /**
          * Sets the consumer configuration for the subscription.
          * @param consumerConfig the consumer configuration.
          * @return the builder
          */
-        public Builder consumer(ConsumerConfiguration consumerConfig) {
+        public Builder consumer(String stream, ConsumerConfiguration consumerConfig) {
+            this.stream = stream;
             this.consumer = consumerConfig;
             return this;
         }

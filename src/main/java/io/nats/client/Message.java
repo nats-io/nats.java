@@ -13,7 +13,10 @@
 
 package io.nats.client;
 
+import java.sql.Time;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeoutException;
 
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
@@ -73,7 +76,6 @@ public interface Message {
 		 * @return the timestamp
 		 */
 		public LocalDateTime timestamp();
-
 	}
 
 	/**
@@ -108,9 +110,70 @@ public interface Message {
 	public Connection getConnection();
 
 	/**
-	 * Gets the metadata associated with a jetstream messages.
-	 * @return metadata, null if not a jetstream message.
+	 * Gets the metadata associated with a jetstream message.
+	 * @return metadata or null if the message is not a jetstream message.
 	 */
 	public JetstreamMetaData getJetstreamMetaData();
+
+	/**
+	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message
+	 * should not be received again later.  Duration.ZERO does not confirm the acknowledgement.
+	 * @param timeout The duration to wait for a confirmation.
+	 * @throws TimeoutException
+	 * @throws InterruptedException
+	 */
+	public void ack(Duration timeout) throws TimeoutException, InterruptedException;
+
+	/**
+	 * nak acknowledges a JetStream message received from a Consumer, indicating that the message
+	 * is not completely processed and should be sent again later. 
+	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
+	 * @param timeout the duration to wait for a response
+	 * @throws TimeoutException
+	 * @throws InterruptedException
+	 */
+	public void nak(Duration timeout) throws TimeoutException, InterruptedException;
+
+	/**
+	 * ackProgress acknowledges a Jetstream message received from a Consumer, indicating that work is
+	 * ongoing and further processing time is required equal to the configured AckWait of the Consumer.
+	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
+	 * @param timeout
+	 * @throws TimeoutException
+	 * @throws InterruptedException
+	 */
+	public void ackProgress(Duration timeout) throws TimeoutException, InterruptedException;
+
+	/**
+	 * ackNext performs an Ack() and request the next message.  To request multiple messages use AckNextRequest()
+	 */
+	public void ackNext();
+	/**
+	 * ackNextRequest performs an acknowledgement of a message and request the next batch of messages.
+	 * @param expiry the time the server will stop honoring this request
+	 * @param batch the number of messages to request
+	 * @param noWait if true, return when existing messages have been processed
+	 */
+	public void ackNextRequest(LocalDateTime expiry, long batch, boolean noWait);
+
+	/**
+	 * ackAndFetch performs an AckNext() and returns the next message from the stream.
+	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
+	 * @param timeout
+	 * @return the next message from the stream, or null if the request timed out.
+	 * @throws InterruptedException
+	 * @throws IllegalStateException
+	 */
+	public Message ackAndFetch(Duration timeout) throws InterruptedException;
+
+	/**
+	 * ackTerm acknowledges a message received from JetStream indicating the message will not be processed
+	 * and should not be sent to another consumer.
+	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
+	 * @param timeout
+	 * @throws TimeoutException
+	 * @throws InterruptedException
+	 */
+	public void ackTerm(Duration timeout) throws TimeoutException, InterruptedException;
 
 }

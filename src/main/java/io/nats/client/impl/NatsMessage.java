@@ -17,10 +17,11 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.util.TimeZone;
+import java.util.concurrent.TimeoutException;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
@@ -37,6 +38,19 @@ class NatsMessage implements Message {
     private JetstreamMetaData jsMetaData = null;
 
     NatsMessage next; // for linked list
+
+    // Acknowedgement protocol messages
+    private static final byte[] AckAck = "+ACK".getBytes();
+    private static final byte[] AckNak = "-NAK".getBytes();
+    private static final byte[] AckProgress = "+WPI".getBytes();
+
+    // special case
+    private static final byte[] AckNextEmptyPayload = "+NXT {}".getBytes();
+    private static final byte[] AckNext = "+NXT".getBytes();
+
+    private static final byte[] AckTerm = "+TERM".getBytes();
+
+    private static SimpleDateFormat rfc3339DateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
 
     // Create a message to publish
     NatsMessage(String subject, String replyTo, ByteBuffer data, boolean utf8mode) {
@@ -241,6 +255,116 @@ class NatsMessage implements Message {
         return this.subscription;
     }
 
+    private void jsAck(byte[] body, Duration d) throws InterruptedException, TimeoutException {
+        if (this.replyTo == null || this.replyTo.isEmpty()) {
+            throw new IllegalStateException("Message is not a jestream message");
+        }
+
+        Connection c = getConnection();
+        if (c == null) {
+            throw new IllegalStateException("Message is not bound to a connection");
+        }
+
+        if (d == Duration.ZERO) {
+            c.publish(replyTo, body);
+        } else {
+            Message m = c.request(replyTo, body, d);
+            if (m == null) {
+                throw new TimeoutException("Timed out waiting for an ack confirmation");
+            }
+        }
+    }
+
+    @Override
+    public void ack(Duration timeout) throws InterruptedException, TimeoutException {
+        jsAck(AckAck, timeout);
+    }
+
+    @Override
+    public void nak(Duration timeout)  throws InterruptedException, TimeoutException {
+        jsAck(AckNak, timeout);
+    }
+
+    @Override
+    public void ackProgress(Duration timeout) throws InterruptedException, TimeoutException {
+        jsAck(AckProgress, timeout);
+    }
+
+    @Override
+    public void ackNext() {
+        Connection c = getConnection();
+        if (c == null) {
+            throw new IllegalStateException("Message is not bound to a connection");
+        }
+        
+        c.publish(replyTo, subject, AckNext);
+    }
+
+    @Override
+    public void ackNextRequest(LocalDateTime expiry, long batch, boolean noWait) {
+
+        if (batch < 0) {
+            throw new IllegalArgumentException();
+        }
+
+        Connection c = getConnection();
+        if (c == null) {
+            throw new IllegalStateException("Message is not bound to a connection");
+        }
+        
+        // minor optimization for the ack.
+        byte[] payload;
+        if (expiry == null && batch == 0 && !noWait) {
+            payload = AckNextEmptyPayload;
+        } else {
+            StringBuilder sb = new StringBuilder("+ACKNXT {");
+            if (expiry != null) {
+                String s = rfc3339DateFormatter.format(expiry);
+                sb.append("\"expires\" : \"" + s + "\",");
+            }
+            if (batch > 0) {
+                sb.append("\"batch\" : " + batch + ",");
+            }
+            if (noWait) {
+                sb.append("\"no_wait\" : true");
+            }
+            
+            // remove potential trailing ','
+            if (sb.codePointAt(sb.length()-1) == ',') {
+               sb.setLength(sb.length()-1);
+            }
+            
+            sb.append("}");
+            payload = sb.toString().getBytes();
+        }
+
+        c.publish(replyTo, subject, payload);
+    }
+
+    @Override
+    public Message ackAndFetch(Duration timeout) throws InterruptedException {
+        if (this.replyTo == null || this.replyTo.isEmpty()) {
+            throw new IllegalStateException("Message is not a jestream message");
+        }
+
+        Connection c = getConnection();
+        if (c == null) {
+            throw new IllegalStateException("Message is not bound to a connection");
+        }
+
+        Subscription s = c.subscribe(c.createInbox());
+        s.unsubscribe(1);
+
+        c.publish(replyTo, s.getSubject(), AckNext);
+
+        return s.nextMessage(timeout);
+    }
+
+    @Override
+    public void ackTerm(Duration timeout) throws InterruptedException, TimeoutException {
+        jsAck(AckTerm, timeout);
+    }
+
     public JetstreamMetaData getJetstreamMetaData() {
         if (this.jsMetaData == null) {
             this.jsMetaData = new NatsJetstreamMetaData();
@@ -280,8 +404,8 @@ class NatsMessage implements Message {
 
             // not so clever way to seperate nanos from seconds
             long tsi = Long.parseLong(parts[7]);
-            long seconds = tsi/1000000000;
-            int nanos = (int)(tsi - ((tsi/1000000000) * 1000000000));
+            long seconds = tsi / 1000000000;
+            int nanos = (int) (tsi - ((tsi / 1000000000) * 1000000000));
             timestamp = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
 
             if (parts.length == 9) {

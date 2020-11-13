@@ -36,7 +36,7 @@ public class SubscribeOptionsTests {
     public void testBuilder() {
         ConsumerConfiguration cc = new ConsumerConfiguration.Builder().ackPolicy(AckPolicy.All).durable("dur").build();
 
-        SubscribeOptions o = SubscribeOptions.builder().consumer(cc).stream("foo").build();
+        SubscribeOptions o = SubscribeOptions.builder().consumer("foo", cc).build();
         assertEquals("foo", o.getStream());
         assertEquals("dur", o.getConsumerConfiguration().getDurable());
     }
@@ -45,7 +45,7 @@ public class SubscribeOptionsTests {
     @Test
     public void testBuilderException() {
         try  {
-            SubscribeOptions.builder().consumer(null).stream("foo").build();
+            SubscribeOptions.builder().consumer("foo", null).build();
             assertTrue(false);
         } catch (Exception e) {
             // noop

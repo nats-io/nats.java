@@ -15,14 +15,22 @@ package io.nats.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import io.nats.client.ConsumerConfiguration.AckPolicy;
 
 public class JetstreamTests {
 
@@ -64,7 +72,7 @@ public class JetstreamTests {
 
     @Test
     public void testJetstreamPublishAndSubscribe() throws IOException, InterruptedException,ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(true, true);
+        try (NatsTestServer ts = new NatsTestServer(false, true);
              Connection nc = Nats.connect(ts.getURI())) {
 
             try {
@@ -76,7 +84,7 @@ public class JetstreamTests {
 
                 // Using subscribe options, let a subscription to "bar" be from our stream.
                 ConsumerConfiguration c = ConsumerConfiguration.builder().build();
-                SubscribeOptions so = SubscribeOptions.builder().consumer(c).stream("test-stream").build();
+                SubscribeOptions so = SubscribeOptions.builder().consumer("test-stream", c).build();
                 Subscription s = nc.subscribe("bar", so);
                 Message m = s.nextMessage(Duration.ofSeconds(5));
                 assertEquals(new String("payload"), new String(m.getData()));
@@ -87,5 +95,220 @@ public class JetstreamTests {
                 nc.close();
             }
         }
-    }       
+    }
+    
+    @Test
+    public void testJetstreamAck() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        Connection nc = null;
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
+            try {
+                Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
+
+                nc = Nats.connect(options);
+                ts.createMemoryStream("test-stream", "foo");
+                ts.createPullConsumer("test-stream", "pull-durable");
+
+                // publish to foo
+                PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
+                nc.publish("foo", "payload".getBytes(), popts);
+
+                Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
+                assertNotNull(m);
+                assertEquals("payload", new String(m.getData()));
+
+                m.ack(Duration.ofSeconds(2));
+
+                m = nc.request("$JS.API.CONSUMER.MSG.NEXT.TEST.PULL", null, Duration.ofSeconds(1));
+                assertNull(m);
+
+            } catch (Exception ex) {
+                Assertions.fail("Exception:  " + ex.getMessage());
+            }
+            finally {
+                if (nc != null) {
+                    nc.close();
+                }
+            }
+        }
+    } 
+    
+    @Test
+    public void testJetstreamNack() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        Connection nc = null;
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
+            try {
+                Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
+
+                nc = Nats.connect(options);
+                ts.createMemoryStream("test-stream", "foo");
+                ts.createPullConsumer("test-stream", "pull-durable");
+
+                // publish to foo
+                PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
+                nc.publish("foo", "payload".getBytes(), popts);
+
+                Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
+                assertNotNull(m);
+                assertEquals("payload", new String(m.getData()));
+                
+                m.nak(Duration.ofSeconds(2));
+
+                /* TODO - should this work?
+                m = nc.request("$JS.API.CONSUMER.MSG.NEXT.TEST.PULL", null, Duration.ofSeconds(2));
+                assertNotNull(m);
+                assertEquals("payload", new String(m.getData()));
+                */
+
+            } catch (Exception ex) {
+                Assertions.fail("Exception:  " + ex.getMessage());
+            }
+            finally {
+                if (nc != null) {
+                    nc.close();
+                }
+            }
+        }
+    }
+
+    @Test
+    public void testJetstreamAckTerm() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        Connection nc = null;
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
+            try {
+                Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
+
+                nc = Nats.connect(options);
+                ts.createMemoryStream("test-stream", "foo");
+                ts.createPullConsumer("test-stream", "pull-durable");
+
+                // publish to foo
+                PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
+                nc.publish("foo", "payload".getBytes(), popts);
+
+                Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
+                assertNotNull(m);
+                assertEquals("payload", new String(m.getData()));
+                
+                m.ackTerm(Duration.ofSeconds(2));
+
+                m = nc.request("$JS.API.CONSUMER.MSG.NEXT.TEST.PULL", null, Duration.ofSeconds(1));
+                assertNull(m);
+
+            } catch (Exception ex) {
+                Assertions.fail("Exception:  " + ex.getMessage());
+            }
+            finally {
+                if (nc != null) {
+                    nc.close();
+                }
+            }
+        }
+    }  
+    
+    @Test
+    public void testJetstreamAckProgress() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        Connection nc = null;
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
+            try {
+                Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
+
+                nc = Nats.connect(options);
+                ts.createMemoryStream("test-stream", "foo");
+                ts.createPullConsumer("test-stream", "pull-durable");
+
+                // publish to foo
+                PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
+                nc.publish("foo", "payload".getBytes(), popts);
+
+                Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
+                assertNotNull(m);
+                assertEquals("payload", new String(m.getData()));
+                
+                m.ackProgress(Duration.ofSeconds(2));
+
+                m = nc.request("$JS.API.CONSUMER.MSG.NEXT.TEST.PULL", null, Duration.ofSeconds(1));
+                assertNull(m);
+
+            } catch (Exception ex) {
+                Assertions.fail("Exception:  " + ex.getMessage());
+            }
+            finally {
+                if (nc != null) {
+                    nc.close();
+                }
+            }
+        }
+    }
+    
+    @Test
+    public void testJetstreamAckAndFetch() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        Connection nc = null;
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
+            try {
+                Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
+
+                nc = Nats.connect(options);
+                ts.createMemoryStream("test-stream", "foo");
+                ts.createPullConsumer("test-stream", "pull-durable");
+
+                // publish to foo
+                PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
+                nc.publish("foo", "payload1".getBytes(), popts);
+                nc.publish("foo", "payload2".getBytes(), popts);
+
+                Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
+                assertNotNull(m);
+                assertEquals("payload1", new String(m.getData()));
+                
+                Message next = m.ackAndFetch(Duration.ofSeconds(2));
+                assertNotNull(next);
+                assertEquals("payload2", new String(next.getData()));
+
+                m = nc.request("$JS.API.CONSUMER.MSG.NEXT.TEST.PULL", null, Duration.ofSeconds(1));
+                assertNull(m);
+
+            } catch (Exception ex) {
+                Assertions.fail("Exception:  " + ex.getMessage());
+            }
+            finally {
+                if (nc != null) {
+                    nc.close();
+                }
+            }
+        }
+    }  
+    
+    @Test
+    public void testJetstreamAckNextRequest() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        Connection nc = null;
+        try (NatsTestServer ts = new NatsTestServer(false, true)) {
+            try {
+                Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
+
+                nc = Nats.connect(options);
+                ts.createMemoryStream("test-stream", "foo");
+                ts.createPullConsumer("test-stream", "pull-durable");
+
+                // publish to foo
+                PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
+                nc.publish("foo", "payload1".getBytes(), popts);
+                nc.publish("foo", "payload2".getBytes(), popts);
+                nc.publish("foo", "payload3".getBytes(), popts);
+
+                Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
+                assertNotNull(m);
+                assertEquals("payload1", new String(m.getData()));
+                
+                m.ackNextRequest(null, 2, false);
+            } catch (Exception ex) {
+                Assertions.fail("Exception:  " + ex.getMessage());
+            }
+            finally {
+                if (nc != null) {
+                    nc.close();
+                }
+            }
+        }
+    }    
+        
 }

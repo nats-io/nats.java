@@ -27,9 +27,12 @@ import java.nio.channels.SocketChannel;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import io.nats.client.ConsumerConfiguration.AckPolicy;
 
 /**
  * Class to run gnatds for tests. Highly based on the 1.0 client's NatsServer code.
@@ -331,6 +334,30 @@ public class NatsTestServer implements AutoCloseable {
             c.close();
         }
     }
+
+    public void createPullConsumer(String stream, String durable) throws Exception {
+        
+        Connection c = Nats.connect(this.getURI());
+
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().
+            ackPolicy(AckPolicy.Explicit).
+            durable(durable).
+            build();
+
+        String requestJSON = cc.toJSON(stream);
+
+        String subj = String.format("$JS.API.CONSUMER.DURABLE.CREATE.%s.%s", stream, durable);
+        
+        Message resp = c.request(subj, requestJSON.getBytes(), Duration.ofSeconds(2));
+        if (resp == null) {
+            throw new TimeoutException("Consumer request to jetstream timed out.");
+        }
+
+        String result = new String(resp.getData());
+        if (result.contains("code")) {
+            throw new IOException("Couldn't create consumer: " + result);
+        }
+    }    
 
     public void shutdown(boolean wait) throws InterruptedException {
 
