@@ -39,6 +39,11 @@ public interface Message {
 	public byte[] getData();
 
 	/**
+	 * @return the headers from the message
+	 */
+	public byte[] getHeaders();
+
+	/**
 	 * @return the Subscription associated with this message, may be owned by a Dispatcher
 	 */
 	public Subscription getSubscription();

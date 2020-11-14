@@ -13,6 +13,9 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -21,28 +24,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,20 +34,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.AuthenticationException;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionListener;
-import io.nats.client.ConnectionListener.Events;
-import io.nats.client.Consumer;
-import io.nats.client.Dispatcher;
-import io.nats.client.ErrorListener;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.NUID;
-import io.nats.client.Options;
-import io.nats.client.Statistics;
-import io.nats.client.Subscription;
 
 class NatsConnection implements Connection {
     static final byte[] EMPTY_BODY = new byte[0];
@@ -777,11 +746,23 @@ class NatsConnection implements Connection {
         }
     }
 
+    @Override
     public void publish(String subject, byte[] body) {
-        this.publish(subject, null, body);
+        this.publish(subject, null, null, body);
     }
 
+    @Override
+    public void publish(String subject, Headers headers, byte[] body) {
+        this.publish(subject, null, headers, body);
+    }
+
+    @Override
     public void publish(String subject, String replyTo, byte[] body) {
+        this.publish(subject, replyTo, null, body);
+    }
+
+    @Override
+    public void publish(String subject, String replyTo, Headers headers, byte[] body) {
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -804,7 +785,8 @@ class NatsConnection implements Connection {
                     "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }
 
-        NatsMessage msg = new NatsMessage(subject, replyTo, body, options.supportUTF8Subjects());
+        NatsMessage msg = new NatsMessage(subject, replyTo, headers, body, options.supportUTF8Subjects());
+        System.out.println("\n" + msg + "\n");
 
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
@@ -814,6 +796,7 @@ class NatsConnection implements Connection {
         queueOutgoing(msg);
     }
 
+    @Override
     public Subscription subscribe(String subject) {
 
         if (subject == null || subject.length() == 0) {
@@ -830,6 +813,7 @@ class NatsConnection implements Connection {
         return createSubscription(subject, null, null);
     }
 
+    @Override
     public Subscription subscribe(String subject, String queueName) {
 
         if (subject == null || subject.length() == 0) {
@@ -1005,9 +989,15 @@ class NatsConnection implements Connection {
         }
     }
 
+    @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
+        return request(subject, null, body, timeout);
+    }
+
+    @Override
+    public Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException {
         Message reply = null;
-        Future<Message> incoming = this.request(subject, body);
+        Future<Message> incoming = request(subject, headers, body);
         try {
             reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException e) {
@@ -1019,7 +1009,13 @@ class NatsConnection implements Connection {
         return reply;
     }
 
+    @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
+        return request(subject, null, body);
+    }
+
+    @Override
+    public CompletableFuture<Message> request(String subject, Headers headers, byte[] body) {
         String responseInbox = null;
         boolean oldStyle = options.isOldRequestStyle();
 
@@ -1081,7 +1077,7 @@ class NatsConnection implements Connection {
             responses.put(sub.getSID(), future);
         }
 
-        this.publish(subject, responseInbox, body);
+        publish(subject, responseInbox, headers, body);
         statistics.incrementRequestsSent();
 
         return future;

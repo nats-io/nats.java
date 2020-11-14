@@ -13,12 +13,13 @@
 
 package io.nats.examples;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import io.nats.client.impl.Headers;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 public class NatsPub {
 
@@ -30,22 +31,24 @@ public class NatsPub {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String args[]) {
-        String subject;
-        String message;
-        String server;
+        String subject = "foo.baz";
+        String message = "payload"; // "ms" + System.currentTimeMillis() + "rand" + Math.abs(new Random().nextInt());
+        String server = Options.DEFAULT_URL;
 
-        if (args.length == 3) {
-            server = args[0];
-            subject = args[1];
-            message = args[2];
-        } else if (args.length == 2) {
-            server = Options.DEFAULT_URL;
-            subject = args[0];
-            message = args[1];
-        } else {
-            usage();
-            return;
-        }
+        Headers headers = new Headers().add("key1", "val11").add("key2", "val21", "val22");
+
+//        if (args.length == 3) {
+//            server = args[0];
+//            subject = args[1];
+//            message = args[2];
+//        } else if (args.length == 2) {
+//            server = Options.DEFAULT_URL;
+//            subject = args[0];
+//            message = args[1];
+//        } else {
+//            usage();
+//            return;
+//        }
 
         try {
             Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server, false));
@@ -53,7 +56,7 @@ public class NatsPub {
             System.out.println();
             System.out.printf("Sending %s on %s, server is %s\n", message, subject, server);
             System.out.println();
-            nc.publish(subject, message.getBytes(StandardCharsets.UTF_8));
+            nc.publish(subject, headers, message.getBytes(StandardCharsets.UTF_8));
             nc.flush(Duration.ofSeconds(5));
             nc.close();
 

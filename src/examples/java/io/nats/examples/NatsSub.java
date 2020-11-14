@@ -13,14 +13,10 @@
 
 package io.nats.examples;
 
+import io.nats.client.*;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
 
 public class NatsSub {
 
@@ -32,22 +28,22 @@ public class NatsSub {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String args[]) {
-        String subject;
-        int msgCount;
-        String server;
+        String subject = "foo.bar";
+        int msgCount = 10;
+        String server = Options.DEFAULT_URL;
 
-        if (args.length == 3) {
-            server = args[0];
-            subject = args[1];
-            msgCount = Integer.parseInt(args[2]);
-        } else if (args.length == 2) {
-            server = Options.DEFAULT_URL;
-            subject = args[0];
-            msgCount = Integer.parseInt(args[1]);
-        } else {
-            usage();
-            return;
-        }
+//        if (args.length == 3) {
+//            server = args[0];
+//            subject = args[1];
+//            msgCount = Integer.parseInt(args[2]);
+//        } else if (args.length == 2) {
+//            server = Options.DEFAULT_URL;
+//            subject = args[0];
+//            msgCount = Integer.parseInt(args[1]);
+//        } else {
+//            usage();
+//            return;
+//        }
 
         try {
             System.out.println();

@@ -13,10 +13,7 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +22,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests {
     @Test
@@ -84,7 +81,7 @@ public class PublishTests {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
                 byte[] body = new byte[1001];
-                nc.publish("subject", null, body);
+                nc.publish("subject", null, null, body);
                 assertFalse(true);
             }
         });

@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Options;
+
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.charset.StandardCharsets;
@@ -24,8 +26,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
-
-import io.nats.client.Options;
 
 class NatsConnectionWriter implements Runnable {
 
@@ -130,6 +130,8 @@ class NatsConnectionWriter implements Runnable {
                 while (msg != null) {
                     long size = msg.getSizeInBytes();
 
+                    System.out.println("\n*****\n" + msg);
+
                     if (sendPosition + size > sendBuffer.length) {
                         if (sendPosition == 0) { // have to resize
                             this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2)];
@@ -153,9 +155,17 @@ class NatsConnectionWriter implements Runnable {
                     sendBuffer[sendPosition++] = '\n';
 
                     if (!msg.isProtocol()) {
+                        bytes = msg.getHeaders();
+                        if (bytes != null && bytes.length > 0) {
+                            System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
+                            sendPosition += bytes.length;
+                        }
+
                         bytes = msg.getData();
-                        System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                        sendPosition += bytes.length;
+                        if (bytes != null && bytes.length > 0) {
+                            System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
+                            sendPosition += bytes.length;
+                        }
 
                         sendBuffer[sendPosition++] = '\r';
                         sendBuffer[sendPosition++] = '\n';
@@ -166,6 +176,8 @@ class NatsConnectionWriter implements Runnable {
 
                     msg = msg.next;
                 }
+
+                System.out.println("=> " + new String(sendBuffer, 0, sendPosition, StandardCharsets.UTF_8).replace("\r", "+").replace("\n", "+"));
 
                 dataPort.write(sendBuffer, sendPosition);
                 connection.getNatsStatistics().registerWrite(sendPosition);

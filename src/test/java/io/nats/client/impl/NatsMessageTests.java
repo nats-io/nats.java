@@ -13,22 +13,14 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.*;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+import org.junit.jupiter.api.Test;
 
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.NatsServerProtocolMock.ExitAt;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsMessageTests {
     @Test
@@ -41,7 +33,7 @@ public class NatsMessageTests {
     
     @Test
     public void testSizeOnPublishMessage() {
-        byte[] body = new byte[10];
+        byte[] body = "abcde".getBytes(); // new byte[10];
         String subject = "subj";
         String replyTo = "reply";
         String protocol = "PUB "+subject+" "+replyTo+" "+body.length;
@@ -60,34 +52,40 @@ public class NatsMessageTests {
     @Test
     public void testCustomMaxControlLine() {
         assertThrows(IllegalArgumentException.class, () -> {
-            byte[] body = new byte[10];
-            String subject = "subject";
-            String replyTo = "reply";
-            int maxControlLine = 1024;
+            try {
+                byte[] body = new byte[10];
+                String subject = "subject";
+                String replyTo = "reply";
+                int maxControlLine = 1024;
 
-            while (subject.length() <= maxControlLine) {
-                subject = subject + subject;
-            }
+                while (subject.length() <= maxControlLine) {
+                    subject = subject + subject;
+                }
 
-            try (NatsTestServer ts = new NatsTestServer()) {
-                Options options = new Options.Builder().
+                try (NatsTestServer ts = new NatsTestServer()) {
+                    Options options = new Options.Builder().
                             server(ts.getURI()).
                             maxReconnects(0).
                             maxControlLine(maxControlLine).
                             build();
-                Connection nc = Nats.connect(options);
-                try {
-                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                    nc.publish(subject, replyTo, body);
-                    assertFalse(true);
-                } finally {
-                    nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    Connection nc = Nats.connect(options);
+                    try {
+                        assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                        nc.publish(subject, replyTo, body);
+                        assertFalse(true);
+                    } finally {
+                        nc.close();
+                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    }
                 }
+            }
+            catch (RuntimeException e) {
+                e.printStackTrace();
+                throw e;
             }
         });
     }
-    
+
     @Test
     public void testBigProtocolLineWithoutBody() {
         assertThrows(IllegalArgumentException.class, () -> {
@@ -98,7 +96,7 @@ public class NatsMessageTests {
             }
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                        NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
                 nc.subscribe(subject);

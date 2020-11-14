@@ -13,12 +13,7 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,8 +21,10 @@ import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 
-import org.junit.jupiter.api.Test;
+import static io.nats.client.utils.ResourceUtils.getFileFromResourceAsStream;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NKeyTests {
     private static final int ED25519_SIGNATURE_SIZE = 64;
@@ -71,27 +68,15 @@ public class NKeyTests {
 
     @Test
     public void testBase32() throws Exception {
-        String[] inputs = {
-        "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-        "Strings from UTF-8 Testing To get Random-ish Bytes",
-        "Τη γλώσσα μου έδωσαν ελληνική",
-        "На берегу пустынных волн",
-        "ვეპხის ტყაოსანი შოთა რუსთაველი",
-        "Je peux manger du verre, ça ne me fait pas mal",
-        "⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑",
-        "أنا قادر على أكل الزجاج و هذا لا يؤلمني",
-        "私はガラスを食べられます。それは私を傷つけません"
-        };
+        List<String> inputs = getFileFromResourceAsStream("utf8-test-strings.txt");
 
-        for (int i=0; i < inputs.length; i++) {
-            String expected = inputs[i];
+        for (String expected : inputs) {
             byte[] bytes = expected.getBytes(StandardCharsets.UTF_8);
             char[] encoded = NKey.base32Encode(bytes);
             byte[] decoded = NKey.base32Decode(encoded);
             String test = new String(decoded, StandardCharsets.UTF_8);
             assertTrue(expected.equals(test));
         }
-
     }
 
     @Test
