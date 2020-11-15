@@ -13,14 +13,10 @@
 
 package io.nats.examples;
 
+import io.nats.client.*;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
 
 public class NatsSub {
 
@@ -61,17 +57,9 @@ public class NatsSub {
             for(int i=0;i<msgCount;i++) {
                 Message msg = sub.nextMessage(Duration.ofHours(1));
 
-                System.out.printf("Received message \"%s\" on subject \"%s\"\n",
-                        new String(msg.getData(), StandardCharsets.UTF_8),
-                        msg.getSubject());
-
-                if (msg.getHeaders() != null) {
-                    for (String key : msg.getHeaders().keySet()) {
-                        for (String value : msg.getHeaders().values(key)) {
-                            System.out.println(key + ": " + value);
-                        }
-                    }
-                }
+                System.out.printf("Received message \"%s\" on subject \"%s\"\n", 
+                                        new String(msg.getData(), StandardCharsets.UTF_8), 
+                                        msg.getSubject());
             }
 
             nc.close();
