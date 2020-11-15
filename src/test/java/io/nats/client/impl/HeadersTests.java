@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static io.nats.client.impl.Headers.format;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class HeadersTests {
@@ -280,52 +279,53 @@ public class HeadersTests {
 
     @Test
     public void key_formatting() {
+        Headers h = new Headers();
         for (char c = 33; c < 127; c++) {
             // test length 1 keys
-            assertEquals("" + Character.toUpperCase(c), format("" + (c)));
+            assertEquals("" + Character.toUpperCase(c), h.formatKey("" + (c)));
 
             // test letter second character when first is dash -A -a
             for (char c2 = 65; c2 < 91; c2++) {
-                assertEquals("-" + c2 + c, format("-" + (c2) + (c)));
+                assertEquals("-" + c2 + c, h.formatKey("-" + (c2) + (c)));
             }
             for (char c2 = 97; c2 < 123; c2++) {
-                assertEquals("-" + Character.toUpperCase(c2) + c, format("-" + (c2) + (c)));
+                assertEquals("-" + Character.toUpperCase(c2) + c, h.formatKey("-" + (c2) + (c)));
             }
 
             // test x-a -> X-A
             for (char c2 = 65; c2 < 91; c2++) {
-                assertEquals("X-" + c2, format("x-" + (c2)));
+                assertEquals("X-" + c2, h.formatKey("x-" + (c2)));
             }
             for (char c2 = 97; c2 < 123; c2++) {
-                assertEquals("X-" + Character.toUpperCase(c2), format("x-" + (c2)));
+                assertEquals("X-" + Character.toUpperCase(c2), h.formatKey("x-" + (c2)));
             }
 
             // test non letter second and subsequent character when first is dash
             for (char second = 33; second < 45; second++) {
-                assertEquals("-" + (second) + c, format("-" + (second) + (c)));
+                assertEquals("-" + (second) + c, h.formatKey("-" + (second) + (c)));
             }
             for (char second = 46; second < 65; second++) {
-                assertEquals("-" + (second) + c, format("-" + (second) + (c)));
+                assertEquals("-" + (second) + c, h.formatKey("-" + (second) + (c)));
             }
             for (char second = 91; second < 97; second++) {
-                assertEquals("-" + (second) + c, format("-" + (second) + (c)));
+                assertEquals("-" + (second) + c, h.formatKey("-" + (second) + (c)));
             }
             for (char second = 123; second < 127; second++) {
-                assertEquals("-" + (second) + c, format("-" + (second) + (c)));
+                assertEquals("-" + (second) + c, h.formatKey("-" + (second) + (c)));
             }
 
             // test second and subsequent character when first is not dash or letter
             for (char first = 33; first < 45; first++) {
-                assertEquals("" + (first) + c, format("" + (first) + (c)));
+                assertEquals("" + (first) + c, h.formatKey("" + (first) + (c)));
             }
             for (char c2 = 46; c2 < 65; c2++) {
-                assertEquals("" + (c2) + c, format("" + (c2) + (c)));
+                assertEquals("" + (c2) + c, h.formatKey("" + (c2) + (c)));
             }
             for (char c2 = 91; c2 < 97; c2++) {
-                assertEquals("" + (c2) + c, format("" + (c2) + (c)));
+                assertEquals("" + (c2) + c, h.formatKey("" + (c2) + (c)));
             }
             for (char c2 = 123; c2 < 127; c2++) {
-                assertEquals("" + (c2) + c, format("" + (c2) + (c)));
+                assertEquals("" + (c2) + c, h.formatKey("" + (c2) + (c)));
             }
         }
     }
