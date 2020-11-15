@@ -36,19 +36,19 @@ public interface Message {
 	public String getReplyTo();
 
 	/**
-	 * @return the data from the message
+	 * @return the full serizlialized headers as byte array from the message
 	 */
-	public byte[] getData();
-
-	/**
-	 * @return the headers as byte array from the message
-	 */
-	public byte[] getHeadersBytes();
+	public byte[] getSerializedHeader();
 
 	/**
 	 * @return the headers object the message
 	 */
 	public Headers getHeaders();
+
+	/**
+	 * @return the data from the message
+	 */
+	public byte[] getData();
 
 	/**
 	 * @return the Subscription associated with this message, may be owned by a Dispatcher

@@ -13,15 +13,12 @@
 
 package io.nats.examples;
 
+import io.nats.client.*;
+import io.nats.client.impl.Headers;
+
 import java.time.Duration;
 
-import io.nats.client.AuthHandler;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionListener;
-import io.nats.client.Consumer;
-import io.nats.client.ErrorListener;
-import io.nats.client.Nats;
-import io.nats.client.Options;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class ExampleUtils {
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
@@ -63,5 +60,9 @@ public class ExampleUtils {
             }
 
         return builder.build();
+    }
+
+    public static String headerString(Headers headers) {
+        return headers == null ? "" : new String(headers.getSerialized(), US_ASCII).substring(10).replace("\r", "+").replace("\n", "+");
     }
 }

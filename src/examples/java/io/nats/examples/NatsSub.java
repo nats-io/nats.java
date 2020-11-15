@@ -13,7 +13,10 @@
 
 package io.nats.examples;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.Message;
+import io.nats.client.Nats;
+import io.nats.client.Subscription;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -21,45 +24,40 @@ import java.time.Duration;
 public class NatsSub {
 
     static final String usageString =
-            "\nUsage: java NatsSub [server] <subject> <msgCount>\n"
+            "\nUsage: java NatsSub [-s server] <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
             + "\nUse the URL for user/pass/token authentication.\n";
 
-    public static void main(String args[]) {
-        String subject;
-        int msgCount;
-        String server;
-
-        if (args.length == 3) {
-            server = args[0];
-            subject = args[1];
-            msgCount = Integer.parseInt(args[2]);
-        } else if (args.length == 2) {
-            server = Options.DEFAULT_URL;
-            subject = args[0];
-            msgCount = Integer.parseInt(args[1]);
-        } else {
-            usage();
-            return;
-        }
+    public static void main(String[] args) {
+        ExampleArgs exArgs = ExampleArgs.readSubscribeArgs(args, usageString);
 
         try {
-            System.out.println();
-            System.out.printf("Trying to connect to %s, and listen to %s for %d messages.\n", server, subject, msgCount);
-            System.out.println();
+            System.out.printf("\nTrying to connect to %s, and listen to %s for %d messages.\n\n", exArgs.server, exArgs.subject, exArgs.msgCount);
 
-            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server, true));
-            Subscription sub = nc.subscribe(subject);
+            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true));
+            Subscription sub = nc.subscribe(exArgs.subject);
             nc.flush(Duration.ofSeconds(5));
 
-            for(int i=0;i<msgCount;i++) {
+            for(int i=0;i<exArgs.msgCount;i++) {
                 Message msg = sub.nextMessage(Duration.ofHours(1));
 
-                System.out.printf("Received message \"%s\" on subject \"%s\"\n", 
-                                        new String(msg.getData(), StandardCharsets.UTF_8), 
-                                        msg.getSubject());
+                System.out.printf("\nMessage Received [%d]\n", (i+1));
+
+                if (msg.getHeaders() != null && msg.getHeaders().size() > 0) {
+                    System.out.println("  Headers:");
+                    for (String key: msg.getHeaders().keySet()) {
+                        for (String value : msg.getHeaders().values(key)) {
+                            System.out.printf("    %s: %s\n", key, value);
+                        }
+                    }
+                }
+
+                System.out.printf("  Subject: %s\n  Data: %s\n",
+                        msg.getSubject(),
+                        new String(msg.getData(), StandardCharsets.UTF_8));
+
             }
 
             nc.close();
@@ -67,10 +65,5 @@ public class NatsSub {
         } catch (Exception exp) {
             exp.printStackTrace();
         }
-    }
-
-    static void usage() {
-        System.err.println(usageString);
-        System.exit(-1);
     }
 }

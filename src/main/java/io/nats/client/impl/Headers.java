@@ -17,7 +17,6 @@ import java.util.*;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
-
 public class Headers {
 	private static final String VERSION = "NATS/1.0";
 	private static final byte[] VERSION_BYTES = "NATS/1.0\r\n".getBytes(US_ASCII);
@@ -30,8 +29,6 @@ public class Headers {
 	private static final String KEY_CANNOT_BE_EMPTY_OR_NULL = "Header key cannot be null.";
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
-
-	private static final boolean KEY_PASSTHROUGH = false;
 
 	private Map<String, List<String>> headerMap;
 	private byte[] serialized;
@@ -110,12 +107,12 @@ public class Headers {
 	// the add delegate
 	private void _add(String key, Collection<String> values) {
 		if (values != null) {
-			String normalizedKey = checkAndNormalizeKey(key);
+			String formatted = formatKey(key);
 			List<String> checked = checkValues(values);
 			if (!checked.isEmpty()) {
-				List<String> currentSet = headerMap.get(normalizedKey);
+				List<String> currentSet = headerMap.get(formatted);
 				if (currentSet == null) {
-					headerMap.put(normalizedKey, checked);
+					headerMap.put(formatted, checked);
 				} else {
 					currentSet.addAll(checked);
 				}
@@ -159,10 +156,10 @@ public class Headers {
 	// the put delegate
 	private void _put(String key, Collection<String> values) {
 		if (values != null) {
-			String normalizedKey = checkAndNormalizeKey(key);
+			String formatted = formatKey(key);
 			List<String> checked = checkValues(values);
 			if (!checked.isEmpty()) {
-				headerMap.put(normalizedKey, checked);
+				headerMap.put(formatted, checked);
 				serialized = null; // since the data changed, clear this so it's rebuilt
 			}
 		}
@@ -217,37 +214,27 @@ public class Headers {
 		return list == null ? null : Collections.unmodifiableList(list);
 	}
 
-	private String checkAndNormalizeKey(String key) {
-		// key cannot be null or empty and contain only printable characters except colon
-		if (key == null || key.length() == 0) {
-			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
-		}
-
-		key.chars().forEach(c -> {
-			if (c < 33 || c > 126 || c == ':') {
-				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + "'" + c + "'");
-			}
-		});
-
-		return formatKey(key);
-	}
-
 	/*
 		Header field names are case-insensitive, become a requirement in NATS header fields:
 	    First character in a header field is capitalized if in the range of [a-z]
     	First characters following a dash (-) are capitalized if in the range of [a-z]
 	 */
 	public String formatKey(String key) {
-		return KEY_PASSTHROUGH ? key : format(key);
-	}
+		// key cannot be null or empty and contain only printable characters except colon
+		if (key == null || key.length() == 0) {
+			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
+		}
 
-	public static String format(String key) {
 		int len = key.length();
 		char c = key.charAt(0);
 		if (len == 1) {
 			// a - z become A - Z, everything else no change
 			if (c > 96 && c < 123) { // if lowercase,upper it
 				return new String(new char[] {(char)(c - 32)}, 0, len); // saves one stack push by providing offset and count
+			}
+
+			if (c < 33 || c > 126 || c == ':') {
+				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + "'" + c + "'");
 			}
 			return key;
 		}
@@ -256,6 +243,10 @@ public class Headers {
 		char[] normalized = new char[len];
 		for (int idx = 0; idx < len; idx++) {
 			c = key.charAt(idx);
+			if (c < 33 || c > 126 || c == ':') {
+				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + "'" + c + "'");
+			}
+
 			if (c == '-') {
 				upNext = true;
 				normalized[idx] = c;

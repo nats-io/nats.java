@@ -16,11 +16,11 @@ package io.nats.examples;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
-import io.nats.client.Options;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class NatsReply {
 
@@ -32,36 +32,34 @@ public class NatsReply {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String args[]) {
-        String subject;
-        int msgCount;
-        String server;
-
-        if (args.length == 3) {
-            server = args[0];
-            subject = args[1];
-            msgCount = Integer.parseInt(args[2]);
-        } else if (args.length == 2) {
-            server = Options.DEFAULT_URL;
-            subject = args[0];
-            msgCount = Integer.parseInt(args[1]);
-        } else {
-            usage();
-            return;
-        }
+        ExampleArgs exArgs = ExampleArgs.readReplyArgs(args, usageString);
 
         try {
-            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server, true));
-            CountDownLatch latch = new CountDownLatch(msgCount); // dispatcher runs callback in another thread
+            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true));
+            CountDownLatch latch = new CountDownLatch(exArgs.msgCount); // dispatcher runs callback in another thread
+            final AtomicInteger counter = new AtomicInteger(0);
             
-            System.out.println();
             Dispatcher d = nc.createDispatcher((msg) -> {
-                System.out.printf("Received message \"%s\" on subject \"%s\", replying to %s\n", 
-                                        new String(msg.getData(), StandardCharsets.UTF_8), 
-                                        msg.getSubject(), msg.getReplyTo());
+
+                System.out.printf("\nMessage Received [%d]\n", counter.incrementAndGet());
+
+                if (msg.getHeaders() != null && msg.getHeaders().size() > 0) {
+                    System.out.println("  Headers:");
+                    for (String key: msg.getHeaders().keySet()) {
+                        for (String value : msg.getHeaders().values(key)) {
+                            System.out.printf("    %s: %s\n", key, value);
+                        }
+                    }
+                }
+
+                System.out.printf("  Subject: %s\n  Data: %s\n",
+                        msg.getSubject(),
+                        new String(msg.getData(), StandardCharsets.UTF_8));
+
                 nc.publish(msg.getReplyTo(), msg.getData());
                 latch.countDown();
             });
-            d.subscribe(subject);
+            d.subscribe(exArgs.subject);
 
             nc.flush(Duration.ofSeconds(5));
 

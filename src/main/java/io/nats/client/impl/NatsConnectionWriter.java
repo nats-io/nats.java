@@ -153,7 +153,7 @@ class NatsConnectionWriter implements Runnable {
                     sendBuffer[sendPosition++] = '\n';
 
                     if (!msg.isProtocol()) {
-                        bytes = msg.getHeadersBytes();
+                        bytes = msg.getSerializedHeader();
                         if (bytes != null && bytes.length > 0) {
                             System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
                             sendPosition += bytes.length;

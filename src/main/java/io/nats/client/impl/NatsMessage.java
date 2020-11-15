@@ -58,12 +58,12 @@ class NatsMessage implements Message {
 
     NatsMessage next; // for linked list
 
-    NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
+    public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data, utf8mode);
     }
 
     // Create a message to publish
-    NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+    public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
         kind = Kind.REGULAR;
         this.subject = subject;
         this.replyTo = replyTo;
@@ -126,15 +126,17 @@ class NatsMessage implements Message {
         this.kind = Kind.INCOMING;
         this.sid = sid;
         this.subject = subject;
-        if (replyTo != null) {
-            this.replyTo = replyTo;
-        }
+        this.replyTo = replyTo;
         this.protocolLineLength = protocolLength;
-        this.data = null; // will set data and size after we read it
+        // headers and data are set later and sizes are calculated during those setters
+    }
+
+    Kind getKind() {
+        return kind;
     }
 
     boolean isProtocol() {
-        return this.subject == null;
+        return kind == Kind.PROTOCOL;
     }
 
     // Will be null on an incoming message
@@ -159,6 +161,7 @@ class NatsMessage implements Message {
         return sizeInBytes;
     }
 
+    @Override
     public String getSID() {
         return this.sid;
     }
@@ -185,6 +188,7 @@ class NatsMessage implements Message {
         return this.subscription;
     }
 
+    @Override
     public Connection getConnection() {
         if (this.subscription == null) {
             return null;
@@ -193,30 +197,34 @@ class NatsMessage implements Message {
         return this.subscription.connection;
     }
 
+    @Override
     public String getSubject() {
         return this.subject;
     }
 
+    @Override
     public String getReplyTo() {
         return this.replyTo;
     }
 
-    public byte[] getData() {
-        return this.data;
-    }
-
-    public Subscription getSubscription() {
-        return this.subscription;
-    }
-
     @Override
-    public byte[] getHeadersBytes() {
+    public byte[] getSerializedHeader() {
         return headers == null || headers.size() == 0 ? null : headers.getSerialized();
     }
 
     @Override
     public Headers getHeaders() {
         return headers;
+    }
+
+    @Override
+    public byte[] getData() {
+        return this.data;
+    }
+
+    @Override
+    public Subscription getSubscription() {
+        return this.subscription;
     }
 
     @Override
@@ -238,9 +246,45 @@ class NatsMessage implements Message {
                 "\n  dataLen=" + dataLen +
                 "\n  totLen=" + totLen +
                 "\n  subscription=" + subscription +
-                "\n  next=" + next +
-                "\n  >" +
-                new String(getProtocolBytes()) + "++" + hdrString +
-                (data == null ? (kind == Kind.PROTOCOL ? "" : "++") : new String(data, US_ASCII) + "++");
+                "\n  next=" + next;
+    }
+
+    // The builder is only supports building normal publish/request messages,
+    // as an option for client use developers instead of the normal constructor
+    public static class Builder {
+        String subject;
+        String replyTo;
+        Headers headers;
+        byte[] data;
+        boolean utf8mode;
+
+        public Builder subject(final String subject) {
+            this.subject = subject;
+            return this;
+        }
+
+        public Builder replyTo(final String replyTo) {
+            this.replyTo = replyTo;
+            return this;
+        }
+
+        public Builder headers(final Headers headers) {
+            this.headers = headers;
+            return this;
+        }
+
+        public Builder data(final byte[] data) {
+            this.data = data;
+            return this;
+        }
+
+        public Builder utf8mode(final boolean utf8mode) {
+            this.utf8mode = utf8mode;
+            return this;
+        }
+
+        public NatsMessage build() {
+            return new NatsMessage(subject, replyTo, headers, data, utf8mode);
+        }
     }
 }
