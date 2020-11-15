@@ -176,47 +176,44 @@ public class HeadersTests {
     @Test
     public void keyCharactersMustBePrintableExceptForColon() {
         Headers headers = new Headers();
+        // ctrl characters, space and colon are not allowed
         for (char c = 0; c < 33; c++) {
-            final String key = "fail" + c;
+            final String key = "key" + c;
             assertThrows(IllegalArgumentException.class, () -> headers.put(key, VAL1));
         }
+        assertThrows(IllegalArgumentException.class, () -> headers.put("key:", VAL1));
+        assertThrows(IllegalArgumentException.class, () -> headers.put("key" + (char)127, VAL1));
 
-        final String keyColon = "fail:";
-        assertThrows(IllegalArgumentException.class, () -> headers.put(keyColon, VAL1));
-
-        final String key127 = "fail" + (char)127;
-        assertThrows(IllegalArgumentException.class, () -> headers.put(key127, VAL1));
-
+        // all other characters are good
         for (char c = 33; c < ':'; c++) {
-            headers.put("" + c, VAL1);
+            headers.put("key" + c, VAL1);
         }
 
         for (char c = ':' + 1; c < 127; c++) {
-            headers.put("" + c, VAL1);
+            headers.put("key" + c, VAL1);
         }
     }
 
     @Test
     public void valueCharactersMustBePrintableOrTab() {
         Headers headers = new Headers();
+        // ctrl characters, except for tab not allowed
         for (char c = 0; c < 9; c++) {
-            final String val = "fail" + c;
+            final String val = "val" + c;
             assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, val));
         }
         for (char c = 10; c < 32; c++) {
-            final String val = "fail" + c;
+            final String val = "val" + c;
             assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, val));
         }
+        assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, "val" + (char)127));
 
-        final String val127 = "fail" + (char)127;
-        assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, val127));
-
+        // printable and tab are allowed
         for (char c = 32; c < 127; c++) {
             headers.put(KEY1, "" + c);
         }
 
-        final String valTab = "allowed" + (char)9;
-        headers.put(KEY1, valTab);
+        headers.put(KEY1, "val" + (char)9);
     }
 
     @Test
@@ -275,59 +272,6 @@ public class HeadersTests {
         assertTrue(headers2.values(KEY1).contains(VAL1));
         assertTrue(headers2.values(KEY1).contains(VAL3));
         assertTrue(headers2.values(KEY2).contains(VAL2));
-    }
-
-    @Test
-    public void key_formatting() {
-        Headers h = new Headers();
-        for (char c = 33; c < 127; c++) {
-            // test length 1 keys
-            assertEquals("" + Character.toUpperCase(c), h.formatKey("" + (c)));
-
-            // test letter second character when first is dash -A -a
-            for (char c2 = 65; c2 < 91; c2++) {
-                assertEquals("-" + c2 + c, h.formatKey("-" + (c2) + (c)));
-            }
-            for (char c2 = 97; c2 < 123; c2++) {
-                assertEquals("-" + Character.toUpperCase(c2) + c, h.formatKey("-" + (c2) + (c)));
-            }
-
-            // test x-a -> X-A
-            for (char c2 = 65; c2 < 91; c2++) {
-                assertEquals("X-" + c2, h.formatKey("x-" + (c2)));
-            }
-            for (char c2 = 97; c2 < 123; c2++) {
-                assertEquals("X-" + Character.toUpperCase(c2), h.formatKey("x-" + (c2)));
-            }
-
-            // test non letter second and subsequent character when first is dash
-            for (char second = 33; second < 45; second++) {
-                assertEquals("-" + (second) + c, h.formatKey("-" + (second) + (c)));
-            }
-            for (char second = 46; second < 65; second++) {
-                assertEquals("-" + (second) + c, h.formatKey("-" + (second) + (c)));
-            }
-            for (char second = 91; second < 97; second++) {
-                assertEquals("-" + (second) + c, h.formatKey("-" + (second) + (c)));
-            }
-            for (char second = 123; second < 127; second++) {
-                assertEquals("-" + (second) + c, h.formatKey("-" + (second) + (c)));
-            }
-
-            // test second and subsequent character when first is not dash or letter
-            for (char first = 33; first < 45; first++) {
-                assertEquals("" + (first) + c, h.formatKey("" + (first) + (c)));
-            }
-            for (char c2 = 46; c2 < 65; c2++) {
-                assertEquals("" + (c2) + c, h.formatKey("" + (c2) + (c)));
-            }
-            for (char c2 = 91; c2 < 97; c2++) {
-                assertEquals("" + (c2) + c, h.formatKey("" + (c2) + (c)));
-            }
-            for (char c2 = 123; c2 < 127; c2++) {
-                assertEquals("" + (c2) + c, h.formatKey("" + (c2) + (c)));
-            }
-        }
     }
 
     private Headers testHeaders() {
