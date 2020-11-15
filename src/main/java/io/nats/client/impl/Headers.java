@@ -19,18 +19,21 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 
 
 public class Headers {
-	private static String COLON = ":";
-	private static String COLON_SPACE = ": ";
-	private static String CRLF = "\r\n";
-	private static String HEADER_PREFIX = "NATS/1.0\r\n";
+	private static final String VERSION = "NATS/1.0";
+	private static final byte[] VERSION_BYTES = "NATS/1.0\r\n".getBytes(US_ASCII);
+	private static final byte[] COLON_BYTES = ":".getBytes(US_ASCII);
+	private static final byte[] CRLF_BYTES = "\r\n".getBytes(US_ASCII);
+	private static final int VERSION_BYTES_LEN = VERSION_BYTES.length;
+	private static final int COLON_BYTES_LEN = COLON_BYTES.length;
+	private static final int CRLF_BYTES_LEN = CRLF_BYTES.length;
 
 	private static final String KEY_CANNOT_BE_EMPTY_OR_NULL = "Header key cannot be null.";
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
 
-	private static final boolean normalizeKey = false;
+	private static final boolean KEY_PASSTHROUGH = false;
 
-	private Map<String, List<String>> headerMap = new HashMap<>();
+	private Map<String, List<String>> headerMap;
 	private byte[] serialized;
 
 	public int serializedLength() {
@@ -39,23 +42,38 @@ public class Headers {
 
 	public byte[] getSerialized() {
 		if (serialized == null) {
-			StringBuilder sb = new StringBuilder(HEADER_PREFIX);
+			ByteArrayBuilder bab = new ByteArrayBuilder()
+					.append(VERSION_BYTES, VERSION_BYTES_LEN);
 			for (String key : headerMap.keySet()) {
 				for (String value : values(key)) {
-					sb.append(key);
-					sb.append(COLON);
-					sb.append(value);
-					sb.append(CRLF);
+					bab.append(key);
+					bab.append(COLON_BYTES, COLON_BYTES_LEN);
+					bab.append(value);
+					bab.append(CRLF_BYTES, CRLF_BYTES_LEN);
 				}
 			}
-			sb.append(CRLF);
-			serialized = sb.toString().getBytes(US_ASCII);
+			bab.append(CRLF_BYTES, CRLF_BYTES_LEN);
+			serialized = bab.toByteArray();
 		}
 		return serialized;
 	}
 
-	public String getValueCsv(String key) {
-		return String.join(",", values(key));
+	public Headers() {
+		headerMap = new HashMap<>();
+	}
+
+	public Headers(byte[] serialized) {
+		this();
+		if (serialized != null && serialized.length > 0) {
+			String[] split = new String(serialized, US_ASCII).split("\\Q\r\n\\E");
+			if (!split[0].equals(VERSION)) {
+				throw new IllegalArgumentException("Invalid header version");
+			}
+			for (int x = 1; x < split.length; x++) {
+				String[] pair = split[x].split(":");
+				add(pair[0], pair[1].trim().split(","));
+			}
+		}
 	}
 
 	/**
@@ -157,7 +175,7 @@ public class Headers {
 	 */
 	public void remove(String... keys) {
 		for (String key : keys) {
-			headerMap.remove(nomalizeKey(key));
+			headerMap.remove(formatKey(key));
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -169,7 +187,7 @@ public class Headers {
 	 */
 	public void remove(Collection<String> keys) {
 		for (String key : keys) {
-			headerMap.remove(nomalizeKey(key));
+			headerMap.remove(formatKey(key));
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -187,11 +205,15 @@ public class Headers {
 	}
 
 	public boolean containsKey(String key) {
-		return headerMap.containsKey(nomalizeKey(key));
+		return headerMap.containsKey(formatKey(key));
+	}
+
+	public Set<String> keySet() {
+		return headerMap.keySet();
 	}
 
 	public List<String> values(String key) {
-		List<String> list = headerMap.get(nomalizeKey(key));
+		List<String> list = headerMap.get(formatKey(key));
 		return list == null ? null : Collections.unmodifiableList(list);
 	}
 
@@ -207,7 +229,7 @@ public class Headers {
 			}
 		});
 
-		return nomalizeKey(key);
+		return formatKey(key);
 	}
 
 	/*
@@ -215,14 +237,11 @@ public class Headers {
 	    First character in a header field is capitalized if in the range of [a-z]
     	First characters following a dash (-) are capitalized if in the range of [a-z]
 	 */
-	public String nomalizeKey(String key) {
-		return normalizeKey ? normalizeSpec(key) : key;
+	public String formatKey(String key) {
+		return KEY_PASSTHROUGH ? key : format(key);
 	}
 
-	public static String normalizeSpec(String key) {
-		if (key.toLowerCase().equals("-aa")) {
-			int z = 0;
-		}
+	public static String format(String key) {
 		int len = key.length();
 		char c = key.charAt(0);
 		if (len == 1) {
@@ -249,49 +268,6 @@ public class Headers {
 				else {
 					normalized[idx] = c;
 				}
-			}
-			else {
-				normalized[idx] = c;
-			}
-		}
-		return new String(normalized, 0, len); // saves one stack push by providing offset and count
-	}
-
-	public String nomalizeSpecx(String key) {
-		// key is assumed validated to not be null or empty and printable
-		// A=65 Z=90 a=97=A+32 z=122=Z+32
-		int len = key.length();
-		char c = key.charAt(0);
-		if (len == 1) {
-			// a - z become A - Z, everything else no change
-			if (c > 96 && c < 123) { // if lowercase,upper it
-				return new String(new char[] {(char)(c - 32)}, 0, len); // saves one stack push by providing offset and count
-			}
-			return key;
-		}
-
-		// if the first char is dash, leave it bu check the second character
-		char[] normalized = new char[len];
-		int idx = 0;
-		if (c == '-') {
-			normalized[0] = c;
-			idx = 1;
-		}
-
-		// first [or second if first was dash] character must be upper if lower
-		c = key.charAt(idx);
-		if (c > 96 && c < 123) { // if lowercase,upper it
-			normalized[idx] = (char)(c - 32);
-		}
-		else {
-			normalized[idx] = c;
-		}
-		idx++;
-
-		for (; idx < len; idx++) {
-			c = key.charAt(idx);
-			if (c > 64 && c < 91) { // if uppercase, lower it
-				normalized[idx] = (char)(c + 32);
 			}
 			else {
 				normalized[idx] = c;

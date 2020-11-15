@@ -48,6 +48,7 @@ class NatsConnection implements Connection {
     static final String OP_PUB = "PUB";
     static final String OP_UNSUB = "UNSUB";
     static final String OP_MSG = "MSG";
+    static final String OP_HMSG = "HMSG";
     static final String OP_PING = "PING";
     static final String OP_PONG = "PONG";
     static final String OP_OK = "+OK";
@@ -786,7 +787,6 @@ class NatsConnection implements Connection {
         }
 
         NatsMessage msg = new NatsMessage(subject, replyTo, headers, body, options.supportUTF8Subjects());
-        System.out.println("\n" + msg + "\n");
 
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {

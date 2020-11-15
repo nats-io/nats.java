@@ -13,14 +13,15 @@
 
 package io.nats.examples;
 
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import io.nats.client.impl.Headers;
+
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class NatsReq {
 
@@ -32,26 +33,31 @@ public class NatsReq {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String args[]) {
-        String subject;
-        String message;
-        String server;
+        String subject = "foo.bar";
+        String message = "Hello World";
+        String server = Options.DEFAULT_URL;
 
-        if (args.length == 3) {
-            server = args[0];
-            subject = args[1];
-            message = args[2];
-        } else if (args.length == 2) {
-            server = Options.DEFAULT_URL;
-            subject = args[0];
-            message = args[1];
-        } else {
-            usage();
-            return;
-        }
+//        if (args.length == 3) {
+//            server = args[0];
+//            subject = args[1];
+//            message = args[2];
+//        } else if (args.length == 2) {
+//            server = Options.DEFAULT_URL;
+//            subject = args[0];
+//            message = args[1];
+//        } else {
+//            usage();
+//            return;
+//        }
+
+        Headers headers = new Headers();
+        headers.add("x-sheldon", "baz");
+        headers.add("x-sheldon", "inga");
+//        headers = null;
 
         try {
             Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server, false));
-            Future<Message> replyFuture = nc.request(subject, message.getBytes(StandardCharsets.UTF_8));
+            Future<Message> replyFuture = nc.request(subject, headers, message.getBytes(StandardCharsets.UTF_8));
             Message reply = replyFuture.get(5, TimeUnit.SECONDS);
 
             System.out.println();

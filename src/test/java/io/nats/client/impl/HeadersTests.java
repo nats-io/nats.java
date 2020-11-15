@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static io.nats.client.impl.Headers.normalizeSpec;
+import static io.nats.client.impl.Headers.format;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class HeadersTests {
@@ -221,31 +221,6 @@ public class HeadersTests {
     }
 
     @Test
-    public void valueCsvStringMustBeCorrect() {
-        Headers headers = new Headers();
-        headers.put(KEY1, VAL1);
-        assertEquals(VAL1, headers.getValueCsv(KEY1));
-
-        headers.add(KEY1, VAL2);
-        assertEquals(VAL1 + "," + VAL2, headers.getValueCsv(KEY1));
-
-        headers.add(KEY1, "", VAL3);
-        assertEquals(VAL1 + "," + VAL2 + ",," + VAL3, headers.getValueCsv(KEY1));
-    }
-
-    @Test
-    public void fluentWorks() {
-        Headers headers = new Headers();
-        Headers fluent = headers
-                .put(KEY1, VAL1)
-                .add(KEY1, VAL2)
-                .add(KEY1, "", VAL3);
-
-        assertEquals(headers, fluent);
-        assertEquals(VAL1 + "," + VAL2 + ",," + VAL3, headers.getValueCsv(KEY1));
-    }
-
-    @Test
     public void removes_work() {
         Headers headers = testHeaders();
         headers.remove(KEY1);
@@ -283,53 +258,74 @@ public class HeadersTests {
     }
 
     @Test
-    public void key_normalization() {
+    public void serialize_deserialize() {
+        Headers headers1 = new Headers();
+        headers1.add(KEY1, VAL1);
+        headers1.add(KEY1, VAL3);
+        headers1.add(KEY2, VAL2);
+
+        byte[] serialized = headers1.getSerialized();
+
+        Headers headers2 = new Headers(serialized);
+
+        assertEquals(headers1.size(), headers2.size());
+        assertTrue(headers2.containsKey(KEY1));
+        assertTrue(headers2.containsKey(KEY2));
+        assertEquals(2, headers2.values(KEY1).size());
+        assertEquals(1, headers2.values(KEY2).size());
+        assertTrue(headers2.values(KEY1).contains(VAL1));
+        assertTrue(headers2.values(KEY1).contains(VAL3));
+        assertTrue(headers2.values(KEY2).contains(VAL2));
+    }
+
+    @Test
+    public void key_formatting() {
         for (char c = 33; c < 127; c++) {
             // test length 1 keys
-            assertEquals("" + Character.toUpperCase(c), normalizeSpec("" + (c)));
+            assertEquals("" + Character.toUpperCase(c), format("" + (c)));
 
             // test letter second character when first is dash -A -a
             for (char c2 = 65; c2 < 91; c2++) {
-                assertEquals("-" + c2 + c, normalizeSpec("-" + (c2) + (c)));
+                assertEquals("-" + c2 + c, format("-" + (c2) + (c)));
             }
             for (char c2 = 97; c2 < 123; c2++) {
-                assertEquals("-" + Character.toUpperCase(c2) + c, normalizeSpec("-" + (c2) + (c)));
+                assertEquals("-" + Character.toUpperCase(c2) + c, format("-" + (c2) + (c)));
             }
 
             // test x-a -> X-A
             for (char c2 = 65; c2 < 91; c2++) {
-                assertEquals("X-" + c2, normalizeSpec("x-" + (c2)));
+                assertEquals("X-" + c2, format("x-" + (c2)));
             }
             for (char c2 = 97; c2 < 123; c2++) {
-                assertEquals("X-" + Character.toUpperCase(c2), normalizeSpec("x-" + (c2)));
+                assertEquals("X-" + Character.toUpperCase(c2), format("x-" + (c2)));
             }
 
             // test non letter second and subsequent character when first is dash
             for (char second = 33; second < 45; second++) {
-                assertEquals("-" + (second) + c, normalizeSpec("-" + (second) + (c)));
+                assertEquals("-" + (second) + c, format("-" + (second) + (c)));
             }
             for (char second = 46; second < 65; second++) {
-                assertEquals("-" + (second) + c, normalizeSpec("-" + (second) + (c)));
+                assertEquals("-" + (second) + c, format("-" + (second) + (c)));
             }
             for (char second = 91; second < 97; second++) {
-                assertEquals("-" + (second) + c, normalizeSpec("-" + (second) + (c)));
+                assertEquals("-" + (second) + c, format("-" + (second) + (c)));
             }
             for (char second = 123; second < 127; second++) {
-                assertEquals("-" + (second) + c, normalizeSpec("-" + (second) + (c)));
+                assertEquals("-" + (second) + c, format("-" + (second) + (c)));
             }
 
             // test second and subsequent character when first is not dash or letter
             for (char first = 33; first < 45; first++) {
-                assertEquals("" + (first) + c, normalizeSpec("" + (first) + (c)));
+                assertEquals("" + (first) + c, format("" + (first) + (c)));
             }
             for (char c2 = 46; c2 < 65; c2++) {
-                assertEquals("" + (c2) + c, normalizeSpec("" + (c2) + (c)));
+                assertEquals("" + (c2) + c, format("" + (c2) + (c)));
             }
             for (char c2 = 91; c2 < 97; c2++) {
-                assertEquals("" + (c2) + c, normalizeSpec("" + (c2) + (c)));
+                assertEquals("" + (c2) + c, format("" + (c2) + (c)));
             }
             for (char c2 = 123; c2 < 127; c2++) {
-                assertEquals("" + (c2) + c, normalizeSpec("" + (c2) + (c)));
+                assertEquals("" + (c2) + c, format("" + (c2) + (c)));
             }
         }
     }

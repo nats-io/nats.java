@@ -61,9 +61,17 @@ public class NatsSub {
             for(int i=0;i<msgCount;i++) {
                 Message msg = sub.nextMessage(Duration.ofHours(1));
 
-                System.out.printf("Received message \"%s\" on subject \"%s\"\n", 
-                                        new String(msg.getData(), StandardCharsets.UTF_8), 
-                                        msg.getSubject());
+                System.out.printf("Received message \"%s\" on subject \"%s\"\n",
+                        new String(msg.getData(), StandardCharsets.UTF_8),
+                        msg.getSubject());
+
+                if (msg.getHeaders() != null) {
+                    for (String key : msg.getHeaders().keySet()) {
+                        for (String value : msg.getHeaders().values(key)) {
+                            System.out.println(key + ": " + value);
+                        }
+                    }
+                }
             }
 
             nc.close();

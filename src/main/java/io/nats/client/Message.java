@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.Headers;
+
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
  * publish and send requests with raw strings and byte[] but incoming messages can have a few
@@ -39,9 +41,14 @@ public interface Message {
 	public byte[] getData();
 
 	/**
-	 * @return the headers from the message
+	 * @return the headers as byte array from the message
 	 */
-	public byte[] getHeaders();
+	public byte[] getHeadersBytes();
+
+	/**
+	 * @return the headers object the message
+	 */
+	public Headers getHeaders();
 
 	/**
 	 * @return the Subscription associated with this message, may be owned by a Dispatcher

@@ -13,14 +13,14 @@
 
 package io.nats.examples;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
-
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 
 public class NatsReply {
 
@@ -32,22 +32,22 @@ public class NatsReply {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String args[]) {
-        String subject;
-        int msgCount;
-        String server;
+        String subject = "foo.*";
+        int msgCount = 10;
+        String server = Options.DEFAULT_URL;
 
-        if (args.length == 3) {
-            server = args[0];
-            subject = args[1];
-            msgCount = Integer.parseInt(args[2]);
-        } else if (args.length == 2) {
-            server = Options.DEFAULT_URL;
-            subject = args[0];
-            msgCount = Integer.parseInt(args[1]);
-        } else {
-            usage();
-            return;
-        }
+//        if (args.length == 3) {
+//            server = args[0];
+//            subject = args[1];
+//            msgCount = Integer.parseInt(args[2]);
+//        } else if (args.length == 2) {
+//            server = Options.DEFAULT_URL;
+//            subject = args[0];
+//            msgCount = Integer.parseInt(args[1]);
+//        } else {
+//            usage();
+//            return;
+//        }
 
         try {
             Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server, true));
@@ -58,6 +58,14 @@ public class NatsReply {
                 System.out.printf("Received message \"%s\" on subject \"%s\", replying to %s\n", 
                                         new String(msg.getData(), StandardCharsets.UTF_8), 
                                         msg.getSubject(), msg.getReplyTo());
+
+                if (msg.getHeaders() != null) {
+                    for (String key : msg.getHeaders().keySet()) {
+                        for (String value : msg.getHeaders().values(key)) {
+                            System.out.println(key + ": " + value);
+                        }
+                    }
+                }
                 nc.publish(msg.getReplyTo(), msg.getData());
                 latch.countDown();
             });

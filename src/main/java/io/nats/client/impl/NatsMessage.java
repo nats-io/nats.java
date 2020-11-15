@@ -17,17 +17,18 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.CharBuffer;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsMessage implements Message {
-    private static byte[] PUB_BYTES = "PUB ".getBytes();
-    private static byte[] HPUB_BYTES = "HPUB ".getBytes();
-    private static byte[] SPACE = " ".getBytes();
-    private static byte[] CRLF = "\r\n".getBytes();
+    private static byte[] PUB_BYTES = "PUB ".getBytes(US_ASCII);
+    private static byte[] HPUB_BYTES = "HPUB ".getBytes(US_ASCII);
+    private static byte[] SPACE = " ".getBytes(US_ASCII);
+    private static int PUB_BYTES_LEN = PUB_BYTES.length;
+    private static int HPUB_BYTES_LEN = HPUB_BYTES.length;
+    private static int SPACE_LEN = SPACE.length;
 
     public enum Kind {REGULAR, PROTOCOL, INCOMING}
 
@@ -36,7 +37,7 @@ class NatsMessage implements Message {
     private String replyTo;
     private byte[] data;
     private boolean utf8mode;
-    private byte[] headersBytes;
+    private Headers headers;
 
     // Kind.INCOMING : subject, replyTo, data and these fields
     private String sid;
@@ -66,51 +67,43 @@ class NatsMessage implements Message {
         kind = Kind.REGULAR;
         this.subject = subject;
         this.replyTo = replyTo;
+        this.headers = headers;
         this.data = data;
         dataLen = data == null ? 0 : data.length;
         this.utf8mode = utf8mode;
-        this.headersBytes = headers == null || headers.size() == 0 ? null : headers.getSerialized();
         hpub = headers != null;
 
-        byte[] proto;
-        if (hpub) {
+        ByteArrayBuilder bab = new ByteArrayBuilder();
+        if (hpub && headers != null) {
             hdrLen = headers.serializedLength();
-            proto = HPUB_BYTES;
+            bab.append(HPUB_BYTES, HPUB_BYTES_LEN);
         }
         else {
             hdrLen = 0;
-            proto = PUB_BYTES;
+            bab.append(PUB_BYTES, PUB_BYTES_LEN);
         }
         totLen = hdrLen + dataLen;
 
-        // start the buffer building with the protocol
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        append(baos, proto);
-
         // next comes the subject
-        append(baos, subject.getBytes(utf8mode ? UTF_8 : US_ASCII));
-        append(baos, SPACE);
+        bab.append(subject, utf8mode ? UTF_8 : US_ASCII);
+        bab.append(SPACE, SPACE_LEN);
 
         // reply to if it's there
         if (replyTo != null && replyTo.length() > 0) {
-            append(baos, replyTo.getBytes(US_ASCII));
-            append(baos, SPACE);
+            bab.append(replyTo);
+            bab.append(SPACE, SPACE_LEN);
         }
 
         // header length if there are headers
         if (hpub) {
-            append(baos, Integer.toString(hdrLen).getBytes(US_ASCII));
-            append(baos, SPACE);
+            bab.append(Integer.toString(hdrLen));
+            bab.append(SPACE, SPACE_LEN);
         }
 
         // payload length
-        append(baos, Integer.toString(totLen).getBytes(US_ASCII));
+        bab.append(Integer.toString(totLen));
 
-        protocolBytes = baos.toByteArray();
-    }
-
-    private void append(ByteArrayOutputStream baos, byte[] bytes) {
-        baos.write(bytes, 0, bytes.length);
+        protocolBytes = bab.toByteArray();
     }
 
     // Create a protocol only message to publish
@@ -171,9 +164,17 @@ class NatsMessage implements Message {
     }
 
     // Only for incoming messages, with no protocol bytes
+    void setHeaders(byte[] headersBytes) {
+        this.headers = new Headers(headersBytes);  // constructor accounts for null and empty
+        hdrLen = headersBytes.length;
+        totLen = hdrLen + dataLen;
+    }
+
+    // Only for incoming messages, with no protocol bytes
     void setData(byte[] data) {
         this.data = data;
-       dataLen = data.length;
+        dataLen = data.length;
+        totLen = hdrLen + dataLen;
     }
 
     void setSubscription(NatsSubscription sub) {
@@ -209,20 +210,24 @@ class NatsMessage implements Message {
     }
 
     @Override
-    public byte[] getHeaders() {
-        return headersBytes;
+    public byte[] getHeadersBytes() {
+        return headers == null || headers.size() == 0 ? null : headers.getSerialized();
     }
 
+    @Override
+    public Headers getHeaders() {
+        return headers;
+    }
 
     @Override
     public String toString() {
-        String headers = headersBytes == null ? "" : new String(headersBytes, US_ASCII).replace("\r", "+").replace("\n", "+");
+        String hdrString = headers == null ? "" : new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+");
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +
                 "\n  replyTo='" + replyTo + '\'' +
                 "\n  data=" + (data == null ? null : new String(data, UTF_8)) +
                 "\n  utf8mode=" + utf8mode +
-                "\n  headers=" + headers +
+                "\n  headers=" + hdrString +
                 "\n  sid='" + sid + '\'' +
                 "\n  protocolLineLength=" + protocolLineLength +
                 "\n  protocolBytes=" + (protocolBytes == null ? null : new String(protocolBytes, UTF_8)) +
@@ -235,7 +240,7 @@ class NatsMessage implements Message {
                 "\n  subscription=" + subscription +
                 "\n  next=" + next +
                 "\n  >" +
-                new String(getProtocolBytes()) + "++" + headers +
+                new String(getProtocolBytes()) + "++" + hdrString +
                 (data == null ? (kind == Kind.PROTOCOL ? "" : "++") : new String(data, US_ASCII) + "++");
     }
 }
