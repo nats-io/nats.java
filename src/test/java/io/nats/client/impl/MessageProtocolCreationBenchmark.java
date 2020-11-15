@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import java.nio.CharBuffer;
 import java.text.NumberFormat;
 
 public class MessageProtocolCreationBenchmark {
@@ -53,7 +52,7 @@ public class MessageProtocolCreationBenchmark {
         
         start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage(CharBuffer.allocate(0));
+            new NatsMessage(new byte[0]);
         }
         end = System.nanoTime();
 

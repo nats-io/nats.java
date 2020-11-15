@@ -14,12 +14,16 @@
 package io.nats.client.impl;
 
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class ByteArrayBuilder {
+    private static byte[] NULL = "null".getBytes(US_ASCII);
+    private static byte[] SPACE = " ".getBytes(US_ASCII);
+    private static byte[] CRLF = "\r\n".getBytes(US_ASCII);
 
     private final Charset defaultCharset;
     private ByteBuffer buffer;
@@ -55,18 +59,34 @@ public class ByteArrayBuilder {
         }
     }
 
-    public ByteArrayBuilder append(Integer i) {
-        append(i.toString().getBytes(US_ASCII)); // a number is always ascii
+    public ByteArrayBuilder appendSpace() {
+        return append(SPACE, 0, 1);
+    }
+
+    public ByteArrayBuilder appendCrLf() {
+        return append(CRLF, 0, 2);
+    }
+
+    public ByteArrayBuilder append(int i) {
+        append(Integer.toString(i).getBytes(US_ASCII)); // a number is always ascii
         return this;
     }
 
     public ByteArrayBuilder append(String s) {
-        append(s.getBytes(defaultCharset));
-        return this;
+        return s == null ? append(NULL, 0, 4) : append(s.getBytes(defaultCharset));
     }
 
     public ByteArrayBuilder append(String s, Charset charset) {
-        append(s.getBytes(charset));
+        return s == null ? append(NULL, 0, 4) : append(s.getBytes(charset));
+    }
+
+    public ByteArrayBuilder append(CharBuffer cb) {
+        append(cb.toString().getBytes(defaultCharset));
+        return this;
+    }
+
+    public ByteArrayBuilder append(CharBuffer cb, Charset charset) {
+        append(cb.toString().getBytes(charset));
         return this;
     }
 

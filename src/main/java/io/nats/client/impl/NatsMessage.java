@@ -17,18 +17,14 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
-import java.nio.CharBuffer;
-
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsMessage implements Message {
     private static byte[] PUB_BYTES = "PUB ".getBytes(US_ASCII);
     private static byte[] HPUB_BYTES = "HPUB ".getBytes(US_ASCII);
-    private static byte[] SPACE = " ".getBytes(US_ASCII);
     private static int PUB_BYTES_LEN = PUB_BYTES.length;
     private static int HPUB_BYTES_LEN = HPUB_BYTES.length;
-    private static int SPACE_LEN = SPACE.length;
 
     public enum Kind {REGULAR, PROTOCOL, INCOMING}
 
@@ -86,18 +82,18 @@ class NatsMessage implements Message {
 
         // next comes the subject
         bab.append(subject, utf8mode ? UTF_8 : US_ASCII);
-        bab.append(SPACE, SPACE_LEN);
+        bab.appendSpace();
 
         // reply to if it's there
         if (replyTo != null && replyTo.length() > 0) {
             bab.append(replyTo);
-            bab.append(SPACE, SPACE_LEN);
+            bab.appendSpace();
         }
 
         // header length if there are headers
         if (hpub) {
             bab.append(Integer.toString(hdrLen));
-            bab.append(SPACE, SPACE_LEN);
+            bab.appendSpace();
         }
 
         // payload length
@@ -110,14 +106,6 @@ class NatsMessage implements Message {
     NatsMessage(byte[] protocol) {
         this.kind = Kind.PROTOCOL;
         this.protocolBytes = protocol == null ? new byte[0] : protocol;
-    }
-
-    NatsMessage(String protocol) {
-        this(protocol.getBytes(US_ASCII));
-    }
-
-    NatsMessage(CharBuffer protocol) {
-        this(protocol.toString().getBytes(US_ASCII));
     }
 
     // Create an incoming message for a subscriber

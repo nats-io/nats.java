@@ -13,16 +13,9 @@
 
 package io.nats.client;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
@@ -274,7 +267,7 @@ public class NatsTestServer implements AutoCloseable {
             System.out.println("%%% Make sure that the nats-server is installed and in your PATH.");
             System.out.println("%%% See https://github.com/nats-io/nats-server for information on installation");
 
-            throw new IllegalStateException("Failed to run [" + this.cmdLine +"]");
+            throw new IllegalStateException("Failed to start [" + this.cmdLine +"] " + ex);
         }
     }
 

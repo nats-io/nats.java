@@ -40,7 +40,6 @@ class NatsConnection implements Connection {
 
     static final byte CR = 0x0D;
     static final byte LF = 0x0A;
-    static final byte[] CRLF = { CR, LF };
 
     static final String OP_CONNECT = "CONNECT";
     static final String OP_INFO = "INFO";
@@ -53,6 +52,16 @@ class NatsConnection implements Connection {
     static final String OP_PONG = "PONG";
     static final String OP_OK = "+OK";
     static final String OP_ERR = "-ERR";
+
+    static final byte[] OP_PING_BYTES = OP_PING.getBytes();
+    static final byte[] OP_PONG_BYTES = OP_PONG.getBytes();
+
+    static final byte[] OP_CONNECT_PROTOCOL_BYTES = (OP_CONNECT + " ").getBytes();
+    static final byte[] OP_SUB_PROTOCOL_BYTES = (OP_SUB + " ").getBytes();
+    static final byte[] OP_UNSUB_PROTOCOL_BYTES = (OP_UNSUB + " ").getBytes();
+    static final int OP_CONNECT_PROTOCOL_LEN = OP_CONNECT_PROTOCOL_BYTES.length;
+    static final int OP_SUB_PROTOCOL_LEN = OP_SUB_PROTOCOL_BYTES.length;
+    static final int OP_UNSUB_PROTOCOL_LEN = OP_UNSUB_PROTOCOL_BYTES.length;
 
     private Options options;
 
@@ -875,18 +884,15 @@ class NatsConnection implements Connection {
     }
 
     void sendUnsub(NatsSubscription sub, int after) {
-        String sid = sub.getSID();
-        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine());
-        protocolBuilder.append(OP_UNSUB);
-        protocolBuilder.append(" ");
-        protocolBuilder.append(sid);
+        // allocate the proto length + 19 + 10 (sid is a long, 19 bytes max, after is an int 10 bytes max)
+        ByteArrayBuilder bab = new ByteArrayBuilder(OP_UNSUB_PROTOCOL_LEN + 29)
+                .append(OP_UNSUB_PROTOCOL_BYTES, OP_UNSUB_PROTOCOL_LEN)
+                .append(sub.getSID());
 
         if (after > 0) {
-            protocolBuilder.append(" ");
-            protocolBuilder.append(String.valueOf(after));
+            bab.appendSpace().append(after);
         }
-        protocolBuilder.flip();
-        NatsMessage unsubMsg = new NatsMessage(protocolBuilder);
+        NatsMessage unsubMsg = new NatsMessage(bab.toByteArray());
         queueInternalOutgoing(unsubMsg);
     }
 
@@ -909,28 +915,25 @@ class NatsConnection implements Connection {
         return sub;
     }
 
-    void sendSubscriptionMessage(CharSequence sid, String subject, String queueName, boolean treatAsInternal) {
+    void sendSubscriptionMessage(String sid, String subject, String queueName, boolean treatAsInternal) {
         if (!isConnected()) {
             return;// We will setup sub on reconnect or ignore
         }
 
-        // use a big buffer, may fail at server, but we don't want to fail here
         int subLength = (subject != null) ? subject.length() : 0;
         int qLength = (queueName != null) ? queueName.length() : 0;
-        CharBuffer protocolBuilder = CharBuffer.allocate(this.options.getMaxControlLine() + subLength + qLength);
-        protocolBuilder.append(OP_SUB);
-        protocolBuilder.append(" ");
-        protocolBuilder.append(subject);
+
+        ByteArrayBuilder bab = new ByteArrayBuilder(OP_SUB_PROTOCOL_LEN + subLength + qLength) // 4 is SUB<SP>
+                .append(OP_SUB_PROTOCOL_BYTES, OP_SUB_PROTOCOL_LEN)
+                .append(subject, StandardCharsets.UTF_8); // utf-8 just in case
 
         if (queueName != null) {
-            protocolBuilder.append(" ");
-            protocolBuilder.append(queueName);
+            bab.appendSpace().append(queueName);
         }
 
-        protocolBuilder.append(" ");
-        protocolBuilder.append(sid);
-        protocolBuilder.flip();
-        NatsMessage subMsg = new NatsMessage(protocolBuilder);
+        bab.appendSpace().append(sid);
+
+        NatsMessage subMsg = new NatsMessage(bab.toByteArray());
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -1195,13 +1198,11 @@ class NatsConnection implements Connection {
         try {
             NatsServerInfo info = this.serverInfo.get();
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-            // Use a bigger buffer than the max length, better to fail on the server than here
-            CharBuffer connectString = CharBuffer.allocate(this.options.getMaxControlLine() + connectOptions.limit());
-            connectString.append(NatsConnection.OP_CONNECT);
-            connectString.append(" ");
-            connectString.append(connectOptions);
-            connectString.flip();
-            NatsMessage msg = new NatsMessage(connectString);
+            NatsMessage msg = new NatsMessage(
+                    new ByteArrayBuilder(OP_CONNECT_PROTOCOL_LEN + connectOptions.limit())
+                            .append(OP_CONNECT_PROTOCOL_BYTES, OP_CONNECT_PROTOCOL_LEN)
+                            .append(connectOptions)
+                            .toByteArray());
             
             queueInternalOutgoing(msg);
         } catch (Exception exp) {
@@ -1243,7 +1244,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PING));
+        NatsMessage msg = new NatsMessage(NatsConnection.OP_PING_BYTES);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1258,8 +1259,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        NatsMessage msg = new NatsMessage(CharBuffer.wrap(NatsConnection.OP_PONG));
-        queueInternalOutgoing(msg);
+        queueInternalOutgoing( new NatsMessage(NatsConnection.OP_PONG_BYTES) );
     }
 
     // Called by the reader
