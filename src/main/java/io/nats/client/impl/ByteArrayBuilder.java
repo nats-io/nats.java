@@ -21,23 +21,32 @@ import java.util.Arrays;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class ByteArrayBuilder {
-    private static byte[] NULL = "null".getBytes(US_ASCII);
-    private static byte[] SPACE = " ".getBytes(US_ASCII);
-    private static byte[] CRLF = "\r\n".getBytes(US_ASCII);
+    public static final int DEFAULT_ASCII_ALLOCATION = 32;
+    public static final int DEFAULT_OTHER_ALLOCATION = 64;
+    private static final byte[] NULL = "null".getBytes(US_ASCII);
+    private static final byte[] SPACE = " ".getBytes(US_ASCII);
+    private static final byte[] CRLF = "\r\n".getBytes(US_ASCII);
 
+    private final int allocationSize;
     private final Charset defaultCharset;
     private ByteBuffer buffer;
 
+
     public ByteArrayBuilder() {
-        this(256, US_ASCII);
+        this(DEFAULT_ASCII_ALLOCATION, US_ASCII);
     }
 
     public ByteArrayBuilder(int initialSize) {
         this(initialSize, US_ASCII);
     }
 
+    public ByteArrayBuilder(Charset defaultCharset) {
+        this(0, defaultCharset);
+    }
+
     public ByteArrayBuilder(int initialSize, Charset defaultCharset) {
-        this.buffer = ByteBuffer.allocate(initialSize);
+        allocationSize = defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
+        this.buffer = ByteBuffer.allocate(computeNewAllocationSize(0, Math.max(allocationSize, initialSize)));
         this.defaultCharset = defaultCharset;
     }
 
@@ -45,15 +54,16 @@ public class ByteArrayBuilder {
         return Arrays.copyOf(buffer.array(), buffer.position());
     }
 
-    protected int computeNewAllocationSize(int currentCapacity, int currentPosition, int bytesNeeded) {
-        return Math.max(currentCapacity * 2, currentPosition + bytesNeeded);
+    protected int computeNewAllocationSize(int currentPosition, int bytesNeeded) {
+        return ((currentPosition + bytesNeeded + allocationSize) / allocationSize) * allocationSize;
     }
 
     private void ensureCapacity(int bytesNeeded) {
-        if (buffer.capacity() - buffer.position() < bytesNeeded) {
+        int bytesAvailable = buffer.capacity() - buffer.position();
+        if (bytesAvailable < bytesNeeded) {
             ByteBuffer newBuffer
                     = ByteBuffer.allocate(
-                            computeNewAllocationSize(buffer.capacity(), buffer.position(), bytesNeeded));
+                            computeNewAllocationSize(buffer.position(), bytesNeeded));
             newBuffer.put(buffer.array(), 0, buffer.position());
             buffer = newBuffer;
         }
