@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 
 import io.nats.client.impl.NatsImpl;
 
@@ -274,4 +275,6 @@ public class Nats {
     private Nats() {
         throw new UnsupportedOperationException("Nats is a static class");
     }
+
+    static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 }

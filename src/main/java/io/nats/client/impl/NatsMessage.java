@@ -21,6 +21,9 @@ import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeoutException;
 
 import io.nats.client.Connection;
@@ -50,7 +53,7 @@ class NatsMessage implements Message {
 
     private static final byte[] AckTerm = "+TERM".getBytes();
 
-    private static SimpleDateFormat rfc3339DateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+    static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
     // Create a message to publish
     NatsMessage(String subject, String replyTo, ByteBuffer data, boolean utf8mode) {
@@ -301,7 +304,7 @@ class NatsMessage implements Message {
     }
 
     @Override
-    public void ackNextRequest(LocalDateTime expiry, long batch, boolean noWait) {
+    public void ackNextRequest(ZonedDateTime expiry, long batch, boolean noWait) {
 
         if (batch < 0) {
             throw new IllegalArgumentException();
@@ -319,7 +322,7 @@ class NatsMessage implements Message {
         } else {
             StringBuilder sb = new StringBuilder("+ACKNXT {");
             if (expiry != null) {
-                String s = rfc3339DateFormatter.format(expiry);
+                String s = rfc3339Formatter.format(expiry);
                 sb.append("\"expires\" : \"" + s + "\",");
             }
             if (batch > 0) {
@@ -379,7 +382,7 @@ class NatsMessage implements Message {
         private long delivered;
         private long streamSeq;
         private long consumerSeq;
-        private LocalDateTime timestamp;
+        private ZonedDateTime timestamp;
         private long pending = -1;
 
         private void throwNotJSMsgException(String subject) {
@@ -406,7 +409,8 @@ class NatsMessage implements Message {
             long tsi = Long.parseLong(parts[7]);
             long seconds = tsi / 1000000000;
             int nanos = (int) (tsi - ((tsi / 1000000000) * 1000000000));
-            timestamp = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
+            LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
+            timestamp = ZonedDateTime.of(ltd, ZoneOffset.systemDefault());
 
             if (parts.length == 9) {
                 pending = Long.parseLong(parts[8]);
@@ -444,7 +448,7 @@ class NatsMessage implements Message {
         }
 
         @Override
-        public LocalDateTime timestamp() {
+        public ZonedDateTime timestamp() {
             return timestamp;
         }
 

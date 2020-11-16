@@ -17,20 +17,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.ZonedDateTime;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-
-import io.nats.client.ConsumerConfiguration.AckPolicy;
 
 public class JetstreamTests {
 
@@ -300,6 +296,9 @@ public class JetstreamTests {
                 assertEquals("payload1", new String(m.getData()));
                 
                 m.ackNextRequest(null, 2, false);
+
+                ZonedDateTime zdt = ZonedDateTime.now().plusSeconds(10);
+                m.ackNextRequest(zdt, 15, false);
             } catch (Exception ex) {
                 Assertions.fail("Exception:  " + ex.getMessage());
             }
@@ -309,6 +308,5 @@ public class JetstreamTests {
                 }
             }
         }
-    }    
-        
+    }       
 }

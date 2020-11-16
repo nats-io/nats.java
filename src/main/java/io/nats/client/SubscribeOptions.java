@@ -14,15 +14,13 @@
 package io.nats.client;
 
 /**
- * The PublishOptions class specifies the options for publishing with jetstream enabled servers.
- * Options are created using a {@link PublishOptions.Builder Builder}.
+ * The SubscribeOptions class specifies the options for subscribing with jetstream enabled servers.
+ * Options are created using the constructor or a {@link SubscribeOptions.Builder Builder}.
  */
 public class SubscribeOptions {
 
     private String stream = null;
     private ConsumerConfiguration consumer = null;
-
-    // TODO:  Add properties
 
     /**
      * Constructs a SubscribeOptions object with a stream and consumer configuration.
@@ -74,10 +72,8 @@ public class SubscribeOptions {
     }
 
     /**
-     * PublishOptions are created using a Builder. The builder supports chaining and will
-     * create a default set of options if no methods are calls. The builder can also
-     * be created from a properties object using the property names defined with the
-     * prefix PROP_ in this class.
+     * SubscribeOptions can be created using a Builder. The builder supports chaining and will
+     * create a default set of options if no methods are calls.
      */
     public static class Builder {
         private String stream = null;
@@ -86,6 +82,7 @@ public class SubscribeOptions {
         /**
          * Sets the consumer configuration for the subscription.
          * @param consumerConfig the consumer configuration.
+         * @param stream the name of the stream
          * @return the builder
          */
         public Builder consumer(String stream, ConsumerConfiguration consumerConfig) {

@@ -13,9 +13,8 @@
 
 package io.nats.client;
 
-import java.sql.Time;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -75,7 +74,7 @@ public interface Message {
 		 * Gets the timestamp of the message.
 		 * @return the timestamp
 		 */
-		public LocalDateTime timestamp();
+		public ZonedDateTime timestamp();
 	}
 
 	/**
@@ -118,9 +117,9 @@ public interface Message {
 	/**
 	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message
 	 * should not be received again later.  Duration.ZERO does not confirm the acknowledgement.
-	 * @param timeout The duration to wait for a confirmation.
-	 * @throws TimeoutException
-	 * @throws InterruptedException
+	 * @param timeout the duration to wait for an ack confirmation
+     * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
 	 */
 	public void ack(Duration timeout) throws TimeoutException, InterruptedException;
 
@@ -128,9 +127,9 @@ public interface Message {
 	 * nak acknowledges a JetStream message received from a Consumer, indicating that the message
 	 * is not completely processed and should be sent again later. 
 	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
-	 * @param timeout the duration to wait for a response
-	 * @throws TimeoutException
-	 * @throws InterruptedException
+	 * @param timeout the duration to wait for an ack confirmation
+     * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
 	 */
 	public void nak(Duration timeout) throws TimeoutException, InterruptedException;
 
@@ -138,9 +137,9 @@ public interface Message {
 	 * ackProgress acknowledges a Jetstream message received from a Consumer, indicating that work is
 	 * ongoing and further processing time is required equal to the configured AckWait of the Consumer.
 	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
-	 * @param timeout
-	 * @throws TimeoutException
-	 * @throws InterruptedException
+	 * @param timeout the duration to wait for an ack confirmation
+     * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
 	 */
 	public void ackProgress(Duration timeout) throws TimeoutException, InterruptedException;
 
@@ -154,15 +153,15 @@ public interface Message {
 	 * @param batch the number of messages to request
 	 * @param noWait if true, return when existing messages have been processed
 	 */
-	public void ackNextRequest(LocalDateTime expiry, long batch, boolean noWait);
+	public void ackNextRequest(ZonedDateTime expiry, long batch, boolean noWait);
 
 	/**
 	 * ackAndFetch performs an AckNext() and returns the next message from the stream.
-	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
-	 * @param timeout
+	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.  If a
+	 * message does not arrive withing the duration, a null message is returned.
+	 * @param timeout the duration to wait for an ack confirmation
 	 * @return the next message from the stream, or null if the request timed out.
-	 * @throws InterruptedException
-	 * @throws IllegalStateException
+     * @throws InterruptedException if the thread is interrupted
 	 */
 	public Message ackAndFetch(Duration timeout) throws InterruptedException;
 
@@ -170,9 +169,9 @@ public interface Message {
 	 * ackTerm acknowledges a message received from JetStream indicating the message will not be processed
 	 * and should not be sent to another consumer.
 	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
-	 * @param timeout
-	 * @throws TimeoutException
-	 * @throws InterruptedException
+	 * @param timeout the duration to wait for an ack confirmation
+     * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
 	 */
 	public void ackTerm(Duration timeout) throws TimeoutException, InterruptedException;
 

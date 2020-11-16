@@ -14,8 +14,8 @@
 package io.nats.client;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -66,7 +66,7 @@ public class ConsumerInfo {
     private String stream;
     private String name;
     private ConsumerConfiguration configuration;
-    private LocalDateTime created;
+    private ZonedDateTime created;
     private SequencePair delivered;
     private SequencePair ackFloor;
     private long numPending;
@@ -133,9 +133,8 @@ public class ConsumerInfo {
         m = createdRE.matcher(json);
         if (m.find()) {
             // Instant can parse rfc 3339... we're making a time zone assumption.
-            // TODO - figure this out - will the NATS server always be zulu?
             Instant inst = Instant.parse(m.group(1));
-            this.created = LocalDateTime.ofInstant(inst, ZoneId.systemDefault());
+            this.created = ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
         }
 
         String s = getJSONObject(configField, json);
@@ -177,7 +176,7 @@ public class ConsumerInfo {
         return stream;
     }
 
-    public LocalDateTime getCreationTime() {
+    public ZonedDateTime getCreationTime() {
         return created;
     }
 

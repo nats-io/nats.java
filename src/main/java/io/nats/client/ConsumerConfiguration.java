@@ -16,7 +16,8 @@ package io.nats.client;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
@@ -137,7 +138,7 @@ public class ConsumerConfiguration {
     private DeliverPolicy deliverPolicy = DeliverPolicy.All;
     private String deliverSubject = null;
 	private long startSeq = -1;
-	private LocalDateTime startTime = null;
+	private ZonedDateTime startTime = null;
 	private AckPolicy ackPolicy = AckPolicy.All;
 	private Duration ackWait = Duration.ZERO;
 	private long maxDeliver = -1;
@@ -203,7 +204,7 @@ public class ConsumerConfiguration {
         if (m.find()) {
             // Instant can parse rfc 3339... we're making a time zone assumption.
             Instant inst = Instant.parse(m.group(1));
-            this.startTime = LocalDateTime.ofInstant(inst, ZoneId.systemDefault());
+            this.startTime = ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
         }
 
         m = ackPolicyRE.matcher(json);
@@ -248,7 +249,7 @@ public class ConsumerConfiguration {
 
     // For the builder
     ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
-            LocalDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
+            ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
             ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit) {
 
                 this.durable = durable;
@@ -282,13 +283,12 @@ public class ConsumerConfiguration {
         }       
     }
     
-    private static void addFld(StringBuilder sb, String fname, LocalDateTime time) {
+    private static void addFld(StringBuilder sb, String fname, ZonedDateTime time) {
         if (time == null) {
             return;
         }
 
-        // rfc 3339
-        String s = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX").format(time);
+        String s = Nats.rfc3339Formatter.format(time);
         sb.append("\"" + fname + "\" : \"" + s + "\",");
     }
 
@@ -371,7 +371,7 @@ public class ConsumerConfiguration {
      * Gets the start time of this consumer configuration.
      * @return the start time.
      */    
-    public LocalDateTime getStartTime() {
+    public ZonedDateTime getStartTime() {
         return startTime;
     }
 
@@ -443,7 +443,7 @@ public class ConsumerConfiguration {
         private String durable = null;
         private DeliverPolicy deliverPolicy = DeliverPolicy.All;
         private long startSeq = 0;
-        private LocalDateTime startTime = null;
+        private ZonedDateTime startTime = null;
         private AckPolicy ackPolicy = AckPolicy.All;
         private Duration ackWait = Duration.ofSeconds(30);
         private long maxDeliver = -1;
@@ -487,7 +487,7 @@ public class ConsumerConfiguration {
          * @param startTime the start time
          * @return Builder
          */        
-        public Builder startTime(LocalDateTime startTime) {
+        public Builder startTime(ZonedDateTime startTime) {
             this.startTime = startTime;
             return this;
         }

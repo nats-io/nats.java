@@ -65,7 +65,7 @@ public interface Dispatcher extends Consumer {
      * @return The Dispatcher, so calls can be chained.
      * @throws TimeoutException if communication with the NATS server timed out
      * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException
+     * @throws IOException if there are communcation issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */ 
     public Dispatcher subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
@@ -101,7 +101,7 @@ public interface Dispatcher extends Consumer {
      * @return The Dispatcher, so calls can be chained.
      * @throws TimeoutException if communication with the NATS server timed out
      * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException
+     * @throws IOException if there are communcation issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */
     public Dispatcher subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;    
@@ -142,7 +142,7 @@ public interface Dispatcher extends Consumer {
      * @throws IllegalStateException if the dispatcher was previously closed
      * @throws TimeoutException if communication with the NATS server timed out
      * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException
+     * @throws IOException if there are communcation issues with the NATS server
      */
     public Subscription subscribe(String subject, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException; 
 
@@ -183,7 +183,7 @@ public interface Dispatcher extends Consumer {
      * @return The Subscription, so subscriptions may be later unsubscribed manually.
      * @throws TimeoutException if communication with the NATS server timed out
      * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException
+     * @throws IOException if there are communcation issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */
     public Subscription subscribe(String subject, String queue, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;

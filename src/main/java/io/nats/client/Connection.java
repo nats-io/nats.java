@@ -144,7 +144,7 @@ public interface Connection extends AutoCloseable {
      * @throws IllegalStateException if the reconnect buffer is exceeded
      * @throws IOException if there are communcation issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
      */
     public void publish(String subject, byte[] body, PublishOptions options) throws InterruptedException, IOException, TimeoutException;
 
@@ -229,7 +229,8 @@ public interface Connection extends AutoCloseable {
      * @param options subscription options
      * @return an object representing the subscription
      * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @throws IOException if there are communcation issues with the NATS server
      */
     public Subscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
 
@@ -266,7 +267,8 @@ public interface Connection extends AutoCloseable {
      * @param options subscription options
      * @return an object representing the subscription
      * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @throws IOException if there are communcation issues with the NATS server
      */
     public Subscription subscribe(String subject, String queueName, SubscribeOptions options)  throws InterruptedException, TimeoutException, IOException;    
 

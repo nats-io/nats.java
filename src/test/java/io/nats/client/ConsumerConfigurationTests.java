@@ -14,10 +14,11 @@
 package io.nats.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.Month;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +29,7 @@ import io.nats.client.ConsumerConfiguration.ReplayPolicy;
 public class ConsumerConfigurationTests {
     @Test
     public void testBuilder() {
-        LocalDateTime ldt = LocalDateTime.of(2012, Month.JANUARY, 12, 6, 30, 1);
+        ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, ZoneId.systemDefault());
 
         ConsumerConfiguration c = ConsumerConfiguration.builder()
             .ackPolicy(AckPolicy.Explicit)
@@ -41,7 +42,7 @@ public class ConsumerConfigurationTests {
             .replayPolicy(ReplayPolicy.Original)
             .sampleFrequency("10s")
             .startSequence(2001)
-            .startTime(ldt)
+            .startTime(zdt)
             .build();
 
         c.setDeliverySubject("delsubj");
@@ -56,7 +57,10 @@ public class ConsumerConfigurationTests {
         assertEquals(4242, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2001, c.getStartSequence());
-        assertEquals(ldt, c.getStartTime());
+        assertEquals(zdt, c.getStartTime());
+
+        String json = c.toJSON("foo");
+        assertTrue(json.length() > 0);
     }
 
     @Test
@@ -71,6 +75,8 @@ public class ConsumerConfigurationTests {
         assertEquals(Duration.ofSeconds(30), c.getAckWait());
         assertEquals(10, c.getMaxDeliver());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
+        assertEquals(c.getStartTime().getYear(), 2020);
+        assertEquals(c.getStartTime().getSecond(), 21);
     }
 
 }
