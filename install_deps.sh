@@ -19,7 +19,8 @@ GO111MODULE=on go install -v ./...
 cd $curdir
 
 # nats-server should be in `pwd`/go/bin
-cp $GOROOT/bin/nats-server .
+mkdir nats-server
+cp $GOROOT/bin/nats-server nats-server
 
 echo "NATS server version:"
 `pwd`/nats-server --version
