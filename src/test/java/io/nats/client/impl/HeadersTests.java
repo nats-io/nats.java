@@ -18,7 +18,6 @@ public class HeadersTests {
     private static final String VAL2 = "val2";
     private static final String VAL3 = "val3";
     private static final String EMPTY = "";
-    private static final String ANY_VAL = "matters-it-does-not";
 
     @Test
     public void add_key_strings_works() {

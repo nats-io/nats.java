@@ -30,30 +30,8 @@ public class Headers {
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
 
-	private Map<String, List<String>> headerMap;
+	private final Map<String, List<String>> headerMap;
 	private byte[] serialized;
-
-	public int serializedLength() {
-		return getSerialized().length;
-	}
-
-	public byte[] getSerialized() {
-		if (serialized == null) {
-			ByteArrayBuilder bab = new ByteArrayBuilder()
-					.append(VERSION_BYTES, VERSION_BYTES_LEN);
-			for (String key : headerMap.keySet()) {
-				for (String value : values(key)) {
-					bab.append(key);
-					bab.append(COLON_BYTES, COLON_BYTES_LEN);
-					bab.append(value);
-					bab.append(CRLF_BYTES, CRLF_BYTES_LEN);
-				}
-			}
-			bab.append(CRLF_BYTES, CRLF_BYTES_LEN);
-			serialized = bab.toByteArray();
-		}
-		return serialized;
-	}
 
 	public Headers() {
 		headerMap = new HashMap<>();
@@ -107,12 +85,12 @@ public class Headers {
 	// the add delegate
 	private void _add(String key, Collection<String> values) {
 		if (values != null) {
-			String formatted = formatKey(key);
+			checkKey(key);
 			List<String> checked = checkValues(values);
 			if (!checked.isEmpty()) {
-				List<String> currentSet = headerMap.get(formatted);
+				List<String> currentSet = headerMap.get(key);
 				if (currentSet == null) {
-					headerMap.put(formatted, checked);
+					headerMap.put(key, checked);
 				} else {
 					currentSet.addAll(checked);
 				}
@@ -156,10 +134,10 @@ public class Headers {
 	// the put delegate
 	private void _put(String key, Collection<String> values) {
 		if (values != null) {
-			String formatted = formatKey(key);
+			checkKey(key);
 			List<String> checked = checkValues(values);
 			if (!checked.isEmpty()) {
-				headerMap.put(formatted, checked);
+				headerMap.put(key, checked);
 				serialized = null; // since the data changed, clear this so it's rebuilt
 			}
 		}
@@ -172,7 +150,7 @@ public class Headers {
 	 */
 	public void remove(String... keys) {
 		for (String key : keys) {
-			headerMap.remove(formatKey(key));
+			headerMap.remove(key);
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -184,7 +162,7 @@ public class Headers {
 	 */
 	public void remove(Collection<String> keys) {
 		for (String key : keys) {
-			headerMap.remove(formatKey(key));
+			headerMap.remove(key);
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -202,7 +180,7 @@ public class Headers {
 	}
 
 	public boolean containsKey(String key) {
-		return headerMap.containsKey(formatKey(key));
+		return headerMap.containsKey(key);
 	}
 
 	public Set<String> keySet() {
@@ -210,65 +188,48 @@ public class Headers {
 	}
 
 	public List<String> values(String key) {
-		List<String> list = headerMap.get(formatKey(key));
+		List<String> list = headerMap.get(key);
 		return list == null ? null : Collections.unmodifiableList(list);
 	}
 
-	/*
-		Header field names are case-insensitive, become a requirement in NATS header fields:
-	    First character in a header field is capitalized if in the range of [a-z]
-    	First characters following a dash (-) are capitalized if in the range of [a-z]
-	 */
-	public String formatKey(String key) {
+	public int serializedLength() {
+		return getSerialized().length;
+	}
+
+	public byte[] getSerialized() {
+		if (serialized == null) {
+			ByteArrayBuilder bab = new ByteArrayBuilder()
+					.append(VERSION_BYTES, VERSION_BYTES_LEN);
+			for (String key : headerMap.keySet()) {
+				for (String value : values(key)) {
+					bab.append(key);
+					bab.append(COLON_BYTES, COLON_BYTES_LEN);
+					bab.append(value);
+					bab.append(CRLF_BYTES, CRLF_BYTES_LEN);
+				}
+			}
+			bab.append(CRLF_BYTES, CRLF_BYTES_LEN);
+			serialized = bab.toByteArray();
+		}
+		return serialized;
+	}
+
+	private void checkKey(String key) {
 		// key cannot be null or empty and contain only printable characters except colon
 		if (key == null || key.length() == 0) {
 			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
 		}
 
 		int len = key.length();
-		char c = key.charAt(0);
-		if (len == 1) {
-			// a - z become A - Z, everything else no change
-			if (c > 96 && c < 123) { // if lowercase,upper it
-				return new String(new char[] {(char)(c - 32)}, 0, len); // saves one stack push by providing offset and count
-			}
-
-			if (c < 33 || c > 126 || c == ':') {
-				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + "'" + c + "'");
-			}
-			return key;
-		}
-
-		boolean upNext = true;
-		char[] normalized = new char[len];
 		for (int idx = 0; idx < len; idx++) {
-			c = key.charAt(idx);
+			char c = key.charAt(idx);
 			if (c < 33 || c > 126 || c == ':') {
 				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + "'" + c + "'");
 			}
-
-			if (c == '-') {
-				upNext = true;
-				normalized[idx] = c;
-			}
-			else if (upNext) {
-				upNext = false;
-				if (c > 96 && c < 123) { // if lowercase,upper it
-					normalized[idx] = (char)(c - 32);
-				}
-				else {
-					normalized[idx] = c;
-				}
-			}
-			else {
-				normalized[idx] = c;
-			}
 		}
-		return new String(normalized, 0, len); // saves one stack push by providing offset and count
 	}
 
 	private List<String> checkValues(Collection<String> values) {
-
 		List<String> checked = new ArrayList<>();
 		if (values != null && !values.isEmpty()) {
 			for (String v : values) {

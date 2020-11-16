@@ -166,9 +166,9 @@ public class SubscriberTests {
 
     @Test
     public void testUTF8Subjects() throws IOException, TimeoutException, InterruptedException {
-        try (NatsTestServer ts = null; // new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(
-                    new Options.Builder().server(Options.DEFAULT_URL).supportUTF8Subjects().noReconnect().build())) {
+                    new Options.Builder().server(ts.getURI()).supportUTF8Subjects().noReconnect().build())) {
             assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             // Some UTF8 from http://www.columbia.edu/~fdc/utf8/
