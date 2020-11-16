@@ -923,7 +923,7 @@ class NatsConnection implements Connection {
         int subLength = (subject != null) ? subject.length() : 0;
         int qLength = (queueName != null) ? queueName.length() : 0;
 
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_SUB_PROTOCOL_LEN + subLength + qLength) // 4 is SUB<SP>
+        ByteArrayBuilder bab = new ByteArrayBuilder(OP_SUB_PROTOCOL_LEN + subLength + qLength)
                 .append(OP_SUB_PROTOCOL_BYTES, OP_SUB_PROTOCOL_LEN)
                 .append(subject, StandardCharsets.UTF_8); // utf-8 just in case
 

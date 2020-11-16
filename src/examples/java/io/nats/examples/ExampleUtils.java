@@ -14,55 +14,48 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.Headers;
 
 import java.time.Duration;
-
-import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class ExampleUtils {
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
         Options.Builder builder = new Options.Builder().
-                        server(server).
-                        connectionTimeout(Duration.ofSeconds(5)).
-                        pingInterval(Duration.ofSeconds(10)).
-                        reconnectWait(Duration.ofSeconds(1)).
-                        errorListener(new ErrorListener(){
-                            public void exceptionOccurred(Connection conn, Exception exp) {
-                                System.out.println("Exception " + exp.getMessage());
-                            }
+                server(server).
+                connectionTimeout(Duration.ofSeconds(5)).
+                pingInterval(Duration.ofSeconds(10)).
+                reconnectWait(Duration.ofSeconds(1)).
+                errorListener(new ErrorListener() {
+                    public void exceptionOccurred(Connection conn, Exception exp) {
+                        System.out.println("Exception " + exp.getMessage());
+                    }
 
-                            public void errorOccurred(Connection conn, String type) {
-                                System.out.println("Error " + type);
-                            }
-                            
-                            public void slowConsumerDetected(Connection conn, Consumer consumer) {
-                                System.out.println("Slow consumer");
-                            }
-                        }).
-                        connectionListener(new ConnectionListener(){
-                            public void connectionEvent(Connection conn, Events type) {
-                                    System.out.println("Status change "+type);
-                            }
-                        });
+                    public void errorOccurred(Connection conn, String type) {
+                        System.out.println("Error " + type);
+                    }
 
-            if (!allowReconnect) {
-                builder = builder.noReconnect();
-            } else {
-                builder = builder.maxReconnects(-1);
-            }
+                    public void slowConsumerDetected(Connection conn, Consumer consumer) {
+                        System.out.println("Slow consumer");
+                    }
+                }).
+                connectionListener(new ConnectionListener() {
+                    public void connectionEvent(Connection conn, Events type) {
+                        System.out.println("Status change " + type);
+                    }
+                });
 
-            if (System.getenv("NATS_NKEY") != null && System.getenv("NATS_NKEY") != "") {
-                AuthHandler handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
-                builder.authHandler(handler);
-            } else if (System.getenv("NATS_CREDS") != null && System.getenv("NATS_CREDS") != "") {
-                builder.authHandler(Nats.credentials(System.getenv("NATS_CREDS")));
-            }
+        if (!allowReconnect) {
+            builder = builder.noReconnect();
+        } else {
+            builder = builder.maxReconnects(-1);
+        }
+
+        if (System.getenv("NATS_NKEY") != null && System.getenv("NATS_NKEY") != "") {
+            AuthHandler handler = new ExampleAuthHandler(System.getenv("NATS_NKEY"));
+            builder.authHandler(handler);
+        } else if (System.getenv("NATS_CREDS") != null && System.getenv("NATS_CREDS") != "") {
+            builder.authHandler(Nats.credentials(System.getenv("NATS_CREDS")));
+        }
 
         return builder.build();
-    }
-
-    public static String headerString(Headers headers) {
-        return headers == null ? "" : new String(headers.getSerialized(), US_ASCII).substring(10).replace("\r", "+").replace("\n", "+");
     }
 }

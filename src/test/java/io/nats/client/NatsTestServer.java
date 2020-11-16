@@ -267,7 +267,7 @@ public class NatsTestServer implements AutoCloseable {
             System.out.println("%%% Make sure that the nats-server is installed and in your PATH.");
             System.out.println("%%% See https://github.com/nats-io/nats-server for information on installation");
 
-            throw new IllegalStateException("Failed to start [" + this.cmdLine +"] " + ex);
+            throw new IllegalStateException("Failed to run [" + this.cmdLine +"]");
         }
     }
 
