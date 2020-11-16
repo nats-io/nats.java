@@ -9,14 +9,18 @@ export GOROOT=`pwd`/go
 export PATH=$GOROOT/bin:$PATH
 
 echo "Getting the nats-server"
-GO111MODULE=on go get golang.org/x/crypto/ed25519
-# GO111MODULE=on go get github.com/nats-io/nats-server/v2@398ef78aac066a54867d10b73fccf50089de0d02
-GO111MODULE=on go install github.com/nats-io/nats-server
+
+curdir=`pwd`
+mkdir -p $GOROOT/src/github.com/nats-io/nats-server
+git clone https://github.com/nats-io/nats-server.git $GOROOT/src/github.com/nats-io/nats-server
+cd $GOROOT/src/github.com/nats-io/nats-server
+GO111MODULE=on go install -v ./...
+
+cd $curdir
 
 # nats-server should be in `pwd`/go/bin
-ls $GOROOT/bin
 cp $GOROOT/bin/nats-server .
 
-echo "NATS server version"
+echo "NATS server version:"
 `pwd`/nats-server --version
 
