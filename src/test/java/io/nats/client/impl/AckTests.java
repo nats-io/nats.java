@@ -26,10 +26,8 @@ import org.junit.jupiter.api.Test;
 public class AckTests {
     @Test
     public void testValidAck() {
-        String json = "+OK {" +
-                        "\"stream\":\"test\"" + "," +
-                        "\"seq\":\"42\"" +
-                       "}";   
+        String json = "+OK {\"stream\":\"test\",\"seq\":42 }";
+
         try {
             Ack ack = new Ack(json.getBytes());
             assertEquals("test", ack.getStream());
@@ -69,7 +67,7 @@ public class AckTests {
                        "}";   
         try {
             Ack ack = new Ack(json.getBytes());
-            assertEquals("not.set", ack.getStream());
+            assertEquals(null, ack.getStream());
             assertEquals(-1, ack.getSeqno());
         }
         catch (Exception e) {
