@@ -17,10 +17,12 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
+import java.nio.charset.Charset;
+
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-class NatsMessage implements Message {
+public class NatsMessage implements Message {
     private static byte[] PUB_BYTES = "PUB ".getBytes(US_ASCII);
     private static byte[] HPUB_BYTES = "HPUB ".getBytes(US_ASCII);
     private static int PUB_BYTES_LEN = PUB_BYTES.length;
@@ -58,14 +60,19 @@ class NatsMessage implements Message {
         this(subject, replyTo, null, data, utf8mode);
     }
 
+    public NatsMessage(Message message) {
+        this(message.getSubject(), message.getReplyTo(),
+                message.getHeaders(), message.getData(), message.isUtf8mode());
+    }
+
     // Create a message to publish
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
         kind = Kind.REGULAR;
         this.subject = subject;
         this.replyTo = replyTo;
         this.headers = headers;
-        this.data = data;
-        dataLen = data == null ? 0 : data.length;
+        this.data = data == null ? new byte[0] : data;
+        dataLen = this.data.length;
         this.utf8mode = utf8mode;
         hpub = headers != null;
 
@@ -154,6 +161,10 @@ class NatsMessage implements Message {
         return this.sid;
     }
 
+    void setReplyTo(String replyTo) {
+        this.replyTo = replyTo;
+    }
+
     // Only for incoming messages, with no protocol bytes
     void setHeaders(byte[] headersBytes) {
         this.headers = new Headers(headersBytes);  // constructor accounts for null and empty
@@ -195,8 +206,7 @@ class NatsMessage implements Message {
         return this.replyTo;
     }
 
-    @Override
-    public byte[] getSerializedHeader() {
+    byte[] getSerializedHeader() {
         return headers == null || headers.size() == 0 ? null : headers.getSerialized();
     }
 
@@ -208,6 +218,11 @@ class NatsMessage implements Message {
     @Override
     public byte[] getData() {
         return this.data;
+    }
+
+    @Override
+    public boolean isUtf8mode() {
+        return utf8mode;
     }
 
     @Override
@@ -258,6 +273,11 @@ class NatsMessage implements Message {
 
         public Builder headers(final Headers headers) {
             this.headers = headers;
+            return this;
+        }
+
+        public Builder data(final String data, Charset charset) {
+            this.data = data.getBytes(charset);
             return this;
         }
 

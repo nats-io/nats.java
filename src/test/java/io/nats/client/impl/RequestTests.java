@@ -410,7 +410,7 @@ public class RequestTests {
         assertThrows(IllegalArgumentException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
-                nc.request(null, null);
+                nc.request((String)null, null);
                 assertFalse(true);
             }
         });

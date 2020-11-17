@@ -758,21 +758,31 @@ class NatsConnection implements Connection {
 
     @Override
     public void publish(String subject, byte[] body) {
-        this.publish(subject, null, null, body);
-    }
-
-    @Override
-    public void publish(String subject, Headers headers, byte[] body) {
-        this.publish(subject, null, headers, body);
+        _publish(new NatsMessage.Builder()
+                .subject(subject)
+                .data(body)
+                .utf8mode(options.supportUTF8Subjects())
+                .build());
     }
 
     @Override
     public void publish(String subject, String replyTo, byte[] body) {
-        this.publish(subject, replyTo, null, body);
+        _publish(new NatsMessage.Builder()
+                .subject(subject)
+                .replyTo(replyTo)
+                .data(body)
+                .utf8mode(options.supportUTF8Subjects())
+                .build());
     }
 
     @Override
-    public void publish(String subject, String replyTo, Headers headers, byte[] body) {
+    public void publish(Message msg) {
+        _publish(new NatsMessage(msg));
+    }
+
+    private void _publish(NatsMessage msg) {
+
+        checkBeforePublishOrRequest(msg, "publishing");
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -780,29 +790,29 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
         }
 
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in publish");
-        }
-
-        if (replyTo != null && replyTo.length() == 0) {
-            throw new IllegalArgumentException("ReplyTo cannot be the empty string");
-        }
-
-        if (body == null) {
-            body = EMPTY_BODY;
-        } else if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
-            throw new IllegalArgumentException(
-                    "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
-        }
-
-        NatsMessage msg = new NatsMessage(subject, replyTo, headers, body, options.supportUTF8Subjects());
-
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
             throw new IllegalStateException(
                     "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());
         }
         queueOutgoing(msg);
+    }
+
+    private void checkBeforePublishOrRequest(NatsMessage natsMsg, String hint) {
+
+        if (natsMsg.getSubject() == null || natsMsg.getSubject().length() == 0) {
+            throw new IllegalArgumentException("Subject is required when " + hint);
+        }
+
+        if (natsMsg.getReplyTo() != null && natsMsg.getReplyTo().length() == 0) {
+            throw new IllegalArgumentException("ReplyTo cannot be the empty string when " + hint);
+        }
+
+        byte[] body = natsMsg.getData(); // data will never be null, it might be empty
+        if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
+            throw new IllegalArgumentException(
+                    "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
+        }
     }
 
     @Override
@@ -994,13 +1004,17 @@ class NatsConnection implements Connection {
 
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return request(subject, null, body, timeout);
+        return _request(new NatsMessage.Builder().subject(subject).data(body).build(), timeout);
     }
 
     @Override
-    public Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException {
+    public Message request(Message message, Duration timeout) throws InterruptedException {
+        return _request(new NatsMessage(message), timeout);
+    }
+
+    private Message _request(NatsMessage message, Duration timeout) throws InterruptedException {
         Message reply = null;
-        Future<Message> incoming = request(subject, headers, body);
+        Future<Message> incoming = _request(message);
         try {
             reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException e) {
@@ -1014,13 +1028,16 @@ class NatsConnection implements Connection {
 
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return request(subject, null, body);
+        return _request(new NatsMessage.Builder().subject(subject).data(body).build());
     }
 
     @Override
-    public CompletableFuture<Message> request(String subject, Headers headers, byte[] body) {
-        String responseInbox = null;
-        boolean oldStyle = options.isOldRequestStyle();
+    public CompletableFuture<Message> request(Message message) {
+        return _request(new NatsMessage(message));
+    }
+
+    private CompletableFuture<Message> _request(NatsMessage natsMsg) {
+        checkBeforePublishOrRequest(natsMsg, "requesting");
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -1028,21 +1045,8 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining");
         }
 
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in publish");
-        }
-
-        if (body == null) {
-            body = EMPTY_BODY;
-        } else if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
-            throw new IllegalArgumentException(
-                    "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
-        }
-
         if (inboxDispatcher.get() == null) {
-            NatsDispatcher d = new NatsDispatcher(this, (msg) -> {
-                deliverReply(msg);
-            });
+            NatsDispatcher d = new NatsDispatcher(this, this::deliverReply);
 
             if (inboxDispatcher.compareAndSet(null, d)) {
                 String id = this.nuid.next();
@@ -1052,12 +1056,8 @@ class NatsConnection implements Connection {
             }
         }
 
-        if (oldStyle) {
-            responseInbox = createInbox();
-        } else {
-            responseInbox = createResponseInbox(this.mainInbox);
-        }
-
+        boolean oldStyle = options.isOldRequestStyle();
+        String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
         CompletableFuture<Message> future = new CompletableFuture<>();
 
@@ -1080,7 +1080,8 @@ class NatsConnection implements Connection {
             responses.put(sub.getSID(), future);
         }
 
-        publish(subject, responseInbox, headers, body);
+        natsMsg.setReplyTo(responseInbox);
+        publish(natsMsg);
         statistics.incrementRequestsSent();
 
         return future;

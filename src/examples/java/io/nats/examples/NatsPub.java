@@ -14,10 +14,13 @@
 package io.nats.examples;
 
 import io.nats.client.Connection;
+import io.nats.client.Message;
 import io.nats.client.Nats;
+import io.nats.client.impl.NatsMessage;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.Future;
 
 public class NatsPub {
     static final String usageString =
@@ -36,7 +39,12 @@ public class NatsPub {
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nPublishing '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            nc.publish(exArgs.subject, exArgs.headers, exArgs.message.getBytes(StandardCharsets.UTF_8));
+            nc.publish(new NatsMessage.Builder()
+                    .subject(exArgs.subject)
+                    .headers(exArgs.headers)
+                    .data(exArgs.message, StandardCharsets.UTF_8)
+                    .build());
+
             nc.flush(Duration.ofSeconds(5));
             nc.close();
 

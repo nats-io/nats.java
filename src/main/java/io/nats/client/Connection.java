@@ -13,8 +13,6 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.Headers;
-
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -125,27 +123,6 @@ public interface Connection extends AutoCloseable {
     public void publish(String subject, byte[] body);
 
     /**
-     * Send a message to the specified subject. The message body <strong>will
-     * not</strong> be copied. The expected usage with string content is something
-     * like:
-     *
-     * <pre>
-     * nc = Nats.connect()
-     * nc.publish("destination", "message".getBytes("UTF-8"))
-     * </pre>
-     *
-     * where the sender creates a byte array immediately before calling publish.
-     *
-     * See {@link #publish(String, String, byte[]) publish()} for more details on
-     * publish during reconnect.
-     *
-     * @param subject the subject to send the message to
-     * @param body the message body
-     * @throws IllegalStateException if the reconnect buffer is exceeded
-     */
-    public void publish(String subject, Headers headers, byte[] body);
-
-    /**
      * Send a request to the specified subject, providing a replyTo subject. The
      * message body <strong>will not</strong> be copied. The expected usage with
      * string content is something like:
@@ -171,50 +148,43 @@ public interface Connection extends AutoCloseable {
     public void publish(String subject, String replyTo, byte[] body);
 
     /**
-     * Send a request to the specified subject, providing a replyTo subject. The
-     * message body <strong>will not</strong> be copied. The expected usage with
-     * string content is something like:
+     * Send a message to the specified subject. The message body <strong>will
+     * not</strong> be copied. The expected usage with string content is something
+     * like:
      *
      * <pre>
      * nc = Nats.connect()
-     * nc.publish("destination", "reply-to", "message".getBytes("UTF-8"))
+     * nc.publish(new NatsMessage.Builder()...build())
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
-     * <p>
-     * During reconnect the client will try to buffer messages. The buffer size is set
-     * in the connect options, see {@link Options.Builder#reconnectBufferSize(long) reconnectBufferSize()}
-     * with a default value of {@link Options#DEFAULT_RECONNECT_BUF_SIZE 8 * 1024 * 1024} bytes.
-     * If the buffer is exceeded an IllegalStateException is thrown. Applications should use
-     * this exception as a signal to wait for reconnect before continuing.
-     * </p>
-     * @param subject the subject to send the message to
-     * @param replyTo the subject the receiver should send the response to
-     * @param headers the headers to send with the message
-     * @param body the message body
+     *
+     * See {@link #publish(String, String, byte[]) publish()} for more details on
+     * publish during reconnect.
+     *
+     * @param message the message
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    public void publish(String subject, String replyTo, Headers headers, byte[] body);
+    public void publish(Message message);
 
     /**
      * Send a request. The returned future will be completed when the
      * response comes back.
      *
      * @param subject the subject for the service that will handle the request
-     * @param data the content of the message
+     * @param body the content of the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    public CompletableFuture<Message> request(String subject, byte[] data);
+    public CompletableFuture<Message> request(String subject, byte[] body);
 
     /**
      * Send a request. The returned future will be completed when the
      * response comes back.
      *
-     * @param subject the subject for the service that will handle the request
-     * @param data the content of the message
+     * @param message the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    public CompletableFuture<Message> request(String subject, Headers headers, byte[] data);
+    public CompletableFuture<Message> request(Message message);
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
@@ -222,25 +192,24 @@ public interface Connection extends AutoCloseable {
      * the timeout and handling the ExecutionException and TimeoutException.
      *
      * @param subject the subject for the service that will handle the request
-     * @param data the content of the message
+     * @param body the content of the message
      * @param timeout the time to wait for a response
      * @return the reply message or null if the timeout is reached
      * @throws InterruptedException if one is thrown while waiting, in order to propogate it up
      */
-    public Message request(String subject, byte[] data, Duration timeout) throws InterruptedException;
+    public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException;
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
      * to calling get on the future returned from {@link #request(String, byte[]) request()} with
      * the timeout and handling the ExecutionException and TimeoutException.
      *
-     * @param subject the subject for the service that will handle the request
-     * @param data the content of the message
+     * @param message the message
      * @param timeout the time to wait for a response
      * @return the reply message or null if the timeout is reached
      * @throws InterruptedException if one is thrown while waiting, in order to propogate it up
      */
-    public Message request(String subject, Headers headers, byte[] data, Duration timeout) throws InterruptedException;
+    public Message request(Message message, Duration timeout) throws InterruptedException;
 
     /**
      * Create a synchronous subscription to the specified subject.

@@ -16,6 +16,7 @@ package io.nats.examples;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Nats;
+import io.nats.client.impl.NatsMessage;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Future;
@@ -39,7 +40,12 @@ public class NatsReq {
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nRequesting '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            Future<Message> replyFuture = nc.request(exArgs.subject, exArgs.headers, exArgs.message.getBytes(StandardCharsets.UTF_8));
+            Future<Message> replyFuture = nc.request(new NatsMessage.Builder()
+                    .subject(exArgs.subject)
+                    .headers(exArgs.headers)
+                    .data(exArgs.message, StandardCharsets.UTF_8)
+                    .build());
+
             Message reply = replyFuture.get(5, TimeUnit.SECONDS);
 
             System.out.printf("\nReceived reply '%s' on subject '%s'\n\n",

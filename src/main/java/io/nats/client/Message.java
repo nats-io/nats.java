@@ -28,41 +28,40 @@ public interface Message {
 	/**
 	 * @return the subject that this message was sent to
 	 */
-	public String getSubject();
+	String getSubject();
 
 	/**
 	 * @return the subject the application is expected to send a reply message on
 	 */
-	public String getReplyTo();
-
-	/**
-	 * @return the full serizlialized headers as byte array from the message
-	 */
-	public byte[] getSerializedHeader();
+	String getReplyTo();
 
 	/**
 	 * @return the headers object the message
 	 */
-	public Headers getHeaders();
+	Headers getHeaders();
 
 	/**
 	 * @return the data from the message
 	 */
-	public byte[] getData();
+	byte[] getData();
 
+	/**
+	 * @return if is utf8Mode
+	 */
+	boolean isUtf8mode();
 	/**
 	 * @return the Subscription associated with this message, may be owned by a Dispatcher
 	 */
-	public Subscription getSubscription();
+	Subscription getSubscription();
 
 	/**
 	 * @return the id associated with the subscription, used by the connection when processing an incoming
 	 * message from the server
 	 */
-	public String getSID();
+	String getSID();
 
 	/**
 	 * @return the connection which can be used for publishing, will be null if the subscription is null
 	 */
-	public Connection getConnection();
+	Connection getConnection();
 }
