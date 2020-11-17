@@ -286,7 +286,7 @@ class NatsConnectionReader implements Runnable {
                     this.mode = Mode.GATHER_DATA;
                     break;
                 } else {
-                    throw new IllegalStateException("Bad socket data, headers do not match excpected length");
+                    throw new IllegalStateException("Bad socket data, headers do not match expected length");
                 }
             }
         } catch (IllegalStateException | NullPointerException ex) {
