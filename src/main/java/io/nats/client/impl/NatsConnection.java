@@ -848,65 +848,57 @@ class NatsConnection implements Connection {
         }
     }
 
-    public Subscription subscribe(String subject) {
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
+    
+    static private void checkSubject(String s) {
+        if (s == null || s.isEmpty()) {
+            throw new IllegalArgumentException("Subject cannot be null or empty.");
         }
+
+        for (int i = 0; i < s.length(); i++){
+            char c = s.charAt(i);
+            if (Character.isWhitespace(c)) {
+                throw new IllegalArgumentException("Subject cannot contain spaces.");
+            }
+        }
+    }
+     
+    static private void checkQueue(String s) {
+        if (s == null || s.isEmpty()) {
+            throw new IllegalArgumentException("Queue group name cannot be null or empty.");
+        }
+
+        for (int i = 0; i < s.length(); i++){
+            char c = s.charAt(i);
+            if (Character.isWhitespace(c)) {
+                throw new IllegalArgumentException("Queue group name  cannot contain spaces.");
+            }
+        }
+    }
+
+    public Subscription subscribe(String subject) {
+        checkSubject(subject);
         return createSubscription(subject, null, null);
     }
 
     public Subscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
 
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
+        checkSubject(subject);
         if (options == null) {
             throw new IllegalArgumentException("Options are required in subscribe");
         }
 
-        Pattern pattern = Pattern.compile("\\s");
-        Matcher matcher = pattern.matcher(subject);
-
-        if (matcher.find()) {
-            throw new IllegalArgumentException("Subject cannot contain whitespace");
-        }
-
         return createSubscription(subject, null, null, options);
     }
-        
+
     public Subscription subscribe(String subject, String queueName) {
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
-        if (queueName == null || queueName.length() == 0) {
-            throw new IllegalArgumentException("Queue Name is required in subscribe");
-        }
+        checkSubject(subject);
+        checkQueue(queueName);
         return createSubscription(subject, queueName, null);
     }
 
     public Subscription subscribe(String subject, String queueName, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException{
-
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required in subscribe");
-        }
-        
-        Pattern pattern = Pattern.compile("\\s");
-        Matcher smatcher = pattern.matcher(subject);
-
-        if (smatcher.find()) {
-            throw new IllegalArgumentException("Subject cannot contain whitespace");
-        }
-
-        if (queueName == null || queueName.length() == 0) {
-            throw new IllegalArgumentException("QueueName is required in subscribe");
-        }
-
-        Matcher qmatcher = pattern.matcher(queueName);
-
-        if (qmatcher.find()) {
-            throw new IllegalArgumentException("Queue names cannot contain whitespace");
-        }
-
+        checkSubject(subject);
+        checkQueue(queueName);
         if (options == null) {
             throw new IllegalArgumentException("Options are required in subscribe");
         }
