@@ -23,11 +23,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static io.nats.client.impl.NatsConstants.*;
+
 class NatsConnectionReader implements Runnable {
-    static final int MAX_PROTOCOL_OP_LENGTH = 4;
-    static final String UNKNOWN_OP = "UNKNOWN";
-    static final char SPACE = ' ';
-    static final char TAB = '\t';
 
     enum Mode {
         GATHER_OP,
@@ -168,7 +166,7 @@ class NatsConnectionReader implements Runnable {
                 this.bufferPosition++;
 
                 if (gotCR) {
-                    if (b == NatsConnection.LF) { // Got CRLF, jump to parsing
+                    if (b == LF) { // Got CRLF, jump to parsing
                         this.op = opFor(opArray, opPos);
                         this.gotCR = false;
                         this.opPos = 0;
@@ -180,14 +178,14 @@ class NatsConnectionReader implements Runnable {
                 } else if (b == SPACE || b == TAB) { // Got a space, get the rest of the protocol line
                     this.op = opFor(opArray, opPos);
                     this.opPos = 0;
-                    if (this.op.equals(NatsConnection.OP_MSG) || this.op.equals(NatsConnection.OP_HMSG)) {
+                    if (this.op.equals(OP_MSG) || this.op.equals(OP_HMSG)) {
                         this.msgLinePosition = 0;
                         this.mode = Mode.GATHER_MSG_HMSG_PROTO;
                     } else {
                         this.mode = Mode.GATHER_PROTO;
                     }
                     break;
-                } else if (b == NatsConnection.CR) {
+                } else if (b == CR) {
                     this.gotCR = true;
                 } else {
                     this.opArray[opPos] = (char) b;
@@ -207,14 +205,14 @@ class NatsConnectionReader implements Runnable {
                 this.bufferPosition++;
 
                 if (gotCR) {
-                    if (b == NatsConnection.LF) {
+                    if (b == LF) {
                         this.mode = Mode.PARSE_PROTO;
                         this.gotCR = false;
                         break;
                     } else {
                         throw new IllegalStateException("Bad socket data, no LF after CR");
                     }
-                } else if (b == NatsConnection.CR) {
+                } else if (b == CR) {
                     this.gotCR = true;
                 } else {
                     if (this.msgLinePosition >= this.msgLineChars.length) {
@@ -238,7 +236,7 @@ class NatsConnectionReader implements Runnable {
                 this.bufferPosition++;
 
                 if (gotCR) {
-                    if (b == NatsConnection.LF) {
+                    if (b == LF) {
                         this.protocolBuffer.flip();
                         this.mode = Mode.PARSE_PROTO;
                         this.gotCR = false;
@@ -246,7 +244,7 @@ class NatsConnectionReader implements Runnable {
                     } else {
                         throw new IllegalStateException("Bad socket data, no LF after CR");
                     }
-                } else if (b == NatsConnection.CR) {
+                } else if (b == CR) {
                     this.gotCR = true;
                 } else {
                     if (!protocolBuffer.hasRemaining()) {
@@ -319,7 +317,7 @@ class NatsConnectionReader implements Runnable {
                 this.bufferPosition++;
 
                 if (gotCR) {
-                    if (b == NatsConnection.LF) {
+                    if (b == LF) {
                         incoming.setData(msgData);
                         this.connection.deliverMessage(incoming);
                         msgData = null;
@@ -332,7 +330,7 @@ class NatsConnectionReader implements Runnable {
                     } else {
                         throw new IllegalStateException("Bad socket data, no LF after CR");
                     }
-                } else if (b == NatsConnection.CR) {
+                } else if (b == CR) {
                     gotCR = true;
                 } else {
                     throw new IllegalStateException("Bad socket data, no CRLF after data");
@@ -368,11 +366,11 @@ class NatsConnectionReader implements Runnable {
             if ((chars[0] == 'M' || chars[0] == 'm') &&
                         (chars[1] == 'S' || chars[1] == 's') && 
                         (chars[2] == 'G' || chars[2] == 'g')) {
-                return NatsConnection.OP_MSG;
+                return OP_MSG;
             } else if (chars[0] == '+' && 
                 (chars[1] == 'O' || chars[1] == 'o') && 
                 (chars[2] == 'K' || chars[2] == 'k')) {
-                return NatsConnection.OP_OK;
+                return OP_OK;
             } else {
                 return UNKNOWN_OP;
             }
@@ -381,27 +379,27 @@ class NatsConnectionReader implements Runnable {
                     (chars[0] == 'P' || chars[0] == 'p') && 
                     (chars[2] == 'N' || chars[2] == 'n') &&
                     (chars[3] == 'G' || chars[3] == 'g')) {
-                return NatsConnection.OP_PING;
+                return OP_PING;
             } else if ((chars[1] == 'O' || chars[1] == 'o') && 
                         (chars[0] == 'P' || chars[0] == 'p') && 
                         (chars[2] == 'N' || chars[2] == 'n') &&
                         (chars[3] == 'G' || chars[3] == 'g')) {
-                return NatsConnection.OP_PONG;
+                return OP_PONG;
             } else if (chars[0] == '-' && 
                         (chars[1] == 'E' || chars[1] == 'e') &&
                         (chars[2] == 'R' || chars[2] == 'r') && 
                         (chars[3] == 'R' || chars[3] == 'r')) {
-                return NatsConnection.OP_ERR;
+                return OP_ERR;
             } else if ((chars[0] == 'I' || chars[0] == 'i') &&
                     (chars[1] == 'N' || chars[1] == 'n') &&
                     (chars[2] == 'F' || chars[2] == 'f') &&
                     (chars[3] == 'O' || chars[3] == 'o')) {
-                return NatsConnection.OP_INFO;
+                return OP_INFO;
             } else if ((chars[0] == 'H' || chars[0] == 'h') &&
                     (chars[1] == 'M' || chars[1] == 'm') &&
                     (chars[2] == 'S' || chars[2] == 's') &&
                     (chars[3] == 'G' || chars[3] == 'g')) {
-                return NatsConnection.OP_HMSG;
+                return OP_HMSG;
             }  else {
                 return UNKNOWN_OP;
             }
@@ -437,7 +435,7 @@ class NatsConnectionReader implements Runnable {
     void parseProtocolMessage() throws IOException {
         try {
             switch (this.op) {
-                case NatsConnection.OP_MSG:
+                case OP_MSG:
                     int protocolLength = this.msgLinePosition; //This is just after the last character
                     int protocolLineLength = protocolLength + 4; // 4 for the "MSG "
 
@@ -474,7 +472,7 @@ class NatsConnectionReader implements Runnable {
                     this.msgDataPosition = 0;
                     this.msgLinePosition = 0;
                     break;
-                case NatsConnection.OP_HMSG:
+                case OP_HMSG:
                     int hProtocolLength = this.msgLinePosition; //This is just after the last character
                     int hProtocolLineLength = hProtocolLength + 4; // 5 for the "HMSG "
 
@@ -518,12 +516,12 @@ class NatsConnectionReader implements Runnable {
                     this.msgDataPosition = 0;
                     this.msgLinePosition = 0;
                     break;
-                case NatsConnection.OP_OK:
+                case OP_OK:
                     this.connection.processOK();
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
-                case NatsConnection.OP_ERR:
+                case OP_ERR:
                     String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
                     if (errorText != null) {
                         errorText = errorText.replace("\'", "");
@@ -532,17 +530,17 @@ class NatsConnectionReader implements Runnable {
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
-                case NatsConnection.OP_PING:
+                case OP_PING:
                     this.connection.sendPong();
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
-                case NatsConnection.OP_PONG:
+                case OP_PONG:
                     this.connection.handlePong();
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
-                case NatsConnection.OP_INFO:
+                case OP_INFO:
                     String info = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
                     this.connection.handleInfo(info);
                     this.op = UNKNOWN_OP;

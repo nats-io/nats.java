@@ -27,6 +27,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.nats.client.impl.NatsConstants.OP_PING;
+import static io.nats.client.impl.NatsConstants.OP_PONG;
+
 class NatsConnectionWriter implements Runnable {
 
     private final NatsConnection connection;
@@ -89,8 +92,8 @@ class NatsConnectionWriter implements Runnable {
                 this.outgoing.pause();
                 this.reconnectOutgoing.pause();
                 // Clear old ping/pong requests
-                byte[] pingRequest = NatsConnection.OP_PING.getBytes(StandardCharsets.UTF_8);
-                byte[] pongRequest = NatsConnection.OP_PONG.getBytes(StandardCharsets.UTF_8);
+                byte[] pingRequest = OP_PING.getBytes(StandardCharsets.UTF_8);
+                byte[] pongRequest = OP_PONG.getBytes(StandardCharsets.UTF_8);
 
                 this.outgoing.filter((msg) -> {
                     return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());

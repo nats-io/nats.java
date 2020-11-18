@@ -35,33 +35,9 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.impl.NatsConstants.*;
+
 class NatsConnection implements Connection {
-    static final byte[] EMPTY_BODY = new byte[0];
-
-    static final byte CR = 0x0D;
-    static final byte LF = 0x0A;
-
-    static final String OP_CONNECT = "CONNECT";
-    static final String OP_INFO = "INFO";
-    static final String OP_SUB = "SUB";
-    static final String OP_PUB = "PUB";
-    static final String OP_UNSUB = "UNSUB";
-    static final String OP_MSG = "MSG";
-    static final String OP_HMSG = "HMSG";
-    static final String OP_PING = "PING";
-    static final String OP_PONG = "PONG";
-    static final String OP_OK = "+OK";
-    static final String OP_ERR = "-ERR";
-
-    static final byte[] OP_PING_BYTES = OP_PING.getBytes();
-    static final byte[] OP_PONG_BYTES = OP_PONG.getBytes();
-
-    static final byte[] OP_CONNECT_PROTOCOL_BYTES = (OP_CONNECT + " ").getBytes();
-    static final byte[] OP_SUB_PROTOCOL_BYTES = (OP_SUB + " ").getBytes();
-    static final byte[] OP_UNSUB_PROTOCOL_BYTES = (OP_UNSUB + " ").getBytes();
-    static final int OP_CONNECT_PROTOCOL_LEN = OP_CONNECT_PROTOCOL_BYTES.length;
-    static final int OP_SUB_PROTOCOL_LEN = OP_SUB_PROTOCOL_BYTES.length;
-    static final int OP_UNSUB_PROTOCOL_LEN = OP_UNSUB_PROTOCOL_BYTES.length;
 
     private Options options;
 
@@ -782,7 +758,7 @@ class NatsConnection implements Connection {
 
     private void _publish(NatsMessage msg) {
 
-        checkBeforePublishOrRequest(msg, "publishing");
+        checkPayloadSize(msg);
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -798,16 +774,7 @@ class NatsConnection implements Connection {
         queueOutgoing(msg);
     }
 
-    private void checkBeforePublishOrRequest(NatsMessage natsMsg, String hint) {
-
-        if (natsMsg.getSubject() == null || natsMsg.getSubject().length() == 0) {
-            throw new IllegalArgumentException("Subject is required when " + hint);
-        }
-
-        if (natsMsg.getReplyTo() != null && natsMsg.getReplyTo().length() == 0) {
-            throw new IllegalArgumentException("ReplyTo cannot be the empty string when " + hint);
-        }
-
+    private void checkPayloadSize(NatsMessage natsMsg) {
         byte[] body = natsMsg.getData(); // data will never be null, it might be empty
         if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
             throw new IllegalArgumentException(
@@ -1037,7 +1004,7 @@ class NatsConnection implements Connection {
     }
 
     private CompletableFuture<Message> _request(NatsMessage natsMsg) {
-        checkBeforePublishOrRequest(natsMsg, "requesting");
+        checkPayloadSize(natsMsg);
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -1245,7 +1212,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(NatsConnection.OP_PING_BYTES);
+        NatsMessage msg = new NatsMessage(OP_PING_BYTES);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1260,7 +1227,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        queueInternalOutgoing( new NatsMessage(NatsConnection.OP_PONG_BYTES) );
+        queueInternalOutgoing( new NatsMessage(OP_PONG_BYTES) );
     }
 
     // Called by the reader

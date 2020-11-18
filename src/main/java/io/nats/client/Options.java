@@ -792,6 +792,7 @@ public class Options {
         /**
          * Turn off header support. Some versions of the server don't support it.
          * It's also not required if you don't use headers
+         * @return the Builder for chaining
          */
         public Builder noHeaders() {
             this.noHeaders = true;

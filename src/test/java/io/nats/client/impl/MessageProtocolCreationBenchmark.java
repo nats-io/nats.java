@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import java.text.NumberFormat;
 
+import static io.nats.client.impl.NatsConstants.EMPTY_BODY;
+
 public class MessageProtocolCreationBenchmark {
     public static void main(String args[]) throws InterruptedException {
         int warmup = 1_000_000;
@@ -23,12 +25,12 @@ public class MessageProtocolCreationBenchmark {
         System.out.printf("### Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
 
         for (int j = 0; j < warmup; j++) {
-            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, true);
+            new NatsMessage("subject", "replyTo", EMPTY_BODY, true);
         }
 
         long start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, false);
+            new NatsMessage("subject", "replyTo", EMPTY_BODY, false);
         }
         long end = System.nanoTime();
 
@@ -40,7 +42,7 @@ public class MessageProtocolCreationBenchmark {
 
         start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage("subject", "replyTo", NatsConnection.EMPTY_BODY, true);
+            new NatsMessage("subject", "replyTo", EMPTY_BODY, true);
         }
         end = System.nanoTime();
 
@@ -52,7 +54,7 @@ public class MessageProtocolCreationBenchmark {
         
         start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage(new byte[0]);
+            new NatsMessage(EMPTY_BODY);
         }
         end = System.nanoTime();
 

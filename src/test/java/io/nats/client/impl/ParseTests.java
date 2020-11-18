@@ -13,18 +13,16 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import io.nats.client.Nats;
+import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Nats;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
+import static io.nats.client.impl.NatsConstants.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ParseTests {
     @Test
@@ -210,9 +208,9 @@ public class ParseTests {
         };
 
         String[] expected = {
-            NatsConnection.OP_OK, NatsConnection.OP_PONG, NatsConnection.OP_PING, NatsConnection.OP_MSG,
-            NatsConnection.OP_ERR, NatsConnection.OP_INFO, NatsConnection.OP_PING, NatsConnection.OP_MSG,
-            NatsConnection.OP_OK, NatsConnection.OP_PONG, NatsConnection.OP_PONG, NatsConnection.OP_MSG
+            OP_OK, OP_PONG, OP_PING, OP_MSG,
+            OP_ERR, OP_INFO, OP_PING, OP_MSG,
+            OP_OK, OP_PONG, OP_PONG, OP_MSG
         };
 
         try (NatsTestServer ts = new NatsTestServer(false);
@@ -232,7 +230,7 @@ public class ParseTests {
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
                 String op = reader.currentOp();
-                assertEquals(NatsConnectionReader.UNKNOWN_OP, op, badStrings[i]);
+                assertEquals(UNKNOWN_OP, op, badStrings[i]);
             }
         }
     }

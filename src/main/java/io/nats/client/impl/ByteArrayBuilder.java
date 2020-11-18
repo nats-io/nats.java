@@ -46,7 +46,7 @@ public class ByteArrayBuilder {
 
     public ByteArrayBuilder(int initialSize, Charset defaultCharset) {
         allocationSize = defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
-        this.buffer = ByteBuffer.allocate(computeNewAllocationSize(0, Math.max(allocationSize, initialSize)));
+        this.buffer = ByteBuffer.allocate(computeNewAllocationSize(0, initialSize));
         this.defaultCharset = defaultCharset;
     }
 

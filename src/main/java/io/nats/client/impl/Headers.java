@@ -17,6 +17,13 @@ import java.util.*;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
+/**
+ * An object that represents a map of keys to a list of values. It does not accept
+ * null or invalid keys. It ignores null values, accepts empty string as a value
+ * and rejects invalid values.
+ *
+ * THIS CLASS IS NOT THREAD SAFE
+ */
 public class Headers {
 	private static final String VERSION = "NATS/1.0";
 	private static final byte[] VERSION_BYTES = "NATS/1.0\r\n".getBytes(US_ASCII);
@@ -131,7 +138,7 @@ public class Headers {
 		return this;
 	}
 
-	// the put delegate
+	// the put delegate that all puts call
 	private void _put(String key, Collection<String> values) {
 		if (values != null) {
 			checkKey(key);
@@ -167,31 +174,66 @@ public class Headers {
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
 
+	/**
+	 * Returns the number of keys in the header.
+	 *
+	 * @return the number of keys
+	 */
 	public int size() {
 		return headerMap.size();
 	}
 
+	/**
+	 * Returns <tt>true</tt> if this map contains no keys.
+	 *
+	 * @return <tt>true</tt> if this map contains no keyss
+	 */
 	public boolean isEmpty() {
 		return headerMap.isEmpty();
 	}
 
+	/**
+	 * Removes all of the keys The object map will be empty after this call returns.
+	 */
 	public void clear() {
 		headerMap.clear();
 	}
 
+	/**
+	 * Returns <tt>true</tt> if key is present (has values)
+	 *
+	 * @param key key whose presence is to be tested
+	 * @return <tt>true</tt> if the key is present (has values)
+	 */
 	public boolean containsKey(String key) {
 		return headerMap.containsKey(key);
 	}
 
+	/**
+	 * Returns a {@link Set} view of the keys contained in the object.
+	 *
+	 * @return a read-only set the keys contained in this map
+	 */
 	public Set<String> keySet() {
-		return headerMap.keySet();
+		return Collections.unmodifiableSet(headerMap.keySet());
 	}
 
+	/**
+	 * Returns a {@link List} view of the values for the specific key.
+	 * Will be {@code null} if the key is not found.
+	 *
+	 * @return a read-only list of the values for the specific keys.
+	 */
 	public List<String> values(String key) {
 		List<String> list = headerMap.get(key);
 		return list == null ? null : Collections.unmodifiableList(list);
 	}
 
+	/**
+	 * Returns the number of bytes that will be in the serialized version.
+	 *
+	 * @return the number of bytes
+	 */
 	public int serializedLength() {
 		return getSerialized().length;
 	}
@@ -214,6 +256,12 @@ public class Headers {
 		return serialized;
 	}
 
+	/**
+	 * Check the key to ensure it matches the specification for keys.
+	 *
+	 * @throws IllegalArgumentException if the key is null, empty or contains
+	 *         an invalid character
+	 */
 	private void checkKey(String key) {
 		// key cannot be null or empty and contain only printable characters except colon
 		if (key == null || key.length() == 0) {
@@ -229,6 +277,15 @@ public class Headers {
 		}
 	}
 
+	/**
+	 * Check values to ensure they match the specification for values. Returns a list of
+	 * valid values ignoring values that are null or empty strings. This may make the
+	 * return list empty. The method throws an exception if any non null value is invalid.
+	 * Empty string is a valid value.
+	 *
+	 * @return the list of valid values
+	 * @throws IllegalArgumentException if the value contains an invalid character
+	 */
 	private List<String> checkValues(Collection<String> values) {
 		List<String> checked = new ArrayList<>();
 		if (values != null && !values.isEmpty()) {
@@ -241,6 +298,12 @@ public class Headers {
 		return checked;
 	}
 
+	/**
+	 * Check a value to ensure that it matches the specification for values.
+	 *
+	 * @return false if the value is null, true if it is valid
+	 * @throws IllegalArgumentException if the value contains an invalid character
+	 */
 	private boolean checkValue(String val) {
 		// Generally more permissive than HTTP.  Allow only printable
 		// characters and include tab (0x9) to cover what's allowed

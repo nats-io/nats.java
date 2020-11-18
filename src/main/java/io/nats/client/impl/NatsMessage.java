@@ -19,14 +19,11 @@ import io.nats.client.Subscription;
 
 import java.nio.charset.Charset;
 
+import static io.nats.client.impl.NatsConstants.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class NatsMessage implements Message {
-    private static byte[] PUB_BYTES = "PUB ".getBytes(US_ASCII);
-    private static byte[] HPUB_BYTES = "HPUB ".getBytes(US_ASCII);
-    private static int PUB_BYTES_LEN = PUB_BYTES.length;
-    private static int HPUB_BYTES_LEN = HPUB_BYTES.length;
 
     public enum Kind {REGULAR, PROTOCOL, INCOMING}
 
@@ -46,7 +43,6 @@ public class NatsMessage implements Message {
 
     // housekeeping
     private Kind kind;
-    private boolean hpub = false;
     private int sizeInBytes = -1;
     private int hdrLen = 0;
     private int dataLen = 0;
@@ -67,38 +63,56 @@ public class NatsMessage implements Message {
 
     // Create a message to publish
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required");
+        }
+
+        if (replyTo != null && replyTo.length() == 0) {
+            throw new IllegalArgumentException("ReplyTo cannot be the empty string");
+        }
+
         kind = Kind.REGULAR;
         this.subject = subject;
         this.replyTo = replyTo;
         this.headers = headers;
-        this.data = data == null ? new byte[0] : data;
-        dataLen = this.data.length;
+        this.data = data == null ? EMPTY_BODY : data;
         this.utf8mode = utf8mode;
-        hpub = headers != null;
 
-        ByteArrayBuilder bab = new ByteArrayBuilder();
-        if (hpub && headers != null) {
+        int replyToLen = replyTo == null ? 0 : replyTo.length();
+        dataLen = this.data.length;
+        if (headers != null && !headers.isEmpty()) {
             hdrLen = headers.serializedLength();
-            bab.append(HPUB_BYTES, HPUB_BYTES_LEN);
         }
         else {
             hdrLen = 0;
-            bab.append(PUB_BYTES, PUB_BYTES_LEN);
         }
         totLen = hdrLen + dataLen;
+
+        // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
+        // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (hdrLen + dataLen)
+        ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + totLen);
+
+        // protocol come first
+        if (hdrLen > 0) {
+            bab.append(HPUB_BYTES, HPUB_BYTES_LEN);
+        }
+        else {
+            bab.append(PUB_BYTES, PUB_BYTES_LEN);
+        }
 
         // next comes the subject
         bab.append(subject, utf8mode ? UTF_8 : US_ASCII);
         bab.appendSpace();
 
         // reply to if it's there
-        if (replyTo != null && replyTo.length() > 0) {
+        if (replyToLen > 0) {
             bab.append(replyTo);
             bab.appendSpace();
         }
 
         // header length if there are headers
-        if (hpub) {
+        if (hdrLen > 0) {
             bab.append(Integer.toString(hdrLen));
             bab.appendSpace();
         }
@@ -112,7 +126,7 @@ public class NatsMessage implements Message {
     // Create a protocol only message to publish
     NatsMessage(byte[] protocol) {
         this.kind = Kind.PROTOCOL;
-        this.protocolBytes = protocol == null ? new byte[0] : protocol;
+        this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
     }
 
     // Create an incoming message for a subscriber
@@ -146,7 +160,7 @@ public class NatsMessage implements Message {
     long getSizeInBytes() {
         if (sizeInBytes == -1) {
             sizeInBytes = protocolBytes == null ? 0 : protocolBytes.length + 2; // CRLF
-            if (hpub) {
+            if (hdrLen > 0) {
                 sizeInBytes += hdrLen + 2; // CRLF
             }
             if (dataLen > 0) {
@@ -243,7 +257,6 @@ public class NatsMessage implements Message {
                 "\n  protocolLineLength=" + protocolLineLength +
                 "\n  protocolBytes=" + (protocolBytes == null ? null : new String(protocolBytes, UTF_8)) +
                 "\n  kind=" + kind +
-                "\n  hpub=" + hpub +
                 "\n  sizeInBytes=" + sizeInBytes +
                 "\n  hdrLen=" + hdrLen +
                 "\n  dataLen=" + dataLen +
@@ -252,8 +265,10 @@ public class NatsMessage implements Message {
                 "\n  next=" + next;
     }
 
-    // The builder is only supports building normal publish/request messages,
-    // as an option for client use developers instead of the normal constructor
+    /**
+     * The builder is for building normal publish/request messages,
+     * as an option for client use developers instead of the normal constructor
+     */
     public static class Builder {
         String subject;
         String replyTo;
@@ -261,36 +276,79 @@ public class NatsMessage implements Message {
         byte[] data;
         boolean utf8mode;
 
+        /**
+         * Set the subject
+         *
+         * @param subject the subject
+         * @return the builder
+         */
         public Builder subject(final String subject) {
             this.subject = subject;
             return this;
         }
 
+        /**
+         * Set the reply to
+         *
+         * @param replyTo the reply to
+         * @return the builder
+         */
         public Builder replyTo(final String replyTo) {
             this.replyTo = replyTo;
             return this;
         }
 
+        /**
+         * Set the headers
+         *
+         * @param headers the headers
+         * @return the builder
+         */
         public Builder headers(final Headers headers) {
             this.headers = headers;
             return this;
         }
 
+        /**
+         * Set the data from a string
+         *
+         * @param data the data string
+         * @param charset the charset, for example {@code StandardCharsets.UTF_8}
+         * @return the builder
+         */
         public Builder data(final String data, Charset charset) {
+            //
             this.data = data.getBytes(charset);
             return this;
         }
 
+        /**
+         * Set the data from a byte array
+         *
+         * @param data the data
+         * @return the builder
+         */
         public Builder data(final byte[] data) {
             this.data = data;
             return this;
         }
 
+        /**
+         * Set if the subject should be treated as utf
+         *
+         * @param utf8mode true if utf8 mode for subject
+         * @return the builder
+         */
         public Builder utf8mode(final boolean utf8mode) {
             this.utf8mode = utf8mode;
             return this;
         }
 
+        /**
+         * Build the {@code NatsMessage} object
+         *
+         * @return the {@code NatsMessage}
+         */
         public NatsMessage build() {
             return new NatsMessage(subject, replyTo, headers, data, utf8mode);
         }

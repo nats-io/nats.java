@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.Headers;
+import io.nats.client.impl.NatsMessage;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -22,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.impl.NatsConstants.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests {
@@ -32,7 +35,7 @@ public class PublishTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.close();
                 nc.publish("subject", "replyto", null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -44,7 +47,7 @@ public class PublishTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.close();
                 nc.flush(null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -55,7 +58,7 @@ public class PublishTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.publish(null, null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -66,7 +69,7 @@ public class PublishTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.publish("subject", "", null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -78,56 +81,74 @@ public class PublishTests {
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
                         Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
                 byte[] body = new byte[1001];
                 nc.publish("subject", null, body);
-                assertFalse(true);
+                fail();
             }
         });
     }
 
     @Test
     public void testEmptyPublish() throws IOException, InterruptedException,ExecutionException {
-        runSimplePublishTest("testsubemptybody", null, "");
+        runSimplePublishTest("testsubemptybody", null, null, "");
     }
 
     @Test
     public void testEmptyByDefaultPublish() throws IOException, InterruptedException,ExecutionException {
-        runSimplePublishTest("testsubemptybody", null, null);
+        runSimplePublishTest("testsubemptybody", null, null, null);
     }
 
     @Test
     public void testNoReplyPublish() throws IOException, InterruptedException,ExecutionException {
-        runSimplePublishTest("testsub", null, "This is the message.");
+        runSimplePublishTest("testsub", null, null, "This is the message.");
     }
 
     @Test
     public void testReplyToInPublish() throws IOException, InterruptedException,ExecutionException {
-        runSimplePublishTest("testsubforreply", "replyTo", "This is the message to reply to.");
+        runSimplePublishTest("testsubforreply", "replyTo", null, "This is the message to reply to.");
+        runSimplePublishTest("testsubforreply", "replyTo", new Headers().add("key", "value"), "This is the message to reply to.");
     }
 
-    public void runSimplePublishTest(String subject, String replyTo, String bodyString) throws IOException, InterruptedException,ExecutionException {
+    private void runSimplePublishTest(String subject, String replyTo, Headers headers, String bodyString) throws IOException, InterruptedException,ExecutionException {
         CompletableFuture<Boolean> gotPub = new CompletableFuture<>();
+        AtomicReference<String> hdrProto  = new AtomicReference<>("");
         AtomicReference<String> body  = new AtomicReference<>("");
         AtomicReference<String> protocol  = new AtomicReference<>("");
 
+        boolean hPub = headers != null && !headers.isEmpty();
+        String proto = hPub ? OP_HPUB : OP_PUB;
+        int hdrlen = hPub ? headers.serializedLength() : 0;
+
         NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
-            String pubLine = "";
-            String bodyLine = "";
+            String pubLine;
+            String headerLine;
+            String bodyLine;
             
-            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PUB ...");
+            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for " + proto + " ...");
             try {
                 pubLine = r.readLine();
+                if (hPub) {
+                    // the version \r\n, each header \r\n, then separator \r\n
+                    headerLine = r.readLine() + "\r\n";
+                    while (headerLine.length() < hdrlen) {
+                        headerLine = headerLine + r.readLine() + "\r\n";
+                    }
+                }
+                else {
+                    headerLine = "";
+                }
                 bodyLine = r.readLine(); // Ignores encoding, but ok for test
             } catch(Exception e) {
                 gotPub.cancel(true);
                 return;
             }
 
-            if (pubLine.startsWith("PUB")) {
-                System.out.println("*** Mock Server @" + ts.getPort() + " got PUB ...");
+            if (pubLine.startsWith(proto)) {
+                System.out.println("*** Mock Server @" + ts.getPort() + " got " + proto + " ...");
                 protocol.set(pubLine);
+                hdrProto.set(headerLine);
                 body.set(bodyLine);
                 gotPub.complete(Boolean.TRUE);
             }
@@ -137,29 +158,43 @@ public class PublishTests {
                     Connection  nc = Nats.connect(ts.getURI())) {
             byte[] bodyBytes = (bodyString != null) ? bodyString.getBytes(StandardCharsets.UTF_8) : null;
 
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-            nc.publish(subject, replyTo, bodyBytes);
+            nc.publish(new NatsMessage.Builder().subject(subject).replyTo(replyTo).headers(headers).data(bodyBytes).build());
 
             // This is used for the default test
             if (bodyString == null) {
-                bodyBytes = new byte[0];
+                bodyBytes = EMPTY_BODY;
                 bodyString = "";
             }
 
-            assertTrue(gotPub.get().booleanValue(), "Got pub."); //wait for receipt to close up
+            assertTrue(gotPub.get(), "Got " + proto + "."); //wait for receipt to close up
             nc.close();
-            assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+            assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
 
-            String expectedProtocol = null;
-            if (replyTo == null) {
-                expectedProtocol = "PUB "+subject+" "+bodyBytes.length;
-            } else {
-                expectedProtocol = "PUB "+subject+" "+replyTo+" "+bodyBytes.length;
+            if (proto.equals(OP_PUB)) {
+                String expectedProtocol;
+                if (replyTo == null) {
+                    expectedProtocol = proto + " " + subject + " " + bodyBytes.length;
+                } else {
+                    expectedProtocol = proto + " " + subject + " " + replyTo + " " + bodyBytes.length;
+                }
+                assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
+                assertEquals(bodyString, body.get(), "Body matches");
             }
-            assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
-
-            assertEquals(bodyString, body.get(), "Body matches");
+            else {
+                String expectedProtocol;
+                int hdrLen = headers.serializedLength();
+                int totLen = hdrLen + bodyBytes.length;
+                if (replyTo == null) {
+                    expectedProtocol = proto + " " + subject + " " + hdrLen + " " + totLen;
+                } else {
+                    expectedProtocol = proto + " " + subject + " " + replyTo + " " + hdrLen + " " + totLen;
+                }
+                assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
+                assertEquals(bodyString, body.get(), "Body matches");
+                assertEquals(new String(headers.getSerialized()), hdrProto.get());
+            }
         }
     }
 }
