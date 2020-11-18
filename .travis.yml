@@ -13,10 +13,7 @@ jdk:
 - oraclejdk8
 - oraclejdk9
 before_script:
-- wget "https://github.com/nats-io/nats-server/releases/download/$nats_server_version/nats-server-$nats_server_version-linux-amd64.zip"
-  -O tmp.zip
-- unzip tmp.zip
-- mv nats-server-$nats_server_version-linux-amd64 nats-server
+- bash install_deps.sh
 before_install:
 - |
   if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ]; then
