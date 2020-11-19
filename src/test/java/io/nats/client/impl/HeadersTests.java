@@ -86,23 +86,29 @@ public class HeadersTests {
 
         stepKey1Val1.accept(headers);
         assertEquals(1, headers.size());
+        assertEquals(1, headers.keySet().size());
         assertTrue(headers.containsKey(KEY1));
+        assertTrue(headers.keySet().contains(KEY1));
         assertContainsExactly(headers.values(KEY1), VAL1);
 
         step2Key1Val2.accept(headers);
         assertEquals(1, headers.size());
+        assertEquals(1, headers.keySet().size());
         assertTrue(headers.containsKey(KEY1));
+        assertTrue(headers.keySet().contains(KEY1));
         assertContainsExactly(headers.values(KEY1), VAL2);
 
         step3Key2Val3.accept(headers);
         assertEquals(2, headers.size());
+        assertEquals(2, headers.keySet().size());
         assertTrue(headers.containsKey(KEY1));
         assertTrue(headers.containsKey(KEY2));
+        assertTrue(headers.keySet().contains(KEY1));
+        assertTrue(headers.keySet().contains(KEY2));
         assertContainsExactly(headers.values(KEY1), VAL2);
         assertContainsExactly(headers.values(KEY2), VAL3);
     }
 
-    // TODO Check this test. also add invalid characters
     @Test
     public void keyCannotBeNullOrEmpty() {
         Headers headers = new Headers();
@@ -258,8 +264,10 @@ public class HeadersTests {
         headers1.add(KEY1, VAL1);
         headers1.add(KEY1, VAL3);
         headers1.add(KEY2, VAL2);
+        headers1.add(KEY3, EMPTY);
 
         byte[] serialized = headers1.getSerialized();
+        assertEquals(serialized.length, headers1.serializedLength());
 
         Headers headers2 = new Headers(serialized);
 
@@ -268,9 +276,47 @@ public class HeadersTests {
         assertTrue(headers2.containsKey(KEY2));
         assertEquals(2, headers2.values(KEY1).size());
         assertEquals(1, headers2.values(KEY2).size());
+        assertEquals(1, headers2.values(KEY3).size());
         assertTrue(headers2.values(KEY1).contains(VAL1));
         assertTrue(headers2.values(KEY1).contains(VAL3));
         assertTrue(headers2.values(KEY2).contains(VAL2));
+        assertTrue(headers2.values(KEY3).contains(EMPTY));
+    }
+
+    @Test
+    public void constructHeadersWithInvalidBytes() {
+        assertThrows(IllegalArgumentException.class, () -> new Headers(null));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/0.0".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0 \r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0X\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0 \r\n\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\n\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0 503\r".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0 503\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\nk1:v1".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\nk1:v1\r\n".getBytes()));
+    }
+
+    @Test
+    public void constructHeadersWithValidBytes() {
+        assertValidHeader("NATS/1.0 503\r\n", "503", EMPTY);
+        assertValidHeader("NATS/1.0 503 No Responders\r\n", "503", "No Responders");
+        assertValidHeader("NATS/1.0   503   No Responders\r\n", "503", "No Responders");
+        assertValidHeader("NATS/1.0\r\nk1:v1\r\n\r\n", "k1", "v1");
+        assertValidHeader("NATS/1.0\r\nk1: v1\r\n\r\n", "k1", "v1");
+        assertValidHeader("NATS/1.0\r\nk1:\r\n\r\n", "k1", EMPTY);
+        assertValidHeader("NATS/1.0\r\nk1: \r\n\r\n", "k1", EMPTY);
+    }
+
+    private void assertValidHeader(String test, String key, String val) {
+        Headers headers = new Headers(test.getBytes());
+        assertEquals(1, headers.size());
+        assertTrue(headers.containsKey(key));
+        assertEquals(1, headers.values(key).size());
+        assertEquals(val, headers.values(key).get(0));
     }
 
     private Headers testHeaders() {

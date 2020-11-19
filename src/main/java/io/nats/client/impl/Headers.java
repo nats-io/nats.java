@@ -26,16 +26,26 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
  */
 public class Headers {
 	private static final String VERSION = "NATS/1.0";
-	private static final byte[] VERSION_BYTES = "NATS/1.0\r\n".getBytes(US_ASCII);
+	private static final String EMPTY = "";
+	private static final String CRLF = "\r\n";
+	private static final byte[] VERSION_BYTES = VERSION.getBytes(US_ASCII);
+	private static final byte[] VERSION_BYTES_PLUS_CRLF = (VERSION + "\r\n").getBytes(US_ASCII);
 	private static final byte[] COLON_BYTES = ":".getBytes(US_ASCII);
-	private static final byte[] CRLF_BYTES = "\r\n".getBytes(US_ASCII);
+	private static final byte[] CRLF_BYTES = CRLF.getBytes(US_ASCII);
+	private static final byte SP = ' ';
+	private static final byte CR = '\r';
+	private static final byte LF = '\n';
 	private static final int VERSION_BYTES_LEN = VERSION_BYTES.length;
+	private static final int VERSION_BYTES_PLUS_CRLF_LEN = VERSION_BYTES_PLUS_CRLF.length;
 	private static final int COLON_BYTES_LEN = COLON_BYTES.length;
 	private static final int CRLF_BYTES_LEN = CRLF_BYTES.length;
 
 	private static final String KEY_CANNOT_BE_EMPTY_OR_NULL = "Header key cannot be null.";
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
+	private static final String INVALID_HEADER_VERSION = "Invalid header version";
+	private static final String INVALID_HEADER_COMPOSITION = "Invalid header composition";
+	private static final String SERIALIZED_HEADER_CANNOT_BE_NULL_OR_EMPTY = "Serialized header cannot be null or empty.";
 
 	private final Map<String, List<String>> headerMap;
 	private byte[] serialized;
@@ -45,15 +55,69 @@ public class Headers {
 	}
 
 	public Headers(byte[] serialized) {
-		this();
-		if (serialized != null && serialized.length > 0) {
-			String[] split = new String(serialized, US_ASCII).split("\\Q\r\n\\E");
-			if (!split[0].equals(VERSION)) {
-				throw new IllegalArgumentException("Invalid header version");
+		// basic validation first to help fail fast
+		if (serialized == null || serialized.length == 0) {
+			throw new IllegalArgumentException(SERIALIZED_HEADER_CANNOT_BE_NULL_OR_EMPTY);
+		}
+
+		for (int x = 0; x < VERSION_BYTES_LEN; x++) {
+			if (serialized[x] != VERSION_BYTES[x]) {
+				throw new IllegalArgumentException(INVALID_HEADER_VERSION);
 			}
-			for (int x = 1; x < split.length; x++) {
+		}
+
+		int len = serialized.length;
+		if (serialized[len - 2] != CR ||
+				serialized[len - 1] != LF) {
+			throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+		}
+
+		if (serialized[VERSION_BYTES_LEN] == SP) {
+			// INLINE STATUS
+			String s = new String(serialized, VERSION_BYTES_LEN + 1, len - VERSION_BYTES_LEN - 1, US_ASCII).trim();
+			if (s.length() == 0) {
+				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+			}
+			String key;
+			String value;
+			int at = s.indexOf(SP);
+			if (at == -1) {
+				key = s;
+				value = EMPTY;
+			}
+			else {
+				key = s.substring(0, at);
+				value = s.substring(at + 1).trim();
+			}
+			headerMap = new HashMap<>();
+			add(key, value);
+		}
+		else {
+			// REGULAR HEADER
+			// Version ends in crlf
+			if (serialized[VERSION_BYTES_LEN] != CR || serialized[VERSION_BYTES_LEN + 1] != LF) {
+				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+			}
+
+			// ends in \r\n\r\n, I check here b/c the string split function doesn't give empty strings
+			if (serialized[len - 4] != CR ||
+					serialized[len - 3] != LF) {
+				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+			}
+
+			headerMap = new HashMap<>();
+			String[] split = new String(serialized, VERSION_BYTES_LEN + 2, len - VERSION_BYTES_LEN - 2, US_ASCII).split("\\Q\r\n\\E");
+			if (split.length == 0) {
+				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+			}
+			for (int x = 0; x < split.length; x++) {
 				String[] pair = split[x].split(":");
-				add(pair[0], pair[1].trim().split(","));
+				if (pair.length == 1) {
+					add(pair[0], EMPTY);
+				}
+				else {
+					add(pair[0], pair[1].trim().split(","));
+				}
 			}
 		}
 	}
@@ -241,7 +305,7 @@ public class Headers {
 	public byte[] getSerialized() {
 		if (serialized == null) {
 			ByteArrayBuilder bab = new ByteArrayBuilder()
-					.append(VERSION_BYTES, VERSION_BYTES_LEN);
+					.append(VERSION_BYTES_PLUS_CRLF, VERSION_BYTES_PLUS_CRLF_LEN);
 			for (String key : headerMap.keySet()) {
 				for (String value : values(key)) {
 					bab.append(key);
