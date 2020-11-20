@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2020 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,11 +13,9 @@
 
 package io.nats.client;
 
-import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
@@ -162,20 +160,21 @@ public class ConsumerConfiguration {
 
     private static final String grabString = "\\s*\"(.+?)\"";
     private static final String grabNumber = "\\s*(\\d+)";
+    private static final String colon = "\"\\s*:\\s*";
 
     // TODO - replace with a safe (risk-wise) JSON parser
-    private static final Pattern durableRE = Pattern.compile("\""+ durableNameField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern deliverSubjectRE = Pattern.compile("\""+ deliverSubjField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern deliverPolicyRE = Pattern.compile("\""+ deliverPolicyField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern startSeqRE = Pattern.compile("\""+ startSeqField + "\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern startTimeRE = Pattern.compile("\""+ startTimeField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern ackPolicyRE = Pattern.compile("\""+ ackPolicyField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern ackWaitRE = Pattern.compile("\""+ ackWaitField + "\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern maxDeliverRE = Pattern.compile("\""+ maxDeliverField + "\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern filterSubjectRE = Pattern.compile("\""+ filterSubjectField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern replayPolicyRE = Pattern.compile("\""+ replayPolicyField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern sampleFreqRE = Pattern.compile("\""+ sampleFreqField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern rateLimitRE = Pattern.compile("\""+ rateLimitField + "\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern durableRE = Pattern.compile("\""+ durableNameField + colon + grabString, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern deliverSubjectRE = Pattern.compile("\""+ deliverSubjField + colon + grabString, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern deliverPolicyRE = Pattern.compile("\""+ deliverPolicyField + colon + grabString, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern startSeqRE = Pattern.compile("\""+ startSeqField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern startTimeRE = Pattern.compile("\""+ startTimeField + colon + grabString, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern ackPolicyRE = Pattern.compile("\""+ ackPolicyField + colon + grabString, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern ackWaitRE = Pattern.compile("\""+ ackWaitField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern maxDeliverRE = Pattern.compile("\""+ maxDeliverField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern filterSubjectRE = Pattern.compile("\""+ filterSubjectField + colon + grabString, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern replayPolicyRE = Pattern.compile("\""+ replayPolicyField + colon + grabString, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern sampleFreqRE = Pattern.compile("\""+ sampleFreqField + colon + grabString, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern rateLimitRE = Pattern.compile("\""+ rateLimitField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
 
     // for the response from the server
     ConsumerConfiguration(String json) {
@@ -289,7 +288,7 @@ public class ConsumerConfiguration {
         }
 
         String s = Nats.rfc3339Formatter.format(time);
-        sb.append("\"" + fname + "\" : \"" + s + "\",");
+        sb.append("\"" + fname + "\" : \"" + s + "Z\",");
     }
 
     /**

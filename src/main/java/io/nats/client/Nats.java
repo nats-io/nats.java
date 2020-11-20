@@ -276,5 +276,5 @@ public class Nats {
         throw new UnsupportedOperationException("Nats is a static class");
     }
 
-    static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+    static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn");
 }

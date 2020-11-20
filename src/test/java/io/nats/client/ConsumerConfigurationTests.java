@@ -14,7 +14,6 @@
 package io.nats.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -60,12 +59,24 @@ public class ConsumerConfigurationTests {
         assertEquals(zdt, c.getStartTime());
 
         String json = c.toJSON("foo");
-        assertTrue(json.length() > 0);
+        c = new ConsumerConfiguration(json);
+        assertEquals(AckPolicy.Explicit, c.getAckPolicy());
+        assertEquals(Duration.ofSeconds(99), c.getAckWait());
+        assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
+        assertEquals("delsubj", c.getDeliverSubject());
+        assertEquals("foo", c.getDurable());
+        assertEquals("fs", c.getFilterSubject());
+        assertEquals(5555, c.getMaxDeliver());
+        assertEquals(4242, c.getRateLimit());
+        assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
+        assertEquals(2001, c.getStartSequence());
+        // TODO:  Fixme
+        // assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
     }
 
     @Test
     public void testJSONParsing() {
-        String configJSON = "{\n    \"durable_name\": \"foo-durable\",\n    \"deliver_subject\": \"bar\",\n    \"deliver_policy\": \"all\",\n    \"ack_policy\": \"all\",\n    \"ack_wait\": 30000000000,\n    \"max_deliver\": 10,\n   \"opt_start_time\": \"2020-11-05T19:33:21.163377Z\", \"opt_start_seq\": \"1234\"\"replay_policy\": \"original\"\n  },\n  \"delivered\": {\n    \"consumer_seq\": 0,\n    \"stream_seq\": 0\n  },\n  \"ack_floor\": {\n    \"consumer_seq\": 0,\n    \"stream_seq\": 0\n  },\n  \"num_pending\": 0,\n  \"num_redelivered\": 0\n}";
+        String configJSON = "{\"durable_name\":\"foo-durable\",\n    \"deliver_subject\": \"bar\",\n    \"deliver_policy\": \"all\",\n    \"ack_policy\": \"all\",\n    \"ack_wait\":30000000000,\n    \"max_deliver\": 10,\n   \"opt_start_time\": \"2020-11-05T19:33:21.163377Z\", \"opt_start_seq\": \"1234\"\"replay_policy\": \"original\"\n  },\n  \"delivered\": {\n    \"consumer_seq\": 0,\n    \"stream_seq\": 0\n  },\n  \"ack_floor\": {\n    \"consumer_seq\": 0,\n    \"stream_seq\": 0\n  },\n  \"num_pending\": 0,\n  \"num_redelivered\": 0\n}";
 
         ConsumerConfiguration c = new ConsumerConfiguration(configJSON);
         assertEquals("foo-durable", c.getDurable());
@@ -75,8 +86,8 @@ public class ConsumerConfigurationTests {
         assertEquals(Duration.ofSeconds(30), c.getAckWait());
         assertEquals(10, c.getMaxDeliver());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
-        assertEquals(c.getStartTime().getYear(), 2020);
-        assertEquals(c.getStartTime().getSecond(), 21);
+        assertEquals(2020, c.getStartTime().getYear(), 2020);
+        assertEquals(21, c.getStartTime().getSecond(), 21);
     }
 
 }
