@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import java.util.*;
+import java.util.function.BiConsumer;
 
 import static io.nats.client.impl.NatsConstants.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
@@ -36,6 +37,7 @@ public class Headers {
 
 	private final Map<String, List<String>> headerMap;
 	private byte[] serialized;
+	private int projectedLength;
 
 	public Headers() {
 		headerMap = new HashMap<>();
@@ -75,16 +77,16 @@ public class Headers {
 	// the add delegate
 	private void _add(String key, Collection<String> values) {
 		if (values != null) {
-			checkKey(key);
-			List<String> checked = checkValues(values);
-			if (!checked.isEmpty()) {
+			Checker checked = new Checker(key, values);
+			if (checked.hasValues()) {
 				List<String> currentSet = headerMap.get(key);
 				if (currentSet == null) {
-					headerMap.put(key, checked);
+					headerMap.put(key, checked.list);
 				} else {
-					currentSet.addAll(checked);
+					currentSet.addAll(checked.list);
 				}
 				serialized = null; // since the data changed, clear this so it's rebuilt
+				projectedLength += key.length() + checked.length;
 			}
 		}
 	}
@@ -124,11 +126,11 @@ public class Headers {
 	// the put delegate that all puts call
 	private void _put(String key, Collection<String> values) {
 		if (values != null) {
-			checkKey(key);
-			List<String> checked = checkValues(values);
-			if (!checked.isEmpty()) {
-				headerMap.put(key, checked);
+			Checker checked = new Checker(key, values);
+			if (checked.hasValues()) {
+				headerMap.put(key, checked.list);
 				serialized = null; // since the data changed, clear this so it's rebuilt
+				projectedLength += key.length() + checked.length;
 			}
 		}
 	}
@@ -141,6 +143,9 @@ public class Headers {
 	public void remove(String... keys) {
 		for (String key : keys) {
 			headerMap.remove(key);
+			// Yes, this doesn't account for values. As long as it's equal to or greater
+			// than the actual bytes we are fine
+			projectedLength -= key.length() + 1;
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -153,6 +158,9 @@ public class Headers {
 	public void remove(Collection<String> keys) {
 		for (String key : keys) {
 			headerMap.remove(key);
+			// Yes, this doesn't account for values. As long as it's equal to or greater
+			// than the actual bytes we are fine
+			projectedLength -= key.length() + 1;
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -180,6 +188,8 @@ public class Headers {
 	 */
 	public void clear() {
 		headerMap.clear();
+		serialized = null;
+		projectedLength = 0;
 	}
 
 	/**
@@ -213,6 +223,30 @@ public class Headers {
 	}
 
 	/**
+	 * Performs the given action for each header entry until all entries
+	 * have been processed or the action throws an exception.
+	 * Any attempt to modify the values will throw an exception.
+	 *
+	 * @param action The action to be performed for each entry
+	 * @throws NullPointerException if the specified action is null
+	 * @throws ConcurrentModificationException if an entry is found to be
+	 * removed during iteration
+	 */
+	public void forEach(BiConsumer<String, List<String>> action) {
+		Collections.unmodifiableMap(headerMap).forEach(action);
+	}
+
+	/**
+	 * Returns a {@link Set} read only view of the mappings contained in the header.
+	 * The set is not modifiable and any attempt to modify will throw an exception.
+	 *
+	 * @return a set view of the mappings contained in this map
+	 */
+	public Set<Map.Entry<String, List<String>>> entrySet() {
+		return Collections.unmodifiableSet(headerMap.entrySet());
+	}
+
+	/**
 	 * Returns the number of bytes that will be in the serialized version.
 	 *
 	 * @return the number of bytes
@@ -223,17 +257,17 @@ public class Headers {
 
 	public byte[] getSerialized() {
 		if (serialized == null) {
-			ByteArrayBuilder bab = new ByteArrayBuilder()
-					.append(VERSION_BYTES_PLUS_CRLF, VERSION_BYTES_PLUS_CRLF_LEN);
+			ByteArrayBuilder bab = new ByteArrayBuilder(projectedLength + VERSION_BYTES_PLUS_CRLF_LEN)
+					.append(VERSION_BYTES_PLUS_CRLF);
 			for (String key : headerMap.keySet()) {
 				for (String value : values(key)) {
 					bab.append(key);
-					bab.append(COLON_BYTES, COLON_BYTES_LEN);
+					bab.append(COLON_BYTES);
 					bab.append(value);
-					bab.append(CRLF_BYTES, CRLF_BYTES_LEN);
+					bab.append(CRLF_BYTES);
 				}
 			}
-			bab.append(CRLF_BYTES, CRLF_BYTES_LEN);
+			bab.append(CRLF_BYTES);
 			serialized = bab.toByteArray();
 		}
 		return serialized;
@@ -261,48 +295,43 @@ public class Headers {
 	}
 
 	/**
-	 * Check values to ensure they match the specification for values. Returns a list of
-	 * valid values ignoring values that are null or empty strings. This may make the
-	 * return list empty. The method throws an exception if any non null value is invalid.
-	 * Empty string is a valid value.
+	 * Check a non-null value if it matches the specification for values.
 	 *
-	 * @return the list of valid values
 	 * @throws IllegalArgumentException if the value contains an invalid character
 	 */
-	private List<String> checkValues(Collection<String> values) {
-		List<String> checked = new ArrayList<>();
-		if (values != null && !values.isEmpty()) {
-			for (String v : values) {
-				if ( checkValue(v) ) {
-					checked.add(v);
-				}
-			}
-		}
-		return checked;
-	}
-
-	/**
-	 * Check a value to ensure that it matches the specification for values.
-	 *
-	 * @return false if the value is null, true if it is valid
-	 * @throws IllegalArgumentException if the value contains an invalid character
-	 */
-	private boolean checkValue(String val) {
+	private void checkValue(String val) {
 		// Generally more permissive than HTTP.  Allow only printable
 		// characters and include tab (0x9) to cover what's allowed
 		// in quoted strings and comments.
-		// null is just ignored
-		if (val == null) {
-			return false;
-		}
-		if (!val.isEmpty()) {
-			val.chars().forEach(c -> {
-				if ((c < 32 && c != 9) || c > 126) {
-					throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + c);
+		val.chars().forEach(c -> {
+			if ((c < 32 && c != 9) || c > 126) {
+				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + c);
+			}
+		});
+	}
+
+	private class Checker {
+		List<String> list = new ArrayList<>();
+		int length;
+		Checker(String key, Collection<String> values) {
+			checkKey(key);
+			length += key.length() + 1; // for colon
+			if (values != null && !values.isEmpty()) {
+				for (String val : values) {
+					if (val != null) {
+						if (!val.isEmpty()) {
+							checkValue(val);
+							list.add(val);
+							length += val.length();
+						}
+					}
 				}
-			});
+			}
 		}
-		return true;
+
+		boolean hasValues() {
+			return list.size() > 0;
+		}
 	}
 
 	@Override

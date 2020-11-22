@@ -21,8 +21,6 @@ public interface NatsConstants {
     byte[] CRLF_BYTES = CRLF.getBytes(US_ASCII);
     int VERSION_BYTES_LEN = VERSION_BYTES.length;
     int VERSION_BYTES_PLUS_CRLF_LEN = VERSION_BYTES_PLUS_CRLF.length;
-    int COLON_BYTES_LEN = COLON_BYTES.length;
-    int CRLF_BYTES_LEN = CRLF_BYTES.length;
 
     String OP_CONNECT = "CONNECT";
     String OP_INFO = "INFO";
@@ -47,11 +45,9 @@ public interface NatsConstants {
     byte[] SUB_SP_BYTES = (OP_SUB + SPACE).getBytes();
     byte[] UNSUB_SP_BYTES = (OP_UNSUB + SPACE).getBytes();
 
-    int OP_CONNECT_PROTOCOL_LEN = CONNECT_SP_BYTES.length;
-    int OP_SUB_PROTOCOL_LEN = SUB_SP_BYTES.length;
-    int OP_UNSUB_PROTOCOL_LEN = UNSUB_SP_BYTES.length;
-    int PUB_SP_BYTES_LEN = PUB_SP_BYTES.length;
-    int HPUB_SP_BYTES_LEN = HPUB_SP_BYTES.length;
+    int OP_CONNECT_SP_LEN = CONNECT_SP_BYTES.length;
+    int OP_SUB_SP_LEN = SUB_SP_BYTES.length;
+    int OP_UNSUB_SP_LEN = UNSUB_SP_BYTES.length;
 
     int MAX_PROTOCOL_RECEIVE_OP_LENGTH = 4;
 }

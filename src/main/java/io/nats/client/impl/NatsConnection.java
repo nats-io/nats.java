@@ -862,8 +862,8 @@ class NatsConnection implements Connection {
 
     void sendUnsub(NatsSubscription sub, int after) {
         // allocate the proto length + 19 + 10 (sid is a long, 19 bytes max, after is an int 10 bytes max)
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_UNSUB_PROTOCOL_LEN + 29)
-                .append(UNSUB_SP_BYTES, OP_UNSUB_PROTOCOL_LEN)
+        ByteArrayBuilder bab = new ByteArrayBuilder(OP_UNSUB_SP_LEN + 29)
+                .append(UNSUB_SP_BYTES)
                 .append(sub.getSID());
 
         if (after > 0) {
@@ -900,8 +900,8 @@ class NatsConnection implements Connection {
         int subLength = (subject != null) ? subject.length() : 0;
         int qLength = (queueName != null) ? queueName.length() : 0;
 
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_SUB_PROTOCOL_LEN + subLength + qLength)
-                .append(SUB_SP_BYTES, OP_SUB_PROTOCOL_LEN)
+        ByteArrayBuilder bab = new ByteArrayBuilder(OP_SUB_SP_LEN + subLength + qLength)
+                .append(SUB_SP_BYTES)
                 .append(subject, StandardCharsets.UTF_8); // utf-8 just in case
 
         if (queueName != null) {
@@ -1167,8 +1167,8 @@ class NatsConnection implements Connection {
             NatsServerInfo info = this.serverInfo.get();
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
             NatsMessage msg = new NatsMessage(
-                    new ByteArrayBuilder(OP_CONNECT_PROTOCOL_LEN + connectOptions.limit())
-                            .append(CONNECT_SP_BYTES, OP_CONNECT_PROTOCOL_LEN)
+                    new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit())
+                            .append(CONNECT_SP_BYTES)
                             .append(connectOptions)
                             .toByteArray());
             

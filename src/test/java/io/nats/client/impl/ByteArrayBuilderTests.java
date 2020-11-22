@@ -3,6 +3,7 @@ package io.nats.client.impl;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -17,24 +18,43 @@ public class ByteArrayBuilderTests {
     @Test
     public void byte_array_builder_works() throws IOException {
         Random r = new Random();
-        ByteArrayBuilder bbb = new ByteArrayBuilder();
+        ByteArrayBuilder bab = new ByteArrayBuilder();
         String testString = "abcdefghij";
-        _test(r, bbb, Collections.singletonList(testString), StandardCharsets.US_ASCII);
+        _test(r, bab, Collections.singletonList(testString), StandardCharsets.US_ASCII);
 
         List<String> subjects = getFileFromResourceAsStream("utf8-test-strings.txt");
-        bbb = new ByteArrayBuilder(StandardCharsets.UTF_8);
-        _test(r, bbb, subjects, StandardCharsets.UTF_8);
+        bab = new ByteArrayBuilder(StandardCharsets.UTF_8);
+        _test(r, bab, subjects, StandardCharsets.UTF_8);
     }
 
-    private void _test(Random r, ByteArrayBuilder bbb, List<String> testStrings, Charset charset) {
+    @Test
+    public void coverage() {
+        ByteArrayBuilder bab = new ByteArrayBuilder(1)
+                .appendSpace()
+                .appendCrLf()
+                .append((String)null)
+                .append("foo")
+                .append((CharBuffer)null)
+                .append(CharBuffer.wrap("bar"))
+                .append(4273)
+                .append(new byte[0])
+                .append("baz".getBytes())
+                .append(new byte[0], 0)
+                .append("baz".getBytes(), 3)
+                .append("baz".getBytes(), 2, 1)
+                ;
+        assertEquals(" \r\nnullfoonullbar4273bazbazz", bab.toString());
+    }
+
+    private void _test(Random r, ByteArrayBuilder bab, List<String> testStrings, Charset charset) {
         String expectedString = "";
         for (String testString : testStrings) {
             int loops = 1000 / testString.length();
             for (int x = 1; x < loops; x++) {
                 String more = testString + r.nextInt(Integer.MAX_VALUE);
-                bbb.append(more);
+                bab.append(more);
                 expectedString = expectedString + more;
-                byte[] bytes = bbb.toByteArray();
+                byte[] bytes = bab.toByteArray();
                 assertEquals(expectedString.getBytes(charset).length, bytes.length);
                 assertEquals(expectedString, new String(bytes, charset));
             }

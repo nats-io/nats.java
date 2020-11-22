@@ -69,52 +69,149 @@ public class ByteArrayBuilder {
         }
     }
 
+    /**
+     * Append a space
+     *
+     * @return this (fluent)
+     */
     public ByteArrayBuilder appendSpace() {
         return append(SPACE, 0, 1);
     }
 
+    /**
+     * Append the two characters for CR / LF
+     *
+     * @return this (fluent)
+     */
     public ByteArrayBuilder appendCrLf() {
         return append(CRLF, 0, 2);
     }
 
+    /**
+     * Append a String representation of the number.
+     *
+     * @param  i the number
+     * @return this (fluent)
+     */
     public ByteArrayBuilder append(int i) {
         append(Integer.toString(i).getBytes(US_ASCII)); // a number is always ascii
         return this;
     }
 
-    public ByteArrayBuilder append(String s) {
-        return s == null ? append(NULL, 0, 4) : append(s.getBytes(defaultCharset));
+    /**
+     * Append a String with the default charset.
+     * If the src is null, the word 'null' is appended.
+     *
+     * @param  src
+     *         The String from which bytes are to be read
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder append(String src) {
+        return append(src, defaultCharset);
     }
 
-    public ByteArrayBuilder append(String s, Charset charset) {
-        return s == null ? append(NULL, 0, 4) : append(s.getBytes(charset));
+    /**
+     * Append a String with specified charset.
+     * If the src is null, the word 'null' is appended.
+     *
+     * @param  src
+     *         The String from which bytes are to be read
+     * @param charset the charset for encoding
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder append(String src, Charset charset) {
+        return src == null ? append(NULL, 0, 4) : append(src.getBytes(charset));
     }
 
-    public ByteArrayBuilder append(CharBuffer cb) {
-        append(cb.toString().getBytes(defaultCharset));
+    /**
+     * Append a CharBuffer with default charset.
+     * If the src is null, the word 'null' is appended.
+     *
+     * @param  src
+     *         The CharBuffer from which bytes are to be read
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder append(CharBuffer src) {
+        return append(src, defaultCharset);
+    }
+
+    /**
+     * Append a CharBuffer with specified charset.
+     * If the src is null, the word 'null' is appended.
+     *
+     * @param  src
+     *         The CharBuffer from which bytes are to be read
+     * @param charset the charset for encoding
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder append(CharBuffer src, Charset charset) {
+        if (src == null) {
+            append(NULL, 0, 4);
+        }
+        else {
+            append(src.toString().getBytes(charset));
+        }
         return this;
     }
 
-    public ByteArrayBuilder append(CharBuffer cb, Charset charset) {
-        append(cb.toString().getBytes(charset));
+    /**
+     * Append a byte array
+     *
+     * @param  src
+     *         The array from which bytes are to be read
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder append(byte[] src) {
+        if (src.length > 0) {
+            ensureCapacity(src.length);
+            buffer.put(src, 0, src.length);
+        }
         return this;
     }
 
-    public ByteArrayBuilder append(byte[] bytes) {
-        ensureCapacity(bytes.length);
-        buffer.put(bytes, 0, bytes.length);
+    /**
+     * Append a byte array
+     *
+     * @param  src
+     *         The array from which bytes are to be read
+     * @param  len
+     *         The number of bytes to be read from the given array;
+     *         must be non-negative and no larger than
+     *         <tt>array.length - offset</tt>
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder append(byte[] src, int len) {
+        if (len > 0) {
+            ensureCapacity(len);
+            buffer.put(src, 0, len);
+        }
         return this;
     }
 
-    public ByteArrayBuilder append(byte[] bytes, int len) {
-        ensureCapacity(len);
-        buffer.put(bytes, 0, len);
+    /**
+     * Append a byte array
+     *
+     * @param  src
+     *         The array from which bytes are to be read
+     * @param  offset
+     *         The offset within the array of the first byte to be read;
+     *         must be non-negative and no larger than <tt>array.length</tt>
+     * @param  len
+     *         The number of bytes to be read from the given array;
+     *         must be non-negative and no larger than
+     *         <tt>array.length - offset</tt>
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder append(byte[] src, int offset, int len) {
+        if (len > 0) {
+            ensureCapacity(len);
+            buffer.put(src, offset, len);
+        }
         return this;
     }
 
-    public ByteArrayBuilder append(byte[] bytes, int off, int len) {
-        ensureCapacity(len);
-        buffer.put(bytes, off, len);
-        return this;
+    @Override
+    public String toString() {
+        return new String(toByteArray(), defaultCharset);
     }
 }
