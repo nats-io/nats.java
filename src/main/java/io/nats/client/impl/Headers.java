@@ -319,7 +319,10 @@ public class Headers {
 			if (values != null && !values.isEmpty()) {
 				for (String val : values) {
 					if (val != null) {
-						if (!val.isEmpty()) {
+						if (val.isEmpty()) {
+							list.add(val);
+						}
+						else {
 							checkValue(val);
 							list.add(val);
 							length += val.length();
