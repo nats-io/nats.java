@@ -296,8 +296,12 @@ public class HeadersTests {
         assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0 503\r".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0 503\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\n\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\n\r\n\r\n".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\nk1:v1".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\nk1:v1\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new Headers("NATS/1.0\r\nk1:v1\r\r\n".getBytes()));
     }
 
     @Test

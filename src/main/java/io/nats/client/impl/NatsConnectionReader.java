@@ -75,7 +75,7 @@ class NatsConnectionReader implements Runnable {
 
         this.protocolBuffer = ByteBuffer.allocate(this.connection.getOptions().getMaxControlLine());
         this.msgLineChars = new char[this.connection.getOptions().getMaxControlLine()];
-        this.opArray = new char[MAX_PROTOCOL_OP_LENGTH];
+        this.opArray = new char[MAX_PROTOCOL_RECEIVE_OP_LENGTH];
         this.buffer = new byte[connection.getOptions().getBufferSize()];
         this.bufferPosition = 0;
 
@@ -175,7 +175,7 @@ class NatsConnectionReader implements Runnable {
                     } else {
                         throw new IllegalStateException("Bad socket data, no LF after CR");
                     }
-                } else if (b == SPACE || b == TAB) { // Got a space, get the rest of the protocol line
+                } else if (b == SP || b == TAB) { // Got a space, get the rest of the protocol line
                     this.op = opFor(opArray, opPos);
                     this.opPos = 0;
                     if (this.op.equals(OP_MSG) || this.op.equals(OP_HMSG)) {
@@ -352,7 +352,7 @@ class NatsConnectionReader implements Runnable {
             char c = this.msgLineChars[this.msgLinePosition];
             this.msgLinePosition++;
 
-            if (c == SPACE || c == TAB) {
+            if (c == SP || c == TAB) {
                 String slice = new String(this.msgLineChars, start, this.msgLinePosition - start -1); //don't grab the space, avoid an intermediate char sequence
                 return slice;
             }

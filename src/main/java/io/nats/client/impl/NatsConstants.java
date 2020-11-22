@@ -3,10 +3,26 @@ package io.nats.client.impl;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public interface NatsConstants {
-    byte[] EMPTY_BODY = new byte[0];
+    String VERSION = "NATS/1.0";
+    String SPACE = " ";
+    String EMPTY = "";
+    String CRLF = "\r\n";
 
-    byte CR = 0x0D;
-    byte LF = 0x0A;
+    byte TAB = '\t';
+    byte SP = ' ';
+    byte COLON = ':';
+    byte CR = '\r';
+    byte LF = '\n';
+
+    byte[] EMPTY_BODY = new byte[0];
+    byte[] VERSION_BYTES = VERSION.getBytes(US_ASCII);
+    byte[] VERSION_BYTES_PLUS_CRLF = (VERSION + "\r\n").getBytes(US_ASCII);
+    byte[] COLON_BYTES = ":".getBytes(US_ASCII);
+    byte[] CRLF_BYTES = CRLF.getBytes(US_ASCII);
+    int VERSION_BYTES_LEN = VERSION_BYTES.length;
+    int VERSION_BYTES_PLUS_CRLF_LEN = VERSION_BYTES_PLUS_CRLF.length;
+    int COLON_BYTES_LEN = COLON_BYTES.length;
+    int CRLF_BYTES_LEN = CRLF_BYTES.length;
 
     String OP_CONNECT = "CONNECT";
     String OP_INFO = "INFO";
@@ -20,24 +36,22 @@ public interface NatsConstants {
     String OP_PONG = "PONG";
     String OP_OK = "+OK";
     String OP_ERR = "-ERR";
+    String UNKNOWN_OP = "UNKNOWN";
 
     byte[] OP_PING_BYTES = OP_PING.getBytes();
     byte[] OP_PONG_BYTES = OP_PONG.getBytes();
-    byte[] PUB_BYTES = "PUB ".getBytes(US_ASCII);
-    byte[] HPUB_BYTES = "HPUB ".getBytes(US_ASCII);
 
-    int PUB_BYTES_LEN = PUB_BYTES.length;
-    int HPUB_BYTES_LEN = HPUB_BYTES.length;
+    byte[] PUB_SP_BYTES = (OP_PUB + SPACE).getBytes(US_ASCII);
+    byte[] HPUB_SP_BYTES = (OP_HPUB + SPACE).getBytes(US_ASCII);
+    byte[] CONNECT_SP_BYTES = (OP_CONNECT + SPACE).getBytes();
+    byte[] SUB_SP_BYTES = (OP_SUB + SPACE).getBytes();
+    byte[] UNSUB_SP_BYTES = (OP_UNSUB + SPACE).getBytes();
 
-    byte[] OP_CONNECT_PROTOCOL_BYTES = (OP_CONNECT + " ").getBytes();
-    byte[] OP_SUB_PROTOCOL_BYTES = (OP_SUB + " ").getBytes();
-    byte[] OP_UNSUB_PROTOCOL_BYTES = (OP_UNSUB + " ").getBytes();
-    int OP_CONNECT_PROTOCOL_LEN = OP_CONNECT_PROTOCOL_BYTES.length;
-    int OP_SUB_PROTOCOL_LEN = OP_SUB_PROTOCOL_BYTES.length;
-    int OP_UNSUB_PROTOCOL_LEN = OP_UNSUB_PROTOCOL_BYTES.length;
+    int OP_CONNECT_PROTOCOL_LEN = CONNECT_SP_BYTES.length;
+    int OP_SUB_PROTOCOL_LEN = SUB_SP_BYTES.length;
+    int OP_UNSUB_PROTOCOL_LEN = UNSUB_SP_BYTES.length;
+    int PUB_SP_BYTES_LEN = PUB_SP_BYTES.length;
+    int HPUB_SP_BYTES_LEN = HPUB_SP_BYTES.length;
 
-    int MAX_PROTOCOL_OP_LENGTH = 4;
-    String UNKNOWN_OP = "UNKNOWN";
-    char SPACE = ' ';
-    char TAB = '\t';
+    int MAX_PROTOCOL_RECEIVE_OP_LENGTH = 4;
 }

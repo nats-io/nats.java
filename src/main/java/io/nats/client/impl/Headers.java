@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import java.util.*;
 
+import static io.nats.client.impl.NatsConstants.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /**
@@ -25,20 +26,6 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
  * THIS CLASS IS NOT THREAD SAFE
  */
 public class Headers {
-	private static final String VERSION = "NATS/1.0";
-	private static final String EMPTY = "";
-	private static final String CRLF = "\r\n";
-	private static final byte[] VERSION_BYTES = VERSION.getBytes(US_ASCII);
-	private static final byte[] VERSION_BYTES_PLUS_CRLF = (VERSION + "\r\n").getBytes(US_ASCII);
-	private static final byte[] COLON_BYTES = ":".getBytes(US_ASCII);
-	private static final byte[] CRLF_BYTES = CRLF.getBytes(US_ASCII);
-	private static final byte SP = ' ';
-	private static final byte CR = '\r';
-	private static final byte LF = '\n';
-	private static final int VERSION_BYTES_LEN = VERSION_BYTES.length;
-	private static final int VERSION_BYTES_PLUS_CRLF_LEN = VERSION_BYTES_PLUS_CRLF.length;
-	private static final int COLON_BYTES_LEN = COLON_BYTES.length;
-	private static final int CRLF_BYTES_LEN = CRLF_BYTES.length;
 
 	private static final String KEY_CANNOT_BE_EMPTY_OR_NULL = "Header key cannot be null.";
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
@@ -52,74 +39,6 @@ public class Headers {
 
 	public Headers() {
 		headerMap = new HashMap<>();
-	}
-
-	public Headers(byte[] serialized) {
-		// basic validation first to help fail fast
-		if (serialized == null || serialized.length == 0) {
-			throw new IllegalArgumentException(SERIALIZED_HEADER_CANNOT_BE_NULL_OR_EMPTY);
-		}
-
-		for (int x = 0; x < VERSION_BYTES_LEN; x++) {
-			if (serialized[x] != VERSION_BYTES[x]) {
-				throw new IllegalArgumentException(INVALID_HEADER_VERSION);
-			}
-		}
-
-		int len = serialized.length;
-		if (serialized[len - 2] != CR ||
-				serialized[len - 1] != LF) {
-			throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
-		}
-
-		if (serialized[VERSION_BYTES_LEN] == SP) {
-			// INLINE STATUS
-			String s = new String(serialized, VERSION_BYTES_LEN + 1, len - VERSION_BYTES_LEN - 1, US_ASCII).trim();
-			if (s.length() == 0) {
-				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
-			}
-			String key;
-			String value;
-			int at = s.indexOf(SP);
-			if (at == -1) {
-				key = s;
-				value = EMPTY;
-			}
-			else {
-				key = s.substring(0, at);
-				value = s.substring(at + 1).trim();
-			}
-			headerMap = new HashMap<>();
-			add(key, value);
-		}
-		else {
-			// REGULAR HEADER
-			// Version ends in crlf
-			if (serialized[VERSION_BYTES_LEN] != CR || serialized[VERSION_BYTES_LEN + 1] != LF) {
-				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
-			}
-
-			// ends in \r\n\r\n, I check here b/c the string split function doesn't give empty strings
-			if (serialized[len - 4] != CR ||
-					serialized[len - 3] != LF) {
-				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
-			}
-
-			headerMap = new HashMap<>();
-			String[] split = new String(serialized, VERSION_BYTES_LEN + 2, len - VERSION_BYTES_LEN - 2, US_ASCII).split("\\Q\r\n\\E");
-			if (split.length == 0) {
-				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
-			}
-			for (int x = 0; x < split.length; x++) {
-				String[] pair = split[x].split(":");
-				if (pair.length == 1) {
-					add(pair[0], EMPTY);
-				}
-				else {
-					add(pair[0], pair[1].trim().split(","));
-				}
-			}
-		}
 	}
 
 	/**
@@ -397,5 +316,149 @@ public class Headers {
 	@Override
 	public int hashCode() {
 		return Objects.hash(headerMap);
+	}
+
+	static class Token {
+		enum Type {SPACE, CRLF, KEY, WORD, TEXT}
+		Type type;
+		byte[] serialized;
+		int start;
+		int end;
+		boolean hasValue;
+
+		public Token(byte[] serialized, int len, Token prev, Type required) {
+			this(serialized, len, prev.end + (prev.type == Type.KEY ? 2 : 1), required);
+		}
+
+		public Token(byte[] serialized, int len, int cur, Type required) {
+			this.serialized = serialized;
+			if (cur >= len) {
+				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+			}
+			if (serialized[cur] == SP) {
+				type = Type.SPACE;
+				start = cur;
+				end = cur;
+				while (serialized[++cur] == SP) {
+					end = cur;
+				}
+			}
+			else if (serialized[cur] == CR) {
+				mustBeCrlf(len, cur);
+				type = Type.CRLF;
+				start = cur;
+				end = cur + 1;
+			}
+			else if (required == Type.CRLF || required == Type.SPACE) {
+				mustBe(required);
+			} else {
+				byte ender1 = CR;
+				byte ender2 = CR;
+				if (required == null || required == Type.TEXT){
+					type = Type.TEXT;
+				}
+				else if (required == Type.WORD){
+					ender1 = SP;
+					ender2 = CR;
+					type = Type.WORD;
+				}
+				else if (required == Type.KEY){
+					ender1 = COLON;
+					ender2 = COLON;
+					type = Type.KEY;
+				}
+				start = cur;
+				end = cur;
+				while (++cur < len && serialized[cur] != ender1 && serialized[cur] != ender2) {
+					end = cur;
+				}
+				if (serialized[cur] == CR) {
+					mustBeCrlf(len ,cur);
+				}
+				hasValue = true;
+			}
+		}
+
+		private void mustBeCrlf(int len, int cur) {
+			if ((cur + 1) >= len || serialized[cur + 1] != LF) {
+				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+			}
+		}
+
+		public void mustBe(Type required) {
+			if (type != required) {
+				throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+			}
+		}
+
+		public String getValue() {
+			return hasValue ? new String(serialized, start, end - start + 1, US_ASCII).trim() : EMPTY;
+		}
+	}
+
+	// <ver><sp><ascii><crlf>
+	// <ver><sp><ascii><sp><ascii><crlf>
+	// <ver><crlf><headers><crlf>
+	public Headers(byte[] serialized) {
+		// basic validation first to help fail fast
+		if (serialized == null || serialized.length == 0) {
+			throw new IllegalArgumentException(SERIALIZED_HEADER_CANNOT_BE_NULL_OR_EMPTY);
+		}
+
+		// is tis the correct version
+		for (int x = 0; x < VERSION_BYTES_LEN; x++) {
+			if (serialized[x] != VERSION_BYTES[x]) {
+				throw new IllegalArgumentException(INVALID_HEADER_VERSION);
+			}
+		}
+
+		int len = serialized.length;
+
+		// does the header end properly
+		new Token(serialized, len, len - 2, Token.Type.CRLF);
+
+		headerMap = new HashMap<>();
+		boolean anyHeader = false;
+
+		Token token = new Token(serialized, len, VERSION_BYTES_LEN, null);
+		if (token.type == Token.Type.SPACE) {
+			Token tKey = new Token(serialized, len, token, Token.Type.WORD);
+			Token tVal = new Token(serialized, len, tKey, null);
+			if (tVal.type == Token.Type.SPACE) {
+				tVal = new Token(serialized, len, tVal, Token.Type.TEXT);
+				new Token(serialized, len, tVal, Token.Type.CRLF);
+			}
+			else {
+				tVal.mustBe(Token.Type.CRLF);
+			}
+			add(tKey.getValue(), tVal.getValue());
+			anyHeader = true;
+		}
+		else if (token.type == Token.Type.CRLF) {
+			// REGULAR HEADER
+			Token tCrlf = token;
+			Token peek = new Token(serialized, len, tCrlf, null);
+			while (peek.type == Token.Type.TEXT) {
+				Token tKey = new Token(serialized, len, tCrlf, Token.Type.KEY);
+				Token tVal = new Token(serialized, len, tKey, null);
+				if (tVal.type == Token.Type.SPACE) {
+					tVal = new Token(serialized, len, tVal, null);
+				}
+				if (tVal.type == Token.Type.TEXT) {
+					tCrlf = new Token(serialized, len, tVal, Token.Type.CRLF);
+				}
+				else {
+					tVal.mustBe(Token.Type.CRLF);
+					tCrlf = tVal;
+				}
+				add(tKey.getValue(), tVal.getValue());
+				anyHeader = true;
+				peek = new Token(serialized, len, tCrlf, null);
+			}
+			peek.mustBe(Token.Type.CRLF);
+		}
+		if (!anyHeader) {
+			throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+		}
 	}
 }

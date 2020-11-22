@@ -95,10 +95,10 @@ public class NatsMessage implements Message {
 
         // protocol come first
         if (hdrLen > 0) {
-            bab.append(HPUB_BYTES, HPUB_BYTES_LEN);
+            bab.append(HPUB_SP_BYTES, HPUB_SP_BYTES_LEN);
         }
         else {
-            bab.append(PUB_BYTES, PUB_BYTES_LEN);
+            bab.append(PUB_SP_BYTES, PUB_SP_BYTES_LEN);
         }
 
         // next comes the subject
