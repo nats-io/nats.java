@@ -315,6 +315,36 @@ public class HeadersTests {
         assertValidHeader("NATS/1.0\r\nk1: \r\n\r\n", "k1", EMPTY);
     }
 
+    class IteratorTestHelper {
+        String forEachString = "";
+        String entrySetString = "";
+        String manualString = "";
+    }
+
+    @Test
+    public void iteratorsTest() {
+        Headers headers = testHeaders();
+        IteratorTestHelper helper = new IteratorTestHelper();
+
+        for (String key : headers.keySet()) {
+            helper.manualString += key;
+            headers.values(key).forEach(v -> helper.manualString += v);
+        }
+
+        headers.forEach((key, values) -> {
+            helper.forEachString += key;
+            values.forEach(v -> helper.forEachString += v);
+        });
+
+        headers.entrySet().forEach(entry -> {
+            helper.entrySetString += entry.getKey();
+            entry.getValue().forEach(v -> helper.entrySetString += v);
+        });
+
+        assertEquals(helper.manualString, helper.forEachString);
+        assertEquals(helper.manualString, helper.entrySetString);
+    }
+
     private void assertValidHeader(String test, String key, String val) {
         Headers headers = new Headers(test.getBytes());
         assertEquals(1, headers.size());
