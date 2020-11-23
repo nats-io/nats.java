@@ -19,6 +19,9 @@ import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 // TODO Add properties
 
 /**
@@ -83,36 +86,13 @@ public class ConsumerInfo {
     private static final String streamSeqField = "stream_seq";
     private static final String consumerSeqField = "consumer_seq";
    
-    private static final String grabString = "\\s*\"(.+?)\"";
-    private static final String grabNumber = "\\s*(\\d+)";
-
-    // TODO - replace with a safe (risk-wise) JSON parser
-    private static final Pattern streamNameRE = Pattern.compile("\""+ streamNameField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern nameRE = Pattern.compile("\""+ nameField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern createdRE = Pattern.compile("\""+ createdField + "\":" + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern numPendingRE = Pattern.compile("\""+ numPendingField + "\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern numRedeliveredRE = Pattern.compile("\""+ numRedelivered + "\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern consumerSeqRE = Pattern.compile("\""+ consumerSeqField + "\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern streamSeqRE = Pattern.compile("\""+ streamSeqField + "\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
- 
-
-    // extract a simple inner json object
-    private String getJSONObject(String objectName, String json) {
-
-        int objStart = json.indexOf(objectName);
-        if (objStart < 0) {
-            return null;
-        }
-
-        int bracketStart = json.indexOf("{", objStart);
-        int bracketEnd = json.indexOf("}", bracketStart);
-
-        if (bracketStart < 0 || bracketEnd < 0) {
-            return null;
-        }
-
-        return json.substring(bracketStart, bracketEnd+1);
-    }
+    private static final Pattern streamNameRE = JsonUtils.buildPattern(streamNameField, FieldType.jsonString);
+    private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
+    private static final Pattern createdRE = JsonUtils.buildPattern(createdField, FieldType.jsonString);
+    private static final Pattern numPendingRE = JsonUtils.buildPattern(numPendingField, FieldType.jsonNumber); 
+    private static final Pattern numRedeliveredRE = JsonUtils.buildPattern(numRedelivered, FieldType.jsonNumber); 
+    private static final Pattern consumerSeqRE = JsonUtils.buildPattern(consumerSeqField, FieldType.jsonNumber); 
+    private static final Pattern streamSeqRE = JsonUtils.buildPattern(streamSeqField, FieldType.jsonNumber); 
 
     /**
      * Internal method to generate consumer information.
@@ -137,17 +117,17 @@ public class ConsumerInfo {
             this.created = ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
         }
 
-        String s = getJSONObject(configField, json);
+        String s = JsonUtils.getJSONObject(configField, json);
         if (s != null) {
             this.configuration = new ConsumerConfiguration(s);
         }
   
-        s = getJSONObject(deliveredField, json);
+        s = JsonUtils.getJSONObject(deliveredField, json);
         if (s != null) {
             this.delivered = new SequencePair(s);
         }
           
-        s = getJSONObject(ackFloorField, json);
+        s = JsonUtils.getJSONObject(ackFloorField, json);
         if (s != null) {
             this.ackFloor = new SequencePair(s);
         }

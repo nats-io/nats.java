@@ -15,6 +15,8 @@ package io.nats.client.impl;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.nats.client.impl.JsonUtils.FieldType;
+
 class JetstreamAPIResponse {
 
     private static final int UnsetErrorCode = -1;
@@ -28,16 +30,9 @@ class JetstreamAPIResponse {
     private static String codeField = "code";
     private static String descField = "description";
 
-    private static final String grabString = "\\s*\"(.+?)\"";
-    private static final String grabNumber = "\\s*(\\d+)";
-
-    // TODO - replace with a safe (risk-wise) JSON parser
-    private static final Pattern typeRE = Pattern.compile("\"" + typeField + "\":" + grabString,
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern codeRE = Pattern.compile("\"" + codeField + "\":" + grabNumber,
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern descRE = Pattern.compile("\"" + descField + "\":" + grabString,
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern typeRE = JsonUtils.buildPattern(typeField, FieldType.jsonString);
+    private static final Pattern codeRE = JsonUtils.buildPattern(codeField, FieldType.jsonNumber);
+    private static final Pattern descRE = JsonUtils.buildPattern(descField, FieldType.jsonString);
 
     JetstreamAPIResponse(byte[] rawResponse) {
 

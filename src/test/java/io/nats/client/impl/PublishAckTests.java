@@ -26,12 +26,13 @@ import org.junit.jupiter.api.Test;
 public class PublishAckTests {
     @Test
     public void testValidAck() {
-        String json = "+OK {\"stream\":\"test\",\"seq\":42 }";
+        String json = "+OK {\"stream\":\"test\",\"seq\":42, \"duplicate\" : true }";
 
         try {
             PublishAckImpl ack = new PublishAckImpl(json.getBytes());
             assertEquals("test", ack.getStream());
             assertEquals(42, ack.getSeqno());
+            assertEquals(true, ack.isDuplicate());
         }
         catch (Exception e) {
             fail("Unexpected Exception: " + e.getMessage());

@@ -18,18 +18,18 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.nats.client.PublishAck;
+import io.nats.client.impl.JsonUtils.FieldType;
 
 // Internal class to handle jetstream acknowedgements
 class PublishAckImpl implements PublishAck {
 
     private String stream = null;
     private long seq = -1;
+    private boolean duplicate = false;
 
-    private static final String grabString = "\\s*\"(.+?)\"";
-    private static final String grabNumber = "\\s*(\\d+)";
-
-    private static final Pattern streamRE = Pattern.compile("\"stream\":" + grabString, Pattern.CASE_INSENSITIVE);
-    private static final Pattern seqnoRE = Pattern.compile("\"seq\":" + grabNumber, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern streamRE = JsonUtils.buildPattern("stream", FieldType.jsonString);
+    private static final Pattern duplicateRE = JsonUtils.buildPattern("duplicate", FieldType.jsonBoolean);
+    private static final Pattern seqnoRE =JsonUtils.buildPattern("seq", FieldType.jsonNumber); 
 
     // Acks will be received with the following format:
     // "-ERR <server message>""
@@ -59,13 +59,25 @@ class PublishAckImpl implements PublishAck {
         if (m.find()) {
             this.seq = Long.parseLong(m.group(1));
         }
+
+        m = duplicateRE.matcher(s);
+        if (m.find()) {
+            this.duplicate = Boolean.parseBoolean(m.group(1));
+        }
     }
 
+    @Override
     public long getSeqno() {
         return seq;
     }
 
+    @Override
     public String getStream() {
         return stream;
+    }
+
+    @Override
+    public boolean isDuplicate() {
+        return duplicate;
     }
 }

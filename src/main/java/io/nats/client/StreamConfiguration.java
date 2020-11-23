@@ -19,6 +19,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 
 // TODO Add properties
 
@@ -155,27 +158,20 @@ public class StreamConfiguration {
     private static String templateField =  "template";
     private static String duplicatesField =  "duplicates";
 
-    private static final String grabString = "\\s*\"(.+?)\"";
-    private static final String grabNumber = "\\s*(\\d+)";
-    private static final String grabBoolean = "\\s*(true|false)";
-    private static final String grabStringArray = "\\[(.+?)\\]";
-    private static final String colon = "\"\\s*:\\s*";
-
-    // TODO - replace with a safe (risk-wise) JSON parser
-    private static final Pattern nameRE = Pattern.compile("\""+ nameField + colon + grabString, Pattern.CASE_INSENSITIVE);
-    private static final Pattern maxConsumersRE = Pattern.compile("\""+ maxConsumersField + colon + grabNumber, Pattern.CASE_INSENSITIVE);
-    private static final Pattern subjectsRE = Pattern.compile("\""+ subjectsField + colon + grabStringArray, Pattern.CASE_INSENSITIVE);
-    private static final Pattern retentionRE = Pattern.compile("\""+ retentionField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern maxBytesRE = Pattern.compile("\""+ maxBytesField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern maxAgeRE = Pattern.compile("\""+ maxAgeField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern maxMsgSizeRE = Pattern.compile("\""+ maxMsgSizeField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern storageTypeRE = Pattern.compile("\""+ storageTypeField + colon + grabString, Pattern.CASE_INSENSITIVE);
-    private static final Pattern discardPolicyRE = Pattern.compile("\""+ discardPolicyField + colon + grabString, Pattern.CASE_INSENSITIVE);
-    private static final Pattern replicasRE = Pattern.compile("\""+ replicasField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern noAckRE = Pattern.compile("\""+ noAckField + colon + grabBoolean, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern templateRE = Pattern.compile("\""+ templateField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern duplicatesRE = Pattern.compile("\""+ duplicatesField + colon + grabNumber, Pattern.CASE_INSENSITIVE);
-
+    private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
+    private static final Pattern maxConsumersRE = JsonUtils.buildPattern(maxConsumersField, FieldType.jsonNumber);
+    private static final Pattern subjectsRE = JsonUtils.buildPattern(subjectsField, FieldType.jsonStringArray);
+    private static final Pattern retentionRE = JsonUtils.buildPattern(retentionField, FieldType.jsonString);
+    private static final Pattern maxBytesRE = JsonUtils.buildPattern(maxBytesField, FieldType.jsonNumber);
+    private static final Pattern maxAgeRE = JsonUtils.buildPattern(maxAgeField, FieldType.jsonNumber);
+    private static final Pattern maxMsgSizeRE = JsonUtils.buildPattern(maxMsgSizeField, FieldType.jsonNumber);
+    private static final Pattern storageTypeRE = JsonUtils.buildPattern(storageTypeField, FieldType.jsonString);
+    private static final Pattern discardPolicyRE = JsonUtils.buildPattern(discardPolicyField, FieldType.jsonString);
+    private static final Pattern replicasRE = JsonUtils.buildPattern(replicasField, FieldType.jsonNumber);
+    private static final Pattern noAckRE = JsonUtils.buildPattern(noAckField, FieldType.jsonBoolean);
+    private static final Pattern templateRE = JsonUtils.buildPattern(templateField, FieldType.jsonString);
+    private static final Pattern duplicatesRE = JsonUtils.buildPattern(duplicatesField, FieldType.jsonNumber);
+    
     private static String[] parseSubjects(String subjects) {
         String[] quotedSubjects = subjects.split("\\s*,\\s*");
 
@@ -285,43 +281,6 @@ public class StreamConfiguration {
             this.template = template;
     }
 
-    private static void addFld(StringBuilder sb, String fname, String value) {
-        if (value != null) {
-            sb.append("\"" + fname + "\" : \"" + value + "\",");
-        }
-    }
-
-    private static void addFld(StringBuilder sb, String fname, boolean value) {
-        sb.append("\"" + fname + "\":" + (value ? "true" : "false") + ",");
-    }
-
-    private static void addFld(StringBuilder sb, String fname, long value) {
-        if (value >= 0) {
-            sb.append("\"" + fname + "\" : " + value + ",");
-        }      
-    }
-
-    private static void addFld(StringBuilder sb, String fname, Duration value) {
-        if (value != Duration.ZERO) {
-            sb.append("\"" + fname + "\" : " + value.toNanos() + ",");
-        }       
-    }
-
-    private static void addFld(StringBuilder sb, String fname, String[] strArray) {
-        if (strArray == null || strArray.length == 0) {
-            return;
-        }
-
-        sb.append("\"" + fname  + "\":[");
-        for (int i = 0; i < strArray.length; i++) {
-            sb.append("\"" + strArray[i] + "\"");
-            if (i < strArray.length-1) {
-                sb.append(",");
-            }
-        }
-        sb.append("],");
-    }
-
     /**
      * Returns a JSON representation of this consumer configuration.
      * 
@@ -331,19 +290,19 @@ public class StreamConfiguration {
         
         StringBuilder sb = new StringBuilder("{");
         
-        addFld(sb, nameField, name);
-        addFld(sb, subjectsField, subjects);
-        addFld(sb, retentionField, retentionPolicy.toString());
-        addFld(sb, maxConsumersField, maxConsumers);
-        addFld(sb, maxBytesField, maxBytes);
-        addFld(sb, maxMsgSizeField, maxMsgSize);
-        addFld(sb, maxAgeField, maxAge);
-        addFld(sb, storageTypeField , storageType.toString());
-        addFld(sb, discardPolicyField, discardPolicy.toString());
-        addFld(sb, replicasField, replicas);
-        addFld(sb, noAckField, noAck);
-        addFld(sb, templateField, template);
-        addFld(sb, duplicatesField, duplicateWindow);
+        JsonUtils.addFld(sb, nameField, name);
+        JsonUtils.addFld(sb, subjectsField, subjects);
+        JsonUtils.addFld(sb, retentionField, retentionPolicy.toString());
+        JsonUtils.addFld(sb, maxConsumersField, maxConsumers);
+        JsonUtils.addFld(sb, maxBytesField, maxBytes);
+        JsonUtils.addFld(sb, maxMsgSizeField, maxMsgSize);
+        JsonUtils.addFld(sb, maxAgeField, maxAge);
+        JsonUtils.addFld(sb, storageTypeField , storageType.toString());
+        JsonUtils.addFld(sb, discardPolicyField, discardPolicy.toString());
+        JsonUtils.addFld(sb, replicasField, replicas);
+        JsonUtils.addFld(sb, noAckField, noAck);
+        JsonUtils.addFld(sb, templateField, template);
+        JsonUtils.addFld(sb, duplicatesField, duplicateWindow);
 
         // remove the trailing ','
         sb.setLength(sb.length()-1);

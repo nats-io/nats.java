@@ -22,6 +22,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 
 // TODO Add properties
 
@@ -158,23 +161,18 @@ public class ConsumerConfiguration {
     private static String sampleFreqField =  "sample_frequency";
     private static String rateLimitField =  "rate_limit";    
 
-    private static final String grabString = "\\s*\"(.+?)\"";
-    private static final String grabNumber = "\\s*(\\d+)";
-    private static final String colon = "\"\\s*:\\s*";
-
-    // TODO - replace with a safe (risk-wise) JSON parser
-    private static final Pattern durableRE = Pattern.compile("\""+ durableNameField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern deliverSubjectRE = Pattern.compile("\""+ deliverSubjField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern deliverPolicyRE = Pattern.compile("\""+ deliverPolicyField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern startSeqRE = Pattern.compile("\""+ startSeqField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern startTimeRE = Pattern.compile("\""+ startTimeField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern ackPolicyRE = Pattern.compile("\""+ ackPolicyField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern ackWaitRE = Pattern.compile("\""+ ackWaitField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern maxDeliverRE = Pattern.compile("\""+ maxDeliverField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern filterSubjectRE = Pattern.compile("\""+ filterSubjectField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern replayPolicyRE = Pattern.compile("\""+ replayPolicyField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern sampleFreqRE = Pattern.compile("\""+ sampleFreqField + colon + grabString, Pattern.CASE_INSENSITIVE); 
-    private static final Pattern rateLimitRE = Pattern.compile("\""+ rateLimitField + colon + grabNumber, Pattern.CASE_INSENSITIVE); 
+    private static final Pattern durableRE = JsonUtils.buildPattern(durableNameField, FieldType.jsonString);
+    private static final Pattern deliverSubjectRE = JsonUtils.buildPattern(deliverSubjField, FieldType.jsonString);
+    private static final Pattern deliverPolicyRE = JsonUtils.buildPattern(deliverPolicyField, FieldType.jsonString);
+    private static final Pattern startSeqRE = JsonUtils.buildPattern(startSeqField, FieldType.jsonNumber);
+    private static final Pattern startTimeRE = JsonUtils.buildPattern(startTimeField, FieldType.jsonString);
+    private static final Pattern ackPolicyRE = JsonUtils.buildPattern(ackPolicyField, FieldType.jsonString);
+    private static final Pattern ackWaitRE = JsonUtils.buildPattern(ackWaitField, FieldType.jsonNumber);
+    private static final Pattern maxDeliverRE = JsonUtils.buildPattern(maxDeliverField, FieldType.jsonNumber);
+    private static final Pattern filterSubjectRE = JsonUtils.buildPattern(filterSubjectField, FieldType.jsonString);
+    private static final Pattern replayPolicyRE = JsonUtils.buildPattern(replayPolicyField, FieldType.jsonString);
+    private static final Pattern sampleFreqRE = JsonUtils.buildPattern(sampleFreqField, FieldType.jsonString);
+    private static final Pattern rateLimitRE = JsonUtils.buildPattern(rateLimitField, FieldType.jsonNumber);
 
     // for the response from the server
     ConsumerConfiguration(String json) {

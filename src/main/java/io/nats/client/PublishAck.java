@@ -28,4 +28,10 @@ public interface PublishAck {
      * @return the the name of the stream.
      */
     public String getStream();
+
+    /**
+     * Gets if the server detected the published message was a duplicate.
+     * @return true if the message is a duplicate, false otherwise.
+     */
+    public boolean isDuplicate();
 }
