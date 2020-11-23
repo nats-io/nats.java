@@ -14,10 +14,9 @@
 package io.nats.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -45,6 +44,14 @@ public class JetstreamTests {
             finally {
                 nc.close();
             }
+        }
+    }
+
+    @Test
+    public void testJetstreamNotAvailable() throws IOException, InterruptedException,ExecutionException {
+        try (NatsTestServer ts = new NatsTestServer(false, false);
+            Connection nc = Nats.connect(ts.getURI())) {
+            assertThrows(IllegalStateException.class, ()-> { nc.jetStream(); });
         }
     }
 

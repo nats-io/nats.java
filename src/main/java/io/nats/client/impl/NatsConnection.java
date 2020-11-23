@@ -1879,6 +1879,12 @@ class NatsConnection implements Connection {
 
     @Override
     public JetStream jetStream() {
+        if (isClosing() || isClosed()) {
+            throw new IllegalStateException("A jetstream context can't be estabilished during close.");
+        }
+        if (!getInfo().isJetStreamAvailable()) {
+            throw new IllegalStateException("JetStream is not available.");
+        }
         return new JetStreamImpl(this);
     }
 }
