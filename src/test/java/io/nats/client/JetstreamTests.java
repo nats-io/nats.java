@@ -31,15 +31,16 @@ import org.junit.jupiter.api.Test;
 public class JetstreamTests {
 
     @Test
-    public void testJetstreamPublishEmptyOptions() throws IOException, InterruptedException,ExecutionException {
+    public void testJetstreamPublishDefaultOptions() throws IOException, InterruptedException,ExecutionException {
         try (NatsTestServer ts = new NatsTestServer(false, true);
              Connection nc = Nats.connect(ts.getURI())) {
 
             try {
-                PublishOptions popts = PublishOptions.builder().build();
-                nc.publish("subject", null, popts);
+                ts.createMemoryStream("foo-stream", "foo");
+                PublishAck ack = nc.jetStream().publish("foo", null);
+                assertEquals(1, ack.getSeqno());
             } catch (Exception ex) {
-                assertFalse(true, "Unexpected Exception: " + ex.getMessage());
+                Assertions.fail("Exception:  " + ex.getMessage());
             }
             finally {
                 nc.close();
@@ -56,7 +57,7 @@ public class JetstreamTests {
                 ts.createMemoryStream("foo-stream", "foo");
 
                 PublishOptions popts = PublishOptions.builder().stream("foo-stream").build();
-                nc.publish("foo", null, popts);
+                nc.jetStream().publish("foo", null, popts);
             } catch (Exception ex) {
                 Assertions.fail("Exception:  " + ex.getMessage());
             }
@@ -76,12 +77,13 @@ public class JetstreamTests {
 
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
-                nc.publish("foo", "payload".getBytes(), popts);
+                JetStream js = nc.jetStream();
+                js.publish("foo", "payload".getBytes(), popts);
 
                 // Using subscribe options, let a subscription to "bar" be from our stream.
                 ConsumerConfiguration c = ConsumerConfiguration.builder().build();
                 SubscribeOptions so = SubscribeOptions.builder().consumer("test-stream", c).build();
-                Subscription s = nc.subscribe("bar", so);
+                Subscription s = js.subscribe("bar", so);
                 Message m = s.nextMessage(Duration.ofSeconds(5));
                 assertEquals(new String("payload"), new String(m.getData()));
             } catch (Exception ex) {
@@ -106,7 +108,7 @@ public class JetstreamTests {
 
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
-                nc.publish("foo", "payload".getBytes(), popts);
+                nc.jetStream().publish("foo", "payload".getBytes(), popts);
 
                 Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
                 assertNotNull(m);
@@ -141,7 +143,7 @@ public class JetstreamTests {
 
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
-                nc.publish("foo", "payload".getBytes(), popts);
+                nc.jetStream().publish("foo", "payload".getBytes(), popts);
 
                 Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
                 assertNotNull(m);
@@ -179,7 +181,7 @@ public class JetstreamTests {
 
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
-                nc.publish("foo", "payload".getBytes(), popts);
+                nc.jetStream().publish("foo", "payload".getBytes(), popts);
 
                 Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
                 assertNotNull(m);
@@ -214,7 +216,7 @@ public class JetstreamTests {
 
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
-                nc.publish("foo", "payload".getBytes(), popts);
+                nc.jetStream().publish("foo", "payload".getBytes(), popts);
 
                 Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
                 assertNotNull(m);
@@ -247,10 +249,11 @@ public class JetstreamTests {
                 ts.createMemoryStream("test-stream", "foo");
                 ts.createPullConsumer("test-stream", "pull-durable");
 
+                JetStream js = nc.jetStream();
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
-                nc.publish("foo", "payload1".getBytes(), popts);
-                nc.publish("foo", "payload2".getBytes(), popts);
+                js.publish("foo", "payload1".getBytes(), popts);
+                js.publish("foo", "payload2".getBytes(), popts);
 
                 Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
                 assertNotNull(m);
@@ -287,9 +290,10 @@ public class JetstreamTests {
 
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
-                nc.publish("foo", "payload1".getBytes(), popts);
-                nc.publish("foo", "payload2".getBytes(), popts);
-                nc.publish("foo", "payload3".getBytes(), popts);
+                JetStream js = nc.jetStream();
+                js.publish("foo", "payload1".getBytes(), popts);
+                js.publish("foo", "payload2".getBytes(), popts);
+                js.publish("foo", "payload3".getBytes(), popts);
 
                 Message m = nc.request("$JS.API.CONSUMER.MSG.NEXT.test-stream.pull-durable", null, Duration.ofSeconds(2));
                 assertNotNull(m);

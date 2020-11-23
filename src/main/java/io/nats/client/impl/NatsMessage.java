@@ -17,11 +17,10 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.TimeoutException;
@@ -410,7 +409,7 @@ class NatsMessage implements Message {
             long seconds = tsi / 1000000000;
             int nanos = (int) (tsi - ((tsi / 1000000000) * 1000000000));
             LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
-            timestamp = ZonedDateTime.of(ltd, ZoneOffset.systemDefault());
+            timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault());
 
             if (parts.length == 9) {
                 pending = Long.parseLong(parts[8]);

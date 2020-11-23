@@ -13,7 +13,6 @@
 
 package io.nats.client;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -124,33 +123,6 @@ public interface Connection extends AutoCloseable {
     public void publish(String subject, byte[] body);
 
     /**
-     * Send a message to the specified subject and waits for a response from
-     * Jetstream. The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
-     * 
-     * <pre>
-     * nc = Nats.connect()
-     * nc.publish("destination", "message".getBytes("UTF-8"), publishOptions)
-     * </pre>
-     * 
-     * where the sender creates a byte array immediately before calling publish.
-     * 
-     * See {@link #publish(String, String, byte[]) publish()} for more details on 
-     * publish during reconnect.
-     * 
-     * @param subject the subject to send the message to
-     * @param body the message body
-     * @param options publisher options 
-     * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communcation issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     */
-    public void publish(String subject, byte[] body, PublishOptions options) throws InterruptedException, IOException, TimeoutException;
-
-    // TODO - completeable future
-
-    /**
      * Send a request to the specified subject, providing a replyTo subject. The
      * message body <strong>will not</strong> be copied. The expected usage with
      * string content is something like:
@@ -215,26 +187,6 @@ public interface Connection extends AutoCloseable {
     public Subscription subscribe(String subject);
 
     /**
-     * Create a synchronous subscription to the specified subject.
-     * 
-     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
-     * method to read messages for this subscription.
-     * 
-     * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for
-     * information about creating an asynchronous subscription with callbacks.
-     * 
-     * <p>As of 2.6.1 this method will throw an IllegalArgumentException if the subject contains whitespace.
-     * 
-     * @param subject the subject to subscribe to
-     * @param options subscription options
-     * @return an object representing the subscription
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IOException if there are communcation issues with the NATS server
-     */
-    public Subscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
-
-    /**
      * Create a synchronous subscription to the specified subject and queue.
      * 
      * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage} method to read
@@ -250,27 +202,6 @@ public interface Connection extends AutoCloseable {
      * @return an object representing the subscription
      */
     public Subscription subscribe(String subject, String queueName);
-
-    /**
-     * Create a synchronous subscription to the specified subject and queue.
-     * 
-     * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage} method to read
-     * messages for this subscription.
-     * 
-     * <p>See {@link #createDispatcher(MessageHandler) createDispatcher} for
-     * information about creating an asynchronous subscription with callbacks.
-     * 
-     * <p>As of 2.6.1 this method will throw an IllegalArgumentException if either string contains whitespace.
-     * 
-     * @param subject the subject to subscribe to
-     * @param queueName the queue group to join
-     * @param options subscription options
-     * @return an object representing the subscription
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IOException if there are communcation issues with the NATS server
-     */
-    public Subscription subscribe(String subject, String queueName, SubscribeOptions options)  throws InterruptedException, TimeoutException, IOException;    
 
     /**
      * Create a {@code Dispatcher} for this connection. The dispatcher can group one
@@ -409,4 +340,11 @@ public interface Connection extends AutoCloseable {
      * to by others.
      */
     public String createInbox();
+
+    /**
+     * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
+     * and consumers.
+     * @return a JetStream instance.
+     */
+    public JetStream jetStream();
 }

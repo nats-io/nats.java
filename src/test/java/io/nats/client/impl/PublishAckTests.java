@@ -23,13 +23,13 @@ import java.io.IOException;
 
 import org.junit.jupiter.api.Test;
 
-public class AckTests {
+public class PublishAckTests {
     @Test
     public void testValidAck() {
         String json = "+OK {\"stream\":\"test\",\"seq\":42 }";
 
         try {
-            Ack ack = new Ack(json.getBytes());
+            PublishAckImpl ack = new PublishAckImpl(json.getBytes());
             assertEquals("test", ack.getStream());
             assertEquals(42, ack.getSeqno());
         }
@@ -42,7 +42,7 @@ public class AckTests {
     public void testThrowsOnGarbage() {
         assertThrows(IOException.class, () -> {
             String json = "foo";
-            new Ack(json.getBytes());
+            new PublishAckImpl(json.getBytes());
             assertFalse(true);
         });
     }
@@ -52,7 +52,7 @@ public class AckTests {
         String msg = "Test generated error.";
         try {
             String json = "-ERR " + msg;
-            new Ack(json.getBytes());
+            new PublishAckImpl(json.getBytes());
             assertFalse(true);
         } catch (Exception ex) {
             assertTrue(ex.getMessage().contains(msg));
@@ -66,7 +66,7 @@ public class AckTests {
                         "\"missing_seq\":\"0\"" +
                        "}";   
         try {
-            Ack ack = new Ack(json.getBytes());
+            PublishAckImpl ack = new PublishAckImpl(json.getBytes());
             assertEquals(null, ack.getStream());
             assertEquals(-1, ack.getSeqno());
         }

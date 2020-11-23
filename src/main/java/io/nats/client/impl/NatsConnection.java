@@ -57,17 +57,14 @@ import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.Consumer;
-import io.nats.client.ConsumerConfiguration;
-import io.nats.client.ConsumerInfo;
 import io.nats.client.Dispatcher;
 import io.nats.client.ErrorListener;
+import io.nats.client.JetStream;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NUID;
 import io.nats.client.Options;
-import io.nats.client.PublishOptions;
 import io.nats.client.Statistics;
-import io.nats.client.SubscribeOptions;
 import io.nats.client.Subscription;
 
 class NatsConnection implements Connection {
@@ -87,9 +84,6 @@ class NatsConnection implements Connection {
     static final String OP_PONG = "PONG";
     static final String OP_OK = "+OK";
     static final String OP_ERR = "-ERR";
-
-    private static final String jSApiConsumerCreateT = "$JS.API.CONSUMER.CREATE.%s";
-    private static final String jSApiDurableCreateT  = "$JS.API.CONSUMER.DURABLE.CREATE.%s.%s";
 
     private Options options;
 
@@ -169,7 +163,8 @@ class NatsConnection implements Connection {
         if (trace) {
             long seconds = TimeUnit.SECONDS.convert(System.nanoTime() - start, TimeUnit.NANOSECONDS);
             if (seconds > 1L) {
-                // If you see this trace check: https://github.com/nats-io/nats.java#linux-platform-note
+                // If you see this trace check:
+                // https://github.com/nats-io/nats.java#linux-platform-note
                 timeTrace(trace, "NUID initialization took long: %d (s)", seconds);
             }
         }
@@ -251,7 +246,8 @@ class NatsConnection implements Connection {
                     String msg = String.format("Authentication error connecting to NATS server: %s.", err);
                     throw new AuthenticationException(msg);
                 } else {
-                    String msg = String.format("Unable to connect to NATS servers: %s.", String.join(", ", getServers()));
+                    String msg = String.format("Unable to connect to NATS servers: %s.",
+                            String.join(", ", getServers()));
                     throw new IOException(msg);
                 }
             }
@@ -283,7 +279,7 @@ class NatsConnection implements Connection {
 
         while (!isConnected() && !isClosed() && !this.isClosing()) {
             List<String> serversToTry = buildServerList();
-            lastServer = serversToTry.get(serversToTry.size()-1);
+            lastServer = serversToTry.get(serversToTry.size() - 1);
 
             for (String server : serversToTry) {
                 if (isClosed()) {
@@ -357,8 +353,9 @@ class NatsConnection implements Connection {
         } catch (Exception exp) {
             this.processException(exp);
         }
-        
-        // When the flush returns we are done sending internal messages, so we can switch to the
+
+        // When the flush returns we are done sending internal messages, so we can
+        // switch to the
         // non-reconnect queue
         this.writer.setReconnectMode(false);
 
@@ -450,7 +447,7 @@ class NatsConnection implements Connection {
                         // If the time appears too long it might be related to
                         // https://github.com/nats-io/nats.java#linux-platform-note
                         timeTrace(trace, "TLS upgrade took: %.3f (s)",
-                                ((double)(System.nanoTime() - start)) / 1_000_000_000.0);
+                                ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
                     }
                     return null;
                 }
@@ -695,10 +692,10 @@ class NatsConnection implements Connection {
             updateStatus(Status.CLOSED); // will signal, we also signal when we stop disconnecting
 
             /*
-            if (exceptionDuringConnectChange != null) {
-                processException(exceptionDuringConnectChange);
-                exceptionDuringConnectChange = null;
-            }*/
+             * if (exceptionDuringConnectChange != null) {
+             * processException(exceptionDuringConnectChange); exceptionDuringConnectChange
+             * = null; }
+             */
         } finally {
             statusLock.unlock();
         }
@@ -727,11 +724,11 @@ class NatsConnection implements Connection {
     void closeSocketImpl() {
         this.currentServerURI = null;
 
-        //Signal both to stop. 
+        // Signal both to stop.
         final Future<Boolean> readStop = this.reader.stop();
         final Future<Boolean> writeStop = this.writer.stop();
-        
-        // Now wait until they both stop before closing the socket. 
+
+        // Now wait until they both stop before closing the socket.
         try {
             readStop.get(1, TimeUnit.SECONDS);
         } catch (Exception ex) {
@@ -744,7 +741,6 @@ class NatsConnection implements Connection {
         }
 
         this.dataPortFuture.cancel(true);
-        
 
         // Close the current socket and cancel anyone waiting for it
         try {
@@ -756,7 +752,6 @@ class NatsConnection implements Connection {
             processException(ex);
         }
         cleanUpPongQueue();
-        
 
         try {
             this.reader.stop().get(10, TimeUnit.SECONDS);
@@ -815,96 +810,53 @@ class NatsConnection implements Connection {
 
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
-            throw new IllegalStateException(
-                    "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());
+            throw new IllegalStateException("Unable to queue any more messages during reconnect, max buffer is "
+                    + options.getReconnectBufferSize());
         }
         queueOutgoing(msg);
     }
 
-    private static boolean isStreamSpecified(String streamName) {
-        return streamName != null && !PublishOptions.unspecifiedStream.equals(streamName);
-    }
-
-    public void publish(String subject, byte[] body, PublishOptions publishOptions) throws InterruptedException, IOException, TimeoutException {
-        if (publishOptions == null || publishOptions.getStreamTimeout() == Duration.ZERO ||
-                !isStreamSpecified(publishOptions.getStream())) {
-            publish(subject, body);
-        } else {
-            Message resp = this.request(subject, body, publishOptions.getStreamTimeout());
-            if (resp == null) {
-                throw new TimeoutException("timeout waiting for jetstream");
-            }
-            Ack ack = new Ack(resp.getData());
-            
-            String ackStream = ack.getStream();
-            if (ackStream == null || ackStream.length() == 0 || ack.getSeqno() == 0) {
-                throw new IOException("Invalid jetstream ack.");
-            }
-
-            String pubStream = publishOptions.getStream(); 
-            if (isStreamSpecified(pubStream) && !pubStream.equals(ackStream)) {
-                throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
-            }
-        }
-    }
-
-    
-    static private void checkSubject(String s) {
-        if (s == null || s.isEmpty()) {
-            throw new IllegalArgumentException("Subject cannot be null or empty.");
-        }
-
-        for (int i = 0; i < s.length(); i++){
-            char c = s.charAt(i);
-            if (Character.isWhitespace(c)) {
-                throw new IllegalArgumentException("Subject cannot contain spaces.");
-            }
-        }
-    }
-     
-    static private void checkQueue(String s) {
-        if (s == null || s.isEmpty()) {
-            throw new IllegalArgumentException("Queue group name cannot be null or empty.");
-        }
-
-        for (int i = 0; i < s.length(); i++){
-            char c = s.charAt(i);
-            if (Character.isWhitespace(c)) {
-                throw new IllegalArgumentException("Queue group name  cannot contain spaces.");
-            }
-        }
-    }
-
     public Subscription subscribe(String subject) {
-        checkSubject(subject);
+
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
+        }
+
+        Pattern pattern = Pattern.compile("\\s");
+        Matcher matcher = pattern.matcher(subject);
+
+        if (matcher.find()) {
+            throw new IllegalArgumentException("Subject cannot contain whitespace");
+        }
+
         return createSubscription(subject, null, null);
     }
 
-    public Subscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
+    public Subscription subscribe(String subject, String queueName) {
 
-        checkSubject(subject);
-        if (options == null) {
-            throw new IllegalArgumentException("Options are required in subscribe");
+        if (subject == null || subject.length() == 0) {
+            throw new IllegalArgumentException("Subject is required in subscribe");
         }
 
-        return createSubscription(subject, null, null, options);
-    }
+        Pattern pattern = Pattern.compile("\\s");
+        Matcher smatcher = pattern.matcher(subject);
 
-    public Subscription subscribe(String subject, String queueName) {
-        checkSubject(subject);
-        checkQueue(queueName);
+        if (smatcher.find()) {
+            throw new IllegalArgumentException("Subject cannot contain whitespace");
+        }
+
+        if (queueName == null || queueName.length() == 0) {
+            throw new IllegalArgumentException("QueueName is required in subscribe");
+        }
+
+        Matcher qmatcher = pattern.matcher(queueName);
+
+        if (qmatcher.find()) {
+            throw new IllegalArgumentException("Queue names cannot contain whitespace");
+        }
+
         return createSubscription(subject, queueName, null);
     }
-
-    public Subscription subscribe(String subject, String queueName, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException{
-        checkSubject(subject);
-        checkQueue(queueName);
-        if (options == null) {
-            throw new IllegalArgumentException("Options are required in subscribe");
-        }
-
-        return createSubscription(subject, queueName, null, options);
-    }    
 
     void invalidate(NatsSubscription sub) {
         CharSequence sid = sub.getSID();
@@ -954,66 +906,6 @@ class NatsConnection implements Connection {
         protocolBuilder.flip();
         NatsMessage unsubMsg = new NatsMessage(protocolBuilder);
         queueInternalOutgoing(unsubMsg);
-    }
-
-   
-    /**
-      * Creates or updates a consumer on NATS servers.  Caller must ensure the
-      * parameters are valid.
-      * @param subject subject of the consumer
-      * @param options options contains the stream and consumer configuration.
-      * @return ConsumerInformation from the server.
-      */
-    ConsumerInfo createOrUpdateConsumer(String deliverySubject, SubscribeOptions subOptions) throws TimeoutException, InterruptedException, IOException {
-        /* SubscribeOptions will ensure strean and consumer are set */
-        String stream = subOptions.getStream();
-        
-        ConsumerConfiguration cc = subOptions.getConsumerConfiguration();
-        String durable = cc.getDurable();
-
-        cc.setDeliverySubject(deliverySubject);
-        String requestJSON = cc.toJSON(stream);
-
-        String subj;
-        if (durable == null) {
-            subj = String.format(jSApiConsumerCreateT, stream);
-        } else {
-            subj = String.format(jSApiDurableCreateT, stream, durable);
-        }
-        
-        Message resp = null;
-        resp = request(subj, requestJSON.getBytes(), options.getConnectionTimeout());
-
-        if (resp == null) {
-            throw new TimeoutException("Consumer request to jetstream timed out.");
-        }
-
-        JetstreamAPIResponse jsResp = new JetstreamAPIResponse(resp.getData());
-        if (jsResp.hasError()) {
-            throw new IOException(jsResp.getError());
-        }
-
-        return new ConsumerInfo(jsResp.getResponse());
-    }
-
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException{
-
-        if (options != null && subject == null) {
-            subject = createInbox();
-        }
-
-        NatsSubscription sub = createSubscription(subject, queueName, dispatcher);
-
-        if (options != null) {
-            try {
-                createOrUpdateConsumer(subject, options);
-            } catch (Exception e) {
-                sub.unsubscribe();
-                throw e;
-            }
-        }
-        
-        return sub;
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -1184,7 +1076,7 @@ class NatsConnection implements Connection {
             // Unsubscribe when future is cancelled:
             String finalResponseInbox = responseInbox;
             future.whenComplete((msg, exception) -> {
-                if (exception instanceof CancellationException ) {
+                if (null != exception && exception instanceof CancellationException) {
                     dispatcher.unsubscribe(finalResponseInbox);
                 }
             });
@@ -1214,7 +1106,8 @@ class NatsConnection implements Connection {
             f.complete(msg);
             statistics.incrementRepliesReceived();
         } else if (!oldStyle && !subject.startsWith(mainInbox)) {
-            System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection");
+            System.out
+                    .println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection");
         }
     }
 
@@ -1308,21 +1201,23 @@ class NatsConnection implements Connection {
     void sendConnect(String serverURI) throws IOException {
         try {
             NatsServerInfo info = this.serverInfo.get();
-            CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-            // Use a bigger buffer than the max length, better to fail on the server than here
+            CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(),
+                    info.getNonce());
+            // Use a bigger buffer than the max length, better to fail on the server than
+            // here
             CharBuffer connectString = CharBuffer.allocate(this.options.getMaxControlLine() + connectOptions.limit());
             connectString.append(NatsConnection.OP_CONNECT);
             connectString.append(" ");
             connectString.append(connectOptions);
             connectString.flip();
             NatsMessage msg = new NatsMessage(connectString);
-            
+
             queueInternalOutgoing(msg);
         } catch (Exception exp) {
             throw new IOException("Error sending connect string", exp);
         }
     }
-    
+
     CompletableFuture<Boolean> sendPing() {
         return this.sendPing(true);
     }
@@ -1811,7 +1706,7 @@ class NatsConnection implements Connection {
             Collections.shuffle(reconnectList);
         } else {
             // Remove the current server from the list, shuffle if it makes sense,
-            // and then add it to the end of the list.  This prevents the client
+            // and then add it to the end of the list. This prevents the client
             // from immediately reconnecting to a server it just lost connection with.
             reconnectList.remove(this.currentServer);
             if (reconnectList.size() > 1) {
@@ -1879,7 +1774,7 @@ class NatsConnection implements Connection {
         } finally {
             this.statusLock.unlock();
         }
-        
+
         final CompletableFuture<Boolean> tracker = this.draining.get();
         Instant start = Instant.now();
 
@@ -1896,7 +1791,7 @@ class NatsConnection implements Connection {
 
         NatsDispatcher inboxer = this.inboxDispatcher.get();
 
-        if(inboxer != null) {
+        if (inboxer != null) {
             consumers.add(inboxer);
         }
 
@@ -1930,7 +1825,7 @@ class NatsConnection implements Connection {
                             i.remove();
                         }
                     }
-                    
+
                     if (consumers.size() == 0) {
                         break;
                     }
@@ -1980,5 +1875,10 @@ class NatsConnection implements Connection {
         }
         err = err.toLowerCase();
         return err.startsWith("user authentication") || err.contains("authorization violation");
+    }
+
+    @Override
+    public JetStream jetStream() {
+        return new JetStreamImpl(this);
     }
 }

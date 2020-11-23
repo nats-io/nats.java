@@ -13,9 +13,6 @@
 
 package io.nats.client;
 
-import java.io.IOException;
-import java.util.concurrent.TimeoutException;
-
 /**
  * This library uses the concept of a Dispatcher to organize message callbacks in a way that the
  * application can control. Each dispatcher has a single {@link MessageHandler MessageHandler} that
@@ -52,25 +49,6 @@ public interface Dispatcher extends Consumer {
     public Dispatcher subscribe(String subject);
 
     /**
-     * Create a subscription to the specified subject under the control of this
-     * dispatcher.
-     *
-     * <p>
-     * This call is a no-op if the dispatcher already has a subscription to the
-     * specified subject.
-     *
-     *
-     * @param subject The subject to subscribe to.
-     * @param options subscription options
-     * @return The Dispatcher, so calls can be chained.
-     * @throws TimeoutException if communication with the NATS server timed out
-     * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communcation issues with the NATS server
-     * @throws IllegalStateException if the dispatcher was previously closed
-     */ 
-    public Dispatcher subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
-
-    /**
      * Create a subscription to the specified subject and queue under the control of
      * this dispatcher.
      *
@@ -85,26 +63,6 @@ public interface Dispatcher extends Consumer {
      * @throws IllegalStateException if the dispatcher was previously closed
      */
     public Dispatcher subscribe(String subject, String queue);
-
-    /**
-     * Create a subscription to the specified subject and queue under the control of
-     * this dispatcher.
-     *
-     * <p>
-     * This call is a no-op if the dispatcher already has a subscription to the
-     * specified subject (regardless of the queue name).
-     *
-     *
-     * @param subject The subject to subscribe to.
-     * @param queue The queue group to join.
-     * @param options The options for this subscription.
-     * @return The Dispatcher, so calls can be chained.
-     * @throws TimeoutException if communication with the NATS server timed out
-     * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communcation issues with the NATS server
-     * @throws IllegalStateException if the dispatcher was previously closed
-     */
-    public Dispatcher subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;    
 
     /**
      * Create a subscription to the specified subject under the control of this
@@ -131,28 +89,6 @@ public interface Dispatcher extends Consumer {
      *
      * <p>
      * Every call creates a new subscription, unlike the
-     * {@link Dispatcher#subscribe(String)} method that does not take a
-     * MessageHandler.
-     *
-     *
-     * @param subject The subject to subscribe to.
-     * @param handler The target for the messages.
-     * @param options The options for this subscription.
-     * @return The Subscription, so subscriptions may be later unsubscribed manually.
-     * @throws IllegalStateException if the dispatcher was previously closed
-     * @throws TimeoutException if communication with the NATS server timed out
-     * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communcation issues with the NATS server
-     */
-    public Subscription subscribe(String subject, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException; 
-
-    /**
-     * Create a subscription to the specified subject under the control of this
-     * dispatcher. Since a MessageHandler is also required, the Dispatcher will
-     * not prevent duplicate subscriptions from being made.
-     *
-     * <p>
-     * Every call creates a new subscription, unlike the
      * {@link Dispatcher#subscribe(String, String)} method that does not take a
      * MessageHandler.
      *
@@ -164,29 +100,6 @@ public interface Dispatcher extends Consumer {
      * @throws IllegalStateException if the dispatcher was previously closed
      */
     public Subscription subscribe(String subject, String queue, MessageHandler handler);
-
-    /**
-     * Create a subscription to the specified subject under the control of this
-     * dispatcher. Since a MessageHandler is also required, the Dispatcher will
-     * not prevent duplicate subscriptions from being made.
-     *
-     * <p>
-     * Every call creates a new subscription, unlike the
-     * {@link Dispatcher#subscribe(String, String)} method that does not take a
-     * MessageHandler.
-     *
-     *
-     * @param subject The subject to subscribe to.
-     * @param queue The queue group to join.
-     * @param handler The target for the messages
-     * @param options The options for this subscription.
-     * @return The Subscription, so subscriptions may be later unsubscribed manually.
-     * @throws TimeoutException if communication with the NATS server timed out
-     * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communcation issues with the NATS server
-     * @throws IllegalStateException if the dispatcher was previously closed
-     */
-    public Subscription subscribe(String subject, String queue, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
 
     /**
      * Unsubscribe from the specified subject, the queue is implicit.
@@ -208,6 +121,7 @@ public interface Dispatcher extends Consumer {
      *
      * @param subscription The Subscription to unsubscribe from.
      * @return The Dispatcher, so calls can be chained.
+     * @throws IllegalStateException if the dispatcher was previously closed
      * @throws IllegalStateException if the Subscription is not managed by this dispatcher
      */
     public Dispatcher unsubscribe(Subscription subscription);

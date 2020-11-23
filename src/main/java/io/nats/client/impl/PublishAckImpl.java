@@ -17,8 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.nats.client.PublishAck;
+
 // Internal class to handle jetstream acknowedgements
-class Ack {
+class PublishAckImpl implements PublishAck {
 
     private String stream = null;
     private long seq = -1;
@@ -32,7 +34,7 @@ class Ack {
     // Acks will be received with the following format:
     // "-ERR <server message>""
     // "+OK { "stream" : "mystream", "seq", 42}"
-    public Ack(byte[] response) throws IOException {
+    public PublishAckImpl(byte[] response) throws IOException {
         // "-ERR Server Message"
         if (response.length < 5) {
             // throw IOException to mirror other protocol exceptions.

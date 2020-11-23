@@ -42,6 +42,15 @@ public class PublishOptions {
         this.streamTimeout = timeout;
     }
 
+    public PublishOptions(Duration timeout) {
+        this.stream = null;
+        this.streamTimeout = timeout;
+    }
+
+    public PublishOptions(String stream) {
+        this.stream = stream;
+    }
+
     /**
      * Gets the name of the stream.
      * @return the name of the stream.
