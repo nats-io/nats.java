@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2020 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 public class PublishAckTests {
     @Test
     public void testValidAck() {
-        String json = "+OK {\"stream\":\"test\",\"seq\":42, \"duplicate\" : true }";
+        String json = "{\"stream\":\"test\",\"seq\":42, \"duplicate\" : true }";
 
         try {
             PublishAckImpl ack = new PublishAckImpl(json.getBytes());
@@ -52,7 +52,7 @@ public class PublishAckTests {
     public void testThrowsOnERR() {
         String msg = "Test generated error.";
         try {
-            String json = "-ERR " + msg;
+            String json = "{\"type\" : \"thetype\",\"code\" : 1234, \"description\" : \"" + msg + "\"}";
             new PublishAckImpl(json.getBytes());
             assertFalse(true);
         } catch (Exception ex) {

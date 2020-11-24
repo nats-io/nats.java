@@ -233,5 +233,5 @@ public class JetStreamImpl implements JetStream {
         checkNull(handler, "handler");
         checkNull(options, "options");      
         return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, options);
-    }    
+    }
 }

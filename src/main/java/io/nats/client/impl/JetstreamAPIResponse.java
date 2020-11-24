@@ -58,6 +58,10 @@ class JetstreamAPIResponse {
         return type;
     }
 
+    long getCode() {
+        return code;
+    }
+
     boolean hasError() {
         return code != UnsetErrorCode;
     }
@@ -67,18 +71,23 @@ class JetstreamAPIResponse {
             return null;
         }
         if (desc == null && code == 0) {
-            return "Unknown Jetstream Error";
+            return "Unknown Jetstream Error: " + getResponse();
         }
-        if (desc == null || code > 0) {
-            return "Unknown Jetstream error.  Code: " + code;
+        if (desc == null && code > 0) {
+            return "Unknown Jetstream error with code: " + getCode();
         }
         return desc;
     }
 
     String getResponse() {
-        if (code != UnsetErrorCode) {
-            return null;
-        }
         return response;
+    }
+
+    String getDescription() {
+        return desc;
+    }
+
+    static boolean isError(String s) {
+        return s.contains("code");
     }
 }

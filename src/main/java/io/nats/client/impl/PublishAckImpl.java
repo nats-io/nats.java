@@ -29,27 +29,28 @@ class PublishAckImpl implements PublishAck {
 
     private static final Pattern streamRE = JsonUtils.buildPattern("stream", FieldType.jsonString);
     private static final Pattern duplicateRE = JsonUtils.buildPattern("duplicate", FieldType.jsonBoolean);
-    private static final Pattern seqnoRE =JsonUtils.buildPattern("seq", FieldType.jsonNumber); 
+    private static final Pattern seqnoRE = JsonUtils.buildPattern("seq", FieldType.jsonNumber); 
 
     // Acks will be received with the following format:
-    // "-ERR <server message>""
-    // "+OK { "stream" : "mystream", "seq", 42}"
+    // Error = {"code" : "description"}
+    // OK = {"stream" : "mystream", "seq", 42}"
     public PublishAckImpl(byte[] response) throws IOException {
-        // "-ERR Server Message"
         if (response.length < 5) {
             // throw IOException to mirror other protocol exceptions.
             throw new IOException("Invalid ack from a jetstream publish");
         }
 
+
         String s = new String(response, StandardCharsets.UTF_8);
-        if (s.startsWith("-ERR")) {
-            throw new IOException(s.substring(5));
+
+        // check for error and then parse for speed.
+        if (JetstreamAPIResponse.isError(s)) {
+            JetstreamAPIResponse resp = new JetstreamAPIResponse(response);
+            if (resp.hasError()) {
+                throw new IOException(resp.getError());
+            }
         }
 
-        if (!s.startsWith("+OK")) {
-            throw new IOException("Invalid protocol message: " + s);
-        }
-        
         Matcher m = streamRE.matcher(s);
         if (m.find()) {
             this.stream = m.group(1);
