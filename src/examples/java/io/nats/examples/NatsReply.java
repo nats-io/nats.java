@@ -31,11 +31,11 @@ public class NatsReply {
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
             + "\nUse the URL for user/pass/token authentication.\n";
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.readReplyArgs(args, usageString);
 
-        try {
-            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true));
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
+
             CountDownLatch latch = new CountDownLatch(exArgs.msgCount); // dispatcher runs callback in another thread
             final AtomicInteger counter = new AtomicInteger(0);
             
@@ -43,7 +43,7 @@ public class NatsReply {
 
                 System.out.printf("\nMessage Received [%d]\n", counter.incrementAndGet());
 
-                if (msg.getHeaders() != null && msg.getHeaders().size() > 0) {
+                if (msg.hasHeaders()) {
                     System.out.println("  Headers:");
                     for (String key: msg.getHeaders().keySet()) {
                         for (String value : msg.getHeaders().values(key)) {
@@ -66,15 +66,9 @@ public class NatsReply {
             latch.await();
 
             nc.closeDispatcher(d); // This isn't required, closing the connection will do it
-            nc.close();
-            
-        } catch (Exception exp) {
+        }
+        catch (Exception exp) {
             exp.printStackTrace();
         }
-    }
-
-    static void usage() {
-        System.err.println(usageString);
-        System.exit(-1);
     }
 }

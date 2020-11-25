@@ -34,8 +34,7 @@ public class NatsReq {
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.readRequestArgs(args, usageString);
 
-        try {
-            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false));
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nRequesting '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
@@ -51,10 +50,8 @@ public class NatsReq {
             System.out.printf("\nReceived reply '%s' on subject '%s'\n\n",
                     new String(reply.getData(), StandardCharsets.UTF_8),
                     reply.getSubject());
-
-            nc.close();
-
-        } catch (Exception exp) {
+        }
+        catch (Exception exp) {
             exp.printStackTrace();
         }
     }

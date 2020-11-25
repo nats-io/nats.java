@@ -33,10 +33,10 @@ public class NatsSub {
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.readSubscribeArgs(args, usageString);
 
-        try {
-            System.out.printf("\nTrying to connect to %s, and listen to %s for %d messages.\n\n", exArgs.server, exArgs.subject, exArgs.msgCount);
+        System.out.printf("\nTrying to connect to %s, and listen to %s for %d messages.\n\n", exArgs.server, exArgs.subject, exArgs.msgCount);
 
-            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true));
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
+
             Subscription sub = nc.subscribe(exArgs.subject);
             nc.flush(Duration.ofSeconds(5));
 
@@ -45,7 +45,7 @@ public class NatsSub {
 
                 System.out.printf("\nMessage Received [%d]\n", (i+1));
 
-                if (msg.getHeaders() != null && msg.getHeaders().size() > 0) {
+                if (msg.hasHeaders()) {
                     System.out.println("  Headers:");
                     for (String key: msg.getHeaders().keySet()) {
                         for (String value : msg.getHeaders().values(key)) {
@@ -59,10 +59,8 @@ public class NatsSub {
                         new String(msg.getData(), StandardCharsets.UTF_8));
 
             }
-
-            nc.close();
-            
-        } catch (Exception exp) {
+        }
+        catch (Exception exp) {
             exp.printStackTrace();
         }
     }
