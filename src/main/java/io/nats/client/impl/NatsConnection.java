@@ -758,6 +758,7 @@ class NatsConnection implements Connection {
 
     private void _publish(NatsMessage msg) {
 
+        checkIfNeedsHeaderSupport(msg);
         checkPayloadSize(msg);
 
         if (isClosed()) {
@@ -772,6 +773,13 @@ class NatsConnection implements Connection {
                     "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());
         }
         queueOutgoing(msg);
+    }
+
+    private void checkIfNeedsHeaderSupport(NatsMessage msg) {
+        if (msg.hasHeaders() && !serverInfo.get().isHeadersSupported()) {
+            throw new IllegalArgumentException(
+                    "Headers are not supported by the server, version: " + serverInfo.get().getVersion());
+        }
     }
 
     private void checkPayloadSize(NatsMessage natsMsg) {
@@ -1494,7 +1502,7 @@ class NatsConnection implements Connection {
 
     public Collection<String> getServers() {
         NatsServerInfo info = this.serverInfo.get();
-        HashSet<String> check = new HashSet<String>();
+        HashSet<String> check = new HashSet<>();
         ArrayList<String> servers = new ArrayList<>();
 
         options.getServers().stream().forEach(x -> {

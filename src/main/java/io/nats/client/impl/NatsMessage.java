@@ -221,7 +221,12 @@ public class NatsMessage implements Message {
     }
 
     byte[] getSerializedHeader() {
-        return headers == null || headers.size() == 0 ? null : headers.getSerialized();
+        return hdrLen == 0 ? null : headers.getSerialized();
+    }
+
+    @Override
+    public boolean hasHeaders() {
+        return hdrLen > 0;
     }
 
     @Override

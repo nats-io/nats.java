@@ -36,6 +36,11 @@ public interface Message {
 	String getReplyTo();
 
 	/**
+	 * @return true if there are headers
+	 */
+	boolean hasHeaders();
+
+	/**
 	 * @return the headers object the message
 	 */
 	Headers getHeaders();

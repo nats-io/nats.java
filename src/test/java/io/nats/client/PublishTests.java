@@ -80,11 +80,29 @@ public class PublishTests {
             String customInfo = "{\"server_id\":\"myid\",\"max_payload\": 1000}";
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
-                        Connection nc = Nats.connect(ts.getURI())) {
+                 Connection nc = Nats.connect(ts.getURI())) {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
                 byte[] body = new byte[1001];
                 nc.publish("subject", null, body);
+                fail();
+            }
+        });
+    }
+
+    @Test
+    public void testThrowsIfheadersNotSupported() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            String customInfo = "{\"server_id\":\"test\"}";
+
+            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
+                 Connection nc = Nats.connect(ts.getURI())) {
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+                nc.publish(new NatsMessage.Builder()
+                        .subject("testThrowsIfheadersNotSupported")
+                        .headers(new Headers().add("key", "value"))
+                        .build());
                 fail();
             }
         });
@@ -111,7 +129,8 @@ public class PublishTests {
         runSimplePublishTest("testsubforreply", "replyTo", new Headers().add("key", "value"), "This is the message to reply to.");
     }
 
-    private void runSimplePublishTest(String subject, String replyTo, Headers headers, String bodyString) throws IOException, InterruptedException,ExecutionException {
+    private void runSimplePublishTest(String subject, String replyTo, Headers headers, String bodyString)
+            throws IOException, InterruptedException,ExecutionException {
         CompletableFuture<Boolean> gotPub = new CompletableFuture<>();
         AtomicReference<String> hdrProto  = new AtomicReference<>("");
         AtomicReference<String> body  = new AtomicReference<>("");
