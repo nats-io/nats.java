@@ -27,8 +27,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.nats.client.impl.NatsConstants.OP_PING;
-import static io.nats.client.impl.NatsConstants.OP_PONG;
+import static io.nats.client.support.NatsConstants.OP_PING;
+import static io.nats.client.support.NatsConstants.OP_PONG;
 
 class NatsConnectionWriter implements Runnable {
 

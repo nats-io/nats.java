@@ -24,7 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.impl.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests {

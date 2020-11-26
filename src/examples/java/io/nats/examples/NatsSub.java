@@ -31,7 +31,7 @@ public class NatsSub {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.readSubscribeArgs(args, usageString);
+        ExampleArgs exArgs = ExampleUtils.readSubscribeArgs(args, usageString);
 
         System.out.printf("\nTrying to connect to %s, and listen to %s for %d messages.\n\n", exArgs.server, exArgs.subject, exArgs.msgCount);
 
@@ -61,7 +61,7 @@ public class NatsSub {
             }
         }
         catch (Exception exp) {
-            exp.printStackTrace();
+            System.err.println(exp);
         }
     }
 }

@@ -16,10 +16,12 @@ package io.nats.client.impl;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
+import io.nats.client.support.IncomingMessageHeader;
+import io.nats.client.support.Status;
 
 import java.nio.charset.Charset;
 
-import static io.nats.client.impl.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -33,6 +35,7 @@ public class NatsMessage implements Message {
     private byte[] data;
     private boolean utf8mode;
     private Headers headers;
+    private Status status;
 
     // Kind.INCOMING : subject, replyTo, data and these fields
     private String sid;
@@ -180,9 +183,10 @@ public class NatsMessage implements Message {
     }
 
     // Only for incoming messages, with no protocol bytes
-    void setHeaders(byte[] headersBytes) {
-        this.headers = new Headers(headersBytes);  // constructor accounts for null and empty
-        hdrLen = headersBytes.length;
+    void setHeaders(IncomingMessageHeader imh) {
+        headers = imh.getHeaders();
+        status = imh.getStatus();
+        hdrLen = imh.getSerializedLength();
         totLen = hdrLen + dataLen;
     }
 
@@ -232,6 +236,16 @@ public class NatsMessage implements Message {
     @Override
     public Headers getHeaders() {
         return headers;
+    }
+
+    @Override
+    public boolean hasStatus() {
+        return status != null;
+    }
+
+    @Override
+    public Status getStatus() {
+        return status;
     }
 
     @Override

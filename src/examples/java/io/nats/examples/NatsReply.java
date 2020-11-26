@@ -32,7 +32,7 @@ public class NatsReply {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.readReplyArgs(args, usageString);
+        ExampleArgs exArgs = ExampleUtils.readReplyArgs(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
@@ -68,7 +68,7 @@ public class NatsReply {
             nc.closeDispatcher(d); // This isn't required, closing the connection will do it
         }
         catch (Exception exp) {
-            exp.printStackTrace();
+            System.err.println(exp);
         }
     }
 }

@@ -29,7 +29,7 @@ public class NatsPub {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.readPublishArgs(args, usageString);
+        ExampleArgs exArgs = ExampleUtils.readPublishArgs(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 
@@ -45,7 +45,7 @@ public class NatsPub {
             nc.flush(Duration.ofSeconds(5));
         }
         catch (Exception exp) {
-            exp.printStackTrace();
+            System.err.println(exp);
         }
     }
 }

@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.support.IncomingMessageHeader;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -23,7 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.impl.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionReader implements Runnable {
 
@@ -278,7 +280,7 @@ class NatsConnectionReader implements Runnable {
                 }
 
                 if (msgHeadersPosition == msgHeaders.length) {
-                    incoming.setHeaders(msgHeaders);
+                    incoming.setHeaders(new IncomingMessageHeader(msgHeaders));
                     msgHeaders = null;
                     msgHeadersPosition = -1;
                     this.mode = Mode.GATHER_DATA;

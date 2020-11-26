@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static io.nats.client.impl.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ParseTests {

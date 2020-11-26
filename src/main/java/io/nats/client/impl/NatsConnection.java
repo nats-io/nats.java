@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.NatsException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,7 +36,7 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.nats.client.impl.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnection implements Connection {
 
@@ -1073,10 +1074,15 @@ class NatsConnection implements Connection {
         } else {
             f = responses.remove(token);
         }
-
         if (f != null) {
             statistics.decrementOutstandingRequests();
-            f.complete(msg);
+            if (msg.hasStatus()) {
+                f.completeExceptionally(
+                        new NatsException(msg.getStatus().getCode(), msg.getStatus().getMessage()));
+            }
+            else {
+                f.complete(msg);
+            }
             statistics.incrementRepliesReceived();
         } else if (!oldStyle && !subject.startsWith(mainInbox)) {
             System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection");

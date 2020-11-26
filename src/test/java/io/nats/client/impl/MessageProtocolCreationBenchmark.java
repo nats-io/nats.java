@@ -15,7 +15,7 @@ package io.nats.client.impl;
 
 import java.text.NumberFormat;
 
-import static io.nats.client.impl.NatsConstants.EMPTY_BODY;
+import static io.nats.client.support.NatsConstants.EMPTY_BODY;
 
 public class MessageProtocolCreationBenchmark {
     public static void main(String args[]) throws InterruptedException {

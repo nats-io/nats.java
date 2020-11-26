@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.Headers;
+import io.nats.client.support.Status;
 
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
@@ -46,6 +47,16 @@ public interface Message {
 	Headers getHeaders();
 
 	/**
+	 * @return true if there is status
+	 */
+	boolean hasStatus();
+
+	/**
+	 * @return the status object message
+	 */
+	Status getStatus();
+
+	/**
 	 * @return the data from the message
 	 */
 	byte[] getData();
@@ -54,6 +65,7 @@ public interface Message {
 	 * @return if is utf8Mode
 	 */
 	boolean isUtf8mode();
+
 	/**
 	 * @return the Subscription associated with this message, may be owned by a Dispatcher
 	 */

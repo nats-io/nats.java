@@ -23,41 +23,11 @@ public class ExampleArgs {
     public String message;
     public int msgCount = -1;
 
-    // Publish:   [-s server] [-h headerKey:headerValue]* <subject> <message>
-    // Subscribe: [-s server] <subject> <msgCount>
-
-    // Request:   [-s server] [-h headerKey:headerValue]* <subject> <message>
-    // Reply:     [-s server] <subject> <msgCount>
-
-    public static ExampleArgs readPublishArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, true, usageString);
-        if (ea.message == null) {
-            usage(usageString);
-        }
-        return ea;
-    }
-
-    public static ExampleArgs readRequestArgs(String[] args, String usageString) {
-        return readPublishArgs(args, usageString);
-    }
-
-    public static ExampleArgs readSubscribeArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, false, usageString);
-        if (ea.msgCount < 1) {
-            usage(usageString);
-        }
-        return ea;
-    }
-
-    public static ExampleArgs readReplyArgs(String[] args, String usageString) {
-        return readSubscribeArgs(args, usageString);
-    }
-
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
     }
 
-    private ExampleArgs(String[] args, boolean pubReq, String usageString) {
+    ExampleArgs(String[] args, boolean pubReq, String usageString) {
         try {
             for (int x = 0; x < args.length; x++) {
                 String arg = args[x];
@@ -70,8 +40,9 @@ public class ExampleArgs {
             }
         }
         catch (RuntimeException e) {
-            System.out.println("Exception while processing command line arguments: " + e + "\n");
-            usage(usageString);
+            System.err.println("Exception while processing command line arguments: " + e + "\n");
+            System.out.println(usageString);
+            System.exit(-1);
         }
     }
 
@@ -97,10 +68,5 @@ public class ExampleArgs {
             String[] hdr = value.split(":");
             headers.add(hdr[0], hdr[1]);
         }
-    }
-
-    private static void usage(String usageString) {
-        System.err.println(usageString);
-        System.exit(-1);
     }
 }

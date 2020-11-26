@@ -32,7 +32,7 @@ public class NatsReq {
                     + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleArgs.readRequestArgs(args, usageString);
+        ExampleArgs exArgs = ExampleUtils.readRequestArgs(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 
@@ -50,9 +50,19 @@ public class NatsReq {
             System.out.printf("\nReceived reply '%s' on subject '%s'\n\n",
                     new String(reply.getData(), StandardCharsets.UTF_8),
                     reply.getSubject());
+
+            if (reply.hasHeaders()) {
+                System.out.println("  Headers:");
+                for (String key: reply.getHeaders().keySet()) {
+                    for (String value : reply.getHeaders().values(key)) {
+                        System.out.printf("    %s: %s\n", key, value);
+                    }
+                }
+            }
+
         }
         catch (Exception exp) {
-            exp.printStackTrace();
+            System.err.println(exp);
         }
     }
 }

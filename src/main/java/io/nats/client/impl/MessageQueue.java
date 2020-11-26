@@ -23,7 +23,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
-import static io.nats.client.impl.NatsConstants.EMPTY_BODY;
+import static io.nats.client.support.NatsConstants.EMPTY_BODY;
 
 class MessageQueue {
     private final static int STOPPED = 0;

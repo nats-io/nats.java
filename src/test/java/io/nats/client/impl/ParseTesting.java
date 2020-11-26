@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
-import static io.nats.client.impl.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.*;
 
 public class ParseTesting {
     static String infoJson = "{" + "\"server_id\":\"myserver\"" + "," + "\"version\":\"1.1.1\"" + ","

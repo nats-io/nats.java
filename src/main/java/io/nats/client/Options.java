@@ -266,6 +266,10 @@ public class Options {
      */
     public static final String PROP_NO_HEADERS = PFX + "noheaders";
     /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_NO_HEADERS}, see {@link Builder#noHeaders() noHeaders}.
+     */
+    public static final String PROP_NO_NORESPONDERS = PFX + "nonoresponders";
+    /**
      * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_NAME}, see {@link Builder#connectionName(String)
      * connectionName}.
      */
@@ -429,6 +433,11 @@ public class Options {
      */
     static final String OPTION_HEADERS = "headers";
 
+    /**
+     * No Responders key if noresponders are supported
+     */
+    static final String OPTION_NORESPONDERS = "no_responders";
+
     private List<URI> servers;
     private final boolean noRandomize;
     private final String connectionName;
@@ -451,6 +460,7 @@ public class Options {
     private final int bufferSize;
     private final boolean noEcho;
     private final boolean noHeaders;
+    private final boolean noNoResponders;
     private final boolean utf8Support;
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
@@ -522,6 +532,7 @@ public class Options {
         private boolean traceConnection = false;
         private boolean noEcho = false;
         private boolean noHeaders = false;
+        private boolean noNoResponders = false;
         private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
@@ -631,6 +642,10 @@ public class Options {
 
             if (props.containsKey(PROP_NO_HEADERS)) {
                 this.noHeaders = Boolean.parseBoolean(props.getProperty(PROP_NO_HEADERS));
+            }
+
+            if (props.containsKey(PROP_NO_NORESPONDERS)) {
+                this.noNoResponders = Boolean.parseBoolean(props.getProperty(PROP_NO_NORESPONDERS));
             }
 
             if (props.containsKey(PROP_UTF8_SUBJECTS)) {
@@ -796,6 +811,15 @@ public class Options {
          */
         public Builder noHeaders() {
             this.noHeaders = true;
+            return this;
+        }
+
+        /**
+         * Turn off noresponder support. Some versions of the server don't support it.
+         * @return the Builder for chaining
+         */
+        public Builder noNoResponders() {
+            this.noNoResponders = true;
             return this;
         }
 
@@ -1283,6 +1307,7 @@ public class Options {
         this.bufferSize = b.bufferSize;
         this.noEcho = b.noEcho;
         this.noHeaders = b.noHeaders;
+        this.noNoResponders = b.noNoResponders;
         this.utf8Support = b.utf8Support;
         this.inboxPrefix = b.inboxPrefix;
         this.traceConnection = b.traceConnection;
@@ -1386,6 +1411,13 @@ public class Options {
      */
     public boolean isNoHeaders() {
         return noHeaders;
+    }
+
+    /**
+     * @return is NoRespnders ignored disabled, see {@link Builder#noNoResponders() noNoResponders()} in the builder doc
+     */
+    public boolean isNoNoResponders() {
+        return noNoResponders;
     }
 
     /**
@@ -1636,6 +1668,7 @@ public class Options {
         appendOption(connectString, Options.OPTION_TLS_REQUIRED, String.valueOf(this.isTLSRequired()), false, true);
         appendOption(connectString, Options.OPTION_ECHO, String.valueOf(!this.isNoEcho()), false, true);
         appendOption(connectString, Options.OPTION_HEADERS, String.valueOf(!this.isNoHeaders()), false, true);
+        appendOption(connectString, Options.OPTION_NORESPONDERS, String.valueOf(!this.isNoNoResponders()), false, true);
 
         if (includeAuth && nonce != null && this.getAuthHandler() != null) {
             char[] nkey = this.getAuthHandler().getID();
