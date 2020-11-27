@@ -16,7 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
-import io.nats.client.support.IncomingMessageHeader;
+import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
 import java.nio.charset.Charset;
@@ -143,10 +143,6 @@ public class NatsMessage implements Message {
         // headers and data are set later and sizes are calculated during those setters
     }
 
-    Kind getKind() {
-        return kind;
-    }
-
     boolean isProtocol() {
         return kind == Kind.PROTOCOL;
     }
@@ -183,7 +179,7 @@ public class NatsMessage implements Message {
     }
 
     // Only for incoming messages, with no protocol bytes
-    void setHeaders(IncomingMessageHeader imh) {
+    void setHeaders(IncomingHeadersProcessor imh) {
         headers = imh.getHeaders();
         status = imh.getStatus();
         hdrLen = imh.getSerializedLength();
@@ -207,11 +203,7 @@ public class NatsMessage implements Message {
 
     @Override
     public Connection getConnection() {
-        if (this.subscription == null) {
-            return null;
-        }
-
-        return this.subscription.connection;
+        return this.subscription == null ? null : this.subscription.connection;
     }
 
     @Override
@@ -225,7 +217,7 @@ public class NatsMessage implements Message {
     }
 
     byte[] getSerializedHeader() {
-        return hdrLen == 0 ? null : headers.getSerialized();
+        return headers == null ? null : headers.getSerialized();
     }
 
     @Override

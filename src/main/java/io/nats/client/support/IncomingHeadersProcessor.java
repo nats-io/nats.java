@@ -17,13 +17,13 @@ import io.nats.client.impl.Headers;
 
 import static io.nats.client.support.NatsConstants.*;
 
-public class IncomingMessageHeader {
+public class IncomingHeadersProcessor {
 
     private final int serializedLength;
     private Headers headers;
     private Status inlineStatus;
 
-    public IncomingMessageHeader(byte[] serialized) {
+    public IncomingHeadersProcessor(byte[] serialized) {
 
         // basic validation first to help fail fast
         if (serialized == null || serialized.length == 0) {
