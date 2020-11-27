@@ -230,7 +230,7 @@ public class NatsMessage implements Message {
 
     @Override
     public boolean hasHeaders() {
-        return hdrLen > 0;
+        return headers != null;
     }
 
     @Override

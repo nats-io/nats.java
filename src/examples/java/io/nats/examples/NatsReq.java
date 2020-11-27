@@ -62,7 +62,8 @@ public class NatsReq {
 
         }
         catch (Exception exp) {
-            System.err.println(exp);
+            exp.printStackTrace();
+//            System.err.println(exp);
         }
     }
 }
