@@ -1,6 +1,6 @@
 package io.nats.client.impl;
 
-import io.nats.client.support.IncomingMessageHeader;
+import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 import org.junit.jupiter.api.Test;
 
@@ -271,8 +271,8 @@ public class HeadersTests {
         byte[] serialized = headers1.getSerialized();
         assertEquals(serialized.length, headers1.serializedLength());
 
-        IncomingMessageHeader incomingMessageHeader = new IncomingMessageHeader(serialized);
-        Headers headers2 = incomingMessageHeader.getHeaders();
+        IncomingHeadersProcessor incomingHeadersProcessor = new IncomingHeadersProcessor(serialized);
+        Headers headers2 = incomingHeadersProcessor.getHeaders();
         assertNotNull(headers2);
 
         assertEquals(headers1.size(), headers2.size());
@@ -289,24 +289,24 @@ public class HeadersTests {
 
     @Test
     public void constructHeadersWithInvalidBytes() {
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader(null));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/0.0".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0 \r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0X\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0 \r\n\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0\r\n\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0 503\r".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0 503\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0 FiveOhThree\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0\r\n\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0\r\n\r\n\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0\r\nk1:v1".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0\r\nk1:v1\r\n".getBytes()));
-        assertThrows(IllegalArgumentException.class, () -> new IncomingMessageHeader("NATS/1.0\r\nk1:v1\r\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor(null));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/0.0".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 \r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0X\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 \r\n\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 503\r".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 503\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0 FiveOhThree\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\n\r\n\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\nk1:v1".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\nk1:v1\r\n".getBytes()));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0\r\nk1:v1\r\r\n".getBytes()));
     }
 
     @Test
@@ -318,8 +318,8 @@ public class HeadersTests {
     }
 
     private void assertValidHeader(String test, String key, String val) {
-        IncomingMessageHeader incomingMessageHeader = new IncomingMessageHeader(test.getBytes());
-        Headers headers = incomingMessageHeader.getHeaders();
+        IncomingHeadersProcessor incomingHeadersProcessor = new IncomingHeadersProcessor(test.getBytes());
+        Headers headers = incomingHeadersProcessor.getHeaders();
         assertNotNull(headers);
         assertEquals(1, headers.size());
         assertTrue(headers.containsKey(key));
@@ -335,8 +335,8 @@ public class HeadersTests {
     }
 
     private void assertValidStatus(String test, int code, String msg) {
-        IncomingMessageHeader incomingMessageHeader = new IncomingMessageHeader(test.getBytes());
-        Status status = incomingMessageHeader.getStatus();
+        IncomingHeadersProcessor incomingHeadersProcessor = new IncomingHeadersProcessor(test.getBytes());
+        Status status = incomingHeadersProcessor.getStatus();
         assertNotNull(status);
         assertEquals(code, status.getCode());
         if (msg != null) {

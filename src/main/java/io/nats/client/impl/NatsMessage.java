@@ -179,10 +179,10 @@ public class NatsMessage implements Message {
     }
 
     // Only for incoming messages, with no protocol bytes
-    void setHeaders(IncomingHeadersProcessor imh) {
-        headers = imh.getHeaders();
-        status = imh.getStatus();
-        hdrLen = imh.getSerializedLength();
+    void setHeaders(IncomingHeadersProcessor ihp) {
+        headers = ihp.getHeaders();
+        status = ihp.getStatus();
+        hdrLen = ihp.getSerializedLength();
         totLen = hdrLen + dataLen;
     }
 
