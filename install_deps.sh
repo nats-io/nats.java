@@ -1,19 +1,26 @@
 #!/bin/sh
 
 echo "Downloading go."
-wget https://golang.org/dl/go1.15.5.linux-amd64.tar.gz -O tmp.tar.gz
+wget --quiet https://golang.org/dl/go1.15.5.linux-amd64.tar.gz -O tmp.tar.gz
 
 echo "Installing go."
 tar -C `pwd` -xzf tmp.tar.gz
-export PATH=`pwd`/go/bin:$PATH
+export GOROOT=`pwd`/go
+export PATH=$GOROOT/bin:$PATH
 
 echo "Getting the nats-server"
-GO111MODULE=on go get golang.org/x/crypto/ed25519
-GO111MODULE=on go get github.com/nats-io/nats-server/v2@398ef78aac066a54867d10b73fccf50089de0d02
+
+curdir=`pwd`
+mkdir -p $GOROOT/src/github.com/nats-io/nats-server
+git clone https://github.com/nats-io/nats-server.git $GOROOT/src/github.com/nats-io/nats-server
+cd $GOROOT/src/github.com/nats-io/nats-server
+GO111MODULE=on go install -v ./...
+
+cd $curdir
 
 # nats-server should be in `pwd`/go/bin
-cp $GOROOT/bin/nats-server .
+mkdir nats-server
+cp $GOROOT/bin/nats-server nats-server
 
-echo "NATS server version"
-`pwd`/nats-server --version
-
+echo "NATS server version:"
+`pwd`/nats-server/nats-server --version
