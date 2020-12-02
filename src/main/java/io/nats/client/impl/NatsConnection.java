@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.support.NatsException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -993,7 +992,7 @@ class NatsConnection implements Connection {
         Future<Message> incoming = _request(message);
         try {
             reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (TimeoutException e) {
+        } catch (TimeoutException | ExecutionException e) {
             incoming.cancel(true);
         } catch (Throwable e) {
             throw new AssertionError(e);
@@ -1076,9 +1075,8 @@ class NatsConnection implements Connection {
         }
         if (f != null) {
             statistics.decrementOutstandingRequests();
-            if (msg.hasStatus()) {
-                f.completeExceptionally(
-                        new NatsException(msg.getStatus().getCode(), msg.getStatus().getMessage()));
+            if (msg.hasStatus() && msg.getStatus().getCode() == 503) {
+                f.cancel(true);
             }
             else {
                 f.complete(msg);

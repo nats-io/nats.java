@@ -24,6 +24,7 @@ public class ExampleUtils {
                 .connectionTimeout(Duration.ofSeconds(5))
                 .pingInterval(Duration.ofSeconds(10))
                 .reconnectWait(Duration.ofSeconds(1))
+//                .noNoResponders()
                 .errorListener(new ErrorListener() {
                     public void exceptionOccurred(Connection conn, Exception exp) {
                         System.out.println("Exception " + exp.getMessage());

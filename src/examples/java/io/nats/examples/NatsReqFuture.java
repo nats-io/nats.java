@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-public class NatsReq {
+public class NatsReqFuture {
 
     static final String usageString =
             "\nUsage: java NatsReq [-s server] [-h headerKey:headerValue]* <subject> <text message>\n"
@@ -61,8 +61,8 @@ public class NatsReq {
             }
 
         }
-        catch (Exception exp) {
-            System.err.println(exp);
+        catch (Exception e) {
+            System.err.println(e);
         }
     }
 }

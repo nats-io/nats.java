@@ -13,8 +13,9 @@
 
 package io.nats.client;
 
-import io.nats.client.support.NatsException;
 import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.CancellationException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,9 +30,7 @@ public class RequestTests {
             fail();
         }
         catch (Exception e) {
-            assertTrue(e.getCause() instanceof NatsException);
-            NatsException natsException = (NatsException)(e.getCause());
-            assertEquals(503, natsException.getCode());
+            assertTrue(e instanceof CancellationException);
         }
     }
 }

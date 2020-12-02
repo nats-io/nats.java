@@ -28,19 +28,13 @@ public class Status {
         MESSAGE_MAP.put(503, "No responders available for request");
     }
 
+    public Status(int code, String message) {
+        this.code = code;
+        this.message = message == null ? makeMessage(code) : message ;
+    }
+
     public Status(Token codeToken, Token messageToken) {
-        try {
-            code = Integer.parseInt(codeToken.getValue());
-            if (messageToken.hasValue()) {
-                message = messageToken.getValue();
-            }
-            else {
-                message = MESSAGE_MAP.getOrDefault(code, "Server Status Message: " + code);
-            }
-        }
-        catch (Exception e) {
-            throw new IllegalArgumentException(NatsConstants.INVALID_HEADER_STATUS_CODE);
-        }
+        this(extractCode(codeToken), extractMessage(messageToken));
     }
 
     public int getCode() {
@@ -51,5 +45,21 @@ public class Status {
         return message;
     }
 
-    public boolean isException() { return true; } // trying to imagine future uses
+    private static String extractMessage(Token messageToken) {
+        return messageToken.hasValue() ? messageToken.getValue() : null;
+    }
+
+    private static int extractCode(Token codeToken) {
+        try {
+            return Integer.parseInt(codeToken.getValue());
+        }
+        catch (Exception e) {
+            throw new IllegalArgumentException(NatsConstants.INVALID_HEADER_STATUS_CODE);
+        }
+    }
+
+    private String makeMessage(int code) {
+        String message = MESSAGE_MAP.get(code);
+        return message == null ? "Server Status Message: " + code : message;
+    }
 }
