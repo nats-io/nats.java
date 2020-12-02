@@ -448,7 +448,7 @@ public class Options {
     private final char[] password;
     private final char[] token;
     private final String inboxPrefix;
-    private final boolean useOldRequestStyle;
+    private boolean useOldRequestStyle;
     private final int bufferSize;
     private final boolean noEcho;
     private final boolean utf8Support;
@@ -1715,5 +1715,13 @@ public class Options {
         if (quotes) {
             builder.append("\"");
         }
+    }
+
+    /**
+     * Set old request style.
+     * @param value true to use the old request style
+     */
+    public void setOldRequestStyle(boolean value) {
+        useOldRequestStyle = value;
     }
 }

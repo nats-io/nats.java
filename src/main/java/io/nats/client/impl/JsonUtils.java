@@ -14,7 +14,14 @@
 package io.nats.client.impl;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import io.nats.client.Nats;
 
 /**
  * Internal json parsing helpers.
@@ -32,8 +39,11 @@ public final class JsonUtils {
     private static final String grabString = "\\s*\"(.+?)\"";
     private static final String grabNumber = "\\s*(\\d+)";
     private static final String grabBoolean = "\\s*(true|false)";
-    private static final String grabStringArray = "\\[(.+?)\\]";
+    private static final String grabStringArray = "\\[\\s*(.+?)\\s*\\]";
     private static final String colon = "\"\\s*:\\s*";
+
+
+    private static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn");
 
     private static String getTypePattern(FieldType type) {
         switch (type) {
@@ -82,6 +92,28 @@ public final class JsonUtils {
     
         return json.substring(bracketStart, bracketEnd+1);
     }
+
+    /**
+     * Parses JSON string array field.
+     * @param fieldName - name of the field.
+     * @param json - JSON that contains this struct.
+     * @return a string array, empty if no values are found.
+     */
+    public static String[] parseStringArray(String fieldName, String json) {
+        Pattern regex = JsonUtils.buildPattern(fieldName, FieldType.jsonStringArray);
+        Matcher m = regex.matcher(json);
+        if (!m.find()) {
+            return new String[0];
+        }
+        String jsonArray = m.group(1);
+        String[] quotedStrings = jsonArray.split("\\s*,\\s*");
+        String[] rv = new String[quotedStrings.length];
+        for (int i = 0; i < quotedStrings.length; i++) {
+            // subjects cannot contain quotes, so just do a replace.
+            rv[i] = quotedStrings[i].replace("\"", "");
+        }
+        return rv;     
+    }    
 
     /**
      * Appends a json field to a string builder.
@@ -148,5 +180,30 @@ public final class JsonUtils {
             }
         }
         sb.append("],");
+    }
+
+    /**
+     * Appends a date/time to a string builder as a rfc 3339 formatted field.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param time field value
+     */
+    public static void addFld(StringBuilder sb, String fname, ZonedDateTime time) {
+        if (time == null) {
+            return;
+        }
+
+        String s = rfc3339Formatter.format(time);
+        sb.append("\"" + fname + "\" : \"" + s + "Z\",");
+    }    
+
+    /**
+     * Parses a date time from the server.
+     * @param dateTime - date time from the server.
+     * @return a Zoned Date time.
+     */
+    public static ZonedDateTime parseDateTime(String dateTime) {
+        Instant inst = Instant.parse(dateTime);
+        return ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
     }
 }

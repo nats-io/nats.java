@@ -191,7 +191,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
 
-        this.subscribeImpl(subject, null, null);
+        this.subscribeImpl(subject, null, null, false);
         return this;
     }
     NatsSubscription subscribeReturningSubscription(String subject) {
@@ -199,7 +199,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
 
-        return this.subscribeImpl(subject, null, null);
+        return this.subscribeImpl(subject, null, null, false);
     }
     public Subscription subscribe(String subject, MessageHandler handler) {
         if (subject == null || subject.length() == 0) {
@@ -209,7 +209,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (handler == null) {
             throw new IllegalArgumentException("MessageHandler is required in subscribe");
         }
-        return this.subscribeImpl(subject, null, handler);
+        return this.subscribeImpl(subject, null, handler, false);
     }
 
     public Dispatcher subscribe(String subject, String queueName) {
@@ -220,7 +220,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (queueName == null || queueName.length() == 0) {
             throw new IllegalArgumentException("QueueName is required in subscribe");
         }
-        this.subscribeImpl(subject, queueName, null);
+        this.subscribeImpl(subject, queueName, null, false);
         return this;
     }
 
@@ -236,11 +236,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (handler == null) {
             throw new IllegalArgumentException("MessageHandler is required in subscribe");
         }
-        return this.subscribeImpl(subject, queueName, handler);
+        return this.subscribeImpl(subject, queueName, handler, false);
     }
 
     // Assumes the subj/queuename checks are done, does check for closed status
-    NatsSubscription subscribeImpl(String subject, String queueName, MessageHandler handler) {
+    NatsSubscription subscribeImpl(String subject, String queueName, MessageHandler handler, boolean isJetStream) {
         if (!this.running.get()) {
             throw new IllegalStateException("Dispatcher is closed");
         }
@@ -255,7 +255,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             NatsSubscription sub = this.subscriptionsUsingDefaultHandler.get(subject);
 
             if (sub == null) {
-                sub = connection.createSubscription(subject, queueName, this);
+                sub = connection.createSubscription(subject, queueName, this, isJetStream);
                 NatsSubscription actual = this.subscriptionsUsingDefaultHandler.putIfAbsent(subject, sub);
                 if (actual != null) {
                     this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
@@ -264,7 +264,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
             return sub;
         } else {
-            NatsSubscription sub = connection.createSubscription(subject, queueName, this);
+            NatsSubscription sub = connection.createSubscription(subject, queueName, this, isJetStream);
             this.subscriptionsWithHandlers.put(sub.getSID(), sub);
             this.subscriptionHandlers.put(sub.getSID(), handler);
             return sub;

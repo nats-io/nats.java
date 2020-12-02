@@ -44,7 +44,7 @@ public class ConsumerConfigurationTests {
             .startTime(zdt)
             .build();
 
-        c.setDeliverySubject("delsubj");
+        c.setDeliverSubject("delsubj");
 
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(99), c.getAckWait());

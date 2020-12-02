@@ -21,7 +21,7 @@ import io.nats.client.PublishAck;
 import io.nats.client.impl.JsonUtils.FieldType;
 
 // Internal class to handle jetstream acknowedgements
-class PublishAckImpl implements PublishAck {
+class NatsPublishAck implements PublishAck {
 
     private String stream = null;
     private long seq = -1;
@@ -34,7 +34,7 @@ class PublishAckImpl implements PublishAck {
     // Acks will be received with the following format:
     // Error = {"code" : "description"}
     // OK = {"stream" : "mystream", "seq", 42}"
-    public PublishAckImpl(byte[] response) throws IOException {
+    public NatsPublishAck(byte[] response) throws IOException {
         if (response.length < 5) {
             // throw IOException to mirror other protocol exceptions.
             throw new IOException("Invalid ack from a jetstream publish");

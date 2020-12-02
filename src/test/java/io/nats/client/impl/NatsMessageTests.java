@@ -29,7 +29,7 @@ import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
-import io.nats.client.Message.JetstreamMetaData;
+import io.nats.client.Message.MetaData;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
 
 public class NatsMessageTests {
@@ -138,7 +138,7 @@ public class NatsMessageTests {
 
         NatsMessage msg = new NatsMessage(subject, replyTo, body, false);
 
-        JetstreamMetaData jsmd = msg.getJetstreamMetaData();
+        MetaData jsmd = msg.metaData();
         assertNotNull(jsmd);
         assertEquals("test-stream", jsmd.getStream());
         assertEquals("test-consumer", jsmd.getConsumer());

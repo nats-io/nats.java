@@ -27,7 +27,63 @@ import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.StreamInfo.StreamState;
+
 public class JetstreamTests {
+
+    private static StreamInfo createMemoryStream(JetStream js, String streamName, String subject)
+            throws TimeoutException, InterruptedException {
+        String[] subjects = new String[1];
+        subjects[0] = subject;
+
+        StreamConfiguration sc = StreamConfiguration.builder().
+            name(streamName).
+            storageType(StorageType.Memory).
+            subjects(subjects).
+            build();
+
+        return js.addStream(sc);
+    }
+
+    @Test
+    public void testStreamAndConsumerCreate()throws IOException, InterruptedException,ExecutionException {
+        try (NatsTestServer ts = new NatsTestServer(false, true);
+             Connection nc = Nats.connect(ts.getURI())) {
+
+            String[] subjects = { "foo" };
+            try {
+                JetStream js = nc.jetStream();
+                StreamConfiguration sc = StreamConfiguration.builder().
+                    name("foo-stream").
+                    storageType(StorageType.Memory).
+                    subjects(subjects).
+                    build();
+
+                StreamInfo si = js.addStream(sc);
+
+                sc = si.getConfiguration();
+                assertNotNull(sc);
+                assertEquals("foo-stream", sc.getName());
+                
+                // spot check state
+                StreamState state = si.getStreamState();
+                assertEquals(0, state.getMsgCount());
+
+                ConsumerConfiguration cc = ConsumerConfiguration.builder().deliverSubject("bar").durable("mydurable").build();
+                ConsumerInfo ci = js.addConsumer("foo-stream", cc);
+
+                cc = ci.getConsumerConfiguration();
+                assertNotNull(cc);
+                assertEquals("bar", cc.getDeliverSubject());
+            } catch (Exception ex) {
+                Assertions.fail("Exception:  " + ex.getMessage());
+            }
+            finally {
+                nc.close();
+            }
+        }       
+    }
 
     @Test
     public void testJetstreamPublishDefaultOptions() throws IOException, InterruptedException,ExecutionException {
@@ -35,8 +91,10 @@ public class JetstreamTests {
              Connection nc = Nats.connect(ts.getURI())) {
 
             try {
-                ts.createMemoryStream("foo-stream", "foo");
-                PublishAck ack = nc.jetStream().publish("foo", null);
+                JetStream js = nc.jetStream();
+                createMemoryStream(js, "foo-stream", "foo");
+                
+                PublishAck ack = js.publish("foo", null);
                 assertEquals(1, ack.getSeqno());
             } catch (Exception ex) {
                 Assertions.fail("Exception:  " + ex.getMessage());
@@ -51,7 +109,7 @@ public class JetstreamTests {
     public void testJetstreamNotAvailable() throws IOException, InterruptedException,ExecutionException {
         try (NatsTestServer ts = new NatsTestServer(false, false);
             Connection nc = Nats.connect(ts.getURI())) {
-            assertThrows(IllegalStateException.class, ()-> { nc.jetStream(); });
+            assertThrows(TimeoutException.class, ()-> { nc.jetStream(); });
         }
     }
 
@@ -61,10 +119,11 @@ public class JetstreamTests {
              Connection nc = Nats.connect(ts.getURI())) {
 
             try {
-                ts.createMemoryStream("foo-stream", "foo");
+                JetStream js = nc.jetStream();
+                createMemoryStream(js, "foo-stream", "foo");
 
                 PublishOptions popts = PublishOptions.builder().stream("foo-stream").build();
-                nc.jetStream().publish("foo", null, popts);
+                js.publish("foo", null, popts);
             } catch (Exception ex) {
                 Assertions.fail("Exception:  " + ex.getMessage());
             }
@@ -72,7 +131,7 @@ public class JetstreamTests {
                 nc.close();
             }
         }
-    }   
+    }
 
     @Test
     public void testJetstreamPublishAndSubscribe() throws IOException, InterruptedException,ExecutionException, TimeoutException {
@@ -80,21 +139,21 @@ public class JetstreamTests {
              Connection nc = Nats.connect(ts.getURI())) {
 
             try {
-                ts.createMemoryStream("test-stream", "foo");
+                JetStream js = nc.jetStream();
+                createMemoryStream(js, "test-stream", "foo");
 
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
-                JetStream js = nc.jetStream();
                 js.publish("foo", "payload".getBytes(), popts);
 
                 // Using subscribe options, let a subscription to "bar" be from our stream.
                 ConsumerConfiguration c = ConsumerConfiguration.builder().build();
-                SubscribeOptions so = SubscribeOptions.builder().consumer("test-stream", c).build();
-                Subscription s = js.subscribe("bar", so);
+                SubscribeOptions so = SubscribeOptions.builder().configuration("test-stream", c).build();
+                Subscription s = js.subscribe("foo", so);
                 Message m = s.nextMessage(Duration.ofSeconds(5));
                 assertEquals(new String("payload"), new String(m.getData()));
             } catch (Exception ex) {
-                Assertions.fail("Exception:  " + ex.getMessage());
+                Assertions.fail(ex);
             }
             finally {
                 nc.close();
@@ -110,7 +169,9 @@ public class JetstreamTests {
                 Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
 
                 nc = Nats.connect(options);
-                ts.createMemoryStream("test-stream", "foo");
+                JetStream js = nc.jetStream();
+                createMemoryStream(js, "test-stream", "foo");
+
                 ts.createPullConsumer("test-stream", "pull-durable");
 
                 // publish to foo

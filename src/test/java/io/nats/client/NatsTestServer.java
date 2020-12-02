@@ -244,7 +244,7 @@ public class NatsTestServer implements AutoCloseable {
             cmd.addAll(Arrays.asList(this.customArgs));
         }
 
-        cmd.add("-DV");
+        cmd.add("-DVV");
 
         this.cmdLine = String.join(" ", cmd);
 

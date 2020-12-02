@@ -24,8 +24,18 @@ public class PublishOptions {
     public static final Duration defaultTimeout = Duration.ofSeconds(2);
     public static final String unspecifiedStream = "not.set";
 
+    // TODO - move into connection?  Or consts...
+	public static final String msgIdHdr             = "Nats-Msg-Id";
+	public static final String ExpectedStreamHdr    = "Nats-Expected-Stream";
+	public static final String ExpectedLastSeqHdr   = "Nats-Expected-Last-Sequence";
+	public static final String ExpectedLastMsgIdHdr = "Nats-Expected-Last-Msg-Id";  
+
     private String stream = unspecifiedStream;
     private Duration streamTimeout = defaultTimeout;
+
+    String expectedStream = null;
+    String expectedLastId = null;
+    long   expectedLastSeq = 0;
 
     /**
      * Property used to configure a builder from a Properties object.
@@ -36,20 +46,6 @@ public class PublishOptions {
      * Property used to configure a builder from a Properties object..
      */
     public static final String PROP_PUBLISH_TIMEOUT = Options.PFX + "publish.timeout";       
-
-    public PublishOptions(String stream, Duration timeout) {
-        this.stream = stream;
-        this.streamTimeout = timeout;
-    }
-
-    public PublishOptions(Duration timeout) {
-        this.stream = null;
-        this.streamTimeout = timeout;
-    }
-
-    public PublishOptions(String stream) {
-        this.stream = stream;
-    }
 
     /**
      * Gets the name of the stream.
@@ -64,8 +60,9 @@ public class PublishOptions {
      * @param stream the name fo the stream.
      */
     public void setStream(String stream) {
-        if (stream == null || stream.length() == 0 || stream.contains(">") ||
-            stream.contains(".") || stream.contains("*")) {
+        if (stream != null && !unspecifiedStream.equals(stream) && 
+                (stream.length() == 0 || stream.contains(">") ||
+                 stream.contains(".") || stream.contains("*"))) {
             throw new IllegalArgumentException("stream cannot be null, empty, tokenized, or wildcarded");
         }
         this.stream = stream;
@@ -88,6 +85,57 @@ public class PublishOptions {
     }
 
     /**
+     * Sets the expected stream of the publish. If the 
+     * stream does not match the server will not save the message.
+     * @param stream expected stream
+     */
+    public void setExpectedStream(String stream) {
+        expectedStream = stream;
+    }
+
+    /**
+     * Gets the expected stream.
+     * @return the stream.
+     */
+    public String getExpectedStream() {
+        return expectedStream;
+    }
+
+    /**
+     * Gets the expected last message ID in the stream.
+     * @return the message ID.
+     */
+    public String getExpectedLastMsgId() {
+        return expectedLastId;
+    }
+
+    /**
+     * Gets the expected last sequence number of the stream.
+     * @return sequence number
+     */
+    public long getExpectedLastSequence() {
+        return expectedLastSeq;
+    }
+
+    /**
+     * Sets the expected last ID of the previously published message.  If the 
+     * message ID does not match the server will not save the message.
+     * @param lastMsgId the expected last message ID in the stream.
+     */
+    public void setExpectedLastMsgId(String lastMsgId) {
+        expectedLastId = lastMsgId;
+    }        
+
+    /**
+     * Sets the expected last sequence of the previously published message.  If the 
+     * sequence does not match the server will not save the message.
+     * @param sequence the expected last sequence number of the stream.
+     */
+    public void setExpectedLastSeqence(long sequence) {
+        expectedLastSeq = sequence;
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return the builder.s
      */
@@ -104,6 +152,9 @@ public class PublishOptions {
     public static class Builder {
         String stream = PublishOptions.unspecifiedStream;
         Duration streamTimeout = PublishOptions.defaultTimeout;
+        String expectedStream = null;
+        String expectedLastId = null;
+        long   expectedLastSeq = 0;
 
         /**
          * Constructs a new publish options Builder with the default values.
@@ -150,11 +201,49 @@ public class PublishOptions {
         }
 
         /**
+         * Sets the expected stream of the publish. If the 
+         * stream does not match the server will not save the message.
+         * @param stream expected stream
+         * @return builder
+         */
+        public Builder expectedStream(String stream) {
+            expectedStream = stream;
+            return this;
+        }
+
+        /**
+         * Sets the expected last ID of the previously published message.  If the 
+         * message ID does not match the server will not save the message.
+         * @param lastMsgId the stream
+         * @return builder
+         */
+        public Builder expectedLastMsgId(String lastMsgId) {
+            expectedLastId = lastMsgId;
+            return this;
+        }        
+
+        /**
+         * Sets the expected message ID of the publish
+         * @param sequence the expected last sequence number
+         * @return builder
+         */
+        public Builder expectedLastSeqence(long sequence) {
+            expectedLastSeq = sequence;
+            return this;
+        } 
+
+        /**
          * Builds the publish options.
          * @return publish options
          */
         public PublishOptions build() {
-            return new PublishOptions(stream, streamTimeout);
+            PublishOptions po = new PublishOptions();
+            po.setStream(stream);
+            po.setStreamTimeout(streamTimeout);
+            po.setExpectedLastMsgId(expectedLastId);
+            po.setExpectedLastSeqence(expectedLastSeq);
+            po.setExpectedStream(expectedStream);
+            return po;
         }
     }
 

@@ -31,7 +31,7 @@ public interface Message {
 	 * This interface defined the methods use to get Jetstream metadata about a message, 
 	 * when applicable.
 	 */
-	public interface JetstreamMetaData {
+	public interface MetaData {
 
 		/**
 		 * Gets the stream the message is from.
@@ -112,7 +112,7 @@ public interface Message {
 	 * Gets the metadata associated with a jetstream message.
 	 * @return metadata or null if the message is not a jetstream message.
 	 */
-	public JetstreamMetaData getJetstreamMetaData();
+	public MetaData metaData();
 
 	/**
 	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message

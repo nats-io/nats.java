@@ -29,7 +29,7 @@ public class PublishAckTests {
         String json = "{\"stream\":\"test\",\"seq\":42, \"duplicate\" : true }";
 
         try {
-            PublishAckImpl ack = new PublishAckImpl(json.getBytes());
+            NatsPublishAck ack = new NatsPublishAck(json.getBytes());
             assertEquals("test", ack.getStream());
             assertEquals(42, ack.getSeqno());
             assertEquals(true, ack.isDuplicate());
@@ -43,7 +43,7 @@ public class PublishAckTests {
     public void testThrowsOnGarbage() {
         assertThrows(IOException.class, () -> {
             String json = "foo";
-            new PublishAckImpl(json.getBytes());
+            new NatsPublishAck(json.getBytes());
             assertFalse(true);
         });
     }
@@ -53,7 +53,7 @@ public class PublishAckTests {
         String msg = "Test generated error.";
         try {
             String json = "{\"type\" : \"thetype\",\"code\" : 1234, \"description\" : \"" + msg + "\"}";
-            new PublishAckImpl(json.getBytes());
+            new NatsPublishAck(json.getBytes());
             assertFalse(true);
         } catch (Exception ex) {
             assertTrue(ex.getMessage().contains(msg));
@@ -67,7 +67,7 @@ public class PublishAckTests {
                         "\"missing_seq\":\"0\"" +
                        "}";   
         try {
-            PublishAckImpl ack = new PublishAckImpl(json.getBytes());
+            NatsPublishAck ack = new NatsPublishAck(json.getBytes());
             assertEquals(null, ack.getStream());
             assertEquals(-1, ack.getSeqno());
         }

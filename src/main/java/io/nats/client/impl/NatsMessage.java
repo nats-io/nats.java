@@ -37,7 +37,7 @@ class NatsMessage implements Message {
     private ByteBuffer protocolBytes;
     private NatsSubscription subscription;
     private Integer protocolLength = null;
-    private JetstreamMetaData jsMetaData = null;
+    private MetaData jsMetaData = null;
 
     NatsMessage next; // for linked list
 
@@ -367,14 +367,14 @@ class NatsMessage implements Message {
         jsAck(AckTerm, timeout);
     }
 
-    public JetstreamMetaData getJetstreamMetaData() {
+    public MetaData metaData() {
         if (this.jsMetaData == null) {
             this.jsMetaData = new NatsJetstreamMetaData();
         }
         return this.jsMetaData;
     }
 
-    public class NatsJetstreamMetaData implements Message.JetstreamMetaData {
+    public class NatsJetstreamMetaData implements Message.MetaData {
 
         private String stream;
         private String consumer;

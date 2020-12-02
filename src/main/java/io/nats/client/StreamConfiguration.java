@@ -48,6 +48,11 @@ public class StreamConfiguration {
             policy = p;
         }
 
+        @Override
+        public String toString() {
+            return policy;
+        }        
+
         private static final Map<String, RetentionPolicy> strEnumHash = new HashMap<>();
         static
         {
@@ -126,8 +131,6 @@ public class StreamConfiguration {
         }
     }
 
-    // String payload = "{\"name\":\"" + streamName + "\",\"subjects\":[\"" + subject + "\"],\"retention\":\"limits\",\"max_consumers\":-1,\"max_msgs\":-1,\"max_bytes\":-1,\"max_age\":0,\"max_msg_size\":-1,\"storage\":\"memory\",\"discard\":\"old\",\"num_replicas\":1}";
-
 	private String name = null;
     private String[] subjects = null;
     private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
@@ -160,7 +163,6 @@ public class StreamConfiguration {
 
     private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
     private static final Pattern maxConsumersRE = JsonUtils.buildPattern(maxConsumersField, FieldType.jsonNumber);
-    private static final Pattern subjectsRE = JsonUtils.buildPattern(subjectsField, FieldType.jsonStringArray);
     private static final Pattern retentionRE = JsonUtils.buildPattern(retentionField, FieldType.jsonString);
     private static final Pattern maxBytesRE = JsonUtils.buildPattern(maxBytesField, FieldType.jsonNumber);
     private static final Pattern maxAgeRE = JsonUtils.buildPattern(maxAgeField, FieldType.jsonNumber);
@@ -172,17 +174,6 @@ public class StreamConfiguration {
     private static final Pattern templateRE = JsonUtils.buildPattern(templateField, FieldType.jsonString);
     private static final Pattern duplicatesRE = JsonUtils.buildPattern(duplicatesField, FieldType.jsonNumber);
     
-    private static String[] parseSubjects(String subjects) {
-        String[] quotedSubjects = subjects.split("\\s*,\\s*");
-
-        String[] rv = new String[quotedSubjects.length];
-        for (int i = 0; i < quotedSubjects.length; i++) {
-            // subjects cannot have contain quotes, so just do a replace.
-            rv[i] = quotedSubjects[i].replace("\"", "");
-        }
-        return rv;
-    }
-
     // for the response from the server
     StreamConfiguration(String json) {
         Matcher m = nameRE.matcher(json);
@@ -194,11 +185,6 @@ public class StreamConfiguration {
         if (m.find()) {
             this.maxConsumers = Long.parseLong(m.group(1));
         }
-        
-        m = subjectsRE.matcher(json);
-        if (m.find()) {
-            this.subjects = parseSubjects(m.group(1));
-        }        
         
         m = retentionRE.matcher(json);
         if (m.find()) {
@@ -248,7 +234,9 @@ public class StreamConfiguration {
         m = duplicatesRE.matcher(json);
         if (m.find()) {
             this.duplicateWindow = Duration.ofNanos(Long.parseLong(m.group(1)));
-        }   
+        }
+        
+        this.subjects = JsonUtils.parseStringArray(subjectsField, json);
     }
 
     // For the builder

@@ -60,6 +60,7 @@ import io.nats.client.Consumer;
 import io.nats.client.Dispatcher;
 import io.nats.client.ErrorListener;
 import io.nats.client.JetStream;
+import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.NUID;
@@ -829,7 +830,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
-        return createSubscription(subject, null, null);
+        return createSubscription(subject, null, null, false);
     }
 
     public Subscription subscribe(String subject, String queueName) {
@@ -855,7 +856,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Queue names cannot contain whitespace");
         }
 
-        return createSubscription(subject, queueName, null);
+        return createSubscription(subject, queueName, null, false);
     }
 
     void invalidate(NatsSubscription sub) {
@@ -909,7 +910,7 @@ class NatsConnection implements Connection {
     }
 
     // Assumes the null/empty checks were handled elsewhere
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher) {
+    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, boolean isJetStream) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {
@@ -920,7 +921,11 @@ class NatsConnection implements Connection {
         long sidL = nextSid.getAndIncrement();
         String sid = String.valueOf(sidL);
 
-        sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+        if (isJetStream) {
+            sub = new NatsJetStreamSubscription(sid, subject, queueName, this, dispatcher);
+        } else {
+            sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+        }
         subscribers.put(sid, sub);
 
         sendSubscriptionMessage(sid, subject, queueName, false);
@@ -1019,7 +1024,7 @@ class NatsConnection implements Connection {
         }
 
         return reply;
-    }
+    }   
 
     public CompletableFuture<Message> request(String subject, byte[] body) {
         String responseInbox = null;
@@ -1106,8 +1111,7 @@ class NatsConnection implements Connection {
             f.complete(msg);
             statistics.incrementRepliesReceived();
         } else if (!oldStyle && !subject.startsWith(mainInbox)) {
-            System.out
-                    .println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection");
+            System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection");
         }
     }
 
@@ -1878,13 +1882,15 @@ class NatsConnection implements Connection {
     }
 
     @Override
-    public JetStream jetStream() {
+    public JetStream jetStream() throws InterruptedException, TimeoutException {
+        return jetStream(null);
+    }
+
+    @Override
+    public JetStream jetStream(JetStreamOptions options) throws InterruptedException, TimeoutException {
         if (isClosing() || isClosed()) {
             throw new IllegalStateException("A jetstream context can't be estabilished during close.");
         }
-        if (!getInfo().isJetStreamAvailable()) {
-            throw new IllegalStateException("JetStream is not available.");
-        }
-        return new JetStreamImpl(this);
+        return new NatsJetStream(this, options);
     }
 }

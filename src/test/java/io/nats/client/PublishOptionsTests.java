@@ -31,10 +31,19 @@ public class PublishOptionsTests {
 
     @Test
     public void testChainedOptions() {
-        PublishOptions o = new PublishOptions.Builder().stream("foo").streamTimeout(Duration.ofSeconds(99)).build();
+        PublishOptions o = new PublishOptions.Builder().
+            stream("foo").
+            streamTimeout(Duration.ofSeconds(99)).
+            expectedLastMsgId("1").
+            expectedStream("bar").
+            expectedLastSeqence(42).
+            build();
 
         assertEquals("foo", o.getStream(), "stream");
         assertEquals(Duration.ofSeconds(99), o.getStreamTimeout(), "timeout");
+        assertEquals("1", o.getExpectedLastMsgId(), "expected msgid");
+        assertEquals(42, o.getExpectedLastSequence(), "expected last seqno");
+        assertEquals("bar", o.getExpectedStream(), "expected stream");
     }
 
     @Test

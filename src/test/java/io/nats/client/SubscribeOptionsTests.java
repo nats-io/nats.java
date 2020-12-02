@@ -24,31 +24,20 @@ import io.nats.client.ConsumerConfiguration.AckPolicy;
 public class SubscribeOptionsTests {
     
     @Test
-    public void testOptions() {
-        ConsumerConfiguration cc = new ConsumerConfiguration.Builder().ackPolicy(AckPolicy.All).durable("dur").build();
-
-        SubscribeOptions o = new SubscribeOptions("foo", cc);
-        assertEquals("foo", o.getStream());
-        assertEquals("dur", o.getConsumerConfiguration().getDurable());
-    }
-
-    @Test
     public void testBuilder() {
         ConsumerConfiguration cc = new ConsumerConfiguration.Builder().ackPolicy(AckPolicy.All).durable("dur").build();
 
-        SubscribeOptions o = SubscribeOptions.builder().consumer("foo", cc).build();
+        SubscribeOptions o = SubscribeOptions.builder().
+           attach("foo", "bar").
+           configuration("foo", cc).
+           pushDirect("pushsubj").
+           autoAck(false).durable("durable").pull(1234).
+           build();
+
         assertEquals("foo", o.getStream());
-        assertEquals("dur", o.getConsumerConfiguration().getDurable());
-    }
-
-
-    @Test
-    public void testBuilderException() {
-        try  {
-            SubscribeOptions.builder().consumer("foo", null).build();
-            assertTrue(false);
-        } catch (Exception e) {
-            // noop
-        }
-    }    
+        assertEquals("bar", o.getConsumer());
+        assertEquals(1234, o.getPullBatchSize());
+        assertEquals("durable", o.getConsumerConfiguration().getDurable());
+        assertEquals(false, o.isAutoAck());
+    }  
 }
