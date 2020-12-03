@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.NatsConstants.*;
+
 public class ParseTesting {
     static String infoJson = "{" + "\"server_id\":\"myserver\"" + "," + "\"version\":\"1.1.1\"" + ","
             + "\"go\": \"go1.9\"" + "," + "\"host\": \"host\"" + "," + "\"tls_required\": true" + ","
@@ -158,21 +160,21 @@ public class ParseTesting {
     public static String protocolFor(char[] chars, int length) {
         if (length == 3) {
             if (chars[0] == '+' && chars[1] == 'O' && chars[2] == 'K') {
-                return NatsConnection.OP_OK;
+                return OP_OK;
             } else if (chars[0] == 'M' && chars[1] == 'S' && chars[2] == 'G') {
-                return NatsConnection.OP_MSG;
+                return OP_MSG;
             } else {
                 return null;
             }
         } else if (length == 4) { // order for uniqueness
             if (chars[1] == 'I' && chars[0] == 'P' && chars[2] == 'N' && chars[3] == 'G') {
-                return NatsConnection.OP_PING;
+                return OP_PING;
             } else if (chars[0] == 'P' && chars[1] == 'O' && chars[2] == 'N' && chars[3] == 'G') {
-                return NatsConnection.OP_PONG;
+                return OP_PONG;
             } else if (chars[0] == '-' && chars[1] == 'E' && chars[2] == 'R' && chars[3] == 'R') {
-                return NatsConnection.OP_ERR;
+                return OP_ERR;
             } else if (chars[2] == 'F' && chars[0] == 'I' && chars[1] == 'N' && chars[3] == 'O') {
-                return NatsConnection.OP_INFO;
+                return OP_INFO;
             }  else {
                 return null;
             }
@@ -288,23 +290,23 @@ public class ParseTesting {
             String op = grabProtocol(charBuffer);
 
             switch (op) {
-            case NatsConnection.OP_MSG:
-                grabNext(charBuffer); //subject
-                grabNext(charBuffer); // sid
-                grabNext(charBuffer); // replyto or length
-                grabNext(charBuffer); // length or null
-                break;
-            case NatsConnection.OP_ERR:
-                grabTheRest(charBuffer);
-                break;
-            case NatsConnection.OP_OK:
-            case NatsConnection.OP_PING:
-            case NatsConnection.OP_PONG:
-            case NatsConnection.OP_INFO:
-                grabTheRest(charBuffer);
-                break;
-            default:
-                break;
+                case OP_MSG:
+                    grabNext(charBuffer); //subject
+                    grabNext(charBuffer); // sid
+                    grabNext(charBuffer); // replyto or length
+                    grabNext(charBuffer); // length or null
+                    break;
+                case OP_ERR:
+                    grabTheRest(charBuffer);
+                    break;
+                case OP_OK:
+                case OP_PING:
+                case OP_PONG:
+                case OP_INFO:
+                    grabTheRest(charBuffer);
+                    break;
+                default:
+                    break;
             }
             protocolBuffer.rewind();
         }

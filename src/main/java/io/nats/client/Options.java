@@ -13,30 +13,20 @@
 
 package io.nats.client;
 
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import io.nats.client.impl.DataPort;
+import io.nats.client.impl.SSLUtils;
+import io.nats.client.impl.SocketDataPort;
+
+import javax.net.ssl.SSLContext;
 import java.lang.reflect.Constructor;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.CharBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collection;
-
-import javax.net.ssl.SSLContext;
-
-import io.nats.client.impl.DataPort;
-import io.nats.client.impl.SSLUtils;
-import io.nats.client.impl.SocketDataPort;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The Options class specifies the connection options for a new NATs connection, including the default options.
@@ -272,6 +262,14 @@ public class Options {
      */
     public static final String PROP_NO_ECHO = PFX + "noecho";
     /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_NO_HEADERS}, see {@link Builder#noHeaders() noHeaders}.
+     */
+    public static final String PROP_NO_HEADERS = PFX + "noheaders";
+    /**
+     * Property used to configure a builder from a Properties object. {@value #PROP_NO_HEADERS}, see {@link Builder#noHeaders() noHeaders}.
+     */
+    public static final String PROP_NO_NORESPONDERS = PFX + "nonoresponders";
+    /**
      * Property used to configure a builder from a Properties object. {@value #PROP_CONNECTION_NAME}, see {@link Builder#connectionName(String)
      * connectionName}.
      */
@@ -430,6 +428,16 @@ public class Options {
      */
     static final String OPTION_JWT = "jwt";
 
+    /**
+     * Headers key if headers are supported
+     */
+    static final String OPTION_HEADERS = "headers";
+
+    /**
+     * No Responders key if noresponders are supported
+     */
+    static final String OPTION_NORESPONDERS = "no_responders";
+
     private List<URI> servers;
     private final boolean noRandomize;
     private final String connectionName;
@@ -451,6 +459,8 @@ public class Options {
     private final boolean useOldRequestStyle;
     private final int bufferSize;
     private final boolean noEcho;
+    private final boolean noHeaders;
+    private final boolean noNoResponders;
     private final boolean utf8Support;
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
@@ -521,6 +531,8 @@ public class Options {
         private boolean trackAdvancedStats = false;
         private boolean traceConnection = false;
         private boolean noEcho = false;
+        private boolean noHeaders = false;
+        private boolean noNoResponders = false;
         private boolean utf8Support = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
@@ -626,6 +638,14 @@ public class Options {
 
             if (props.containsKey(PROP_NO_ECHO)) {
                 this.noEcho = Boolean.parseBoolean(props.getProperty(PROP_NO_ECHO));
+            }
+
+            if (props.containsKey(PROP_NO_HEADERS)) {
+                this.noHeaders = Boolean.parseBoolean(props.getProperty(PROP_NO_HEADERS));
+            }
+
+            if (props.containsKey(PROP_NO_NORESPONDERS)) {
+                this.noNoResponders = Boolean.parseBoolean(props.getProperty(PROP_NO_NORESPONDERS));
             }
 
             if (props.containsKey(PROP_UTF8_SUBJECTS)) {
@@ -781,6 +801,25 @@ public class Options {
          */
         public Builder noEcho() {
             this.noEcho = true;
+            return this;
+        }
+
+        /**
+         * Turn off header support. Some versions of the server don't support it.
+         * It's also not required if you don't use headers
+         * @return the Builder for chaining
+         */
+        public Builder noHeaders() {
+            this.noHeaders = true;
+            return this;
+        }
+
+        /**
+         * Turn off noresponder support. Some versions of the server don't support it.
+         * @return the Builder for chaining
+         */
+        public Builder noNoResponders() {
+            this.noNoResponders = true;
             return this;
         }
 
@@ -1267,6 +1306,8 @@ public class Options {
         this.maxControlLine = b.maxControlLine;
         this.bufferSize = b.bufferSize;
         this.noEcho = b.noEcho;
+        this.noHeaders = b.noHeaders;
+        this.noNoResponders = b.noNoResponders;
         this.utf8Support = b.utf8Support;
         this.inboxPrefix = b.inboxPrefix;
         this.traceConnection = b.traceConnection;
@@ -1363,6 +1404,20 @@ public class Options {
      */
     public boolean isNoEcho() {
         return noEcho;
+    }
+
+    /**
+     * @return are headers disabled, see {@link Builder#noHeaders() noHeaders()} in the builder doc
+     */
+    public boolean isNoHeaders() {
+        return noHeaders;
+    }
+
+    /**
+     * @return is NoRespnders ignored disabled, see {@link Builder#noNoResponders() noNoResponders()} in the builder doc
+     */
+    public boolean isNoNoResponders() {
+        return noNoResponders;
     }
 
     /**
@@ -1612,6 +1667,8 @@ public class Options {
         appendOption(connectString, Options.OPTION_PEDANTIC, String.valueOf(this.isPedantic()), false, true);
         appendOption(connectString, Options.OPTION_TLS_REQUIRED, String.valueOf(this.isTLSRequired()), false, true);
         appendOption(connectString, Options.OPTION_ECHO, String.valueOf(!this.isNoEcho()), false, true);
+        appendOption(connectString, Options.OPTION_HEADERS, String.valueOf(!this.isNoHeaders()), false, true);
+        appendOption(connectString, Options.OPTION_NORESPONDERS, String.valueOf(!this.isNoNoResponders()), false, true);
 
         if (includeAuth && nonce != null && this.getAuthHandler() != null) {
             char[] nkey = this.getAuthHandler().getID();

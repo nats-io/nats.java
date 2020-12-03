@@ -13,6 +13,9 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.Headers;
+import io.nats.client.support.Status;
+
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
  * publish and send requests with raw strings and byte[] but incoming messages can have a few
@@ -26,31 +29,56 @@ public interface Message {
 	/**
 	 * @return the subject that this message was sent to
 	 */
-	public String getSubject();
+	String getSubject();
 
 	/**
 	 * @return the subject the application is expected to send a reply message on
 	 */
-	public String getReplyTo();
+	String getReplyTo();
+
+	/**
+	 * @return true if there are headers
+	 */
+	boolean hasHeaders();
+
+	/**
+	 * @return the headers object the message
+	 */
+	Headers getHeaders();
+
+	/**
+	 * @return true if there is status
+	 */
+	boolean hasStatus();
+
+	/**
+	 * @return the status object message
+	 */
+	Status getStatus();
 
 	/**
 	 * @return the data from the message
 	 */
-	public byte[] getData();
+	byte[] getData();
+
+	/**
+	 * @return if is utf8Mode
+	 */
+	boolean isUtf8mode();
 
 	/**
 	 * @return the Subscription associated with this message, may be owned by a Dispatcher
 	 */
-	public Subscription getSubscription();
+	Subscription getSubscription();
 
 	/**
 	 * @return the id associated with the subscription, used by the connection when processing an incoming
 	 * message from the server
 	 */
-	public String getSID();
+	String getSID();
 
 	/**
 	 * @return the connection which can be used for publishing, will be null if the subscription is null
 	 */
-	public Connection getConnection();
+	Connection getConnection();
 }

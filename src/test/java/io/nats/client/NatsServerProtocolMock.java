@@ -13,11 +13,7 @@
 
 package io.nats.client;
 
-import java.io.BufferedReader;
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -188,7 +184,7 @@ public class NatsServerProtocolMock implements Closeable{
                     writer.write("INFO" + this.separator + customInfo + "\r\n");
                 }
             } else {
-                writer.write("INFO" + this.separator + "{\"server_id\":\"test\", \"nonce\":\""+encoded+"\""+"}\r\n");
+                writer.write("INFO" + this.separator + "{\"server_id\":\"test\", \"nonce\":\""+encoded+"\", \"headers\":true}\r\n");
             }
             writer.flush();
             this.progress = Progress.SENT_INFO;

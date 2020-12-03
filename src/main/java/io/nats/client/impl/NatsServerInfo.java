@@ -25,6 +25,7 @@ class NatsServerInfo {
     static final String GO = "go";
     static final String HOST = "host";
     static final String PORT = "port";
+    static final String HEADERS = "headers";
     static final String AUTH = "auth_required";
     static final String TLS = "tls_required";
     static final String MAX_PAYLOAD = "max_payload";
@@ -38,6 +39,7 @@ class NatsServerInfo {
     private String go;
     private String host;
     private int port;
+    private boolean headersSupported;
     private boolean authRequired;
     private boolean tlsRequired;
     private long maxPayload;
@@ -80,6 +82,8 @@ class NatsServerInfo {
         return this.protocolVersion;
     }
 
+    public boolean isHeadersSupported() { return this.headersSupported; }
+
     public boolean isAuthRequired() {
         return this.authRequired;
     }
@@ -118,6 +122,7 @@ class NatsServerInfo {
         Pattern goRE = Pattern.compile("\""+GO+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern hostRE = Pattern.compile("\""+HOST+"\":" + grabString, Pattern.CASE_INSENSITIVE);
         Pattern nonceRE = Pattern.compile("\""+NONCE+"\":" + grabString, Pattern.CASE_INSENSITIVE);
+        Pattern headersRE = Pattern.compile("\""+HEADERS+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
         Pattern authRE = Pattern.compile("\""+AUTH+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
         Pattern tlsRE = Pattern.compile("\""+TLS+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
         Pattern portRE = Pattern.compile("\""+PORT+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
@@ -159,12 +164,17 @@ class NatsServerInfo {
         if (m.find()) {
             this.host = unescapeString(m.group(1));
         }
-        
+
+        m = headersRE.matcher(jsonString);
+        if (m.find()) {
+            this.headersSupported = Boolean.parseBoolean(m.group(1));
+        }
+
         m = authRE.matcher(jsonString);
         if (m.find()) {
             this.authRequired = Boolean.parseBoolean(m.group(1));
         }
-        
+
         m = nonceRE.matcher(jsonString);
         if (m.find()) {
             String encodedNonce = m.group(1);

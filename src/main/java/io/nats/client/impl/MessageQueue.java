@@ -23,6 +23,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
+import static io.nats.client.support.NatsConstants.EMPTY_BODY;
+
 class MessageQueue {
     private final static int STOPPED = 0;
     private final static int RUNNING = 1;
@@ -58,7 +60,7 @@ class MessageQueue {
         this.length = new AtomicLong(0);
 
         // The poisonPill is used to stop poll and accumulate when the queue is stopped
-        this.poisonPill = new NatsMessage("_poison", null, NatsConnection.EMPTY_BODY, false);
+        this.poisonPill = new NatsMessage("_poison", null, EMPTY_BODY, false);
 
         this.filterLock = new ReentrantLock();
         

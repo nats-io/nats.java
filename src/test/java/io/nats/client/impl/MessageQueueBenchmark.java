@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import java.nio.CharBuffer;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -26,11 +25,11 @@ public class MessageQueueBenchmark {
 
         System.out.printf("Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
         System.out.println("Warmed up ...");
-        CharBuffer buff = CharBuffer.wrap("a");
+        byte[] warmBytes = "a".getBytes();
 
         MessageQueue warm = new MessageQueue(false);
         for (int j = 0; j < msgCount; j++) {
-            msgs[j] = new NatsMessage(buff);
+            msgs[j] = new NatsMessage(warmBytes);
             warm.push(msgs[j]);
         }
 
