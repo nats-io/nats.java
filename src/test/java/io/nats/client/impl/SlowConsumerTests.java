@@ -13,24 +13,16 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import io.nats.client.*;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.time.Duration;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Consumer;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
-import io.nats.client.TestHandler;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SlowConsumerTests {
 

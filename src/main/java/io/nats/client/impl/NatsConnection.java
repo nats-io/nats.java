@@ -736,7 +736,7 @@ class NatsConnection implements Connection {
     public void publish(String subject, byte[] body) {
         _publish(new NatsMessage.Builder()
                 .subject(subject)
-                .data(body)
+                .dataOrEmpty(body)
                 .utf8mode(options.supportUTF8Subjects())
                 .build());
     }
@@ -746,7 +746,7 @@ class NatsConnection implements Connection {
         _publish(new NatsMessage.Builder()
                 .subject(subject)
                 .replyTo(replyTo)
-                .data(body)
+                .dataOrEmpty(body)
                 .utf8mode(options.supportUTF8Subjects())
                 .build());
     }
@@ -784,7 +784,7 @@ class NatsConnection implements Connection {
 
     private void checkPayloadSize(NatsMessage natsMsg) {
         byte[] body = natsMsg.getData(); // data will never be null, it might be empty
-        if (body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
+        if (body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
             throw new IllegalArgumentException(
                     "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }
@@ -979,7 +979,7 @@ class NatsConnection implements Connection {
 
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return _request(new NatsMessage.Builder().subject(subject).data(body).build(), timeout);
+        return _request(new NatsMessage.Builder().subject(subject).dataOrEmpty(body).build(), timeout);
     }
 
     @Override
@@ -1003,7 +1003,7 @@ class NatsConnection implements Connection {
 
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return _request(new NatsMessage.Builder().subject(subject).data(body).build());
+        return _request(new NatsMessage.Builder().subject(subject).dataOrEmpty(body).build());
     }
 
     @Override

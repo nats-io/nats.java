@@ -174,12 +174,12 @@ public class PublishTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-                    Connection  nc = Nats.connect(ts.getURI())) {
+                    Connection nc = Nats.connect(ts.getURI())) {
             byte[] bodyBytes = (bodyString != null) ? bodyString.getBytes(StandardCharsets.UTF_8) : null;
 
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-            nc.publish(new NatsMessage.Builder().subject(subject).replyTo(replyTo).headers(headers).data(bodyBytes).build());
+            nc.publish(new NatsMessage.Builder().subject(subject).replyTo(replyTo).headers(headers).dataKeepNull(bodyBytes).build());
 
             // This is used for the default test
             if (bodyString == null) {

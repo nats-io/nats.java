@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class RequestTests {
 
     @Test
-    public void testRequestNoResponder() throws Exception {
+    public void testRequestNoResponder() {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");

@@ -13,39 +13,23 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.*;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RequestTests {
     @Test
     public void testSimpleRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
@@ -67,7 +51,7 @@ public class RequestTests {
     public void testSimpleResponseMessageHasConnection() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
@@ -82,19 +66,17 @@ public class RequestTests {
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
-            assertTrue(msg.getConnection() == nc);
+            assertEquals(msg.getConnection(), nc);
         }
     }
 
     @Test
-    public void testSafeRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+    public void testSafeRequest() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), null);
-            });
+            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
             d.subscribe("subject");
 
             Message msg = nc.request("subject", null, Duration.ofMillis(1000));
@@ -110,11 +92,9 @@ public class RequestTests {
     public void testMultipleRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), new byte[7]);
-            });
+            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), new byte[7]));
             d.subscribe("subject");
 
             for (int i=0; i<10; i++) {
@@ -131,14 +111,12 @@ public class RequestTests {
 
 
     @Test
-    public void testManualRequestReply() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+    public void testManualRequestReply() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), msg.getData());
-            });
+            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("request");
 
             Subscription sub = nc.subscribe("reply");
@@ -156,7 +134,7 @@ public class RequestTests {
     public void testRequestWithCustomInbox() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(new Options.Builder().inboxPrefix("myinbox").server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 assertTrue(msg.getReplyTo().startsWith("myinbox"));
@@ -175,39 +153,55 @@ public class RequestTests {
     }
 
     @Test
-    public void testRequireCleanupOnTimeout() throws IOException, ExecutionException, InterruptedException {
+    public void testRequireCleanupOnTimeoutNoNoResponders() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
+            Options options = new Options.Builder().server(ts.getURI())
+                    .requestCleanupInterval(Duration.ofHours(1))
+                    .noNoResponders().build();
+
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                
-                Future<Message> incoming = nc.request("subject", null);
-                Message msg = null;
-                
-                try {
-                    msg = incoming.get(100, TimeUnit.MILLISECONDS);
-                    assertFalse(true);
-                } catch(TimeoutException e) {
-                    assertTrue(true);
-                }
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-                assertNull(msg);
+                assertThrows(TimeoutException.class,
+                        () -> nc.request("subject", null).get(100, TimeUnit.MILLISECONDS));
+
                 assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
 
     @Test
-    public void testRequireCleanupOnCancel() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+    public void testRequireCleanupOnCancelFromNoResponders() throws IOException, InterruptedException {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI())
+                    .requestCleanupInterval(Duration.ofHours(1)).build();
+
+            Connection nc = Nats.connect(options);
+            try {
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+                assertThrows(CancellationException.class,
+                        () -> nc.request("subject", null).get(100, TimeUnit.MILLISECONDS));
+
+                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            } finally {
+                nc.close();
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            }
+        }
+    }
+
+    @Test
+    public void testRequireCleanupOnCancel() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
                 Future<Message> incoming = nc.request("subject", null);
                 incoming.cancel(true);
@@ -215,19 +209,19 @@ public class RequestTests {
                 assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
 
     @Test
-    public void testCleanupTimerWorks() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+    public void testCleanupTimerWorks() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             long cleanupInterval = 50;
             Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
                 Future<Message> incoming = nc.request("subject", null);
                 incoming.cancel(true);
@@ -251,7 +245,7 @@ public class RequestTests {
                 assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -264,11 +258,9 @@ public class RequestTests {
             Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    nc.publish(msg.getReplyTo(), null);
-                });
+                Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
                 d.subscribe("subject");
 
                 long start = System.nanoTime();
@@ -288,7 +280,7 @@ public class RequestTests {
                 assertTrue(0 >= ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -300,11 +292,9 @@ public class RequestTests {
                 ArrayList<Future<Message>> messages = new ArrayList<>();
                 Connection nc = Nats.connect(ts.getURI());
                 try {
-                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                    assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                     
-                    Dispatcher d = nc.createDispatcher((msg) -> {
-                        nc.publish(msg.getReplyTo(), new byte[1]);
-                    });
+                    Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), new byte[1]));
                     d.subscribe("subject");
         
                     for (int i=0;i<msgCount;i++) {
@@ -322,7 +312,7 @@ public class RequestTests {
                     assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
                 } finally {
                     nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                 }
             }
     }
@@ -333,11 +323,9 @@ public class RequestTests {
             Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    nc.publish(msg.getReplyTo(), null);
-                });
+                Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
                 d.subscribe("subject");
 
                 Future<Message> incoming = nc.request("subject", null);
@@ -346,10 +334,10 @@ public class RequestTests {
                 assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(0, msg.getData().length);
-                assertTrue(msg.getSubject().indexOf('.') == msg.getSubject().lastIndexOf('.'));
+                assertEquals(msg.getSubject().indexOf('.'), msg.getSubject().lastIndexOf('.'));
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -367,11 +355,9 @@ public class RequestTests {
 
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    nc.publish(msg.getReplyTo(), msg.getData());
-                });
+                Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), msg.getData()));
                 d.subscribe("subject");
 
                 Future<Message> incoming = nc.request("subject", new byte[messageSize]); // force the buffers to resize
@@ -388,7 +374,7 @@ public class RequestTests {
                 assertEquals(messageSize, msg.getData().length);
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -400,7 +386,7 @@ public class RequestTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.close();
                 nc.request("subject", null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -411,7 +397,7 @@ public class RequestTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
                 nc.request((String)null, null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -422,7 +408,7 @@ public class RequestTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
                 nc.request("", null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -434,13 +420,13 @@ public class RequestTests {
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
                     Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
                 assertEquals(512, ((NatsConnection) nc).getInfo().getMaxPayload(), "got custom info");
 
                 byte[] body = new byte[513];
                 nc.request("subject", body);
-                assertFalse(true);
+                fail();
             }
         });
     }

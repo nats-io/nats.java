@@ -39,13 +39,13 @@ public class NatsMessage implements Message {
 
     // Kind.INCOMING : subject, replyTo, data and these fields
     private String sid;
-    private Integer protocolLineLength;
+    private int protocolLineLength;
 
     // Kind.PROTOCOL : just this field
     private byte[] protocolBytes;
 
     // housekeeping
-    private Kind kind;
+    private final Kind kind;
     private int sizeInBytes = -1;
     private int hdrLen = 0;
     private int dataLen = 0;
@@ -79,11 +79,11 @@ public class NatsMessage implements Message {
         this.subject = subject;
         this.replyTo = replyTo;
         this.headers = headers;
-        this.data = data == null ? EMPTY_BODY : data;
+        this.data = data;
         this.utf8mode = utf8mode;
 
         int replyToLen = replyTo == null ? 0 : replyTo.length();
-        dataLen = this.data.length;
+        dataLen = data == null ? 0 : data.length;
         if (headers != null && !headers.isEmpty()) {
             hdrLen = headers.serializedLength();
         }
@@ -158,12 +158,17 @@ public class NatsMessage implements Message {
 
     long getSizeInBytes() {
         if (sizeInBytes == -1) {
-            sizeInBytes = protocolBytes == null ? 0 : protocolBytes.length + 2; // CRLF
+            sizeInBytes = protocolLineLength;
+            if (protocolBytes != null) {
+                sizeInBytes += protocolBytes.length;
+            }
             if (hdrLen > 0) {
                 sizeInBytes += hdrLen + 2; // CRLF
             }
-            if (dataLen > 0) {
-                sizeInBytes += dataLen + 2; // CRLF
+            if (data == null) {
+                sizeInBytes += 2; // CRLF
+            } else {
+                sizeInBytes += dataLen + 4; // CRLF
             }
         }
         return sizeInBytes;
@@ -327,20 +332,31 @@ public class NatsMessage implements Message {
          * @param charset the charset, for example {@code StandardCharsets.UTF_8}
          * @return the builder
          */
-        public Builder data(final String data, Charset charset) {
+        public Builder data(final String data, final Charset charset) {
             //
             this.data = data.getBytes(charset);
             return this;
         }
 
         /**
-         * Set the data from a byte array
+         * Set the data from a byte array. null data is left as is
          *
          * @param data the data
          * @return the builder
          */
-        public Builder data(final byte[] data) {
+        public Builder dataKeepNull(final byte[] data) {
             this.data = data;
+            return this;
+        }
+
+        /**
+         * Set the data from a byte array. null data changed to empty byte array
+         *
+         * @param data the data
+         * @return the builder
+         */
+        public Builder dataOrEmpty(final byte[] data) {
+            this.data = data == null ? EMPTY_BODY : data;
             return this;
         }
 
