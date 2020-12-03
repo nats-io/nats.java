@@ -15,6 +15,8 @@ package io.nats.client.support;
 
 import io.nats.client.impl.Headers;
 
+import java.nio.ByteBuffer;
+
 import static io.nats.client.support.NatsConstants.*;
 
 public class IncomingHeadersProcessor {
@@ -24,21 +26,28 @@ public class IncomingHeadersProcessor {
     private Status inlineStatus;
 
     public IncomingHeadersProcessor(byte[] serialized) {
+        this((serialized != null) ? ByteBuffer.wrap(serialized) : null);
+    }
 
+    public IncomingHeadersProcessor(ByteBuffer serialized) {
         // basic validation first to help fail fast
-        if (serialized == null || serialized.length == 0) {
+        if (serialized == null || serialized.limit() == 0) {
             throw new IllegalArgumentException(SERIALIZED_HEADER_CANNOT_BE_NULL_OR_EMPTY);
         }
 
+        if (serialized.limit() < VERSION_BYTES_LEN + CRLF_BYTES_LEN) {
+            throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
+        }
+
         // is tis the correct version
-        for (int x = 0; x < VERSION_BYTES_LEN; x++) {
-            if (serialized[x] != VERSION_BYTES[x]) {
-                throw new IllegalArgumentException(INVALID_HEADER_VERSION);
-            }
+        ByteBuffer version = serialized.duplicate();
+        version.limit(VERSION_BYTES_LEN);
+        if (!version.equals(VERSION)) {
+            throw new IllegalArgumentException(INVALID_HEADER_VERSION);
         }
 
         // does the header end properly
-        serializedLength = serialized.length;
+        serializedLength = serialized.limit();
         new Token(serialized, serializedLength, serializedLength - 2, TokenType.CRLF);
         Token token = new Token(serialized, serializedLength, VERSION_BYTES_LEN, null);
 
@@ -65,7 +74,7 @@ public class IncomingHeadersProcessor {
         return inlineStatus;
     }
 
-    private void initHeader(byte[] serialized, int len, Token tCrlf) {
+    private void initHeader(ByteBuffer serialized, int len, Token tCrlf) {
         // REGULAR HEADER
         headers = new Headers();
         Token peek = new Token(serialized, len, tCrlf, null);
@@ -92,7 +101,7 @@ public class IncomingHeadersProcessor {
         }
     }
 
-    private void initStatus(byte[] serialized, int len, Token tSpace) {
+    private void initStatus(ByteBuffer serialized, int len, Token tSpace) {
         Token tCode = new Token(serialized, len, tSpace, TokenType.WORD);
         Token tVal = new Token(serialized, len, tCode, null);
         if (tVal.isType(TokenType.SPACE)) {

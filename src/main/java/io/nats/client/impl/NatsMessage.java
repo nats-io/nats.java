@@ -19,6 +19,7 @@ import io.nats.client.Subscription;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 import static io.nats.client.support.NatsConstants.*;
@@ -32,17 +33,17 @@ public class NatsMessage implements Message {
     // Kind.REGULAR : just these fields
     private String subject;
     private String replyTo;
-    private byte[] data;
+    private ByteBuffer data;
     private boolean utf8mode;
     private Headers headers;
     private Status status;
 
     // Kind.INCOMING : subject, replyTo, data and these fields
     private String sid;
-    private int protocolLineLength;
+    private Integer protocolLineLength;
 
     // Kind.PROTOCOL : just this field
-    private byte[] protocolBytes;
+    private ByteBuffer protocolBytes;
 
     // housekeeping
     private final Kind kind;
@@ -59,14 +60,17 @@ public class NatsMessage implements Message {
         this(subject, replyTo, null, data, utf8mode);
     }
 
+    public NatsMessage(String subject, String replyTo, ByteBuffer data, boolean utf8mode) {
+        this(subject, replyTo, null, data, utf8mode);
+    }
+
     public NatsMessage(Message message) {
         this(message.getSubject(), message.getReplyTo(),
                 message.getHeaders(), message.getData(), message.isUtf8mode());
     }
 
     // Create a message to publish
-    public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
-
+    public NatsMessage(String subject, String replyTo, Headers headers, ByteBuffer data, boolean utf8mode) {
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required");
         }
@@ -81,55 +85,88 @@ public class NatsMessage implements Message {
         this.headers = headers;
         this.data = data;
         this.utf8mode = utf8mode;
+        Charset charset;
 
-        int replyToLen = replyTo == null ? 0 : replyTo.length();
-        dataLen = data == null ? 0 : data.length;
+        // Calculate the length in bytes
+        int len = 0;
         if (headers != null && !headers.isEmpty()) {
             hdrLen = headers.serializedLength();
+            len += OP_HPUB_SP_LEN;
+            len += fastIntLength(hdrLen);
+            len += 1;
         }
         else {
-            hdrLen = 0;
+            len += OP_PUB_SP_LEN;
         }
-        totLen = hdrLen + dataLen;
+        int size = (data != null) ? data.limit() : 0;
+        size += hdrLen;
+        int sizeLen = fastIntLength(size);
+        len += sizeLen;
 
-        // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
-        // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (hdrLen + dataLen)
-        ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + totLen);
+        if (replyTo != null) {
+            if (utf8mode) {
+                len += fastUtf8Length(replyTo) + 1;
+            } else {
+                len += replyTo.length() + 1;
+            }
+        }
+        if (utf8mode) {
+            len += fastUtf8Length(subject) + 1;
+            charset = UTF_8;
+        } else {
+            len += subject.length() + 1;
+            charset = US_ASCII;
+        }
+        this.protocolBytes = ByteBuffer.allocate(len);
 
         // protocol come first
         if (hdrLen > 0) {
-            bab.append(HPUB_SP_BYTES);
-        }
-        else {
-            bab.append(PUB_SP_BYTES);
+            protocolBytes.put(HPUB_SP_BYTES.asReadOnlyBuffer());
+        } else {
+            protocolBytes.put(PUB_SP_BYTES.asReadOnlyBuffer());
         }
 
-        // next comes the subject
-        bab.append(subject, utf8mode ? UTF_8 : US_ASCII);
-        bab.appendSpace();
+        protocolBytes.put(subject.getBytes(charset));
+        protocolBytes.put((byte)' ');
 
-        // reply to if it's there
-        if (replyToLen > 0) {
-            bab.append(replyTo);
-            bab.appendSpace();
+        if (replyTo != null) {
+            protocolBytes.put(replyTo.getBytes(charset));
+            protocolBytes.put((byte)' ');
         }
+
 
         // header length if there are headers
         if (hdrLen > 0) {
-            bab.append(Integer.toString(hdrLen));
-            bab.appendSpace();
+            protocolBytes.put(US_ASCII.encode(Integer.toString(hdrLen)));
+            protocolBytes.put((byte)' ');
         }
 
-        // payload length
-        bab.append(Integer.toString(totLen));
+        if (size > 0) {
+            int base = protocolBytes.position() + sizeLen;
+            for (int i = size; i > 0; i /= 10) {
+                base--;
+                protocolBytes.put(base, (byte)(i % 10 + (byte)'0'));
+            }
+            protocolBytes.position(protocolBytes.position() + sizeLen);
+        } else {
+            protocolBytes.put((byte)'0');
+        }
+        protocolBytes.flip();
+    }
 
-        protocolBytes = bab.toByteArray();
+    NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+        this(subject, replyTo, headers, (data != null) ? ByteBuffer.wrap(data) : null, utf8mode);
+    }
+
+    // Create a protocol only message to publish
+    NatsMessage(ByteBuffer protocol) {
+        this.kind = Kind.PROTOCOL;
+        this.protocolBytes = protocol == null ? EMPTY_BODY_BUFFER : protocol;
     }
 
     // Create a protocol only message to publish
     NatsMessage(byte[] protocol) {
-        this.kind = Kind.PROTOCOL;
-        this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
+        this((protocol != null) ? ByteBuffer.wrap(protocol) : null);
     }
 
     // Create an incoming message for a subscriber
@@ -143,33 +180,93 @@ public class NatsMessage implements Message {
         // headers and data are set later and sizes are calculated during those setters
     }
 
+    private static int fastUtf8Length(CharSequence cs) {
+        int count = 0;
+        for (int i = 0, len = cs.length(); i < len; i++) {
+            char ch = cs.charAt(i);
+            if (ch <= 0x7F) {
+                count++;
+            } else if (ch <= 0x7FF) {
+                count += 2;
+            } else if (Character.isHighSurrogate(ch)) {
+                count += 4;
+                ++i;
+            } else {
+                count += 3;
+            }
+        }
+        return count;
+    }
+
+    private static int fastIntLength(int number) {
+        if (number < 100000) {
+            if (number < 100) {
+                if (number < 10) {
+                    return 1;
+                } else {
+                    return 2;
+                }
+            } else {
+                if (number < 1000) {
+                    return 3;
+                } else {
+                    if (number < 10000) {
+                        return 4;
+                    } else {
+                        return 5;
+                    }
+                }
+            }
+        } else {
+            if (number < 10000000) {
+                if (number < 1000000) {
+                    return 6;
+                } else {
+                    return 7;
+                }
+            } else {
+                if (number < 100000000) {
+                    return 8;
+                } else {
+                    if (number < 1000000000) {
+                        return 9;
+                    } else {
+                        return 10;
+                    }
+                }
+            }
+        }
+    }
+
+    Kind getKind() {
+        return kind;
+    }
+
     boolean isProtocol() {
         return kind == Kind.PROTOCOL;
     }
 
     // Will be null on an incoming message
     byte[] getProtocolBytes() {
-        return this.protocolBytes;
+        return this.protocolBytes.array();
     }
 
     int getControlLineLength() {
-        return (this.protocolBytes != null) ? this.protocolBytes.length + 2 : -1;
+        return (this.protocolBytes != null) ? this.protocolBytes.limit() + 2 : -1;
     }
 
     long getSizeInBytes() {
-        if (sizeInBytes == -1) {
-            sizeInBytes = protocolLineLength;
-            if (protocolBytes != null) {
-                sizeInBytes += protocolBytes.length;
-            }
-            if (hdrLen > 0) {
-                sizeInBytes += hdrLen + 2; // CRLF
-            }
-            if (data == null) {
-                sizeInBytes += 2; // CRLF
-            } else {
-                sizeInBytes += dataLen + 4; // CRLF
-            }
+        long sizeInBytes = 0;
+        if (this.protocolBytes != null) {
+            sizeInBytes += this.protocolBytes.limit();
+        }
+        if (this.protocolLineLength != null){
+            sizeInBytes += this.protocolLineLength;
+        }
+        if (data != null) {
+            sizeInBytes += data.limit() + 4;// for 2x \r\n
+        } else {
+            sizeInBytes += 2;
         }
         return sizeInBytes;
     }
@@ -193,7 +290,7 @@ public class NatsMessage implements Message {
 
     // Only for incoming messages, with no protocol bytes
     void setData(byte[] data) {
-        this.data = data;
+        this.data = ByteBuffer.wrap(data);
         dataLen = data.length;
         totLen = hdrLen + dataLen;
     }
@@ -247,7 +344,9 @@ public class NatsMessage implements Message {
 
     @Override
     public byte[] getData() {
-        return this.data;
+        if (this.data == null)
+            return new byte[0];
+        return this.data.array();
     }
 
     @Override
@@ -266,12 +365,12 @@ public class NatsMessage implements Message {
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +
                 "\n  replyTo='" + replyTo + '\'' +
-                "\n  data=" + (data == null ? null : new String(data, UTF_8)) +
+                "\n  data=" + (data == null ? null : UTF_8.decode(data.asReadOnlyBuffer()).toString()) +
                 "\n  utf8mode=" + utf8mode +
                 "\n  headers=" + hdrString +
                 "\n  sid='" + sid + '\'' +
                 "\n  protocolLineLength=" + protocolLineLength +
-                "\n  protocolBytes=" + (protocolBytes == null ? null : new String(protocolBytes, UTF_8)) +
+                "\n  protocolBytes=" + (protocolBytes == null ? null : UTF_8.decode(protocolBytes.asReadOnlyBuffer()).toString()) +
                 "\n  kind=" + kind +
                 "\n  sizeInBytes=" + sizeInBytes +
                 "\n  hdrLen=" + hdrLen +

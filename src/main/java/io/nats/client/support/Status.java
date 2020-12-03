@@ -13,24 +13,27 @@
 
 package io.nats.client.support;
 
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class Status {
 
     private final int code;
-    private final String message;
+    private final ByteBuffer message;
 
-    private static final Map<Integer, String> MESSAGE_MAP;
+    private static final Map<Integer, ByteBuffer> MESSAGE_MAP;
 
     static {
         MESSAGE_MAP = new HashMap<>();
-        MESSAGE_MAP.put(503, "No responders available for request");
+        MESSAGE_MAP.put(503, US_ASCII.encode("No responders available for request"));
     }
 
-    public Status(int code, String message) {
+    public Status(int code, ByteBuffer message) {
         this.code = code;
-        this.message = message == null ? makeMessage(code) : message ;
+        this.message = message == null ? makeMessage(code) : message;
     }
 
     public Status(Token codeToken, Token messageToken) {
@@ -42,24 +45,24 @@ public class Status {
     }
 
     public String getMessage() {
-        return message;
+        return US_ASCII.decode(message.asReadOnlyBuffer()).toString();
     }
 
-    private static String extractMessage(Token messageToken) {
+    private static ByteBuffer extractMessage(Token messageToken) {
         return messageToken.hasValue() ? messageToken.getValue() : null;
     }
 
     private static int extractCode(Token codeToken) {
         try {
-            return Integer.parseInt(codeToken.getValue());
+            return Integer.parseInt(US_ASCII.decode(codeToken.getValue().asReadOnlyBuffer()).toString());
         }
         catch (Exception e) {
             throw new IllegalArgumentException(NatsConstants.INVALID_HEADER_STATUS_CODE);
         }
     }
 
-    private String makeMessage(int code) {
-        String message = MESSAGE_MAP.get(code);
-        return message == null ? "Server Status Message: " + code : message;
+    private ByteBuffer makeMessage(int code) {
+        ByteBuffer message = MESSAGE_MAP.get(code);
+        return message == null ? US_ASCII.encode("Server Status Message: " + code) : message;
     }
 }

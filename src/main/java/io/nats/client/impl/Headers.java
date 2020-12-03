@@ -13,10 +13,14 @@
 
 package io.nats.client.impl;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static io.nats.client.support.NatsConstants.*;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /**
  * An object that represents a map of keys to a list of values. It does not accept
@@ -31,9 +35,8 @@ public class Headers {
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
 
-	private final Map<String, List<String>> headerMap;
-	private byte[] serialized;
-	private int projectedLength;
+	private final Map<ByteBuffer, List<ByteBuffer>> headerMap;
+	private ByteBuffer serialized;
 
 	public Headers() {
 		headerMap = new HashMap<>();
@@ -50,6 +53,13 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers add(String key, String... values) {
+		if (values != null) {
+			_add(key, Arrays.asList(values));
+		}
+		return this;
+	}
+
+	public Headers add(ByteBuffer key, ByteBuffer... values) {
 		if (values != null) {
 			_add(key, Arrays.asList(values));
 		}
@@ -73,18 +83,27 @@ public class Headers {
 	// the add delegate
 	private void _add(String key, Collection<String> values) {
 		if (values != null) {
-			Checker checked = new Checker(key, values);
-			if (checked.hasValues()) {
-				List<String> currentSet = headerMap.get(key);
-				if (currentSet == null) {
-					headerMap.put(key, checked.list);
-				} else {
-					currentSet.addAll(checked.list);
-				}
-				serialized = null; // since the data changed, clear this so it's rebuilt
-				projectedLength += key.length() + checked.length;
+			List<ByteBuffer> valueList = values
+					.stream()
+					.map(value -> (value != null) ? US_ASCII.encode(value) : null)
+					.collect(Collectors.toList());
+			_add((key != null) ? US_ASCII.encode(key) : null, valueList);
+		}
+	}
+
+	// the add delegate
+	private void _add(ByteBuffer key, Collection<ByteBuffer> values) {
+		checkKey(key);
+		Checker checked = new Checker(key, values);
+		if (checked.hasValues()) {
+			List<ByteBuffer> currentSet = headerMap.get(key);
+			if (currentSet == null) {
+				headerMap.put(key, checked.list);
+			} else {
+				currentSet.addAll(checked.list);
 			}
 		}
+		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
 
 	/**
@@ -99,7 +118,11 @@ public class Headers {
 	 */
 	public Headers put(String key, String... values) {
 		if (values != null) {
-			_put(key, Arrays.asList(values));
+			List<ByteBuffer> valueList = Arrays.asList(values)
+					.stream()
+					.map(value -> (value != null) ? US_ASCII.encode(value) : null)
+					.collect(Collectors.toList());
+			_put((key != null) ? US_ASCII.encode(key) : null, valueList);
 		}
 		return this;
 	}
@@ -115,18 +138,24 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, Collection<String> values) {
-		_put(key, values);
+		if (values != null) {
+			List<ByteBuffer> valueList = values
+					.stream()
+					.map(value -> (value != null) ? US_ASCII.encode(value) : null)
+					.collect(Collectors.toList());
+			_put((key != null) ? US_ASCII.encode(key) : null, valueList);
+		}
 		return this;
 	}
 
 	// the put delegate that all puts call
-	private void _put(String key, Collection<String> values) {
+	private void _put(ByteBuffer key, Collection<ByteBuffer> values) {
 		if (values != null) {
 			Checker checked = new Checker(key, values);
+			checkKey(key);
 			if (checked.hasValues()) {
 				headerMap.put(key, checked.list);
 				serialized = null; // since the data changed, clear this so it's rebuilt
-				projectedLength += key.length() + checked.length;
 			}
 		}
 	}
@@ -138,10 +167,7 @@ public class Headers {
 	 */
 	public void remove(String... keys) {
 		for (String key : keys) {
-			headerMap.remove(key);
-			// Yes, this doesn't account for values. As long as it's equal to or greater
-			// than the actual bytes we are fine
-			projectedLength -= key.length() + 1;
+			headerMap.remove(US_ASCII.encode(key));
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -153,10 +179,7 @@ public class Headers {
 	 */
 	public void remove(Collection<String> keys) {
 		for (String key : keys) {
-			headerMap.remove(key);
-			// Yes, this doesn't account for values. As long as it's equal to or greater
-			// than the actual bytes we are fine
-			projectedLength -= key.length() + 1;
+			headerMap.remove(US_ASCII.encode(key));
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -185,7 +208,6 @@ public class Headers {
 	public void clear() {
 		headerMap.clear();
 		serialized = null;
-		projectedLength = 0;
 	}
 
 	/**
@@ -195,7 +217,7 @@ public class Headers {
 	 * @return <tt>true</tt> if the key is present (has values)
 	 */
 	public boolean containsKey(String key) {
-		return headerMap.containsKey(key);
+		return headerMap.containsKey(US_ASCII.encode(key));
 	}
 
 	/**
@@ -204,7 +226,10 @@ public class Headers {
 	 * @return a read-only set the keys contained in this map
 	 */
 	public Set<String> keySet() {
-		return Collections.unmodifiableSet(headerMap.keySet());
+		return headerMap.keySet()
+				.stream()
+				.map(value -> US_ASCII.decode(value.asReadOnlyBuffer()).toString())
+				.collect(Collectors.toSet());
 	}
 
 	/**
@@ -214,7 +239,17 @@ public class Headers {
 	 * @return a read-only list of the values for the specific keys.
 	 */
 	public List<String> values(String key) {
-		List<String> list = headerMap.get(key);
+		ByteBuffer keyBuffer = US_ASCII.encode(key);
+		List<ByteBuffer> bufferList = headerMap.get(keyBuffer);
+		List<String> list = null;
+		if (bufferList != null) {
+			list = headerMap.get(keyBuffer)
+					.stream()
+					.map(value -> US_ASCII.decode(value.asReadOnlyBuffer()).toString())
+					.collect(Collectors.toList());
+			if (list.isEmpty())
+				list.add(EMPTY);
+		}
 		return list == null ? null : Collections.unmodifiableList(list);
 	}
 
@@ -229,7 +264,7 @@ public class Headers {
 	 * removed during iteration
 	 */
 	public void forEach(BiConsumer<String, List<String>> action) {
-		Collections.unmodifiableMap(headerMap).forEach(action);
+		Collections.unmodifiableMap(entryMap()).forEach(action);
 	}
 
 	/**
@@ -239,7 +274,22 @@ public class Headers {
 	 * @return a set view of the mappings contained in this map
 	 */
 	public Set<Map.Entry<String, List<String>>> entrySet() {
-		return Collections.unmodifiableSet(headerMap.entrySet());
+		return Collections.unmodifiableSet(entryMap().entrySet());
+	}
+
+	private Map<String, List<String>> entryMap() {
+		return headerMap.entrySet()
+				.stream()
+				.map(entry -> new AbstractMap.SimpleEntry<>(
+						US_ASCII.decode(entry.getKey().asReadOnlyBuffer()).toString(),
+						entry.getValue().stream()
+								.map(value -> US_ASCII.decode(value.asReadOnlyBuffer()).toString())
+								.collect(Collectors.toList())
+				))
+				.collect(Collectors.toMap(
+						Map.Entry::getKey,
+						Map.Entry::getValue
+				));
 	}
 
 	/**
@@ -248,25 +298,34 @@ public class Headers {
 	 * @return the number of bytes
 	 */
 	public int serializedLength() {
-		return getSerialized().length;
+		if (serialized != null)
+			return serialized.remaining();
+		int len = VERSION_BYTES_PLUS_CRLF_LEN + CRLF_BYTES_LEN;
+		for (ByteBuffer key : headerMap.keySet()) {
+			for (ByteBuffer value : headerMap.get(key)) {
+				len += key.remaining() + value.remaining() + 3;
+			}
+		}
+		return len;
 	}
 
 	public byte[] getSerialized() {
 		if (serialized == null) {
-			ByteArrayBuilder bab = new ByteArrayBuilder(projectedLength + VERSION_BYTES_PLUS_CRLF_LEN)
-					.append(VERSION_BYTES_PLUS_CRLF);
-			for (String key : headerMap.keySet()) {
-				for (String value : values(key)) {
-					bab.append(key);
-					bab.append(COLON_BYTES);
-					bab.append(value);
-					bab.append(CRLF_BYTES);
+			ByteBuffer bab = ByteBuffer.allocate(serializedLength());
+			bab.put(VERSION_BYTES_PLUS_CRLF.asReadOnlyBuffer());
+			for (ByteBuffer key : headerMap.keySet()) {
+				for (ByteBuffer value : headerMap.get(key)) {
+					bab.put(key.asReadOnlyBuffer());
+					bab.put(COLON_BYTES);
+					bab.put(value.asReadOnlyBuffer());
+					bab.put(CRLF.asReadOnlyBuffer());
 				}
 			}
-			bab.append(CRLF_BYTES);
-			serialized = bab.toByteArray();
+			bab.put(CRLF.asReadOnlyBuffer());
+			bab.flip();
+			serialized = bab;
 		}
-		return serialized;
+		return serialized.array();
 	}
 
 	/**
@@ -275,15 +334,15 @@ public class Headers {
 	 * @throws IllegalArgumentException if the key is null, empty or contains
 	 *         an invalid character
 	 */
-	private void checkKey(String key) {
+	private void checkKey(ByteBuffer key) {
 		// key cannot be null or empty and contain only printable characters except colon
-		if (key == null || key.length() == 0) {
+		if (key == null || key.remaining() == 0) {
 			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
 		}
 
-		int len = key.length();
-		for (int idx = 0; idx < len; idx++) {
-			char c = key.charAt(idx);
+		ByteBuffer tmpKey = key.asReadOnlyBuffer();
+		while (tmpKey.hasRemaining()) {
+			byte c = tmpKey.get();
 			if (c < 33 || c > 126 || c == ':') {
 				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + "'" + c + "'");
 			}
@@ -295,33 +354,36 @@ public class Headers {
 	 *
 	 * @throws IllegalArgumentException if the value contains an invalid character
 	 */
-	private void checkValue(String val) {
+	private void checkValue(ByteBuffer val) {
 		// Generally more permissive than HTTP.  Allow only printable
 		// characters and include tab (0x9) to cover what's allowed
 		// in quoted strings and comments.
-		val.chars().forEach(c -> {
+		// null is just ignored
+		ByteBuffer valTmp = val.asReadOnlyBuffer();
+		while (valTmp.hasRemaining()) {
+			byte c = valTmp.get();
 			if ((c < 32 && c != 9) || c > 126) {
 				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + c);
 			}
-		});
+		}
 	}
 
 	private class Checker {
-		List<String> list = new ArrayList<>();
+		List<ByteBuffer> list = new ArrayList<>();
 		int length;
-		Checker(String key, Collection<String> values) {
+
+		Checker(ByteBuffer key, Collection<ByteBuffer> values) {
 			checkKey(key);
-			length += key.length() + 1; // for colon
+			length += key.remaining() + 1; // for colon
 			if (values != null && !values.isEmpty()) {
-				for (String val : values) {
+				for (ByteBuffer val : values) {
 					if (val != null) {
-						if (val.isEmpty()) {
+						if (!val.hasRemaining()) {
 							list.add(val);
-						}
-						else {
+						} else {
 							checkValue(val);
 							list.add(val);
-							length += val.length();
+							length += val.remaining();
 						}
 					}
 				}

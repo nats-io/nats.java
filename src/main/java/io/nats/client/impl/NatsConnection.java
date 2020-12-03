@@ -870,14 +870,24 @@ class NatsConnection implements Connection {
 
     void sendUnsub(NatsSubscription sub, int after) {
         // allocate the proto length + 19 + 10 (sid is a long, 19 bytes max, after is an int 10 bytes max)
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_UNSUB_SP_LEN + 29)
-                .append(UNSUB_SP_BYTES)
-                .append(sub.getSID());
+        ByteBuffer sid = StandardCharsets.US_ASCII.encode(sub.getSID());
+        ByteBuffer afterBuf = null;
 
+        int len = OP_UNSUB_SP_LEN + sid.remaining();
         if (after > 0) {
-            bab.appendSpace().append(after);
+            afterBuf = StandardCharsets.US_ASCII.encode(Integer.toString(after));
+            len += 1 + afterBuf.remaining();
         }
-        NatsMessage unsubMsg = new NatsMessage(bab.toByteArray());
+        ByteBuffer bab = ByteBuffer.allocate(len);
+        bab.put(UNSUB_SP_BYTES.asReadOnlyBuffer());
+        bab.put(sid);
+
+        if (afterBuf != null) {
+            bab.put((byte)' ');
+            bab.put(afterBuf.asReadOnlyBuffer());
+        }
+        bab.flip();
+        NatsMessage unsubMsg = new NatsMessage(bab.duplicate());
         queueInternalOutgoing(unsubMsg);
     }
 
@@ -905,20 +915,42 @@ class NatsConnection implements Connection {
             return;// We will setup sub on reconnect or ignore
         }
 
-        int subLength = (subject != null) ? subject.length() : 0;
-        int qLength = (queueName != null) ? queueName.length() : 0;
-
-        ByteArrayBuilder bab = new ByteArrayBuilder(OP_SUB_SP_LEN + subLength + qLength)
-                .append(SUB_SP_BYTES)
-                .append(subject, StandardCharsets.UTF_8); // utf-8 just in case
-
+        int len = OP_SUB_SP_LEN;
+        ByteBuffer subBuffer = null;
+        if (subject != null) {
+            subBuffer = StandardCharsets.UTF_8.encode(subject);
+            len += subBuffer.remaining();
+        }
+        ByteBuffer qBuffer = null;
         if (queueName != null) {
-            bab.appendSpace().append(queueName);
+            qBuffer = StandardCharsets.UTF_8.encode(queueName);
+            len += 1 + qBuffer.remaining();
+        }
+        ByteBuffer sidBuffer = null;
+        if (sid != null) {
+            sidBuffer = StandardCharsets.US_ASCII.encode(sid);
+            len += 1 + sidBuffer.remaining();
         }
 
-        bab.appendSpace().append(sid);
+        ByteBuffer bab = ByteBuffer.allocate(len);
+        bab.put(SUB_SP_BYTES.asReadOnlyBuffer());
 
-        NatsMessage subMsg = new NatsMessage(bab.toByteArray());
+        if (subBuffer != null) {
+            bab.put(subBuffer.asReadOnlyBuffer());
+        }
+
+        if (qBuffer != null) {
+            bab.put((byte)' ');
+            bab.put(qBuffer.asReadOnlyBuffer());
+        }
+
+        if (sidBuffer != null) {
+            bab.put((byte)' ');
+            bab.put(sidBuffer.asReadOnlyBuffer());
+        }
+
+        bab.flip();
+        NatsMessage subMsg = new NatsMessage(bab.duplicate());
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -1178,11 +1210,13 @@ class NatsConnection implements Connection {
         try {
             NatsServerInfo info = this.serverInfo.get();
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
-            NatsMessage msg = new NatsMessage(
-                    new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit())
-                            .append(CONNECT_SP_BYTES)
-                            .append(connectOptions)
-                            .toByteArray());
+            ByteBuffer connectOptionsBuffer = StandardCharsets.UTF_8.encode(connectOptions);
+
+            ByteBuffer bab = ByteBuffer.allocate(OP_CONNECT_SP_LEN + connectOptionsBuffer.remaining());
+            bab.put(CONNECT_SP_BYTES.asReadOnlyBuffer());
+            bab.put(connectOptionsBuffer.asReadOnlyBuffer());
+            bab.flip();
+            NatsMessage msg = new NatsMessage(bab.duplicate());
             
             queueInternalOutgoing(msg);
         } catch (Exception exp) {
@@ -1224,7 +1258,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage(OP_PING_BYTES);
+        NatsMessage msg = new NatsMessage(OP_PING_BYTES.duplicate());
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1239,7 +1273,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        queueInternalOutgoing( new NatsMessage(OP_PONG_BYTES) );
+        queueInternalOutgoing( new NatsMessage(OP_PONG_BYTES.duplicate()) );
     }
 
     // Called by the reader

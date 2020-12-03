@@ -289,7 +289,7 @@ public class HeadersTests {
 
     @Test
     public void constructHeadersWithInvalidBytes() {
-        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor(null));
+        assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor((byte[]) null));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/0.0".getBytes()));
         assertThrows(IllegalArgumentException.class, () -> new IncomingHeadersProcessor("NATS/1.0".getBytes()));

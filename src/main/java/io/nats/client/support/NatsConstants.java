@@ -13,13 +13,14 @@
 
 package io.nats.client.support;
 
-import static java.nio.charset.StandardCharsets.US_ASCII;
+import java.nio.ByteBuffer;
 
 public interface NatsConstants {
-    String VERSION = "NATS/1.0";
+    ByteBuffer VERSION = ByteBuffer.wrap(new byte[] { 'N', 'A', 'T', 'S', '/' , '1', '.', '0'});
     String SPACE = " ";
     String EMPTY = "";
-    String CRLF = "\r\n";
+    ByteBuffer EMPTY_BUFFER = ByteBuffer.allocate(0);
+    ByteBuffer CRLF = ByteBuffer.wrap(new byte[] { '\r', '\n'});
 
     byte TAB = '\t';
     byte SP = ' ';
@@ -28,12 +29,14 @@ public interface NatsConstants {
     byte LF = '\n';
 
     byte[] EMPTY_BODY = new byte[0];
-    byte[] VERSION_BYTES = VERSION.getBytes(US_ASCII);
-    byte[] VERSION_BYTES_PLUS_CRLF = (VERSION + "\r\n").getBytes(US_ASCII);
-    byte[] COLON_BYTES = ":".getBytes(US_ASCII);
-    byte[] CRLF_BYTES = CRLF.getBytes(US_ASCII);
+    ByteBuffer EMPTY_BODY_BUFFER = ByteBuffer.allocate(0);
+    byte[] VERSION_BYTES = VERSION.array();
+    ByteBuffer VERSION_BYTES_PLUS_CRLF = ByteBuffer.wrap(new byte[] { 'N', 'A', 'T', 'S', '/' , '1', '.', '0', '\r', '\n'});
+    byte[] COLON_BYTES = new byte[] { ':' };
+    byte[] CRLF_BYTES = CRLF.array();
+    int CRLF_BYTES_LEN = CRLF_BYTES.length;
     int VERSION_BYTES_LEN = VERSION_BYTES.length;
-    int VERSION_BYTES_PLUS_CRLF_LEN = VERSION_BYTES_PLUS_CRLF.length;
+    int VERSION_BYTES_PLUS_CRLF_LEN = VERSION_BYTES_PLUS_CRLF.limit();
 
     String OP_CONNECT = "CONNECT";
     String OP_INFO = "INFO";
@@ -49,18 +52,20 @@ public interface NatsConstants {
     String OP_ERR = "-ERR";
     String UNKNOWN_OP = "UNKNOWN";
 
-    byte[] OP_PING_BYTES = OP_PING.getBytes();
-    byte[] OP_PONG_BYTES = OP_PONG.getBytes();
+    ByteBuffer OP_PING_BYTES = ByteBuffer.wrap(new byte[] { 'P', 'I', 'N', 'G' });
+    ByteBuffer OP_PONG_BYTES = ByteBuffer.wrap(new byte[] { 'P', 'O', 'N', 'G' });
 
-    byte[] PUB_SP_BYTES = (OP_PUB + SPACE).getBytes(US_ASCII);
-    byte[] HPUB_SP_BYTES = (OP_HPUB + SPACE).getBytes(US_ASCII);
-    byte[] CONNECT_SP_BYTES = (OP_CONNECT + SPACE).getBytes();
-    byte[] SUB_SP_BYTES = (OP_SUB + SPACE).getBytes();
-    byte[] UNSUB_SP_BYTES = (OP_UNSUB + SPACE).getBytes();
+    ByteBuffer PUB_SP_BYTES = ByteBuffer.wrap(new byte[] { 'P', 'U', 'B', ' ' });
+    ByteBuffer HPUB_SP_BYTES = ByteBuffer.wrap(new byte[] { 'H', 'P', 'U', 'B', ' ' });
+    ByteBuffer CONNECT_SP_BYTES = ByteBuffer.wrap(new byte[] { 'C', 'O', 'N', 'N', 'E', 'C', 'T', ' ' });
+    ByteBuffer SUB_SP_BYTES = ByteBuffer.wrap(new byte[] { 'S', 'U', 'B', ' ' });
+    ByteBuffer UNSUB_SP_BYTES = ByteBuffer.wrap(new byte[] { 'U', 'N', 'S', 'U', 'B' , ' '});
 
-    int OP_CONNECT_SP_LEN = CONNECT_SP_BYTES.length;
-    int OP_SUB_SP_LEN = SUB_SP_BYTES.length;
-    int OP_UNSUB_SP_LEN = UNSUB_SP_BYTES.length;
+    int OP_PUB_SP_LEN = PUB_SP_BYTES .limit();
+    int OP_HPUB_SP_LEN = HPUB_SP_BYTES.limit();
+    int OP_CONNECT_SP_LEN = CONNECT_SP_BYTES.limit();
+    int OP_SUB_SP_LEN = SUB_SP_BYTES.limit();
+    int OP_UNSUB_SP_LEN = UNSUB_SP_BYTES.limit();
 
     int MAX_PROTOCOL_RECEIVE_OP_LENGTH = 4;
 
