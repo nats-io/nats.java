@@ -13,20 +13,17 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.jupiter.api.Test;
+import static io.nats.client.utils.ResourceUtils.getFileFromResourceAsStream;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscriberTests {
 
@@ -167,7 +164,6 @@ public class SubscriberTests {
         }
     }
 
-
     @Test
     public void testUTF8Subjects() throws IOException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
@@ -176,13 +172,7 @@ public class SubscriberTests {
             assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             // Some UTF8 from http://www.columbia.edu/~fdc/utf8/
-            String[] subjects = {"Τη γλώσσα μου έδωσαν ελληνική",
-                "На берегу пустынных волн",
-                "ვეპხის ტყაოსანი შოთა რუსთაველი",
-                "Je peux manger du verre, ça ne me fait pas mal",
-                "⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑",
-                "أنا قادر على أكل الزجاج و هذا لا يؤلمني",
-                "私はガラスを食べられます。それは私を傷つけません"};
+            List<String> subjects = getFileFromResourceAsStream("utf8-test-strings.txt");
 
             for (String subject : subjects) {
                 subject = subject.replace(" ",""); // get rid of spaces
