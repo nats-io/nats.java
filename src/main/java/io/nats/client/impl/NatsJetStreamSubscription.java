@@ -50,7 +50,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     @Override
     public void poll() {
         if (deliver == null || pull == 0) {
-            throw new IllegalStateException("Subsription type does not support poll.");
+            throw new IllegalStateException("Subscription type does not support poll.");
         }
 
         String subj = js.appendPre(String.format(jSApiRequestNextT, stream, consumer));

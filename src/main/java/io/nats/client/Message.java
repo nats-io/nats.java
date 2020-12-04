@@ -116,63 +116,39 @@ public interface Message {
 
 	/**
 	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message
+	 * should not be received again later.
+	 */
+	public void ack();
+
+	/**
+	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message
 	 * should not be received again later.  Duration.ZERO does not confirm the acknowledgement.
 	 * @param timeout the duration to wait for an ack confirmation
      * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
 	 */
-	public void ack(Duration timeout) throws TimeoutException, InterruptedException;
+	public void ackSync(Duration timeout) throws TimeoutException, InterruptedException;	
 
 	/**
-	 * nak acknowledges a JetStream message received from a Consumer, indicating that the message
-	 * is not completely processed and should be sent again later. 
-	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
-	 * @param timeout the duration to wait for an ack confirmation
-     * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
+	 * nak acknowledges a JetStream message has been received but indicates that the message
+	 * is not completely processed and should be sent again later.
 	 */
-	public void nak(Duration timeout) throws TimeoutException, InterruptedException;
+	public void nak();
 
 	/**
-	 * ackProgress acknowledges a Jetstream message received from a Consumer, indicating that work is
-	 * ongoing and further processing time is required equal to the configured AckWait of the Consumer.
-	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
-	 * @param timeout the duration to wait for an ack confirmation
-     * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
+	 * term prevents this message from every being delivered regardless of maxDeliverCount.
 	 */
-	public void ackProgress(Duration timeout) throws TimeoutException, InterruptedException;
+	public void term();
 
 	/**
-	 * ackNext performs an Ack() and request the next message.  To request multiple messages use AckNextRequest()
+	 *  Indicates that this message is being worked on and reset redelkivery timer in the server.
 	 */
-	public void ackNext();
-	/**
-	 * ackNextRequest performs an acknowledgement of a message and request the next batch of messages.
-	 * @param expiry the time the server will stop honoring this request
-	 * @param batch the number of messages to request
-	 * @param noWait if true, return when existing messages have been processed
-	 */
-	public void ackNextRequest(ZonedDateTime expiry, long batch, boolean noWait);
+	public void inProgress();
 
 	/**
-	 * ackAndFetch performs an AckNext() and returns the next message from the stream.
-	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.  If a
-	 * message does not arrive withing the duration, a null message is returned.
-	 * @param timeout the duration to wait for an ack confirmation
-	 * @return the next message from the stream, or null if the request timed out.
-     * @throws InterruptedException if the thread is interrupted
+	 * Checks if a message is from Jetstream or is a standard message.
+	 * @return true if the message is from JetStream.
 	 */
-	public Message ackAndFetch(Duration timeout) throws InterruptedException;
-
-	/**
-	 * ackTerm acknowledges a message received from JetStream indicating the message will not be processed
-	 * and should not be sent to another consumer.
-	 * A timeout of Duration.ZERO does not wait to confirm the acknowledgement.
-	 * @param timeout the duration to wait for an ack confirmation
-     * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-	 */
-	public void ackTerm(Duration timeout) throws TimeoutException, InterruptedException;
+	public boolean isJetStream();
 
 }

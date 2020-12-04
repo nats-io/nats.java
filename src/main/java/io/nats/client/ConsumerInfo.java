@@ -73,26 +73,33 @@ public class ConsumerInfo {
     private SequencePair delivered;
     private SequencePair ackFloor;
     private long numPending;
+    private long numWaiting;
+    private long numAckPending;
     private long numRelivered;
     
     private static final String streamNameField =  "stream_name";
     private static final String nameField = "name";
-    private static final String configField =  "config";
     private static final String createdField =  "created";
+    private static final String configField =  "config";
     private static final String deliveredField =  "delivered";
     private static final String ackFloorField =  "ack_floor";
+    private static final String numAckPendingField =  "num_ack_pending";
+    private static final String numRedeliveredField =  "num_redelivered";
+    private static final String numWaitingField =  "num_waiting";
     private static final String numPendingField =  "num_pending";
-    private static final String numRedelivered =  "num_redelivered";
+
     private static final String streamSeqField = "stream_seq";
     private static final String consumerSeqField = "consumer_seq";
    
     private static final Pattern streamNameRE = JsonUtils.buildPattern(streamNameField, FieldType.jsonString);
     private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
     private static final Pattern createdRE = JsonUtils.buildPattern(createdField, FieldType.jsonString);
-    private static final Pattern numPendingRE = JsonUtils.buildPattern(numPendingField, FieldType.jsonNumber); 
-    private static final Pattern numRedeliveredRE = JsonUtils.buildPattern(numRedelivered, FieldType.jsonNumber); 
+    private static final Pattern numPendingRE = JsonUtils.buildPattern(numPendingField, FieldType.jsonNumber);
+    private static final Pattern numAckPendingRE = JsonUtils.buildPattern(numAckPendingField, FieldType.jsonNumber);
+    private static final Pattern numRedeliveredRE = JsonUtils.buildPattern(numRedeliveredField, FieldType.jsonNumber); 
+    private static final Pattern numWaitingRE = JsonUtils.buildPattern(numWaitingField, FieldType.jsonNumber); 
+    private static final Pattern streamSeqRE = JsonUtils.buildPattern(streamSeqField, FieldType.jsonNumber);
     private static final Pattern consumerSeqRE = JsonUtils.buildPattern(consumerSeqField, FieldType.jsonNumber); 
-    private static final Pattern streamSeqRE = JsonUtils.buildPattern(streamSeqField, FieldType.jsonNumber); 
 
     /**
      * Internal method to generate consumer information.
@@ -137,6 +144,16 @@ public class ConsumerInfo {
             this.numPending = Long.parseLong(m.group(1));
         }
 
+        m = numWaitingRE.matcher(json);
+        if (m.find()) {
+            this.numWaiting = Long.parseLong(m.group(1));
+        }        
+
+        m = numAckPendingRE.matcher(json);
+        if (m.find()) {
+            this.numAckPending = Long.parseLong(m.group(1));
+        }        
+
         m = numRedeliveredRE.matcher(json);
         if (m.find()) {
             // todo - double check
@@ -170,6 +187,14 @@ public class ConsumerInfo {
 
     public long getNumPending() {
         return numPending;
+    }
+
+    public long getNumWaiting() {
+        return numWaiting;
+    }
+
+    public long getNumAckPending() {
+        return numAckPending;
     }
 
     public long getRedelivered() {

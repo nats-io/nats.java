@@ -244,7 +244,8 @@ public class NatsTestServer implements AutoCloseable {
             cmd.addAll(Arrays.asList(this.customArgs));
         }
 
-        cmd.add("-DVV");
+        // Enable to debug verbosely 
+        // cmd.add("-DVV");
 
         this.cmdLine = String.join(" ", cmd);
 
@@ -336,7 +337,7 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     public void createPullConsumer(String stream, String durable) throws Exception {
-        
+    
         Connection c = Nats.connect(this.getURI());
 
         ConsumerConfiguration cc = ConsumerConfiguration.builder().

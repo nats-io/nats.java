@@ -23,9 +23,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 
 import io.nats.client.Connection;
+import io.nats.client.JetStream;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 
@@ -49,8 +51,8 @@ class NatsMessage implements Message {
     // special case
     private static final byte[] AckNextEmptyPayload = "+NXT {}".getBytes();
     private static final byte[] AckNext = "+NXT".getBytes();
-
     private static final byte[] AckTerm = "+TERM".getBytes();
+    private static final byte[] AckNextOne = "+NXT {\"batch\":1}".getBytes();
 
     static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
@@ -257,53 +259,95 @@ class NatsMessage implements Message {
         return this.subscription;
     }
 
-    private void jsAck(byte[] body, Duration d) throws InterruptedException, TimeoutException {
-        if (this.replyTo == null || this.replyTo.isEmpty()) {
+    private Connection getJetStreamValidatedConnection() {
+        if (!this.isJetStream()) {
             throw new IllegalStateException("Message is not a jestream message");
         }
 
+        if (getSubscription() == null) {
+            throw new IllegalStateException("Messages is not bound to a subcription.");
+        }
+
         Connection c = getConnection();
         if (c == null) {
             throw new IllegalStateException("Message is not bound to a connection");
         }
+        return c;
 
-        if (d == Duration.ZERO) {
-            c.publish(replyTo, body);
+    }
+
+    private void ackReply(byte[] ackType) {
+        try {
+            ackReply(ackType, Duration.ZERO);
+        } catch (InterruptedException e) {
+            // we should never get here, but satisfy the linters.
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException e) {
+            // NOOP
+        }
+    }
+    
+    private boolean isPullMode() {
+        if (!(this.subscription instanceof NatsJetStreamSubscription)) {
+            return false;
+        }
+        return (((NatsJetStreamSubscription) this.subscription).pull > 0);
+    }
+
+    private void ackReply(byte[] ackType, Duration d) throws InterruptedException, TimeoutException {
+        if (!this.isJetStream()) {
+            throw new IllegalStateException("Message is not a jestream message");
+        }
+        if (d == null) {
+            throw new IllegalArgumentException("Duration cannot be null.");
+        }
+
+        boolean isSync = (d != Duration.ZERO);
+        Connection nc = getJetStreamValidatedConnection();
+
+        if (isPullMode()) {
+           if (Arrays.equals(ackType, AckAck)) {
+              nc.publish(replyTo, subscription.getSubject(), AckNext);
+           } else if (Arrays.equals(ackType, AckNak) || Arrays.equals(ackType, AckTerm)) {
+                nc.publish(replyTo, subscription.getSubject(), AckNextOne);
+           }
+           if (isSync && nc.request(replyTo, null, d) == null) {
+                throw new TimeoutException("Ack request next timed out.");
+           }
+
+        } else if (isSync && nc.request(replyTo, ackType, d) == null) {
+            throw new TimeoutException("Ack response timed out.");
         } else {
-            Message m = c.request(replyTo, body, d);
-            if (m == null) {
-                throw new TimeoutException("Timed out waiting for an ack confirmation");
-            }
+            nc.publish(replyTo, ackType);
         }
     }
 
     @Override
-    public void ack(Duration timeout) throws InterruptedException, TimeoutException {
-        jsAck(AckAck, timeout);
+    public void ack() {
+        ackReply(AckAck);
     }
 
     @Override
-    public void nak(Duration timeout)  throws InterruptedException, TimeoutException {
-        jsAck(AckNak, timeout);
+    public void ackSync(Duration d) throws InterruptedException, TimeoutException {
+        ackReply(AckAck, d);
     }
 
     @Override
-    public void ackProgress(Duration timeout) throws InterruptedException, TimeoutException {
-        jsAck(AckProgress, timeout);
+    public void nak(){
+        ackReply(AckNak);
     }
 
     @Override
-    public void ackNext() {
-        Connection c = getConnection();
-        if (c == null) {
-            throw new IllegalStateException("Message is not bound to a connection");
-        }
-        
-        c.publish(replyTo, subject, AckNext);
+    public void inProgress() {
+        ackReply(AckProgress);
     }
 
     @Override
-    public void ackNextRequest(ZonedDateTime expiry, long batch, boolean noWait) {
+    public void term() {
+        ackReply(AckTerm);
+    }
+
+    public void toDOackNextRequest(ZonedDateTime expiry, long batch, boolean noWait) {
 
         if (batch < 0) {
             throw new IllegalArgumentException();
@@ -343,30 +387,6 @@ class NatsMessage implements Message {
         c.publish(replyTo, subject, payload);
     }
 
-    @Override
-    public Message ackAndFetch(Duration timeout) throws InterruptedException {
-        if (this.replyTo == null || this.replyTo.isEmpty()) {
-            throw new IllegalStateException("Message is not a jestream message");
-        }
-
-        Connection c = getConnection();
-        if (c == null) {
-            throw new IllegalStateException("Message is not bound to a connection");
-        }
-
-        Subscription s = c.subscribe(c.createInbox());
-        s.unsubscribe(1);
-
-        c.publish(replyTo, s.getSubject(), AckNext);
-
-        return s.nextMessage(timeout);
-    }
-
-    @Override
-    public void ackTerm(Duration timeout) throws InterruptedException, TimeoutException {
-        jsAck(AckTerm, timeout);
-    }
-
     public MetaData metaData() {
         if (this.jsMetaData == null) {
             this.jsMetaData = new NatsJetstreamMetaData();
@@ -389,12 +409,12 @@ class NatsMessage implements Message {
         }
 
         NatsJetstreamMetaData() {
-            if (replyTo == null || replyTo.isEmpty()) {
+            if (!isJetStream()) {
                 throwNotJSMsgException(replyTo);
             }
 
             String[] parts = replyTo.split("\\.");
-            if (parts.length < 8 || parts.length > 9 || !"$JS".equals(parts[0]) || !"ACK".equals(parts[1])) {
+            if (parts.length < 8 || parts.length > 9 || !"ACK".equals(parts[1])) {
                 throwNotJSMsgException(replyTo);
             }
 
@@ -450,6 +470,10 @@ class NatsMessage implements Message {
         public ZonedDateTime timestamp() {
             return timestamp;
         }
+    }
 
+    @Override
+    public boolean isJetStream() {
+        return replyTo != null && replyTo.startsWith("$JS");
     }
 }

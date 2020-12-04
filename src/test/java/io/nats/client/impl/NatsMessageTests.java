@@ -19,12 +19,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 
 import org.junit.jupiter.api.Test;
 
 import io.nats.client.Connection;
+import io.nats.client.Message;
 import io.nats.client.Nats;
 import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.NatsTestServer;
@@ -136,7 +140,9 @@ public class NatsMessageTests {
         String subject = "subj";
         String replyTo = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
 
-        NatsMessage msg = new NatsMessage(subject, replyTo, body, false);
+        Message msg = new NatsMessage(subject, replyTo, body, false);
+
+        assertTrue(msg.isJetStream());
 
         MetaData jsmd = msg.metaData();
         assertNotNull(jsmd);
@@ -148,5 +154,16 @@ public class NatsMessageTests {
         assertEquals(2020, jsmd.timestamp().getYear());
         assertEquals(6, jsmd.timestamp().getMinute());
         assertEquals(113260000, jsmd.timestamp().getNano());
+    }
+
+    @Test
+    public void testInvalidJSMessage() {
+        Message m = new NatsMessage("foo", "bar", ByteBuffer.allocate(1), false);
+        assertFalse(m.isJetStream());
+        assertThrows(IllegalStateException.class, () -> m.ack());
+        assertThrows(IllegalStateException.class, () -> m.nak());
+        assertThrows(IllegalStateException.class, () -> m.ackSync(Duration.ofSeconds(42)));
+        assertThrows(IllegalStateException.class, () -> m.inProgress());
+        assertThrows(IllegalStateException.class, () -> m.term());
     }
 }

@@ -21,8 +21,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.nats.client.Nats;
-
 /**
  * Internal json parsing helpers.
  */

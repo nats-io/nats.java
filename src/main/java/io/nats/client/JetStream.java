@@ -239,6 +239,24 @@ public interface JetStream {
      */    
     public PublishAck publish(String subject, byte[] body, PublishOptions options, PublishExpectation expects) throws IOException, InternalError, TimeoutException, InterruptedException;
 
+/**
+     * Create a synchronous subscription to the specified subject with default options.
+     * 
+     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+     * method to read messages for this subscription.
+     * 
+     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+     * information about creating an asynchronous subscription with callbacks.
+     * 
+     * @param subject the subject to subscribe to
+     * @return an object representing the subscription
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @throws IOException if there are communcation issues with the NATS server
+     */    
+    public JetStreamSubscription subscribe(String subject) throws InterruptedException, TimeoutException, IOException;
+
+
     /**
      * Create a synchronous subscription to the specified subject.
      * 
@@ -247,8 +265,6 @@ public interface JetStream {
      * 
      * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
-     * 
-     * <p>As of 2.6.1 this method will throw an IllegalArgumentException if the subject contains whitespace.
      * 
      * @param subject the subject to subscribe to
      * @param options subscription options

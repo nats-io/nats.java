@@ -205,14 +205,8 @@ public class NatsJetStream implements JetStream {
         return prefix + subject;
     }
     
-    private ConsumerInfo createOrUpdateConsumer(String deliverySubject, String streamName, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException {
-        String durable = config.getDurable();
-        
-        // override the delivery subject if not null.
-        if (deliverySubject != null) {
-            config.setDeliverSubject(deliverySubject);
-        }
-        
+    private ConsumerInfo createOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException {
+        String durable = config.getDurable();        
         String requestJSON = config.toJSON(streamName);
 
         String subj;
@@ -271,7 +265,10 @@ public class NatsJetStream implements JetStream {
     private ConsumerInfo addConsumer(String subject, String stream, ConsumerConfiguration config) throws InterruptedException, IOException, TimeoutException {
         checkName(stream, false, "stream");
         checkNull(config, "config");
-        return createOrUpdateConsumer(subject, stream, config);
+        if (subject != null) {
+            config.setDeliverSubject(subject);
+        }
+        return createOrUpdateConsumer(stream, config);
     }
 
     @Override
@@ -331,7 +328,6 @@ public class NatsJetStream implements JetStream {
         return ack;    
     }
 
-
     ConsumerInfo getConsumerInfo(String stream, String consumer) throws IOException, TimeoutException,
             InterruptedException {
         String ccInfoSubj = this.appendPre(String.format(jSApiConsumerInfoT, stream, consumer));
@@ -342,7 +338,7 @@ public class NatsJetStream implements JetStream {
 
         JetstreamAPIResponse jsResp = new JetstreamAPIResponse(resp.getData());
         if (jsResp.hasError()) {
-            throw new IOException(jsResp.getError());
+            throw new IllegalStateException(jsResp.getError());
         }
 
         return new ConsumerInfo(jsResp.getResponse());
@@ -384,9 +380,9 @@ public class NatsJetStream implements JetStream {
         public void onMessage(Message msg) throws InterruptedException {
             try  {
                 mh.onMessage(msg);
-                msg.ack(defaultTimeout);
+                msg.ack();
             } catch (Exception e) {
-                // ignore
+                // ignore??  schedule async error?
             }
         }
     }
@@ -394,19 +390,19 @@ public class NatsJetStream implements JetStream {
     NatsJetStreamSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException{
 
         // setup the configuration, use a default.
-        SubscribeOptions o = (options == null) ? SubscribeOptions.builder().build() : options;
+        SubscribeOptions o = (options == null) ? SubscribeOptions.builder().build() : new SubscribeOptions(options);
         if (o.getConsumerConfiguration() == null) {
             o.setConfiguration(ConsumerConfiguration.builder().build());
         }
 
         ConsumerConfiguration cfg = o.getConsumerConfiguration();
 
-        boolean isPullMode = (o.getPullBatchSize() < 0);
-        if (handler == null && isPullMode) {
-            throw new IllegalStateException("Pull mode is only allowed with a message handler.");
+        boolean isPullMode = (o.getPullBatchSize() > 0);
+        if (handler != null && isPullMode) {
+            throw new IllegalStateException("Pull mode is not allowed with dispatcher.");
         }
 
-        boolean shouldAttach =(o.getStream() != null && o.getConsumer() != null || o.getConsumerConfiguration().getDeliverSubject() != null);
+        boolean shouldAttach = o.getStream() != null && o.getConsumer() != null || o.getConsumerConfiguration().getDeliverSubject() != null;
         boolean shouldCreate = !shouldAttach;
 
         if (shouldAttach && this.direct) {
@@ -440,9 +436,8 @@ public class NatsJetStream implements JetStream {
             deliver = conn.createInbox();
             if (!isPullMode) {
                 cfg.setDeliverSubject(deliver);
-            } else {
-                cfg.setFilterSubject(subject);
             }
+            cfg.setFilterSubject(subject);
         }
 
         NatsJetStreamSubscription sub;
@@ -465,21 +460,23 @@ public class NatsJetStream implements JetStream {
             // if we have acks and the maxAckPending is not set, set it
             // to the internal Max.
             // TODO:  too high value?
-            if (cfg.getMaxAckPending() == -1) {
+            if (cfg.getMaxAckPending() == 0) {
                 cfg.setMaxAckPending(sub.getPendingMessageLimit());
             }
 
             try  {
-                ConsumerInfo ci = createOrUpdateConsumer(deliver, stream, cfg);
+                ConsumerInfo ci = createOrUpdateConsumer(stream, cfg);
                 sub.setupJetStream(this, ci.getName(), ci.getStreamName(),
-                    ci.getConsumerConfiguration().getDeliverSubject(),
-                    o.getPullBatchSize());
+                    deliver, o.getPullBatchSize());
             } catch (Exception e) {
                 sub.unsubscribe();
                 throw e;
             }
         } else {
             String s = direct ? o.getConsumerConfiguration().getDeliverSubject() : ccfg.getDeliverSubject();
+            if (s == null) {
+                s = deliver;
+            }
             sub.setupJetStream(this, o.getConsumer(), o.getStream(), s, o.getPullBatchSize());
         }
 
@@ -518,6 +515,12 @@ public class NatsJetStream implements JetStream {
             return false;
         }
         return !s.contains(".") && !s.contains("*") && !s.contains(">");
+    }
+
+    @Override
+    public JetStreamSubscription subscribe(String subject) throws InterruptedException, TimeoutException, IOException {
+        checkName(subject, true, "subject");
+        return createSubscription(subject, null, null, null, SubscribeOptions.builder().build()); 
     }
 
     @Override

@@ -27,7 +27,7 @@ public class ConsumerInfoTests {
 
     @Test
     public void testJSONParsing() {
-        String json = "{\n  \"type\": \"io.nats.jetstream.api.v1.consumer_info_response\",\n  \"stream_name\": \"foo-stream\",\n  \"name\": \"foo-consumer\",\n  \"created\": \"2020-11-05T19:33:21.163377Z\",\n  \"config\": {\n    \"durable_name\": \"foo-consumer\",\n    \"deliver_subject\": \"bar\",\n    \"deliver_policy\": \"all\",\n    \"ack_policy\": \"all\",\n    \"ack_wait\": 30000000000,\n    \"max_deliver\": 10,\n    \"replay_policy\": \"original\"\n  },\n  \"delivered\": {\n    \"consumer_seq\": 1,\n    \"stream_seq\": 2\n  },\n  \"ack_floor\": {\n    \"consumer_seq\": 3,\n    \"stream_seq\": 4\n  },\n  \"num_pending\": 24,\n  \"num_redelivered\": 42\n}";
+        String json = "{\n  \"type\": \"io.nats.jetstream.api.v1.consumer_info_response\",\n  \"stream_name\": \"foo-stream\",\n  \"name\": \"foo-consumer\",\n  \"created\": \"2020-11-05T19:33:21.163377Z\",\n  \"config\": {\n    \"durable_name\": \"foo-consumer\",\n    \"deliver_subject\": \"bar\",\n    \"deliver_policy\": \"all\",\n    \"ack_policy\": \"all\",\n    \"ack_wait\": 30000000000,\n    \"max_deliver\": 10,\n    \"replay_policy\": \"original\"\n  },\n  \"delivered\": {\n    \"consumer_seq\": 1,\n    \"stream_seq\": 2\n  },\n  \"ack_floor\": {\n    \"consumer_seq\": 3,\n    \"stream_seq\": 4\n  },\n  \"num_pending\": 24,,\n  \"num_ack_pending\": 42,\n  \"num_redelivered\": 42\n}";
 
         ConsumerInfo info = new ConsumerInfo(json);
 
@@ -40,6 +40,7 @@ public class ConsumerInfoTests {
         assertEquals(4, info.getAckFloor().getStreamSequence());
 
         assertEquals(24, info.getNumPending());
+        assertEquals(42, info.getNumAckPending());
         assertEquals(42, info.getRedelivered());
 
         ConsumerConfiguration c = info.getConsumerConfiguration();

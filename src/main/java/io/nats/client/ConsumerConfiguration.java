@@ -135,15 +135,15 @@ public class ConsumerConfiguration {
 	private String durable = null;
     private DeliverPolicy deliverPolicy = DeliverPolicy.All;
     private String deliverSubject = null;
-	private long startSeq = -1;
+	private long startSeq = 0;
 	private ZonedDateTime startTime = null;
 	private AckPolicy ackPolicy = AckPolicy.Explicit;
-	private Duration ackWait = Duration.ZERO;
-	private long maxDeliver = -1;
+	private Duration ackWait = Duration.ofSeconds(30);
+	private long maxDeliver = 0;
 	private String filterSubject = null;
 	private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
 	private String sampleFrequency = null;
-    private long rateLimit = -1;
+    private long rateLimit = 0;
     private long maxWaiting = 0;
     private long maxAckPending = 0;
 
@@ -254,6 +254,14 @@ public class ConsumerConfiguration {
             this.maxWaiting = Long.parseLong(m.group(1));
         }                 
 
+    }
+
+    // copy constructor for subscriptions
+    ConsumerConfiguration(ConsumerConfiguration cc) {
+        this(cc.durable, cc.deliverPolicy, cc.startSeq,
+            cc.startTime, cc.ackPolicy, cc.ackWait, cc.maxDeliver, cc.filterSubject,
+            cc.replayPolicy, cc.sampleFrequency, cc.rateLimit, cc.deliverSubject,
+            cc.maxWaiting, cc.maxAckPending);
     }
 
     // For the builder
@@ -441,14 +449,14 @@ public class ConsumerConfiguration {
         private ZonedDateTime startTime = null;
         private AckPolicy ackPolicy = AckPolicy.Explicit;
         private Duration ackWait = Duration.ofSeconds(30);
-        private long maxDeliver = -1;
+        private long maxDeliver = 0;
         private String filterSubject = null;
         private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
         private String sampleFrequency = null;
         private long rateLimit = 0;
         private String deliverSubject = null;
-        private long maxWaiting = -1;
-        private long maxAckPending = -1;
+        private long maxWaiting = 0;
+        private long maxAckPending = 0;
     
         /**
          * Sets the name of the durable subscription.

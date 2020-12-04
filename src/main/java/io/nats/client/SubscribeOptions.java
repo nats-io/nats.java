@@ -13,8 +13,6 @@
 
 package io.nats.client;
 
-import javax.jws.soap.SOAPBinding;
-
 /**
  * The SubscribeOptions class specifies the options for subscribing with jetstream enabled servers.
  * Options are created using the constructor or a {@link SubscribeOptions.Builder Builder}.
@@ -28,6 +26,19 @@ public class SubscribeOptions {
     private long pull = 0;
 
     private SubscribeOptions() {}
+
+
+    /**
+     * Copy constructor for subsciption options.
+     * @param options Subscription options
+     */
+    public SubscribeOptions(SubscribeOptions options) {
+        this.stream = options.stream;
+        this.consumer = options.consumer;
+        this.consumerConfiguration = new ConsumerConfiguration(options.consumerConfiguration);
+        this.autoAck = options.autoAck;
+        this.pull = options.pull;
+    }
 
     /**
      * Gets the name of the stream.
@@ -176,6 +187,17 @@ public class SubscribeOptions {
          */
         public Builder configuration(String stream, ConsumerConfiguration configuration) {
             this.stream = stream;
+            this.consumerConfig = configuration;
+            return this;
+        }
+
+        /**
+         * Attaches to a consumer for the subscription.  Will look up the stream
+         * based on the subscription.
+         * @param configuration the consumer configuration.
+         * @return the builder
+         */
+        public Builder configuration(ConsumerConfiguration configuration) {
             this.consumerConfig = configuration;
             return this;
         }
