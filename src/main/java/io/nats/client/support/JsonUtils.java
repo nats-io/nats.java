@@ -163,7 +163,7 @@ public final class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
-     * @param value field value
+     * @param strArray field value
      */    
     public static void addFld(StringBuilder sb, String fname, String[] strArray) {
         if (strArray == null || strArray.length == 0) {
