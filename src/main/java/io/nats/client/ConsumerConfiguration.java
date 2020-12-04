@@ -13,17 +13,17 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a jetstream consumer on the client and 
@@ -132,17 +132,17 @@ public class ConsumerConfiguration {
         }        
     }
 
-	private String durable = null;
+    private String durable = null;
     private DeliverPolicy deliverPolicy = DeliverPolicy.All;
     private String deliverSubject = null;
-	private long startSeq = 0;
-	private ZonedDateTime startTime = null;
-	private AckPolicy ackPolicy = AckPolicy.Explicit;
-	private Duration ackWait = Duration.ofSeconds(30);
-	private long maxDeliver = 0;
-	private String filterSubject = null;
-	private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
-	private String sampleFrequency = null;
+    private long startSeq = 0;
+    private ZonedDateTime startTime = null;
+    private AckPolicy ackPolicy = AckPolicy.Explicit;
+    private Duration ackWait = Duration.ofSeconds(30);
+    private long maxDeliver = 0;
+    private String filterSubject = null;
+    private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
+    private String sampleFrequency = null;
     private long rateLimit = 0;
     private long maxWaiting = 0;
     private long maxAckPending = 0;
@@ -158,9 +158,9 @@ public class ConsumerConfiguration {
     private static String filterSubjectField =  "filter_subject";
     private static String replayPolicyField =  "replay_policy";
     private static String sampleFreqField =  "sample_frequency";
-    private static String rateLimitField =  "rate_limit";    
+    private static String rateLimitField =  "rate_limit";
     private static String maxWaitingField =  "max_waiting";
-    private static String maxAckPendingField =  "max_akc_pending";     
+    private static String maxAckPendingField =  "max_akc_pending";
 
     private static final Pattern durableRE = JsonUtils.buildPattern(durableNameField, FieldType.jsonString);
     private static final Pattern deliverSubjectRE = JsonUtils.buildPattern(deliverSubjField, FieldType.jsonString);
