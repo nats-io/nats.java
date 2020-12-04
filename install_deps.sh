@@ -24,8 +24,3 @@ cp $GOROOT/bin/nats-server nats-server
 
 echo "NATS server version:"
 `pwd`/nats-server/nats-server --version
-<<<<<<< HEAD
-
-
-=======
->>>>>>> master
