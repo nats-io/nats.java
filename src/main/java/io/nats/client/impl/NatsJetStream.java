@@ -1,26 +1,16 @@
 package io.nats.client.impl;
 
+import io.nats.client.*;
+import io.nats.client.impl.jetstream.AccountStatsImpl;
+import io.nats.client.impl.jetstream.AutoAckMessageHandler;
+import io.nats.client.impl.jetstream.PublishExpectationImpl;
+import io.nats.client.jetstream.PublishAck;
+import io.nats.client.jetstream.PublishExpectation;
+import io.nats.client.support.JsonUtils;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import io.nats.client.ConsumerConfiguration;
-import io.nats.client.ConsumerInfo;
-import io.nats.client.Dispatcher;
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamOptions;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.Options;
-import io.nats.client.PublishAck;
-import io.nats.client.PublishOptions;
-import io.nats.client.StreamConfiguration;
-import io.nats.client.StreamInfo;
-import io.nats.client.SubscribeOptions;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 public class NatsJetStream implements JetStream {
 
@@ -50,114 +40,6 @@ public class NatsJetStream implements JetStream {
     private PublishOptions defaultPubOpts = PublishOptions.builder().build();
     private JetStreamOptions options;
     private boolean direct = false;
-
-    public class AccountLimitImpl implements AccountLimits {
-        long memory = -1;
-        long storage = -1;
-        long streams = -1;
-        long consumers = 1;
-    
-        private final Pattern memoryRE = JsonUtils.buildPattern("max_memory", FieldType.jsonNumber);
-        private final Pattern storageRE = JsonUtils.buildPattern("max_storage", FieldType.jsonNumber);
-        private final Pattern streamsRE = JsonUtils.buildPattern("max_streams", FieldType.jsonString);
-        private final Pattern consumersRE = JsonUtils.buildPattern("max_consumers", FieldType.jsonString);    
-
-        AccountLimitImpl(String json) {
-            Matcher m = memoryRE.matcher(json);
-            if (m.find()) {
-                this.memory = Integer.parseInt(m.group(1));
-            }
-
-            m = storageRE.matcher(json);
-            if (m.find()) {
-                this.storage = Integer.parseInt(m.group(1));
-            }
-            
-            m = streamsRE.matcher(json);
-            if (m.find()) {
-                this.streams = Integer.parseInt(m.group(1));
-            }
-
-            m = consumersRE.matcher(json);
-            if (m.find()) {
-                this.consumers = Integer.parseInt(m.group(1));
-            } 
-        }
-
-        @Override
-        public long getMaxMemory() {
-            return memory;
-        }
-
-        @Override
-        public long getMaxStorage() {
-            return storage;
-        }
-
-        @Override
-        public long getMaxStreams() {
-            return streams;
-        }
-
-        @Override
-        public long getMaxConsumers() {
-            return consumers;
-        }
-
-    }
-
-    public class AccountStatsImpl implements AccountStatistics {
-        long memory = -1;
-        long storage = -1;
-        long streams = -1;
-        long consumers = 1;
-    
-        private final Pattern memoryRE = JsonUtils.buildPattern("memory", FieldType.jsonNumber);
-        private final Pattern storageRE = JsonUtils.buildPattern("storage", FieldType.jsonNumber);
-        private final Pattern streamsRE = JsonUtils.buildPattern("streams", FieldType.jsonString);
-        private final Pattern consumersRE = JsonUtils.buildPattern("consumers", FieldType.jsonString);
-
-        AccountStatsImpl(String json) {
-            Matcher m = memoryRE.matcher(json);
-            if (m.find()) {
-                this.memory = Integer.parseInt(m.group(1));
-            }
-
-            m = storageRE.matcher(json);
-            if (m.find()) {
-                this.storage = Integer.parseInt(m.group(1));
-            }
-            
-            m = streamsRE.matcher(json);
-            if (m.find()) {
-                this.streams = Integer.parseInt(m.group(1));
-            }
-
-            m = consumersRE.matcher(json);
-            if (m.find()) {
-                this.consumers = Integer.parseInt(m.group(1));
-            }             
-        }
-        @Override
-        public long getMemory() {
-            return memory;
-        }
-
-        @Override
-        public long getStorage() {
-            return storage;
-        }
-
-        @Override
-        public long getStreams() {
-            return streams;
-        }
-
-        @Override
-        public long getConsumers() {
-            return consumers;
-        }
-    }
 
     private static boolean isJetstreamEnabled(Message msg) {
         if (msg == null) {
@@ -365,26 +247,6 @@ public class NatsJetStream implements JetStream {
             throw new IllegalStateException("No matching streams.");
         }
         return streams[0];
-    }
-
-    private class AutoAckMessageHandler implements MessageHandler {
-
-        MessageHandler mh;
-
-        // caller must ensure userMH is not null
-        AutoAckMessageHandler(MessageHandler userMH) {
-            mh = userMH;
-        }
-
-        @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            try  {
-                mh.onMessage(msg);
-                msg.ack();
-            } catch (Exception e) {
-                // ignore??  schedule async error?
-            }
-        }
     }
 
     NatsJetStreamSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException{

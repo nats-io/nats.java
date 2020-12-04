@@ -13,14 +13,15 @@
 
 package io.nats.client;
 
+import io.nats.client.jetstream.DiscardPolicy;
+import io.nats.client.jetstream.RetentionPolicy;
+import io.nats.client.jetstream.StorageType;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonUtils.FieldType;
+
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 
 // TODO Add properties
@@ -33,105 +34,7 @@ import io.nats.client.impl.JsonUtils.FieldType;
  */
 public class StreamConfiguration {
 
-
-    /**
-     * Stream retention policies.
-     */
-    public enum RetentionPolicy {
-        Limits("limits"),
-        Interest("interest"),
-        WorkQueue("workqueue");
-
-        private String policy;
-
-        RetentionPolicy(String p) {
-            policy = p;
-        }
-
-        @Override
-        public String toString() {
-            return policy;
-        }        
-
-        private static final Map<String, RetentionPolicy> strEnumHash = new HashMap<>();
-        static
-        {
-            for(RetentionPolicy env : RetentionPolicy.values())
-            {
-                strEnumHash.put(env.toString(), env);
-            }
-        }
-
-        public static RetentionPolicy get(String value) {
-            return strEnumHash.get(value);
-        }        
-    }
-
-    /**
-     * Stream discard policies
-     */
-    public enum DiscardPolicy {
-        New("new"),
-        Old("old");
-
-        private String policy;
-
-        DiscardPolicy(String p) {
-            policy = p;
-        }
-
-        @Override
-        public String toString() {
-            return policy;
-        }
-        
-        private static final Map<String, DiscardPolicy> strEnumHash = new HashMap<>();
-        static
-        {
-            for(DiscardPolicy env : DiscardPolicy.values())
-            {
-                strEnumHash.put(env.toString(), env);
-            }
-        }
-
-        public static DiscardPolicy get(String value) {
-            return strEnumHash.get(value);
-        }
-    }
-
-    /**
-     * Stream storage types.
-     */
-    public enum StorageType {
-        File("file"),
-        Memory("memory");
-
-        private String policy;
-
-        StorageType(String p) {
-            policy = p;
-        }
-
-        @Override
-        public String toString() {
-            return policy;
-        }
-        
-        private static final Map<String, StorageType> strEnumHash = new HashMap<>();
-        static
-        {
-            for(StorageType env : StorageType.values())
-            {
-                strEnumHash.put(env.toString(), env);
-            }
-        }
-
-        public static StorageType get(String value) {
-            return strEnumHash.get(value);
-        }
-    }
-
-	private String name = null;
+    private String name = null;
     private String[] subjects = null;
     private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
 
@@ -173,7 +76,7 @@ public class StreamConfiguration {
     private static final Pattern noAckRE = JsonUtils.buildPattern(noAckField, FieldType.jsonBoolean);
     private static final Pattern templateRE = JsonUtils.buildPattern(templateField, FieldType.jsonString);
     private static final Pattern duplicatesRE = JsonUtils.buildPattern(duplicatesField, FieldType.jsonNumber);
-    
+
     // for the response from the server
     StreamConfiguration(String json) {
         Matcher m = nameRE.matcher(json);

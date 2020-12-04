@@ -14,8 +14,8 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.Message.MetaData;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.jetstream.MetaData;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;

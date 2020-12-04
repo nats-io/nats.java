@@ -13,8 +13,8 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonUtils.FieldType;
 
 import java.time.Duration;
 import java.time.Instant;

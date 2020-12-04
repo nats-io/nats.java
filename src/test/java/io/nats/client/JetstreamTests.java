@@ -13,13 +13,12 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.ConsumerConfiguration.AckPolicy;
+import io.nats.client.jetstream.PublishAck;
+import io.nats.client.jetstream.StorageType;
+import io.nats.client.jetstream.StreamState;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -28,12 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.ConsumerConfiguration.AckPolicy;
-import io.nats.client.StreamConfiguration.StorageType;
-import io.nats.client.StreamInfo.StreamState;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JetstreamTests {
 

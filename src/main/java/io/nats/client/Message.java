@@ -13,11 +13,12 @@
 
 package io.nats.client;
 
-import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.util.concurrent.TimeoutException;
 import io.nats.client.impl.Headers;
+import io.nats.client.jetstream.MetaData;
 import io.nats.client.support.Status;
+
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
@@ -28,56 +29,6 @@ import io.nats.client.support.Status;
  * and is safe to manipulate.
  */
 public interface Message {
-
-	/**
-	 * This interface defined the methods use to get Jetstream metadata about a message, 
-	 * when applicable.
-	 */
-	public interface MetaData {
-
-		/**
-		 * Gets the stream the message is from.
-		 * @return the stream.
-		 */
-		public String getStream();
-		
-		/**
-		 * Gets the consumer that generated this message.
-		 * @return the consumer.
-		 */
-		public String getConsumer();
-
-
-		/**
-		 * Gets the number of times this message has been delivered.
-		 * @return delivered count.
-		 */
-		public long deliveredCount();
-		 
-		/**
-		 * Gets the stream sequence number of the message.
-		 * @return sequence number
-		 */
-		public long streamSequence();
-
-		/**
-		 * Gets consumer sequence number of this message.
-		 * @return sequence number
-		 */
-		public long consumerSequence();
-
-		/**
-		 * Gets the pending count of the consumer.
-		 * @return pending count
-		 */
-		public long pendingCount();
-
-		/**
-		 * Gets the timestamp of the message.
-		 * @return the timestamp
-		 */
-		public ZonedDateTime timestamp();
-	}
 
 	/**
 	 * @return the subject that this message was sent to

@@ -13,10 +13,9 @@
 
 package io.nats.client;
 
-import java.io.IOException;
-import java.time.format.DateTimeFormatter;
-
 import io.nats.client.impl.NatsImpl;
+
+import java.io.IOException;
 
 /**
  * The Nats class is the entry point into the NATS client for Java. This class

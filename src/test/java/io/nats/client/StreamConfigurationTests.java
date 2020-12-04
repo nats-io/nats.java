@@ -13,17 +13,14 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.jetstream.DiscardPolicy;
+import io.nats.client.jetstream.RetentionPolicy;
+import io.nats.client.jetstream.StorageType;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.StreamConfiguration.DiscardPolicy;
-import io.nats.client.StreamConfiguration.RetentionPolicy;
-import io.nats.client.StreamConfiguration.StorageType;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests {
     @Test

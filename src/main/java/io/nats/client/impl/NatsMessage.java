@@ -13,27 +13,19 @@
 
 package io.nats.client.impl;
 
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.concurrent.TimeoutException;
-
 import io.nats.client.Connection;
-import io.nats.client.JetStream;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
+import io.nats.client.impl.jetstream.NatsJetstreamMetaData;
+import io.nats.client.jetstream.MetaData;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
 import java.nio.charset.Charset;
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
@@ -70,19 +62,6 @@ public class NatsMessage implements Message {
     private MetaData jsMetaData = null;
 
     NatsMessage next; // for linked list
-
-    // Acknowedgement protocol messages
-    private static final byte[] AckAck = "+ACK".getBytes();
-    private static final byte[] AckNak = "-NAK".getBytes();
-    private static final byte[] AckProgress = "+WPI".getBytes();
-
-    // special case
-    private static final byte[] AckNextEmptyPayload = "+NXT {}".getBytes();
-    private static final byte[] AckNext = "+NXT".getBytes();
-    private static final byte[] AckTerm = "+TERM".getBytes();
-    private static final byte[] AckNextOne = "+NXT {\"batch\":1}".getBytes();
-
-    static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
     public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data, utf8mode);
@@ -396,10 +375,10 @@ public class NatsMessage implements Message {
             StringBuilder sb = new StringBuilder("+ACKNXT {");
             if (expiry != null) {
                 String s = rfc3339Formatter.format(expiry);
-                sb.append("\"expires\" : \"" + s + "\",");
+                sb.append("\"expires\" : \"").append(s).append("\",");
             }
             if (batch > 0) {
-                sb.append("\"batch\" : " + batch + ",");
+                sb.append("\"batch\" : ").append(batch).append(",");
             }
             if (noWait) {
                 sb.append("\"no_wait\" : true");
@@ -419,87 +398,9 @@ public class NatsMessage implements Message {
 
     public MetaData metaData() {
         if (this.jsMetaData == null) {
-            this.jsMetaData = new NatsJetstreamMetaData();
+            this.jsMetaData = new NatsJetstreamMetaData(this, replyTo);
         }
         return this.jsMetaData;
-    }
-
-    public class NatsJetstreamMetaData implements Message.MetaData {
-
-        private String stream;
-        private String consumer;
-        private long delivered;
-        private long streamSeq;
-        private long consumerSeq;
-        private ZonedDateTime timestamp;
-        private long pending = -1;
-
-        private void throwNotJSMsgException(String subject) {
-            throw new IllegalArgumentException("Message is not a jetstream message.  ReplySubject: <" + subject + ">");
-        }
-
-        NatsJetstreamMetaData() {
-            if (!isJetStream()) {
-                throwNotJSMsgException(replyTo);
-            }
-
-            String[] parts = replyTo.split("\\.");
-            if (parts.length < 8 || parts.length > 9 || !"ACK".equals(parts[1])) {
-                throwNotJSMsgException(replyTo);
-            }
-
-            stream = parts[2];
-            consumer = parts[3];
-            delivered = Long.parseLong(parts[4]);
-            streamSeq = Long.parseLong(parts[5]);
-            consumerSeq = Long.parseLong(parts[6]);
-
-            // not so clever way to seperate nanos from seconds
-            long tsi = Long.parseLong(parts[7]);
-            long seconds = tsi / 1000000000;
-            int nanos = (int) (tsi - ((tsi / 1000000000) * 1000000000));
-            LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
-            timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault());
-
-            if (parts.length == 9) {
-                pending = Long.parseLong(parts[8]);
-            }
-        }
-
-        @Override
-        public String getStream() {
-            return stream;
-        }
-
-        @Override
-        public String getConsumer() {
-            return consumer;
-        }
-
-        @Override
-        public long deliveredCount() {
-            return delivered;
-        }
-
-        @Override
-        public long streamSequence() {
-            return streamSeq;
-        }
-
-        @Override
-        public long consumerSequence() {
-            return consumerSeq;
-        }
-
-        @Override
-        public long pendingCount() {
-            return pending;
-        }
-
-        @Override
-        public ZonedDateTime timestamp() {
-            return timestamp;
-        }
     }
 
     @Override

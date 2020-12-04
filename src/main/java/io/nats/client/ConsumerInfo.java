@@ -13,14 +13,14 @@
 
 package io.nats.client;
 
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonUtils.FieldType;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 // TODO Add properties
 
@@ -33,7 +33,7 @@ public class ConsumerInfo {
      * This class holds the sequence numbers for a consumer and 
      * stream.
      */
-    public class SequencePair {
+    static class SequencePair {
         private long consumerSeq = -1;
         private long streamSeq = -1;
 

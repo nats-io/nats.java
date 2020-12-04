@@ -12,13 +12,14 @@
 // limitations under the License.
 package io.nats.client.impl;
 
+import io.nats.client.jetstream.PublishAck;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonUtils.FieldType;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.PublishAck;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 // Internal class to handle jetstream acknowedgements
 class NatsPublishAck implements PublishAck {

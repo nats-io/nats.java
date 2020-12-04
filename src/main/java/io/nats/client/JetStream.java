@@ -12,6 +12,9 @@
 // limitations under the License.
 package io.nats.client;
 
+import io.nats.client.jetstream.PublishAck;
+import io.nats.client.jetstream.PublishExpectation;
+
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
@@ -19,91 +22,6 @@ import java.util.concurrent.TimeoutException;
  * JetStream context for creation and access to streams and consumers in NATS.
  */
 public interface JetStream {
-
-    /**
-     * Publish expectation lets the server know expectations to avoid unnecessarily
-     * persisting messages in the server.
-     */
-    public interface PublishExpectation {
-
-        /**
-         * Informs the server the publisher is expecting this message to be persisted
-         * into a specific stream.  If the subject is not part of the stream, the
-         * message is rejected.
-         * @param stream expected stream name
-         * @return a publish expectation 
-         */
-        public PublishExpectation stream(String stream);
-
-        /**
-         * Informs the server the publisher is expecting this messages to be persisted
-         * into a specific stream.  If the subject is not part of the stream, the
-         * message is rejected.
-         * @param sequence expected sequence number
-         * @return a publish expectation
-         */
-        public PublishExpectation seqence(long sequence);
-    }
-
-    /**
-     * Represents the Jetstream Account Limits
-     */
-    public interface AccountLimits {
-
-        /**
-         * Gets the maximum amount of memory in the Jetstream deployment.
-         * @return bytes
-         */
-        public long getMaxMemory();
-
-        /**
-         * Gets the maximum amount of storage in the Jetstream deployment.
-         * @return bytes
-         */
-        public long getMaxStorage();
-
-         /**
-         * Gets the maximum number of allowed streams in the Jetstream deployment.
-         * @return stream maximum count
-         */       
-        public long getMaxStreams();
-
-         /**
-         * Gets the maximum number of allowed consumers in the Jetstream deployment.
-         * @return consumer maximum count
-         */         
-        public long getMaxConsumers();
-    }
-
-    /**
-     *  The Jetstream Account Statistics
-     */
-    public interface AccountStatistics {
-
-        /**
-         * Gets the amount of memory used by the Jetstream deployment.
-         * @return bytes
-         */
-        public long getMemory();
-
-        /**
-         * Gets the amount of storage used by  the Jetstream deployment.
-         * @return bytes
-         */
-        public long getStorage();
-
-         /**
-         * Gets the number of streams used by the Jetstream deployment.
-         * @return stream maximum count
-         */       
-        public long getStreams();
-
-         /**
-         * Gets the number of consumers used by the Jetstream deployment.
-         * @return consumer maximum count
-         */         
-        public long getConsumers();
-    }    
 
     /**
      * Loads or creates a stream.

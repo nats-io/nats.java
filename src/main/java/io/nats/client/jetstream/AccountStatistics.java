@@ -10,28 +10,39 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package io.nats.client;
+
+package io.nats.client.jetstream;
 
 /**
- * PublishAck objects represent a JetStream enabled server acknowledgment from a publish call.
+ * The Jetstream Account Statistics
  */
-public interface PublishAck {
+public interface AccountStatistics {
 
     /**
-     * Get the stream sequence number for the corresponding published message.
-     * @return the sequence number for the stored message.
+     * Gets the amount of memory used by the Jetstream deployment.
+     *
+     * @return bytes
      */
-    public long getSeqno();
-    
-    /**
-     * Get the name of the stream a published message was stored in.
-     * @return the the name of the stream.
-     */
-    public String getStream();
+    long getMemory();
 
     /**
-     * Gets if the server detected the published message was a duplicate.
-     * @return true if the message is a duplicate, false otherwise.
+     * Gets the amount of storage used by  the Jetstream deployment.
+     *
+     * @return bytes
      */
-    public boolean isDuplicate();
+    long getStorage();
+
+    /**
+     * Gets the number of streams used by the Jetstream deployment.
+     *
+     * @return stream maximum count
+     */
+    long getStreams();
+
+    /**
+     * Gets the number of consumers used by the Jetstream deployment.
+     *
+     * @return consumer maximum count
+     */
+    long getConsumers();
 }

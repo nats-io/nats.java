@@ -10,9 +10,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package io.nats.client.impl;
 
-import io.nats.client.JetStream.PublishExpectation;
+package io.nats.client.impl.jetstream;
+
+import io.nats.client.jetstream.PublishExpectation;
 
 public class PublishExpectationImpl implements PublishExpectation {
 

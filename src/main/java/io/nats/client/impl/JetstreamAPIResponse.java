@@ -12,10 +12,11 @@
 // limitations under the License.
 package io.nats.client.impl;
 
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonUtils.FieldType;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.impl.JsonUtils.FieldType;
 
 class JetstreamAPIResponse {
 

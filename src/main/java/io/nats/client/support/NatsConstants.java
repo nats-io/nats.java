@@ -13,6 +13,8 @@
 
 package io.nats.client.support;
 
+import java.time.format.DateTimeFormatter;
+
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public interface NatsConstants {
@@ -68,6 +70,19 @@ public interface NatsConstants {
     String INVALID_HEADER_COMPOSITION = "Invalid header composition";
     String INVALID_HEADER_STATUS_CODE = "Invalid header status code";
     String SERIALIZED_HEADER_CANNOT_BE_NULL_OR_EMPTY = "Serialized header cannot be null or empty.";
+
+    // Acknowedgement protocol messages
+    byte[] AckAck = "+ACK".getBytes();
+    byte[] AckNak = "-NAK".getBytes();
+    byte[] AckProgress = "+WPI".getBytes();
+
+    // special case
+    byte[] AckNextEmptyPayload = "+NXT {}".getBytes();
+    byte[] AckNext = "+NXT".getBytes();
+    byte[] AckTerm = "+TERM".getBytes();
+    byte[] AckNextOne = "+NXT {\"batch\":1}".getBytes();
+
+    static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
     int STATUS_NO_RESPONDER = 503;
 }
