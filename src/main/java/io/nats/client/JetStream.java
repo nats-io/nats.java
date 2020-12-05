@@ -21,31 +21,6 @@ import java.util.concurrent.TimeoutException;
 public interface JetStream {
 
     /**
-     * Publish expectation lets the server know expectations to avoid unnecessarily
-     * persisting messages in the server.
-     */
-    public interface PublishExpectation {
-
-        /**
-         * Informs the server the publisher is expecting this message to be persisted
-         * into a specific stream.  If the subject is not part of the stream, the
-         * message is rejected.
-         * @param stream expected stream name
-         * @return a publish expectation 
-         */
-        public PublishExpectation stream(String stream);
-
-        /**
-         * Informs the server the publisher is expecting this messages to be persisted
-         * into a specific stream.  If the subject is not part of the stream, the
-         * message is rejected.
-         * @param sequence expected sequence number
-         * @return a publish expectation
-         */
-        public PublishExpectation seqence(long sequence);
-    }
-
-    /**
      * Represents the Jetstream Account Limits
      */
     public interface AccountLimits {
@@ -126,12 +101,6 @@ public interface JetStream {
     public ConsumerInfo addConsumer(String stream, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException;
 
     /**
-     * Create a publish expectation.
-     * @return a publish expectation.
-     */
-    public PublishExpectation createPublishExpectation();
-
-    /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The message body <strong>will not</strong> be copied. The expected
      * usage with string content is something like:
@@ -156,33 +125,6 @@ public interface JetStream {
      * @throws InterruptedException if the thread is interrupted
      */
     public PublishAck publish(String subject, byte[] body) throws IOException, InterruptedException, TimeoutException;
-
-    /**
-     * Send a message to the specified subject and waits for a response from
-     * Jetstream. The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
-     * 
-     * <pre>
-     * nc = Nats.connect()
-     * JetStream js = nc.JetStream()
-     * js.publish("destination", "message".getBytes("UTF-8"), expects.stream("stream"));
-     * </pre>
-     * 
-     * where the sender creates a byte array immediately before calling publish.
-     * 
-     * See {@link #publish(String, byte[]) publish()} for more details on 
-     * publish during reconnect.
-     * 
-     * @param subject the subject to send the message to
-     * @param body the message body
-     * @param expects the publish expectations
-     * @return The publish acknowledgement
-     * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communcation issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     */
-    public PublishAck publish(String subject, byte[] body, PublishExpectation expects) throws IOException, InterruptedException, TimeoutException;
 
     /**
      * Send a message to the specified subject and waits for a response from
@@ -227,19 +169,42 @@ public interface JetStream {
      * See {@link #publish(String, byte[]) publish()} for more details on 
      * publish during reconnect.
      * 
-     * @param subject the subject to send the message to
-     * @param body the message body
+     * @param message the message to send
+     * @return The publish acknowledgement
+     * @throws IllegalStateException if the reconnect buffer is exceeded
+     * @throws IOException if there are communcation issues with the NATS server
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     */
+    public PublishAck publish(Message message) throws IOException, InterruptedException, TimeoutException;
+
+    /**
+     * Send a message to the specified subject and waits for a response from
+     * Jetstream. The message body <strong>will not</strong> be copied. The expected
+     * usage with string content is something like:
+     * 
+     * <pre>
+     * nc = Nats.connect()
+     * JetStream js = nc.JetStream()
+     * js.publish("destination", "message".getBytes("UTF-8"), publishOptions)
+     * </pre>
+     * 
+     * where the sender creates a byte array immediately before calling publish.
+     * 
+     * See {@link #publish(String, byte[]) publish()} for more details on 
+     * publish during reconnect.
+     * 
+     * @param message the message to send
      * @param options publisher options
-     * @param expects the publish expectations
      * @return The publish acknowledgement
      * @throws IllegalStateException if the reconnect buffer is exceeded
      * @throws IOException if there are communcation issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */    
-    public PublishAck publish(String subject, byte[] body, PublishOptions options, PublishExpectation expects) throws IOException, InternalError, TimeoutException, InterruptedException;
+    public PublishAck publish(Message message, PublishOptions options) throws IOException, InternalError, TimeoutException, InterruptedException;
 
-/**
+   /**
      * Create a synchronous subscription to the specified subject with default options.
      * 
      * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}

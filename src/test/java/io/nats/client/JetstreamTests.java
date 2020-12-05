@@ -131,10 +131,6 @@ public class JetstreamTests {
                 // this should succeed
                 js.publish("foo", "hello".getBytes());
 
-                // TODO - test with message ID
-
-                // TODO - test with expectations
-
                 // Set the stream and publish.
                 PublishOptions popts = PublishOptions.builder().stream("foo-stream").build();
                 js.publish("foo", null, popts);
@@ -154,6 +150,64 @@ public class JetstreamTests {
             }
         }
     }
+
+    @Test
+    public void testJetstreamPublishOptions() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false, true);
+             Connection nc = Nats.connect(ts.getURI())) {
+                            
+            try {
+                JetStream js = nc.jetStream();
+
+                createMemoryStream(js, "foo-stream", "foo");
+
+                PublishOptions opts = PublishOptions.builder().build();
+                
+                // check with no previous message id
+                opts.setExpectedLastMsgId("invalid");
+                assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
+
+                // this should succeed.  Reset our last expected Msg ID, and set this one.
+                opts.setExpectedLastMsgId(null);
+                opts.setMessageId("mid1");
+                js.publish("foo", null, opts);
+
+                // this should succeed.
+                opts.setExpectedLastMsgId("mid1");
+                opts.setMessageId("mid2");
+                js.publish("foo", null, opts);
+
+                // test invalid last ID.
+                opts.setMessageId(null);
+                opts.setExpectedLastMsgId("invalid");
+                assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
+
+                // We're expecting two messages.  Reset the last expeccted ID.
+                opts.setExpectedLastMsgId(null);
+                opts.setExpectedLastSeqence(2);
+                js.publish("foo", null, opts);
+
+                // invalid last sequence.
+                opts.setExpectedLastSeqence(42);
+                assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
+
+                // check success - TODO - debug...
+                // opts.setExpectedStream("foo-stream");
+                // opts.setExpectedLastSeqence(PublishOptions.unsetLastSequence);
+                // js.publish("foo", null, opts);
+
+                // check failure
+                opts.setExpectedStream("oof");
+                assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
+
+            } catch (Exception ex) {
+                Assertions.fail(ex);
+            }
+            finally {
+                nc.close();
+            }
+        }
+    }                
 
     @Test
     public void testJetstreamSubscribe() throws IOException, InterruptedException,ExecutionException, TimeoutException {

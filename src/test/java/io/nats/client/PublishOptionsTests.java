@@ -25,7 +25,7 @@ public class PublishOptionsTests {
     public void testDefaultOptions() {
         PublishOptions o = new PublishOptions.Builder().build();
 
-        assertEquals(PublishOptions.unspecifiedStream, o.getStream(), "default stream");
+        assertEquals(PublishOptions.unsetStream, o.getStream(), "default stream");
         assertEquals(PublishOptions.defaultTimeout, o.getStreamTimeout(), "default timeout");
     }
 

@@ -13,10 +13,7 @@
 
 package io.nats.client.impl;
 
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -27,7 +24,6 @@ import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 
 import io.nats.client.Connection;
-import io.nats.client.JetStream;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 import io.nats.client.support.IncomingHeadersProcessor;
@@ -77,7 +73,6 @@ public class NatsMessage implements Message {
     private static final byte[] AckProgress = "+WPI".getBytes();
 
     // special case
-    private static final byte[] AckNextEmptyPayload = "+NXT {}".getBytes();
     private static final byte[] AckNext = "+NXT".getBytes();
     private static final byte[] AckTerm = "+TERM".getBytes();
     private static final byte[] AckNextOne = "+NXT {\"batch\":1}".getBytes();
@@ -90,7 +85,8 @@ public class NatsMessage implements Message {
 
     public NatsMessage(Message message) {
         this(message.getSubject(), message.getReplyTo(),
-                message.getHeaders(), message.getData(), message.isUtf8mode());
+            message.hasHeaders() ? message.getHeaders() : null,
+            message.getData(), message.isUtf8mode());
     }
 
     // Create a message to publish
@@ -251,7 +247,7 @@ public class NatsMessage implements Message {
     }
 
     byte[] getSerializedHeader() {
-        return headers == null ? null : headers.getSerialized();
+        return headers == null || headers.isEmpty() ? null : headers.getSerialized();
     }
 
     @Override
@@ -261,6 +257,10 @@ public class NatsMessage implements Message {
 
     @Override
     public Headers getHeaders() {
+        // create for adding post message creation.
+        if (headers == null) {
+            headers = new Headers();
+        }
         return headers;
     }
 
@@ -375,46 +375,6 @@ public class NatsMessage implements Message {
     @Override
     public void term() {
         ackReply(AckTerm);
-    }
-
-    public void toDOackNextRequest(ZonedDateTime expiry, long batch, boolean noWait) {
-
-        if (batch < 0) {
-            throw new IllegalArgumentException();
-        }
-
-        Connection c = getConnection();
-        if (c == null) {
-            throw new IllegalStateException("Message is not bound to a connection");
-        }
-        
-        // minor optimization for the ack.
-        byte[] payload;
-        if (expiry == null && batch == 0 && !noWait) {
-            payload = AckNextEmptyPayload;
-        } else {
-            StringBuilder sb = new StringBuilder("+ACKNXT {");
-            if (expiry != null) {
-                String s = rfc3339Formatter.format(expiry);
-                sb.append("\"expires\" : \"" + s + "\",");
-            }
-            if (batch > 0) {
-                sb.append("\"batch\" : " + batch + ",");
-            }
-            if (noWait) {
-                sb.append("\"no_wait\" : true");
-            }
-            
-            // remove potential trailing ','
-            if (sb.codePointAt(sb.length()-1) == ',') {
-               sb.setLength(sb.length()-1);
-            }
-            
-            sb.append("}");
-            payload = sb.toString().getBytes();
-        }
-
-        c.publish(replyTo, subject, payload);
     }
 
     public MetaData metaData() {

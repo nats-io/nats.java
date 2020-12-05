@@ -22,20 +22,24 @@ import java.util.Properties;
  */
 public class PublishOptions {
     public static final Duration defaultTimeout = Duration.ofSeconds(2);
-    public static final String unspecifiedStream = "not.set";
 
-    // TODO - move into connection?  Or consts...
-	public static final String msgIdHdr             = "Nats-Msg-Id";
-	public static final String ExpectedStreamHdr    = "Nats-Expected-Stream";
-	public static final String ExpectedLastSeqHdr   = "Nats-Expected-Last-Sequence";
-	public static final String ExpectedLastMsgIdHdr = "Nats-Expected-Last-Msg-Id";  
+    /**
+     * Use this variable to unset a stream in publish options.
+     */
+    public static final String unsetStream = null;
 
-    private String stream = unspecifiedStream;
+    /**
+     * Use this variable to unset a sequence number in pulish options.
+     */
+    public static final long unsetLastSequence = -1;
+
+    private String stream = unsetStream;
     private Duration streamTimeout = defaultTimeout;
 
     String expectedStream = null;
     String expectedLastId = null;
-    long   expectedLastSeq = 0;
+    long   expectedLastSeq = unsetLastSequence;
+    String msgId = null;
 
     /**
      * Property used to configure a builder from a Properties object.
@@ -60,7 +64,7 @@ public class PublishOptions {
      * @param stream the name fo the stream.
      */
     public void setStream(String stream) {
-        if (stream != null && !unspecifiedStream.equals(stream) && 
+        if (stream != null && 
                 (stream.length() == 0 || stream.contains(">") ||
                  stream.contains(".") || stream.contains("*"))) {
             throw new IllegalArgumentException("stream cannot be null, empty, tokenized, or wildcarded");
@@ -136,6 +140,23 @@ public class PublishOptions {
     }
 
     /**
+     * Gets the message ID
+     * @return the message id;
+     */
+    public String getMessageId() {
+        return this.msgId;
+    }
+
+    /**
+     * Sets the message id. Message IDs are used for de-duplication
+     * and should be unique to each message payload.
+     * @param msgId the unique message id.
+     */
+    public void setMessageId(String msgId) {
+        this.msgId = msgId;
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return the builder.s
      */
@@ -150,7 +171,7 @@ public class PublishOptions {
      * prefix PROP_ in this class.
      */
     public static class Builder {
-        String stream = PublishOptions.unspecifiedStream;
+        String stream = PublishOptions.unsetStream;
         Duration streamTimeout = PublishOptions.defaultTimeout;
         String expectedStream = null;
         String expectedLastId = null;
@@ -246,5 +267,5 @@ public class PublishOptions {
             return po;
         }
     }
-
 }
+

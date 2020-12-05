@@ -33,13 +33,12 @@ class NatsPublishAck implements PublishAck {
 
     // Acks will be received with the following format:
     // Error = {"code" : "description"}
-    // OK = {"stream" : "mystream", "seq", 42}"
+    // OK = {"stream" : "mystream", "duplicate" : false, "seq", 42}"
     public NatsPublishAck(byte[] response) throws IOException {
         if (response.length < 5) {
             // throw IOException to mirror other protocol exceptions.
             throw new IOException("Invalid ack from a jetstream publish");
         }
-
 
         String s = new String(response, StandardCharsets.UTF_8);
 
@@ -47,7 +46,7 @@ class NatsPublishAck implements PublishAck {
         if (JetstreamAPIResponse.isError(s)) {
             JetstreamAPIResponse resp = new JetstreamAPIResponse(response);
             if (resp.hasError()) {
-                throw new IOException(resp.getError());
+                throw new IllegalStateException(resp.getError());
             }
         }
 

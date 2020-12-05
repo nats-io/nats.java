@@ -51,6 +51,12 @@ public class NatsJetStream implements JetStream {
     private JetStreamOptions options;
     private boolean direct = false;
 
+
+    private static final String msgIdHdr             = "Nats-Msg-Id";
+	private static final String expectedStreamHdr    = "Nats-Expected-Stream";
+	private static final String expectedLastSeqHdr   = "Nats-Expected-Last-Sequence";
+	private static final String expectedLastMsgIdHdr = "Nats-Expected-Last-Msg-Id";
+
     public class AccountLimitImpl implements AccountLimits {
         long memory = -1;
         long storage = -1;
@@ -271,45 +277,65 @@ public class NatsJetStream implements JetStream {
         return createOrUpdateConsumer(stream, config);
     }
 
+    static Message buildMsg(String subject, byte[] payload) {
+        return new NatsMessage.Builder().subject(subject).dataOrEmpty(payload).build();
+    }
+
     @Override
     public PublishAck publish(String subject, byte[] payload) throws IOException, InterruptedException, TimeoutException {
-        return this.publish(subject, payload, defaultPubOpts);
-    }
-
-    @Override
-    public PublishAck publish(String subject, byte[] payload, PublishExpectation expects) throws IOException, InterruptedException, TimeoutException {
-        return this.publish(subject, payload, defaultPubOpts, expects);
-    }    
-
-    private static boolean isStreamSpecified(String streamName) {
-        return streamName != null && !PublishOptions.unspecifiedStream.equals(streamName);
-    }
+        return this.publish(buildMsg(subject, payload), defaultPubOpts);
+    }  
 
     @Override
     public PublishAck publish(String subject, byte[] payload, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
-        return publishInternal(subject, payload, options, null);
+        return publishInternal(buildMsg(subject, payload), options);
     }
 
     @Override
-    public PublishAck publish(String subject, byte[] payload, PublishOptions options, PublishExpectation expects) throws IOException, InterruptedException, TimeoutException{
-        return publishInternal(subject, payload, options, null);
-    }    
+    public PublishAck publish(Message message) throws IOException, InterruptedException, TimeoutException {
+        return this.publish(message, defaultPubOpts);
+    }  
 
-    private PublishAck publishInternal(String subject, byte[] payload, PublishOptions options, PublishExpectationImpl expects) throws IOException, InterruptedException, TimeoutException{
+    private static boolean isStreamSpecified(String streamName) {
+        return streamName != null;
+    }
+
+    @Override
+    public PublishAck publish(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
+        return publishInternal(message, options);
+    }
+
+    private PublishAck publishInternal(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
         PublishOptions opts;
+        checkNull(message, "message");
         if (options == null) {
             opts = defaultPubOpts;
         } else {
             opts = options;
+
+            // we know no headers are set with default options
+            long seqno = opts.getExpectedLastSequence();
+            if (seqno > 0) {
+                message.getHeaders().add(expectedLastSeqHdr, Long.toString(seqno));
+            }
+    
+            String s = opts.getExpectedLastMsgId();
+            if (s != null) {
+                message.getHeaders().add(expectedLastMsgIdHdr, s);
+            }
+    
+            s = opts.getExpectedStream();
+            if (s != null) {
+                message.getHeaders().add(expectedStreamHdr, s);
+            }
+    
+            s = opts.getMessageId();
+            if (s != null) {
+                message.getHeaders().add(msgIdHdr, s);
+            }            
         }
-        Duration timeout = opts.getStreamTimeout();
 
-        // TODO:  Add expects here.. this code is to satisfy the linter for CI.
-        //if (expects.seq != -1) {
-        //    return null;
-        //}
-
-        Message resp = conn.request(subject, payload, timeout);
+        Message resp = conn.request(message, opts.getStreamTimeout());
         if (resp == null) {
             throw new TimeoutException("timeout waiting for jetstream");
         }
@@ -572,11 +598,5 @@ public class NatsJetStream implements JetStream {
         checkNull(handler, "handler");
         checkNull(options, "options");
         return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, options);
-
-    }
-
-    @Override
-    public PublishExpectation createPublishExpectation() {
-        return new PublishExpectationImpl();
     }
 }

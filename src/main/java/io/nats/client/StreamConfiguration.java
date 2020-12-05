@@ -54,10 +54,8 @@ public class StreamConfiguration {
         }        
 
         private static final Map<String, RetentionPolicy> strEnumHash = new HashMap<>();
-        static
-        {
-            for(RetentionPolicy env : RetentionPolicy.values())
-            {
+        static {
+            for(RetentionPolicy env : RetentionPolicy.values()){
                 strEnumHash.put(env.toString(), env);
             }
         }
@@ -86,10 +84,8 @@ public class StreamConfiguration {
         }
         
         private static final Map<String, DiscardPolicy> strEnumHash = new HashMap<>();
-        static
-        {
-            for(DiscardPolicy env : DiscardPolicy.values())
-            {
+        static {
+            for(DiscardPolicy env : DiscardPolicy.values()) {
                 strEnumHash.put(env.toString(), env);
             }
         }
@@ -118,10 +114,8 @@ public class StreamConfiguration {
         }
         
         private static final Map<String, StorageType> strEnumHash = new HashMap<>();
-        static
-        {
-            for(StorageType env : StorageType.values())
-            {
+        static {
+            for(StorageType env : StorageType.values()) {
                 strEnumHash.put(env.toString(), env);
             }
         }

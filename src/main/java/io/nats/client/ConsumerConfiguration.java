@@ -54,10 +54,8 @@ public class ConsumerConfiguration {
         }
         
         private static final Map<String, DeliverPolicy> strEnumHash = new HashMap<>();
-        static
-        {
-            for(DeliverPolicy env : DeliverPolicy.values())
-            {
+        static {
+            for(DeliverPolicy env : DeliverPolicy.values()) {
                 strEnumHash.put(env.toString(), env);
             }
         }
@@ -87,10 +85,8 @@ public class ConsumerConfiguration {
         }
 
         private static final Map<String, AckPolicy> strEnumHash = new HashMap<>();
-        static
-        {
-            for(AckPolicy env : AckPolicy.values())
-            {
+        static {
+            for(AckPolicy env : AckPolicy.values()) {
                 strEnumHash.put(env.toString(), env);
             }
         }
@@ -119,10 +115,8 @@ public class ConsumerConfiguration {
         }
 
         private static final Map<String, ReplayPolicy> strEnumHash = new HashMap<>();
-        static
-        {
-            for(ReplayPolicy env : ReplayPolicy.values())
-            {
+        static {
+            for(ReplayPolicy env : ReplayPolicy.values()) {
                 strEnumHash.put(env.toString(), env);
             }
         }
