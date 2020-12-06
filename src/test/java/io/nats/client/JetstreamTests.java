@@ -254,7 +254,6 @@ public class JetstreamTests {
 
                 assertTrue(latch.await(5, TimeUnit.SECONDS));
 
-                // check the info
                 ConsumerInfo ci = jsub.getConsumerInfo();
                 assertEquals(AckPolicy.Explicit, ci.getConsumerConfiguration().getAckPolicy());
                 assertEquals(1, ci.getDelivered().getConsumerSequence());

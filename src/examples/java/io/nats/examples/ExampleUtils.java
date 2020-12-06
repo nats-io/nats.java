@@ -24,7 +24,6 @@ public class ExampleUtils {
                 .connectionTimeout(Duration.ofSeconds(5))
                 .pingInterval(Duration.ofSeconds(10))
                 .reconnectWait(Duration.ofSeconds(1))
-//                .noNoResponders()
                 .errorListener(new ErrorListener() {
                     public void exceptionOccurred(Connection conn, Exception exp) {
                         System.out.println("Exception " + exp.getMessage());
@@ -61,7 +60,7 @@ public class ExampleUtils {
 
     // Request:   [-s server] [-h headerKey:headerValue]* <subject> <message>
     // Reply:     [-s server] <subject> <msgCount>
-
+ 
     public static ExampleArgs readPublishArgs(String[] args, String usageString) {
         ExampleArgs ea = new ExampleArgs(args, true, usageString);
         if (ea.message == null) {
