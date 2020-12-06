@@ -22,6 +22,8 @@ public class ExampleArgs {
     public String subject;
     public String message;
     public int msgCount = -1;
+    public String stream = null;
+    public int poll = 0;
 
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
@@ -60,6 +62,11 @@ public class ExampleArgs {
         }
         else if (name.equals("-s")) {
             server = value;
+        }
+        else if (name.equals("-stream")) {
+            stream = value;
+        } else if (name.equals("-poll")) {
+            poll = Integer.parseInt(value);
         }
         else if (name.equals("-h")) {
             if (headers == null) {

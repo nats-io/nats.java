@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2020 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -22,14 +22,17 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import io.nats.client.ConsumerConfiguration.AckPolicy;
 
 /**
  * Class to run gnatds for tests. Highly based on the 1.0 client's NatsServer code.
@@ -41,6 +44,7 @@ public class NatsTestServer implements AutoCloseable {
 
     private int port;
     private boolean debug;
+    private boolean jetstream = false;
     private String configFilePath;
     private Process process;
     private String cmdLine;
@@ -103,16 +107,27 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     public NatsTestServer() throws IOException {
-        this(false);
+        this(false, false);
     }
 
     public NatsTestServer(boolean debug) throws IOException {
-        this(NatsTestServer.nextPort(), debug);
+        this(NatsTestServer.nextPort(), debug, false);
+    }   
+
+    public NatsTestServer(boolean debug, boolean jetstream) throws IOException {
+        this(NatsTestServer.nextPort(), debug, jetstream);
     }
 
     public NatsTestServer(int port, boolean debug) {
         this.port = port;
         this.debug = debug;
+        start();
+    }    
+
+    public NatsTestServer(int port, boolean debug, boolean jetstream) {
+        this.port = port;
+        this.debug = debug;
+        this.jetstream = jetstream;
         start();
     }
 
@@ -221,11 +236,16 @@ public class NatsTestServer implements AutoCloseable {
             cmd.add(String.valueOf(port));
         }
 
+        if (this.jetstream) {
+            cmd.add("-js");
+        }
+
         if (this.customArgs != null) {
             cmd.addAll(Arrays.asList(this.customArgs));
         }
 
-        cmd.add("-DV");
+        // Enable to debug verbosely 
+        // cmd.add("-DVV");
 
         this.cmdLine = String.join(" ", cmd);
 
@@ -289,6 +309,56 @@ public class NatsTestServer implements AutoCloseable {
     public static String getURIForPort(int port) {
         return "nats://localhost:" + port;
     }
+
+    public void createMemoryStream(String streamName, String subject) throws Exception {
+
+        if (this.process == null) {
+            throw new Exception("Server must be running with jetstream enabled.");
+        }
+
+        Connection c = Nats.connect(this.getURI());
+
+        String payload = "{\"name\":\"" + streamName + "\",\"subjects\":[\"" + subject + "\"],\"retention\":\"limits\",\"max_consumers\":-1,\"max_msgs\":-1,\"max_bytes\":-1,\"max_age\":0,\"max_msg_size\":-1,\"storage\":\"memory\",\"discard\":\"old\",\"num_replicas\":1}";
+
+        try  {
+            Message msg = c.request("$JS.API.STREAM.CREATE." + streamName, payload.getBytes(), Duration.ofSeconds(2));
+            if (msg == null) {
+                throw new Exception("Timeout creating the stream");
+            }
+            String s = new String(msg.getData());
+            if (s.contains("Error")) {
+                throw new Exception("Error creating stream: " + s);
+            }
+        } catch (Exception ex) {
+           throw ex;
+        } finally {
+            c.close();
+        }
+    }
+
+    public void createPullConsumer(String stream, String durable) throws Exception {
+    
+        Connection c = Nats.connect(this.getURI());
+
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().
+            ackPolicy(AckPolicy.Explicit).
+            durable(durable).
+            build();
+
+        String requestJSON = cc.toJSON(stream);
+
+        String subj = String.format("$JS.API.CONSUMER.DURABLE.CREATE.%s.%s", stream, durable);
+        
+        Message resp = c.request(subj, requestJSON.getBytes(), Duration.ofSeconds(2));
+        if (resp == null) {
+            throw new TimeoutException("Consumer request to jetstream timed out.");
+        }
+
+        String result = new String(resp.getData());
+        if (result.contains("code")) {
+            throw new IOException("Couldn't create consumer: " + result);
+        }
+    }    
 
     public void shutdown(boolean wait) throws InterruptedException {
 

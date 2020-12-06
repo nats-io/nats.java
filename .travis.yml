@@ -2,16 +2,16 @@ dist: trusty
 language: java
 sudo: required
 jdk:
-- openjdk8
-- openjdk9
-- openjdk10
-- openjdk11
-- openjdk12
-- openjdk13
-- openjdk14
-- openjdk15
+# - openjdk8
+# - openjdk9
+# - openjdk10
+# - openjdk11
+# - openjdk12
+# - openjdk13
+# - openjdk14
+# - openjdk15
 - oraclejdk8
-- oraclejdk9
+# - oraclejdk9
 before_script:
 - bash install_deps.sh
 before_install:

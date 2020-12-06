@@ -381,4 +381,23 @@ public interface Connection extends AutoCloseable {
      * to by others.
      */
     public String createInbox();
+
+    /**
+     * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
+     * and consumers.
+     * @return a JetStream instance.
+     * @throws TimeoutException timed out verifying jetstream
+     * @throws InterruptedException the operation was interrupted 
+     */
+    public JetStream jetStream() throws InterruptedException, TimeoutException;
+
+    /**
+     * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
+     * and consumers.
+     * @param options JetStream options.
+     * @return a JetStream instance.
+     * @throws TimeoutException timed out verifying jetstream
+     * @throws InterruptedException the operation was interrupted 
+     */
+    public JetStream jetStream(JetStreamOptions options) throws InterruptedException, TimeoutException;    
 }

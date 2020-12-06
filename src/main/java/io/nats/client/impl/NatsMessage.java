@@ -13,6 +13,16 @@
 
 package io.nats.client.impl;
 
+import java.nio.charset.Charset;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.concurrent.TimeoutException;
+
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
@@ -52,8 +62,22 @@ public class NatsMessage implements Message {
     private int totLen = 0;
 
     private NatsSubscription subscription;
+    private Integer protocolLength = null;
+    private MetaData jsMetaData = null;
 
     NatsMessage next; // for linked list
+
+    // Acknowedgement protocol messages
+    private static final byte[] AckAck = "+ACK".getBytes();
+    private static final byte[] AckNak = "-NAK".getBytes();
+    private static final byte[] AckProgress = "+WPI".getBytes();
+
+    // special case
+    private static final byte[] AckNext = "+NXT".getBytes();
+    private static final byte[] AckTerm = "+TERM".getBytes();
+    private static final byte[] AckNextOne = "+NXT {\"batch\":1}".getBytes();
+
+    static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
     public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data, utf8mode);
@@ -61,7 +85,8 @@ public class NatsMessage implements Message {
 
     public NatsMessage(Message message) {
         this(message.getSubject(), message.getReplyTo(),
-                message.getHeaders(), message.getData(), message.isUtf8mode());
+            message.hasHeaders() ? message.getHeaders() : null,
+            message.getData(), message.isUtf8mode());
     }
 
     // Create a message to publish
@@ -222,7 +247,7 @@ public class NatsMessage implements Message {
     }
 
     byte[] getSerializedHeader() {
-        return headers == null ? null : headers.getSerialized();
+        return headers == null || headers.isEmpty() ? null : headers.getSerialized();
     }
 
     @Override
@@ -232,6 +257,10 @@ public class NatsMessage implements Message {
 
     @Override
     public Headers getHeaders() {
+        // create for adding post message creation.
+        if (headers == null) {
+            headers = new Headers();
+        }
         return headers;
     }
 
@@ -260,6 +289,184 @@ public class NatsMessage implements Message {
         return this.subscription;
     }
 
+    private Connection getJetStreamValidatedConnection() {
+        if (!this.isJetStream()) {
+            throw new IllegalStateException("Message is not a jestream message");
+        }
+
+        if (getSubscription() == null) {
+            throw new IllegalStateException("Messages is not bound to a subcription.");
+        }
+
+        Connection c = getConnection();
+        if (c == null) {
+            throw new IllegalStateException("Message is not bound to a connection");
+        }
+        return c;
+
+    }
+
+    private void ackReply(byte[] ackType) {
+        try {
+            ackReply(ackType, Duration.ZERO);
+        } catch (InterruptedException e) {
+            // we should never get here, but satisfy the linters.
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException e) {
+            // NOOP
+        }
+    }
+    
+    private boolean isPullMode() {
+        if (!(this.subscription instanceof NatsJetStreamSubscription)) {
+            return false;
+        }
+        return (((NatsJetStreamSubscription) this.subscription).pull > 0);
+    }
+
+    private void ackReply(byte[] ackType, Duration d) throws InterruptedException, TimeoutException {
+        if (!this.isJetStream()) {
+            throw new IllegalStateException("Message is not a jestream message");
+        }
+        if (d == null) {
+            throw new IllegalArgumentException("Duration cannot be null.");
+        }
+
+        boolean isSync = (d != Duration.ZERO);
+        Connection nc = getJetStreamValidatedConnection();
+
+        if (isPullMode()) {
+           if (Arrays.equals(ackType, AckAck)) {
+              nc.publish(replyTo, subscription.getSubject(), AckNext);
+           } else if (Arrays.equals(ackType, AckNak) || Arrays.equals(ackType, AckTerm)) {
+                nc.publish(replyTo, subscription.getSubject(), AckNextOne);
+           }
+           if (isSync && nc.request(replyTo, null, d) == null) {
+                throw new TimeoutException("Ack request next timed out.");
+           }
+
+        } else if (isSync && nc.request(replyTo, ackType, d) == null) {
+            throw new TimeoutException("Ack response timed out.");
+        } else {
+            nc.publish(replyTo, ackType);
+        }
+    }
+
+    @Override
+    public void ack() {
+        ackReply(AckAck);
+    }
+
+    @Override
+    public void ackSync(Duration d) throws InterruptedException, TimeoutException {
+        ackReply(AckAck, d);
+    }
+
+    @Override
+    public void nak(){
+        ackReply(AckNak);
+    }
+
+    @Override
+    public void inProgress() {
+        ackReply(AckProgress);
+    }
+
+    @Override
+    public void term() {
+        ackReply(AckTerm);
+    }
+
+    public MetaData metaData() {
+        if (this.jsMetaData == null) {
+            this.jsMetaData = new NatsJetstreamMetaData();
+        }
+        return this.jsMetaData;
+    }
+
+    public class NatsJetstreamMetaData implements Message.MetaData {
+
+        private String stream;
+        private String consumer;
+        private long delivered;
+        private long streamSeq;
+        private long consumerSeq;
+        private ZonedDateTime timestamp;
+        private long pending = -1;
+
+        private void throwNotJSMsgException(String subject) {
+            throw new IllegalArgumentException("Message is not a jetstream message.  ReplySubject: <" + subject + ">");
+        }
+
+        NatsJetstreamMetaData() {
+            if (!isJetStream()) {
+                throwNotJSMsgException(replyTo);
+            }
+
+            String[] parts = replyTo.split("\\.");
+            if (parts.length < 8 || parts.length > 9 || !"ACK".equals(parts[1])) {
+                throwNotJSMsgException(replyTo);
+            }
+
+            stream = parts[2];
+            consumer = parts[3];
+            delivered = Long.parseLong(parts[4]);
+            streamSeq = Long.parseLong(parts[5]);
+            consumerSeq = Long.parseLong(parts[6]);
+
+            // not so clever way to seperate nanos from seconds
+            long tsi = Long.parseLong(parts[7]);
+            long seconds = tsi / 1000000000;
+            int nanos = (int) (tsi - ((tsi / 1000000000) * 1000000000));
+            LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
+            timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault());
+
+            if (parts.length == 9) {
+                pending = Long.parseLong(parts[8]);
+            }
+        }
+
+        @Override
+        public String getStream() {
+            return stream;
+        }
+
+        @Override
+        public String getConsumer() {
+            return consumer;
+        }
+
+        @Override
+        public long deliveredCount() {
+            return delivered;
+        }
+
+        @Override
+        public long streamSequence() {
+            return streamSeq;
+        }
+
+        @Override
+        public long consumerSequence() {
+            return consumerSeq;
+        }
+
+        @Override
+        public long pendingCount() {
+            return pending;
+        }
+
+        @Override
+        public ZonedDateTime timestamp() {
+            return timestamp;
+        }
+    }
+
+    @Override
+    public boolean isJetStream() {
+        return replyTo != null && replyTo.startsWith("$JS");
+    }
+    
     @Override
     public String toString() {
         String hdrString = headers == null ? "" : new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+");

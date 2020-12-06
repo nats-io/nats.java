@@ -35,6 +35,21 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.nats.client.AuthenticationException;
+import io.nats.client.Connection;
+import io.nats.client.ConnectionListener;
+import io.nats.client.ConnectionListener.Events;
+import io.nats.client.Consumer;
+import io.nats.client.Dispatcher;
+import io.nats.client.ErrorListener;
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamOptions;
+import io.nats.client.Message;
+import io.nats.client.MessageHandler;
+import io.nats.client.NUID;
+import io.nats.client.Options;
+import io.nats.client.Statistics;
+import io.nats.client.Subscription;
 import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnection implements Connection {
@@ -117,7 +132,8 @@ class NatsConnection implements Connection {
         if (trace) {
             long seconds = TimeUnit.SECONDS.convert(System.nanoTime() - start, TimeUnit.NANOSECONDS);
             if (seconds > 1L) {
-                // If you see this trace check: https://github.com/nats-io/nats.java#linux-platform-note
+                // If you see this trace check:
+                // https://github.com/nats-io/nats.java#linux-platform-note
                 timeTrace(trace, "NUID initialization took long: %d (s)", seconds);
             }
         }
@@ -199,7 +215,8 @@ class NatsConnection implements Connection {
                     String msg = String.format("Authentication error connecting to NATS server: %s.", err);
                     throw new AuthenticationException(msg);
                 } else {
-                    String msg = String.format("Unable to connect to NATS servers: %s.", String.join(", ", getServers()));
+                    String msg = String.format("Unable to connect to NATS servers: %s.",
+                            String.join(", ", getServers()));
                     throw new IOException(msg);
                 }
             }
@@ -231,7 +248,7 @@ class NatsConnection implements Connection {
 
         while (!isConnected() && !isClosed() && !this.isClosing()) {
             List<String> serversToTry = buildServerList();
-            lastServer = serversToTry.get(serversToTry.size()-1);
+            lastServer = serversToTry.get(serversToTry.size() - 1);
 
             for (String server : serversToTry) {
                 if (isClosed()) {
@@ -305,8 +322,9 @@ class NatsConnection implements Connection {
         } catch (Exception exp) {
             this.processException(exp);
         }
-        
-        // When the flush returns we are done sending internal messages, so we can switch to the
+
+        // When the flush returns we are done sending internal messages, so we can
+        // switch to the
         // non-reconnect queue
         this.writer.setReconnectMode(false);
 
@@ -398,7 +416,7 @@ class NatsConnection implements Connection {
                         // If the time appears too long it might be related to
                         // https://github.com/nats-io/nats.java#linux-platform-note
                         timeTrace(trace, "TLS upgrade took: %.3f (s)",
-                                ((double)(System.nanoTime() - start)) / 1_000_000_000.0);
+                                ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
                     }
                     return null;
                 }
@@ -643,10 +661,10 @@ class NatsConnection implements Connection {
             updateStatus(Status.CLOSED); // will signal, we also signal when we stop disconnecting
 
             /*
-            if (exceptionDuringConnectChange != null) {
-                processException(exceptionDuringConnectChange);
-                exceptionDuringConnectChange = null;
-            }*/
+             * if (exceptionDuringConnectChange != null) {
+             * processException(exceptionDuringConnectChange); exceptionDuringConnectChange
+             * = null; }
+             */
         } finally {
             statusLock.unlock();
         }
@@ -675,11 +693,11 @@ class NatsConnection implements Connection {
     void closeSocketImpl() {
         this.currentServerURI = null;
 
-        //Signal both to stop. 
+        // Signal both to stop.
         final Future<Boolean> readStop = this.reader.stop();
         final Future<Boolean> writeStop = this.writer.stop();
-        
-        // Now wait until they both stop before closing the socket. 
+
+        // Now wait until they both stop before closing the socket.
         try {
             readStop.get(1, TimeUnit.SECONDS);
         } catch (Exception ex) {
@@ -692,7 +710,6 @@ class NatsConnection implements Connection {
         }
 
         this.dataPortFuture.cancel(true);
-        
 
         // Close the current socket and cancel anyone waiting for it
         try {
@@ -704,7 +721,6 @@ class NatsConnection implements Connection {
             processException(ex);
         }
         cleanUpPongQueue();
-        
 
         try {
             this.reader.stop().get(10, TimeUnit.SECONDS);
@@ -804,7 +820,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Subject cannot contain whitespace");
         }
 
-        return createSubscription(subject, null, null);
+        return createSubscription(subject, null, null, false);
     }
 
     @Override
@@ -813,7 +829,7 @@ class NatsConnection implements Connection {
         if (subject == null || subject.length() == 0) {
             throw new IllegalArgumentException("Subject is required in subscribe");
         }
-        
+
         Pattern pattern = Pattern.compile("\\s");
         Matcher smatcher = pattern.matcher(subject);
 
@@ -831,7 +847,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Queue names cannot contain whitespace");
         }
 
-        return createSubscription(subject, queueName, null);
+        return createSubscription(subject, queueName, null, false);
     }
 
     void invalidate(NatsSubscription sub) {
@@ -882,7 +898,7 @@ class NatsConnection implements Connection {
     }
 
     // Assumes the null/empty checks were handled elsewhere
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher) {
+    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, boolean isJetStream) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {
@@ -893,7 +909,11 @@ class NatsConnection implements Connection {
         long sidL = nextSid.getAndIncrement();
         String sid = String.valueOf(sidL);
 
-        sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+        if (isJetStream) {
+            sub = new NatsJetStreamSubscription(sid, subject, queueName, this, dispatcher);
+        } else {
+            sub = new NatsSubscription(sid, subject, queueName, this, dispatcher);
+        }
         subscribers.put(sid, sub);
 
         sendSubscriptionMessage(sid, subject, queueName, false);
@@ -992,14 +1012,13 @@ class NatsConnection implements Connection {
         Future<Message> incoming = _request(message);
         try {
             reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (TimeoutException | ExecutionException e) {
+        } catch (TimeoutException | ExecutionException | CancellationException e) {
             incoming.cancel(true);
         } catch (Throwable e) {
             throw new AssertionError(e);
         }
-
         return reply;
-    }
+    }   
 
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
@@ -1048,7 +1067,7 @@ class NatsConnection implements Connection {
             // Unsubscribe when future is cancelled:
             String finalResponseInbox = responseInbox;
             future.whenComplete((msg, exception) -> {
-                if ( null != exception && exception instanceof CancellationException ) {
+                if (null != exception && exception instanceof CancellationException) {
                     dispatcher.unsubscribe(finalResponseInbox);
                 }
             });
@@ -1189,7 +1208,7 @@ class NatsConnection implements Connection {
             throw new IOException("Error sending connect string", exp);
         }
     }
-    
+
     CompletableFuture<Boolean> sendPing() {
         return this.sendPing(true);
     }
@@ -1677,7 +1696,7 @@ class NatsConnection implements Connection {
             Collections.shuffle(reconnectList);
         } else {
             // Remove the current server from the list, shuffle if it makes sense,
-            // and then add it to the end of the list.  This prevents the client
+            // and then add it to the end of the list. This prevents the client
             // from immediately reconnecting to a server it just lost connection with.
             reconnectList.remove(this.currentServer);
             if (reconnectList.size() > 1) {
@@ -1745,7 +1764,7 @@ class NatsConnection implements Connection {
         } finally {
             this.statusLock.unlock();
         }
-        
+
         final CompletableFuture<Boolean> tracker = this.draining.get();
         Instant start = Instant.now();
 
@@ -1762,7 +1781,7 @@ class NatsConnection implements Connection {
 
         NatsDispatcher inboxer = this.inboxDispatcher.get();
 
-        if(inboxer != null) {
+        if (inboxer != null) {
             consumers.add(inboxer);
         }
 
@@ -1796,7 +1815,7 @@ class NatsConnection implements Connection {
                             i.remove();
                         }
                     }
-                    
+
                     if (consumers.size() == 0) {
                         break;
                     }
@@ -1846,5 +1865,18 @@ class NatsConnection implements Connection {
         }
         err = err.toLowerCase();
         return err.startsWith("user authentication") || err.contains("authorization violation");
+    }
+
+    @Override
+    public JetStream jetStream() throws InterruptedException, TimeoutException {
+        return jetStream(null);
+    }
+
+    @Override
+    public JetStream jetStream(JetStreamOptions options) throws InterruptedException, TimeoutException {
+        if (isClosing() || isClosed()) {
+            throw new IllegalStateException("A jetstream context can't be estabilished during close.");
+        }
+        return new NatsJetStream(this, options);
     }
 }

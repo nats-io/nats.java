@@ -45,4 +45,5 @@ public class NatsImpl {
     public static AuthHandler staticCredentials(char[] jwt, char[] nkey) {
         return new StringAuthHandler(jwt, nkey);
     }
+    
 }
