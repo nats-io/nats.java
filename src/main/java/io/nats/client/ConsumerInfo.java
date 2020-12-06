@@ -33,7 +33,7 @@ public class ConsumerInfo {
      * This class holds the sequence numbers for a consumer and 
      * stream.
      */
-    public class SequencePair {
+    static class SequencePair {
         private long consumerSeq = -1;
         private long streamSeq = -1;
 

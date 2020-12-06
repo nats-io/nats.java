@@ -126,17 +126,17 @@ public class ConsumerConfiguration {
         }        
     }
 
-	private String durable = null;
+    private String durable = null;
     private DeliverPolicy deliverPolicy = DeliverPolicy.All;
     private String deliverSubject = null;
-	private long startSeq = 0;
-	private ZonedDateTime startTime = null;
-	private AckPolicy ackPolicy = AckPolicy.Explicit;
-	private Duration ackWait = Duration.ofSeconds(30);
-	private long maxDeliver = 0;
-	private String filterSubject = null;
-	private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
-	private String sampleFrequency = null;
+    private long startSeq = 0;
+    private ZonedDateTime startTime = null;
+    private AckPolicy ackPolicy = AckPolicy.Explicit;
+    private Duration ackWait = Duration.ofSeconds(30);
+    private long maxDeliver = 0;
+    private String filterSubject = null;
+    private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
+    private String sampleFrequency = null;
     private long rateLimit = 0;
     private long maxWaiting = 0;
     private long maxAckPending = 0;

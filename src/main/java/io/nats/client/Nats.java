@@ -14,7 +14,6 @@
 package io.nats.client;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 
 import io.nats.client.impl.NatsImpl;
 
