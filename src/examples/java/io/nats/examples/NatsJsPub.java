@@ -34,20 +34,19 @@ public class NatsJsPub {
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
             + "\nUse the URL for user/pass/token authentication.\n";
 
-    public static void createTestStream(JetStream js, String subject, String streamName)
+    public static void createTestStream(JetStream js, String streamName, String subject)
             throws TimeoutException, InterruptedException {
 
         StreamConfiguration sc = StreamConfiguration.builder().
             name(streamName).
             storageType(StorageType.File).
-            noAck(false).
             subjects(new String[] { subject }).
             build();
         
         // Add or use an existing stream.
         StreamInfo si = js.addStream(sc);
         System.out.printf("Using stream %s on subject %s created at %s.\n",
-           streamName, subject, si.getCreateTime().toLocalDate().toString());
+           streamName, subject, si.getCreateTime().toLocalTime().toString());
     }
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleUtils.readPublishArgs(args, usageString);
@@ -83,8 +82,9 @@ public class NatsJsPub {
             // js.publish(msg, pops);
 
             PublishAck pa = js.publish(msg);
-            System.out.printf("Published message on subject %s to stream %s, seqno %d.\n",
-               exArgs.subject, pa.getStream(), pa.getSeqno());
+            
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
+                   exArgs.subject, pa.getStream(), pa.getSeqno());
         }
         catch (Exception exp) {
             System.err.println(exp);
