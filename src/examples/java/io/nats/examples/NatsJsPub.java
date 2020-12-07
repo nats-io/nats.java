@@ -28,7 +28,7 @@ import java.util.concurrent.TimeoutException;
 
 public class NatsJsPub {
 
-    static final String usageString = "\nUsage: java NatsJsPub [-s server] [-h headerKey:headerValue]* <subject> <message>\n"
+    static final String usageString = "\nUsage: java NatsJsPub [-s server] [--stream name] [-h headerKey:headerValue]* <subject> <message>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -37,6 +37,8 @@ public class NatsJsPub {
     public static void createTestStream(JetStream js, String streamName, String subject)
             throws TimeoutException, InterruptedException {
 
+        // Create a stream, here will use a file storage type, and one subject,
+        // the passed subject.
         StreamConfiguration sc = StreamConfiguration.builder().
             name(streamName).
             storageType(StorageType.File).
@@ -56,7 +58,9 @@ public class NatsJsPub {
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nPublishing '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            // Create a jetstream context.
+            // Create a jetstream context.  This hangs off the original connection
+            // allowing us to produce data to streams and consume data from
+            // jetstream consumers.
             JetStream js = nc.jetStream();
 
             // if a stream name is not provided, attempt to create a test stream.
@@ -81,8 +85,9 @@ public class NatsJsPub {
             //    build();
             // js.publish(msg, pops);
 
+            // Publish a message and print the results of the publish acknowedgement.
+            // An exception will be thrown if there is a failure.
             PublishAck pa = js.publish(msg);
-            
             System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                    exArgs.subject, pa.getStream(), pa.getSeqno());
         }
