@@ -228,6 +228,139 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
     d.unsubscribe(s, 100);
     ```
 
+## Jetstream
+
+Publishing and subscribing to Jetstream enabled servers is straightforward.  A 
+Jetstream enabled application will connect to a server, establish a Jetstream 
+context, and then publish or subscribe.  This can be mixed and matched with standard
+NATS subject, and jetstream subscribers, depending on configuration, recieve messages
+from both streams and directly from other NATS producers.
+
+### The Jetstream Context
+After establishing a connection as described above, create a Jetstream Context.
+
+```java
+    JetStream js = nc.jetStream();
+```
+
+You can pass options to configure the Jetstream client, although the defaults should
+suffice for most users.  See the `JetStreamOptions` class.
+
+There is no limit to the number of contexts used, although normally one would only
+require a single context.  Contexts may be prefixed to be used in conjunction with
+NATS authorization.
+
+### Publishing
+
+To publish messages, use the `JetStream.Publish(...)` API.  A stream must be established
+before publishing.
+
+```java
+    // create a typical NATS message
+    Message msg = new NatsMessage.Builder()
+            .subject("foo")
+            .data("hello", StandardCharsets.UTF_8)
+            .build();
+
+    PublishAck pa = js.publish(msg);
+```
+
+If there is a problem an exception will be thrown, and the message may not have been
+persisted.  Otherwise, the stream name and sequence number is returned in the publish
+acknowledgement.
+
+There are a variety of publish options that can be set when publishing.  When duplicate
+checking has been enabled on the stream, a message ID should be set. One set of options
+are expectations.  You can set a publish expectation such as a particular stream name,
+previous message ID, or previous sequence number.  These are hints to the server that
+it should reject messages where these are not met, primarily for enforcing your ordering
+or ensuring messages are not stored on the wrong stream.
+
+For example:
+
+```java
+    PublishOptions opts = PublishOptions.builder().expectedStream("TEST")build();
+    opts.setMessageId("mid1");
+    js.publish("foo", null, opts);
+
+    opts.setExpectedLastMsgId("mid1");
+    opts.setMessageId("mid2");
+    opts.setExpectedLastSeqence(1);
+    js.publish("foo", null, opts);
+```
+
+### Subscribing
+
+There are three methods of subscribing: synchronous, synchronous with poll, and asynchronous.  With synchronous subscribers
+you must always acknowledge messages.  Asynchronous subscribers auto acknowledge by default, although this can
+be disabled through the subscription options in case you are using a consumer ack mode of none or all in the consumer
+configuration.
+
+These examples provide a durable so messages will be preserved across server restarts
+and client disconnects.  Any subscriber can be a queue subscriber to load balance.
+
+**Asynchronous:**
+
+```java
+
+    Dispatcher d;
+
+    ...
+
+    SubscribeOptions so = SubscribeOptions.builder().durable("durable-name").build();
+    js.subscribe(exArgs.subject, d, (Message msg) -> {
+        // Process the message.  There is no need to ack unless auto ack
+        // was disabled in the options.
+    }, so);
+```
+
+**Synchronous:**
+
+```java
+    SubscribeOptions so = SubscribeOptions.builder().durable("sub-example").build();
+    JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
+    Message msg = sub.nextMessage(Duration.ofHours(1));
+
+    // process the message
+
+    msg.ack();
+```
+
+**Synchronous with poll:**
+
+A subscription can be set up to poll to request messages from a jetstream consumer, allowing for high performance while reducing impact to the server.
+
+```java
+    SubscribeOptions so = SubscribeOptions.builder().poll(64).durable("sub-example").build();
+    JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
+    while (true) {
+        for (int i = 0; i < 64; i++) {
+            Message msg = sub.nextMessage(Duration.ofMinutes(5));
+
+            // process the message
+
+            msg.ack();
+        }
+        // get the next batch of messages.
+        sub.poll();
+    }
+```
+
+If the consumer had an acknowledgement mode of "all", you could acknowledge only the last message to balance
+performance against the possibility of reprocessing a number of messages.
+
+### Message Acknowledgements
+
+There are multiple types of acknowledgements in Jetstream:
+
+* `Message.ack()`: Acknowledges a message.
+* `Message.ackSync(Duration)`: Acknowledges a message and waits for a confirmation. When used with deduplications this creates exactly once delivery guarantees (within the deduplication window).  This may significantly impact performance of the system.
+* `Message.nak()`: A negative acknowledgment indicating processing failed and the message should be resent later.
+* `Message.term()`: Never send this message again, regardless of configuration.
+* `Message.inProgress()`:  The message is being processed and reset the redelivery timer in the server.  The message must be acknowledged later when processing is complete.
+
+Note that exactly once delivery guarantee can be achieved by using a consumer with explicit ack mode attached to stream setup with a deduplication window and using the `ackSync` to acknowledge messages.  The guarantee is only valid for the duration of the deduplication window. 
+
 ## Advanced Usage
 
 ### TLS

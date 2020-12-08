@@ -12,6 +12,9 @@ This folder contains a number of examples:
 8. `benchmark` - benchmark that supports multiple threads
 9. `stan` - A larger example that implements a server that can respond on multiple subjects, and several clients that send requests on those various subjects.
 10. `stability` - a small producer and subscriber that run forever printing some status every so often. These are intended for long running tests without burning the CPU.
+11. `NatsJsPub.java` - publishes jetstream messages
+12. `NatsJsSub.java` - reads messages syncronously from Jetstream and manually acknowedges messages.
+13. `NatsJsSubCb.java` - handles incoming Jetstream messages asynchronously and auto acknoledges messages. 
 
 All of these examples take the server URL on the command line, which means that you can use the `tls` and `opentls` schemas to test over a secure connection.
 
