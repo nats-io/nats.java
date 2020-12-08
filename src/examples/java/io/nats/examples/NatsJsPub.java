@@ -34,22 +34,6 @@ public class NatsJsPub {
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
             + "\nUse the URL for user/pass/token authentication.\n";
 
-    public static void createTestStream(JetStream js, String streamName, String subject)
-            throws TimeoutException, InterruptedException {
-
-        // Create a stream, here will use a file storage type, and one subject,
-        // the passed subject.
-        StreamConfiguration sc = StreamConfiguration.builder().
-            name(streamName).
-            storageType(StorageType.File).
-            subjects(new String[] { subject }).
-            build();
-        
-        // Add or use an existing stream.
-        StreamInfo si = js.addStream(sc);
-        System.out.printf("Using stream %s on subject %s created at %s.\n",
-           streamName, subject, si.getCreateTime().toLocalTime().toString());
-    }
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleUtils.readPublishArgs(args, usageString);
 
@@ -65,7 +49,7 @@ public class NatsJsPub {
 
             // if a stream name is not provided, attempt to create a test stream.
             if (exArgs.stream == null) {
-                createTestStream(js, "test-stream", exArgs.subject); 
+                ExampleUtils.createTestStream(js, "test-stream", exArgs.subject); 
             }
 
             // create a typical NATS message

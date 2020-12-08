@@ -20,7 +20,6 @@ import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.SubscribeOptions;
-import io.nats.client.Subscription;
 import io.nats.client.Message.MetaData;
 
 import java.nio.charset.StandardCharsets;
@@ -28,7 +27,7 @@ import java.util.concurrent.CountDownLatch;
 
 public class NatsJsSubCb {
 
-    static final String usageString = "\nUsage: java NatsJsSub [-s server] <subject> <msgCount>\n"
+    static final String usageString = "\nUsage: java NatsJsSub [-s server] [--stream name] <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -48,6 +47,11 @@ public class NatsJsSubCb {
             // Create our jetstream context to subscribe to jetstream 
             // messages.
             JetStream js = nc.jetStream();
+
+            // create a stream just in case it doesn't exist.
+            if (exArgs.stream == null) {
+                ExampleUtils.createTestStream(js, "test-stream", exArgs.subject);
+            }            
 
             CountDownLatch msgLatch = new CountDownLatch(exArgs.msgCount);
 

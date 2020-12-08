@@ -26,7 +26,7 @@ import java.time.Duration;
 
 public class NatsJsSub {
 
-    static final String usageString = "\nUsage: java NatsJsSub [-s server] [-poll #] <subject> <msgCount>\n"
+    static final String usageString = "\nUsage: java NatsJsSub [-s server] [--stream name] [-poll #] <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -44,6 +44,11 @@ public class NatsJsSub {
             // messages.
             JetStream js = nc.jetStream();
 
+            // create a stream just in case it doesn't exist.
+            if (exArgs.stream == null) {
+                ExampleUtils.createTestStream(js, "test-stream", exArgs.subject);
+            }
+
             // Build our subscription options.  We'll create a durable subscription named
             // "sub-example".            
             SubscribeOptions so = SubscribeOptions.builder().durable("sub-example").build();
@@ -55,7 +60,7 @@ public class NatsJsSub {
             for(int i=1;i<=exArgs.msgCount;i++) {
                 Message msg = sub.nextMessage(Duration.ofHours(1));
 
-                System.out.printf("\nMessage Received [%d]\n", (i+1));
+                System.out.println("\nMessage Received:");
 
                 if (msg.hasHeaders()) {
                     System.out.println("  Headers:");
@@ -81,7 +86,8 @@ public class NatsJsSub {
                     System.out.printf("  Consumer Name: %s\n", meta.getConsumer());
                     System.out.printf("  Consumer Seq:  %d\n", meta.consumerSequence());
                     
-                    // We need to ack the message or it'll be redelivered.
+                    // Because this is a syncronous subscriber, there's no auto-ack. 
+                    // We need to ack the message or it'll be redelivered.  
                     msg.ack();
                 }
 
