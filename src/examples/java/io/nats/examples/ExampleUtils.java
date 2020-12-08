@@ -14,8 +14,10 @@
 package io.nats.examples;
 
 import io.nats.client.*;
+import io.nats.client.StreamConfiguration.StorageType;
 
 import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 
 public class ExampleUtils {
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
@@ -54,6 +56,23 @@ public class ExampleUtils {
 
         return builder.build();
     }
+
+    public static void createTestStream(JetStream js, String streamName, String subject)
+            throws TimeoutException, InterruptedException {
+
+        // Create a stream, here will use a file storage type, and one subject,
+        // the passed subject.
+        StreamConfiguration sc = StreamConfiguration.builder().
+            name(streamName).
+            storageType(StorageType.File).
+            subjects(new String[] { subject }).
+            build();
+        
+        // Add or use an existing stream.
+        StreamInfo si = js.addStream(sc);
+        System.out.printf("Using stream %s on subject %s created at %s.\n",
+           streamName, subject, si.getCreateTime().toLocalTime().toString());
+    }    
 
     // Publish:   [-s server] [-h headerKey:headerValue]* <subject> <message>
     // Subscribe: [-s server] <subject> <msgCount>

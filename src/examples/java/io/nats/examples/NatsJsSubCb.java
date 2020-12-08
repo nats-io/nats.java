@@ -14,19 +14,20 @@
 package io.nats.examples;
 
 import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
 import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
+import io.nats.client.MessageHandler;
 import io.nats.client.Nats;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.Message.MetaData;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 
-public class NatsJsSub {
+public class NatsJsSubCb {
 
-    static final String usageString = "\nUsage: java NatsJsSub [-s server] [--stream name] [-poll #] <subject> <msgCount>\n"
+    static final String usageString = "\nUsage: java NatsJsSub [-s server] [--stream name] <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -40,27 +41,24 @@ public class NatsJsSub {
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
-            // Create our jetstream context to receive jetstream 
+            // create a dispatcher without a default handler.
+            Dispatcher d = nc.createDispatcher(null);
+
+            // Create our jetstream context to subscribe to jetstream 
             // messages.
             JetStream js = nc.jetStream();
 
             // create a stream just in case it doesn't exist.
             if (exArgs.stream == null) {
                 ExampleUtils.createTestStream(js, "test-stream", exArgs.subject);
-            }
+            }            
 
-            // Build our subscription options.  We'll create a durable subscription named
-            // "sub-example".            
-            SubscribeOptions so = SubscribeOptions.builder().durable("sub-example").build();
+            CountDownLatch msgLatch = new CountDownLatch(exArgs.msgCount);
 
-            // Subscribe synchronously, the keep waiting for messages.
-            JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
-            nc.flush(Duration.ofSeconds(5));
+            // create our message handler.
+            MessageHandler handler = (Message msg) -> {
 
-            for(int i=1;i<=exArgs.msgCount;i++) {
-                Message msg = sub.nextMessage(Duration.ofHours(1));
-
-                System.out.println("\nMessage Received:");
+                System.out.printf("\nMessage Received:\n");
 
                 if (msg.hasHeaders()) {
                     System.out.println("  Headers:");
@@ -85,20 +83,25 @@ public class NatsJsSub {
                     System.out.printf("  Stream Seq:  %d\n",  meta.streamSequence());
                     System.out.printf("  Consumer Name: %s\n", meta.getConsumer());
                     System.out.printf("  Consumer Seq:  %d\n", meta.consumerSequence());
-                    
-                    // Because this is a syncronous subscriber, there's no auto-ack. 
-                    // We need to ack the message or it'll be redelivered.  
-                    msg.ack();
-                }
 
-                // if we've designated this subscriber as a poll subscriber,
-                // poll for messages when we need to.
-                if (exArgs.poll > 0 && i % exArgs.poll == 0) {
-                    sub.poll();
+                    // If you don't disable auto ack mode NATS will automatically
+                    // ack for you.  Otherwise, you'll need to ack, e.g.
+                    // msg.ack();                    
                 }
-            }
-        }
-        catch (Exception exp) {
+                msgLatch.countDown();
+            };
+
+            // Build our subscription options.  We'll create a durable subscription named
+            // "sub-example".
+            SubscribeOptions so = SubscribeOptions.builder().durable("sub-example").build();
+
+            // Subscribe using the handler, and then wait for the requested number of 
+            // messages to arrive using the countdown latch.
+            js.subscribe(exArgs.subject, d, handler, so);
+
+            msgLatch.await();
+            System.out.printf("Received %d messages.  Done.\n", exArgs.msgCount);
+        } catch (Exception exp) {
             System.err.println(exp);
         }
     }
