@@ -285,7 +285,7 @@ For example:
 
     opts.setExpectedLastMsgId("mid1");
     opts.setMessageId("mid2");
-    opts.setExpectedLastSeqence(1);
+    opts.setExpectedLastSequence(1);
     js.publish("foo", null, opts);
 ```
 
