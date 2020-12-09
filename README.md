@@ -279,7 +279,7 @@ or ensuring messages are not stored on the wrong stream.
 For example:
 
 ```java
-    PublishOptions opts = PublishOptions.builder().expectedStream("TEST")build();
+    PublishOptions opts = PublishOptions.builder().expectedStream("TEST").build();
     opts.setMessageId("mid1");
     js.publish("foo", null, opts);
 
