@@ -296,7 +296,7 @@ you must always acknowledge messages.  Asynchronous subscribers auto acknowledge
 be disabled through the subscription options in case you are using a consumer ack mode of none or all in the consumer
 configuration.
 
-These examples provide a durable so messages will be preserved across server restarts
+These examples provide a durable so messages will be preserved across server restarts (when a stream is using file storage)
 and client disconnects.  Any subscriber can be a queue subscriber to load balance.
 
 **Asynchronous:**
