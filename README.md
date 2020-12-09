@@ -233,7 +233,7 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
 Publishing and subscribing to Jetstream enabled servers is straightforward.  A 
 Jetstream enabled application will connect to a server, establish a Jetstream 
 context, and then publish or subscribe.  This can be mixed and matched with standard
-NATS subject, and jetstream subscribers, depending on configuration, recieve messages
+NATS subject, and JetStream subscribers, depending on configuration, receive messages
 from both streams and directly from other NATS producers.
 
 ### The Jetstream Context
