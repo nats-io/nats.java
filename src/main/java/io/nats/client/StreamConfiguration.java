@@ -422,7 +422,7 @@ public class StreamConfiguration {
         private long maxConsumers = -1;
         private long maxBytes = -1;
         private long maxMsgSize = -1;
-        private Duration maxAge = Duration.ofDays(365);
+        private Duration maxAge = Duration.ZERO;
         private StorageType storageType = StorageType.File;
         private DiscardPolicy discardPolicy = DiscardPolicy.Old;
         private long replicas = 1;

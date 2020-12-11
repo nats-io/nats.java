@@ -23,6 +23,7 @@ public class ExampleArgs {
     public String message;
     public int msgCount = -1;
     public String stream = null;
+    public String consumer = null;
     public int poll = 0;
 
     public boolean hasHeaders() {
@@ -62,6 +63,9 @@ public class ExampleArgs {
         }
         else if (name.equals("-s")) {
             server = value;
+        }
+        else if (name.equals("-consumer")) {
+            consumer = value;
         }
         else if (name.equals("-stream")) {
             stream = value;
