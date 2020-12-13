@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.impl.TestMacros.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ReconnectTests {
@@ -66,7 +67,7 @@ public class ReconnectTests {
                                     build();
                                     port = ts.getPort();
                 nc = (NatsConnection) Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
 
                 sub = nc.subscribe("subsubject");
                 
@@ -93,8 +94,7 @@ public class ReconnectTests {
             handler.prepForStatusChange(Events.RESUBSCRIBED);
 
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                handler.waitForStatusChange(5000, TimeUnit.MILLISECONDS);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                allowTimeToConnect(nc, handler);
 
                 end = System.nanoTime();
 
@@ -114,10 +114,7 @@ public class ReconnectTests {
             assertEquals(1, nc.getNatsStatistics().getReconnects(), "reconnect count");
             assertTrue(nc.getNatsStatistics().getExceptions() > 0, "exception count");
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
         }
     }
 
@@ -138,7 +135,7 @@ public class ReconnectTests {
                                     build();
                                     port = ts.getPort();
                 nc = (NatsConnection) Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
@@ -154,8 +151,7 @@ public class ReconnectTests {
             handler.prepForStatusChange(Events.RECONNECTED);
 
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                handler.waitForStatusChange(1500, TimeUnit.MILLISECONDS);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                allowTimeToConnect(nc, handler);
 
                 // Make sure dispatcher and subscription are still there
                 Future<Message> inc = nc.request("dispatchSubject", "test".getBytes(StandardCharsets.UTF_8));
@@ -171,10 +167,7 @@ public class ReconnectTests {
             assertEquals(1, nc.getNatsStatistics().getReconnects(), "reconnect count");
             assertTrue(nc.getNatsStatistics().getExceptions() > 0, "exception count");
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
         }
     }
 
@@ -200,7 +193,7 @@ public class ReconnectTests {
                                     connectionListener(handler).
                                     build();
                 nc = (NatsConnection) Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
 
                 sub = nc.subscribe("subsubject");
                 
@@ -233,8 +226,7 @@ public class ReconnectTests {
             handler.prepForStatusChange(Events.RESUBSCRIBED);
 
             try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
-                handler.waitForStatusChange(5000, TimeUnit.MILLISECONDS);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                allowTimeToConnect(nc, handler);
 
                 end = System.nanoTime();
 
@@ -255,10 +247,7 @@ public class ReconnectTests {
             assertEquals(1, nc.getNatsStatistics().getReconnects(), "reconnect count");
             assertTrue(nc.getNatsStatistics().getExceptions() > 0, "exception count");
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
         }
     }
 
@@ -277,7 +266,7 @@ public class ReconnectTests {
                                     reconnectWait(Duration.ofMillis(10)).
                                     build();
                 nc = Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 handler.prepForStatusChange(Events.CLOSED);
             }
 
@@ -306,20 +295,17 @@ public class ReconnectTests {
                                             maxReconnects(-1).
                                             build();
                 nc = (NatsConnection) Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals(ts2.getURI(), nc.getConnectedUrl());
                 handler.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWait(nc, handler);
 
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertConnected(nc);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
         }
     }
 
@@ -338,20 +324,17 @@ public class ReconnectTests {
                                             noRandomize().
                                             build();
                 nc = (NatsConnection) Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals(nc.getConnectedUrl(), ts2.getURI());
                 handler.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWait(nc, handler);
 
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertConnected(nc);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
         }
     }
 
@@ -372,20 +355,17 @@ public class ReconnectTests {
                                             reconnectWait(Duration.ofSeconds(1)).
                                             build();
                 nc = (NatsConnection) Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals(nc.getConnectedUrl(), ts2.getURI());
                 handler.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWait(nc, handler);
 
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertConnected(nc);
             assertTrue(ts.getURI().endsWith(nc.getConnectedUrl()));
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
         }
     }
 
@@ -405,7 +385,7 @@ public class ReconnectTests {
                                             reconnectWait(Duration.ofSeconds(480)).
                                             build();
                     nc = Nats.connect(options);
-                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                    assertConnected(nc);
                     handler.prepForStatusChange(Events.DISCONNECTED);
                 }
 
@@ -442,7 +422,7 @@ public class ReconnectTests {
                                         reconnectWait(Duration.ofSeconds(30)).
                                         build();
                 nc = Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
@@ -525,8 +505,7 @@ public class ReconnectTests {
                 // connect good then bad
                 handler.prepForStatusChange(Events.RESUBSCRIBED);
                 try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                    handler.waitForStatusChange(10, TimeUnit.SECONDS);
-                    assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                    allowTimeToConnect(nc, handler);
                     handler.prepForStatusChange(Events.DISCONNECTED);
                 }
 
@@ -540,8 +519,7 @@ public class ReconnectTests {
 
                 handler.prepForStatusChange(Events.RESUBSCRIBED);
                 try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
-                    handler.waitForStatusChange(10, TimeUnit.SECONDS);
-                    assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                    allowTimeToConnect(nc, handler);
                     subRef.get().get();
                     handler.prepForStatusChange(Events.DISCONNECTED);
                     sendRef.get().complete(true);
@@ -552,10 +530,7 @@ public class ReconnectTests {
 
             assertEquals(2 * thrashCount, nc.getNatsStatistics().getReconnects(), "reconnect count");
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
         }
     }
 
@@ -607,7 +582,7 @@ public class ReconnectTests {
             
             handler.prepForStatusChange(Events.DISCOVERED_SERVERS);
             nc = (NatsConnection) Nats.connect(options);
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertConnected(nc);
             assertEquals(nc.getConnectedUrl(), ts.getURI());
 
             flushAndWait(nc, handler); // make sure we get the new server via info
@@ -618,15 +593,12 @@ public class ReconnectTests {
             flushAndWait(nc, handler);
 
             sleep(2000);
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertConnected(nc);
 
             URI uri = options.createURIForServer(nc.getConnectedUrl());
             assertEquals(ts2.getPort(), uri.getPort()); // full uri will have some ip address, just check port
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
             if (ts != null) {
                 ts.close();
             }
@@ -647,7 +619,7 @@ public class ReconnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
             } finally {
                 nc.close();
                 assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -666,7 +638,7 @@ public class ReconnectTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
             } finally {
                 nc.close();
                 assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -689,7 +661,7 @@ public class ReconnectTests {
                                     build();
 
                 nc = (NatsConnection) Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
 
                 for (int i=0;i<100;i++) {
                     // stop and start in a loop without waiting for the future to complete
@@ -702,10 +674,7 @@ public class ReconnectTests {
                 // Should have thrown an exception if #203 isn't fixed
             }
         } finally {
-            if (nc != null) {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
+            closeConnection(nc);
         }
     }
 
