@@ -1538,13 +1538,12 @@ class NatsConnection implements Connection {
         return servers;
     }
 
-    static final Random random = new Random(); // save cycles since shuffle makes a new random if we don't give it one.
     private List<String> shuffleWithoutCurrent(List<String> servers) {
         if (currentServer != null) {
             servers.remove(currentServer);
         }
         if (servers.size() > 1) {
-            Collections.shuffle(servers, random);
+            Collections.shuffle(servers, ThreadLocalRandom.current());
         }
         return servers;
     }
@@ -1696,7 +1695,7 @@ class NatsConnection implements Connection {
 
     void waitForReconnectTimeout() {
         Duration waitTime = options.getReconnectWait();
-        long currentWaitNanos = (waitTime != null) ? waitTime.toNanos() : -1;
+        long currentWaitNanos = (waitTime == null) ? -1 : ThreadLocalRandom.current().nextLong(waitTime.toNanos());
         long start = System.nanoTime();
 
         while (currentWaitNanos > 0 && !isDisconnectingOrClosed() && !isConnected() && !this.reconnectWaiter.isDone()) {
