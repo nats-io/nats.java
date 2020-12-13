@@ -28,6 +28,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.NatsConstants.*;
+
 /**
  * The Options class specifies the connection options for a new NATs connection, including the default options.
  * Options are created using a {@link Options.Builder Builder}.
@@ -509,7 +511,7 @@ public class Options {
      */
     public static class Builder {
 
-        private ArrayList<URI> servers = new ArrayList<URI>();
+        private ArrayList<URI> servers = new ArrayList<>();
         private boolean noRandomize = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
@@ -1261,14 +1263,14 @@ public class Options {
             } else if (servers.size() == 1) { // Allow some URI based configs
                 URI serverURI = servers.get(0);
 
-                if ("tls".equals(serverURI.getScheme()) && this.sslContext == null)
+                if (TLS_PROTOCOL.equals(serverURI.getScheme()) && this.sslContext == null)
                 {
                     try {
                         this.sslContext = SSLContext.getDefault();
                     } catch (NoSuchAlgorithmException e) {
                         throw new IllegalStateException("Unable to create default SSL context", e);
                     }
-                } else if ("opentls".equals(serverURI.getScheme()) && this.sslContext == null)
+                } else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme()) && this.sslContext == null)
                 {
                     this.sslContext = SSLUtils.createOpenTLSContext();
                 }
@@ -1601,34 +1603,31 @@ public class Options {
     public URI createURIForServer(String serverURI) throws URISyntaxException {
         return Options.parseURIForServer(serverURI);
     }
-    
+
     static URI parseURIForServer(String serverURI) throws URISyntaxException {
-        String known[] = {"nats", "tls", "opentls"};
-        List<String> knownProtocols = Arrays.asList(known);
-        URI uri = null;
+        URI uri;
 
         try {
             uri = new URI(serverURI);
-
-            if (uri.getHost() == null || uri.getHost().equals("") || uri.getScheme() == "" || uri.getScheme() == null) {
+            if (uri.getHost() == null || uri.getHost().length() == 0 || uri.getScheme() == null || uri.getScheme().length() == 0) {
                 // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
-                uri = new URI("nats://"+serverURI);
+                uri = new URI(NATS_PROTOCOL_SLASH_SLASH + serverURI);
             }
         } catch (URISyntaxException e) {
             // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
-            uri = new URI("nats://"+serverURI);
+            uri = new URI(NATS_PROTOCOL_SLASH_SLASH + serverURI);
         }
 
-        if (!knownProtocols.contains(uri.getScheme())) {
+        if (!KNOWN_PROTOCOLS.contains(uri.getScheme())) {
             throw new URISyntaxException(serverURI, "unknown URI scheme ");
         }
 
-        if (uri.getHost() != null && uri.getHost() != "") {
+        if (uri.getHost() != null && uri.getHost().length() > 0) {
             if (uri.getPort() == -1) {
-                uri = new URI(uri.getScheme(), 
+                uri = new URI(uri.getScheme(),
                                 uri.getUserInfo(), 
                                 uri.getHost(),
-                                4222,
+                                DEFAULT_PORT,
                                 uri.getPath(),
                                 uri.getQuery(),
                                 uri.getFragment());
