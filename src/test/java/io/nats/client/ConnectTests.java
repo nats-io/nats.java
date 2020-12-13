@@ -13,20 +13,15 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.ConnectionListener.Events;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.ConnectionListener.Events;
-import io.nats.client.NatsServerProtocolMock.ExitAt;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectTests {
     @Test
@@ -34,10 +29,10 @@ public class ConnectTests {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Connection nc = Nats.connect();
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -47,10 +42,10 @@ public class ConnectTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -61,10 +56,10 @@ public class ConnectTests {
             Options options = new Options.Builder().server(ts.getURI()).build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -74,10 +69,10 @@ public class ConnectTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -88,10 +83,10 @@ public class ConnectTests {
             ts.useTabs();
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -107,7 +102,7 @@ public class ConnectTests {
                 } finally {
                     if (nc != null) {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
             }
@@ -125,7 +120,7 @@ public class ConnectTests {
                 } finally {
                     if (nc != null) {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
             }
@@ -143,7 +138,7 @@ public class ConnectTests {
                 } finally {
                     if (nc != null) {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
             }
@@ -161,7 +156,7 @@ public class ConnectTests {
                 } finally {
                     if (nc != null) {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
             }
@@ -176,10 +171,10 @@ public class ConnectTests {
                 Options options = new Options.Builder().connectionTimeout(Duration.ofSeconds(5)).server(fake.getURI()).server(ts.getURI()).build();
                 Connection nc = Nats.connect(options);
                 try {
-                    assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 } finally {
                     nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                 }
             }
         }
@@ -190,10 +185,10 @@ public class ConnectTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/simple.conf", false)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -204,10 +199,10 @@ public class ConnectTests {
             try (NatsTestServer ts2 = new NatsTestServer(false)) {
                 Connection nc = Nats.connect(ts1.getURI() + "," + ts2.getURI());
                 try {
-                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 } finally {
                     nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                 }
             }
         }
@@ -224,7 +219,7 @@ public class ConnectTests {
                 for (int i=0; i < 10; i++) {
                     Connection nc = Nats.connect(ts1.getURI() + "," + ts2.getURI());
                     try {
-                        assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                        assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
                         if (nc.getConnectedUrl().equals(ts1.getURI())) {
                             one++;
@@ -233,7 +228,7 @@ public class ConnectTests {
                         }
                     } finally {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
 
@@ -256,7 +251,7 @@ public class ConnectTests {
                     Options options = new Options.Builder().noRandomize().servers(servers).build();
                     Connection nc = Nats.connect(options);
                     try {
-                        assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                        assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
                         if (nc.getConnectedUrl().equals(ts1.getURI())) {
                             one++;
@@ -265,12 +260,12 @@ public class ConnectTests {
                         }
                     } finally {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
 
-                assertTrue(one == 10, "always got one");
-                assertTrue(two == 0, "never got two");
+                assertEquals(one, 10, "always got one");
+                assertEquals(two, 0, "never got two");
             }
         }
     }
@@ -287,7 +282,7 @@ public class ConnectTests {
                 } finally {
                     if (nc != null) {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
             }
@@ -306,7 +301,7 @@ public class ConnectTests {
                 } finally {
                     if (nc != null) {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
             }
@@ -326,7 +321,7 @@ public class ConnectTests {
                 } finally {
                     if (nc != null) {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
             }
@@ -345,7 +340,7 @@ public class ConnectTests {
                 } finally {
                     if (nc != null) {
                         nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                     }
                 }
             }
@@ -371,12 +366,10 @@ public class ConnectTests {
             try {
                 nc = handler.getConnection();
                 assertNotNull(nc);
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
-                if (nc != null) {
-                    nc.close();
-                }
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                nc.close();
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -397,11 +390,7 @@ public class ConnectTests {
             Nats.connectAsynchronously(options, true);
 
             // No server at this point, let it fail and try to start over
-            try {
-                Thread.sleep(1000);
-            } catch (Exception exp) {
-
-            }
+            try { Thread.sleep(5000); } catch (Exception exp) { /* ignored */ }
 
             nc = handler.getConnection(); // will be disconnected, but should be there
             assertNotNull(nc);
@@ -409,12 +398,12 @@ public class ConnectTests {
             handler.prepForStatusChange(Events.RECONNECTED);
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
                 handler.waitForStatusChange(5, TimeUnit.SECONDS);
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             }
         } finally {
             if (nc != null) {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -459,7 +448,7 @@ public class ConnectTests {
                                             connectionTimeout(Duration.ofSeconds(2)). // 2 is also the default but explicit for test
                                             build();
                 Connection nc = Nats.connect(options);
-                assertFalse(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertNotSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             }
         });
     }
@@ -474,10 +463,10 @@ public class ConnectTests {
                                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -491,16 +480,16 @@ public class ConnectTests {
                                         build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
 
     @Test
-    public void testConnectExceptionHasURLS() throws IOException, InterruptedException {
+    public void testConnectExceptionHasURLS() {
         try {
             Nats.connect("nats://testserver.notnats:4222, nats://testserver.alsonotnats:4223");
         } catch (Exception e) {
