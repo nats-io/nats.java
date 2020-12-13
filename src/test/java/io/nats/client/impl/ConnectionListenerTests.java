@@ -12,24 +12,15 @@
 // limitations under the License.
 
 package io.nats.client.impl;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.ConnectionListener.Events;
-import io.nats.client.BadHandler;
-import io.nats.client.Connection;
-import io.nats.client.ConnectionListener;
-import io.nats.client.Nats;
-import io.nats.client.NatsServerProtocolMock;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.TestHandler;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectionListenerTests {
 
@@ -94,40 +85,32 @@ public class ConnectionListenerTests {
             int port;
             try (NatsTestServer ts = new NatsTestServer(false)) {
                 Options options = new Options.Builder().
-                                    server(ts.getURI()).
-                                    reconnectWait(Duration.ofMillis(100)).
-                                    maxReconnects(-1).
-                                    connectionListener(handler).
-                                    build();
+                        server(ts.getURI()).
+                        reconnectWait(Duration.ofMillis(100)).
+                        maxReconnects(-1).
+                        connectionListener(handler).
+                        build();
                 port = ts.getPort();
                 nc = Nats.connect(options);
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
 
-            try {
-                nc.flush(Duration.ofMillis(50));
-            } catch (Exception exp) {
-            }
-    
-            handler.waitForStatusChange(400, TimeUnit.MILLISECONDS);
+            try { nc.flush(Duration.ofMillis(250)); } catch (Exception exp) { /* ignored */ }
 
+            handler.waitForStatusChange(1000, TimeUnit.MILLISECONDS);
             assertTrue(handler.getEventCount(Events.DISCONNECTED) >= 1);
             assertNull(nc.getConnectedUrl());
 
-
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                try {
-                    Thread.sleep(200);
-                } catch (Exception e) {
-                }
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-            
+                try { Thread.sleep(1000); } catch (InterruptedException e) { /* ignored */ }
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertEquals(1, handler.getEventCount(Events.RECONNECTED));
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
             }
         } finally {
+            assertNotNull(nc);
             nc.close();
             assertNull(nc.getConnectedUrl());
         }
