@@ -5,37 +5,45 @@ import io.nats.client.TestHandler;
 
 import java.util.concurrent.TimeUnit;
 
-import static java.lang.Thread.sleep;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 public final class TestMacros {
 
-    public static void assertConnected(Connection nc) {
-        assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+    // ----------------------------------------------------------------------------------------------------
+    // assertions
+    // ----------------------------------------------------------------------------------------------------
+
+    public static void assertConnected(Connection conn) {
+        assertSame(Connection.Status.CONNECTED, conn.getStatus(), "Connected Status");
     }
 
-    public static void assertClosed(Connection nc) {
-        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+    public static void assertClosed(Connection conn) {
+        assertSame(Connection.Status.CLOSED, conn.getStatus(), "Closed Status");
     }
 
-    public static void allowTimeToConnect(Connection nc, TestHandler handler) {
-        allowTimeToConnect(nc, handler, 5000);
+    // ----------------------------------------------------------------------------------------------------
+    // utils
+    // ----------------------------------------------------------------------------------------------------
+    public static void sleep(long ms) {
+        try { Thread.sleep(ms); } catch (InterruptedException e) { /* ignored */ }
     }
 
-    public static void allowTimeToConnect(Connection nc, TestHandler handler, long millis) {
+    // ----------------------------------------------------------------------------------------------------
+    // macro utils
+    // ----------------------------------------------------------------------------------------------------
+    public static void allowTimeToConnectAssertOpen(Connection conn, TestHandler handler) {
+        allowTimeToConnectAssertOpen(conn, handler, 5000);
+    }
+
+    public static void allowTimeToConnectAssertOpen(Connection conn, TestHandler handler, long millis) {
         handler.waitForStatusChange(millis, TimeUnit.MILLISECONDS);
-        assertConnected(nc);
+        assertConnected(conn);
     }
 
-    public static void allowTimeToConnect(Connection nc, long ms) throws InterruptedException {
-        sleep(ms);
-        assertConnected(nc);
-    }
-
-    public static void closeConnection(Connection nc) throws InterruptedException {
-        if (nc != null) {
-            nc.close();
-            assertClosed(nc);
+    public static void closeConnectionAssertClosed(Connection conn) throws InterruptedException {
+        if (conn != null) {
+            conn.close();
+            assertClosed(conn);
         }
     }
 }
