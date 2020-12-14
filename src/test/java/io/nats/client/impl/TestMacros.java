@@ -5,6 +5,7 @@ import io.nats.client.TestHandler;
 
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.Connection.Status.CLOSED;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -18,7 +19,7 @@ public final class TestMacros {
     }
 
     public static void assertClosed(Connection conn) {
-        assertSame(Connection.Status.CLOSED, conn.getStatus(), "Closed Status");
+        assertSame(CLOSED, conn.getStatus(), "Closed Status");
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -49,10 +50,21 @@ public final class TestMacros {
         if (conn != null) {
             try {
                 conn.close();
+                waitALittleForStatus(conn, CLOSED);
                 assertClosed(conn);
             } catch (InterruptedException e) {
                 fail(e); // will never happen, but if it does...
             }
+        }
+    }
+    private static void waitALittleForStatus(Connection conn, Connection.Status status) {
+        waitALittleForStatus(conn, status, 1000);
+    }
+
+    private static void waitALittleForStatus(Connection conn, Connection.Status status, long millis) {
+        int tries = (int)((millis+99) / 100);
+        while (tries-- > 0 && conn.getStatus() != status) {
+            sleep(100);
         }
     }
 }
