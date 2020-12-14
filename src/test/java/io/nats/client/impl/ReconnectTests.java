@@ -670,7 +670,7 @@ public class ReconnectTests {
                 }
 
                 nc.getWriter().stop();
-                Thread.sleep(1000);
+                sleep(1000);
                 // Should have thrown an exception if #203 isn't fixed
             }
         } finally {
@@ -716,14 +716,8 @@ public class ReconnectTests {
         ts.close();
 
         sleep(250);
-
         assertTrue(trwh.getDisconnectCount() < 3, "disconnectCount");
-        
+
         c.close();
     }
-
-    private void sleep(long ms) {
-        try { Thread.sleep(ms); } catch (Exception exp) { /* ignored */ }
-    }
-
 }

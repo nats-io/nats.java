@@ -20,8 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.impl.TestMacros.assertConnected;
-import static io.nats.client.impl.TestMacros.closeConnectionAssertClosed;
+import static io.nats.client.impl.TestMacros.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectionListenerTests {
@@ -104,7 +103,7 @@ public class ConnectionListenerTests {
             assertNull(nc.getConnectedUrl());
 
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                try { Thread.sleep(1000); } catch (InterruptedException e) { /* ignored */ }
+                sleep(1000);
                 assertConnected(nc);
                 assertEquals(1, handler.getEventCount(Events.RECONNECTED));
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
