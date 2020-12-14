@@ -42,7 +42,7 @@ public class TLSConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -61,7 +61,7 @@ public class TLSConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -79,7 +79,7 @@ public class TLSConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -96,7 +96,7 @@ public class TLSConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -113,7 +113,7 @@ public class TLSConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -130,7 +130,7 @@ public class TLSConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -146,7 +146,7 @@ public class TLSConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -177,7 +177,7 @@ public class TLSConnectTests {
                     assertEquals(16, msg.getData().length);
                 }
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -211,10 +211,10 @@ public class TLSConnectTests {
             handler.prepForStatusChange(Events.RESUBSCRIBED);
 
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
-                allowTimeToConnectAssertOpen(nc, handler, 10000);
+                waitThenAssertConnected(nc, handler, 10000);
             }
         } finally {
-            closeConnectionAssertClosed(nc);
+            closeThenAssertClosed(nc);
         }
     }
 
@@ -233,7 +233,7 @@ public class TLSConnectTests {
                 try {
                     nc = Nats.connect(options);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -251,7 +251,7 @@ public class TLSConnectTests {
                 try {
                     nc = Nats.connect(options);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -271,7 +271,7 @@ public class TLSConnectTests {
                 try {
                     nc = Nats.connect(options);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -291,7 +291,7 @@ public class TLSConnectTests {
                 try {
                     nc = Nats.connect(options);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });

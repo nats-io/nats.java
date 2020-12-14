@@ -13,7 +13,6 @@ public final class TestMacros {
     // ----------------------------------------------------------------------------------------------------
     // assertions
     // ----------------------------------------------------------------------------------------------------
-
     public static void assertConnected(Connection conn) {
         assertSame(Connection.Status.CONNECTED, conn.getStatus(), "Connected Status");
     }
@@ -37,16 +36,16 @@ public final class TestMacros {
     // ----------------------------------------------------------------------------------------------------
     // macro utils
     // ----------------------------------------------------------------------------------------------------
-    public static void allowTimeToConnectAssertOpen(Connection conn, TestHandler handler) {
-        allowTimeToConnectAssertOpen(conn, handler, 5000);
+    public static void waitThenAssertConnected(Connection conn, TestHandler handler) {
+        waitThenAssertConnected(conn, handler, 5000);
     }
 
-    public static void allowTimeToConnectAssertOpen(Connection conn, TestHandler handler, long millis) {
+    public static void waitThenAssertConnected(Connection conn, TestHandler handler, long millis) {
         handler.waitForStatusChange(millis, TimeUnit.MILLISECONDS);
         assertConnected(conn);
     }
 
-    public static void closeConnectionAssertClosed(Connection conn) {
+    public static void closeThenAssertClosed(Connection conn) {
         if (conn != null) {
             try {
                 conn.close();

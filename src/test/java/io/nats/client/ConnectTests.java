@@ -32,7 +32,7 @@ public class ConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -44,7 +44,7 @@ public class ConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -57,7 +57,7 @@ public class ConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -69,7 +69,7 @@ public class ConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -82,7 +82,7 @@ public class ConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -96,7 +96,7 @@ public class ConnectTests {
                 try {
                     nc = Nats.connect(opt);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -111,7 +111,7 @@ public class ConnectTests {
                 try {
                     nc = Nats.connect(opt);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -126,7 +126,7 @@ public class ConnectTests {
                 try {
                     nc = Nats.connect(opt);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -141,7 +141,7 @@ public class ConnectTests {
                 try {
                     nc = Nats.connect(opt);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -157,7 +157,7 @@ public class ConnectTests {
                 try {
                     assertConnected(nc);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         }
@@ -170,7 +170,7 @@ public class ConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -183,7 +183,7 @@ public class ConnectTests {
                 try {
                     assertConnected(nc);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         }
@@ -208,7 +208,7 @@ public class ConnectTests {
                             two++;
                         }
                     } finally {
-                        closeConnectionAssertClosed(nc);
+                        closeThenAssertClosed(nc);
                     }
                 }
 
@@ -239,7 +239,7 @@ public class ConnectTests {
                             two++;
                         }
                     } finally {
-                        closeConnectionAssertClosed(nc);
+                        closeThenAssertClosed(nc);
                     }
                 }
 
@@ -259,7 +259,7 @@ public class ConnectTests {
                 try {
                     nc = Nats.connect(options);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -275,7 +275,7 @@ public class ConnectTests {
                 try {
                     nc = Nats.connect(options);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -292,7 +292,7 @@ public class ConnectTests {
                 try {
                     nc = Nats.connect(options);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -308,7 +308,7 @@ public class ConnectTests {
                 try {
                     nc = Nats.connect(options);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                 }
             }
         });
@@ -335,7 +335,7 @@ public class ConnectTests {
                 assertNotNull(nc);
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -362,10 +362,10 @@ public class ConnectTests {
 
             handler.prepForStatusChange(Events.RECONNECTED);
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                allowTimeToConnectAssertOpen(nc, handler);
+                waitThenAssertConnected(nc, handler);
             }
         } finally {
-            closeConnectionAssertClosed(nc);
+            closeThenAssertClosed(nc);
         }
     }
     
@@ -426,7 +426,7 @@ public class ConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }
@@ -442,7 +442,7 @@ public class ConnectTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
         }
     }

@@ -43,7 +43,7 @@ public class ConnectionListenerTests {
                 assertConnected(nc);
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
                 assertNull(nc.getConnectedUrl());
             }
             assertEquals(1, handler.getEventCount(Events.CLOSED));
@@ -69,7 +69,7 @@ public class ConnectionListenerTests {
                     handler.waitForStatusChange(5, TimeUnit.SECONDS);
                     assertConnected(nc);
                 } finally {
-                    closeConnectionAssertClosed(nc);
+                    closeThenAssertClosed(nc);
                     assertEquals(1, handler.getEventCount(Events.DISCOVERED_SERVERS));
                 }
             }
@@ -110,7 +110,7 @@ public class ConnectionListenerTests {
             }
         } finally {
             assertNotNull(nc);
-            closeConnectionAssertClosed(nc);
+            closeThenAssertClosed(nc);
             assertNull(nc.getConnectedUrl());
         }
     }
@@ -127,7 +127,7 @@ public class ConnectionListenerTests {
             try {
                 assertConnected(nc);
             } finally {
-                closeConnectionAssertClosed(nc);
+                closeThenAssertClosed(nc);
             }
             assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
         }
