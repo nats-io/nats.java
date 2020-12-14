@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.impl.TestMacros.assertConnected;
+import static io.nats.client.impl.TestMacros.closeConnectionAssertClosed;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectionListenerTests {
@@ -39,11 +41,10 @@ public class ConnectionListenerTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
             } finally {
-                nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                closeConnectionAssertClosed(nc);
                 assertNull(nc.getConnectedUrl());
             }
             assertEquals(1, handler.getEventCount(Events.CLOSED));
@@ -67,10 +68,9 @@ public class ConnectionListenerTests {
                 Connection nc = Nats.connect(options);
                 try {
                     handler.waitForStatusChange(5, TimeUnit.SECONDS);
-                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                    assertConnected(nc);
                 } finally {
-                    nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    closeConnectionAssertClosed(nc);
                     assertEquals(1, handler.getEventCount(Events.DISCOVERED_SERVERS));
                 }
             }
@@ -92,7 +92,7 @@ public class ConnectionListenerTests {
                         build();
                 port = ts.getPort();
                 nc = Nats.connect(options);
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
                 handler.prepForStatusChange(Events.DISCONNECTED);
             }
@@ -105,13 +105,13 @@ public class ConnectionListenerTests {
 
             try (NatsTestServer ts = new NatsTestServer(port, false)) {
                 try { Thread.sleep(1000); } catch (InterruptedException e) { /* ignored */ }
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals(1, handler.getEventCount(Events.RECONNECTED));
                 assertEquals(ts.getURI(), nc.getConnectedUrl());
             }
         } finally {
             assertNotNull(nc);
-            nc.close();
+            closeConnectionAssertClosed(nc);
             assertNull(nc.getConnectedUrl());
         }
     }
@@ -126,10 +126,9 @@ public class ConnectionListenerTests {
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertConnected(nc);
             } finally {
-                nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                closeConnectionAssertClosed(nc);
             }
             assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
         }

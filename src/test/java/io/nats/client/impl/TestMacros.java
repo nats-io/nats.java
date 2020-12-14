@@ -6,6 +6,7 @@ import io.nats.client.TestHandler;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public final class TestMacros {
 
@@ -25,7 +26,12 @@ public final class TestMacros {
     // utils
     // ----------------------------------------------------------------------------------------------------
     public static void sleep(long ms) {
-        try { Thread.sleep(ms); } catch (InterruptedException e) { /* ignored */ }
+        try {
+            Thread.sleep(ms);
+        }
+        catch (InterruptedException e) {
+            fail(e); // will never happen, but if it does...
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -40,10 +46,14 @@ public final class TestMacros {
         assertConnected(conn);
     }
 
-    public static void closeConnectionAssertClosed(Connection conn) throws InterruptedException {
+    public static void closeConnectionAssertClosed(Connection conn) {
         if (conn != null) {
-            conn.close();
-            assertClosed(conn);
+            try {
+                conn.close();
+                assertClosed(conn);
+            } catch (InterruptedException e) {
+                fail(e); // will never happen, but if it does...
+            }
         }
     }
 }
