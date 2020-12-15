@@ -15,7 +15,10 @@ This folder contains a number of examples:
 11. `NatsJsPub.java` - publishes Jetstream messages
 12. `NatsJsSub.java` - reads messages synchronously from Jetstream and manually acknowledges messages.
 13. `NatsJsSubCb.java` - handles incoming Jetstream messages asynchronously and auto acknowledges messages. 
-14. `NatsJsSubAttach.java` - attaches to an existing Jetstream consumer given a stream name and consumer name.
+14. `NatsJsSubAttach.java` - attaches to an existing Jetstream consumer given a stream name and consumer name and will not attempt to create a consumer.
+15. `NatsJsPubDirect.java` - publishes directly to a subject without attempting to validate the
+Jetstream instance or create / lookup a stream.
+16. `NatsJsSubAttachDirect.java` - attaches to an existing consumer without atttempting to validate the Jetstream instance and receives messages via direct push to the subscription subject.
 
 All of these examples take the server URL on the command line, which means that you can use the `tls` and `opentls` schemas to test over a secure connection.
 
