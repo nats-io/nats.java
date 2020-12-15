@@ -258,6 +258,9 @@ public class SubscribeOptions {
          * @return the builder.
          */
         public Builder pushDirect(String deliverSubject) {
+            if (consumerConfig == null) {
+                consumerConfig = ConsumerConfiguration.builder().build();
+            }
             this.consumerConfig.setDeliverSubject(deliverSubject);
             return this;
         }          
