@@ -1868,6 +1868,19 @@ class NatsConnection implements Connection {
     }
 
     @Override
+    public void flushBuffer() {
+        if (!isConnected()) {
+            return;
+        }
+
+        try  {
+            dataPort.flush();
+        } catch (Exception e) {
+            // NOOP
+        }
+    }
+
+    @Override
     public JetStream jetStream() throws InterruptedException, TimeoutException {
         return jetStream(null);
     }

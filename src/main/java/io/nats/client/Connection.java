@@ -383,6 +383,11 @@ public interface Connection extends AutoCloseable {
     public String createInbox();
 
     /**
+     * Immediately flushes the underlying connection buffer if the connection is valid.
+     */
+    public void flushBuffer();
+
+    /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
      * and consumers.
      * @return a JetStream instance.
