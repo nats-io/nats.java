@@ -191,6 +191,10 @@ public class NatsJetStream implements JetStream {
         // override request style.
         conn.getOptions().setOldRequestStyle(true);
 
+        if (direct) {
+            return;
+        }
+
         String subj = appendPre(String.format(jSApiAccountInfo));
         Message resp = conn.request(subj, null, defaultTimeout);
         if (resp == null) {
@@ -431,8 +435,8 @@ public class NatsJetStream implements JetStream {
         boolean shouldAttach = o.getStream() != null && o.getConsumer() != null || o.getConsumerConfiguration().getDeliverSubject() != null;
         boolean shouldCreate = !shouldAttach;
 
-        if (shouldAttach && this.direct) {
-            throw new IllegalStateException("Direct mode is rewquired to attach.");
+        if (this.direct && shouldCreate) {
+            throw new IllegalStateException("Direct mode is required.");
         }
 
         String deliver = null;
