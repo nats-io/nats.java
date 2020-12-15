@@ -31,7 +31,7 @@ import java.time.Duration;
  */
 public class NatsJsSubAttachDirect {
 
-    static final String usageString = "\nUsage: java NatsJsSubAttachDirect [-s server] [-poll #] -stream name -consumer name <subject> <msgCount>\n"
+    static final String usageString = "\nUsage: java NatsJsSubAttachDirect [-s server] -stream name -consumer name <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -49,11 +49,12 @@ public class NatsJsSubAttachDirect {
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
+            // Ensure we are in direct mode.
             JetStreamOptions jopts = JetStreamOptions.builder().direct(true).build();
             JetStream js = nc.jetStream(jopts);
 
             // Attach to an existing consumer and setup the subscription
-            // to expect messages pushed from the server to the specified
+            // to expect messages directly pushed from the server to the specified
             // subject.
             SubscribeOptions so = SubscribeOptions.builder().
                 attach(exArgs.stream, exArgs.consumer).
