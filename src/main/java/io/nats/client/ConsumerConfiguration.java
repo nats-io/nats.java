@@ -302,6 +302,8 @@ public class ConsumerConfiguration {
         JsonUtils.addFld(sb, ackPolicyField, ackPolicy.toString());
         JsonUtils.addFld(sb, ackWaitField, ackWait);
         JsonUtils.addFld(sb, maxDeliverField, maxDeliver);
+        JsonUtils.addFld(sb, maxWaitingField, maxWaiting);
+        JsonUtils.addFld(sb, maxAckPendingField, maxAckPending);
         JsonUtils.addFld(sb, filterSubjectField, filterSubject);
         JsonUtils.addFld(sb, replayPolicyField, replayPolicy.toString());
         JsonUtils.addFld(sb, sampleFreqField, sampleFrequency);
@@ -527,7 +529,7 @@ public class ConsumerConfiguration {
          * @param maxDeliver the maximum delivery amount
          * @return Builder
          */        
-        public Builder maxDelivery(long maxDeliver) {
+        public Builder maxDeliver(long maxDeliver) {
             this.maxDeliver = maxDeliver;
             return this;
         }
@@ -576,16 +578,18 @@ public class ConsumerConfiguration {
          * Sets the maximum ack pending.
          * @param maxAckPending maximum pending acknowledgements.
          */
-        public void maxAckPending(long maxAckPending) {
+        public Builder maxAckPending(long maxAckPending) {
             this.maxAckPending = maxAckPending;
+            return this;
         }
         
         /**
          * Sets the maximum waiting amount.
          * @param maxWaiting maximum waiting acknowledgements.
          */
-        public void maxWaiting(long maxWaiting) {
+        public Builder maxWaiting(long maxWaiting) {
             this.maxWaiting = maxWaiting;
+            return this;
         }            
 
         /**
@@ -606,8 +610,8 @@ public class ConsumerConfiguration {
                 sampleFrequency,
                 rateLimit,
                 deliverSubject,
-                maxAckPending,
-                maxWaiting
+                maxWaiting,
+                maxAckPending
             );
         }
     }
@@ -634,5 +638,12 @@ public class ConsumerConfiguration {
      */
 	public void setMaxAckPending(long maxAckPending) {
         this.maxAckPending = maxAckPending;
+    }
+    
+    /**
+     * Gets the maximum waiting acknowedgements.
+     */
+	public long getMaxWaiting() {
+        return maxWaiting;
 	}
 }
