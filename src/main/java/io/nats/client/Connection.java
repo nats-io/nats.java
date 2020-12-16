@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -384,8 +385,10 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Immediately flushes the underlying connection buffer if the connection is valid.
+     * @throws IOException the connection flush fails
+     * @throws IllegalStateException the connection is not connected
      */
-    public void flushBuffer();
+    public void flushBuffer() throws IOException;
 
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams

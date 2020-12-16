@@ -452,11 +452,11 @@ public class ConnectTests {
                 sleep(100);
 
                 // test while reconnecting
-                nc.flushBuffer();
+                assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
             } finally {
                 closeThenAssertClosed(nc);
                 // test when closed.
-                nc.flushBuffer();
+                assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
             }
         }
     }
@@ -474,7 +474,6 @@ public class ConnectTests {
                 CountDownLatch flushLatch = new CountDownLatch(1);
                 CountDownLatch completedLatch = new CountDownLatch(1);
 
-
                 Thread t = new Thread("publisher") {
                     public void run() {
                         byte[] payload = new byte[5];
@@ -487,7 +486,11 @@ public class ConnectTests {
                         for (int i = 1; i <= 50000; i++) {
                             nc.publish("foo", payload);
                             if (i % 2000 == 0) {
-                                nc.flushBuffer();
+                                try {
+                                    nc.flushBuffer();
+                                } catch (IOException e) {
+                                    break;
+                                }
                             }
                         }
                         completedLatch.countDown();
@@ -507,6 +510,7 @@ public class ConnectTests {
 
                 // flush as fast as we can while the publisher
                 // is publishing.
+
                 while (t.isAlive()) {
                     nc.flushBuffer();
                 }
