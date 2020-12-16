@@ -36,4 +36,6 @@ public interface DataPort {
     public void write(byte[] src, int toWrite) throws IOException;
 
     public void close() throws IOException;
+
+    public void flush() throws IOException;
 }

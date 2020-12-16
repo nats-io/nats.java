@@ -1868,6 +1868,15 @@ class NatsConnection implements Connection {
     }
 
     @Override
+    public void flushBuffer() throws IOException {
+        if (!isConnected()) {
+            throw new IllegalStateException("Connection is not active.");
+        }
+
+        dataPort.flush();
+    }
+
+    @Override
     public JetStream jetStream() throws InterruptedException, TimeoutException {
         return jetStream(null);
     }

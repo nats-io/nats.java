@@ -29,6 +29,9 @@ import javax.net.ssl.SSLSocketFactory;
 
 import io.nats.client.Options;
 
+/**
+ * This class is not theadsafe.  Caller must ensure thread safety.
+ */
 public class SocketDataPort implements DataPort {
 
     private NatsConnection connection;
@@ -111,5 +114,9 @@ public class SocketDataPort implements DataPort {
         } else {
             socket.close();
         }
+    }
+
+    public void flush() throws IOException {
+        out.flush();
     }
 }
