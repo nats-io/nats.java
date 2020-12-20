@@ -13,16 +13,11 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NUIDTests {
     @Test
@@ -64,7 +59,6 @@ public class NUIDTests {
     }
 
     @Test
-    @Timeout(value = 5000, unit = TimeUnit.MILLISECONDS)
     public void testProperPrefix() {
         char min = (char) 255;
         char max = (char) 0;
@@ -78,15 +72,13 @@ public class NUIDTests {
             }
         }
 
-        int total = 100000;
-        for (int i = 0; i < total; i++) {
+        for (int i = 0; i < 1_000_000; i++) {
             NUID nuid = new NUID();
             for (int j = 0; j < NUID.preLen; j++) {
                 if (nuid.pre[j] < min || nuid.pre[j] > max) {
-                    String msg = String.format(
-                            "Iter %d. Valid range for bytes prefix: [%d..%d]\n" + "Incorrect prefix at pos %d: %s", i,
-                            (int) min, (int) max, j, new String(nuid.pre));
-                    assertTrue(false, msg);
+                    fail(String.format(
+                            "Iter %d. Valid range for bytes prefix: [%d..%d]\nIncorrect prefix at pos %d: %s",
+                            i, (int) min, (int) max, j, new String(nuid.pre)));
                 }
             }
         }

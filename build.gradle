@@ -122,8 +122,14 @@ test {
     }
     retry {
         failOnPassedAfterRetry = false
-        maxFailures = 5
-        maxRetries = 5
+        if (OperatingSystem.current().isWindows() || OperatingSystem.current().isMacOsX()) {
+            maxFailures = 1
+            maxRetries = 1
+        }
+        else {
+            maxFailures = 5
+            maxRetries = 5
+        }
     }
     maxParallelForks = Runtime.runtime.availableProcessors()
 }

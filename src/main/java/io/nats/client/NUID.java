@@ -46,15 +46,25 @@ public final class NUID {
     static final long minInc = 33L;
     static final long maxInc = 333L;
     static final int totalLen = preLen + seqLen;
-    private SecureRandom srand;
-    private final Random prand;
 
     // Instance fields
     char[] pre;
     private long seq;
     private long inc;
 
-    private static final NUID globalNUID = new NUID();
+    private static final SecureRandom srand;
+    private static final Random prand;
+    private static final NUID globalNUID;
+
+    static {
+        try {
+            srand = SecureRandom.getInstance("SHA1PRNG");
+            prand = new Random(bytesToLong(srand.generateSeed(8))); // seed with 8 bytes (64 bits)
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("NUID requires SHA1PRNG Algorithm and it is not available.");
+        }
+        globalNUID = new NUID();
+    }
 
     static NUID getInstance() {
         return globalNUID;
@@ -71,20 +81,6 @@ public final class NUID {
      */
     public NUID() {
         // Generate a cryto random int, 0 <= val < max to seed pseudorandom
-        long seed = 0L;
-        try {
-            srand = SecureRandom.getInstance("SHA1PRNG");
-            seed = bytesToLong(srand.generateSeed(8)); // seed with 8 bytes (64 bits)
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("NUID requires SHA1PRNG Algorithm and it is not available.");
-        }
-
-        if (seed != 0L) {
-            prand = new Random(seed);
-        } else {
-            prand = new Random();
-        }
-
         seq = nextLong(prand, maxSeq);
         inc = minInc + nextLong(prand, maxInc - minInc);
         pre = new char[preLen];
@@ -98,7 +94,7 @@ public final class NUID {
      * @return the next NUID string from a shared global NUID instance
      */
     public static synchronized String nextGlobal() {
-        return getInstance().next();
+        return globalNUID.next();
     }
 
     /**

@@ -25,7 +25,7 @@ public class NUIDBenchmarks {
     }
 
     public static void benchmarkNUIDSpeed() {
-        long count = 10000000;
+        long count = 10_000_000;
         NUID nuid = new NUID();
 
         long start = System.nanoTime();
@@ -39,7 +39,7 @@ public class NUIDBenchmarks {
     }
 
     public static void benchmarkGlobalNUIDSpeed() {
-        long count = 10000000;
+        long count = 10_000_000;
 
         long start = System.nanoTime();
         for (int i = 0; i < count; i++) {
