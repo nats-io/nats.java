@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.impl.TestMacros.*;
+import static io.nats.client.utils.TestMacros.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectionListenerTests {
@@ -38,14 +38,10 @@ public class ConnectionListenerTests {
                                 server(ts.getURI()).
                                 connectionListener(handler).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-                assertEquals(ts.getURI(), nc.getConnectedUrl());
-            } finally {
-                closeThenAssertClosed(nc);
-                assertNull(nc.getConnectedUrl());
-            }
+            Connection nc = standardConnection(options);
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            standardCloseConnection(nc);
+            assertNull(nc.getConnectedUrl());
             assertEquals(1, handler.getEventCount(Events.CLOSED));
         }
     }
@@ -64,54 +60,41 @@ public class ConnectionListenerTests {
                                     build();
                                     
                 handler.prepForStatusChange(Events.CONNECTED);
-                Connection nc = Nats.connect(options);
-                try {
-                    handler.waitForStatusChange(5, TimeUnit.SECONDS);
-                    assertConnected(nc);
-                } finally {
-                    closeThenAssertClosed(nc);
-                    assertEquals(1, handler.getEventCount(Events.DISCOVERED_SERVERS));
-                }
+                standardCloseConnection( standardConnection(options, handler) );
+                assertEquals(1, handler.getEventCount(Events.DISCOVERED_SERVERS));
             }
         }
     }
 
     @Test
     public void testDisconnectReconnectCount() throws Exception {
+        int port;
         Connection nc = null;
         TestHandler handler = new TestHandler();
-        try {
-            int port;
-            try (NatsTestServer ts = new NatsTestServer(false)) {
-                Options options = new Options.Builder().
-                        server(ts.getURI()).
-                        reconnectWait(Duration.ofMillis(100)).
-                        maxReconnects(-1).
-                        connectionListener(handler).
-                        build();
-                port = ts.getPort();
-                nc = Nats.connect(options);
-                assertConnected(nc);
-                assertEquals(ts.getURI(), nc.getConnectedUrl());
-                handler.prepForStatusChange(Events.DISCONNECTED);
-            }
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().
+                    server(ts.getURI()).
+                    reconnectWait(Duration.ofMillis(100)).
+                    maxReconnects(-1).
+                    connectionListener(handler).
+                    build();
+            port = ts.getPort();
+            nc = standardConnection(options);
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            handler.prepForStatusChange(Events.DISCONNECTED);
+        }
 
-            try { nc.flush(Duration.ofMillis(250)); } catch (Exception exp) { /* ignored */ }
+        try { nc.flush(Duration.ofMillis(250)); } catch (Exception exp) { /* ignored */ }
 
-            handler.waitForStatusChange(1000, TimeUnit.MILLISECONDS);
-            assertTrue(handler.getEventCount(Events.DISCONNECTED) >= 1);
-            assertNull(nc.getConnectedUrl());
+        handler.waitForStatusChange(1000, TimeUnit.MILLISECONDS);
+        assertTrue(handler.getEventCount(Events.DISCONNECTED) >= 1);
+        assertNull(nc.getConnectedUrl());
 
-            try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                sleep(1000);
-                assertConnected(nc);
-                assertEquals(1, handler.getEventCount(Events.RECONNECTED));
-                assertEquals(ts.getURI(), nc.getConnectedUrl());
-            }
-        } finally {
-            assertNotNull(nc);
-            closeThenAssertClosed(nc);
-            assertNull(nc.getConnectedUrl());
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            standardConnectionWait(nc);
+            assertEquals(1, handler.getEventCount(Events.RECONNECTED));
+            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            standardCloseConnection(nc);
         }
     }
 
@@ -123,12 +106,8 @@ public class ConnectionListenerTests {
                                 server(ts.getURI()).
                                 connectionListener(handler).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            Connection nc = standardConnection(options);
+            standardCloseConnection(nc);
             assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
         }
     }

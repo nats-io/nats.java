@@ -13,60 +13,43 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.Connection;
+import io.nats.client.NatsTestServer;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Nats;
-import io.nats.client.NatsTestServer;
+import static io.nats.client.utils.TestMacros.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AuthAndConnectTests {
     @Test
     public void testIsAuthError() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
-            try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            Connection nc = standardConnection(ts.getURI());
+            NatsConnection nats = (NatsConnection)nc;
 
-                NatsConnection nats = (NatsConnection)nc;
+            assertTrue(nats.isAuthenticationError("user authentication expired"));
+            assertTrue(nats.isAuthenticationError("authorization violation"));
+            assertTrue(nats.isAuthenticationError("Authorization Violation"));
+            assertFalse(nats.isAuthenticationError("test"));
+            assertFalse(nats.isAuthenticationError(""));
+            assertFalse(nats.isAuthenticationError(null));
 
-                assertTrue(nats.isAuthenticationError("user authentication expired"));
-                assertTrue(nats.isAuthenticationError("authorization violation"));
-                assertTrue(nats.isAuthenticationError("Authorization Violation"));
-                assertFalse(nats.isAuthenticationError("test"));
-                assertFalse(nats.isAuthenticationError(""));
-                assertFalse(nats.isAuthenticationError(null));
-                
-            } finally {
-                nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
-            }
+            standardCloseConnection(nc);
         }
     }
 
     @Test()
     public void testConnectWhenClosed() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
-            try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
-                NatsConnection nats = (NatsConnection)nc;
-
-                nats.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Connected Status");
-                nats.connect(false); // should do nothing
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Connected Status");
-                nats.reconnect(); // should do nothing
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Connected Status");
-            } finally {
-                nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
-            }
+            NatsConnection nc = (NatsConnection)standardConnection(ts.getURI());;
+            standardCloseConnection(nc);
+            nc.connect(false); // should do nothing
+            assertClosed(nc);
+            nc.reconnect(); // should do nothing
+            assertClosed(nc);
         }
     }
 }

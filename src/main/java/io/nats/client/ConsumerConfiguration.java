@@ -13,17 +13,17 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a jetstream consumer on the client and 
@@ -577,6 +577,7 @@ public class ConsumerConfiguration {
         /**
          * Sets the maximum ack pending.
          * @param maxAckPending maximum pending acknowledgements.
+         * @return Builder
          */
         public Builder maxAckPending(long maxAckPending) {
             this.maxAckPending = maxAckPending;
@@ -586,6 +587,7 @@ public class ConsumerConfiguration {
         /**
          * Sets the maximum waiting amount.
          * @param maxWaiting maximum waiting acknowledgements.
+         * @return Builder
          */
         public Builder maxWaiting(long maxWaiting) {
             this.maxWaiting = maxWaiting;
@@ -642,6 +644,8 @@ public class ConsumerConfiguration {
     
     /**
      * Gets the maximum waiting acknowedgements.
+     *
+     * @return the max waiting value
      */
 	public long getMaxWaiting() {
         return maxWaiting;

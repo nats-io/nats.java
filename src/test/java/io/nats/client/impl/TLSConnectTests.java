@@ -24,7 +24,7 @@ import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.impl.TestMacros.*;
+import static io.nats.client.utils.TestMacros.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TLSConnectTests {
@@ -38,12 +38,7 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -57,12 +52,7 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -75,12 +65,7 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -92,12 +77,7 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 opentls().
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -109,12 +89,7 @@ public class TLSConnectTests {
                                 sslContext(TestSSLUtils.createTestSSLContext()). // override the custom one
                                 maxReconnects(0).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -126,12 +101,7 @@ public class TLSConnectTests {
                                 sslContext(TestSSLUtils.createTestSSLContext()). // override the custom one
                                 maxReconnects(0).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -142,12 +112,7 @@ public class TLSConnectTests {
                                 server("opentls://localhost:"+ts.getPort()).
                                 maxReconnects(0).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -161,24 +126,20 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
+            Connection nc = standardConnection(options);
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                nc.publish(msg.getReplyTo(), new byte[16]);
+            });
+            d.subscribe("subject");
 
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    nc.publish(msg.getReplyTo(), new byte[16]);
-                });
-                d.subscribe("subject");
-
-                for (int i=0;i<msgCount;i++) {
-                    Future<Message> incoming = nc.request("subject", null);
-                    Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
-                    assertNotNull(msg);
-                    assertEquals(16, msg.getData().length);
-                }
-            } finally {
-                closeThenAssertClosed(nc);
+            for (int i=0;i<msgCount;i++) {
+                Future<Message> incoming = nc.request("subject", null);
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+                assertNotNull(msg);
+                assertEquals(16, msg.getData().length);
             }
+
+            standardCloseConnection(nc);
         }
     }
 
@@ -190,38 +151,34 @@ public class TLSConnectTests {
         int newPort = NatsTestServer.nextPort();
 
         // Use two server ports to avoid port release timing issues
-        try {
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", port, false)) {
-                SSLContext ctx = TestSSLUtils.createTestSSLContext();
-                Options options = new Options.Builder().
-                                    server(ts.getURI()).
-                                    server(NatsTestServer.getURIForPort(newPort)).
-                                    maxReconnects(-1).
-                                    sslContext(ctx).
-                                    connectionListener(handler).
-                                    reconnectWait(Duration.ofMillis(10)).
-                                    build();
-                nc = Nats.connect(options);
-                assertConnected(nc);
-                assertTrue(((NatsConnection)nc).getDataPort() instanceof SocketDataPort, "Correct data port class");
-                handler.prepForStatusChange(Events.DISCONNECTED);
-            }
-
-            ReconnectTests.flushAndWait(nc, handler);
-            handler.prepForStatusChange(Events.RESUBSCRIBED);
-
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
-                waitThenAssertConnected(nc, handler, 10000);
-            }
-        } finally {
-            closeThenAssertClosed(nc);
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", port, false)) {
+            SSLContext ctx = TestSSLUtils.createTestSSLContext();
+            Options options = new Options.Builder().
+                    server(ts.getURI()).
+                    server(NatsTestServer.getURIForPort(newPort)).
+                    maxReconnects(-1).
+                    sslContext(ctx).
+                    connectionListener(handler).
+                    reconnectWait(Duration.ofMillis(10)).
+                    build();
+            nc = standardConnection(options);
+            assertTrue(((NatsConnection)nc).getDataPort() instanceof SocketDataPort, "Correct data port class");
+            handler.prepForStatusChange(Events.DISCONNECTED);
         }
+
+        ReconnectTests.flushAndWait(nc, handler);
+        handler.prepForStatusChange(Events.RESUBSCRIBED);
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
+            standardConnectionWait(nc, handler, 10000);
+        }
+
+        standardCloseConnection(nc);
     }
 
     @Test
     public void testDisconnectOnUpgrade() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
                 SSLContext ctx = TestSSLUtils.createTestSSLContext();
                 Options options = new Options.Builder().
@@ -230,11 +187,7 @@ public class TLSConnectTests {
                                     dataPortType(CloseOnUpgradeAttempt.class.getCanonicalName()).
                                     sslContext(ctx).
                                     build();
-                try {
-                    nc = Nats.connect(options);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Nats.connect(options);
             }
         });
     }
@@ -242,17 +195,12 @@ public class TLSConnectTests {
     @Test
     public void testServerSecureClientNotMismatch() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(0).
                                     build();
-                try {
-                    nc = Nats.connect(options);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Nats.connect(options);
             }
         });
     }
@@ -260,7 +208,6 @@ public class TLSConnectTests {
     @Test
     public void testClientSecureServerNotMismatch() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             try (NatsTestServer ts = new NatsTestServer()) {
                 SSLContext ctx = TestSSLUtils.createTestSSLContext();
                 Options options = new Options.Builder().
@@ -268,11 +215,7 @@ public class TLSConnectTests {
                                     maxReconnects(0).
                                     sslContext(ctx).
                                     build();
-                try {
-                    nc = Nats.connect(options);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Nats.connect(options);
             }
         });
     }
@@ -280,7 +223,6 @@ public class TLSConnectTests {
     @Test
     public void testClientServerCertMismatch() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
                 SSLContext ctx = TestSSLUtils.createEmptySSLContext();
                 Options options = new Options.Builder().
@@ -288,11 +230,7 @@ public class TLSConnectTests {
                                     maxReconnects(0).
                                     sslContext(ctx).
                                     build();
-                try {
-                    nc = Nats.connect(options);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Nats.connect(options);
             }
         });
     }
