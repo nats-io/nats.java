@@ -22,31 +22,21 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.impl.TestMacros.*;
+import static io.nats.client.utils.TestMacros.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectTests {
     @Test
     public void testDefaultConnection() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
-            Connection nc = Nats.connect();
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect();
         }
     }
 
     @Test
     public void testConnection() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = Nats.connect(ts.getURI());
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(ts.getURI());
         }
     }
 
@@ -54,24 +44,14 @@ public class ConnectTests {
     public void testConnectionWithOptions() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
     @Test
     public void testFullFakeConnect() throws IOException, InterruptedException {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Connection nc = Nats.connect(ts.getURI());
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(ts.getURI());
         }
     }
 
@@ -79,26 +59,16 @@ public class ConnectTests {
     public void testFullFakeConnectWithTabs() throws IOException, InterruptedException {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             ts.useTabs();
-            Connection nc = Nats.connect(ts.getURI());
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(ts.getURI());
         }
     }
 
     @Test
     public void testConnectExitBeforeInfo() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_BEFORE_INFO)) {
-                Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-                try {
-                    nc = Nats.connect(opt);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
+                assertCanConnect(options);
             }
         });
     }
@@ -106,14 +76,9 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterInfo() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_INFO)) {
-                Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-                try {
-                    nc = Nats.connect(opt);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
+                assertCanConnect(options);
             }
         });
     }
@@ -121,14 +86,9 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterConnect() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_CONNECT)) {
-                Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-                try {
-                    nc = Nats.connect(opt);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
+                assertCanConnect(options);
             }
         });
     }
@@ -136,14 +96,9 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterPing() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
-                Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-                try {
-                    nc = Nats.connect(opt);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
+                assertCanConnect(options);
             }
         });
     }
@@ -155,12 +110,7 @@ public class ConnectTests {
             try (NatsServerProtocolMock fake = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
                 Options options = new Options.Builder().connectionTimeout(Duration.ofSeconds(5)).server(fake.getURI())
                         .server(ts.getURI()).build();
-                Connection nc = Nats.connect(options);
-                try {
-                    assertConnected(nc);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                assertCanConnect(options);
             }
         }
     }
@@ -168,12 +118,7 @@ public class ConnectTests {
     @Test
     public void testConnectWithConfig() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/simple.conf", false)) {
-            Connection nc = Nats.connect(ts.getURI());
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(ts.getURI());
         }
     }
 
@@ -181,12 +126,7 @@ public class ConnectTests {
     public void testConnectWithCommas() throws IOException, InterruptedException {
         try (NatsTestServer ts1 = new NatsTestServer(false)) {
             try (NatsTestServer ts2 = new NatsTestServer(false)) {
-                Connection nc = Nats.connect(ts1.getURI() + "," + ts2.getURI());
-                try {
-                    assertConnected(nc);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                assertCanConnect(ts1.getURI() + "," + ts2.getURI());
             }
         }
     }
@@ -200,18 +140,13 @@ public class ConnectTests {
 
                 // should get at least 1 for each
                 for (int i = 0; i < 10; i++) {
-                    Connection nc = Nats.connect(ts1.getURI() + "," + ts2.getURI());
-                    try {
-                        assertConnected(nc);
-
-                        if (nc.getConnectedUrl().equals(ts1.getURI())) {
-                            one++;
-                        } else {
-                            two++;
-                        }
-                    } finally {
-                        closeThenAssertClosed(nc);
+                    Connection nc = standardConnection(ts1.getURI() + "," + ts2.getURI());
+                    if (nc.getConnectedUrl().equals(ts1.getURI())) {
+                        one++;
+                    } else {
+                        two++;
                     }
+                    standardCloseConnection(nc);
                 }
 
                 assertTrue(one > 0, "randomly got one");
@@ -231,18 +166,13 @@ public class ConnectTests {
                 for (int i = 0; i < 10; i++) {
                     String[] servers = { ts1.getURI(), ts2.getURI() };
                     Options options = new Options.Builder().noRandomize().servers(servers).build();
-                    Connection nc = Nats.connect(options);
-                    try {
-                        assertConnected(nc);
-
-                        if (nc.getConnectedUrl().equals(ts1.getURI())) {
-                            one++;
-                        } else {
-                            two++;
-                        }
-                    } finally {
-                        closeThenAssertClosed(nc);
+                    Connection nc = standardConnection(options);
+                    if (nc.getConnectedUrl().equals(ts1.getURI())) {
+                        one++;
+                    } else {
+                        two++;
                     }
+                    standardCloseConnection(nc);
                 }
 
                 assertEquals(one, 10, "always got one");
@@ -254,15 +184,10 @@ public class ConnectTests {
     @Test
     public void testFailWithMissingLineFeedAfterInfo() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             String badInfo = "{\"server_id\":\"test\"}\rmore stuff";
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
                 Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
-                try {
-                    nc = Nats.connect(options);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Nats.connect(options);
             }
         });
     }
@@ -270,15 +195,10 @@ public class ConnectTests {
     @Test
     public void testFailWithStuffAfterInitialInfo() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             String badInfo = "{\"server_id\":\"test\"}\r\nmore stuff";
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
                 Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
-                try {
-                    nc = Nats.connect(options);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Nats.connect(options);
             }
         });
     }
@@ -286,16 +206,11 @@ public class ConnectTests {
     @Test
     public void testFailWrongInitialInfoOP() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             String badInfo = "PING {\"server_id\":\"test\"}\r\n"; // wrong op code
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
                 ts.useCustomInfoAsFullInfo();
                 Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
-                try {
-                    nc = Nats.connect(options);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Nats.connect(options);
             }
         });
     }
@@ -307,11 +222,7 @@ public class ConnectTests {
             String badInfo = "{\"server_id\"\r\n";
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
                 Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
-                try {
-                    nc = Nats.connect(options);
-                } finally {
-                    closeThenAssertClosed(nc);
-                }
+                Nats.connect(options);
             }
         });
     }
@@ -329,38 +240,31 @@ public class ConnectTests {
 
             handler.waitForStatusChange(1, TimeUnit.SECONDS);
 
-            try {
-                nc = handler.getConnection();
-                assertNotNull(nc);
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            nc = handler.getConnection();
+            assertNotNull(nc);
+            assertConnected(nc);
+            standardCloseConnection(nc);
         }
     }
 
     @Test
     public void testAsyncConnectionWithReconnect() throws IOException, InterruptedException {
         TestHandler handler = new TestHandler();
-        Connection nc = null;
         int port = NatsTestServer.nextPort();
         Options options = new Options.Builder().server("nats://localhost:" + port).maxReconnects(-1)
                 .reconnectWait(Duration.ofMillis(100)).connectionListener(handler).build();
 
-        try {
-            Nats.connectAsynchronously(options, true);
+        Nats.connectAsynchronously(options, true);
 
-            sleep(5000); // No server at this point, let it fail and try to start over
+        sleep(5000); // No server at this point, let it fail and try to start over
 
-            nc = handler.getConnection(); // will be disconnected, but should be there
-            assertNotNull(nc);
+        Connection nc = handler.getConnection(); // will be disconnected, but should be there
+        assertNotNull(nc);
 
-            handler.prepForStatusChange(Events.RECONNECTED);
-            try (NatsTestServer ts = new NatsTestServer(port, false)) {
-                waitThenAssertConnected(nc, handler);
-            }
-        } finally {
-            closeThenAssertClosed(nc);
+        handler.prepForStatusChange(Events.RECONNECTED);
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            standardConnectionWait(nc, handler);
+            standardCloseConnection(nc);
         }
     }
 
@@ -406,12 +310,7 @@ public class ConnectTests {
             Options options = new Options.Builder().server(ts.getURI()).noReconnect()
                     .connectionTimeout(Duration.ofSeconds(6)). // longer than the sleep
                     build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -419,12 +318,7 @@ public class ConnectTests {
     public void testTimeCheckCoverage() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Options options = new Options.Builder().server(ts.getURI()).traceConnection().build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-            } finally {
-                closeThenAssertClosed(nc);
-            }
+            assertCanConnect(options);
         }
     }
 
@@ -441,88 +335,82 @@ public class ConnectTests {
     @Test
     public void testFlushBuffer() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
-            Connection nc = Nats.connect(ts.getURI());
-            try {
-                assertConnected(nc);
+            Connection nc = standardConnection(ts.getURI());
 
-                // test connected
-                nc.flushBuffer();
+            // test connected
+            nc.flushBuffer();
 
-                ts.shutdown();
-                sleep(100);
+            ts.shutdown();
+            sleep(100);
 
-                // test while reconnecting
-                assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
-            } finally {
-                closeThenAssertClosed(nc);
-                // test when closed.
-                assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
-            }
+            // test while reconnecting
+            assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
+            standardCloseConnection(nc);
+
+            // test when closed.
+            assertThrows(IllegalStateException.class, () -> nc.flushBuffer());
         }
     }
 
     @Test
     public void testFlushBufferThreadSafety() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
-            Connection nc = Nats.connect(ts.getURI());
-            try {
-                assertConnected(nc);
+            Connection nc = standardConnection(ts.getURI());
 
-                // use two latches to sync the threads as close as
-                // possible.
-                CountDownLatch pubLatch = new CountDownLatch(1);
-                CountDownLatch flushLatch = new CountDownLatch(1);
-                CountDownLatch completedLatch = new CountDownLatch(1);
+            // use two latches to sync the threads as close as
+            // possible.
+            CountDownLatch pubLatch = new CountDownLatch(1);
+            CountDownLatch flushLatch = new CountDownLatch(1);
+            CountDownLatch completedLatch = new CountDownLatch(1);
 
-                Thread t = new Thread("publisher") {
-                    public void run() {
-                        byte[] payload = new byte[5];
-                        pubLatch.countDown();
-                        try {
-                            flushLatch.await(2, TimeUnit.SECONDS);
-                        } catch (Exception e) {
-                            // NOOP
-                        }
-                        for (int i = 1; i <= 50000; i++) {
-                            nc.publish("foo", payload);
-                            if (i % 2000 == 0) {
-                                try {
-                                    nc.flushBuffer();
-                                } catch (IOException e) {
-                                    break;
-                                }
+            Thread t = new Thread("publisher") {
+                public void run() {
+                    byte[] payload = new byte[5];
+                    pubLatch.countDown();
+                    try {
+                        flushLatch.await(2, TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        // NOOP
+                    }
+                    for (int i = 1; i <= 50000; i++) {
+                        nc.publish("foo", payload);
+                        if (i % 2000 == 0) {
+                            try {
+                                nc.flushBuffer();
+                            } catch (IOException e) {
+                                break;
                             }
                         }
-                        completedLatch.countDown();
                     }
-                };
-                
-                t.start();
-
-                // sync up the current thread and the publish thread
-                // to get the most out of the test.
-                try {
-                   pubLatch.await(2, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    // NOOP
+                    completedLatch.countDown();
                 }
-                flushLatch.countDown();
+            };
 
-                // flush as fast as we can while the publisher
-                // is publishing.
+            t.start();
 
-                while (t.isAlive()) {
-                    nc.flushBuffer();
-                }
-
-                // cleanup and doublecheck the thread is done.
-                t.join(2000);
-
-                // make sure the publisher actually completed.
-                assertTrue(completedLatch.await(10, TimeUnit.SECONDS));
-            } finally {
-                closeThenAssertClosed(nc);
+            // sync up the current thread and the publish thread
+            // to get the most out of the test.
+            try {
+               pubLatch.await(2, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                // NOOP
             }
+            flushLatch.countDown();
+
+            // flush as fast as we can while the publisher
+            // is publishing.
+
+            while (t.isAlive()) {
+                nc.flushBuffer();
+            }
+
+            // cleanup and doublecheck the thread is done.
+            t.join(2000);
+
+            // make sure the publisher actually completed.
+            assertTrue(completedLatch.await(10, TimeUnit.SECONDS));
+
+            standardCloseConnection(nc);
         }
     }     
 }

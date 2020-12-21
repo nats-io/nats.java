@@ -59,10 +59,10 @@ public final class NUID {
     static {
         try {
             srand = SecureRandom.getInstance("SHA1PRNG");
-            prand = new Random(bytesToLong(srand.generateSeed(8))); // seed with 8 bytes (64 bits)
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("NUID requires SHA1PRNG Algorithm and it is not available.");
         }
+        prand = new Random(bytesToLong(srand.generateSeed(8))); // seed with 8 bytes (64 bits)
         globalNUID = new NUID();
     }
 
