@@ -55,23 +55,18 @@ public class NatsMessage implements Message {
 
     NatsMessage next; // for linked list
 
-    NatsMessage() {}
+    NatsMessage() {} // for subclasses
 
     public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data, utf8mode);
     }
 
     public NatsMessage(Message message) {
-        this(message.getSubject(), message.getReplyTo(),
+        this(message.getSubject(),
+                message.getReplyTo(),
                 message.hasHeaders() ? message.getHeaders() : null,
-                message.getData(), message.isUtf8mode());
-    }
-
-    public NatsMessage ensureHeaders(Message message) {
-        return message.hasHeaders()
-                ? new NatsMessage(message)
-                : new NatsMessage(
-                        message.getSubject(), message.getReplyTo(), new Headers(), message.getData(), message.isUtf8mode());
+                message.getData(),
+                message.isUtf8mode());
     }
 
     // Create a message to publish
@@ -91,6 +86,10 @@ public class NatsMessage implements Message {
         this.data = data;
         this.utf8mode = utf8mode;
 
+        calculate();
+    }
+
+    private void calculate() {
         int replyToLen = replyTo == null ? 0 : replyTo.length();
         dataLen = data == null ? 0 : data.length;
         if (headers != null && !headers.isEmpty()) {
@@ -134,7 +133,7 @@ public class NatsMessage implements Message {
     }
 
     boolean isProtocol() {
-        return false; // overridden in NatsMessage.Protocol
+        return false; // overridden in NatsMessage.ProtocolMessage
     }
 
     // Will be null on an incoming message
@@ -164,8 +163,9 @@ public class NatsMessage implements Message {
         return sizeInBytes;
     }
 
-    void setReplyTo(String replyTo) {
+    void updateReplyTo(String replyTo) {
         this.replyTo = replyTo;
+        calculate();
     }
 
     void setSubscription(NatsSubscription sub) {

@@ -1049,16 +1049,15 @@ class NatsConnection implements Connection {
             NatsSubscription sub = dispatcher.subscribeReturningSubscription(responseInbox);
             dispatcher.unsubscribe(responseInbox, 1);
             // Unsubscribe when future is cancelled:
-            String finalResponseInbox = responseInbox;
             future.whenComplete((msg, exception) -> {
-                if (null != exception && exception instanceof CancellationException) {
-                    dispatcher.unsubscribe(finalResponseInbox);
+                if (exception instanceof CancellationException) {
+                    dispatcher.unsubscribe(responseInbox);
                 }
             });
             responses.put(sub.getSID(), future);
         }
 
-        natsMsg.setReplyTo(responseInbox);
+        natsMsg.updateReplyTo(responseInbox);
         publish(natsMsg);
         statistics.incrementRequestsSent();
 
