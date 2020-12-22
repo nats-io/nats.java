@@ -400,9 +400,9 @@ public class NatsMessage implements Message {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // Incoming Message Builder - internal use only
+    // Incoming Message Factory - internal use only
     // ----------------------------------------------------------------------------------------------------
-    static class IncomingBuilder { // only extends NatsMessage for the fields!
+    static class Factory { // only extends NatsMessage for the fields!
         private final String sid;
         private final String subject;
         private final String replyTo;
@@ -417,7 +417,7 @@ public class NatsMessage implements Message {
 
         // Create an incoming message for a subscriber
         // Doesn't check control line size, since the server sent us the message
-        IncomingBuilder(String sid, String subject, String replyTo, int protocolLength) {
+        Factory(String sid, String subject, String replyTo, int protocolLength) {
             this.sid = sid;
             this.subject = subject;
             this.replyTo = replyTo;

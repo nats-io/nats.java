@@ -124,7 +124,7 @@ public class NatsMessageTests {
     public void testJSMetaData() {
         String replyTo = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
 
-        Message msg = new NatsMessage.IncomingBuilder("sid", "subj", replyTo, 0).getMessage();
+        Message msg = new NatsMessage.Factory("sid", "subj", replyTo, 0).getMessage();
 
         assertTrue(msg.isJetStream());
 
@@ -142,7 +142,7 @@ public class NatsMessageTests {
 
     @Test
     public void testInvalidJSMessage() {
-        Message m = new NatsMessage.IncomingBuilder("sid", "subj", "replyTo", 0).getMessage();
+        Message m = new NatsMessage.Factory("sid", "subj", "replyTo", 0).getMessage();
         assertFalse(m.isJetStream());
         assertThrows(IllegalStateException.class, () -> m.ack());
         assertThrows(IllegalStateException.class, () -> m.nak());
