@@ -13,23 +13,17 @@
 
 package io.nats.client.impl;
 
-import java.nio.charset.Charset;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.concurrent.TimeoutException;
-
 import io.nats.client.Connection;
 import io.nats.client.Message;
+import io.nats.client.MessageMetaData;
 import io.nats.client.Subscription;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
@@ -37,47 +31,31 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class NatsMessage implements Message {
 
-    public enum Kind {REGULAR, PROTOCOL, INCOMING}
+    protected String subject;
+    protected String replyTo;
+    protected byte[] data;
+    protected boolean utf8mode;
+    protected Headers headers;
+    protected Status status;
 
-    // Kind.REGULAR : just these fields
-    private String subject;
-    private String replyTo;
-    private byte[] data;
-    private boolean utf8mode;
-    private Headers headers;
-    private Status status;
+    // incoming specific : subject, replyTo, data and these fields
+    protected String sid;
+    protected int protocolLineLength;
 
-    // Kind.INCOMING : subject, replyTo, data and these fields
-    private String sid;
-    private int protocolLineLength;
-
-    // Kind.PROTOCOL : just this field
-    private byte[] protocolBytes;
+    // protocol specific : just this field
+    protected byte[] protocolBytes;
 
     // housekeeping
-    private final Kind kind;
-    private int sizeInBytes = -1;
-    private int hdrLen = 0;
-    private int dataLen = 0;
-    private int totLen = 0;
+    protected int sizeInBytes = -1;
+    protected int hdrLen = 0;
+    protected int dataLen = 0;
+    protected int totLen = 0;
 
-    private NatsSubscription subscription;
-    private Integer protocolLength = null;
-    private MetaData jsMetaData = null;
+    protected NatsSubscription subscription;
 
     NatsMessage next; // for linked list
 
-    // Acknowedgement protocol messages
-    private static final byte[] AckAck = "+ACK".getBytes();
-    private static final byte[] AckNak = "-NAK".getBytes();
-    private static final byte[] AckProgress = "+WPI".getBytes();
-
-    // special case
-    private static final byte[] AckNext = "+NXT".getBytes();
-    private static final byte[] AckTerm = "+TERM".getBytes();
-    private static final byte[] AckNextOne = "+NXT {\"batch\":1}".getBytes();
-
-    static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+    NatsMessage() {}
 
     public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data, utf8mode);
@@ -85,8 +63,8 @@ public class NatsMessage implements Message {
 
     public NatsMessage(Message message) {
         this(message.getSubject(), message.getReplyTo(),
-            message.hasHeaders() ? message.getHeaders() : null,
-            message.getData(), message.isUtf8mode());
+                message.hasHeaders() ? message.getHeaders() : null,
+                message.getData(), message.isUtf8mode());
     }
 
     // Create a message to publish
@@ -100,7 +78,6 @@ public class NatsMessage implements Message {
             throw new IllegalArgumentException("ReplyTo cannot be the empty string");
         }
 
-        kind = Kind.REGULAR;
         this.subject = subject;
         this.replyTo = replyTo;
         this.headers = headers;
@@ -111,8 +88,7 @@ public class NatsMessage implements Message {
         dataLen = data == null ? 0 : data.length;
         if (headers != null && !headers.isEmpty()) {
             hdrLen = headers.serializedLength();
-        }
-        else {
+        } else {
             hdrLen = 0;
         }
         totLen = hdrLen + dataLen;
@@ -124,8 +100,7 @@ public class NatsMessage implements Message {
         // protocol come first
         if (hdrLen > 0) {
             bab.append(HPUB_SP_BYTES);
-        }
-        else {
+        } else {
             bab.append(PUB_SP_BYTES);
         }
 
@@ -151,25 +126,8 @@ public class NatsMessage implements Message {
         protocolBytes = bab.toByteArray();
     }
 
-    // Create a protocol only message to publish
-    NatsMessage(byte[] protocol) {
-        this.kind = Kind.PROTOCOL;
-        this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
-    }
-
-    // Create an incoming message for a subscriber
-    // Doesn't check controlline size, since the server sent us the message
-    NatsMessage(String sid, String subject, String replyTo, int protocolLength) {
-        this.kind = Kind.INCOMING;
-        this.sid = sid;
-        this.subject = subject;
-        this.replyTo = replyTo;
-        this.protocolLineLength = protocolLength;
-        // headers and data are set later and sizes are calculated during those setters
-    }
-
     boolean isProtocol() {
-        return kind == Kind.PROTOCOL;
+        return false; // overridden in NatsMessage.Protocol
     }
 
     // Will be null on an incoming message
@@ -206,21 +164,6 @@ public class NatsMessage implements Message {
 
     void setReplyTo(String replyTo) {
         this.replyTo = replyTo;
-    }
-
-    // Only for incoming messages, with no protocol bytes
-    void setHeaders(IncomingHeadersProcessor ihp) {
-        headers = ihp.getHeaders();
-        status = ihp.getStatus();
-        hdrLen = ihp.getSerializedLength();
-        totLen = hdrLen + dataLen;
-    }
-
-    // Only for incoming messages, with no protocol bytes
-    void setData(byte[] data) {
-        this.data = data;
-        dataLen = data.length;
-        totLen = hdrLen + dataLen;
     }
 
     void setSubscription(NatsSubscription sub) {
@@ -289,184 +232,45 @@ public class NatsMessage implements Message {
         return this.subscription;
     }
 
-    private Connection getJetStreamValidatedConnection() {
-        if (!this.isJetStream()) {
-            throw new IllegalStateException("Message is not a jestream message");
-        }
-
-        if (getSubscription() == null) {
-            throw new IllegalStateException("Messages is not bound to a subcription.");
-        }
-
-        Connection c = getConnection();
-        if (c == null) {
-            throw new IllegalStateException("Message is not bound to a connection");
-        }
-        return c;
-
-    }
-
-    private void ackReply(byte[] ackType) {
-        try {
-            ackReply(ackType, Duration.ZERO);
-        } catch (InterruptedException e) {
-            // we should never get here, but satisfy the linters.
-            Thread.currentThread().interrupt();
-        } catch (TimeoutException e) {
-            // NOOP
-        }
-    }
-    
-    private boolean isPullMode() {
-        if (!(this.subscription instanceof NatsJetStreamSubscription)) {
-            return false;
-        }
-        return (((NatsJetStreamSubscription) this.subscription).pull > 0);
-    }
-
-    private void ackReply(byte[] ackType, Duration d) throws InterruptedException, TimeoutException {
-        if (!this.isJetStream()) {
-            throw new IllegalStateException("Message is not a jestream message");
-        }
-        if (d == null) {
-            throw new IllegalArgumentException("Duration cannot be null.");
-        }
-
-        boolean isSync = (d != Duration.ZERO);
-        Connection nc = getJetStreamValidatedConnection();
-
-        if (isPullMode()) {
-           if (Arrays.equals(ackType, AckAck)) {
-              nc.publish(replyTo, subscription.getSubject(), AckNext);
-           } else if (Arrays.equals(ackType, AckNak) || Arrays.equals(ackType, AckTerm)) {
-                nc.publish(replyTo, subscription.getSubject(), AckNextOne);
-           }
-           if (isSync && nc.request(replyTo, null, d) == null) {
-                throw new TimeoutException("Ack request next timed out.");
-           }
-
-        } else if (isSync && nc.request(replyTo, ackType, d) == null) {
-            throw new TimeoutException("Ack response timed out.");
-        } else {
-            nc.publish(replyTo, ackType);
-        }
-    }
-
     @Override
     public void ack() {
-        ackReply(AckAck);
+        throw notAJetStreamMessage();
     }
 
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
-        ackReply(AckAck, d);
+        throw notAJetStreamMessage();
     }
 
     @Override
-    public void nak(){
-        ackReply(AckNak);
+    public void nak() {
+        throw notAJetStreamMessage();
     }
 
     @Override
     public void inProgress() {
-        ackReply(AckProgress);
+        throw notAJetStreamMessage();
     }
 
     @Override
     public void term() {
-        ackReply(AckTerm);
+        throw notAJetStreamMessage();
     }
 
-    public MetaData metaData() {
-        if (this.jsMetaData == null) {
-            this.jsMetaData = new NatsJetstreamMetaData();
-        }
-        return this.jsMetaData;
+    @Override
+    public MessageMetaData metaData() {
+        throw notAJetStreamMessage();
     }
 
-    public class NatsJetstreamMetaData implements Message.MetaData {
-
-        private String stream;
-        private String consumer;
-        private long delivered;
-        private long streamSeq;
-        private long consumerSeq;
-        private ZonedDateTime timestamp;
-        private long pending = -1;
-
-        private void throwNotJSMsgException(String subject) {
-            throw new IllegalArgumentException("Message is not a jetstream message.  ReplySubject: <" + subject + ">");
-        }
-
-        NatsJetstreamMetaData() {
-            if (!isJetStream()) {
-                throwNotJSMsgException(replyTo);
-            }
-
-            String[] parts = replyTo.split("\\.");
-            if (parts.length < 8 || parts.length > 9 || !"ACK".equals(parts[1])) {
-                throwNotJSMsgException(replyTo);
-            }
-
-            stream = parts[2];
-            consumer = parts[3];
-            delivered = Long.parseLong(parts[4]);
-            streamSeq = Long.parseLong(parts[5]);
-            consumerSeq = Long.parseLong(parts[6]);
-
-            // not so clever way to seperate nanos from seconds
-            long tsi = Long.parseLong(parts[7]);
-            long seconds = tsi / 1000000000;
-            int nanos = (int) (tsi - ((tsi / 1000000000) * 1000000000));
-            LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
-            timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault());
-
-            if (parts.length == 9) {
-                pending = Long.parseLong(parts[8]);
-            }
-        }
-
-        @Override
-        public String getStream() {
-            return stream;
-        }
-
-        @Override
-        public String getConsumer() {
-            return consumer;
-        }
-
-        @Override
-        public long deliveredCount() {
-            return delivered;
-        }
-
-        @Override
-        public long streamSequence() {
-            return streamSeq;
-        }
-
-        @Override
-        public long consumerSequence() {
-            return consumerSeq;
-        }
-
-        @Override
-        public long pendingCount() {
-            return pending;
-        }
-
-        @Override
-        public ZonedDateTime timestamp() {
-            return timestamp;
-        }
+    private IllegalStateException notAJetStreamMessage() {
+        throw new IllegalStateException("Message is not a JetStream message");
     }
 
     @Override
     public boolean isJetStream() {
-        return replyTo != null && replyTo.startsWith("$JS");
+        return false;  // overridden in NatsJetStreamMessage
     }
-    
+
     @Override
     public String toString() {
         String hdrString = headers == null ? "" : new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+");
@@ -479,7 +283,6 @@ public class NatsMessage implements Message {
                 "\n  sid='" + sid + '\'' +
                 "\n  protocolLineLength=" + protocolLineLength +
                 "\n  protocolBytes=" + (protocolBytes == null ? null : new String(protocolBytes, UTF_8)) +
-                "\n  kind=" + kind +
                 "\n  sizeInBytes=" + sizeInBytes +
                 "\n  hdrLen=" + hdrLen +
                 "\n  dataLen=" + dataLen +
@@ -488,16 +291,24 @@ public class NatsMessage implements Message {
                 "\n  next=" + next;
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Standard Builder
+    // ----------------------------------------------------------------------------------------------------
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
     /**
      * The builder is for building normal publish/request messages,
      * as an option for client use developers instead of the normal constructor
      */
     public static class Builder {
-        String subject;
-        String replyTo;
-        Headers headers;
-        byte[] data;
-        boolean utf8mode;
+        private String subject;
+        private String replyTo;
+        private Headers headers;
+        private byte[] data;
+        private boolean utf8mode;
 
         /**
          * Set the subject
@@ -535,7 +346,7 @@ public class NatsMessage implements Message {
         /**
          * Set the data from a string
          *
-         * @param data the data string
+         * @param data    the data string
          * @param charset the charset, for example {@code StandardCharsets.UTF_8}
          * @return the builder
          */
@@ -585,6 +396,88 @@ public class NatsMessage implements Message {
          */
         public NatsMessage build() {
             return new NatsMessage(subject, replyTo, headers, data, utf8mode);
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Incoming Message Builder - internal use only
+    // ----------------------------------------------------------------------------------------------------
+    static class IncomingBuilder { // only extends NatsMessage for the fields!
+        private final String sid;
+        private final String subject;
+        private final String replyTo;
+        private final int protocolLineLength;
+
+        private byte[] data;
+        private Headers headers;
+        private Status status;
+        private int hdrLen = 0;
+        private int dataLen = 0;
+        private int totLen = 0;
+
+        // Create an incoming message for a subscriber
+        // Doesn't check control line size, since the server sent us the message
+        IncomingBuilder(String sid, String subject, String replyTo, int protocolLength) {
+            this.sid = sid;
+            this.subject = subject;
+            this.replyTo = replyTo;
+            this.protocolLineLength = protocolLength;
+            // headers and data are set later and sizes are calculated during those setters
+        }
+
+        void setHeaders(IncomingHeadersProcessor ihp) {
+            headers = ihp.getHeaders();
+            status = ihp.getStatus();
+            hdrLen = ihp.getSerializedLength();
+            totLen = hdrLen + dataLen;
+        }
+
+        void setData(byte[] data) {
+            this.data = data;
+            dataLen = data.length;
+            totLen = hdrLen + dataLen;
+        }
+
+        NatsMessage getMessage() {
+            NatsMessage message;
+            if (replyTo != null && replyTo.startsWith("$JS")) {
+                message = new NatsJetStreamMessage();
+            }
+            else {
+                message = new NatsMessage();
+            }
+            message.sid = this.sid;
+            message.subject = this.subject;
+            message.replyTo = this.replyTo;
+            message.protocolLineLength = this.protocolLineLength;
+            message.headers = this.headers;
+            message.status = this.status;
+            message.data = this.data;
+            message.hdrLen = this.hdrLen;
+            message.dataLen = this.dataLen;
+            message.totLen = this.totLen;
+
+            return message;
+        }
+    }
+
+    static class Protocol extends NatsMessage {
+
+        Protocol(byte[] protocol) {
+            this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
+        }
+
+        Protocol(ByteArrayBuilder babProtocol) {
+            this(babProtocol.toByteArray());
+        }
+
+        Protocol(String asciiProtocol) {
+            this(asciiProtocol.getBytes(StandardCharsets.US_ASCII));
+        }
+
+        @Override
+        boolean isProtocol() {
+            return true;
         }
     }
 }

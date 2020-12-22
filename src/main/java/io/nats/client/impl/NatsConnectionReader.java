@@ -53,7 +53,7 @@ class NatsConnectionReader implements Runnable {
 
     private Mode mode;
 
-    private NatsMessage incoming;
+    private NatsMessage.IncomingBuilder incoming;
     private byte[] msgHeaders;
     private byte[] msgData;
     private int msgHeadersPosition;
@@ -321,7 +321,7 @@ class NatsConnectionReader implements Runnable {
                 if (gotCR) {
                     if (b == LF) {
                         incoming.setData(msgData);
-                        this.connection.deliverMessage(incoming);
+                        this.connection.deliverMessage(incoming.getMessage());
                         msgData = null;
                         msgDataPosition = 0;
                         incoming = null;
@@ -468,7 +468,7 @@ class NatsConnectionReader implements Runnable {
 
                     int incomingLength = parseLength(lengthChars);
 
-                    this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
+                    this.incoming = new NatsMessage.IncomingBuilder(sid, subject, replyTo, protocolLineLength);
                     this.mode = Mode.GATHER_DATA;
                     this.msgData = new byte[incomingLength];
                     this.msgDataPosition = 0;
@@ -510,7 +510,7 @@ class NatsConnectionReader implements Runnable {
                         throw new IllegalStateException("Bad HMSG control line, missing required fields");
                     }
 
-                    this.incoming = new NatsMessage(hSid, hSubject, hReplyTo, hProtocolLineLength);
+                    this.incoming = new NatsMessage.IncomingBuilder(hSid, hSubject, hReplyTo, hProtocolLineLength);
                     this.msgHeaders = new byte[hdrLen];
                     this.msgData = new byte[totLen - hdrLen];
                     this.mode = Mode.GATHER_HEADERS;

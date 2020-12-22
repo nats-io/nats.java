@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.Message.MetaData;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class NatsMessageTests {
     @Test
     public void testSizeOnProtocolMessage() {
-        NatsMessage msg = new NatsMessage("PING".getBytes());
+        NatsMessage msg = new NatsMessage.Protocol("PING");
 
         assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
@@ -123,15 +122,13 @@ public class NatsMessageTests {
  
     @Test
     public void testJSMetaData() {
-        byte[] body = new byte[10];
-        String subject = "subj";
         String replyTo = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
 
-        Message msg = new NatsMessage(subject, replyTo, body, false);
+        Message msg = new NatsMessage.IncomingBuilder("sid", "subj", replyTo, 0).getMessage();
 
         assertTrue(msg.isJetStream());
 
-        MetaData jsmd = msg.metaData();
+        MessageMetaData jsmd = msg.metaData();
         assertNotNull(jsmd);
         assertEquals("test-stream", jsmd.getStream());
         assertEquals("test-consumer", jsmd.getConsumer());
@@ -145,7 +142,7 @@ public class NatsMessageTests {
 
     @Test
     public void testInvalidJSMessage() {
-        Message m = new NatsMessage("foo", "bar", new byte[1], false);
+        Message m = new NatsMessage.IncomingBuilder("sid", "subj", "replyTo", 0).getMessage();
         assertFalse(m.isJetStream());
         assertThrows(IllegalStateException.class, () -> m.ack());
         assertThrows(IllegalStateException.class, () -> m.nak());

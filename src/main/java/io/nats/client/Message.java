@@ -13,11 +13,11 @@
 
 package io.nats.client;
 
-import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.util.concurrent.TimeoutException;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.Status;
+
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 
 /**
  * The NATS library uses a Message object to encapsulate incoming messages. Applications
@@ -28,56 +28,6 @@ import io.nats.client.support.Status;
  * and is safe to manipulate.
  */
 public interface Message {
-
-	/**
-	 * This interface defined the methods use to get Jetstream metadata about a message, 
-	 * when applicable.
-	 */
-	public interface MetaData {
-
-		/**
-		 * Gets the stream the message is from.
-		 * @return the stream.
-		 */
-		public String getStream();
-		
-		/**
-		 * Gets the consumer that generated this message.
-		 * @return the consumer.
-		 */
-		public String getConsumer();
-
-
-		/**
-		 * Gets the number of times this message has been delivered.
-		 * @return delivered count.
-		 */
-		public long deliveredCount();
-		 
-		/**
-		 * Gets the stream sequence number of the message.
-		 * @return sequence number
-		 */
-		public long streamSequence();
-
-		/**
-		 * Gets consumer sequence number of this message.
-		 * @return sequence number
-		 */
-		public long consumerSequence();
-
-		/**
-		 * Gets the pending count of the consumer.
-		 * @return pending count
-		 */
-		public long pendingCount();
-
-		/**
-		 * Gets the timestamp of the message.
-		 * @return the timestamp
-		 */
-		public ZonedDateTime timestamp();
-	}
 
 	/**
 	 * @return the subject that this message was sent to
@@ -133,19 +83,19 @@ public interface Message {
 	/**
 	 * @return the connection which can be used for publishing, will be null if the subscription is null
 	 */
-	public Connection getConnection();
+	Connection getConnection();
 
 	/**
 	 * Gets the metadata associated with a jetstream message.
 	 * @return metadata or null if the message is not a jetstream message.
 	 */
-	public MetaData metaData();
+	MessageMetaData metaData();
 
 	/**
 	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message
 	 * should not be received again later.
 	 */
-	public void ack();
+	void ack();
 
 	/**
 	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message
@@ -154,28 +104,28 @@ public interface Message {
      * @throws TimeoutException if a timeout was specified and the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
 	 */
-	public void ackSync(Duration timeout) throws TimeoutException, InterruptedException;	
+	void ackSync(Duration timeout) throws TimeoutException, InterruptedException;
 
 	/**
 	 * nak acknowledges a JetStream message has been received but indicates that the message
 	 * is not completely processed and should be sent again later.
 	 */
-	public void nak();
+	void nak();
 
 	/**
 	 * term prevents this message from every being delivered regardless of maxDeliverCount.
 	 */
-	public void term();
+	void term();
 
 	/**
 	 *  Indicates that this message is being worked on and reset redelkivery timer in the server.
 	 */
-	public void inProgress();
+	void inProgress();
 
 	/**
 	 * Checks if a message is from Jetstream or is a standard message.
 	 * @return true if the message is from JetStream.
 	 */
-	public boolean isJetStream();
+	boolean isJetStream();
 
 }

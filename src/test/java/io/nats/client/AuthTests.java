@@ -240,9 +240,9 @@ public class AuthTests {
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
-            handler.waitForStatusChange(2, TimeUnit.SECONDS);
 
-            assertConnected(nc);
+            handler.waitForStatusChange(STANDARD_WAIT_MS, TimeUnit.MILLISECONDS);
+            standardConnectionWait(nc, handler);
             assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getPort());
             standardCloseConnection(nc);
         }

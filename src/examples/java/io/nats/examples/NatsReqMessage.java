@@ -38,7 +38,7 @@ public class NatsReqMessage {
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nRequesting '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            Message reply = nc.request(new NatsMessage.Builder()
+            Message reply = nc.request(NatsMessage.builder()
                     .subject(exArgs.subject)
                     .headers(exArgs.headers)
                     .data(exArgs.message, StandardCharsets.UTF_8)

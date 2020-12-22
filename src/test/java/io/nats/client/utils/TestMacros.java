@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 public final class TestMacros {
 
-    private static final long STANDARD_WAIT = 5000;
+    public static final long STANDARD_WAIT_MS = 5000;
 
     // ----------------------------------------------------------------------------------------------------
     // assertions
@@ -90,7 +90,7 @@ public final class TestMacros {
     }
 
     public static Connection standardConnectionWait(Connection conn, TestHandler handler) {
-        return standardConnectionWait(conn, handler, STANDARD_WAIT);
+        return standardConnectionWait(conn, handler, STANDARD_WAIT_MS);
     }
 
     public static Connection standardConnectionWait(Connection conn, TestHandler handler, long millis) {
@@ -100,7 +100,7 @@ public final class TestMacros {
     }
 
     public static Connection standardConnectionWait(Connection conn) {
-        return connectionWait(conn, STANDARD_WAIT);
+        return connectionWait(conn, STANDARD_WAIT_MS);
     }
 
     public static Connection connectionWait(Connection conn, long millis) {
@@ -111,7 +111,7 @@ public final class TestMacros {
     // close
     // ----------------------------------------------------------------------------------------------------
     public static void standardCloseConnection(Connection conn) {
-        closeConnection(conn, STANDARD_WAIT);
+        closeConnection(conn, STANDARD_WAIT_MS);
     }
 
     public static void closeConnection(Connection conn, long millis) {

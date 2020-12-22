@@ -155,7 +155,7 @@ public interface Connection extends AutoCloseable {
      *
      * <pre>
      * nc = Nats.connect()
-     * nc.publish(new NatsMessage.Builder()...build())
+     * nc.publish(NatsMessage.builder()...build())
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
