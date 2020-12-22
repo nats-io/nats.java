@@ -364,7 +364,7 @@ class NatsConnectionReader implements Runnable {
         return new String(this.msgLineChars, start, this.msgLinePosition-start);
     }
 
-    public String opFor(char[] chars, int length) {
+    static String opFor(char[] chars, int length) {
         if (length == 3) {
             if ((chars[0] == 'M' || chars[0] == 'm') &&
                         (chars[1] == 'S' || chars[1] == 's') && 

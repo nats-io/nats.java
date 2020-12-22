@@ -31,12 +31,21 @@ public class Headers {
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
 
-	private final Map<String, List<String>> headerMap;
+	private Map<String, List<String>> headerMap;
 	private byte[] serialized;
 	private int projectedLength;
 
 	public Headers() {
 		headerMap = new HashMap<>();
+	}
+
+	public Headers(Headers headers) {
+		this();
+		if (headers != null) {
+			headerMap.putAll(headers.headerMap);
+			projectedLength = headers.projectedLength;
+			serialized = null;
+		}
 	}
 
 	/**
@@ -54,6 +63,12 @@ public class Headers {
 			_add(key, Arrays.asList(values));
 		}
 		return this;
+	}
+
+	public Headers unmodifiable() {
+		Headers un = new Headers(this);
+		un.headerMap = Collections.unmodifiableMap(headerMap);
+		return un;
 	}
 
 	/**

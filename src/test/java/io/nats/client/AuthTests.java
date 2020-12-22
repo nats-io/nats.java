@@ -58,7 +58,7 @@ public class AuthTests {
 
             sub = nc.subscribe("test");
             nc.publish("test", null);
-            flushConnection(nc, 5);
+            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
             handler.prepForStatusChange(Events.DISCONNECTED);
@@ -75,7 +75,7 @@ public class AuthTests {
             standardConnectionWait(nc, handler);
 
             nc.publish("test", null);
-            flushConnection(nc, 5);
+            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
 
@@ -128,7 +128,7 @@ public class AuthTests {
 
             sub = nc.subscribe("test");
             nc.publish("test", null);
-            flushConnection(nc, 5);
+            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
             handler.prepForStatusChange(Events.DISCONNECTED);
@@ -146,7 +146,7 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
             standardConnectionWait(nc, handler);
             nc.publish("test", null);
-            flushConnection(nc, 5);
+            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
             standardCloseConnection(nc);

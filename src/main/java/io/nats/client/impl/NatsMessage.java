@@ -67,6 +67,13 @@ public class NatsMessage implements Message {
                 message.getData(), message.isUtf8mode());
     }
 
+    public NatsMessage ensureHeaders(Message message) {
+        return message.hasHeaders()
+                ? new NatsMessage(message)
+                : new NatsMessage(
+                        message.getSubject(), message.getReplyTo(), new Headers(), message.getData(), message.isUtf8mode());
+    }
+
     // Create a message to publish
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
 
@@ -157,11 +164,6 @@ public class NatsMessage implements Message {
         return sizeInBytes;
     }
 
-    @Override
-    public String getSID() {
-        return this.sid;
-    }
-
     void setReplyTo(String replyTo) {
         this.replyTo = replyTo;
     }
@@ -172,6 +174,11 @@ public class NatsMessage implements Message {
 
     NatsSubscription getNatsSubscription() {
         return this.subscription;
+    }
+
+    @Override
+    public String getSID() {
+        return this.sid;
     }
 
     @Override
@@ -200,11 +207,7 @@ public class NatsMessage implements Message {
 
     @Override
     public Headers getHeaders() {
-        // create for adding post message creation.
-        if (headers == null) {
-            headers = new Headers();
-        }
-        return headers;
+        return headers == null ? null : headers.unmodifiable();
     }
 
     @Override
@@ -294,7 +297,6 @@ public class NatsMessage implements Message {
     // ----------------------------------------------------------------------------------------------------
     // Standard Builder
     // ----------------------------------------------------------------------------------------------------
-
     public static Builder builder() {
         return new Builder();
     }
@@ -351,19 +353,7 @@ public class NatsMessage implements Message {
          * @return the builder
          */
         public Builder data(final String data, final Charset charset) {
-            //
             this.data = data.getBytes(charset);
-            return this;
-        }
-
-        /**
-         * Set the data from a byte array. null data is left as is
-         *
-         * @param data the data
-         * @return the builder
-         */
-        public Builder dataKeepNull(final byte[] data) {
-            this.data = data;
             return this;
         }
 
@@ -373,7 +363,7 @@ public class NatsMessage implements Message {
          * @param data the data
          * @return the builder
          */
-        public Builder dataOrEmpty(final byte[] data) {
+        public Builder data(final byte[] data) {
             this.data = data == null ? EMPTY_BODY : data;
             return this;
         }

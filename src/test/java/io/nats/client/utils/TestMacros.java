@@ -30,6 +30,8 @@ public final class TestMacros {
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
+    public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
+    public static final long LONG_FLUSH_TIMEOUT_MS = 15000;
 
     // ----------------------------------------------------------------------------------------------------
     // assertions
@@ -75,12 +77,21 @@ public final class TestMacros {
         flushConnection(conn, Duration.ofMillis(STANDARD_FLUSH_TIMEOUT_MS));
     }
 
-    public static void flushConnection(Connection conn, int timeoutSeconds) {
-        flushConnection(conn, Duration.ofSeconds(timeoutSeconds));
+    public static void flushConnection(Connection conn, long timeoutMillis) {
+        flushConnection(conn, Duration.ofMillis(timeoutMillis));
     }
 
     public static void flushConnection(Connection conn, Duration timeout) {
         try { conn.flush(timeout); } catch (Exception exp) { /* ignored */ }
+    }
+
+    public static void flushAndWait(Connection conn, TestHandler handler, long flushTimeoutMillis, long waitForStatusMillis) {
+        flushConnection(conn, flushTimeoutMillis);
+        handler.waitForStatusChange(waitForStatusMillis, TimeUnit.MILLISECONDS);
+    }
+
+    public static void flushAndWaitLong(Connection conn, TestHandler handler) {
+        flushAndWait(conn, handler, STANDARD_FLUSH_TIMEOUT_MS, LONG_FLUSH_TIMEOUT_MS);
     }
 
     // ----------------------------------------------------------------------------------------------------

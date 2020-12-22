@@ -1,26 +1,13 @@
 package io.nats.client.impl;
 
+import io.nats.client.*;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.ConsumerConfiguration;
-import io.nats.client.ConsumerInfo;
-import io.nats.client.Dispatcher;
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamOptions;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.Options;
-import io.nats.client.PublishAck;
-import io.nats.client.PublishOptions;
-import io.nats.client.StreamConfiguration;
-import io.nats.client.StreamInfo;
-import io.nats.client.SubscribeOptions;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 public class NatsJetStream implements JetStream {
 
@@ -44,13 +31,13 @@ public class NatsJetStream implements JetStream {
     // JSApiStreamCreate is the endpoint to create new streams.
 	private static final String jSApiStreamCreateT = "STREAM.CREATE.%s";
 
-    private NatsConnection conn = null;
-    private String prefix = null;
-    private Duration defaultTimeout = Options.DEFAULT_CONNECTION_TIMEOUT;
-    private PublishOptions defaultPubOpts = PublishOptions.builder().build();
-    private JetStreamOptions options;
-    private boolean direct = false;
+    private static final PublishOptions DEFAULT_PUB_OPTS = PublishOptions.builder().build();
+    private static final Duration defaultTimeout = Options.DEFAULT_CONNECTION_TIMEOUT;
 
+    private final NatsConnection conn;
+    private final String prefix;
+    private final boolean direct;
+    private final JetStreamOptions options;
 
     private static final String msgIdHdr             = "Nats-Msg-Id";
 	private static final String expectedStreamHdr    = "Nats-Expected-Stream";
@@ -195,7 +182,7 @@ public class NatsJetStream implements JetStream {
             return;
         }
 
-        String subj = appendPre(String.format(jSApiAccountInfo));
+        String subj = appendPre(jSApiAccountInfo);
         Message resp = conn.request(subj, null, defaultTimeout);
         if (resp == null) {
             throw new TimeoutException("No response from the NATS server");
@@ -281,65 +268,77 @@ public class NatsJetStream implements JetStream {
         return createOrUpdateConsumer(stream, config);
     }
 
-    static Message buildMsg(String subject, byte[] payload) {
-        return new NatsMessage.Builder().subject(subject).dataOrEmpty(payload).build();
-    }
-
     @Override
-    public PublishAck publish(String subject, byte[] payload) throws IOException, InterruptedException, TimeoutException {
-        return this.publish(buildMsg(subject, payload), defaultPubOpts);
+    public PublishAck publish(String subject, byte[] body) throws IOException, InterruptedException, TimeoutException {
+        return publishInternal(null, subject, body, null);
     }  
 
     @Override
-    public PublishAck publish(String subject, byte[] payload, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
-        return publishInternal(buildMsg(subject, payload), options);
+    public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
+        return publishInternal(null, subject, body, options);
     }
 
     @Override
     public PublishAck publish(Message message) throws IOException, InterruptedException, TimeoutException {
-        return this.publish(message, defaultPubOpts);
+        return publishInternal(message, null, null, null);
     }  
-
-    private static boolean isStreamSpecified(String streamName) {
-        return streamName != null;
-    }
 
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
-        return publishInternal(message, options);
+        return publishInternal(message, null, null, options);
     }
 
-    private PublishAck publishInternal(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
+    private PublishAck publishInternal(Message inMessage, String inSubject, byte[] inbody, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
+        // check null: message or subject must be provided
+        if (inMessage == null && (inSubject == null || inSubject.trim().length() == 0)) {
+            throw new IllegalArgumentException("Message cannot be null");
+        }
+
+        Headers headers = inMessage == null || !inMessage.hasHeaders() ? new Headers() : new Headers(inMessage.getHeaders());
+
         PublishOptions opts;
-        checkNull(message, "message");
         if (options == null) {
-            opts = defaultPubOpts;
+            opts = DEFAULT_PUB_OPTS;
         } else {
             opts = options;
 
             // we know no headers are set with default options
             long seqno = opts.getExpectedLastSequence();
             if (seqno > 0) {
-                message.getHeaders().add(expectedLastSeqHdr, Long.toString(seqno));
+                headers.add(expectedLastSeqHdr, Long.toString(seqno));
             }
     
             String s = opts.getExpectedLastMsgId();
             if (s != null) {
-                message.getHeaders().add(expectedLastMsgIdHdr, s);
+                headers.add(expectedLastMsgIdHdr, s);
             }
     
             s = opts.getExpectedStream();
             if (s != null) {
-                message.getHeaders().add(expectedStreamHdr, s);
+                headers.add(expectedStreamHdr, s);
             }
     
             s = opts.getMessageId();
             if (s != null) {
-                message.getHeaders().add(msgIdHdr, s);
-            }            
+                headers.add(msgIdHdr, s);
+            }
         }
 
-        Message resp = conn.request(message, opts.getStreamTimeout());
+        Message requestMessage;
+        if (inMessage == null) {
+            requestMessage = NatsMessage.builder().subject(inSubject).data(inbody).headers(headers).build();
+        }
+        else {
+            requestMessage = NatsMessage.builder()
+                    .subject(inMessage.getSubject())
+                    .replyTo(inMessage.getReplyTo())
+                    .data(inMessage.getData())
+                    .headers(headers)
+                    .utf8mode(inMessage.isUtf8mode())
+                    .build();
+        }
+
+        Message resp = conn.request(requestMessage, opts.getStreamTimeout());
         if (resp == null) {
             throw new TimeoutException("timeout waiting for jetstream");
         }
@@ -356,6 +355,10 @@ public class NatsJetStream implements JetStream {
         }
 
         return ack;    
+    }
+
+    private boolean isStreamSpecified(String streamName) {
+        return streamName != null;
     }
 
     ConsumerInfo getConsumerInfo(String stream, String consumer) throws IOException, TimeoutException,

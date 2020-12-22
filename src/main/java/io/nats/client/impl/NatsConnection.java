@@ -737,7 +737,7 @@ class NatsConnection implements Connection {
     public void publish(String subject, byte[] body) {
         _publish(NatsMessage.builder()
                 .subject(subject)
-                .dataOrEmpty(body)
+                .data(body)
                 .utf8mode(options.supportUTF8Subjects())
                 .build());
     }
@@ -747,7 +747,7 @@ class NatsConnection implements Connection {
         _publish(NatsMessage.builder()
                 .subject(subject)
                 .replyTo(replyTo)
-                .dataOrEmpty(body)
+                .data(body)
                 .utf8mode(options.supportUTF8Subjects())
                 .build());
     }
@@ -983,7 +983,7 @@ class NatsConnection implements Connection {
 
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return _request(NatsMessage.builder().subject(subject).dataOrEmpty(body).build(), timeout);
+        return _request(NatsMessage.builder().subject(subject).data(body).build(), timeout);
     }
 
     @Override
@@ -1006,7 +1006,7 @@ class NatsConnection implements Connection {
 
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return _request(NatsMessage.builder().subject(subject).dataOrEmpty(body).build());
+        return _request(NatsMessage.builder().subject(subject).data(body).build());
     }
 
     @Override

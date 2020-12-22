@@ -25,6 +25,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.utils.TestMacros.standardCloseConnection;
+import static io.nats.client.utils.TestMacros.standardConnection;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests {
@@ -99,7 +101,7 @@ public class PublishTests {
                  Connection nc = Nats.connect(ts.getURI())) {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-                nc.publish(new NatsMessage.Builder()
+                nc.publish(NatsMessage.builder()
                         .subject("testThrowsIfheadersNotSupported")
                         .headers(new Headers().add("key", "value"))
                         .build());
@@ -174,22 +176,21 @@ public class PublishTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            byte[] bodyBytes = (bodyString != null) ? bodyString.getBytes(StandardCharsets.UTF_8) : null;
+             Connection nc = standardConnection(ts.getURI())) {
 
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-
-            nc.publish(new NatsMessage.Builder().subject(subject).replyTo(replyTo).headers(headers).dataKeepNull(bodyBytes).build());
-
-            // This is used for the default test
-            if (bodyString == null) {
+            byte[] bodyBytes;
+            if (bodyString == null || bodyString.length() == 0) {
                 bodyBytes = EMPTY_BODY;
                 bodyString = "";
             }
+            else {
+                bodyBytes = bodyString.getBytes(StandardCharsets.UTF_8);
+            }
+
+            nc.publish(NatsMessage.builder().subject(subject).replyTo(replyTo).headers(headers).data(bodyBytes).build());
 
             assertTrue(gotPub.get(), "Got " + proto + "."); //wait for receipt to close up
-            nc.close();
-            assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            standardCloseConnection(nc);
 
             if (proto.equals(OP_PUB)) {
                 String expectedProtocol;
