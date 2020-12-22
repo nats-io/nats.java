@@ -20,12 +20,13 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
+import static io.nats.client.utils.TestMacros.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsMessageTests {
     @Test
     public void testSizeOnProtocolMessage() {
-        NatsMessage msg = new NatsMessage.Protocol("PING");
+        NatsMessage msg = new NatsMessage.ProtocolMessage("PING");
 
         assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
@@ -58,7 +59,7 @@ public class NatsMessageTests {
             int maxControlLine = 1024;
 
             while (subject.length() <= maxControlLine) {
-                subject = subject + subject;
+                subject += subject;
             }
 
             try (NatsTestServer ts = new NatsTestServer()) {
@@ -68,14 +69,8 @@ public class NatsMessageTests {
                             maxControlLine(maxControlLine).
                             build();
                 Connection nc = Nats.connect(options);
-                try {
-                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                    nc.publish(subject, replyTo, body);
-                    assertFalse(true);
-                } finally {
-                    nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
-                }
+                standardConnectionWait(nc);
+                nc.publish(subject, replyTo, body);
             }
         });
     }
@@ -86,15 +81,13 @@ public class NatsMessageTests {
             String subject = "subject";
 
             while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
-                subject = subject + subject;
+                subject += subject;
             }
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
                         NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
+                standardConnectionWait(nc);
                 nc.subscribe(subject);
-                assertFalse(true);
             }
         });
     }
@@ -107,15 +100,13 @@ public class NatsMessageTests {
             String replyTo = "reply";
 
             while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
-                subject = subject + subject;
+                subject += subject;
             }
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
                         NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
+                standardConnectionWait(nc);
                 nc.publish(subject, replyTo, body);
-                assertFalse(true);
             }
         });
     }
@@ -124,7 +115,7 @@ public class NatsMessageTests {
     public void testJSMetaData() {
         String replyTo = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
 
-        Message msg = new NatsMessage.Factory("sid", "subj", replyTo, 0).getMessage();
+        Message msg = new NatsMessage.IncomingMessageFactory("sid", "subj", replyTo, 0).getMessage();
 
         assertTrue(msg.isJetStream());
 
@@ -142,12 +133,12 @@ public class NatsMessageTests {
 
     @Test
     public void testInvalidJSMessage() {
-        Message m = new NatsMessage.Factory("sid", "subj", "replyTo", 0).getMessage();
+        Message m = new NatsMessage.IncomingMessageFactory("sid", "subj", "replyTo", 0).getMessage();
         assertFalse(m.isJetStream());
-        assertThrows(IllegalStateException.class, () -> m.ack());
-        assertThrows(IllegalStateException.class, () -> m.nak());
+        assertThrows(IllegalStateException.class, m::ack);
+        assertThrows(IllegalStateException.class, m::nak);
         assertThrows(IllegalStateException.class, () -> m.ackSync(Duration.ofSeconds(42)));
-        assertThrows(IllegalStateException.class, () -> m.inProgress());
-        assertThrows(IllegalStateException.class, () -> m.term());
+        assertThrows(IllegalStateException.class, m::inProgress);
+        assertThrows(IllegalStateException.class, m::term);
     }
 }

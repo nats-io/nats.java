@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.utils.TestMacros;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedWriter;
@@ -63,7 +64,7 @@ public class AuthTests {
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
-        flushConnnection(nc);
+        TestMacros.flushConnection(nc);
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
         assertTrue(
@@ -133,7 +134,7 @@ public class AuthTests {
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
-        flushConnnection(nc);
+        TestMacros.flushConnection(nc);
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
 
@@ -241,7 +242,7 @@ public class AuthTests {
             handler.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
 
-            handler.waitForStatusChange(STANDARD_WAIT_MS, TimeUnit.MILLISECONDS);
+            handler.waitForStatusChange(STANDARD_CONNECTION_WAIT_MS, TimeUnit.MILLISECONDS);
             standardConnectionWait(nc, handler);
             assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getPort());
             standardCloseConnection(nc);

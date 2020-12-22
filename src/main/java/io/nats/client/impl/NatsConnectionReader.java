@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.impl.NatsMessage.IncomingMessageFactory;
 import io.nats.client.support.IncomingHeadersProcessor;
 
 import java.io.IOException;
@@ -53,7 +54,7 @@ class NatsConnectionReader implements Runnable {
 
     private Mode mode;
 
-    private NatsMessage.Factory incoming;
+    private IncomingMessageFactory incoming;
     private byte[] msgHeaders;
     private byte[] msgData;
     private int msgHeadersPosition;
@@ -468,7 +469,7 @@ class NatsConnectionReader implements Runnable {
 
                     int incomingLength = parseLength(lengthChars);
 
-                    this.incoming = new NatsMessage.Factory(sid, subject, replyTo, protocolLineLength);
+                    this.incoming = new IncomingMessageFactory(sid, subject, replyTo, protocolLineLength);
                     this.mode = Mode.GATHER_DATA;
                     this.msgData = new byte[incomingLength];
                     this.msgDataPosition = 0;
@@ -510,7 +511,7 @@ class NatsConnectionReader implements Runnable {
                         throw new IllegalStateException("Bad HMSG control line, missing required fields");
                     }
 
-                    this.incoming = new NatsMessage.Factory(hSid, hSubject, hReplyTo, hProtocolLineLength);
+                    this.incoming = new IncomingMessageFactory(hSid, hSubject, hReplyTo, hProtocolLineLength);
                     this.msgHeaders = new byte[hdrLen];
                     this.msgData = new byte[totLen - hdrLen];
                     this.mode = Mode.GATHER_HEADERS;

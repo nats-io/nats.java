@@ -878,7 +878,7 @@ class NatsConnection implements Connection {
         if (after > 0) {
             bab.appendSpace().append(after);
         }
-        queueInternalOutgoing(new NatsMessage.Protocol(bab));
+        queueInternalOutgoing(new NatsMessage.ProtocolMessage(bab));
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -922,7 +922,7 @@ class NatsConnection implements Connection {
 
         bab.appendSpace().append(sid);
 
-        NatsMessage subMsg = new NatsMessage.Protocol(bab);
+        NatsMessage subMsg = new NatsMessage.ProtocolMessage(bab);
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -1183,7 +1183,7 @@ class NatsConnection implements Connection {
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
             ByteArrayBuilder bab = new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit())
                     .append(CONNECT_SP_BYTES).append(connectOptions);
-            queueInternalOutgoing(new NatsMessage.Protocol(bab));
+            queueInternalOutgoing(new NatsMessage.ProtocolMessage(bab));
         } catch (Exception exp) {
             throw new IOException("Error sending connect string", exp);
         }
@@ -1223,7 +1223,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage.Protocol(OP_PING_BYTES);
+        NatsMessage msg = new NatsMessage.ProtocolMessage(OP_PING_BYTES);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1238,7 +1238,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        queueInternalOutgoing( new NatsMessage.Protocol(OP_PONG_BYTES) );
+        queueInternalOutgoing( new NatsMessage.ProtocolMessage(OP_PONG_BYTES) );
     }
 
     // Called by the reader
