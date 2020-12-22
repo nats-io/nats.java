@@ -72,6 +72,9 @@ public final class NUID {
 
     /**
      * The default NUID constructor.
+     *
+     * This class relies on the SHA1PRNG for secure random numbers.
+     * It it is not available the client will not work properly.
      */
     public NUID() {
         // Generate a crypto random int, 0 <= val < max to seed pseudorandom
