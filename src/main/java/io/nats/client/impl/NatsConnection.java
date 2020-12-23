@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.impl.NatsMessage.ProtocolMessage;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -752,9 +753,13 @@ class NatsConnection implements Connection {
                 .build());
     }
 
+    private NatsMessage asNatsMessage(Message message) {
+        return message instanceof NatsMessage ? (NatsMessage) message : new NatsMessage(message);
+    }
+
     @Override
     public void publish(Message msg) {
-        _publish(new NatsMessage(msg));
+        _publish(asNatsMessage(msg));
     }
 
     private void _publish(NatsMessage msg) {
@@ -878,7 +883,7 @@ class NatsConnection implements Connection {
         if (after > 0) {
             bab.appendSpace().append(after);
         }
-        queueInternalOutgoing(new NatsMessage.ProtocolMessage(bab));
+        queueInternalOutgoing(new ProtocolMessage(bab));
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -922,7 +927,7 @@ class NatsConnection implements Connection {
 
         bab.appendSpace().append(sid);
 
-        NatsMessage subMsg = new NatsMessage.ProtocolMessage(bab);
+        NatsMessage subMsg = new ProtocolMessage(bab);
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -988,7 +993,7 @@ class NatsConnection implements Connection {
 
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
-        return _request(new NatsMessage(message), timeout);
+        return _request(asNatsMessage(message), timeout);
     }
 
     private Message _request(NatsMessage message, Duration timeout) throws InterruptedException {
@@ -1011,7 +1016,7 @@ class NatsConnection implements Connection {
 
     @Override
     public CompletableFuture<Message> request(Message message) {
-        return _request(new NatsMessage(message));
+        return _request(asNatsMessage(message));
     }
 
     private CompletableFuture<Message> _request(NatsMessage natsMsg) {
@@ -1182,7 +1187,7 @@ class NatsConnection implements Connection {
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
             ByteArrayBuilder bab = new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit())
                     .append(CONNECT_SP_BYTES).append(connectOptions);
-            queueInternalOutgoing(new NatsMessage.ProtocolMessage(bab));
+            queueInternalOutgoing(new ProtocolMessage(bab));
         } catch (Exception exp) {
             throw new IOException("Error sending connect string", exp);
         }
@@ -1222,7 +1227,7 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new NatsMessage.ProtocolMessage(OP_PING_BYTES);
+        NatsMessage msg = new ProtocolMessage(OP_PING_BYTES);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
@@ -1237,7 +1242,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        queueInternalOutgoing( new NatsMessage.ProtocolMessage(OP_PONG_BYTES) );
+        queueInternalOutgoing( new ProtocolMessage(OP_PONG_BYTES) );
     }
 
     // Called by the reader

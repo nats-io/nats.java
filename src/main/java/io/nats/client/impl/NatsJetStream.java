@@ -41,13 +41,13 @@ public class NatsJetStream implements JetStream {
 
     private static final Pattern LIMITS_MEMORY_RE = JsonUtils.buildPattern("max_memory", FieldType.jsonNumber);
     private static final Pattern LIMITS_STORAGE_RE = JsonUtils.buildPattern("max_storage", FieldType.jsonNumber);
-    private static final Pattern LIMIT_STREAMS_RE = JsonUtils.buildPattern("max_streams", FieldType.jsonString);
-    private static final Pattern LIMIT_CONSUMERS_RE = JsonUtils.buildPattern("max_consumers", FieldType.jsonString);
+    private static final Pattern LIMIT_STREAMS_RE = JsonUtils.buildPattern("max_streams", FieldType.jsonNumber);
+    private static final Pattern LIMIT_CONSUMERS_RE = JsonUtils.buildPattern("max_consumers", FieldType.jsonNumber);
 
     private static final Pattern STATS_MEMORY_RE = JsonUtils.buildPattern("memory", FieldType.jsonNumber);
     private static final Pattern STATS_STORAGE_RE = JsonUtils.buildPattern("storage", FieldType.jsonNumber);
-    private static final Pattern STATS_STREAMS_RE = JsonUtils.buildPattern("streams", FieldType.jsonString);
-    private static final Pattern STATS_CONSUMERS_RE = JsonUtils.buildPattern("consumers", FieldType.jsonString);
+    private static final Pattern STATS_STREAMS_RE = JsonUtils.buildPattern("streams", FieldType.jsonNumber);
+    private static final Pattern STATS_CONSUMERS_RE = JsonUtils.buildPattern("consumers", FieldType.jsonNumber);
 
     private final NatsConnection conn;
     private final String prefix;
@@ -101,7 +101,6 @@ public class NatsJetStream implements JetStream {
         public long getMaxConsumers() {
             return consumers;
         }
-
     }
 
     public static class AccountStatsImpl implements AccountStatistics {
@@ -158,11 +157,7 @@ public class NatsJetStream implements JetStream {
         }
 
         JetstreamAPIResponse apiResp = new JetstreamAPIResponse(msg.getData());
-        if (apiResp.getCode() == 503 || apiResp.getError() != null) {
-            return false;
-        }
-        // TODO - check headers for no responders.
-        return true;
+        return apiResp.getCode() != 503 && apiResp.getError() == null;
     }
 
     NatsJetStream(NatsConnection connection, JetStreamOptions jsOptions) throws InterruptedException, TimeoutException {
@@ -268,39 +263,43 @@ public class NatsJetStream implements JetStream {
         return createOrUpdateConsumer(stream, config);
     }
 
+    static NatsMessage buildMsg(String subject, byte[] payload) {
+        return new NatsMessage.Builder().subject(subject).data(payload).build();
+    }
+
     @Override
     public PublishAck publish(String subject, byte[] body) throws IOException, InterruptedException, TimeoutException {
-        return publishInternal(null, subject, body, null);
+        return publishInternal(buildMsg(subject, body), null);
     }
 
     @Override
     public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
-        return publishInternal(null, subject, body, options);
+        return publishInternal(buildMsg(subject, body), options);
     }
 
     @Override
     public PublishAck publish(Message message) throws IOException, InterruptedException, TimeoutException {
-        return publishInternal(message, null, null, null);
+        return publishInternal(message, null);
     }
 
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
-        return publishInternal(message, null, null, options);
+        return publishInternal(message, options);
     }
 
-    private PublishAck publishInternal(Message inMessage, String inSubject, byte[] inbody, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
-        // check null: message or subject must be provided
-        if (inMessage == null && (inSubject == null || inSubject.trim().length() == 0)) {
-            throw new IllegalArgumentException("Message cannot be null");
-        }
 
-        Headers headers = inMessage == null || !inMessage.hasHeaders() ? new Headers() : new Headers(inMessage.getHeaders());
+    private PublishAck publishInternal(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
+        checkNull(message, "message");
+
+        NatsMessage natsMessage = message instanceof NatsMessage ? (NatsMessage)message : new NatsMessage(message);
 
         PublishOptions opts;
         if (options == null) {
             opts = DEFAULT_PUB_OPTS;
         } else {
             opts = options;
+
+            Headers headers = natsMessage.getOrCreateHeaders();
 
             // we know no headers are set with default options
             long seqno = opts.getExpectedLastSequence();
@@ -324,21 +323,7 @@ public class NatsJetStream implements JetStream {
             }
         }
 
-        Message requestMessage;
-        if (inMessage == null) {
-            requestMessage = NatsMessage.builder().subject(inSubject).data(inbody).headers(headers).build();
-        }
-        else {
-            requestMessage = NatsMessage.builder()
-                    .subject(inMessage.getSubject())
-                    .replyTo(inMessage.getReplyTo())
-                    .data(inMessage.getData())
-                    .headers(headers)
-                    .utf8mode(inMessage.isUtf8mode())
-                    .build();
-        }
-
-        Message resp = conn.request(requestMessage, opts.getStreamTimeout());
+        Message resp = conn.request(natsMessage, opts.getStreamTimeout());
         if (resp == null) {
             throw new TimeoutException("timeout waiting for jetstream");
         }
@@ -379,7 +364,7 @@ public class NatsJetStream implements JetStream {
 
     private String lookupStreamBySubject(String subject) throws InterruptedException, IOException, TimeoutException {
         if (subject == null) {
-            throw new IllegalArgumentException("stream cannot be null.");
+            throw new IllegalArgumentException("subject cannot be null.");
         }
         String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
 
@@ -557,15 +542,14 @@ public class NatsJetStream implements JetStream {
     }
 
     @Override
-    public JetStreamSubscription subscribe(String subject, SubscribeOptions options)
-            throws InterruptedException, TimeoutException, IOException {
+    public JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
         checkName(subject, true, "subject");
+        checkNull(options, "options");
         return createSubscription(subject, null, null, null, options);
     }
 
     @Override
-    public JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options)
-            throws InterruptedException, TimeoutException, IOException {
+    public JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
         checkName(subject, true, "subject");
         checkName(queue, false, "queue");
         checkNull(options, "options");
@@ -576,6 +560,7 @@ public class NatsJetStream implements JetStream {
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException {
         checkName(subject, true, "subject");
         checkNull(dispatcher, "dispatcher");
+        checkNull(handler, "handler");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, null);
     }
 

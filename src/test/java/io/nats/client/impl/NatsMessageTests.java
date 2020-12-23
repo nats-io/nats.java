@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.impl.NatsMessage.IncomingMessageFactory;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -55,7 +56,6 @@ public class NatsMessageTests {
         assertThrows(IllegalArgumentException.class, () -> {
             byte[] body = new byte[10];
             String subject = "subject";
-            String replyTo = "reply";
             int maxControlLine = 1024;
 
             while (subject.length() <= maxControlLine) {
@@ -70,7 +70,7 @@ public class NatsMessageTests {
                             build();
                 Connection nc = Nats.connect(options);
                 standardConnectionWait(nc);
-                nc.publish(subject, replyTo, body);
+                nc.request(subject, body);
             }
         });
     }
@@ -110,12 +110,12 @@ public class NatsMessageTests {
             }
         });
     }
- 
+
     @Test
     public void testJSMetaData() {
         String replyTo = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
 
-        Message msg = new NatsMessage.IncomingMessageFactory("sid", "subj", replyTo, 0).getMessage();
+        Message msg = new IncomingMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
 
         assertTrue(msg.isJetStream());
 
@@ -133,12 +133,71 @@ public class NatsMessageTests {
 
     @Test
     public void testInvalidJSMessage() {
-        Message m = new NatsMessage.IncomingMessageFactory("sid", "subj", "replyTo", 0).getMessage();
+        Message m = new IncomingMessageFactory("sid", "subj", "replyTo", 0, false).getMessage();
         assertFalse(m.isJetStream());
         assertThrows(IllegalStateException.class, m::ack);
         assertThrows(IllegalStateException.class, m::nak);
         assertThrows(IllegalStateException.class, () -> m.ackSync(Duration.ofSeconds(42)));
         assertThrows(IllegalStateException.class, m::inProgress);
         assertThrows(IllegalStateException.class, m::term);
+    }
+
+    @Test
+    public void notJetream() {
+        NatsMessage m = NatsMessage.builder().subject("test").build();
+        assertThrows(IllegalStateException.class, m::ack);
+        assertThrows(IllegalStateException.class, m::nak);
+        assertThrows(IllegalStateException.class, () -> m.ackSync(Duration.ZERO));
+        assertThrows(IllegalStateException.class, m::inProgress);
+        assertThrows(IllegalStateException.class, m::term);
+        assertThrows(IllegalStateException.class, m::metaData);
+    }
+
+    @Test
+    public void miscCoverage() {
+        NatsMessage m = testMessage();
+        String ms = m.toString();
+        assertNotNull(ms);
+        assertTrue(ms.contains("subject='test'"));
+
+        assertNotNull(m.getHeaders());
+        assertTrue(m.isUtf8mode());
+        assertFalse(m.getHeaders().isEmpty());
+        assertNull(m.getSubscription());
+        assertNull(m.getNatsSubscription());
+        assertNull(m.getConnection());
+        assertEquals(23, m.getControlLineLength());
+
+        m.headers = null; // we can do this because we have package access
+        m.dirty = true; // for later tests, also is true b/c we nerfed the headers
+        assertNull(m.getHeaders());
+
+        assertNotNull(m.getOrCreateHeaders());
+
+        NatsMessage.ProtocolMessage pm = new NatsMessage.ProtocolMessage((byte[])null);
+        assertNotNull(pm.protocolBytes);
+        assertEquals(0, pm.protocolBytes.length);
+    }
+
+    @Test
+    public void constructorWithMessage() {
+        NatsMessage m = testMessage();
+
+        NatsMessage copy = new NatsMessage(m);
+        assertEquals(m.getSubject(), copy.getSubject());
+        assertEquals(m.getReplyTo(), copy.getReplyTo());
+        assertEquals(m.getData(), copy.getData());
+        assertEquals(m.getSubject(), copy.getSubject());
+        assertEquals(m.getSubject(), copy.getSubject());
+    }
+
+    private NatsMessage testMessage() {
+        Headers h = new Headers();
+        h.add("key", "value");
+
+        return NatsMessage.builder()
+                .subject("test").replyTo("reply").headers(h).utf8mode(true)
+                .data("data", StandardCharsets.US_ASCII)
+                .build();
     }
 }

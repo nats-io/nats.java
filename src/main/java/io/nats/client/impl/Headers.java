@@ -31,7 +31,7 @@ public class Headers {
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
 
-	private Map<String, List<String>> headerMap;
+	private final Map<String, List<String>> headerMap;
 	private byte[] serialized;
 	private int projectedLength;
 
@@ -63,12 +63,6 @@ public class Headers {
 			_add(key, Arrays.asList(values));
 		}
 		return this;
-	}
-
-	public Headers unmodifiable() {
-		Headers un = new Headers(this);
-		un.headerMap = Collections.unmodifiableMap(headerMap);
-		return un;
 	}
 
 	/**
@@ -228,9 +222,9 @@ public class Headers {
 	 *
 	 * @return a read-only list of the values for the specific keys.
 	 */
-	public List<String> values(String key) {
-		List<String> list = headerMap.get(key);
-		return list == null ? null : Collections.unmodifiableList(list);
+	public List<String> get(String key) {
+		List<String> values = headerMap.get(key);
+		return values == null ? null : new ArrayList<>(values);
 	}
 
 	/**
@@ -258,6 +252,16 @@ public class Headers {
 	}
 
 	/**
+	 * Returns if the headers are dirty, which means the serialization
+	 * has not been done so also don't know the byte length
+	 *
+	 * @return true if dirty
+	 */
+	public boolean isDirty() {
+		return serialized == null;
+	}
+
+	/**
 	 * Returns the number of bytes that will be in the serialized version.
 	 *
 	 * @return the number of bytes
@@ -266,12 +270,17 @@ public class Headers {
 		return getSerialized().length;
 	}
 
+	/**
+	 * Returns the serialized bytes.
+	 *
+	 * @return the bytes
+	 */
 	public byte[] getSerialized() {
 		if (serialized == null) {
 			ByteArrayBuilder bab = new ByteArrayBuilder(projectedLength + VERSION_BYTES_PLUS_CRLF_LEN)
 					.append(VERSION_BYTES_PLUS_CRLF);
 			for (String key : headerMap.keySet()) {
-				for (String value : values(key)) {
+				for (String value : headerMap.get(key)) {
 					bab.append(key);
 					bab.append(COLON_BYTES);
 					bab.append(value);

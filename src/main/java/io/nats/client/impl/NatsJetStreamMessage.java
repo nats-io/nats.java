@@ -15,12 +15,13 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.MessageMetaData;
+import io.nats.client.impl.NatsMessage.SelfCalculatingMessage;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
 
-class NatsJetStreamMessage extends NatsMessage {
+class NatsJetStreamMessage extends SelfCalculatingMessage {
 
     // Acknowedgement protocol messages
     private static final byte[] AckAck = "+ACK".getBytes();
@@ -33,6 +34,10 @@ class NatsJetStreamMessage extends NatsMessage {
     private static final byte[] AckNextOne = "+NXT {\"batch\":1}".getBytes();
 
     private NatsJetStreamMetaData jsMetaData = null;
+
+    public static boolean isJetStream(String replyTo) {
+        return replyTo != null && replyTo.startsWith("$JS");
+    }
 
     NatsJetStreamMessage() {}
 

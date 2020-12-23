@@ -13,13 +13,11 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.ConsumerConfiguration.AckPolicy;
+import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.StreamInfo.StreamState;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -28,12 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.ConsumerConfiguration.AckPolicy;
-import io.nats.client.StreamConfiguration.StorageType;
-import io.nats.client.StreamInfo.StreamState;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JetstreamTests {
 
@@ -407,6 +400,57 @@ public class JetstreamTests {
             finally {
                 nc.close();
             }
+        }
+    }
+
+    @Test
+    public void negativePathwaysCoverage() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false, true);
+             Connection nc = Nats.connect(ts.getURI())) {
+
+            JetStream js = nc.jetStream();
+            Dispatcher dispatcher = nc.createDispatcher(null);
+            Dispatcher dispatcherNull = null;
+            MessageHandler handler = msg -> {};
+            MessageHandler handlerNull = null;
+            String invalid = "in val id";
+            String strNull = null;
+            String strEmpty = "";
+            SubscribeOptions optNull = null;
+            String subject = "sub";
+            String queue = "queue";
+            createMemoryStream(js, "sub-stream", subject);
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(invalid)); // subject  invalid
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(invalid, optNull)); // subject invalid
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, optNull)); // option null
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(invalid, strNull, optNull));  // subject invalid
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, strNull, optNull));  // queue null
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, strEmpty, optNull)); // queue empty
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, invalid, optNull));  // queue invalid
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, queue, optNull));    // options null
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(invalid, dispatcherNull, handlerNull, optNull)); // subject invalid
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, dispatcherNull, handlerNull, optNull)); // dispatcher null
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, dispatcher, handlerNull, optNull));     // handler null
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, dispatcher, handler, optNull));         // options null
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(invalid, strNull, dispatcherNull, handlerNull));  // subject invalid
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, strNull, dispatcherNull, handlerNull));  // queue null
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, strEmpty, dispatcherNull, handlerNull)); // queue empty
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, invalid, dispatcherNull, handlerNull));  // queue invalid
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, queue, dispatcherNull, handlerNull));    // dispatcher null
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, queue, dispatcher, handlerNull));        // handler null
+
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(invalid, strNull, dispatcherNull, handlerNull, optNull));  // subject invalid
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, strNull, dispatcherNull, handlerNull, optNull));  // queue null
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, strEmpty, dispatcherNull, handlerNull, optNull)); // queue empty
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, invalid, dispatcherNull, handlerNull, optNull));  // queue invalid
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, queue, dispatcherNull, handlerNull, optNull));    // dispatcher null
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, queue, dispatcher, handlerNull, optNull));        // handler null
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, queue, dispatcher, handler, optNull));            // options null
         }
     }
 }

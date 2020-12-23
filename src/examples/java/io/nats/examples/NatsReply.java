@@ -46,7 +46,7 @@ public class NatsReply {
                 if (msg.hasHeaders()) {
                     System.out.println("  Headers:");
                     for (String key: msg.getHeaders().keySet()) {
-                        for (String value : msg.getHeaders().values(key)) {
+                        for (String value : msg.getHeaders().get(key)) {
                             System.out.printf("    %s: %s\n", key, value);
                         }
                     }

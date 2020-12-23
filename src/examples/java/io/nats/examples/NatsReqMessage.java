@@ -56,7 +56,7 @@ public class NatsReqMessage {
                 if (reply.hasHeaders()) {
                     System.out.println("  Headers:");
                     for (String key : reply.getHeaders().keySet()) {
-                        for (String value : reply.getHeaders().values(key)) {
+                        for (String value : reply.getHeaders().get(key)) {
                             System.out.printf("    %s: %s\n", key, value);
                         }
                     }
