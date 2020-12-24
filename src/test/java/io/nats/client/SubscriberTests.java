@@ -23,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.utils.ResourceUtils.getFileFromResourceAsStream;
+import static io.nats.client.utils.TestMacros.standardCloseConnection;
+import static io.nats.client.utils.TestMacros.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscriberTests {
@@ -32,7 +34,7 @@ public class SubscriberTests {
         HashSet<String> check = new HashSet<>();
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            standardConnectionWait(nc);
 
             for (int i=0; i < 10_000; i++) {
                 String inbox = nc.createInbox();
@@ -46,7 +48,7 @@ public class SubscriberTests {
     public void testSingleMessage() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            standardConnectionWait(nc);
 
             Subscription sub = nc.subscribe("subject");
             nc.publish("subject", new byte[16]);
@@ -65,7 +67,7 @@ public class SubscriberTests {
     public void testMessageFromSubscriptionContainsConnection() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            standardConnectionWait(nc);
 
             Subscription sub = nc.subscribe("subject");
             nc.publish("subject", new byte[16]);
@@ -77,7 +79,7 @@ public class SubscriberTests {
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
-            assertTrue(msg.getConnection() == nc);
+            assertSame(msg.getConnection(), nc);
         }
     }
 
@@ -117,7 +119,7 @@ public class SubscriberTests {
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
                     Connection  nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            standardConnectionWait(nc);
 
             Subscription sub = nc.subscribe("subject");
 
@@ -133,8 +135,7 @@ public class SubscriberTests {
             assertNull(msg.getReplyTo());
             assertEquals(0, msg.getData().length);
 
-            nc.close();
-            assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+            standardCloseConnection(nc);
         }
     }
 
@@ -142,7 +143,7 @@ public class SubscriberTests {
     public void testMultiMessage() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            standardConnectionWait(nc);
 
             Subscription sub = nc.subscribe("subject");
             nc.publish("subject", new byte[16]);
@@ -169,7 +170,7 @@ public class SubscriberTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(
                     new Options.Builder().server(ts.getURI()).supportUTF8Subjects().noReconnect().build())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            standardConnectionWait(nc);
 
             // Some UTF8 from http://www.columbia.edu/~fdc/utf8/
             List<String> subjects = getFileFromResourceAsStream("utf8-test-strings.txt");
@@ -194,12 +195,13 @@ public class SubscriberTests {
     public void testQueueSubscribers() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
+            standardConnectionWait(nc);
+
             int msgs = 100;
             int received = 0;
             int sub1Count = 0;
             int sub2Count = 0;
             Message msg;
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             Subscription sub1 = nc.subscribe("subject", "queue");
             Subscription sub2 = nc.subscribe("subject", "queue");
@@ -247,7 +249,7 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
 
                 Subscription sub = nc.subscribe("subject");
                 nc.publish("subject", new byte[16]);
@@ -257,8 +259,7 @@ public class SubscriberTests {
 
                 sub.unsubscribe();
                 assertFalse(sub.isActive());
-                msg = sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
-                assertFalse(true);
+                sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
             }
         });
     }
@@ -268,7 +269,7 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
 
                 Subscription sub = nc.subscribe("subject").unsubscribe(1);
                 nc.publish("subject", new byte[16]);
@@ -276,8 +277,7 @@ public class SubscriberTests {
                 Message msg = sub.nextMessage(Duration.ofMillis(500)); // should get 1
                 assertNotNull(msg);
 
-                msg = sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
-                assertFalse(true);
+                sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
             }
         });
     }
@@ -287,23 +287,22 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                int msgCount = 10;
-                Message msg = null;
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
 
+                int msgCount = 10;
                 Subscription sub = nc.subscribe("subject").unsubscribe(msgCount);
 
                 for (int i = 0; i < msgCount; i++) {
                     nc.publish("subject", new byte[16]);
                 }
 
+                Message msg;
                 for (int i = 0; i < msgCount; i++) {
                     msg = sub.nextMessage(Duration.ofMillis(500)); // should get 1
                     assertNotNull(msg);
                 }
 
-                msg = sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
-                assertFalse(true);
+                sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
             }
         });
     }
@@ -313,14 +312,12 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
 
                 Subscription sub = nc.subscribe("subject");
 
                 sub.unsubscribe();
                 sub.unsubscribe(); // Will throw an exception
-
-                assertFalse(true);
             }
         });
     }
@@ -330,7 +327,7 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
 
                 Subscription sub = nc.subscribe("subject").unsubscribe(1);
                 nc.publish("subject", new byte[16]);
@@ -339,7 +336,6 @@ public class SubscriberTests {
                 assertNotNull(msg);
 
                 sub.unsubscribe(); // Will throw an exception
-                assertFalse(true);
             }
         });
     }
@@ -349,17 +345,13 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
 
                 Subscription sub = nc.subscribe("subject");
 
-                Thread t = new Thread(() -> {
-                    sub.unsubscribe();
-                });
-                t.start();
+                new Thread(sub::unsubscribe).start();
 
                 sub.nextMessage(Duration.ofMillis(5000)); // throw
-                assertFalse(true);
             }
         });
     }
@@ -369,11 +361,11 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                int msgCount = 10;
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
 
                 Subscription sub = nc.subscribe("subject");
 
+                int msgCount = 10;
                 for (int i = 0; i < msgCount; i++) {
                     nc.publish("subject", new byte[16]);
                 }
@@ -387,7 +379,6 @@ public class SubscriberTests {
                 sub.unsubscribe(msgCount); // we already have that many
 
                 sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
-                assertFalse(true);
             }
         });
     }
@@ -398,7 +389,6 @@ public class SubscriberTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.subscribe(null);
-                assertFalse(true);
             }
         });
     }
@@ -409,7 +399,6 @@ public class SubscriberTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.subscribe("");
-                assertFalse(true);
             }
         });
     }
@@ -420,7 +409,6 @@ public class SubscriberTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.subscribe("subject", null);
-                assertFalse(true);
             }
         });
     }
@@ -431,7 +419,6 @@ public class SubscriberTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.subscribe("subject", "");
-                assertFalse(true);
             }
         });
     }
@@ -442,7 +429,6 @@ public class SubscriberTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.subscribe(null, "quque");
-                assertFalse(true);
             }
         });
     }
@@ -453,7 +439,6 @@ public class SubscriberTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.subscribe("", "quque");
-                assertFalse(true);
             }
         });
     }
@@ -465,7 +450,6 @@ public class SubscriberTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.close();
                 nc.subscribe("subject");
-                assertFalse(true);
             }
         });
     }
@@ -478,7 +462,6 @@ public class SubscriberTests {
                 Subscription sub = nc.subscribe("subject");
                 nc.close();
                 sub.unsubscribe();
-                assertFalse(true);
             }
         });
     }
@@ -488,11 +471,10 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
                 Subscription sub = nc.subscribe("subject");
                 nc.close();
                 sub.unsubscribe(1);
-                assertFalse(true);
             }
         });
     }
@@ -502,21 +484,17 @@ public class SubscriberTests {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                standardConnectionWait(nc);
 
                 Subscription sub = nc.subscribe("subject");
                 nc.flush(Duration.ofMillis(1000));
 
-                Thread t = new Thread(()->{
-                    try {
-                        Thread.sleep(100);
-                    }catch(Exception e){}
+                new Thread(()->{
+                    try { Thread.sleep(100); } catch(Exception e) { /* ignored */ }
                     sub.unsubscribe();
-                });
-                t.start();
+                }).start();
 
                 sub.nextMessage(Duration.ofMillis(5000)); // Should throw
-                assertTrue(false);
             }
         });
     }
@@ -525,47 +503,12 @@ public class SubscriberTests {
     public void testWhiteSpaceInSubject() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
-            boolean gotIt = false;
-            try {
-                nc.subscribe("foo bar");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
-
-            gotIt = false;
-            try {
-                nc.subscribe("foo\tbar");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
-            
-            gotIt = false;
-            try {
-                nc.subscribe("foo ");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
-            
-            gotIt = false;
-            try {
-                nc.subscribe(" foo");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
+            standardConnectionWait(nc);
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("foo bar"));
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("foo\tbar"));
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("foo "));
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(" foo"));
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(" foo"));
         }
     }
 
@@ -573,57 +516,11 @@ public class SubscriberTests {
     public void testWhiteSpaceInQueue() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
-            boolean gotIt = false;
-            try {
-                nc.subscribe("test", "foo bar");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
-
-            gotIt = false;
-            try {
-                nc.subscribe("test", "foo\tbar");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
-            
-            gotIt = false;
-            try {
-                nc.subscribe("test", "foo ");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
-            
-            gotIt = false;
-            try {
-                nc.subscribe("test", " foo");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
-
-            // one in subject for coverage
-            try {
-                nc.subscribe("test ", " foo");
-            } catch (IllegalArgumentException ie) {
-                gotIt = true;
-            } catch (Exception e) {
-            }
-
-            assertTrue(gotIt);
+            standardConnectionWait(nc);
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("test", "foo bar"));
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("test", "foo\tbar"));
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("test", "foo "));
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("test", " foo"));
         }
     }
 }
