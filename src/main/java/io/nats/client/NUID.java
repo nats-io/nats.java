@@ -72,9 +72,9 @@ public final class NUID {
 
     /**
      * The default NUID constructor.
-     *
+     * 
      * Relies on the SHA1PRNG instance of SecureRandom.
-     *
+     * 
      * @throws IllegalStateException
      *                                   if the class cannot find the necessary
      *                                   SecureRandom instance.
