@@ -26,36 +26,53 @@ import java.util.regex.Pattern;
  */
 public final class JsonUtils {
 
+    private static final String OBJECT_RE = "\\{(.+?)\\}";
+    private static final String STRING_RE  = "\\s*\"(.+?)\"";
+    private static final String BOOLEAN_RE =  "\\s*(true|false)";
+    private static final String NUMBER_RE =  "\\s*(\\d+)";
+    private static final String STRING_ARRAY_RE_JsonUtils =      "\\[\\s*(.+?)\\s*\\]";
+    private static final String STRING_ARRAY_RE_NatsServerInfo = "\\s*\\[(\".+?\")\\]";
+    private static final String STRING_ARRAY_RE =                "\\s*\\[\\s*(\".+?\")\\s*\\]";
+    private static final String BEFORE_FIELD = "\"";
+    private static final String AFTER_FIELD = "\"\\s*:\\s*";
+
     public enum FieldType {
-        jsonBoolean,
-        jsonString,
-        jsonNumber,
-        jsonObject, 
-        jsonStringArray
+        jsonObject(OBJECT_RE),
+        jsonString(STRING_RE),
+        jsonBoolean(BOOLEAN_RE),
+        jsonNumber(NUMBER_RE),
+        jsonStringArray(STRING_ARRAY_RE);
+
+        final String re;
+        FieldType(String re) {
+            this.re = re;
+        }
     }
-
-    private static final String grabString = "\\s*\"(.+?)\"";
-    private static final String grabNumber = "\\s*(\\d+)";
-    private static final String grabBoolean = "\\s*(true|false)";
-    private static final String grabStringArray = "\\[\\s*(.+?)\\s*\\]";
-    private static final String colon = "\"\\s*:\\s*";
-
 
     private static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn");
 
-    private static String getTypePattern(FieldType type) {
-        switch (type) {
-            case jsonBoolean :
-                return grabBoolean;
-            case jsonNumber :
-                return grabNumber;
-            case jsonString :
-                return grabString;
-            case jsonStringArray :
-                return grabStringArray;
-            default:
-                return grabString;
-        }
+    public static Pattern buildCustomPattern(String re) {
+        return Pattern.compile(re, Pattern.CASE_INSENSITIVE);
+    }
+
+    public static Pattern buildObjectPattern() {
+        return Pattern.compile(OBJECT_RE, Pattern.CASE_INSENSITIVE);
+    }
+
+    public static Pattern buildStringPattern(String field) {
+        return buildPattern(field, STRING_RE);
+    }
+
+    public static Pattern buildNumberPattern(String field) {
+        return buildPattern(field, NUMBER_RE);
+    }
+
+    public static Pattern buildBooleanPattern(String field) {
+        return buildPattern(field, BOOLEAN_RE);
+    }
+
+    public static Pattern buildStringArrayPattern(String field) {
+        return buildPattern(field, STRING_ARRAY_RE);
     }
 
     /**
@@ -65,7 +82,11 @@ public final class JsonUtils {
      * @return pattern.
      */
     public static Pattern buildPattern(String fieldName, FieldType type) {
-        return Pattern.compile("\""+ fieldName + colon + getTypePattern(type), Pattern.CASE_INSENSITIVE);
+        return buildPattern(fieldName, type.re);
+    }
+
+    public static Pattern buildPattern(String fieldName, String typeRE) {
+        return Pattern.compile(BEFORE_FIELD + fieldName + AFTER_FIELD + typeRE, Pattern.CASE_INSENSITIVE);
     }
 
     /**

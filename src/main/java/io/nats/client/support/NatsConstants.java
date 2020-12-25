@@ -13,10 +13,20 @@
 
 package io.nats.client.support;
 
+import java.util.Arrays;
+import java.util.List;
+
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public interface NatsConstants {
     String VERSION = "NATS/1.0";
+
+    String NATS_PROTOCOL = "nats";
+    String TLS_PROTOCOL = "tls";
+    String OPENTLS_PROTOCOL = "opentls";
+    List<String> KNOWN_PROTOCOLS = Arrays.asList(NATS_PROTOCOL, TLS_PROTOCOL, OPENTLS_PROTOCOL);
+    String NATS_PROTOCOL_SLASH_SLASH = "nats://";
+
     String SPACE = " ";
     String EMPTY = "";
     String CRLF = "\r\n";

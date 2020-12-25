@@ -33,6 +33,8 @@ public class NatsPub {
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 
+            nc.getStatistics();
+
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nPublishing '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
