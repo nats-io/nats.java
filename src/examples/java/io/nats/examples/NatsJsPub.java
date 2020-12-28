@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 
 public class NatsJsPub {
 
-    static final String usageString = "\nUsage: java NatsJsPub [-s server] [--stream name] [-h headerKey:headerValue]* <subject> <message>\n"
+    static final String usageString = "\nUsage: java NatsJsPub [-s server] [-stream name] [-h headerKey:headerValue]* <subject> <message>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -44,28 +44,28 @@ public class NatsJsPub {
                 ExampleUtils.createTestStream(js, "test-stream", exArgs.subject); 
             }
 
-            // create a typical NATS message
-            Message msg = NatsMessage.builder()
-                    .subject(exArgs.subject)
-                    .headers(exArgs.headers)
+        // create a typical NATS message
+        Message msg = NatsMessage.builder()
+                .subject(exArgs.subject)
+                .headers(exArgs.headers)
                     .data(exArgs.message, StandardCharsets.UTF_8)
-                    .build();
+                .build();
 
-            // We'll use the defaults for this simple example, but there are options
-            // to contrain publishing to certain streams, expect sequence numbers and
-            // more. e.g.:
-            //
-            // PublishOptions pops = PublishOptions.builder().
-            //    stream("test-stream").
-            //    expectedLastMsgId("transaction-42").
-            //    build();
-            // js.publish(msg, pops);
+        // We'll use the defaults for this simple example, but there are options
+        // to contrain publishing to certain streams, expect sequence numbers and
+        // more. e.g.:
+        //
+        // PublishOptions pops = PublishOptions.builder().
+        //    stream("test-stream").
+        //    expectedLastMsgId("transaction-42").
+        //    build();
+        // js.publish(msg, pops);
 
-            // Publish a message and print the results of the publish acknowedgement.
-            // An exception will be thrown if there is a failure.
-            PublishAck pa = js.publish(msg);
-            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
-                   exArgs.subject, pa.getStream(), pa.getSeqno());
+        // Publish a message and print the results of the publish acknowedgement.
+        // An exception will be thrown if there is a failure.
+        PublishAck pa = js.publish(msg);
+        System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
+               exArgs.subject, pa.getStream(), pa.getSeqno());
         }
         catch (Exception exp) {
             System.err.println(exp);

@@ -936,6 +936,7 @@ class NatsConnection implements Connection {
         }
     }
 
+    @Override
     public String createInbox() {
         String prefix = options.getInboxPrefix();
         StringBuilder builder = new StringBuilder();
@@ -1472,14 +1473,21 @@ class NatsConnection implements Connection {
         }
     }
 
+    @Override
+    public ServerInfo getServerInfo() {
+        return getInfo();
+    }
+
     NatsServerInfo getInfo() {
         return this.serverInfo.get();
     }
 
+    @Override
     public Options getOptions() {
         return this.options;
     }
 
+    @Override
     public Statistics getStatistics() {
         return this.statistics;
     }
@@ -1580,14 +1588,17 @@ class NatsConnection implements Connection {
         }
     }
 
+    @Override
     public String getConnectedUrl() {
         return this.currentServerURI;
     }
 
+    @Override
     public Status getStatus() {
         return this.status;
     }
 
+    @Override
     public String getLastError() {
         return this.lastError.get();
     }
@@ -1776,6 +1787,7 @@ class NatsConnection implements Connection {
         return false;
     }
 
+    @Override
     public CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException {
 
         if (isClosing() || isClosed()) {

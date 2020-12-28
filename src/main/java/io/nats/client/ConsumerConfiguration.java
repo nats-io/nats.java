@@ -311,7 +311,6 @@ public class ConsumerConfiguration {
 
         // remove the trailing ','
         sb.setLength(sb.length()-1);
-
         sb.append("}}");
 
         return sb.toString();

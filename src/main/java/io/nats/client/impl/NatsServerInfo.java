@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.ServerInfo;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
@@ -20,26 +22,7 @@ import java.util.regex.Pattern;
 
 import static io.nats.client.impl.JsonUtils.*;
 
-class NatsServerInfo {
-
-    static final String SERVER_ID = "server_id";
-    static final String SERVER_NAME = "server_name";
-    static final String VERSION = "version";
-    static final String GO = "go";
-    static final String HOST = "host";
-    static final String PORT = "port";
-    static final String HEADERS = "headers";
-    static final String AUTH = "auth_required";
-    static final String TLS = "tls_required";
-    static final String MAX_PAYLOAD = "max_payload";
-    static final String CONNECT_URLS = "connect_urls";
-    static final String PROTOCOL_VERSION = "proto";
-    static final String NONCE = "nonce";
-    static final String LAME_DUCK_MODE = "ldm";
-    static final String JETSTREAM = "jetstream";
-    static final String CLIENT_ID = "client_id";
-    static final String CLIENT_IP = "client_ip";
-    static final String CLUSTER = "cluster";
+class NatsServerInfo implements ServerInfo {
 
     private String serverId;
     private String serverName;
@@ -66,77 +49,120 @@ class NatsServerInfo {
         parseInfo(json);
     }
 
+    @Override
+    public String toString() {
+        StringBuilder sb = JsonUtils.beginFormattedJson();
+        addFld(sb, SERVER_ID, serverId);
+        addFld(sb, SERVER_NAME, serverName);
+        addFld(sb, VERSION, version);
+        addFld(sb, GO, go);
+        addFld(sb, HOST, host);
+        addFld(sb, PORT,  + port);
+        addFld(sb, HEADERS, headersSupported);
+        addFld(sb, AUTH, authRequired);
+        addFld(sb, TLS, tlsRequired);
+        addFld(sb, MAX_PAYLOAD,  + maxPayload);
+        addFld(sb, CONNECT_URLS, connectURLs);
+        addFld(sb, PROTOCOL_VERSION, protocolVersion);
+        addFld(sb, NONCE, nonce == null ? null : new String(nonce));
+        addFld(sb, LAME_DUCK_MODE, lameDuckMode);
+        addFld(sb, JETSTREAM, jetStream);
+        addFld(sb, CLIENT_ID,  + clientId);
+        addFld(sb, CLIENT_IP, clientIp);
+        addFld(sb, CLUSTER, cluster);
+        return endFormattedJson(sb);
+    }
+
+    @Override
     public boolean isLameDuckMode() {
         return lameDuckMode;
     }
 
+    @Override
     public String getServerId() {
         return this.serverId;
     }
 
+    @Override
     public String getServerName() {
         return serverName;
     }
 
+    @Override
     public String getVersion() {
         return this.version;
     }
 
+    @Override
     public String getGoVersion() {
         return this.go;
     }
 
+    @Override
     public String getHost() {
         return this.host;
     }
 
+    @Override
     public int getPort() {
         return this.port;
     }
 
+    @Override
     public int getProtocolVersion() {
         return this.protocolVersion;
     }
 
+    @Override
     public boolean isHeadersSupported() { return this.headersSupported; }
 
+    @Override
     public boolean isAuthRequired() {
         return this.authRequired;
     }
 
+    @Override
     public boolean isTLSRequired() {
         return this.tlsRequired;
     }
 
+    @Override
     public long getMaxPayload() {
         return this.maxPayload;
     }
 
+    @Override
     public String[] getConnectURLs() {
         return this.connectURLs;
     }
 
+    @Override
     public byte[] getNonce() {
         return this.nonce;
     }
 
+    @Override
     public boolean isJetStreamAvailable() {
         return this.jetStream;
     }
 
+    @Override
     public int getClientId() {
         return clientId;
     }
 
+    @Override
     public String getClientIp() {
         return clientIp;
     }
 
+    @Override
     public String getCluster() {
         return cluster;
     }
 
     // If parsing succeeds this is the JSON, if not this may be the full protocol line
+    @Override
     public String getRawJson() {
         return rawInfoJson;
     }
@@ -156,7 +182,7 @@ class NatsServerInfo {
     private static final Pattern maxRE = buildNumberPattern(MAX_PAYLOAD);
     private static final Pattern protoRE = buildNumberPattern(PROTOCOL_VERSION);
     private static final Pattern connectRE = buildStringArrayPattern(CONNECT_URLS);
-    private static final Pattern clientIdRE = buildStringPattern(CLIENT_ID);
+    private static final Pattern clientIdRE = buildNumberPattern(CLIENT_ID);
     private static final Pattern clientIpRE = buildStringPattern(CLIENT_IP);
     private static final Pattern clusterRE = buildStringPattern(CLUSTER);
     private static final Pattern infoObject = buildObjectPattern();
