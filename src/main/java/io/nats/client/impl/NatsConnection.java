@@ -164,7 +164,7 @@ class NatsConnection implements Connection {
         Collection<String> serversToTry = getReconnectServerList();
         for (String serverURI : serversToTry) {
             if (isClosed()) {
-                break; // goes to statement after end connect server loop
+                break; // goes to statement after end-connect-server-loop
             }
 
             this.connectError.set(""); // new on each attempt
@@ -177,7 +177,7 @@ class NatsConnection implements Connection {
 
             if (isConnected()) {
                 this.currentServer = serverURI;
-                break; // goes to statement after end connect server loop
+                break; // goes to statement after end-connect-server-loop
             }
 
             timeTrace(trace, "setting status to disconnected");
@@ -188,7 +188,7 @@ class NatsConnection implements Connection {
             if (this.isAuthenticationError(err)) {
                 this.serverAuthErrors.put(serverURI, err);
             }
-        } // end connect server loop
+        } // end-connect-server-loop
 
         if (!isConnected() && !isClosed()) {
             if (reconnectOnConnect) {
