@@ -25,7 +25,7 @@ public class Status {
 
     static {
         MESSAGE_MAP = new HashMap<>();
-        MESSAGE_MAP.put(503, "No responders available for request");
+        MESSAGE_MAP.put(503, "No Responders Available For Request");
     }
 
     public Status(int code, String message) {

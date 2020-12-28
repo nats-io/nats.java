@@ -39,7 +39,7 @@ public class NatsReqFuture {
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nRequesting '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            Future<Message> replyFuture = nc.request(new NatsMessage.Builder()
+            Future<Message> replyFuture = nc.request(NatsMessage.builder()
                     .subject(exArgs.subject)
                     .headers(exArgs.headers)
                     .data(exArgs.message, StandardCharsets.UTF_8)
@@ -54,7 +54,7 @@ public class NatsReqFuture {
             if (reply.hasHeaders()) {
                 System.out.println("  Headers:");
                 for (String key: reply.getHeaders().keySet()) {
-                    for (String value : reply.getHeaders().values(key)) {
+                    for (String value : reply.getHeaders().get(key)) {
                         System.out.printf("    %s: %s\n", key, value);
                     }
                 }

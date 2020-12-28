@@ -22,9 +22,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import static io.nats.client.support.NatsConstants.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ParseTests {
+
     @Test
     public void testGoodNumbers() {
         int i=1;
@@ -40,18 +42,14 @@ public class ParseTests {
 
     @Test
     public void testBadChars() {
-        assertThrows(NumberFormatException.class, () -> {
-            NatsConnectionReader.parseLength("2221a");
-            assertFalse(true);
-        });
+        assertThrows(NumberFormatException.class,
+                () -> NatsConnectionReader.parseLength("2221a"));
     }
 
     @Test
     public void testTooBig() {
-        assertThrows(NumberFormatException.class, () -> {
-            NatsConnectionReader.parseLength(String.valueOf(100_000_000_000L));
-            assertFalse(true);
-        });
+        assertThrows(NumberFormatException.class,
+                () -> NatsConnectionReader.parseLength(String.valueOf(100_000_000_000L)));
     }
 
     @Test
@@ -63,7 +61,6 @@ public class ParseTests {
                 byte[] bytes = ("thisistoolong\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
-                assertFalse(true);
             }
         });
     }
@@ -77,7 +74,6 @@ public class ParseTests {
                 byte[] bytes = ("PING\rPONG").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
-                assertFalse(true);
             }
         });
     }
@@ -93,7 +89,6 @@ public class ParseTests {
                 reader.gatherOp(bytes.length);
                 reader.gatherMessageProtocol(bytes.length);
                 reader.parseProtocolMessage();
-                assertFalse(true);
             }
         });
     }
@@ -109,7 +104,6 @@ public class ParseTests {
                 reader.gatherOp(bytes.length);
                 reader.gatherMessageProtocol(bytes.length);
                 reader.parseProtocolMessage();
-                assertFalse(true);
             }
         });
     }
@@ -125,7 +119,6 @@ public class ParseTests {
                 reader.gatherOp(bytes.length);
                 reader.gatherMessageProtocol(bytes.length);
                 reader.parseProtocolMessage();
-                assertFalse(true);
             }
         });
     }
@@ -141,7 +134,6 @@ public class ParseTests {
                 reader.gatherOp(bytes.length);
                 reader.gatherMessageProtocol(bytes.length);
                 reader.parseProtocolMessage();
-                assertFalse(true);
             }
         });
     }
@@ -160,7 +152,6 @@ public class ParseTests {
                 reader.gatherOp(bytes.length);
                 reader.gatherMessageProtocol(bytes.length);
                 reader.parseProtocolMessage();
-                assertFalse(true);
             }
         });
     }
@@ -186,7 +177,6 @@ public class ParseTests {
                 reader.gatherOp(bytes.length);
                 reader.gatherProtocol(bytes.length);
                 reader.parseProtocolMessage();
-                assertFalse(true);
             }
         });
     }
@@ -225,13 +215,45 @@ public class ParseTests {
                 assertEquals(expected[i], op, serverStrings[i]);
             }
 
-            for (int i=0; i<badStrings.length; i++) {
-                byte[] bytes = (badStrings[i]+"\r\n").getBytes(StandardCharsets.US_ASCII);
+            for (String badString : badStrings) {
+                byte[] bytes = (badString + "\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
                 reader.gatherOp(bytes.length);
                 String op = reader.currentOp();
-                assertEquals(UNKNOWN_OP, op, badStrings[i]);
+                assertEquals(UNKNOWN_OP, op, badString);
             }
         }
+    }
+
+    @Test
+    public void testOpFor_ForCoverage() {
+        coverOpFor(OP_MSG,  "MSG");
+        coverOpFor(OP_OK,   "+OK");
+        coverOpFor(OP_PING, "PING");
+        coverOpFor(OP_PONG, "PONG");
+        coverOpFor(OP_ERR,  "-ERR");
+        coverOpFor(OP_INFO, "INFO");
+        coverOpFor(OP_HMSG, "HMSG");
+
+        assertUnknownOpFor(1, "X".toCharArray());
+    }
+
+    private void coverOpFor(String op, String s) {
+        _coverOpFor(op, s.toUpperCase());
+        _coverOpFor(op, s.toLowerCase());
+    }
+
+    private void _coverOpFor(String op, String s) {
+        int len = s.length();
+        assertEquals(op, NatsConnectionReader.opFor(s.toCharArray(), len));
+        for (int x = 0; x < len; x++) {
+            char[] chars = s.toCharArray();
+            chars[x] = 'X';
+            assertUnknownOpFor(len, chars);
+        }
+    }
+
+    private void assertUnknownOpFor(int len, char[] chars) {
+        assertEquals(UNKNOWN_OP, NatsConnectionReader.opFor(chars, len));
     }
 }

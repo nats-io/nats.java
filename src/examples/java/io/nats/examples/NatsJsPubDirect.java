@@ -13,13 +13,7 @@
 
 package io.nats.examples;
 
-import io.nats.client.Connection;
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamOptions;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.PublishAck;
-import io.nats.client.PublishOptions;
+import io.nats.client.*;
 import io.nats.client.impl.NatsMessage;
 
 import java.nio.charset.StandardCharsets;
@@ -49,7 +43,7 @@ public class NatsJsPubDirect {
             JetStream js = nc.jetStream(jopts);
 
             // create a typical NATS message
-            Message msg = new NatsMessage.Builder()
+            Message msg = NatsMessage.builder()
                     .subject(exArgs.subject)
                     .headers(exArgs.headers)
                     .data(exArgs.message, StandardCharsets.UTF_8)

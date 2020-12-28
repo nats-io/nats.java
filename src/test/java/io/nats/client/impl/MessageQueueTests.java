@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.impl.NatsMessage.ProtocolMessage;
 import org.junit.jupiter.api.Test;
 
 import java.io.UnsupportedEncodingException;
@@ -43,7 +44,7 @@ public class MessageQueueTests {
     public void testAccumulateThrowsOnNonSingleReader() {
         assertThrows(IllegalStateException.class, () -> {
             MessageQueue q = new MessageQueue(false);
-            q.push(new NatsMessage(PING));
+            q.push(new ProtocolMessage(PING));
             q.accumulate(100,1,null);
         });
     }
@@ -51,7 +52,7 @@ public class MessageQueueTests {
     @Test
     public void testPushPop() throws InterruptedException {
         MessageQueue q = new MessageQueue(false);
-        NatsMessage expected = new NatsMessage(PING);
+        NatsMessage expected = new ProtocolMessage(PING);
         q.push(expected);
         NatsMessage actual = q.popNow();
         assertEquals(expected, actual);
@@ -76,7 +77,7 @@ public class MessageQueueTests {
     @Test
     public void testTimeoutZero() throws InterruptedException {
         MessageQueue q = new MessageQueue(false);
-        NatsMessage expected = new NatsMessage(PING);
+        NatsMessage expected = new ProtocolMessage(PING);
         q.push(expected);
         NatsMessage msg = q.pop(Duration.ZERO);
         assertNotNull(msg);
@@ -86,7 +87,7 @@ public class MessageQueueTests {
     public void testInterupt() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue(false);
-        Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){} q.pause();});
+        Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){/**/} q.pause();});
         t.start();
         NatsMessage msg = q.pop(Duration.ZERO);
         assertNull(msg);
@@ -96,12 +97,12 @@ public class MessageQueueTests {
     public void testReset() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue(false);
-        Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){} q.pause();});
+        Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){/**/} q.pause();});
         t.start();
         NatsMessage msg = q.pop(Duration.ZERO);
         assertNull(msg);
 
-        NatsMessage expected = new NatsMessage(PING);
+        NatsMessage expected = new ProtocolMessage(PING);
         q.push(expected);
 
         msg = q.pop(Duration.ZERO);
@@ -120,7 +121,7 @@ public class MessageQueueTests {
         Thread t = new Thread(() -> {
             try {
                 Thread.sleep(500);
-                q.push(new NatsMessage(PING));
+                q.push(new ProtocolMessage(PING));
             } catch (Exception exp) {
                 // eat the exception, test will fail
             }
@@ -139,7 +140,7 @@ public class MessageQueueTests {
         int threads = 10;
 
         for (int i=0;i<threads;i++) {
-            Thread t = new Thread(() -> {q.push(new NatsMessage(PING));});
+            Thread t = new Thread(() -> {q.push(new ProtocolMessage(PING));});
             t.start();
         }
 
@@ -161,7 +162,7 @@ public class MessageQueueTests {
         CountDownLatch latch = new CountDownLatch(threads);
 
         for (int i=0;i<threads;i++) {
-            q.push(new NatsMessage(PING));
+            q.push(new ProtocolMessage(PING));
         }
 
         for (int i=0;i<threads;i++) {
@@ -192,7 +193,7 @@ public class MessageQueueTests {
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
                                 for (int j=0;j<msgPerThread;j++) {
-                                    q.push(new NatsMessage(PING));
+                                    q.push(new ProtocolMessage(PING));
                                 }});
             t.start();
         }
@@ -228,7 +229,7 @@ public class MessageQueueTests {
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
                                 for (int j=0;j<msgPerThread;j++) {
-                                    q.push(new NatsMessage(PING));
+                                    q.push(new ProtocolMessage(PING));
                                     try{NatsMessage msg = q.pop(Duration.ofMillis(300)); 
                                         if(msg!=null){count.incrementAndGet();}
                                         latch.countDown();}catch(Exception e){}
@@ -255,7 +256,7 @@ public class MessageQueueTests {
     @Test
     public void testSingleAccumulate() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        q.push(new NatsMessage(PING));
+        q.push(new ProtocolMessage(PING));
         NatsMessage msg = q.accumulate(100,1,null);
         assertNotNull(msg);
     }
@@ -263,9 +264,9 @@ public class MessageQueueTests {
     @Test
     public void testMultiAccumulate() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
         NatsMessage msg = q.accumulate(100,3,null);
         assertNotNull(msg);
     }
@@ -283,10 +284,10 @@ public class MessageQueueTests {
     @Test
     public void testPartialAccumulateOnCount() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
         NatsMessage msg = q.accumulate(100,3,null);
         checkCount(msg, 3);
 
@@ -297,12 +298,12 @@ public class MessageQueueTests {
     @Test
     public void testMultipleAccumulateOnCount() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
         NatsMessage msg = q.accumulate(100,2,null);
         checkCount(msg, 2);
 
@@ -317,10 +318,10 @@ public class MessageQueueTests {
     @Test
     public void testPartialAccumulateOnSize() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
         NatsMessage msg = q.accumulate(20,100,null); // each one is 6 so 20 should be 3 messages
         checkCount(msg, 3);
 
@@ -331,12 +332,12 @@ public class MessageQueueTests {
     @Test
     public void testMultipleAccumulateOnSize() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
         NatsMessage msg = q.accumulate(14,100,null); // each one is 6 so 14 should be 2 messages
         checkCount(msg, 2);
 
@@ -350,10 +351,10 @@ public class MessageQueueTests {
     @Test
     public void testAccumulateAndPop() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
-        q.push(new NatsMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
+        q.push(new ProtocolMessage(PING));
         NatsMessage msg = q.accumulate(100,3,null);
         checkCount(msg, 3);
 
@@ -378,7 +379,7 @@ public class MessageQueueTests {
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
                 for (int j=0;j<msgPerThread;j++) {
-                    q.push(new NatsMessage(PING));
+                    q.push(new ProtocolMessage(PING));
                     sent.incrementAndGet();
                 };
             });
@@ -417,9 +418,9 @@ public class MessageQueueTests {
     @Test
     public void testLength() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        NatsMessage msg1 = new NatsMessage(PING);
-        NatsMessage msg2 = new NatsMessage(PING);
-        NatsMessage msg3 = new NatsMessage(PING);
+        NatsMessage msg1 = new ProtocolMessage(PING);
+        NatsMessage msg2 = new ProtocolMessage(PING);
+        NatsMessage msg3 = new ProtocolMessage(PING);
 
         q.push(msg1);
         assertEquals(1, q.length());
@@ -436,9 +437,9 @@ public class MessageQueueTests {
     @Test
     public void testSizeInBytes() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        NatsMessage msg1 = new NatsMessage(ONE);
-        NatsMessage msg2 = new NatsMessage(TWO);
-        NatsMessage msg3 = new NatsMessage(THREE);
+        NatsMessage msg1 = new ProtocolMessage(ONE);
+        NatsMessage msg2 = new ProtocolMessage(TWO);
+        NatsMessage msg3 = new ProtocolMessage(THREE);
         long expected = 0;
 
         q.push(msg1);    expected += msg1.getSizeInBytes();
@@ -456,9 +457,9 @@ public class MessageQueueTests {
     @Test
     public void testFilterTail() throws InterruptedException, UnsupportedEncodingException {
         MessageQueue q = new MessageQueue(true);
-        NatsMessage msg1 = new NatsMessage(ONE);
-        NatsMessage msg2 = new NatsMessage(TWO);
-        NatsMessage msg3 = new NatsMessage(THREE);
+        NatsMessage msg1 = new ProtocolMessage(ONE);
+        NatsMessage msg2 = new ProtocolMessage(TWO);
+        NatsMessage msg3 = new ProtocolMessage(THREE);
         byte[] expected = "one".getBytes(StandardCharsets.UTF_8);
 
         q.push(msg1);
@@ -480,9 +481,9 @@ public class MessageQueueTests {
     @Test
     public void testFilterHead() throws InterruptedException, UnsupportedEncodingException {
         MessageQueue q = new MessageQueue(true);
-        NatsMessage msg1 = new NatsMessage(ONE);
-        NatsMessage msg2 = new NatsMessage(TWO);
-        NatsMessage msg3 = new NatsMessage(THREE);
+        NatsMessage msg1 = new ProtocolMessage(ONE);
+        NatsMessage msg2 = new ProtocolMessage(TWO);
+        NatsMessage msg3 = new ProtocolMessage(THREE);
         byte[] expected = "three".getBytes(StandardCharsets.UTF_8);
 
         q.push(msg1);
@@ -504,9 +505,9 @@ public class MessageQueueTests {
     @Test
     public void testFilterMiddle() throws InterruptedException, UnsupportedEncodingException {
         MessageQueue q = new MessageQueue(true);
-        NatsMessage msg1 = new NatsMessage(ONE);
-        NatsMessage msg2 = new NatsMessage(TWO);
-        NatsMessage msg3 = new NatsMessage(THREE);
+        NatsMessage msg1 = new ProtocolMessage(ONE);
+        NatsMessage msg2 = new ProtocolMessage(TWO);
+        NatsMessage msg3 = new ProtocolMessage(THREE);
         byte[] expected = "two".getBytes(StandardCharsets.UTF_8);
 
         q.push(msg1);
@@ -545,9 +546,9 @@ public class MessageQueueTests {
     @Test
     public void testExceptionWhenQueueIsFull() {
         MessageQueue q  = new MessageQueue(true, 2);
-        NatsMessage msg1 = new NatsMessage(ONE);
-        NatsMessage msg2 = new NatsMessage(TWO);
-        NatsMessage msg3 = new NatsMessage(THREE);
+        NatsMessage msg1 = new ProtocolMessage(ONE);
+        NatsMessage msg2 = new ProtocolMessage(TWO);
+        NatsMessage msg3 = new ProtocolMessage(THREE);
 
         assertTrue(q.push(msg1));
         assertTrue(q.push(msg2));
@@ -562,9 +563,9 @@ public class MessageQueueTests {
     @Test
     public void testDiscardMessageWhenQueueFull() {
         MessageQueue q  = new MessageQueue(true, 2, true);
-        NatsMessage msg1 = new NatsMessage(ONE);
-        NatsMessage msg2 = new NatsMessage(TWO);
-        NatsMessage msg3 = new NatsMessage(THREE);
+        NatsMessage msg1 = new ProtocolMessage(ONE);
+        NatsMessage msg2 = new ProtocolMessage(TWO);
+        NatsMessage msg3 = new ProtocolMessage(THREE);
 
         assertTrue(q.push(msg1));
         assertTrue(q.push(msg2));

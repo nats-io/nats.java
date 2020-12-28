@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.impl.NatsMessage.IncomingMessageFactory;
 import io.nats.client.support.IncomingHeadersProcessor;
 
 import java.io.IOException;
@@ -53,7 +54,7 @@ class NatsConnectionReader implements Runnable {
 
     private Mode mode;
 
-    private NatsMessage incoming;
+    private IncomingMessageFactory incoming;
     private byte[] msgHeaders;
     private byte[] msgData;
     private int msgHeadersPosition;
@@ -321,7 +322,7 @@ class NatsConnectionReader implements Runnable {
                 if (gotCR) {
                     if (b == LF) {
                         incoming.setData(msgData);
-                        this.connection.deliverMessage(incoming);
+                        this.connection.deliverMessage(incoming.getMessage());
                         msgData = null;
                         msgDataPosition = 0;
                         incoming = null;
@@ -363,7 +364,7 @@ class NatsConnectionReader implements Runnable {
         return new String(this.msgLineChars, start, this.msgLinePosition-start);
     }
 
-    public String opFor(char[] chars, int length) {
+    static String opFor(char[] chars, int length) {
         if (length == 3) {
             if ((chars[0] == 'M' || chars[0] == 'm') &&
                         (chars[1] == 'S' || chars[1] == 's') && 
@@ -468,7 +469,7 @@ class NatsConnectionReader implements Runnable {
 
                     int incomingLength = parseLength(lengthChars);
 
-                    this.incoming = new NatsMessage(sid, subject, replyTo, protocolLineLength);
+                    this.incoming = new IncomingMessageFactory(sid, subject, replyTo, protocolLineLength, this.utf8Mode);
                     this.mode = Mode.GATHER_DATA;
                     this.msgData = new byte[incomingLength];
                     this.msgDataPosition = 0;
@@ -510,7 +511,7 @@ class NatsConnectionReader implements Runnable {
                         throw new IllegalStateException("Bad HMSG control line, missing required fields");
                     }
 
-                    this.incoming = new NatsMessage(hSid, hSubject, hReplyTo, hProtocolLineLength);
+                    this.incoming = new IncomingMessageFactory(hSid, hSubject, hReplyTo, hProtocolLineLength, this.utf8Mode);
                     this.msgHeaders = new byte[hdrLen];
                     this.msgData = new byte[totLen - hdrLen];
                     this.mode = Mode.GATHER_HEADERS;

@@ -166,7 +166,7 @@ public class TLSConnectTests {
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
-        ReconnectTests.flushAndWait(nc, handler);
+        flushAndWaitLong(nc, handler);
         handler.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {

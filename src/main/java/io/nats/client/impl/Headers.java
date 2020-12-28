@@ -39,6 +39,15 @@ public class Headers {
 		headerMap = new HashMap<>();
 	}
 
+	public Headers(Headers headers) {
+		this();
+		if (headers != null) {
+			headerMap.putAll(headers.headerMap);
+			projectedLength = headers.projectedLength;
+			serialized = null;
+		}
+	}
+
 	/**
 	 * If the key is present add the values to the list of values for the key.
 	 * If the key is not present, sets the specified values for the key.
@@ -213,9 +222,9 @@ public class Headers {
 	 *
 	 * @return a read-only list of the values for the specific keys.
 	 */
-	public List<String> values(String key) {
-		List<String> list = headerMap.get(key);
-		return list == null ? null : Collections.unmodifiableList(list);
+	public List<String> get(String key) {
+		List<String> values = headerMap.get(key);
+		return values == null ? null : new ArrayList<>(values);
 	}
 
 	/**
@@ -243,6 +252,16 @@ public class Headers {
 	}
 
 	/**
+	 * Returns if the headers are dirty, which means the serialization
+	 * has not been done so also don't know the byte length
+	 *
+	 * @return true if dirty
+	 */
+	public boolean isDirty() {
+		return serialized == null;
+	}
+
+	/**
 	 * Returns the number of bytes that will be in the serialized version.
 	 *
 	 * @return the number of bytes
@@ -251,12 +270,17 @@ public class Headers {
 		return getSerialized().length;
 	}
 
+	/**
+	 * Returns the serialized bytes.
+	 *
+	 * @return the bytes
+	 */
 	public byte[] getSerialized() {
 		if (serialized == null) {
 			ByteArrayBuilder bab = new ByteArrayBuilder(projectedLength + VERSION_BYTES_PLUS_CRLF_LEN)
 					.append(VERSION_BYTES_PLUS_CRLF);
 			for (String key : headerMap.keySet()) {
-				for (String value : values(key)) {
+				for (String value : headerMap.get(key)) {
 					bab.append(key);
 					bab.append(COLON_BYTES);
 					bab.append(value);

@@ -47,19 +47,19 @@ public class HeadersTests {
         stepKey1Val1.accept(headers);
         assertEquals(1, headers.size());
         assertTrue(headers.containsKey(KEY1));
-        assertContainsExactly(headers.values(KEY1), VAL1);
+        assertContainsExactly(headers.get(KEY1), VAL1);
 
         step2Key1Val2.accept(headers);
         assertEquals(1, headers.size());
         assertTrue(headers.containsKey(KEY1));
-        assertContainsExactly(headers.values(KEY1), VAL1, VAL2);
+        assertContainsExactly(headers.get(KEY1), VAL1, VAL2);
 
         step3Key2Val3.accept(headers);
         assertEquals(2, headers.size());
         assertTrue(headers.containsKey(KEY1));
         assertTrue(headers.containsKey(KEY2));
-        assertContainsExactly(headers.values(KEY1), VAL1, VAL2);
-        assertContainsExactly(headers.values(KEY2), VAL3);
+        assertContainsExactly(headers.get(KEY1), VAL1, VAL2);
+        assertContainsExactly(headers.get(KEY2), VAL3);
     }
 
     @Test
@@ -91,14 +91,14 @@ public class HeadersTests {
         assertEquals(1, headers.keySet().size());
         assertTrue(headers.containsKey(KEY1));
         assertTrue(headers.keySet().contains(KEY1));
-        assertContainsExactly(headers.values(KEY1), VAL1);
+        assertContainsExactly(headers.get(KEY1), VAL1);
 
         step2Key1Val2.accept(headers);
         assertEquals(1, headers.size());
         assertEquals(1, headers.keySet().size());
         assertTrue(headers.containsKey(KEY1));
         assertTrue(headers.keySet().contains(KEY1));
-        assertContainsExactly(headers.values(KEY1), VAL2);
+        assertContainsExactly(headers.get(KEY1), VAL2);
 
         step3Key2Val3.accept(headers);
         assertEquals(2, headers.size());
@@ -107,8 +107,8 @@ public class HeadersTests {
         assertTrue(headers.containsKey(KEY2));
         assertTrue(headers.keySet().contains(KEY1));
         assertTrue(headers.keySet().contains(KEY2));
-        assertContainsExactly(headers.values(KEY1), VAL2);
-        assertContainsExactly(headers.values(KEY2), VAL3);
+        assertContainsExactly(headers.get(KEY1), VAL2);
+        assertContainsExactly(headers.get(KEY2), VAL3);
     }
 
     @Test
@@ -134,17 +134,17 @@ public class HeadersTests {
         assertEquals(0, headers.size());
 
         headers.add(KEY1, "");
-        assertEquals(1, headers.values(KEY1).size());
+        assertEquals(1, headers.get(KEY1).size());
 
         headers.put(KEY1, "");
-        assertEquals(1, headers.values(KEY1).size());
+        assertEquals(1, headers.get(KEY1).size());
 
         headers = new Headers();
         headers.add(KEY1, VAL1, "", VAL2);
-        assertEquals(3, headers.values(KEY1).size());
+        assertEquals(3, headers.get(KEY1).size());
 
         headers.put(KEY1, VAL1, "", VAL2);
-        assertEquals(3, headers.values(KEY1).size());
+        assertEquals(3, headers.get(KEY1).size());
     }
 
     @Test
@@ -153,10 +153,10 @@ public class HeadersTests {
         assertEquals(0, headers.size());
 
         headers.add(KEY1, VAL1, null, VAL2);
-        assertEquals(2, headers.values(KEY1).size());
+        assertEquals(2, headers.get(KEY1).size());
 
         headers.put(KEY1, VAL1, null, VAL2);
-        assertEquals(2, headers.values(KEY1).size());
+        assertEquals(2, headers.get(KEY1).size());
 
         headers.clear();
         assertEquals(0, headers.size());
@@ -267,6 +267,7 @@ public class HeadersTests {
         headers1.add(KEY1, VAL3);
         headers1.add(KEY2, VAL2);
         headers1.add(KEY3, EMPTY);
+        assertTrue(headers1.isDirty());
 
         byte[] serialized = headers1.getSerialized();
         assertEquals(serialized.length, headers1.serializedLength());
@@ -278,13 +279,13 @@ public class HeadersTests {
         assertEquals(headers1.size(), headers2.size());
         assertTrue(headers2.containsKey(KEY1));
         assertTrue(headers2.containsKey(KEY2));
-        assertEquals(2, headers2.values(KEY1).size());
-        assertEquals(1, headers2.values(KEY2).size());
-        assertEquals(1, headers2.values(KEY3).size());
-        assertTrue(headers2.values(KEY1).contains(VAL1));
-        assertTrue(headers2.values(KEY1).contains(VAL3));
-        assertTrue(headers2.values(KEY2).contains(VAL2));
-        assertTrue(headers2.values(KEY3).contains(EMPTY));
+        assertEquals(2, headers2.get(KEY1).size());
+        assertEquals(1, headers2.get(KEY2).size());
+        assertEquals(1, headers2.get(KEY3).size());
+        assertTrue(headers2.get(KEY1).contains(VAL1));
+        assertTrue(headers2.get(KEY1).contains(VAL3));
+        assertTrue(headers2.get(KEY2).contains(VAL2));
+        assertTrue(headers2.get(KEY3).contains(EMPTY));
     }
 
     @Test
@@ -312,9 +313,10 @@ public class HeadersTests {
     @Test
     public void constructHeadersWithValidBytes() {
         assertValidHeader("NATS/1.0\r\nk1:v1\r\n\r\n", "k1", "v1");
-        assertValidHeader("NATS/1.0\r\nk1: v1\r\n\r\n", "k1", "v1");
+        assertValidHeader("NATS/1.0\r\nks1: v1\r\n\r\n", "ks1", "v1");
         assertValidHeader("NATS/1.0\r\nk1:\r\n\r\n", "k1", EMPTY);
-        assertValidHeader("NATS/1.0\r\nk1: \r\n\r\n", "k1", EMPTY);
+        assertValidHeader("NATS/1.0\r\nks1: \r\n\r\n", "ks1", EMPTY);
+        System.out.println(new String(new Headers().getSerialized()).replaceAll("\n","+").replaceAll("\r","+"));
     }
 
     private void assertValidHeader(String test, String key, String val) {
@@ -323,14 +325,15 @@ public class HeadersTests {
         assertNotNull(headers);
         assertEquals(1, headers.size());
         assertTrue(headers.containsKey(key));
-        assertEquals(1, headers.values(key).size());
-        assertEquals(val, headers.values(key).get(0));
+        assertEquals(1, headers.get(key).size());
+        assertEquals(val, headers.get(key).get(0));
     }
 
     @Test
     public void constructStatusWithValidBytes() {
-        assertValidStatus("NATS/1.0 503\r\n", 503, null);
-        assertValidStatus("NATS/1.0 503 No Responders\r\n", 503, "No Responders");
+        assertValidStatus("NATS/1.0 503\r\n", 503, "No Responders Available For Request"); // status made message
+        assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");         // status made message
+        assertValidStatus("NATS/1.0 503 No Responders\r\n", 503, "No Responders");         // from data
         assertValidStatus("NATS/1.0   503   No Responders\r\n", 503, "No Responders");
     }
 
@@ -344,7 +347,7 @@ public class HeadersTests {
         }
     }
 
-    class IteratorTestHelper {
+    static class IteratorTestHelper {
         String forEachString = "";
         String entrySetString = "";
         String manualString = "";
@@ -357,7 +360,7 @@ public class HeadersTests {
 
         for (String key : headers.keySet()) {
             helper.manualString += key;
-            headers.values(key).forEach(v -> helper.manualString += v);
+            headers.get(key).forEach(v -> helper.manualString += v);
         }
 
         headers.forEach((key, values) -> {
@@ -395,5 +398,64 @@ public class HeadersTests {
         for (String key : expected) {
             assertTrue(header.containsKey(key));
         }
+    }
+
+    @Test
+    public void nullPathways() {
+        Headers h = new Headers();
+        assertTrue(h.isEmpty());
+        assertNull(h.get(KEY1));
+
+        h = new Headers(h);
+        assertTrue(h.isEmpty());
+
+        h = new Headers(null);
+        assertTrue(h.isEmpty());
+
+        h.add(KEY1, (String[])null);
+        assertTrue(h.isEmpty());
+
+        h.put(KEY1, (Collection<String>)null);
+        assertTrue(h.isEmpty());
+
+        h.put(KEY1, (String[])null);
+        assertTrue(h.isEmpty());
+    }
+
+    @Test
+    public void equalsHash() {
+        Headers h1 = new Headers();
+        Headers h2 = new Headers();
+        assertNotEquals(h1, null);
+        assertEquals(h1, h1);
+        assertEquals(h1, h2);
+        assertEquals(h1.hashCode(), h1.hashCode());
+        assertEquals(h1.hashCode(), h2.hashCode());
+
+        h1.add(KEY1, VAL1);
+        h2.add(KEY1, VAL1);
+        assertEquals(h1, h2);
+        assertEquals(h1.hashCode(), h2.hashCode());
+
+        h1.add(KEY2, VAL2);
+        assertNotEquals(h1, h2);
+        assertNotEquals(h1.hashCode(), h2.hashCode());
+    }
+
+    @Test
+    public void constructorWithHeaders() {
+        Headers h = new Headers();
+        h.add(KEY1, VAL1);
+        h.add(KEY2, VAL2, VAL3);
+
+        Headers h2 = new Headers(h);
+        assertEquals(2, h2.size());
+        assertTrue(h2.containsKey(KEY1));
+        assertTrue(h2.containsKey(KEY2));
+        assertEquals(1, h2.get(KEY1).size());
+        assertEquals(2, h2.get(KEY2).size());
+        assertTrue(h2.get(KEY1).contains(VAL1));
+        assertTrue(h2.get(KEY2).contains(VAL2));
+        assertTrue(h2.get(KEY2).contains(VAL3));
     }
 }

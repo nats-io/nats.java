@@ -54,7 +54,7 @@ public class MessageProtocolCreationBenchmark {
         
         start = System.nanoTime();
         for (int j = 0; j < msgCount; j++) {
-            new NatsMessage(EMPTY_BODY);
+            new NatsMessage.ProtocolMessage(EMPTY_BODY);
         }
         end = System.nanoTime();
 

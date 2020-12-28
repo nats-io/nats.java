@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.utils.TestMacros;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedWriter;
@@ -57,13 +58,13 @@ public class AuthTests {
 
             sub = nc.subscribe("test");
             nc.publish("test", null);
-            flushConnection(nc, 5);
+            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
-        flushConnnection(nc);
+        TestMacros.flushConnection(nc);
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
         assertTrue(
@@ -74,7 +75,7 @@ public class AuthTests {
             standardConnectionWait(nc, handler);
 
             nc.publish("test", null);
-            flushConnection(nc, 5);
+            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
 
@@ -127,13 +128,13 @@ public class AuthTests {
 
             sub = nc.subscribe("test");
             nc.publish("test", null);
-            flushConnection(nc, 5);
+            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
-        flushConnnection(nc);
+        TestMacros.flushConnection(nc);
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
 
@@ -145,7 +146,7 @@ public class AuthTests {
         try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
             standardConnectionWait(nc, handler);
             nc.publish("test", null);
-            flushConnection(nc, 5);
+            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
             standardCloseConnection(nc);
@@ -240,9 +241,9 @@ public class AuthTests {
 
             handler.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
-            handler.waitForStatusChange(2, TimeUnit.SECONDS);
 
-            assertConnected(nc);
+            handler.waitForStatusChange(STANDARD_CONNECTION_WAIT_MS, TimeUnit.MILLISECONDS);
+            standardConnectionWait(nc, handler);
             assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getPort());
             standardCloseConnection(nc);
         }

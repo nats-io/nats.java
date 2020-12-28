@@ -36,7 +36,7 @@ public class NatsPub {
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nPublishing '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            nc.publish(new NatsMessage.Builder()
+            nc.publish(NatsMessage.builder()
                     .subject(exArgs.subject)
                     .headers(exArgs.headers)
                     .data(exArgs.message, StandardCharsets.UTF_8)

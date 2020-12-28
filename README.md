@@ -251,7 +251,7 @@ before publishing.
 
 ```java
     // create a typical NATS message
-    Message msg = new NatsMessage.Builder()
+    Message msg = NatsMessage.builder()
             .subject("foo")
             .data("hello", StandardCharsets.UTF_8)
             .build();

@@ -13,14 +13,7 @@
 
 package io.nats.examples;
 
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.JetStream;
-import io.nats.client.Message;
-import io.nats.client.MessageHandler;
-import io.nats.client.Nats;
-import io.nats.client.SubscribeOptions;
-import io.nats.client.Message.MetaData;
+import io.nats.client.*;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
@@ -63,7 +56,7 @@ public class NatsJsSubCb {
                 if (msg.hasHeaders()) {
                     System.out.println("  Headers:");
                     for (String key: msg.getHeaders().keySet()) {
-                        for (String value : msg.getHeaders().values(key)) {
+                        for (String value : msg.getHeaders().get(key)) {
                             System.out.printf("    %s: %s\n", key, value);
                         }
                     }
@@ -78,7 +71,7 @@ public class NatsJsSubCb {
                 // is set on a consumer, messages can be received from applications
                 // that are NATS producers and from streams in NATS servers.
                 if (msg.isJetStream()) {
-                    MetaData meta = msg.metaData();
+                    MessageMetaData meta = msg.metaData();
                     System.out.printf("  Stream Name: %s\n", meta.getStream());
                     System.out.printf("  Stream Seq:  %d\n",  meta.streamSequence());
                     System.out.printf("  Consumer Name: %s\n", meta.getConsumer());
