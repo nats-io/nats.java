@@ -74,11 +74,11 @@ public class ExampleUtils {
            streamName, subject, si.getCreateTime().toLocalTime().toString());
     }    
 
-    // Publish:   [-s server] [-h headerKey:headerValue]* <subject> <message>
-    // Subscribe: [-s server] <subject> <msgCount>
+    // Publish:   [options] <subject> <message>
+    // Subscribe: [options] <subject> <msgCount>
 
-    // Request:   [-s server] [-h headerKey:headerValue]* <subject> <message>
-    // Reply:     [-s server] <subject> <msgCount>
+    // Request:   [options] <subject> <message>
+    // Reply:     [options] <subject> <msgCount>
  
     public static ExampleArgs readPublishArgs(String[] args, String usageString) {
         ExampleArgs ea = new ExampleArgs(args, true, usageString);

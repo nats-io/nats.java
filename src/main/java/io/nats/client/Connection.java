@@ -78,7 +78,7 @@ import java.util.concurrent.TimeoutException;
  */
 public interface Connection extends AutoCloseable {
 
-    public enum Status {
+    enum Status {
         /**
          * The {@code Connection} is not connected.
          */
@@ -121,7 +121,7 @@ public interface Connection extends AutoCloseable {
      * @param body the message body
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    public void publish(String subject, byte[] body);
+    void publish(String subject, byte[] body);
 
     /**
      * Send a request to the specified subject, providing a replyTo subject. The
@@ -146,7 +146,7 @@ public interface Connection extends AutoCloseable {
      * @param body the message body
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    public void publish(String subject, String replyTo, byte[] body);
+    void publish(String subject, String replyTo, byte[] body);
 
     /**
      * Send a message to the specified subject. The message body <strong>will
@@ -166,7 +166,7 @@ public interface Connection extends AutoCloseable {
      * @param message the message
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    public void publish(Message message);
+    void publish(Message message);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -176,7 +176,7 @@ public interface Connection extends AutoCloseable {
      * @param body the content of the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    public CompletableFuture<Message> request(String subject, byte[] body);
+    CompletableFuture<Message> request(String subject, byte[] body);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -185,7 +185,7 @@ public interface Connection extends AutoCloseable {
      * @param message the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    public CompletableFuture<Message> request(Message message);
+    CompletableFuture<Message> request(Message message);
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
@@ -198,7 +198,7 @@ public interface Connection extends AutoCloseable {
      * @return the reply message or null if the timeout is reached
      * @throws InterruptedException if one is thrown while waiting, in order to propogate it up
      */
-    public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException;
+    Message request(String subject, byte[] body, Duration timeout) throws InterruptedException;
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
@@ -210,7 +210,7 @@ public interface Connection extends AutoCloseable {
      * @return the reply message or null if the timeout is reached
      * @throws InterruptedException if one is thrown while waiting, in order to propogate it up
      */
-    public Message request(Message message, Duration timeout) throws InterruptedException;
+    Message request(Message message, Duration timeout) throws InterruptedException;
 
     /**
      * Create a synchronous subscription to the specified subject.
@@ -226,7 +226,7 @@ public interface Connection extends AutoCloseable {
      * @param subject the subject to subscribe to
      * @return an object representing the subscription
      */
-    public Subscription subscribe(String subject);
+    Subscription subscribe(String subject);
 
     /**
      * Create a synchronous subscription to the specified subject and queue.
@@ -243,7 +243,7 @@ public interface Connection extends AutoCloseable {
      * @param queueName the queue group to join
      * @return an object representing the subscription
      */
-    public Subscription subscribe(String subject, String queueName);
+    Subscription subscribe(String subject, String queueName);
 
     /**
      * Create a {@code Dispatcher} for this connection. The dispatcher can group one
@@ -261,7 +261,7 @@ public interface Connection extends AutoCloseable {
      * @param handler The target for the messages
      * @return a new Dispatcher
      */
-    public Dispatcher createDispatcher(MessageHandler handler);
+    Dispatcher createDispatcher(MessageHandler handler);
 
     /**
      * Close a dispatcher. This will unsubscribe any subscriptions and stop the delivery thread.
@@ -270,7 +270,7 @@ public interface Connection extends AutoCloseable {
      * 
      * @param dispatcher the dispatcher to close
      */
-    public void closeDispatcher(Dispatcher dispatcher);
+    void closeDispatcher(Dispatcher dispatcher);
 
     /**
      * Flush the connection's buffer of outgoing messages, including sending a
@@ -288,7 +288,7 @@ public interface Connection extends AutoCloseable {
      * @throws TimeoutException if the timeout is exceeded
      * @throws InterruptedException if the underlying thread is interrupted
      */
-    public void flush(Duration timeout) throws TimeoutException, InterruptedException;
+    void flush(Duration timeout) throws TimeoutException, InterruptedException;
 
     /**
      * Drain tells the connection to process in flight messages before closing.
@@ -320,7 +320,7 @@ public interface Connection extends AutoCloseable {
      * @throws InterruptedException if the thread is interrupted
      * @throws TimeoutException if the initial flush times out
      */
-    public CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException;
+    CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException;
 
     /**
      * Close the connection and release all blocking calls like {@link #flush flush}
@@ -331,14 +331,14 @@ public interface Connection extends AutoCloseable {
      * 
      * @throws InterruptedException if the thread, or one owned by the connection is interrupted during the close
      */
-    public void close() throws InterruptedException ;
+    void close() throws InterruptedException ;
 
     /**
      * Returns the connections current status.
      * 
      * @return the connection's status
      */
-    public Status getStatus();
+    Status getStatus();
 
     /**
      * MaxPayload returns the size limit that a message payload can have. This is
@@ -346,7 +346,7 @@ public interface Connection extends AutoCloseable {
      * 
      * @return the maximum size of a message payload
      */
-    public long getMaxPayload();
+    long getMaxPayload();
 
     /**
      * Return the list of known server urls, including additional servers discovered
@@ -354,41 +354,46 @@ public interface Connection extends AutoCloseable {
      * 
      * @return this connection's list of known server URLs
      */
-    public Collection<String> getServers();
+    Collection<String> getServers();
 
     /**
      * @return a wrapper for useful statistics about the connection
      */
-    public Statistics getStatistics();
+    Statistics getStatistics();
 
     /**
      * @return the read-only options used to create this connection
      */
-    public Options getOptions();
+    Options getOptions();
+
+    /**
+     * @return the server information such as id, client info, etc.
+     */
+    ServerInfo getServerInfo();
 
     /**
      * @return the url used for the current connection, or null if disconnected
      */
-    public String getConnectedUrl();
+    String getConnectedUrl();
     
     /**
      * @return the error text from the last error sent by the server to this client
      */
-    public String getLastError();
+    String getLastError();
 
     /**
      * @return a new inbox subject, can be used for directed replies from
      * subscribers. These are guaranteed to be unique, but can be shared and subscribed
      * to by others.
      */
-    public String createInbox();
+    String createInbox();
 
     /**
      * Immediately flushes the underlying connection buffer if the connection is valid.
      * @throws IOException the connection flush fails
      * @throws IllegalStateException the connection is not connected
      */
-    public void flushBuffer() throws IOException;
+    void flushBuffer() throws IOException;
 
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
@@ -397,7 +402,7 @@ public interface Connection extends AutoCloseable {
      * @throws TimeoutException timed out verifying jetstream
      * @throws InterruptedException the operation was interrupted 
      */
-    public JetStream jetStream() throws InterruptedException, TimeoutException;
+    JetStream jetStream() throws InterruptedException, TimeoutException;
 
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
@@ -407,5 +412,5 @@ public interface Connection extends AutoCloseable {
      * @throws TimeoutException timed out verifying jetstream
      * @throws InterruptedException the operation was interrupted 
      */
-    public JetStream jetStream(JetStreamOptions options) throws InterruptedException, TimeoutException;    
+    JetStream jetStream(JetStreamOptions options) throws InterruptedException, TimeoutException;
 }

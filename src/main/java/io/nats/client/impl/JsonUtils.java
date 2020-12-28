@@ -26,36 +26,57 @@ import java.util.regex.Pattern;
  */
 public final class JsonUtils {
 
+    private static final String OBJECT_RE = "\\{(.+?)\\}";
+    private static final String STRING_RE  = "\\s*\"(.+?)\"";
+    private static final String BOOLEAN_RE =  "\\s*(true|false)";
+    private static final String NUMBER_RE =  "\\s*(\\d+)";
+    private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
+    private static final String BEFORE_FIELD_RE = "\"";
+    private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
+
+    private static final String Q = "\"";
+    private static final String QCOLONQ = "\": \"";
+    private static final String QCOLON = "\": ";
+    private static final String QCOMMA = "\",";
+    private static final String COMMA = ",";
+
     public enum FieldType {
-        jsonBoolean,
-        jsonString,
-        jsonNumber,
-        jsonObject, 
-        jsonStringArray
+        jsonObject(OBJECT_RE),
+        jsonString(STRING_RE),
+        jsonBoolean(BOOLEAN_RE),
+        jsonNumber(NUMBER_RE),
+        jsonStringArray(STRING_ARRAY_RE);
+
+        final String re;
+        FieldType(String re) {
+            this.re = re;
+        }
     }
-
-    private static final String grabString = "\\s*\"(.+?)\"";
-    private static final String grabNumber = "\\s*(\\d+)";
-    private static final String grabBoolean = "\\s*(true|false)";
-    private static final String grabStringArray = "\\[\\s*(.+?)\\s*\\]";
-    private static final String colon = "\"\\s*:\\s*";
-
 
     private static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn");
 
-    private static String getTypePattern(FieldType type) {
-        switch (type) {
-            case jsonBoolean :
-                return grabBoolean;
-            case jsonNumber :
-                return grabNumber;
-            case jsonString :
-                return grabString;
-            case jsonStringArray :
-                return grabStringArray;
-            default:
-                return grabString;
-        }
+    public static Pattern buildCustomPattern(String re) {
+        return Pattern.compile(re, Pattern.CASE_INSENSITIVE);
+    }
+
+    public static Pattern buildObjectPattern() {
+        return Pattern.compile(OBJECT_RE, Pattern.CASE_INSENSITIVE);
+    }
+
+    public static Pattern buildStringPattern(String field) {
+        return buildPattern(field, STRING_RE);
+    }
+
+    public static Pattern buildNumberPattern(String field) {
+        return buildPattern(field, NUMBER_RE);
+    }
+
+    public static Pattern buildBooleanPattern(String field) {
+        return buildPattern(field, BOOLEAN_RE);
+    }
+
+    public static Pattern buildStringArrayPattern(String field) {
+        return buildPattern(field, STRING_ARRAY_RE);
     }
 
     /**
@@ -65,7 +86,11 @@ public final class JsonUtils {
      * @return pattern.
      */
     public static Pattern buildPattern(String fieldName, FieldType type) {
-        return Pattern.compile("\""+ fieldName + colon + getTypePattern(type), Pattern.CASE_INSENSITIVE);
+        return buildPattern(fieldName, type.re);
+    }
+
+    public static Pattern buildPattern(String fieldName, String typeRE) {
+        return Pattern.compile(BEFORE_FIELD_RE + fieldName + AFTER_FIELD_RE + typeRE, Pattern.CASE_INSENSITIVE);
     }
 
     /**
@@ -108,10 +133,31 @@ public final class JsonUtils {
         String[] rv = new String[quotedStrings.length];
         for (int i = 0; i < quotedStrings.length; i++) {
             // subjects cannot contain quotes, so just do a replace.
-            rv[i] = quotedStrings[i].replace("\"", "");
+            rv[i] = quotedStrings[i].replace(Q, "");
         }
         return rv;     
-    }    
+    }
+
+    public static StringBuilder beginJson() {
+        return new StringBuilder("{");
+    }
+
+    public static StringBuilder endJson(StringBuilder sb) {
+        // remove the trailing ','
+        sb.setLength(sb.length()-1);
+        sb.append("}");
+        return sb;
+    }
+
+    public static StringBuilder beginFormattedJson() {
+        return new StringBuilder("{\n    ");
+    }
+
+    public static String endFormattedJson(StringBuilder sb) {
+        sb.setLength(sb.length()-1);
+        sb.append("\n}");
+        return sb.toString().replaceAll(",", ",\n    ");
+    }
 
     /**
      * Appends a json field to a string builder.
@@ -120,8 +166,8 @@ public final class JsonUtils {
      * @param value field value
      */
     public static void addFld(StringBuilder sb, String fname, String value) {
-        if (value != null) {
-            sb.append("\"" + fname + "\" : \"" + value + "\",");
+        if (value != null && value.length() > 0) {
+            sb.append(Q).append(fname).append(QCOLONQ).append(value).append(QCOMMA);
         }
     }
 
@@ -132,7 +178,7 @@ public final class JsonUtils {
      * @param value field value
      */
     public static void addFld(StringBuilder sb, String fname, boolean value) {
-        sb.append("\"" + fname + "\":" + (value ? "true" : "false") + ",");
+        sb.append(Q).append(fname).append(QCOLON).append(value ? "true" : "false").append(COMMA);
     }
 
     /**
@@ -143,7 +189,7 @@ public final class JsonUtils {
      */    
     public static void addFld(StringBuilder sb, String fname, long value) {
         if (value >= 0) {
-            sb.append("\"" + fname + "\" : " + value + ",");
+            sb.append(Q).append(fname).append(QCOLON).append(value).append(COMMA);
         }      
     }
     
@@ -155,7 +201,7 @@ public final class JsonUtils {
      */
     public static void addFld(StringBuilder sb, String fname, Duration value) {
         if (value != Duration.ZERO) {
-            sb.append("\"" + fname + "\" : " + value.toNanos() + ",");
+            sb.append(Q).append(fname).append(QCOLON).append(value.toNanos()).append(COMMA);
         }       
     }
 
@@ -163,18 +209,18 @@ public final class JsonUtils {
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
-     * @param value field value
+     * @param strArray field value
      */    
     public static void addFld(StringBuilder sb, String fname, String[] strArray) {
         if (strArray == null || strArray.length == 0) {
             return;
         }
 
-        sb.append("\"" + fname  + "\":[");
+        sb.append(Q + fname  + "\":[");
         for (int i = 0; i < strArray.length; i++) {
-            sb.append("\"" + strArray[i] + "\"");
+            sb.append(Q + strArray[i] + Q);
             if (i < strArray.length-1) {
-                sb.append(",");
+                sb.append(COMMA);
             }
         }
         sb.append("],");
@@ -192,7 +238,7 @@ public final class JsonUtils {
         }
 
         String s = rfc3339Formatter.format(time);
-        sb.append("\"" + fname + "\" : \"" + s + "Z\",");
+        sb.append(Q + fname + QCOLONQ + s + "Z\",");
     }    
 
     /**

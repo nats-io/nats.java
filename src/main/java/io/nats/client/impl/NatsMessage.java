@@ -414,9 +414,6 @@ public class NatsMessage implements Message {
          * @return the {@code NatsMessage}
          */
         public NatsMessage build() {
-            if (subject == null) {
-
-            }
             return new NatsMessage(subject, replyTo, headers, data, utf8mode);
         }
     }

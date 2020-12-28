@@ -13,16 +13,13 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsServerInfoTests {
     @Test
@@ -30,33 +27,62 @@ public class NatsServerInfoTests {
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
         String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
         byte[] ascii = encoded.getBytes(StandardCharsets.US_ASCII);
+        String[] urls = {"url1", "url2"};
 
-        String json = "{" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"version\":\"1.1.1\"" + "," +
-                        "\"go\": \"go1.9\"" + "," +
-                        "\"host\": \"host\"" + "," +
-                        "\"tls_required\": true" + "," +
-                        "\"auth_required\":false" + "," +
-                        "\"port\": 7777" + "," +
-                        "\"max_payload\":100000000000" + "," +
-                        "\"connect_urls\":[\"one\", \"two\"]" +
-                        "\"nonce\":\""+encoded+"\"" +
-                       "}";
+        String json = rawJson.replace("<encoded>", encoded);
+
         NatsServerInfo info = new NatsServerInfo(json);
-        assertEquals(info.getServerId(), "myserver");
-        assertEquals(info.getVersion(), "1.1.1");
-        assertEquals(info.getGoVersion(), "go1.9");
-        assertEquals(info.getHost(), "host");
-        assertTrue(Arrays.equals(info.getNonce(), ascii));
-        assertEquals(info.getPort(), 7777);
-        assertEquals(info.getMaxPayload(), 100_000_000_000L);
-        assertEquals(info.isAuthRequired(), false);
-        assertEquals(info.isTLSRequired(), true);
+        _testValid(ascii, urls, info);
 
-        String[] urls = {"one", "two"};
-        assertTrue(Arrays.equals(info.getConnectURLs(), urls));
+        info = new NatsServerInfo(info.toString().replaceAll("\n", ""));
+        _testValid(ascii, urls, info);
+
+        assertThrows(IllegalArgumentException.class, () -> new NatsServerInfo(""));
+
+        // just extra pathways, all fields won't be found
+        new NatsServerInfo("{\"foo\":42}");
     }
+
+    private void _testValid(byte[] ascii, String[] urls, NatsServerInfo info) {
+        assertEquals("serverId", info.getServerId());
+        assertEquals("serverName", info.getServerName());
+        assertEquals("0.0.0", info.getVersion());
+        assertEquals("go0.0.0", info.getGoVersion());
+        assertEquals("host", info.getHost());
+        assertEquals(7777, info.getPort());
+        assertFalse(info.isAuthRequired());
+        assertTrue(info.isTLSRequired());
+        assertEquals(100_000_000_000L, info.getMaxPayload());
+        assertEquals(1, info.getProtocolVersion());
+        assertFalse(info.isLameDuckMode());
+        assertTrue(info.isJetStreamAvailable());
+        assertEquals(42, info.getClientId());
+        assertEquals("127.0.0.1", info.getClientIp());
+        assertEquals("cluster", info.getCluster());
+        assertArrayEquals(urls, info.getConnectURLs());
+        assertArrayEquals(ascii, info.getNonce());
+    }
+
+    static String rawJson = "{" +
+            "\"server_id\": \"serverId\"," +
+            "\"server_name\": \"serverName\"," +
+            "\"version\": \"0.0.0\"," +
+            "\"go\": \"go0.0.0\"," +
+            "\"host\": \"host\"," +
+            "\"port\": 7777," +
+            "\"headersSupported\": true," +
+            "\"auth_required\": false," +
+            "\"tls_required\": true," +
+            "\"max_payload\": 100000000000," +
+            "\"proto\": 1," +
+            "\"ldm\": false," +
+            "\"jetstream\": true," +
+            "\"client_id\": 42," +
+            "\"client_ip\": \"127.0.0.1\"" +
+            "\"cluster\": \"cluster\"" +
+            "\"connect_urls\":[\"url1\", \"url2\"]" +
+            "\"nonce\":\"<encoded>\"" +
+            "}";
 
     @Test
     public void testEmptyURLParsing() {
