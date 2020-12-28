@@ -82,7 +82,7 @@ public class NKeyTests {
     @Test
     public void testEncodeDecodeSeed() throws Exception {
         byte[] bytes = new byte[64];
-        SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+        SecureRandom random = new SecureRandom();
         random.nextBytes(bytes);
 
         char[] encoded = NKey.encodeSeed(NKey.Type.ACCOUNT, bytes);
@@ -95,7 +95,7 @@ public class NKeyTests {
     @Test
     public void testEncodeDecode() throws Exception {
         byte[] bytes = new byte[32];
-        SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+        SecureRandom random = new SecureRandom();
         random.nextBytes(bytes);
 
         char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
@@ -119,7 +119,7 @@ public class NKeyTests {
     public void testDecodeWrongType() {
         assertThrows(IllegalArgumentException.class, () -> {
             byte[] bytes = new byte[32];
-            SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+            SecureRandom random = new SecureRandom();
             random.nextBytes(bytes);
 
             char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
@@ -131,7 +131,7 @@ public class NKeyTests {
     public void testEncodeSeedSize() {
         assertThrows(IllegalArgumentException.class, () -> {
             byte[] bytes = new byte[48];
-            SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+            SecureRandom random = new SecureRandom();
             random.nextBytes(bytes);
 
             NKey.encodeSeed(NKey.Type.ACCOUNT, bytes);
@@ -148,7 +148,7 @@ public class NKeyTests {
         for (int i=0;i<10000;i++) {
             try {
                 byte[] bytes = new byte[32];
-                SecureRandom random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+                SecureRandom random = new SecureRandom();
                 random.nextBytes(bytes);
         
                 char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);

@@ -57,11 +57,7 @@ public final class NUID {
     private static final NUID globalNUID;
 
     static {
-        try {
-            srand = SecureRandom.getInstance("SHA1PRNG");
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("NUID requires SHA1PRNG Algorithm and it is not available.");
-        }
+        srand = new SecureRandom();
         prand = new Random(bytesToLong(srand.generateSeed(8))); // seed with 8 bytes (64 bits)
         globalNUID = new NUID();
     }
@@ -73,7 +69,7 @@ public final class NUID {
     /**
      * The default NUID constructor.
      * 
-     * Relies on the SHA1PRNG instance of SecureRandom.
+     * Relies on the OS Default instance of SecureRandom.
      * 
      * @throws IllegalStateException
      *                                   if the class cannot find the necessary

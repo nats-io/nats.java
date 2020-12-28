@@ -100,6 +100,9 @@ task bundle(type: Bundle) {
 }
 
 jar {
+    manifest {
+        attributes('Automatic-Module-Name': 'io.nats.jnats')
+    }
     bnd (['Implementation-Title': 'Java Nats',
           'Implementation-Version': jarVersion,
           'Implementation-Vendor': 'nats.io',
@@ -113,9 +116,6 @@ jar {
 test {
     useJUnitPlatform()
     maxHeapSize = "2g"
-    if (org.gradle.internal.os.OperatingSystem.current().isLinux()) {
-        jvmArgs '-Djava.security.egd=file:/dev/./urandom'
-    }
     testLogging {
         exceptionFormat = 'full'
         events "started", "passed", "skipped", "failed"
@@ -300,7 +300,7 @@ publishing {
         tasks.generatePomFileForMavenJavaPublication {
             destination = file("$buildDir/generated-pom.xml")
         }
-        
+
         tasks.publishMavenJavaPublicationToSonatypeRepository {
             if (useSigning) {
                 dependsOn project.tasks.signArchives
