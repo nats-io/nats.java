@@ -589,6 +589,7 @@ class NatsConnection implements Connection {
 
     // Close socket is called when another connect attempt is possible
     // Close is called when the connection should shutdown, period
+    @Override
     public void close() throws InterruptedException {
         this.close(true);
     }

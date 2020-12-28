@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import java.net.InetAddress;
+
 public interface ServerInfo {
 
     String SERVER_ID = "server_id";
@@ -51,6 +53,7 @@ public interface ServerInfo {
     boolean isJetStreamAvailable();
     int getClientId();
     String getClientIp();
+    InetAddress getClientIpInetAddress();
     String getCluster() ;
     String getRawJson();
 }

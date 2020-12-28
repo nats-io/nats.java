@@ -30,9 +30,7 @@ public final class JsonUtils {
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
     private static final String BOOLEAN_RE =  "\\s*(true|false)";
     private static final String NUMBER_RE =  "\\s*(\\d+)";
-    private static final String STRING_ARRAY_RE_JsonUtils =      "\\[\\s*(.+?)\\s*\\]";
-    private static final String STRING_ARRAY_RE_NatsServerInfo = "\\s*\\[(\".+?\")\\]";
-    private static final String STRING_ARRAY_RE =                "\\s*\\[\\s*(\".+?\")\\s*\\]";
+    private static final String STRING_ARRAY_RE = "\\s*\\[\\s*(\".+?\")\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
 
