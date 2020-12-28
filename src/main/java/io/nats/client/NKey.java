@@ -438,7 +438,7 @@ public class NKey {
     private static NKey createPair(Type type, SecureRandom random)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         if (random == null) {
-            random = SecureRandom.getInstance("SHA1PRNG", "SUN");
+            random = new SecureRandom();
         }
 
         byte[] seed = new byte[NKey.ed25519.getCurve().getField().getb() / 8];
@@ -466,7 +466,7 @@ public class NKey {
     /**
      * Create an Account NKey from the provided random number generator.
      * 
-     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * If no random is provided, SecureRandom() will be used to create one.
      * 
      * The new NKey contains the private seed, which should be saved in a secure location.
      * 
@@ -484,7 +484,7 @@ public class NKey {
     /**
      * Create an Cluster NKey from the provided random number generator.
      * 
-     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * If no random is provided, SecureRandom() will be used to create one.
      * 
      * The new NKey contains the private seed, which should be saved in a secure location.
      * 
@@ -502,7 +502,7 @@ public class NKey {
     /**
      * Create an Operator NKey from the provided random number generator.
      * 
-     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * If no random is provided, SecureRandom() will be used to create one.
      * 
      * The new NKey contains the private seed, which should be saved in a secure location.
      * 
@@ -520,7 +520,7 @@ public class NKey {
     /**
      * Create a Server NKey from the provided random number generator.
      * 
-     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * If no random is provided, SecureRandom() will be used to create one.
      * 
      * The new NKey contains the private seed, which should be saved in a secure location.
      * 
@@ -538,7 +538,7 @@ public class NKey {
     /**
      * Create a User NKey from the provided random number generator.
      * 
-     * If no random is provided, SecureRandom.getInstance("SHA1PRNG", "SUN") will be used to creat eone.
+     * If no random is provided, SecureRandom() will be used to create one.
      * 
      * The new NKey contains the private seed, which should be saved in a secure location.
      * 
