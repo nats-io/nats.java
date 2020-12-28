@@ -154,7 +154,7 @@ public class ConsumerConfiguration {
     private static String sampleFreqField =  "sample_frequency";
     private static String rateLimitField =  "rate_limit";    
     private static String maxWaitingField =  "max_waiting";
-    private static String maxAckPendingField =  "max_akc_pending";     
+    private static String maxAckPendingField =  "max_ack_pending";
 
     private static final Pattern durableRE = JsonUtils.buildPattern(durableNameField, FieldType.jsonString);
     private static final Pattern deliverSubjectRE = JsonUtils.buildPattern(deliverSubjField, FieldType.jsonString);
