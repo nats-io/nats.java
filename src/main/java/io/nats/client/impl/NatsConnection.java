@@ -1528,42 +1528,24 @@ class NatsConnection implements Connection {
     }
 
     private List<String> getReconnectServerList() {
-        if (options.isNoRandomize()) {
-            return getServersList();
+        return options.isNoRandomize() ? getServersList() : shuffle(getServersList());
+    }
+
+    private List<String> shuffle(List<String> servers) {
+        if (servers.size() > 1) {
+            if (currentServer != null) {
+                servers.remove(currentServer);
+            }
+            Collections.shuffle(servers, ThreadLocalRandom.current());
+            if (currentServer != null) {
+                servers.add(currentServer);
+            }
         }
-
-        // prioritize discovered over configured
-        List<String> servers = new ArrayList<>();
-        addDiscoveredServers(servers);
-        shuffleWithoutCurrent(servers);
-
-        // configured get shuffled
-        List<String> configured = new ArrayList<>();
-        addConfiguredServers(configured);
-        shuffleWithoutCurrent(configured);
-
-        // then added
-        servers.addAll(configured);
-
-        // because we still want it in the list
-        if (currentServer != null) {
-            servers.add(currentServer);
-        }
-
         return servers;
     }
 
-    private void shuffleWithoutCurrent(List<String> servers) {
-        if (currentServer != null) {
-            servers.remove(currentServer);
-        }
-        if (servers.size() > 1) {
-            Collections.shuffle(servers, ThreadLocalRandom.current());
-        }
-    }
-
     private void addConfiguredServers(List<String> servers) {
-        // these uri are already parsed (normalized)
+        // configured servers these uri are already parsed (normalized)
         options.getServers().forEach(uri -> addNoDupes(servers, uri.toString()));
     }
 
