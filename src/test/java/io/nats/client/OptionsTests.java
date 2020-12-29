@@ -22,12 +22,14 @@ import javax.net.ssl.SSLContext;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.Properties;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -41,14 +43,14 @@ public class OptionsTests {
 
         assertEquals(Options.DEFAULT_DATA_PORT_TYPE, o.getDataPortType(), "default data port type");
 
-        assertEquals(false, o.isVerbose(), "default verbose");
-        assertEquals(false, o.isPedantic(), "default pedantic");
-        assertEquals(false, o.isNoRandomize(), "default norandomize");
-        assertEquals(false, o.isOldRequestStyle(), "default oldstyle");
-        assertEquals(false, o.isNoEcho(), "default noEcho");
-        assertEquals(false, o.supportUTF8Subjects(), "default UTF8 Support");
-        assertEquals(false, o.isNoHeaders(), "default header support");
-        assertEquals(false, o.isNoNoResponders(), "default no repsonders support");
+        assertFalse(o.isVerbose(), "default verbose");
+        assertFalse(o.isPedantic(), "default pedantic");
+        assertFalse(o.isNoRandomize(), "default norandomize");
+        assertFalse(o.isOldRequestStyle(), "default oldstyle");
+        assertFalse(o.isNoEcho(), "default noEcho");
+        assertFalse(o.supportUTF8Subjects(), "default UTF8 Support");
+        assertFalse(o.isNoHeaders(), "default header support");
+        assertFalse(o.isNoNoResponders(), "default no responders support");
         assertEquals(Options.DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, o.isDiscardMessagesWhenOutgoingQueueFull(),
                 "default discard messages when outgoing queue full");
 
@@ -76,24 +78,27 @@ public class OptionsTests {
     }
 
     @Test
-    public void testChainedBooleanOptions() throws NoSuchAlgorithmException {
-        Options o = new Options.Builder().verbose().pedantic().noRandomize().supportUTF8Subjects().noEcho().oldRequestStyle()
+    public void testChainedBooleanOptions() {
+        Options o = new Options.Builder().verbose().pedantic().noRandomize().supportUTF8Subjects()
+                .noEcho().oldRequestStyle().noHeaders().noNoResponders()
                 .discardMessagesWhenOutgoingQueueFull()
                 .build();
         assertNull(o.getUsernameChars(), "default username");
-        assertEquals(true, o.isVerbose(), "chained verbose");
-        assertEquals(true, o.isPedantic(), "chained pedantic");
-        assertEquals(true, o.isNoRandomize(), "chained norandomize");
-        assertEquals(true, o.isOldRequestStyle(), "chained oldstyle");
-        assertEquals(true, o.isNoEcho(), "chained noecho");
-        assertEquals(true, o.supportUTF8Subjects(), "chained utf8");
-        assertEquals(true, o.isDiscardMessagesWhenOutgoingQueueFull(), "chained discard messages when outgoing queue full");
+        assertTrue(o.isVerbose(), "chained verbose");
+        assertTrue(o.isPedantic(), "chained pedantic");
+        assertTrue(o.isNoRandomize(), "chained norandomize");
+        assertTrue(o.isOldRequestStyle(), "chained oldstyle");
+        assertTrue(o.isNoEcho(), "chained noecho");
+        assertTrue(o.supportUTF8Subjects(), "chained utf8");
+        assertTrue(o.isNoHeaders(), "chained no headers");
+        assertTrue(o.isNoNoResponders(), "chained no noResponders");
+        assertTrue(o.isDiscardMessagesWhenOutgoingQueueFull(), "chained discard messages when outgoing queue full");
     }
 
     @Test
-    public void testChainedStringOptions() throws NoSuchAlgorithmException {
+    public void testChainedStringOptions() {
         Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).connectionName("name").build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertArrayEquals("hello".toCharArray(), o.getUsernameChars(), "chained username");
         assertArrayEquals("world".toCharArray(), o.getPasswordChars(), "chained password");
         assertEquals("name", o.getConnectionName(), "chained connection name");
@@ -111,7 +116,7 @@ public class OptionsTests {
     public void testChainedSSLOptions() throws Exception {
         SSLContext ctx = TestSSLUtils.createTestSSLContext();
         Options o = new Options.Builder().sslContext(ctx).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(ctx, o.getSslContext(), "chained context");
     }
 
@@ -121,7 +126,7 @@ public class OptionsTests {
                 .maxControlLine(400)
                 .maxMessagesInOutgoingQueue(500)
                 .build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(100, o.getMaxReconnect(), "chained max reconnect");
         assertEquals(200, o.getMaxPingsOut(), "chained ping max");
         assertEquals(300, o.getReconnectBufferSize(), "chained reconnect buffer size");
@@ -133,19 +138,24 @@ public class OptionsTests {
     public void testChainedDurationOptions() {
         Options o = new Options.Builder().reconnectWait(Duration.ofMillis(101))
                 .connectionTimeout(Duration.ofMillis(202)).pingInterval(Duration.ofMillis(303))
-                .requestCleanupInterval(Duration.ofMillis(404)).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+                .requestCleanupInterval(Duration.ofMillis(404))
+                .reconnectJitter(Duration.ofMillis(505))
+                .reconnectJitterTls(Duration.ofMillis(606))
+                .build();
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(Duration.ofMillis(101), o.getReconnectWait(), "chained reconnect wait");
         assertEquals(Duration.ofMillis(202), o.getConnectionTimeout(), "chained connection timeout");
         assertEquals(Duration.ofMillis(303), o.getPingInterval(), "chained ping interval");
         assertEquals(Duration.ofMillis(404), o.getRequestCleanupInterval(), "chained cleanup interval");
+        assertEquals(Duration.ofMillis(505), o.getReconnectJitter(), "chained reconnect jitter");
+        assertEquals(Duration.ofMillis(606), o.getReconnectJitterTls(), "chained cleanup jitter tls");
     }
 
     @Test
     public void testChainedErrorHandler() {
         TestHandler handler = new TestHandler();
         Options o = new Options.Builder().errorListener(handler).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(handler, o.getErrorListener(), "chained error handler");
     }
 
@@ -153,9 +163,9 @@ public class OptionsTests {
     public void testChainedConnectionListener() {
         ConnectionListener cHandler = (c, e) -> System.out.println("connection event" + e);
         Options o = new Options.Builder().connectionListener(cHandler).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNull(o.getErrorListener(), "error handler");
-        assertTrue(cHandler == o.getConnectionListener(), "chained connection handler");
+        assertSame(cHandler, o.getConnectionListener(), "chained connection handler");
     }
 
     @Test
@@ -172,25 +182,25 @@ public class OptionsTests {
 
         Options o = new Options.Builder(props).build();
         assertNull(o.getUsernameChars(), "default username chars");
-        assertEquals(true, o.isVerbose(), "property verbose");
-        assertEquals(true, o.isPedantic(), "property pedantic");
-        assertEquals(true, o.isNoRandomize(), "property norandomize");
-        assertEquals(true, o.isOldRequestStyle(), "property oldstyle");
-        assertEquals(true, o.isNoEcho(), "property noecho");
-        assertEquals(true, o.supportUTF8Subjects(), "property utf8");
-        assertEquals(true, o.isDiscardMessagesWhenOutgoingQueueFull(), "property discard messages when outgoing queue full");
+        assertTrue(o.isVerbose(), "property verbose");
+        assertTrue(o.isPedantic(), "property pedantic");
+        assertTrue(o.isNoRandomize(), "property norandomize");
+        assertTrue(o.isOldRequestStyle(), "property oldstyle");
+        assertTrue(o.isNoEcho(), "property noecho");
+        assertTrue(o.supportUTF8Subjects(), "property utf8");
+        assertTrue(o.isDiscardMessagesWhenOutgoingQueueFull(), "property discard messages when outgoing queue full");
         assertNotNull(o.getSslContext(), "property opentls");
     }
 
     @Test
-    public void testPropertiesStringOptions() throws NoSuchAlgorithmException {
+    public void testPropertiesStringOptions() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_USERNAME, "hello");
         props.setProperty(Options.PROP_PASSWORD, "world");
         props.setProperty(Options.PROP_CONNECTION_NAME, "name");
 
         Options o = new Options.Builder(props).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertArrayEquals("hello".toCharArray(), o.getUsernameChars(), "property username");
         assertArrayEquals("world".toCharArray(), o.getPasswordChars(), "property password");
         assertEquals("name", o.getConnectionName(), "property connection name");
@@ -204,8 +214,26 @@ public class OptionsTests {
         props.setProperty(Options.PROP_SECURE, "true");
 
         Options o = new Options.Builder(props).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNotNull(o.getSslContext(), "property context");
+    }
+
+    @Test
+    public void testPropertiesCoverageOptions() throws Exception {
+        // don't use default for tests, issues with forcing algorithm exception in other tests break it
+        SSLContext.setDefault(TestSSLUtils.createTestSSLContext());
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_SECURE, "false");
+        props.setProperty(Options.PROP_OPENTLS, "false");
+        props.setProperty(Options.PROP_NO_HEADERS, "true");
+        props.setProperty(Options.PROP_NO_NORESPONDERS, "true");
+        props.setProperty(Options.PROP_RECONNECT_JITTER, "1000");
+        props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "2000");
+
+        Options o = new Options.Builder(props).build();
+        assertNull(o.getSslContext(), "property context");
+        assertTrue(o.isNoHeaders());
+        assertTrue(o.isNoNoResponders());
     }
 
     @Test
@@ -218,7 +246,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "500");
 
         Options o = new Options.Builder(props).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(100, o.getMaxReconnect(), "property max reconnect");
         assertEquals(200, o.getMaxPingsOut(), "property ping max");
         assertEquals(300, o.getReconnectBufferSize(), "property reconnect buffer size");
@@ -256,7 +284,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CLEANUP_INTERVAL, "404");
 
         Options o = new Options.Builder(props).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertEquals(Duration.ofMillis(101), o.getReconnectWait(), "property reconnect wait");
         assertEquals(Duration.ofMillis(202), o.getConnectionTimeout(), "property connection timeout");
         assertEquals(Duration.ofMillis(303), o.getPingInterval(), "property ping interval");
@@ -269,7 +297,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_ERROR_LISTENER, TestHandler.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNotNull(o.getErrorListener(), "property error handler");
 
         o.getErrorListener().errorOccurred(null, "bad subject");
@@ -282,7 +310,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CONNECTION_CB, TestHandler.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNotNull(o.getConnectionListener(), "property connection handler");
 
         o.getConnectionListener().connectionEvent(null, Events.DISCONNECTED);
@@ -293,13 +321,13 @@ public class OptionsTests {
     }
 
     @Test
-    public void testChainOverridesProperties() throws NoSuchAlgorithmException {
+    public void testChainOverridesProperties() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_TOKEN, "token");
         props.setProperty(Options.PROP_CONNECTION_NAME, "name");
 
         Options o = new Options.Builder(props).connectionName("newname").build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertArrayEquals("token".toCharArray(), o.getTokenChars(), "property token");
         assertEquals("newname", o.getConnectionName(), "property connection name");
     }
@@ -310,6 +338,14 @@ public class OptionsTests {
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
+    }
+
+    @Test
+    public void testNonDefaultConnectOptions() {
+        Options o = new Options.Builder().noNoResponders().noHeaders().noEcho().pedantic().verbose().build();
+        String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
+                + ",\"protocol\":1,\"verbose\":true,\"pedantic\":true,\"tls_required\":false,\"echo\":false,\"headers\":false,\"no_responders\":false}";
+        assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "non default connect options");
     }
 
     @Test
@@ -368,7 +404,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_DATA_PORT_TYPE, CloseOnUpgradeAttempt.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
-        assertEquals(false, o.isVerbose(), "default verbose"); // One from a different type
+        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
 
         assertEquals(CloseOnUpgradeAttempt.class.getCanonicalName(), o.buildDataPort().getClass().getCanonicalName(),
                 "property data port class");
@@ -398,10 +434,7 @@ public class OptionsTests {
 
     @Test
     public void testThrowOnNoProps() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Options.Builder(null);
-            assertFalse(true);
-        });
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder(null));
     }
 
     @Test
@@ -462,16 +495,15 @@ public class OptionsTests {
     }
 
     @Test
-    public void testEmptyStringInServers() {
-        String url1 = "nats://localhost:8080";
-        String url2 = "";
-        String[] serverUrls = {url1, url2};
+    public void testEmptyAndNullStringsInServers() {
+        String url = "nats://localhost:8080";
+        String[] serverUrls = {"", null, url};
         Options o = new Options.Builder().servers(serverUrls).build();
 
         Collection<URI> servers = o.getServers();
         URI[] serverArray = servers.toArray(new URI[0]);
         assertEquals(1, serverArray.length);
-        assertEquals(url1, serverArray[0].toString(), "property server");
+        assertEquals(url, serverArray[0].toString(), "property server");
     }
 
     @Test
@@ -480,24 +512,19 @@ public class OptionsTests {
             Properties props = new Properties();
             props.setProperty(Options.PROP_CONNECTION_CB, "foo");
             new Options.Builder(props);
-            assertFalse(true);
         });
     }
 
     @Test
     public void testTokenAndUserThrows() {
-        assertThrows(IllegalStateException.class, () -> {
-            new Options.Builder().token("foo".toCharArray()).userInfo("foo".toCharArray(), "bar".toCharArray()).build();
-            assertFalse(true);
-        });
+        assertThrows(IllegalStateException.class,
+                () -> new Options.Builder().token("foo".toCharArray()).userInfo("foo".toCharArray(), "bar".toCharArray()).build());
     }
 
     @Test
     public void testThrowOnBadServerURI() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new Options.Builder().server("foo:/bar\\:blammer").build();
-            assertFalse(true);
-        });
+        assertThrows(IllegalArgumentException.class,
+                () -> new Options.Builder().server("foo:/bar\\:blammer").build());
     }
 
     @Test
@@ -505,9 +532,7 @@ public class OptionsTests {
         assertThrows(IllegalArgumentException.class, () -> {
             Properties props = new Properties();
             props.setProperty(Options.PROP_SERVERS, "");
-
             new Options.Builder(props).build();
-            assertFalse(true);
         });
     }
 
@@ -518,7 +543,6 @@ public class OptionsTests {
             String url2 = "foo:/bar\\:blammer";
             String[] serverUrls = {url1, url2};
             new Options.Builder().servers(serverUrls).build();
-            assertFalse(true);
         });
     }
     
@@ -532,20 +556,12 @@ public class OptionsTests {
     @Test
     public void testDefaultExecutor() throws Exception {
         Options options = new Options.Builder().connectionName("test").build();
-        Future<String> future = options.getExecutor().submit(new Callable<String>(){
-            public String call() {
-                return Thread.currentThread().getName();
-            }
-        });
+        Future<String> future = options.getExecutor().submit(() -> Thread.currentThread().getName());
         String name = future.get(5, TimeUnit.SECONDS);
         assertTrue(name.startsWith("test"));
 
         options = new Options.Builder().build();
-        future = options.getExecutor().submit(new Callable<String>(){
-            public String call() {
-                return Thread.currentThread().getName();
-            }
-        });
+        future = options.getExecutor().submit(() -> Thread.currentThread().getName());
         name = future.get(5, TimeUnit.SECONDS);
         assertTrue(name.startsWith(Options.DEFAULT_THREAD_NAME_PREFIX));
     }
@@ -584,18 +600,62 @@ public class OptionsTests {
             {"192.168.0.1","nats://192.168.0.1:4222"},
         };
 
-        for (int i=0 ;i<test.length;i++) {
-            URI actual = Options.parseURIForServer(test[i][0]);
-            URI expected = new URI(test[i][1]);
+        for (String[] strings : test) {
+            URI actual = Options.parseURIForServer(strings[0]);
+            URI expected = new URI(strings[1]);
             assertEquals(expected.toASCIIString(), actual.toASCIIString());
         }
     }
 
     @Test
     public void testParseBadURIForServer() {
-        assertThrows(URISyntaxException.class, () -> {
-            Options.parseURIForServer("unk://123.1.1.1");
-        });
+
+        String[] strings = new String[] {
+                "unk://123.1.1.1", // unknown protocol
+                "//123.1.1.1",     // ends up no host
+                ":4222"            // just wrong
+        };
+
+        for (String string : strings) {
+            assertThrows(URISyntaxException.class, () -> Options.parseURIForServer(string));
+        }
+    }
+
+    @Test
+    public void testReconnectDelayHandler() {
+        ReconnectDelayHandler rdh = l -> Duration.ofSeconds(l * 2);
+
+        Options o = new Options.Builder().reconnectDelayHandler(rdh).build();
+        ReconnectDelayHandler rdhO = o.getReconnectDelayHandler();
+
+        assertNotNull(rdhO);
+        assertEquals(10, rdhO.getWaitTime(5).getSeconds());
+    }
+
+    @Test
+    public void testInboxPrefixCoverage() {
+        Options o = new Options.Builder().inboxPrefix("foo").build();
+        assertEquals("foo.", o.getInboxPrefix());
+        o = new Options.Builder().inboxPrefix("foo.").build();
+        assertEquals("foo.", o.getInboxPrefix());
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void coverageForDeprecated() {
+        Options o = new Options.Builder()
+                .token("deprecated")
+                .build();
+        assertEquals("deprecated", o.getToken());
+        assertNull(o.getUsername());
+        assertNull(o.getPassword());
+
+        o = new Options.Builder()
+                .userInfo("user", "pass")
+                .build();
+        assertEquals("user", o.getUsername());
+        assertEquals("pass", o.getPassword());
+        assertNull(o.getToken());
     }
 
 /* These next three require that no default is set anywhere, if another test

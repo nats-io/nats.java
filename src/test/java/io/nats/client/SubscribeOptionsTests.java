@@ -14,29 +14,49 @@
 package io.nats.client;
 
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
+import io.nats.client.ConsumerConfiguration.AckPolicy;
 import org.junit.jupiter.api.Test;
 
-import io.nats.client.ConsumerConfiguration.AckPolicy;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscribeOptionsTests {
-    
+
     @Test
     public void testBuilder() {
         ConsumerConfiguration cc = new ConsumerConfiguration.Builder().ackPolicy(AckPolicy.All).durable("dur").build();
 
         SubscribeOptions o = SubscribeOptions.builder().
-           attach("foo", "bar").
-           configuration("foo", cc).
-           pushDirect("pushsubj").
-           autoAck(false).durable("durable").pull(1234).
-           build();
+                attach("foo", "bar").
+                configuration("foo", cc).
+                pushDirect("pushsubj").
+                autoAck(false).durable("durable").pull(1234).
+                build();
 
         assertEquals("foo", o.getStream());
         assertEquals("bar", o.getConsumer());
         assertEquals(1234, o.getPullBatchSize());
         assertEquals("durable", o.getConsumerConfiguration().getDurable());
-        assertEquals(false, o.isAutoAck());
-    }  
+        assertFalse(o.isAutoAck());
+    }
+
+    @Test
+    public void testInvalidPullSize() {
+        assertThrows(IllegalArgumentException.class, () -> SubscribeOptions.builder().pull(-1));
+    }
+
+    @Test
+    public void testSetConfigurationNull() {
+        assertThrows(IllegalArgumentException.class, () -> SubscribeOptions.builder().build().setConfiguration(null));
+    }
+
+    @Test
+    public void testCheckStreamName() {
+        SubscribeOptions so = SubscribeOptions.builder().build();
+        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect(null, "consumer", 1));
+        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("", "consumer", 1));
+        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains >", "consumer", 1));
+        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains .", "consumer", 1));
+        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains *", "consumer", 1));
+    }
+
 }

@@ -13,14 +13,14 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 
 // TODO Add properties
@@ -270,7 +270,7 @@ public class StreamConfiguration {
      */
     public String toJSON() {
         
-        StringBuilder sb = new StringBuilder("{");
+        StringBuilder sb = JsonUtils.beginJson();
         
         JsonUtils.addFld(sb, nameField, name);
         JsonUtils.addFld(sb, subjectsField, subjects);
@@ -286,12 +286,7 @@ public class StreamConfiguration {
         JsonUtils.addFld(sb, templateField, template);
         JsonUtils.addFld(sb, duplicatesField, duplicateWindow);
 
-        // remove the trailing ','
-        sb.setLength(sb.length()-1);
-
-        sb.append("}");
-
-        return sb.toString();
+        return JsonUtils.endJson(sb).toString();
     }
 
     /**

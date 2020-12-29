@@ -13,29 +13,19 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.ServerInfo;
+
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-class NatsServerInfo {
+import static io.nats.client.impl.JsonUtils.*;
 
-    static final String SERVER_ID = "server_id";
-    static final String VERSION = "version";
-    static final String GO = "go";
-    static final String HOST = "host";
-    static final String PORT = "port";
-    static final String HEADERS = "headers";
-    static final String AUTH = "auth_required";
-    static final String TLS = "tls_required";
-    static final String MAX_PAYLOAD = "max_payload";
-    static final String CONNECT_URLS = "connect_urls";
-    static final String PROTOCOL_VERSION = "proto";
-    static final String NONCE = "nonce";
-    static final String LAME_DUCK_MODE = "ldm";
-    static final String JETSTREAM = "jetstream";
+class NatsServerInfo implements ServerInfo {
 
     private String serverId;
+    private String serverName;
     private String version;
     private String go;
     private String host;
@@ -50,93 +40,154 @@ class NatsServerInfo {
     private byte[] nonce;
     private boolean lameDuckMode;
     private boolean jetStream;
+    private int clientId;
+    private String clientIp;
+    private String cluster;
 
     public NatsServerInfo(String json) {
         this.rawInfoJson = json;
         parseInfo(json);
     }
 
+    @Override
+    public String toString() {
+        StringBuilder sb = JsonUtils.beginFormattedJson();
+        addFld(sb, SERVER_ID, serverId);
+        addFld(sb, SERVER_NAME, serverName);
+        addFld(sb, VERSION, version);
+        addFld(sb, GO, go);
+        addFld(sb, HOST, host);
+        addFld(sb, PORT,  + port);
+        addFld(sb, HEADERS, headersSupported);
+        addFld(sb, AUTH, authRequired);
+        addFld(sb, TLS, tlsRequired);
+        addFld(sb, MAX_PAYLOAD,  + maxPayload);
+        addFld(sb, CONNECT_URLS, connectURLs);
+        addFld(sb, PROTOCOL_VERSION, protocolVersion);
+        addFld(sb, NONCE, nonce == null ? null : new String(nonce));
+        addFld(sb, LAME_DUCK_MODE, lameDuckMode);
+        addFld(sb, JETSTREAM, jetStream);
+        addFld(sb, CLIENT_ID,  + clientId);
+        addFld(sb, CLIENT_IP, clientIp);
+        addFld(sb, CLUSTER, cluster);
+        return endFormattedJson(sb);
+    }
+
+    @Override
     public boolean isLameDuckMode() {
         return lameDuckMode;
     }
 
+    @Override
     public String getServerId() {
         return this.serverId;
     }
 
+    @Override
+    public String getServerName() {
+        return serverName;
+    }
+
+    @Override
     public String getVersion() {
         return this.version;
     }
 
+    @Override
     public String getGoVersion() {
         return this.go;
     }
 
+    @Override
     public String getHost() {
         return this.host;
     }
 
+    @Override
     public int getPort() {
         return this.port;
     }
 
+    @Override
     public int getProtocolVersion() {
         return this.protocolVersion;
     }
 
+    @Override
     public boolean isHeadersSupported() { return this.headersSupported; }
 
+    @Override
     public boolean isAuthRequired() {
         return this.authRequired;
     }
 
+    @Override
     public boolean isTLSRequired() {
         return this.tlsRequired;
     }
 
+    @Override
     public long getMaxPayload() {
         return this.maxPayload;
     }
 
+    @Override
     public String[] getConnectURLs() {
         return this.connectURLs;
     }
 
+    @Override
     public byte[] getNonce() {
         return this.nonce;
     }
 
+    @Override
     public boolean isJetStreamAvailable() {
         return this.jetStream;
     }
 
+    @Override
+    public int getClientId() {
+        return clientId;
+    }
+
+    @Override
+    public String getClientIp() {
+        return clientIp;
+    }
+
+    @Override
+    public String getCluster() {
+        return cluster;
+    }
+
     // If parsing succeeds this is the JSON, if not this may be the full protocol line
+    @Override
     public String getRawJson() {
         return rawInfoJson;
     }
 
-    private static final String grabString = "\\s*\"(.+?)\"";
-    private static final String grabBoolean = "\\s*(true|false)";
-    private static final String grabNumber = "\\s*(\\d+)";
-    private static final String grabStringArray = "\\s*\\[(\".+?\")\\]";
-    private static final String grabObject = "\\{(.+?)\\}";
+    private static final Pattern lameDuckModeRE = buildBooleanPattern(LAME_DUCK_MODE);
+    private static final Pattern jetStreamRE = buildBooleanPattern(JETSTREAM);
+    private static final Pattern serverIdRE = buildStringPattern(SERVER_ID);
+    private static final Pattern serverNameRE = buildStringPattern(SERVER_NAME);
+    private static final Pattern versionRE = buildStringPattern(VERSION);
+    private static final Pattern goRE = buildStringPattern(GO);
+    private static final Pattern hostRE = buildStringPattern(HOST);
+    private static final Pattern nonceRE = buildStringPattern(NONCE);
+    private static final Pattern headersRE = buildBooleanPattern(HEADERS);
+    private static final Pattern authRE = buildBooleanPattern(AUTH);
+    private static final Pattern tlsRE = buildBooleanPattern(TLS);
+    private static final Pattern portRE = buildNumberPattern(PORT);
+    private static final Pattern maxRE = buildNumberPattern(MAX_PAYLOAD);
+    private static final Pattern protoRE = buildNumberPattern(PROTOCOL_VERSION);
+    private static final Pattern connectRE = buildStringArrayPattern(CONNECT_URLS);
+    private static final Pattern clientIdRE = buildNumberPattern(CLIENT_ID);
+    private static final Pattern clientIpRE = buildStringPattern(CLIENT_IP);
+    private static final Pattern clusterRE = buildStringPattern(CLUSTER);
+    private static final Pattern infoObject = buildObjectPattern();
 
     void parseInfo(String jsonString) {
-        Pattern lameDuckModeRE = Pattern.compile("\""+LAME_DUCK_MODE+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
-        Pattern jetStreamRE = Pattern.compile("\""+JETSTREAM+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
-        Pattern serverIdRE = Pattern.compile("\""+SERVER_ID+"\":" + grabString, Pattern.CASE_INSENSITIVE);
-        Pattern versionRE = Pattern.compile("\""+VERSION+"\":" + grabString, Pattern.CASE_INSENSITIVE);
-        Pattern goRE = Pattern.compile("\""+GO+"\":" + grabString, Pattern.CASE_INSENSITIVE);
-        Pattern hostRE = Pattern.compile("\""+HOST+"\":" + grabString, Pattern.CASE_INSENSITIVE);
-        Pattern nonceRE = Pattern.compile("\""+NONCE+"\":" + grabString, Pattern.CASE_INSENSITIVE);
-        Pattern headersRE = Pattern.compile("\""+HEADERS+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
-        Pattern authRE = Pattern.compile("\""+AUTH+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
-        Pattern tlsRE = Pattern.compile("\""+TLS+"\":" + grabBoolean, Pattern.CASE_INSENSITIVE);
-        Pattern portRE = Pattern.compile("\""+PORT+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
-        Pattern maxRE = Pattern.compile("\""+MAX_PAYLOAD+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
-        Pattern protoRE = Pattern.compile("\""+PROTOCOL_VERSION+"\":" + grabNumber, Pattern.CASE_INSENSITIVE);
-        Pattern connectRE = Pattern.compile("\""+CONNECT_URLS+"\":" + grabStringArray, Pattern.CASE_INSENSITIVE);
-        Pattern infoObject = Pattern.compile(grabObject, Pattern.CASE_INSENSITIVE);
 
         Matcher m = infoObject.matcher(jsonString);
         if (m.find()) {
@@ -156,7 +207,12 @@ class NatsServerInfo {
         if (m.find()) {
             this.serverId = unescapeString(m.group(1));
         }
-        
+
+        m = serverNameRE.matcher(jsonString);
+        if (m.find()) {
+            this.serverName = unescapeString(m.group(1));
+        }
+
         m = versionRE.matcher(jsonString);
         if (m.find()) {
             this.version = unescapeString(m.group(1));
@@ -216,6 +272,21 @@ class NatsServerInfo {
         m = maxRE.matcher(jsonString);
         if (m.find()) {
             this.maxPayload = Long.parseLong(m.group(1));
+        }
+
+        m = clientIdRE.matcher(jsonString);
+        if (m.find()) {
+            this.clientId = Integer.parseInt(m.group(1));
+        }
+
+        m = clientIpRE.matcher(jsonString);
+        if (m.find()) {
+            this.clientIp = unescapeString(m.group(1));
+        }
+
+        m = clusterRE.matcher(jsonString);
+        if (m.find()) {
+            this.cluster = unescapeString(m.group(1));
         }
 
         m = connectRE.matcher(jsonString);

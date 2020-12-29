@@ -1,13 +1,14 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static io.nats.client.impl.JsonUtils.buildNumberPattern;
 
 public class NatsJetStream implements JetStream {
 
@@ -39,15 +40,15 @@ public class NatsJetStream implements JetStream {
     private static final String expectedLastSeqHdr   = "Nats-Expected-Last-Sequence";
     private static final String expectedLastMsgIdHdr = "Nats-Expected-Last-Msg-Id";
 
-    private static final Pattern LIMITS_MEMORY_RE = JsonUtils.buildPattern("max_memory", FieldType.jsonNumber);
-    private static final Pattern LIMITS_STORAGE_RE = JsonUtils.buildPattern("max_storage", FieldType.jsonNumber);
-    private static final Pattern LIMIT_STREAMS_RE = JsonUtils.buildPattern("max_streams", FieldType.jsonNumber);
-    private static final Pattern LIMIT_CONSUMERS_RE = JsonUtils.buildPattern("max_consumers", FieldType.jsonNumber);
+    private static final Pattern LIMITS_MEMORY_RE = buildNumberPattern("max_memory");
+    private static final Pattern LIMITS_STORAGE_RE = buildNumberPattern("max_storage");
+    private static final Pattern LIMIT_STREAMS_RE = buildNumberPattern("max_streams");
+    private static final Pattern LIMIT_CONSUMERS_RE = buildNumberPattern("max_consumers");
 
-    private static final Pattern STATS_MEMORY_RE = JsonUtils.buildPattern("memory", FieldType.jsonNumber);
-    private static final Pattern STATS_STORAGE_RE = JsonUtils.buildPattern("storage", FieldType.jsonNumber);
-    private static final Pattern STATS_STREAMS_RE = JsonUtils.buildPattern("streams", FieldType.jsonNumber);
-    private static final Pattern STATS_CONSUMERS_RE = JsonUtils.buildPattern("consumers", FieldType.jsonNumber);
+    private static final Pattern STATS_MEMORY_RE = buildNumberPattern("memory");
+    private static final Pattern STATS_STORAGE_RE = buildNumberPattern("storage");
+    private static final Pattern STATS_STREAMS_RE = buildNumberPattern("streams");
+    private static final Pattern STATS_CONSUMERS_RE = buildNumberPattern("consumers");
 
     private final NatsConnection conn;
     private final String prefix;
