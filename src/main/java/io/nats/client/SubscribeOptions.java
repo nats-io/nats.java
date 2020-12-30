@@ -70,12 +70,12 @@ public class SubscribeOptions {
      * Get a default instance of SubscribeOptions
      * @return the instance
      */
-    public static SubscribeOptions getInstance() {
+    public static SubscribeOptions getDefaultInstance() {
         return new Builder().build();
     }
 
     /**
-     * Creates a builder for the publish options.
+     * Creates a builder for the subscribe options.
      * @return the builder.
      */
     public static SubscribeOptions getInstance(SubscribeOptions options) {
@@ -96,7 +96,7 @@ public class SubscribeOptions {
     }
 
     /**
-     * Creates a builder for the publish options.
+     * Creates a builder for the subscribe options.
      * @return the builder.
      */
     public static Builder builder() {
