@@ -46,17 +46,6 @@ public class SubscribeOptionsTests {
 
     @Test
     public void testSetConfigurationNull() {
-        assertThrows(IllegalArgumentException.class, () -> SubscribeOptions.builder().build().setConfiguration(null));
+        assertThrows(IllegalArgumentException.class, () -> SubscribeOptions.builder().configuration(null));
     }
-
-    @Test
-    public void testCheckStreamName() {
-        SubscribeOptions so = SubscribeOptions.builder().build();
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect(null, "consumer", 1));
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("", "consumer", 1));
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains >", "consumer", 1));
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains .", "consumer", 1));
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains *", "consumer", 1));
-    }
-
 }

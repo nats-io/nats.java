@@ -9,6 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static io.nats.client.impl.JsonUtils.buildNumberPattern;
+import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream implements JetStream {
 
@@ -209,8 +210,7 @@ public class NatsJetStream implements JetStream {
             subj = String.format(jSApiDurableCreateT, streamName, durable);
         }
 
-        Message resp = null;
-        resp = conn.request(appendPre(subj), requestJSON.getBytes(), conn.getOptions().getConnectionTimeout());
+        Message resp = conn.request(appendPre(subj), requestJSON.getBytes(), conn.getOptions().getConnectionTimeout());
 
         if (resp == null) {
             throw new TimeoutException("Consumer request to jetstream timed out.");
@@ -250,14 +250,14 @@ public class NatsJetStream implements JetStream {
 
     @Override
     public ConsumerInfo addConsumer(String stream, ConsumerConfiguration config) throws InterruptedException, IOException, TimeoutException {
-        checkName(stream, false, "subject");
-        checkNull(config, "config");
+        validateSubjectStrict(stream);
+        validateNotNull(config, "config");
         return addConsumer(null, stream, config);
     }
 
     private ConsumerInfo addConsumer(String subject, String stream, ConsumerConfiguration config) throws InterruptedException, IOException, TimeoutException {
-        checkName(stream, false, "stream");
-        checkNull(config, "config");
+        validateStreamName(stream);
+        validateNotNull(config, "config");
         if (subject != null) {
             config.setDeliverSubject(subject);
         }
@@ -288,9 +288,8 @@ public class NatsJetStream implements JetStream {
         return publishInternal(message, options);
     }
 
-
     private PublishAck publishInternal(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
-        checkNull(message, "message");
+        validateNotNull(message, "message");
 
         NatsMessage natsMessage = message instanceof NatsMessage ? (NatsMessage)message : new NatsMessage(message);
 
@@ -409,11 +408,7 @@ public class NatsJetStream implements JetStream {
     NatsJetStreamSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException{
 
         // setup the configuration, use a default.
-        SubscribeOptions o = (options == null) ? SubscribeOptions.builder().build() : new SubscribeOptions(options);
-        if (o.getConsumerConfiguration() == null) {
-            o.setConfiguration(ConsumerConfiguration.builder().build());
-        }
-
+        SubscribeOptions o = SubscribeOptions.getInstance(options);
         ConsumerConfiguration cfg = o.getConsumerConfiguration();
 
         boolean isPullMode = (o.getPullBatchSize() > 0);
@@ -506,90 +501,60 @@ public class NatsJetStream implements JetStream {
         return sub;
     }
 
-    private static void checkName(String s, boolean allowEmpty, String varName) {
-        if (!allowEmpty && (s == null || s.isEmpty())) {
-            throw new IllegalArgumentException(varName + " cannot be null or empty.");
-        }
-
-        if (s == null) {
-            return;
-        }
-
-        for (int i = 0; i < s.length(); i++){
-            char c = s.charAt(i);
-            if (Character.isWhitespace(c)) {
-                throw new IllegalArgumentException(varName + " cannot contain spaces.");
-            }
-        }
-    }
-
-    private static void checkNull(Object s, String name) {
-        if (s == null) {
-            throw new IllegalArgumentException(name + "cannot be null");
-        }
-    }
-
-    static boolean isValidStreamName(String s) {
-        if (s == null) {
-            return false;
-        }
-        return !s.contains(".") && !s.contains("*") && !s.contains(">");
-    }
-
     @Override
     public JetStreamSubscription subscribe(String subject) throws InterruptedException, TimeoutException, IOException {
-        checkName(subject, true, "subject");
+        validateSubjectStrict(subject);
         return createSubscription(subject, null, null, null, SubscribeOptions.builder().build());
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
-        checkName(subject, true, "subject");
-        checkNull(options, "options");
+        validateSubjectStrict(subject);
+        validateNotNull(options, "options");
         return createSubscription(subject, null, null, null, options);
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
-        checkName(subject, true, "subject");
-        checkName(queue, false, "queue");
-        checkNull(options, "options");
+        validateSubjectStrict(subject);
+        validateQueueName(queue);
+        validateNotNull(options, "options");
         return createSubscription(subject, queue, null, null, options);
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException {
-        checkName(subject, true, "subject");
-        checkNull(dispatcher, "dispatcher");
-        checkNull(handler, "handler");
+        validateSubjectStrict(subject);
+        validateNotNull(dispatcher, "dispatcher");
+        validateNotNull(handler, "handler");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, null);
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
-        checkName(subject, true, "subject");
-        checkNull(dispatcher, "dispatcher");
-        checkNull(handler, "handler");
-        checkNull(options, "options");
+        validateSubjectStrict(subject);
+        validateNotNull(dispatcher, "dispatcher");
+        validateNotNull(handler, "handler");
+        validateNotNull(options, "options");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, options);
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException {
-        checkName(subject, true, "subject");
-        checkName(queue, false, "queue");
-        checkNull(dispatcher, "dispatcher");
-        checkNull(handler, "handler");
+        validateSubjectStrict(subject);
+        validateQueueName(queue);
+        validateNotNull(dispatcher, "dispatcher");
+        validateNotNull(handler, "handler");
         return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, null);
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
-        checkName(subject, true, "subject");
-        checkName(queue, false, "queue");
-        checkNull(dispatcher, "dispatcher");
-        checkNull(handler, "handler");
-        checkNull(options, "options");
+        validateSubjectStrict(subject);
+        validateQueueName(queue);
+        validateNotNull(dispatcher, "dispatcher");
+        validateNotNull(handler, "handler");
+        validateNotNull(options, "options");
         return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, options);
     }
 }
