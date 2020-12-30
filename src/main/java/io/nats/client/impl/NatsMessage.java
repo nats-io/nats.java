@@ -26,6 +26,8 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.Validator.validateReplyTo;
+import static io.nats.client.support.Validator.validateSubject;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -77,13 +79,8 @@ public class NatsMessage implements Message {
     // Create a message to publish
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
 
-        if (subject == null || subject.length() == 0) {
-            throw new IllegalArgumentException("Subject is required");
-        }
-
-        if (replyTo != null && replyTo.length() == 0) {
-            throw new IllegalArgumentException("ReplyTo cannot be the empty string");
-        }
+        validateSubject(subject);
+        validateReplyTo(replyTo);
 
         this.subject = subject;
         this.replyTo = replyTo;

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static io.nats.client.impl.NatsJetStream.isValidStreamName;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsJetStreamTests {
@@ -126,15 +125,5 @@ public class NatsJetStreamTests {
         assertEquals(-1, impl.getStorage());
         assertEquals(-1, impl.getStreams());
         assertEquals(+1, impl.getConsumers());
-    }
-
-
-    @Test
-    public void miscCoverage() {
-        assertFalse(isValidStreamName(null));
-        assertFalse(isValidStreamName("no.dot"));
-        assertFalse(isValidStreamName("no*star"));
-        assertFalse(isValidStreamName("no>gt"));
-        assertTrue(isValidStreamName("ok"));
     }
 }

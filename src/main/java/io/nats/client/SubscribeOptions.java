@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2020 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import static io.nats.client.support.Validator.*;
+
 /**
  * The SubscribeOptions class specifies the options for subscribing with jetstream enabled servers.
  * Options are created using the constructor or a {@link SubscribeOptions.Builder Builder}.
@@ -25,20 +27,8 @@ public class SubscribeOptions {
     private boolean autoAck = true;
     private long pull = 0;
 
+    // required so it cannot be instantiated anywhere else, use the builder and getInstance
     private SubscribeOptions() {}
-
-
-    /**
-     * Copy constructor for subsciption options.
-     * @param options Subscription options
-     */
-    public SubscribeOptions(SubscribeOptions options) {
-        this.stream = options.stream;
-        this.consumer = options.consumer;
-        this.consumerConfiguration = new ConsumerConfiguration(options.consumerConfiguration);
-        this.autoAck = options.autoAck;
-        this.pull = options.pull;
-    }
 
     /**
      * Gets the name of the stream.
@@ -46,15 +36,6 @@ public class SubscribeOptions {
      */
     public String getStream() {
         return stream;
-    }
-
-    /**
-     * Sets the auto ack mode of this subscriber.  It is off by default.  When disabled
-     * the application must manually ack using one of the message's Ack methods.
-     * @param value true enables auto ack, false disables.
-     */
-    public void setAutoAck(boolean value) {
-        autoAck = value;
     }
 
     /** 
@@ -65,32 +46,12 @@ public class SubscribeOptions {
         return autoAck;
     }
 
-
-    /**
-     * Sets the consumer configuration.
-     * @param configuration consumer configuration.
-     */
-    public void setConfiguration(ConsumerConfiguration configuration) {
-        if (configuration == null) {
-            throw new IllegalArgumentException("Consumer configuration cannot be null");
-        }
-        this.consumerConfiguration = configuration;
-    }
-
     /**
      * Gets the consumer configuration.
      * @return the consumer configuration.
      */
     public ConsumerConfiguration getConsumerConfiguration() {
         return consumerConfiguration;
-    }
-
-    /**
-     * Sets the durable for subscription options.
-     * @param durable the durable name
-     */
-    public void setDurable(String durable) {
-        consumerConfiguration.setDurable(durable);
     }
 
     /**
@@ -105,62 +66,37 @@ public class SubscribeOptions {
         return pull;
     }
 
+    /**
+     * Get a default instance of SubscribeOptions
+     * @return the instance
+     */
+    public static SubscribeOptions getDefaultInstance() {
+        return new Builder().build();
+    }
 
-    private static void checkStreamName(String stream) {
-        if (stream == null || stream.length() == 0 || stream.contains(">") ||
-        stream.contains(".") || stream.contains("*")) {
-            throw new IllegalArgumentException("stream cannot be null, empty, tokenized, or wildcarded");
+    /**
+     * Creates a builder for the subscribe options.
+     * @return the builder.
+     */
+    public static SubscribeOptions getInstance(SubscribeOptions options) {
+        SubscribeOptions so;
+        if (options == null) {
+            so = new Builder().build();
         }
-    }
-    /**
-     * Setting this enables pull based consumers.  This sets the batch size the server
-     * will send.  Default is 0 (disabled).
-     * @param batchSize number of messages to request in poll. 
-     */
-    public void setPull(long batchSize) {
-        if (batchSize <= 0) {
-            throw new IllegalArgumentException("Batch size must be greater than zero");
+        else {
+            so = new SubscribeOptions();
+            so.stream = options.stream;
+            so.consumer = options.consumer;
+            so.consumerConfiguration = new ConsumerConfiguration(options.consumerConfiguration);
+            so.autoAck = options.autoAck;
+            so.pull = options.pull;
         }
-        pull = batchSize;
+
+        return so;
     }
 
     /**
-     * Setting this enables pull based consumers.  This sets the batch size the server
-     * will send.  Default is 0 (disabled).
-     * @param stream the name of the stream
-     * @param consumer the name of the consumer
-     * @param batchSize number of messages to request in poll. 
-     */
-    public void setPullDirect(String stream, String consumer, long batchSize) {
-        checkStreamName(stream);
-        setPull(batchSize);
-        this.stream = stream;
-        this.consumer = consumer;
-    }    
-
-    /**
-     * Attaches to a consumer. 
-     * @param stream the name of the stream the consumer is attached to.
-     * @param consumer the consumer name.
-     */
-    public void attach(String stream, String consumer) {
-        checkStreamName(stream);
-        if (consumer == null) {
-            throw new IllegalArgumentException("Consumer cannot be null");
-        }
-        this.stream = stream;
-        this.consumer = consumer;
-    }
-
-    /**
-     * Sets the delivery subject to push messages to.
-     * @param deliverSubject the delivery subject.
-     */
-    public void pushDirect(String deliverSubject) {
-        this.consumerConfiguration.setDeliverSubject(deliverSubject);
-    }
-    /**
-     * Creates a builder for the publish options.
+     * Creates a builder for the subscribe options.
      * @return the builder.
      */
     public static Builder builder() {
@@ -177,8 +113,9 @@ public class SubscribeOptions {
         private ConsumerConfiguration consumerConfig = null;
         private boolean autoAck = true;
         private String durable = null;
+        private String deliverSubject = null;
         private long pull = 0;
-        
+
         /**
          * Attaches to a consumer for the subscription.
          * @param stream the name of the stream
@@ -186,7 +123,7 @@ public class SubscribeOptions {
          * @return the builder
          */
         public Builder configuration(String stream, ConsumerConfiguration configuration) {
-            this.stream = stream;
+            this.stream = validateStreamName(stream);
             this.consumerConfig = configuration;
             return this;
         }
@@ -208,7 +145,7 @@ public class SubscribeOptions {
          * @return the builder
          */
         public Builder durable(String name) {
-            this.durable = name;
+            this.durable = validateDurable(name);
             return this;
         }
 
@@ -230,10 +167,7 @@ public class SubscribeOptions {
          * @return the builder.
          */
         public Builder pull(long batchSize) {
-            if (batchSize <= 0) {
-                throw new IllegalArgumentException("Batch size must be greater than zero");
-            }
-            this.pull = batchSize;
+            this.pull = validatePullBatchSize(batchSize);
             return this;
         }
 
@@ -246,9 +180,9 @@ public class SubscribeOptions {
          * @return the builder.
          */
         public Builder pullDirect(String stream, String consumer, long batchSize) {
-            this.stream = stream;
-            this.consumer = consumer;
-            this.pull = batchSize;
+            this.stream = validateStreamName(stream);
+            this.consumer = validateConsumer(consumer);
+            this.pull = validatePullBatchSize(batchSize);
             return this;
         }
 
@@ -258,10 +192,7 @@ public class SubscribeOptions {
          * @return the builder.
          */
         public Builder pushDirect(String deliverSubject) {
-            if (consumerConfig == null) {
-                consumerConfig = ConsumerConfiguration.builder().build();
-            }
-            this.consumerConfig.setDeliverSubject(deliverSubject);
+            this.deliverSubject = validateDeliverSubject(deliverSubject);
             return this;
         }          
 
@@ -272,8 +203,8 @@ public class SubscribeOptions {
          * @return the builder.
          */
         public Builder attach(String stream, String consumer) {
-            this.consumer = consumer;
-            this.stream = stream;
+            this.stream = validateStreamName(stream);
+            this.consumer = validateConsumer(consumer);
             return this;
         }
 
@@ -282,18 +213,25 @@ public class SubscribeOptions {
          * @return subscribe options
          */
         public SubscribeOptions build() {
-            if (consumerConfig == null) {
-                consumerConfig = ConsumerConfiguration.builder().build();
-            }
             SubscribeOptions so = new SubscribeOptions();
-            so.setAutoAck(autoAck);
-            so.setConfiguration(consumerConfig);
-            so.setDurable(durable);
-            so.pull = pull;
+            so.consumerConfiguration = consumerConfig == null
+                    ? ConsumerConfiguration.builder().build()
+                    : consumerConfig;
+
             so.stream = stream;
             so.consumer = consumer;
-            return so;
+            so.autoAck = autoAck;
+            so.pull = pull;
 
+            if (durable != null) {
+                so.consumerConfiguration.setDurable(durable);
+            }
+
+            if (deliverSubject != null) {
+                so.consumerConfiguration.setDeliverSubject(deliverSubject);
+            }
+
+            return so;
         }
     }
 }

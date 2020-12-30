@@ -13,7 +13,6 @@
 
 package io.nats.client;
 
-
 import io.nats.client.ConsumerConfiguration.AckPolicy;
 import org.junit.jupiter.api.Test;
 
@@ -43,20 +42,4 @@ public class SubscribeOptionsTests {
     public void testInvalidPullSize() {
         assertThrows(IllegalArgumentException.class, () -> SubscribeOptions.builder().pull(-1));
     }
-
-    @Test
-    public void testSetConfigurationNull() {
-        assertThrows(IllegalArgumentException.class, () -> SubscribeOptions.builder().build().setConfiguration(null));
-    }
-
-    @Test
-    public void testCheckStreamName() {
-        SubscribeOptions so = SubscribeOptions.builder().build();
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect(null, "consumer", 1));
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("", "consumer", 1));
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains >", "consumer", 1));
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains .", "consumer", 1));
-        assertThrows(IllegalArgumentException.class, () -> so.setPullDirect("stream contains *", "consumer", 1));
-    }
-
 }
