@@ -250,7 +250,7 @@ public class NatsJetStream implements JetStream {
 
     @Override
     public ConsumerInfo addConsumer(String stream, ConsumerConfiguration config) throws InterruptedException, IOException, TimeoutException {
-        validateSubjectStrict(stream);
+        validateStreamName(stream);
         validateNotNull(config, "config");
         return addConsumer(null, stream, config);
     }
@@ -258,7 +258,7 @@ public class NatsJetStream implements JetStream {
     private ConsumerInfo addConsumer(String subject, String stream, ConsumerConfiguration config) throws InterruptedException, IOException, TimeoutException {
         validateStreamName(stream);
         validateNotNull(config, "config");
-        if (subject != null) {
+        if (provided(subject)) {
             config.setDeliverSubject(subject);
         }
         return createOrUpdateConsumer(stream, config);
@@ -503,20 +503,20 @@ public class NatsJetStream implements JetStream {
 
     @Override
     public JetStreamSubscription subscribe(String subject) throws InterruptedException, TimeoutException, IOException {
-        validateSubjectStrict(subject);
+        validateJsSubscribeSubject(subject);
         return createSubscription(subject, null, null, null, SubscribeOptions.builder().build());
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
-        validateSubjectStrict(subject);
+        validateJsSubscribeSubject(subject);
         validateNotNull(options, "options");
         return createSubscription(subject, null, null, null, options);
     }
 
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
-        validateSubjectStrict(subject);
+        validateJsSubscribeSubject(subject);
         validateQueueName(queue);
         validateNotNull(options, "options");
         return createSubscription(subject, queue, null, null, options);
@@ -524,7 +524,7 @@ public class NatsJetStream implements JetStream {
 
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException {
-        validateSubjectStrict(subject);
+        validateJsSubscribeSubject(subject);
         validateNotNull(dispatcher, "dispatcher");
         validateNotNull(handler, "handler");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, null);
@@ -532,7 +532,7 @@ public class NatsJetStream implements JetStream {
 
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
-        validateSubjectStrict(subject);
+        validateJsSubscribeSubject(subject);
         validateNotNull(dispatcher, "dispatcher");
         validateNotNull(handler, "handler");
         validateNotNull(options, "options");
@@ -541,7 +541,7 @@ public class NatsJetStream implements JetStream {
 
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException {
-        validateSubjectStrict(subject);
+        validateJsSubscribeSubject(subject);
         validateQueueName(queue);
         validateNotNull(dispatcher, "dispatcher");
         validateNotNull(handler, "handler");
@@ -550,7 +550,7 @@ public class NatsJetStream implements JetStream {
 
     @Override
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException {
-        validateSubjectStrict(subject);
+        validateJsSubscribeSubject(subject);
         validateQueueName(queue);
         validateNotNull(dispatcher, "dispatcher");
         validateNotNull(handler, "handler");

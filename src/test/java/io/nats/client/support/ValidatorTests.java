@@ -30,15 +30,21 @@ public class ValidatorTests {
     private static final String HAS_GT    = "has>gt";
 
     @Test
-    public void testValidateSubject() {
-        allowed(Validator::validateSubject, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateSubject, null, EMPTY);
+    public void testValidateMessageSubject() {
+        allowed(Validator::validateMessageSubject, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateMessageSubject, null, EMPTY);
     }
 
     @Test
-    public void testValidateSubjectStrict() {
-        allowed(Validator::validateSubjectStrict, PLAIN, HAS_DASH);
-        notAllowed(Validator::validateSubjectStrict, null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateJsSubscribeSubject() {
+        allowed(Validator::validateJsSubscribeSubject, null, EMPTY, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateJsSubscribeSubject, HAS_SPACE);
+    }
+
+    @Test
+    public void testValidateQueueName() {
+        allowed(Validator::validateQueueName, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateQueueName, null, EMPTY, HAS_SPACE);
     }
 
     @Test
@@ -49,8 +55,8 @@ public class ValidatorTests {
 
     @Test
     public void testValidateStreamName() {
-        allowed(Validator::validateStreamName, null, PLAIN, HAS_DASH);
-        notAllowed(Validator::validateStreamName, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT);
+        allowed(Validator::validateStreamName, PLAIN, HAS_DASH);
+        notAllowed(Validator::validateStreamName, null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
@@ -82,14 +88,12 @@ public class ValidatorTests {
 
     private void allowed(StringTest test, String... strings) {
         for (String s : strings) {
-            System.out.println("OK [" + s + "]");
             assertEquals(s, test.validate(s));
         }
     }
 
     private void notAllowed(StringTest test, String... strings) {
         for (String s : strings) {
-            System.out.println("NOT [" + s + "]");
             assertThrows(IllegalArgumentException.class, () -> test.validate(s));
         }
     }
