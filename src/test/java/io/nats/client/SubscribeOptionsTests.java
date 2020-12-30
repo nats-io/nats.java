@@ -13,7 +13,6 @@
 
 package io.nats.client;
 
-
 import io.nats.client.ConsumerConfiguration.AckPolicy;
 import org.junit.jupiter.api.Test;
 
@@ -42,10 +41,5 @@ public class SubscribeOptionsTests {
     @Test
     public void testInvalidPullSize() {
         assertThrows(IllegalArgumentException.class, () -> SubscribeOptions.builder().pull(-1));
-    }
-
-    @Test
-    public void testSetConfigurationNull() {
-        assertThrows(IllegalArgumentException.class, () -> SubscribeOptions.builder().configuration(null));
     }
 }
