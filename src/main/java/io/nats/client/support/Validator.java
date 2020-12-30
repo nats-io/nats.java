@@ -19,26 +19,24 @@ public class Validator {
 
     static final Pattern STREAM_PATTERN = Pattern.compile("^[a-zA-Z0-9-]+$");
 
-    public static String validateSubject(String s) {
+    public static String validateMessageSubject(String s) {
         if (nullOrEmpty(s)) {
             throw new IllegalArgumentException("Subject cannot be null or empty.");
         }
         return s;
     }
 
-    public static String validateSubjectStrict(String s) {
-        if (nullOrEmpty(s) || notStrict(s)) {
-            throw new IllegalArgumentException("Subject cannot be null or empty or have whitespace, '.', '>' or '*'.");
+    public static String validateJsSubscribeSubject(String s) {
+        if (provided(s) && containsWhitespace(s)) {
+            throw new IllegalArgumentException("Subject cannot have whitespace if provided.");
         }
-
         return s;
     }
 
     public static String validateQueueName(String s) {
-        if (nullOrEmpty(s)) {
-            throw new IllegalArgumentException("Queue name cannot be null or empty or have whitespace.");
+        if (nullOrEmpty(s) || containsWhitespace(s)) {
+            throw new IllegalArgumentException("Queue cannot be null or empty or have whitespace.");
         }
-
         return s;
     }
 
@@ -50,8 +48,8 @@ public class Validator {
     }
 
     public static String validateStreamName(String s) {
-        if (s != null && doesNotMatch(STREAM_PATTERN, s)) {
-            throw new IllegalArgumentException("Stream is required and must be alpha, numeric or dash.");
+        if (nullOrEmpty(s) || doesNotMatch(STREAM_PATTERN, s)) {
+            throw new IllegalArgumentException("Stream cannot be null or empty and must be alpha, numeric or dash.");
         }
         return s;
     }
@@ -110,6 +108,10 @@ public class Validator {
         return !pattern.matcher(stream).matches();
     }
 
+    public static boolean provided(String s) {
+        return s != null && s.length() > 0;
+    }
+
     public static boolean nullOrEmpty(String s) {
         return s == null || s.length() == 0;
     }
@@ -121,16 +123,6 @@ public class Validator {
     public static boolean containsWhitespace(String s) {
         for (int i = 0; i < s.length(); i++){
             if (Character.isWhitespace(s.charAt(i))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public static boolean notStrict(String s) {
-        for (int i = 0; i < s.length(); i++){
-            char c = s.charAt(i);
-            if (c == '.' || c == '*' || c == '>' || Character.isWhitespace(c)) {
                 return true;
             }
         }
