@@ -4,6 +4,7 @@ import io.nats.client.*;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -286,6 +287,50 @@ public class NatsJetStream implements JetStream {
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{
         return publishInternal(message, options);
+    }
+
+    @Override
+    public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return publish(subject, body);
+            } catch (IOException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return publish(subject, body, options);
+            } catch (IOException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<PublishAck> publishAsync(Message message) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return publish(message);
+            } catch (IOException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return publish(message, options);
+            } catch (IOException | InterruptedException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private PublishAck publishInternal(Message message, PublishOptions options) throws IOException, InterruptedException, TimeoutException{

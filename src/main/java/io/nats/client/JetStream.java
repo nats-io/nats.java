@@ -13,6 +13,7 @@
 package io.nats.client;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -23,61 +24,61 @@ public interface JetStream {
     /**
      * Represents the Jetstream Account Limits
      */
-    public interface AccountLimits {
+    interface AccountLimits {
 
         /**
          * Gets the maximum amount of memory in the Jetstream deployment.
          * @return bytes
          */
-        public long getMaxMemory();
+        long getMaxMemory();
 
         /**
          * Gets the maximum amount of storage in the Jetstream deployment.
          * @return bytes
          */
-        public long getMaxStorage();
+        long getMaxStorage();
 
          /**
          * Gets the maximum number of allowed streams in the Jetstream deployment.
          * @return stream maximum count
          */       
-        public long getMaxStreams();
+        long getMaxStreams();
 
          /**
          * Gets the maximum number of allowed consumers in the Jetstream deployment.
          * @return consumer maximum count
          */         
-        public long getMaxConsumers();
+        long getMaxConsumers();
     }
 
     /**
      *  The Jetstream Account Statistics
      */
-    public interface AccountStatistics {
+    interface AccountStatistics {
 
         /**
          * Gets the amount of memory used by the Jetstream deployment.
          * @return bytes
          */
-        public long getMemory();
+        long getMemory();
 
         /**
          * Gets the amount of storage used by  the Jetstream deployment.
          * @return bytes
          */
-        public long getStorage();
+        long getStorage();
 
          /**
          * Gets the number of streams used by the Jetstream deployment.
          * @return stream maximum count
          */       
-        public long getStreams();
+        long getStreams();
 
          /**
          * Gets the number of consumers used by the Jetstream deployment.
          * @return consumer maximum count
          */         
-        public long getConsumers();
+        long getConsumers();
     }    
 
     /**
@@ -87,7 +88,7 @@ public interface JetStream {
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */
-    public StreamInfo addStream(StreamConfiguration config) throws TimeoutException, InterruptedException;
+    StreamInfo addStream(StreamConfiguration config) throws TimeoutException, InterruptedException;
 
     /**
      * Loads or creates a consumer.
@@ -98,7 +99,7 @@ public interface JetStream {
      * @throws InterruptedException if the thread is interrupted
      * @return consumer information.
      */    
-    public ConsumerInfo addConsumer(String stream, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException;
+    ConsumerInfo addConsumer(String stream, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException;
 
     /**
      * Send a message to the specified subject and waits for a response from
@@ -124,7 +125,7 @@ public interface JetStream {
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */
-    public PublishAck publish(String subject, byte[] body) throws IOException, InterruptedException, TimeoutException;
+    PublishAck publish(String subject, byte[] body) throws IOException, InterruptedException, TimeoutException;
 
     /**
      * Send a message to the specified subject and waits for a response from
@@ -151,7 +152,7 @@ public interface JetStream {
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */    
-    public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, InternalError, TimeoutException, InterruptedException;
+    PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, InternalError, TimeoutException, InterruptedException;
 
     /**
      * Send a message to the specified subject and waits for a response from
@@ -176,7 +177,7 @@ public interface JetStream {
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */
-    public PublishAck publish(Message message) throws IOException, InterruptedException, TimeoutException;
+    PublishAck publish(Message message) throws IOException, InterruptedException, TimeoutException;
 
     /**
      * Send a message to the specified subject and waits for a response from
@@ -202,7 +203,12 @@ public interface JetStream {
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */    
-    public PublishAck publish(Message message, PublishOptions options) throws IOException, InternalError, TimeoutException, InterruptedException;
+    PublishAck publish(Message message, PublishOptions options) throws IOException, InternalError, TimeoutException, InterruptedException;
+
+    CompletableFuture<PublishAck> publishAsync(String subject, byte[] body);
+    CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options);
+    CompletableFuture<PublishAck> publishAsync(Message message);
+    CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options);
 
    /**
      * Create a synchronous subscription to the specified subject with default options.
@@ -219,7 +225,7 @@ public interface JetStream {
      * @throws InterruptedException if the thread is interrupted
      * @throws IOException if there are communcation issues with the NATS server
      */    
-    public JetStreamSubscription subscribe(String subject) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject) throws InterruptedException, TimeoutException, IOException;
 
 
     /**
@@ -238,7 +244,7 @@ public interface JetStream {
      * @throws InterruptedException if the thread is interrupted
      * @throws IOException if there are communcation issues with the NATS server
      */    
-    public JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
 
     /**
      * Create a synchronous subscription to the specified subject.
@@ -259,7 +265,7 @@ public interface JetStream {
      * @throws InterruptedException if the thread is interrupted
      * @throws IOException if there are communcation issues with the NATS server
      */    
-    public JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
 
     /**
      * Create a subscription to the specified subject under the control of the
@@ -275,7 +281,7 @@ public interface JetStream {
      * @throws IOException if there are communcation issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */      
-    public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException;
 
     /**
      * Create a subscription to the specified subject under the control of the
@@ -292,7 +298,7 @@ public interface JetStream {
      * @throws IOException if there are communcation issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */    
-    public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
 
     /**
      * Create a subscription to the specified subject under the control of the
@@ -309,7 +315,7 @@ public interface JetStream {
      * @throws IOException if there are communcation issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */      
-    public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException;  
+    JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException;  
 
     /**
      * Create a subscription to the specified subject under the control of the
@@ -327,5 +333,5 @@ public interface JetStream {
      * @throws IOException if there are communcation issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */      
-    public JetStreamSubscription subscribe( String subject, String queue, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe( String subject, String queue, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
 }
