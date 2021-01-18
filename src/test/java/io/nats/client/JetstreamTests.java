@@ -14,12 +14,17 @@
 package io.nats.client;
 
 import io.nats.client.ConsumerConfiguration.AckPolicy;
+import io.nats.client.ConsumerConfiguration.DeliverPolicy;
 import io.nats.client.StreamConfiguration.StorageType;
 import io.nats.client.StreamInfo.StreamState;
+import io.nats.client.impl.Headers;
+import io.nats.client.impl.NatsMessage;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -487,4 +492,59 @@ public class JetstreamTests {
             }
         }
     }
+
+    @Test
+    public void testJetstreamAttachDirectWithConsumer() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false, true);
+             Connection nc = Nats.connect(ts.getURI())) {
+                
+            try {
+                JetStreamOptions jso = JetStreamOptions.builder().
+                    direct(true).
+                    build();
+
+                JetStream js = nc.jetStream(jso);
+
+                // Create a test-stream, but do not create the consumer.
+                createMemoryStream(js, "test-stream", "foo");
+
+                // add a consumer
+                ConsumerConfiguration cc = ConsumerConfiguration.builder().
+                    deliverPolicy(DeliverPolicy.All).
+                    durable("dur").
+                    deliverSubject("push.subject").
+                    build();
+                js.addConsumer("test-stream", cc);
+
+                // Publish a message with headers to the stream.
+                Headers h = new Headers().add("key", "value");
+                Message sMsg =  NatsMessage.builder().
+                    subject("foo").headers(h).
+                    data("hello", StandardCharsets.UTF_8).
+                    build();
+
+                js.publish(sMsg);
+
+                SubscribeOptions so = SubscribeOptions.builder().
+                    attach("test-stream", "test-consumer").
+                    durable("dur").
+                    pushDirect("push.subject").
+                    build();
+
+                JetStreamSubscription jsub = js.subscribe("push.subject", so);
+                Message m = jsub.nextMessage(Duration.ofMillis(100));
+                assertNotNull(m);
+                assertTrue(m.isJetStream());
+
+                m = jsub.nextMessage(Duration.ofMillis(100));
+                assertNull(m);
+
+            } catch (Exception ex) {
+                Assertions.fail(ex);
+            }
+            finally {
+                nc.close();
+            }
+        }
+    }    
 }
