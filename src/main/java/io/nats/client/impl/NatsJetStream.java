@@ -13,7 +13,7 @@ import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream implements JetStream {
 
-    private static final String jSDefaultApiPrefix = "$JS.API.";
+    public static final String jSDefaultApiPrefix = "$JS.API.";
 
     // JSApiAccountInfo is for obtaining general information about JetStream.
     private static final String jSApiAccountInfo = "INFO";
