@@ -76,6 +76,7 @@ public class SubscribeOptions {
 
     /**
      * Creates a builder for the subscribe options.
+     * @param options existing option set to copy.
      * @return the builder.
      */
     public static SubscribeOptions getInstance(SubscribeOptions options) {
