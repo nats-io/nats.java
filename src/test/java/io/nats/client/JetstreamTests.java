@@ -453,4 +453,38 @@ public class JetstreamTests {
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject, queue, dispatcher, handler, optNull));            // options null
         }
     }
+
+    @Test
+    public void testJetstreamAttachDirectNoConsumer() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+        try (NatsTestServer ts = new NatsTestServer(false, true);
+             Connection nc = Nats.connect(ts.getURI())) {
+                
+            try {
+                JetStreamOptions jso = JetStreamOptions.builder().
+                    direct(true).
+                    build();
+
+                JetStream js = nc.jetStream(jso);
+
+                // Create a test-stream, but do not create the consumer.
+                createMemoryStream(js, "test-stream", "not.important");
+
+                SubscribeOptions so = SubscribeOptions.builder().
+                    attach("test-stream", "test-consumer").
+                    durable("test-consumer").
+                    pushDirect("push.subject").
+                    build();
+
+                JetStreamSubscription jsub = js.subscribe("push.subject", so);
+                Message m = jsub.nextMessage(Duration.ofMillis(100));
+                assertNull(m);
+
+            } catch (Exception ex) {
+                Assertions.fail(ex);
+            }
+            finally {
+                nc.close();
+            }
+        }
+    }
 }
