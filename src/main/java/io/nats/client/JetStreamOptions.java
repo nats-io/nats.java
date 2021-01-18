@@ -86,8 +86,9 @@ public class JetStreamOptions {
 
         /**
          * Sets the prefix for jetstream subjects.  A prefix can be used in conjunction with
-         * user permissions to restrict access to certain Jetstream instances.
-         * @param value true enables auto ack, false disables.
+         * user permissions to restrict access to certain Jetstream instances.  This must 
+         * match the prefix used in the server.
+         * @param value the Jetstream prefix
          * @return the builder.
          */
         public Builder prefix(String value) {
