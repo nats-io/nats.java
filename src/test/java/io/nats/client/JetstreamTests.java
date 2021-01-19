@@ -19,7 +19,6 @@ import io.nats.client.StreamConfiguration.StorageType;
 import io.nats.client.StreamInfo.StreamState;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -35,15 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JetstreamTests {
 
-    private static StreamInfo createMemoryStream(JetStream js, String streamName, String subject)
-            throws TimeoutException, InterruptedException {
-        String[] subjects = new String[1];
-        subjects[0] = subject;
-
-        return createMemoryStream(js, streamName, subjects);
-    }
-
-    private static StreamInfo createMemoryStream(JetStream js, String streamName, String[] subjects)
+    private static StreamInfo createMemoryStream(JetStream js, String streamName, String... subjects)
             throws TimeoutException, InterruptedException {
 
         StreamConfiguration sc = StreamConfiguration.builder().name(streamName).storageType(StorageType.Memory)
@@ -53,7 +44,7 @@ public class JetstreamTests {
     }
 
     @Test
-    public void testStreamAndConsumerCreate() throws IOException, InterruptedException, ExecutionException {
+    public void testStreamAndConsumerCreate() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
 
             String[] subjects = { "foo" };
@@ -88,69 +79,52 @@ public class JetstreamTests {
     }
 
     @Test
-    public void testJetstreamPublishDefaultOptions() throws IOException, InterruptedException, ExecutionException {
+    public void testJetstreamPublishDefaultOptions() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
-
-            try {
-                JetStream js = nc.jetStream();
-                createMemoryStream(js, "foo-stream", "foo");
-
-                PublishAck ack = js.publish("foo", null);
-                assertEquals(1, ack.getSeqno());
-            } catch (Exception ex) {
-                Assertions.fail("Exception:  " + ex.getMessage());
-            } finally {
-                nc.close();
-            }
+            JetStream js = nc.jetStream();
+            createMemoryStream(js, "foo-stream", "foo");
+            PublishAck ack = js.publish("foo", null);
+            assertEquals(1, ack.getSeqno());
         }
     }
 
     @Test
-    public void testJetstreamNotAvailable() throws IOException, InterruptedException, ExecutionException {
+    public void testJetstreamNotAvailable() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, false); Connection nc = Nats.connect(ts.getURI())) {
-            assertThrows(TimeoutException.class, () -> {
-                nc.jetStream();
-            });
+            assertThrows(TimeoutException.class, nc::jetStream);
         }
     }
 
     @Test
-    public void testJetstreamPublish() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    public void testJetstreamPublish() throws IOException, InterruptedException, TimeoutException {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
+            JetStream js = nc.jetStream();
 
-            try {
-                JetStream js = nc.jetStream();
+            // check for failure w/ no stream.
+            assertThrows(Exception.class, () -> js.publish("foo", "hello".getBytes()));
 
-                // check for failure w/ no stream.
-                assertThrows(Exception.class, () -> js.publish("foo", "hello".getBytes()));
+            createMemoryStream(js, "foo-stream", "foo");
 
-                createMemoryStream(js, "foo-stream", "foo");
+            // this should succeed
+            js.publish("foo", "hello".getBytes());
 
-                // this should succeed
-                js.publish("foo", "hello".getBytes());
+            // Set the stream and publish.
+            PublishOptions pubOpts = PublishOptions.builder().stream("foo-stream").build();
+            js.publish("foo", null, pubOpts);
 
-                // Set the stream and publish.
-                PublishOptions popts = PublishOptions.builder().stream("foo-stream").build();
-                js.publish("foo", null, popts);
+            pubOpts.setStream("bar-stream");
+            Throwable t = assertThrows(IOException.class, () -> js.publish("foo", "hello".getBytes(), pubOpts));
+            assertTrue(t.getMessage().contains("Expected ack from stream bar-stream, received from: foo-stream"));
 
-                popts.setStream("bar-stream");
-                assertThrows(Exception.class, () -> js.publish("foo", "hello".getBytes(), popts));
-
-                PublishAck pa = js.publish("foo", null);
-                assertEquals(4, pa.getSeqno());
-                assertEquals("foo-stream", pa.getStream());
-                assertFalse(pa.isDuplicate());
-
-            } catch (Exception ex) {
-                Assertions.fail(ex);
-            } finally {
-                nc.close();
-            }
+            PublishAck pa = js.publish("foo", null);
+            assertEquals(4, pa.getSeqno());
+            assertEquals("foo-stream", pa.getStream());
+            assertFalse(pa.isDuplicate());
         }
     }
 
     @Test
-    public void testJetstreamPublishOptions() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+    public void testJetstreamPublishOptions() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, true);
              Connection nc = Nats.connect(ts.getURI())) {
                             
@@ -189,10 +163,10 @@ public class JetstreamTests {
                 opts.setExpectedLastSeqence(42);
                 assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
 
-                // check success - TODO - debug...
-                // opts.setExpectedStream("foo-stream");
-                // opts.setExpectedLastSeqence(PublishOptions.unsetLastSequence);
-                // js.publish("foo", null, opts);
+                // check success
+                 opts.setExpectedStream("foo-stream");
+                 opts.setExpectedLastSeqence(PublishOptions.unsetLastSequence);
+                 js.publish("foo", null, opts);
 
                 // check failure
                 opts.setExpectedStream("oof");

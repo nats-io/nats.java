@@ -66,22 +66,22 @@ public class NatsJetStream implements JetStream {
         AccountLimitImpl(String json) {
             Matcher m = LIMITS_MEMORY_RE.matcher(json);
             if (m.find()) {
-                this.memory = Integer.parseInt(m.group(1));
+                this.memory = Long.parseLong(m.group(1));
             }
 
             m = LIMITS_STORAGE_RE.matcher(json);
             if (m.find()) {
-                this.storage = Integer.parseInt(m.group(1));
+                this.storage = Long.parseLong(m.group(1));
             }
 
             m = LIMIT_STREAMS_RE.matcher(json);
             if (m.find()) {
-                this.streams = Integer.parseInt(m.group(1));
+                this.streams = Long.parseLong(m.group(1));
             }
 
             m = LIMIT_CONSUMERS_RE.matcher(json);
             if (m.find()) {
-                this.consumers = Integer.parseInt(m.group(1));
+                this.consumers = Long.parseLong(m.group(1));
             }
         }
 
@@ -115,22 +115,22 @@ public class NatsJetStream implements JetStream {
         AccountStatsImpl(String json) {
             Matcher m = STATS_MEMORY_RE.matcher(json);
             if (m.find()) {
-                this.memory = Integer.parseInt(m.group(1));
+                this.memory = Long.parseLong(m.group(1));
             }
 
             m = STATS_STORAGE_RE.matcher(json);
             if (m.find()) {
-                this.storage = Integer.parseInt(m.group(1));
+                this.storage = Long.parseLong(m.group(1));
             }
 
             m = STATS_STREAMS_RE.matcher(json);
             if (m.find()) {
-                this.streams = Integer.parseInt(m.group(1));
+                this.streams = Long.parseLong(m.group(1));
             }
 
             m = STATS_CONSUMERS_RE.matcher(json);
             if (m.find()) {
-                this.consumers = Integer.parseInt(m.group(1));
+                this.consumers = Long.parseLong(m.group(1));
             }
         }
         @Override
@@ -391,8 +391,7 @@ public class NatsJetStream implements JetStream {
         return streamName != null;
     }
 
-    ConsumerInfo getConsumerInfo(String stream, String consumer) throws IOException, TimeoutException,
-            InterruptedException {
+    ConsumerInfo getConsumerInfo(String stream, String consumer) throws TimeoutException, InterruptedException {
         String ccInfoSubj = this.appendPre(String.format(jSApiConsumerInfoT, stream, consumer));
         Message resp = conn.request(ccInfoSubj, null, defaultTimeout);
         if (resp == null) {

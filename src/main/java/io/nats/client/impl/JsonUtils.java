@@ -35,8 +35,8 @@ public final class JsonUtils {
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
 
     private static final String Q = "\"";
-    private static final String QCOLONQ = "\": \"";
-    private static final String QCOLON = "\": ";
+    private static final String QCOLONQ = "\":\"";
+    private static final String QCOLON = "\":";
     private static final String QCOMMA = "\",";
     private static final String COMMA = ",";
 

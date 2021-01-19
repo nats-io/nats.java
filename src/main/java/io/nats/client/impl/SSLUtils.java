@@ -13,14 +13,14 @@
 
 package io.nats.client.impl;
 
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
+import io.nats.client.Options;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import java.security.cert.X509Certificate;
 
-import io.nats.client.Options;
+import static io.nats.client.support.RandomUtils.SRAND;
 
 public class SSLUtils {
     private static TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
@@ -40,7 +40,7 @@ public class SSLUtils {
 
         try {
             context = SSLContext.getInstance(Options.DEFAULT_SSL_PROTOCOL);
-            context.init(null, trustAllCerts, new SecureRandom());
+            context.init(null, trustAllCerts, SRAND);
         } catch (Exception e) {
             context = null;
         }

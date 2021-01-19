@@ -433,14 +433,14 @@ public class StreamConfiguration {
         public Builder name(String name) {
             this.name = name;
             return this;
-        }      
+        }
 
         /**
          * Sets the subjects in the StreamConfiguration.
          * @param subjects the stream's subjects
          * @return Builder
          */
-        public Builder subjects(String[] subjects) {
+        public Builder subjects(String... subjects) {
             if (subjects == null || subjects.length == 0) {
                 throw new IllegalArgumentException("Subjects cannot be null or empty");
             }

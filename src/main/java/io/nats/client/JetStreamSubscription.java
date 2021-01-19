@@ -25,7 +25,7 @@ public interface JetStreamSubscription extends Subscription {
      * Polls for new messages.  This should only be used when the subscription
      * is pull based.
      */
-    public void poll();
+    void poll();
 
     /**
      * Gets information about the consumer behind this subscription.
@@ -34,5 +34,5 @@ public interface JetStreamSubscription extends Subscription {
      * @throws InterruptedException if the thread is interrupted
      * @return consumer information
      */
-    public ConsumerInfo getConsumerInfo() throws IOException, TimeoutException, InterruptedException;    
+    ConsumerInfo getConsumerInfo() throws IOException, TimeoutException, InterruptedException;
 }

@@ -13,22 +13,6 @@
 
 package io.nats.client;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.security.GeneralSecurityException;
-import java.security.KeyPair;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.security.Signature;
-import java.util.Arrays;
-import java.util.Random;
-
 import net.i2p.crypto.eddsa.EdDSAEngine;
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
 import net.i2p.crypto.eddsa.EdDSAPublicKey;
@@ -36,6 +20,16 @@ import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable;
 import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec;
 import net.i2p.crypto.eddsa.spec.EdDSAPublicKeySpec;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.security.*;
+import java.util.Arrays;
+
+import static io.nats.client.support.RandomUtils.PRAND;
+import static io.nats.client.support.RandomUtils.SRAND;
 
 class DecodedSeed {
     int prefix;
@@ -155,25 +149,25 @@ public class NKey {
     }
 
     // PrefixByteSeed is the prefix byte used for encoded NATS Seeds
-    private static int PREFIX_BYTE_SEED = 18 << 3; // Base32-encodes to 'S...'
+    private static final int PREFIX_BYTE_SEED = 18 << 3; // Base32-encodes to 'S...'
 
     // PrefixBytePrivate is the prefix byte used for encoded NATS Private keys
-    private static int PREFIX_BYTE_PRIVATE = 15 << 3; // Base32-encodes to 'P...'
+    private static final int PREFIX_BYTE_PRIVATE = 15 << 3; // Base32-encodes to 'P...'
 
     // PrefixByteServer is the prefix byte used for encoded NATS Servers
-    private static int PREFIX_BYTE_SERVER = 13 << 3; // Base32-encodes to 'N...'
+    private static final int PREFIX_BYTE_SERVER = 13 << 3; // Base32-encodes to 'N...'
 
     // PrefixByteCluster is the prefix byte used for encoded NATS Clusters
-    private static int PREFIX_BYTE_CLUSTER = 2 << 3; // Base32-encodes to 'C...'
+    private static final int PREFIX_BYTE_CLUSTER = 2 << 3; // Base32-encodes to 'C...'
 
     // PrefixByteAccount is the prefix byte used for encoded NATS Accounts
-    private static int PREFIX_BYTE_ACCOUNT = 0; // Base32-encodes to 'A...'
+    private static final int PREFIX_BYTE_ACCOUNT = 0; // Base32-encodes to 'A...'
 
     // PrefixByteUser is the prefix byte used for encoded NATS Users
-    private static int PREFIX_BYTE_USER = 20 << 3; // Base32-encodes to 'U...'
+    private static final int PREFIX_BYTE_USER = 20 << 3; // Base32-encodes to 'U...'
 
     // PrefixByteOperator is the prefix byte used for encoded NATS Operators
-    private static int PREFIX_BYTE_OPERATOR = 14 << 3; // Base32-encodes to 'O...'
+    private static final int PREFIX_BYTE_OPERATOR = 14 << 3; // Base32-encodes to 'O...'
 
     private static final int ED25519_PUBLIC_KEYSIZE = 32;
     private static final int ED25519_PRIVATE_KEYSIZE = 64;
@@ -214,9 +208,9 @@ public class NKey {
 
     // http://en.wikipedia.org/wiki/Base_32
     private static final String BASE32_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-    private static int[] BASE32_LOOKUP;
-    private static int MASK = 31;
-    private static int SHIFT = 5;
+    private static final int[] BASE32_LOOKUP;
+    private static final int MASK = 31;
+    private static final int SHIFT = 5;
 
     static {
         BASE32_LOOKUP = new int[256];
@@ -438,7 +432,7 @@ public class NKey {
     private static NKey createPair(Type type, SecureRandom random)
             throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         if (random == null) {
-            random = new SecureRandom();
+            random = SRAND;
         }
 
         byte[] seed = new byte[NKey.ed25519.getCurve().getField().getb() / 8];
@@ -656,16 +650,15 @@ public class NKey {
      * The nkey is unusable after this operation.
      */
     public void clear() {
-        Random r = new Random();
         if (privateKeyAsSeed != null) {
             for (int i=0; i< privateKeyAsSeed.length ; i++) {
-                privateKeyAsSeed[i] = (char)(r.nextInt(26) + 'a');
+                privateKeyAsSeed[i] = (char)(PRAND.nextInt(26) + 'a');
             }
             Arrays.fill(privateKeyAsSeed, '\0');
         }
         if (publicKey != null) {
             for (int i=0; i< publicKey.length ; i++) {
-                publicKey[i] = (char)(r.nextInt(26) + 'a');
+                publicKey[i] = (char)(PRAND.nextInt(26) + 'a');
             }
             Arrays.fill(publicKey, '\0');
         }

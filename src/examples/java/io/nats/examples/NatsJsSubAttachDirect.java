@@ -31,12 +31,8 @@ public class NatsJsSubAttachDirect {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleUtils.readSubscribeArgs(args, usageString);
+        ExampleArgs exArgs = ExampleUtils.readConsumerArgs(args, usageString);
 
-        if (exArgs.stream == null || exArgs.consumer == null) {
-            System.out.println("-stream <name> and -consumer <name> is required to attach.");
-            System.exit(1);
-        }
         System.out.printf("\nTrying to connect to %s, and listen to %s for %d messages.\n\n", exArgs.server,
                 exArgs.subject, exArgs.msgCount);
 
@@ -60,7 +56,7 @@ public class NatsJsSubAttachDirect {
             for(int i=1;i<=exArgs.msgCount;i++) {
                 Message msg = sub.nextMessage(Duration.ofHours(1));
 
-                System.out.printf("\nMessage Received:\n");
+                System.out.println("\nMessage Received:");
 
                 if (msg.hasHeaders()) {
                     System.out.println("  Headers:");
