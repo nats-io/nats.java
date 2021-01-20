@@ -17,6 +17,7 @@ import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -33,7 +34,6 @@ import java.util.regex.Pattern;
  */
 public class StreamConfiguration {
 
-
     /**
      * Stream retention policies.
      */
@@ -42,7 +42,7 @@ public class StreamConfiguration {
         Interest("interest"),
         WorkQueue("workqueue");
 
-        private String policy;
+        private final String policy;
 
         RetentionPolicy(String p) {
             policy = p;
@@ -72,7 +72,7 @@ public class StreamConfiguration {
         New("new"),
         Old("old");
 
-        private String policy;
+        private final String policy;
 
         DiscardPolicy(String p) {
             policy = p;
@@ -102,7 +102,7 @@ public class StreamConfiguration {
         File("file"),
         Memory("memory");
 
-        private String policy;
+        private final String policy;
 
         StorageType(String p) {
             policy = p;
@@ -140,20 +140,39 @@ public class StreamConfiguration {
     private Duration duplicateWindow = Duration.ZERO;
     private String template = null;
 
-    private static String nameField = "name";
-    private static String subjectsField = "subjects";
-    private static String retentionField = "retention";
-    private static String maxConsumersField =  "max_consumers";
-    private static String maxBytesField =  "max_bytes";
+    @Override
+    public String toString() {
+        return "StreamConfiguration{" +
+                "name='" + name + '\'' +
+                ", subjects=" + Arrays.toString(subjects) +
+                ", retentionPolicy=" + retentionPolicy +
+                ", maxConsumers=" + maxConsumers +
+                ", maxBytes=" + maxBytes +
+                ", maxMsgSize=" + maxMsgSize +
+                ", maxAge=" + maxAge +
+                ", storageType=" + storageType +
+                ", discardPolicy=" + discardPolicy +
+                ", replicas=" + replicas +
+                ", noAck=" + noAck +
+                ", duplicateWindow=" + duplicateWindow +
+                ", template='" + template + '\'' +
+                '}';
+    }
 
-    private static String maxAgeField =  "max_age";
-    private static String maxMsgSizeField =  "max_msg_size";
-    private static String storageTypeField =  "storage";
-    private static String discardPolicyField = "discard";
-    private static String replicasField =  "num_replicas";
-    private static String noAckField =  "no_ack";
-    private static String templateField =  "template";
-    private static String duplicatesField =  "duplicates";
+    private static final String nameField = "name";
+    private static final String subjectsField = "subjects";
+    private static final String retentionField = "retention";
+    private static final String maxConsumersField =  "max_consumers";
+    private static final String maxBytesField =  "max_bytes";
+
+    private static final String maxAgeField =  "max_age";
+    private static final String maxMsgSizeField =  "max_msg_size";
+    private static final String storageTypeField =  "storage";
+    private static final String discardPolicyField = "discard";
+    private static final String replicasField =  "num_replicas";
+    private static final String noAckField =  "no_ack";
+    private static final String templateField =  "template";
+    private static final String duplicatesField =  "duplicates";
 
     private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
     private static final Pattern maxConsumersRE = JsonUtils.buildPattern(maxConsumersField, FieldType.jsonNumber);

@@ -998,7 +998,7 @@ class NatsConnection implements Connection {
         return _request(asNatsMessage(message), timeout);
     }
 
-    private Message _request(NatsMessage message, Duration timeout) throws InterruptedException {
+    private Message _request(NatsMessage message, Duration timeout) {
         Message reply = null;
         Future<Message> incoming = _request(message);
         try {

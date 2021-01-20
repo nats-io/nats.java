@@ -649,4 +649,24 @@ public class ConsumerConfiguration {
 	public long getMaxWaiting() {
         return maxWaiting;
 	}
+
+    @Override
+    public String toString() {
+        return "ConsumerConfiguration{" +
+                "durable='" + durable + '\'' +
+                ", deliverPolicy=" + deliverPolicy +
+                ", deliverSubject='" + deliverSubject + '\'' +
+                ", startSeq=" + startSeq +
+                ", startTime=" + startTime +
+                ", ackPolicy=" + ackPolicy +
+                ", ackWait=" + ackWait +
+                ", maxDeliver=" + maxDeliver +
+                ", filterSubject='" + filterSubject + '\'' +
+                ", replayPolicy=" + replayPolicy +
+                ", sampleFrequency='" + sampleFrequency + '\'' +
+                ", rateLimit=" + rateLimit +
+                ", maxWaiting=" + maxWaiting +
+                ", maxAckPending=" + maxAckPending +
+                '}';
+    }
 }

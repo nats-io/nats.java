@@ -79,27 +79,90 @@ public interface JetStream {
          * @return consumer maximum count
          */         
         long getConsumers();
-    }    
+    }
 
     /**
      * Loads or creates a stream.
      * @param config the stream configuration to use.
-     * @return stream information
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
+     * @throws IllegalArgumentException the configuration is missing or invalid
+     * @return stream information
      */
     StreamInfo addStream(StreamConfiguration config) throws TimeoutException, InterruptedException;
 
     /**
+     * Updates an existing stream.
+     * @param config the stream configuration to use.
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @throws IllegalArgumentException if the stream does not exist
+     * @return stream information
+     */
+    StreamInfo updateStream(StreamConfiguration config) throws TimeoutException, InterruptedException;
+
+    /**
+     * Deletes an existing stream.
+     * @param streamName the stream name to use.
+     * @return stream information
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @throws IllegalStateException if the stream does not exist
+     */
+    void deleteStream(String streamName) throws TimeoutException, InterruptedException;
+
+    /**
+     * Gets the info for an existing stream.
+     * @param streamName the stream name to use.
+     * @return stream information
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @throws IllegalArgumentException if the stream does not exist TODO VALIDATE
+     * @return the stream info
+     */
+    StreamInfo streamInfo(String streamName) throws TimeoutException, InterruptedException;
+
+    /**
+     * Purge stream messages
+     * @param streamName the stream name to use.
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @throws IllegalArgumentException if the stream does not exist TODO VALIDATE
+     * @return the stream info
+     */
+    StreamInfo purgeStream(String streamName) throws TimeoutException, InterruptedException;
+
+    /**
      * Loads or creates a consumer.
-     * @param stream name of the stream 
+     * @param streamName name of the stream
      * @param config the consumer configuration to use.
      * @throws IOException if there are communcation issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      * @return consumer information.
-     */    
-    ConsumerInfo addConsumer(String stream, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException;
+     */
+    ConsumerInfo addConsumer(String streamName, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException;
+
+    /**
+     * Deletes a consumer.
+     * @param streamName name of the stream
+     * @param consumer the name of the consumer.
+     * @throws IOException if there are communcation issues with the NATS server
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @return true if the consumer was deleted TODO ALSO VALIDATE
+     */
+    boolean deleteConsumer(String streamName, String consumer) throws TimeoutException, InterruptedException, IOException;
+
+    /**
+     * Return pages of ConsumerInfo objects
+     * @param consumer the name of the consumer.
+     * @throws IOException if there are communcation issues with the NATS server
+     * @throws TimeoutException if the NATS server does not return a response
+     * @throws InterruptedException if the thread is interrupted
+     * @return true if the consumer was deleted TODO ALSO VALIDATE
+     */
+    ConsumerLister newConsumerLister(String consumer) throws TimeoutException, InterruptedException, IOException;
 
     /**
      * Send a message to the specified subject and waits for a response from

@@ -13,14 +13,14 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 // TODO Add properties
 
@@ -63,6 +63,14 @@ public class ConsumerInfo {
          */
         public long getStreamSequence() {
             return streamSeq;
+        }
+
+        @Override
+        public String toString() {
+            return "SequencePair{" +
+                    "consumerSeq=" + consumerSeq +
+                    ", streamSeq=" + streamSeq +
+                    '}';
         }
     }
 
@@ -199,5 +207,21 @@ public class ConsumerInfo {
 
     public long getRedelivered() {
         return numRelivered;
+    }
+
+    @Override
+    public String toString() {
+        return "ConsumerInfo{" +
+                "stream='" + stream + '\'' +
+                ", name='" + name + '\'' +
+                ", " + configuration +
+                ", created=" + created +
+                ", " + delivered +
+                ", " + ackFloor +
+                ", numPending=" + numPending +
+                ", numWaiting=" + numWaiting +
+                ", numAckPending=" + numAckPending +
+                ", numRelivered=" + numRelivered +
+                '}';
     }
 }

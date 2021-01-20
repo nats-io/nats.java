@@ -122,4 +122,55 @@ public class ExampleUtils {
         System.out.println(usageString);
         System.exit(-1);
     }
+
+    public static void printObject(Object o) {
+        System.out.println(formatToString(o.toString()) + "\n");
+    }
+
+    public static String formatToString(String s) {
+        String indent = "";
+        boolean inArray = false;
+        boolean lastEq = false;
+        StringBuilder sb = new StringBuilder();
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c == '=') {
+                lastEq = true;
+                sb.append(": ");
+            }
+            else {
+                if (c == '{') {
+                    indent += "  ";
+                    sb.append(":\n").append(indent);
+                } else if (c == '}') {
+                    indent = indent.substring(0, indent.length() - 2);
+                } else if (c == '[') {
+                    if (lastEq) {
+                        inArray = true;
+                        indent += "  ";
+                        sb.append("\n").append(indent).append("- ");
+                    } else {
+                        sb.append(c);
+                    }
+                } else if (c == ']') {
+                    if (inArray) {
+                        inArray = false;
+                        indent = indent.substring(0, indent.length() - 2);
+                    } else {
+                        sb.append(c);
+                    }
+                } else if (c == ',') {
+                    sb.append("\n").append(indent);
+                    if (inArray) {
+                        sb.append("- ");
+                    }
+                    x++;
+                } else {
+                    sb.append(c);
+                }
+                lastEq = false;
+            }
+        }
+        return sb.toString().replaceAll("'null'", "null");
+    }
 }

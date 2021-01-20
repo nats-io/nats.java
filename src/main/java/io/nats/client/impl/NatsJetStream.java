@@ -14,25 +14,52 @@ import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream implements JetStream {
 
-    public static final String jSDefaultApiPrefix = "$JS.API.";
+    private static final String JSAPI_DEFAULT_PREFIX = "$JS.API.";
 
-    // JSApiAccountInfo is for obtaining general information about JetStream.
-    private static final String jSApiAccountInfo = "INFO";
+    // JSAPI_ACCOUNT_INFO is for obtaining general information about JetStream.
+    private static final String JSAPI_ACCOUNT_INFO = "INFO";
 
-    // JSApiStreams can lookup a stream by subject.
-    private static final String jSApiStreams = "STREAM.NAMES";
+    // JSAPI_CONSUMER_CREATE is used to create consumers.
+    private static final String JSAPI_CONSUMER_CREATE = "CONSUMER.CREATE.%s";
 
-    // JSApiConsumerCreateT is used to create consumers.
-    private static final String jSApiConsumerCreateT = "CONSUMER.CREATE.%s";
+    // JSAPI_DURABLE_CREATE is used to create durable consumers.
+    private static final String JSAPI_DURABLE_CREATE = "CONSUMER.DURABLE.CREATE.%s.%s";
 
-    // JSApiDurableCreateT is used to create durable consumers.
-    private static final String jSApiDurableCreateT = "CONSUMER.DURABLE.CREATE.%s.%s";
+    // JSAPI_CONSUMER_INFO is used to create consumers.
+    private static final String JSAPI_CONSUMER_INFO = "CONSUMER.INFO.%s.%s";
 
-    // JSApiConsumerInfoT is used to create consumers.
-    private static final String jSApiConsumerInfoT = "CONSUMER.INFO.%s.%s";
+    // JSAPI_CONSUMER_REQUEST_NEXT is the prefix for the request next message(s) for a consumer in worker/pull mode.
+    private static final String JSAPI_CONSUMER_REQUEST_NEXT = "CONSUMER.MSG.NEXT.%s.%s";
 
-    // JSApiStreamCreate is the endpoint to create new streams.
-    private static final String jSApiStreamCreateT = "STREAM.CREATE.%s";
+    // JSAPI_CONSUMER_DELETE is used to delete consumers.
+    private static final String JSAPI_CONSUMER_DELETE = "CONSUMER.DELETE.%s.%s";
+
+    // JSAPI_CONSUMER_LIST is used to return all detailed consumer information
+    private static final String JSAPI_CONSUMER_LIST = "CONSUMER.LIST.%s";
+
+    // JSAPI_STREAMS can lookup a stream by subject.
+    private static final String JSAPI_STREAMS = "STREAM.NAMES";
+
+    // JSAPI_STREAM_CREATE is the endpoint to create new streams.
+    private static final String JSAPI_STREAM_CREATE = "STREAM.CREATE.%s";
+
+    // JSAPI_STREAM_INFO is the endpoint to get information on a stream.
+    private static final String JSAPI_STREAM_INFO = "STREAM.INFO.%s";
+
+    // JSAPI_STREAM_UPDATE is the endpoint to update existing streams.
+    private static final String JSAPI_STREAM_UPDATE = "STREAM.UPDATE.%s";
+
+    // JSAPI_STREAM_DELETE is the endpoint to delete streams.
+    private static final String JSAPI_STREAM_DELETE = "STREAM.DELETE.%s";
+
+    // JSAPI_STREAM_PURGE is the endpoint to purge streams.
+    private static final String JSAPI_STREAM_PURGE = "STREAM.PURGE.%s";
+
+    // JSAPI_STREAM_LIST is the endpoint that will return all detailed stream information
+    private static final String JSAPI_STREAM_LIST = "STREAM.LIST";
+
+    // JSAPI_MSG_DELETE is the endpoint to remove a message.
+    private static final String JSAPI_MSG_DELETE = "STREAM.MSG.DELETE.%s";
 
     private static final PublishOptions DEFAULT_PUB_OPTS = PublishOptions.builder().build();
     private static final Duration defaultTimeout = Options.DEFAULT_CONNECTION_TIMEOUT;
@@ -104,6 +131,16 @@ public class NatsJetStream implements JetStream {
         public long getMaxConsumers() {
             return consumers;
         }
+
+        @Override
+        public String toString() {
+            return "AccountLimitImpl{" +
+                    "memory=" + memory +
+                    ", storage=" + storage +
+                    ", streams=" + streams +
+                    ", consumers=" + consumers +
+                    '}';
+        }
     }
 
     public static class AccountStatsImpl implements AccountStatistics {
@@ -152,6 +189,16 @@ public class NatsJetStream implements JetStream {
         public long getConsumers() {
             return consumers;
         }
+
+        @Override
+        public String toString() {
+            return "AccountStatsImpl{" +
+                    "memory=" + memory +
+                    ", storage=" + storage +
+                    ", streams=" + streams +
+                    ", consumers=" + consumers +
+                    '}';
+        }
     }
 
     private static boolean isJetstreamEnabled(Message msg) {
@@ -159,7 +206,7 @@ public class NatsJetStream implements JetStream {
             return false;
         }
 
-        JetstreamAPIResponse apiResp = new JetstreamAPIResponse(msg.getData());
+        JetstreamAPIResponse apiResp = new JetstreamAPIResponse(msg);
         return apiResp.getCode() != 503 && apiResp.getError() == null;
     }
 
@@ -176,28 +223,15 @@ public class NatsJetStream implements JetStream {
         // override request style.
         conn.getOptions().setOldRequestStyle(true);
 
-        if (direct) {
-            return;
-        }
+        if (!direct) {
+            Message resp = makeRequest(JSAPI_ACCOUNT_INFO, null, defaultTimeout);
+            if (!isJetstreamEnabled(resp)) {
+                throw new IllegalStateException("Jetstream is not enabled.");
+            }
 
-        String subj = appendPre(jSApiAccountInfo);
-        Message resp = conn.request(subj, null, defaultTimeout);
-        if (resp == null) {
-            throw new TimeoutException("No response from the NATS server");
+            // check the response
+            new AccountStatsImpl(new String(resp.getData()));
         }
-        if (!isJetstreamEnabled(resp)) {
-            throw new IllegalStateException("Jetstream is not enabled.");
-        }
-
-        // check the response
-        new AccountStatsImpl(new String(resp.getData()));
-    }
-
-    String appendPre(String subject) {
-        if (prefix == null) {
-            return jSDefaultApiPrefix + subject;
-        }
-        return prefix + subject;
     }
 
     private ConsumerInfo createOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException {
@@ -206,27 +240,26 @@ public class NatsJetStream implements JetStream {
 
         String subj;
         if (durable == null) {
-            subj = String.format(jSApiConsumerCreateT, streamName);
+            subj = String.format(JSAPI_CONSUMER_CREATE, streamName);
         } else {
-            subj = String.format(jSApiDurableCreateT, streamName, durable);
+            subj = String.format(JSAPI_DURABLE_CREATE, streamName, durable);
         }
 
-        Message resp = conn.request(appendPre(subj), requestJSON.getBytes(), conn.getOptions().getConnectionTimeout());
-
-        if (resp == null) {
-            throw new TimeoutException("Consumer request to jetstream timed out.");
-        }
-
-        JetstreamAPIResponse jsResp = new JetstreamAPIResponse(resp.getData());
-        if (jsResp.hasError()) {
-            throw new IOException(jsResp.getError());
-        }
-
-        return new ConsumerInfo(jsResp.getResponse());
+        Message resp = makeRequest(subj, requestJSON.getBytes(), conn.getOptions().getConnectionTimeout());
+        return new ConsumerInfo(jsApiReponseOrIoEx(resp).getResponse());
     }
 
     @Override
     public StreamInfo addStream(StreamConfiguration config) throws TimeoutException, InterruptedException {
+        return _addOrUpdate(config, JSAPI_STREAM_CREATE, "create");
+    }
+
+    @Override
+    public StreamInfo updateStream(StreamConfiguration config) throws TimeoutException, InterruptedException {
+        return _addOrUpdate(config, JSAPI_STREAM_UPDATE, "update");
+    }
+
+    private StreamInfo _addOrUpdate(StreamConfiguration config, String template, String note) throws InterruptedException, TimeoutException {
         if (config == null) {
             throw new IllegalArgumentException("configuration cannot be null.");
         }
@@ -235,25 +268,35 @@ public class NatsJetStream implements JetStream {
             throw new IllegalArgumentException("Configuration must have a valid name");
         }
 
-        String subj = appendPre(String.format(jSApiStreamCreateT, streamName));
-        Message resp = conn.request(subj, config.toJSON().getBytes(), defaultTimeout);
-        if (resp == null) {
-            throw new TimeoutException("No response from the NATS server");
-        }
-        JetstreamAPIResponse apiResp = new JetstreamAPIResponse(resp.getData());
-        if (apiResp.hasError()) {
-            throw new IllegalStateException(String.format("Could not create stream. %d : %s",
-                    apiResp.getCode(), apiResp.getDescription()));
-        }
-
-        return new StreamInfo(new String(resp.getData()));
+        String subj = String.format(template, streamName);
+        Message resp = makeRequest(subj, config.toJSON().getBytes(), defaultTimeout);
+        return new StreamInfo(jsApiReponseOrStateEx(resp, note).getResponse());
     }
 
     @Override
-    public ConsumerInfo addConsumer(String stream, ConsumerConfiguration config) throws InterruptedException, IOException, TimeoutException {
-        validateStreamName(stream);
+    public void deleteStream(String streamName) throws TimeoutException, InterruptedException {
+        String subj = String.format(JSAPI_STREAM_DELETE, streamName);
+        Message resp = makeRequest(subj, null, defaultTimeout);
+        jsApiReponseOrStateEx(resp, "delete");
+    }
+
+    @Override
+    public StreamInfo streamInfo(String streamName) throws TimeoutException, InterruptedException {
+        String subj = String.format(JSAPI_STREAM_INFO, streamName);
+        Message resp = makeRequest(subj, null, defaultTimeout);
+        return new StreamInfo(jsApiReponseOrStateEx(resp, "get info for").getResponse());
+    }
+
+    @Override
+    public StreamInfo purgeStream(String streamName) throws TimeoutException, InterruptedException {
+        return null;
+    }
+
+    @Override
+    public ConsumerInfo addConsumer(String streamName, ConsumerConfiguration config) throws InterruptedException, IOException, TimeoutException {
+        validateStreamName(streamName);
         validateNotNull(config, "config");
-        return addConsumer(null, stream, config);
+        return addConsumer(null, streamName, config);
     }
 
     private ConsumerInfo addConsumer(String subject, String stream, ConsumerConfiguration config) throws InterruptedException, IOException, TimeoutException {
@@ -263,6 +306,16 @@ public class NatsJetStream implements JetStream {
             config.setDeliverSubject(subject);
         }
         return createOrUpdateConsumer(stream, config);
+    }
+
+    @Override
+    public boolean deleteConsumer(String streamName, String consumer) throws TimeoutException, InterruptedException, IOException {
+        return false;
+    }
+
+    @Override
+    public ConsumerLister newConsumerLister(String consumer) throws TimeoutException, InterruptedException, IOException {
+        return null;
     }
 
     static NatsMessage buildMsg(String subject, byte[] payload) {
@@ -368,10 +421,7 @@ public class NatsJetStream implements JetStream {
             }
         }
 
-        Message resp = conn.request(natsMessage, opts.getStreamTimeout());
-        if (resp == null) {
-            throw new TimeoutException("timeout waiting for jetstream");
-        }
+        Message resp = makeRequest(natsMessage, opts.getStreamTimeout());
         NatsPublishAck ack = new NatsPublishAck(resp.getData());
 
         String ackStream = ack.getStream();
@@ -392,18 +442,9 @@ public class NatsJetStream implements JetStream {
     }
 
     ConsumerInfo getConsumerInfo(String stream, String consumer) throws TimeoutException, InterruptedException {
-        String ccInfoSubj = this.appendPre(String.format(jSApiConsumerInfoT, stream, consumer));
-        Message resp = conn.request(ccInfoSubj, null, defaultTimeout);
-        if (resp == null) {
-            throw new TimeoutException("Consumer request to jetstream timed out.");
-        }
-
-        JetstreamAPIResponse jsResp = new JetstreamAPIResponse(resp.getData());
-        if (jsResp.hasError()) {
-            throw new IllegalStateException(jsResp.getError());
-        }
-
-        return new ConsumerInfo(jsResp.getResponse());
+        String ccInfoSubj = String.format(JSAPI_CONSUMER_INFO, stream, consumer);
+        Message resp = makeRequest(ccInfoSubj, null, defaultTimeout);
+        return new ConsumerInfo(jsApiReponseOrStateEx(resp).getResponse());
     }
 
     private String lookupStreamBySubject(String subject) throws InterruptedException, IOException, TimeoutException {
@@ -412,16 +453,9 @@ public class NatsJetStream implements JetStream {
         }
         String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
 
-        Message resp = conn.request(appendPre(jSApiStreams), streamRequest.getBytes(), defaultTimeout);
-        if (resp == null) {
-            throw new TimeoutException("Consumer request to jetstream timed out.");
-        }
+        Message resp = makeRequest(JSAPI_STREAMS, streamRequest.getBytes(), defaultTimeout);
 
-        JetstreamAPIResponse jsResp = new JetstreamAPIResponse(resp.getData());
-        if (jsResp.hasError()) {
-            throw new IOException(jsResp.getError());
-        }
-
+        JetstreamAPIResponse jsResp = jsApiReponseOrIoEx(resp);
         String[] streams = JsonUtils.parseStringArray("streams", jsResp.getResponse());
         if (streams.length != 1) {
             throw new IllegalStateException("No matching streams.");
@@ -429,8 +463,7 @@ public class NatsJetStream implements JetStream {
         return streams[0];
     }
 
-    private class AutoAckMessageHandler implements MessageHandler {
-
+    private static class AutoAckMessageHandler implements MessageHandler {
         MessageHandler mh;
 
         // caller must ensure userMH is not null
@@ -600,5 +633,56 @@ public class NatsJetStream implements JetStream {
         validateNotNull(handler, "handler");
         validateNotNull(options, "options");
         return createSubscription(subject, queue, (NatsDispatcher) dispatcher, handler, options);
+    }
+
+    private Message makeRequest(String subject, byte[] bytes, Duration timeout) throws InterruptedException, TimeoutException {
+        return checkMessage(conn.request(appendPre(subject), bytes, timeout));
+    }
+
+    private Message makeRequest(NatsMessage natsMessage, Duration timeout) throws InterruptedException, TimeoutException {
+        return checkMessage(conn.request(natsMessage, timeout));
+    }
+
+    private Message checkMessage(Message respMessage) throws TimeoutException {
+        if (respMessage == null) {
+            throw new TimeoutException("Timeout or no response waiting for NATS Jetstream server");
+        }
+        return respMessage;
+    }
+
+    private JetstreamAPIResponse jsApiReponseOrStateEx(Message msg, String note) {
+        JetstreamAPIResponse jsApiResp = new JetstreamAPIResponse(msg);
+        if (jsApiResp.hasError()) {
+            throw new IllegalStateException(String.format("Could not %s stream. %d : %s",
+                    note, jsApiResp.getCode(), jsApiResp.getDescription()));
+        }
+        return jsApiResp;
+    }
+
+    private JetstreamAPIResponse jsApiReponseOrStateEx(Message msg) {
+        JetstreamAPIResponse jsApiResp = new JetstreamAPIResponse(msg);
+        if (jsApiResp.hasError()) {
+            throw new IllegalStateException(jsApiResp.getError());
+        }
+        return jsApiResp;
+    }
+
+    private JetstreamAPIResponse jsApiReponseOrIoEx(Message msg) throws IOException {
+        JetstreamAPIResponse jsApiResp = new JetstreamAPIResponse(msg);
+        if (jsApiResp.hasError()) {
+            throw new IOException(jsApiResp.getError());
+        }
+        return jsApiResp;
+    }
+
+    private String appendPre(String template, Object... args) {
+        return appendPre(String.format(template, args));
+    }
+
+    String appendPre(String subject) {
+        if (prefix == null) {
+            return JSAPI_DEFAULT_PREFIX + subject;
+        }
+        return prefix + subject;
     }
 }

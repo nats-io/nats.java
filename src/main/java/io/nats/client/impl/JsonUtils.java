@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -123,19 +122,24 @@ public final class JsonUtils {
      * @return a string array, empty if no values are found.
      */
     public static String[] parseStringArray(String fieldName, String json) {
-        Pattern regex = JsonUtils.buildPattern(fieldName, FieldType.jsonStringArray);
-        Matcher m = regex.matcher(json);
-        if (!m.find()) {
-            return new String[0];
+        // THIS CODE MAKES SOME ASSUMPTIONS THAT THE JSON IS FORMED IN A CONSISTENT MANNER
+        // ..."fieldName": [\n      ],...
+        // ..."fieldName": [\n      "value"\n    ],...
+        // ..."fieldName": [\n      "value",\n      "value2"\n    ],...
+        int ix = json.indexOf("\"" + fieldName + "\":");
+        if (ix != -1) {
+            ix = json.indexOf("\"", ix + fieldName.length() + 3);
+            if (ix != -1) {
+                int endx = json.indexOf("]", ix);
+                String[] data = json.substring(ix, endx).split(",");
+                for (int x = 0; x < data.length; x++) {
+                    data[x] = data[x].trim().replaceAll("\"", "");
+                }
+                return data;
+            }
         }
-        String jsonArray = m.group(1);
-        String[] quotedStrings = jsonArray.split("\\s*,\\s*");
-        String[] rv = new String[quotedStrings.length];
-        for (int i = 0; i < quotedStrings.length; i++) {
-            // subjects cannot contain quotes, so just do a replace.
-            rv[i] = quotedStrings[i].replace(Q, "");
-        }
-        return rv;     
+
+        return new String[0];
     }
 
     public static StringBuilder beginJson() {
