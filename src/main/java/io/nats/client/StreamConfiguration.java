@@ -172,7 +172,7 @@ public class StreamConfiguration {
     private static final String replicasField =  "num_replicas";
     private static final String noAckField =  "no_ack";
     private static final String templateField =  "template";
-    private static final String duplicatesField =  "duplicates";
+    private static final String duplicatesField =  "duplicate_window";
 
     private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
     private static final Pattern maxConsumersRE = JsonUtils.buildPattern(maxConsumersField, FieldType.jsonNumber);

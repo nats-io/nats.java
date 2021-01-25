@@ -18,6 +18,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -99,20 +101,44 @@ public final class JsonUtils {
      * @return string with object json
      */
     public static String getJSONObject(String objectName, String json) {
+        int[] indexes = getBracketIndexes(objectName, json, "{", "}");
+        return json.substring(indexes[0], indexes[1]+1);
+    }
 
+    private static int[] getBracketIndexes(String objectName, String json, String start, String end) {
+        int[] result = new int[] {-1, -1};
         int objStart = json.indexOf(objectName);
-        if (objStart < 0) {
-            return null;
+        if (objStart != -1) {
+            result[0] = json.indexOf(start, objStart);
+            result[1] = json.indexOf(end, result[0]);
         }
-    
-        int bracketStart = json.indexOf("{", objStart);
-        int bracketEnd = json.indexOf("}", bracketStart);
-    
-        if (bracketStart < 0 || bracketEnd < 0) {
-            return null;
+        return result;
+    }
+
+    public static List<String> getJSONArray(String objectName, String json) {
+        // THIS ASSUMES THAT THERE ARE NO BRACKETS { or } in the data.
+        int[] indexes = getBracketIndexes(objectName, json, "[", "]");
+        List<String> items = new ArrayList<>();
+        StringBuilder item = new StringBuilder();
+        int count = 0;
+        for (int x = indexes[0] + 1; x < indexes[1]; x++) {
+            char c = json.charAt(x);
+            if (c == '{') {
+                item.append(c);
+                count++;
+            }
+            else if (c == '}') {
+                item.append(c);
+                if (--count == 0) {
+                    items.add(item.toString());
+                    item.setLength(0);
+                }
+            }
+            else if (count > 0) {
+                item.append(c);
+            }
         }
-    
-        return json.substring(bracketStart, bracketEnd+1);
+        return items;
     }
 
     /**
@@ -253,5 +279,77 @@ public final class JsonUtils {
     public static ZonedDateTime parseDateTime(String dateTime) {
         Instant inst = Instant.parse(dateTime);
         return ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
+    }
+
+    public static void printObject(Object o) {
+        System.out.println(printable(o.toString()) + "\n");
+    }
+
+    public static String printable(String s) {
+        String indent = "";
+        boolean inPrimitiveArray = false;
+        boolean inObjectArray = false;
+        boolean lastEq = false;
+        boolean lastComma = false;
+        StringBuilder sb = new StringBuilder();
+        for (int x = 0; x < s.length(); x++) {
+            char c = s.charAt(x);
+            if (c == '=') {
+                lastEq = true;
+                sb.append(": ");
+            }
+            else {
+                if (c == '{') {
+                    indent += "  ";
+                    sb.append(":\n").append(indent);
+                } else if (c == '}') {
+                    indent = indent.substring(0, indent.length() - 2);
+                } else if (c == '[') {
+                    if (lastEq) {
+                        inPrimitiveArray = true;
+                        indent += "  ";
+                        sb.append("\n").append(indent).append("- ");
+                    }
+                    else if (lastComma) {
+                        inObjectArray = true;
+                        lastComma = false;
+                        indent += "  ";
+                        sb.append("[\n").append(indent);
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                } else if (c == ']') {
+                    if (inPrimitiveArray) {
+                        inPrimitiveArray = false;
+                        indent = indent.substring(0, indent.length() - 2);
+                    }
+                    else if (inObjectArray) {
+                        inObjectArray = false;
+                        indent = indent.substring(0, indent.length() - 2);
+                        sb.append('\n').append(indent).append(']');
+                    }
+                    else {
+                        sb.append(c);
+                    }
+                } else if (c == ',') {
+                    sb.append("\n").append(indent);
+                    if (inPrimitiveArray) {
+                        sb.append("- ");
+                    }
+                    else {
+                        lastComma = true;
+                    }
+                    x++;
+                } else {
+                    sb.append(c);
+                    if (!Character.isWhitespace(c)) {
+                        lastComma = false;
+                    }
+                }
+                lastEq = false;
+            }
+        }
+        return sb.toString().replaceAll("'null'", "null");
     }
 }

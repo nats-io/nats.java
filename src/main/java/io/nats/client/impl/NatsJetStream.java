@@ -289,7 +289,9 @@ public class NatsJetStream implements JetStream {
 
     @Override
     public StreamInfo purgeStream(String streamName) throws TimeoutException, InterruptedException {
-        return null;
+        String subj = String.format(JSAPI_STREAM_PURGE, streamName);
+        Message resp = makeRequest(subj, null, defaultTimeout);
+        return new StreamInfo(jsApiReponseOrStateEx(resp, "purge").getResponse());
     }
 
     @Override
@@ -309,13 +311,17 @@ public class NatsJetStream implements JetStream {
     }
 
     @Override
-    public boolean deleteConsumer(String streamName, String consumer) throws TimeoutException, InterruptedException, IOException {
-        return false;
+    public void deleteConsumer(String streamName, String consumer) throws TimeoutException, InterruptedException, IOException {
+        String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumer);
+        Message resp = makeRequest(subj, null, defaultTimeout);
+        jsApiReponseOrIoEx(resp);
     }
 
     @Override
-    public ConsumerLister newConsumerLister(String consumer) throws TimeoutException, InterruptedException, IOException {
-        return null;
+    public ConsumerLister newConsumerLister(String streamName) throws TimeoutException, InterruptedException, IOException {
+        String subj = String.format(JSAPI_CONSUMER_LIST, streamName);
+        Message resp = makeRequest(subj, null, defaultTimeout);
+        return new ConsumerLister(jsApiReponseOrIoEx(resp).getResponse());
     }
 
     static NatsMessage buildMsg(String subject, byte[] payload) {

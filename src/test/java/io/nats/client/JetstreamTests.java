@@ -200,7 +200,7 @@ public class JetstreamTests {
                 Subscription s = js.subscribe("foo");
                 Message m = s.nextMessage(Duration.ofSeconds(5));
                 assertNotNull(m);
-                assertEquals(new String("payload"), new String(m.getData()));
+                assertEquals("payload", new String(m.getData()));
 
                 // set the stream
                 ConsumerConfiguration c = ConsumerConfiguration.builder().build();
@@ -208,7 +208,7 @@ public class JetstreamTests {
                 s = js.subscribe("foo", so);
                 m = s.nextMessage(Duration.ofSeconds(5));
                 assertNotNull(m);
-                assertEquals(new String("payload"), new String(m.getData()));
+                assertEquals("payload", new String(m.getData()));
                 s.unsubscribe();
 
                 // FIXME test an invalid stream - is this a bug???

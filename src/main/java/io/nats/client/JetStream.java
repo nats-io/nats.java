@@ -104,7 +104,6 @@ public interface JetStream {
     /**
      * Deletes an existing stream.
      * @param streamName the stream name to use.
-     * @return stream information
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      * @throws IllegalStateException if the stream does not exist
@@ -136,7 +135,7 @@ public interface JetStream {
      * Loads or creates a consumer.
      * @param streamName name of the stream
      * @param config the consumer configuration to use.
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      * @return consumer information.
@@ -147,22 +146,21 @@ public interface JetStream {
      * Deletes a consumer.
      * @param streamName name of the stream
      * @param consumer the name of the consumer.
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
-     * @return true if the consumer was deleted TODO ALSO VALIDATE
      */
-    boolean deleteConsumer(String streamName, String consumer) throws TimeoutException, InterruptedException, IOException;
+    void deleteConsumer(String streamName, String consumer) throws TimeoutException, InterruptedException, IOException;
 
     /**
      * Return pages of ConsumerInfo objects
-     * @param consumer the name of the consumer.
-     * @throws IOException if there are communcation issues with the NATS server
+     * @param streamName the name of the consumer.
+     * @throws IOException if there are communication issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      * @return true if the consumer was deleted TODO ALSO VALIDATE
      */
-    ConsumerLister newConsumerLister(String consumer) throws TimeoutException, InterruptedException, IOException;
+    ConsumerLister newConsumerLister(String streamName) throws TimeoutException, InterruptedException, IOException;
 
     /**
      * Send a message to the specified subject and waits for a response from
@@ -184,7 +182,7 @@ public interface JetStream {
      * @param body the message body
      * @return The publish acknowledgement
      * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */
@@ -211,7 +209,7 @@ public interface JetStream {
      * @param options publisher options
      * @return The publish acknowledgement
      * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */    
@@ -236,7 +234,7 @@ public interface JetStream {
      * @param message the message to send
      * @return The publish acknowledgement
      * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */
@@ -262,7 +260,7 @@ public interface JetStream {
      * @param options publisher options
      * @return The publish acknowledgement
      * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
      */    
@@ -286,7 +284,7 @@ public interface JetStream {
      * @return an object representing the subscription
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      */    
     JetStreamSubscription subscribe(String subject) throws InterruptedException, TimeoutException, IOException;
 
@@ -305,7 +303,7 @@ public interface JetStream {
      * @return an object representing the subscription
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      */    
     JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
 
@@ -326,7 +324,7 @@ public interface JetStream {
      * @return an object representing the subscription
      * @throws TimeoutException if the NATS server does not return a response
      * @throws InterruptedException if the thread is interrupted
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      */    
     JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
 
@@ -341,7 +339,7 @@ public interface JetStream {
      * @return The Subscription, so subscriptions may be later unsubscribed manually.
      * @throws TimeoutException if communication with the NATS server timed out
      * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */      
     JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException;
@@ -358,7 +356,7 @@ public interface JetStream {
      * @return The Subscription, so subscriptions may be later unsubscribed manually.
      * @throws TimeoutException if communication with the NATS server timed out
      * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */    
     JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
@@ -375,7 +373,7 @@ public interface JetStream {
      * @return The Subscription, so subscriptions may be later unsubscribed manually.
      * @throws TimeoutException if communication with the NATS server timed out
      * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */      
     JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException;  
@@ -393,7 +391,7 @@ public interface JetStream {
      * @return The Subscription, so subscriptions may be later unsubscribed manually.
      * @throws TimeoutException if communication with the NATS server timed out
      * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communcation issues with the NATS server
+     * @throws IOException if there are communication issues with the NATS server
      * @throws IllegalStateException if the dispatcher was previously closed
      */      
     JetStreamSubscription subscribe( String subject, String queue, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;

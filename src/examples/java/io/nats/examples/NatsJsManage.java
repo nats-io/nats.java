@@ -15,7 +15,7 @@ package io.nats.examples;
 
 import io.nats.client.*;
 
-import static io.nats.examples.ExampleUtils.printObject;
+import static io.nats.client.impl.JsonUtils.printObject;
 
 public class NatsJsManage {
 
@@ -86,19 +86,22 @@ public class NatsJsManage {
             catch (IllegalStateException ise) {
                 System.out.println(ise.getMessage());
             }
-/*
-            objective("Configure And Add Consumer");
+
+            action("Configure And Add Consumer");
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                     .deliverSubject("strm1-deliver")
-                    .durable("consumer-durable")
+                    .durable("GQJ3IvWo")
                     .build();
             ConsumerInfo ci = js.addConsumer(STREAM1, cc);
             printObject(ci);
+            si = js.streamInfo(STREAM1);
+            printObject(si);
 
-            objective("Make And Use Subscription");
+            action("Make And Use Subscription");
             SubscribeOptions so = SubscribeOptions.builder()
-                    .pullDirect(STREAM1, "consumer", 10)
-                    .configuration(STREAM1, cc).build();
+                    .pullDirect(STREAM1, "GQJ3IvWo", 10)
+//                    .configuration(STREAM1, cc)
+                    .build();
             printObject(so);
 
             si = js.streamInfo(STREAM1);
@@ -107,7 +110,9 @@ public class NatsJsManage {
             JetStreamSubscription sub = js.subscribe(STRM1SUB1, so);
             printObject(sub);
 
- */
+            action("List Consumers");
+            ConsumerLister lister = js.newConsumerLister(STREAM1);
+            printObject(lister);
         }
         catch (Exception exp) {
             action("EXCEPTION!!!");
@@ -116,7 +121,7 @@ public class NatsJsManage {
     }
 
     private static void action(String label) {
-        System.out.println("\n================================================================================");
+        System.out.println("================================================================================");
         System.out.println(label);
         System.out.println("--------------------------------------------------------------------------------");
     }

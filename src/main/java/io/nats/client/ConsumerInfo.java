@@ -16,8 +16,6 @@ package io.nats.client;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
-import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -77,7 +75,8 @@ public class ConsumerInfo {
     private String stream;
     private String name;
     private ConsumerConfiguration configuration;
-    private ZonedDateTime created;
+    private String created;
+    private ZonedDateTime _created;
     private SequencePair delivered;
     private SequencePair ackFloor;
     private long numPending;
@@ -111,7 +110,7 @@ public class ConsumerInfo {
 
     /**
      * Internal method to generate consumer information.
-     * @param json JSON represeenting the consumer information.
+     * @param json JSON representing the consumer information.
      */
     public ConsumerInfo(String json) {
         Matcher m = streamNameRE.matcher(json);
@@ -127,9 +126,7 @@ public class ConsumerInfo {
 
         m = createdRE.matcher(json);
         if (m.find()) {
-            // Instant can parse rfc 3339... we're making a time zone assumption.
-            Instant inst = Instant.parse(m.group(1));
-            this.created = ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
+            _created = ZonedDateTime.parse(m.group(1));
         }
 
         String s = JsonUtils.getJSONObject(configField, json);
@@ -182,7 +179,10 @@ public class ConsumerInfo {
     }
 
     public ZonedDateTime getCreationTime() {
-        return created;
+        if (_created == null) {
+            _created = ZonedDateTime.parse(created);
+        }
+        return _created;
     }
 
     public SequencePair getDelivered() {
@@ -215,7 +215,7 @@ public class ConsumerInfo {
                 "stream='" + stream + '\'' +
                 ", name='" + name + '\'' +
                 ", " + configuration +
-                ", created=" + created +
+                ", created=" + getCreationTime() +
                 ", " + delivered +
                 ", " + ackFloor +
                 ", numPending=" + numPending +

@@ -74,6 +74,7 @@ java {
 
 repositories {
     jcenter()
+    mavenLocal()
 }
 
 dependencies {
