@@ -125,7 +125,7 @@ public class ConsumerInfo {
 
         m = createdRE.matcher(json);
         if (m.find()) {
-            created = ZonedDateTime.parse(m.group(1));
+            this.created = JsonUtils.parseDateTime(m.group(1));
         }
 
         String jsonObject = JsonUtils.getJSONObject(configField, json);
