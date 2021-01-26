@@ -1,0 +1,30 @@
+{
+  "type": "io.nats.jetstream.api.v1.stream_create_response",
+  "config": {
+    "name": "example-stream-1",
+    "subjects": [
+      "strm1sub1",
+      "strm1sub2"
+    ],
+    "retention": "limits",
+    "max_consumers": -1,
+    "max_msgs": -1,
+    "max_bytes": -1,
+    "discard": "old",
+    "max_age": 0,
+    "max_msg_size": -1,
+    "storage": "memory",
+    "num_replicas": 1,
+    "duplicate_window": 120000000000
+  },
+  "created": "2021-01-25T20:09:10.6225191Z",
+  "state": {
+    "messages": 0,
+    "bytes": 0,
+    "first_seq": 0,
+    "first_ts": "0001-01-01T00:00:00Z",
+    "last_seq": 0,
+    "last_ts": "0001-01-01T00:00:00Z",
+    "consumer_count": 1
+  }
+}

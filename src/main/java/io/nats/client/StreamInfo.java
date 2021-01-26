@@ -179,7 +179,6 @@ public class StreamInfo {
      * @param json JSON represeenting the consumer information.
      */
     public StreamInfo(String json) {
-//System.out.println("\n" + json + "\n");
         Matcher m = createdRE.matcher(json);
         if (m.find()) {
             this.created = JsonUtils.parseDateTime(m.group(1));

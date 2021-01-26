@@ -12,13 +12,13 @@
 // limitations under the License.
 package io.nats.client.impl;
 
+import io.nats.client.PublishAck;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.PublishAck;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 // Internal class to handle jetstream acknowedgements
 class NatsPublishAck implements PublishAck {
@@ -43,8 +43,8 @@ class NatsPublishAck implements PublishAck {
         String s = new String(response, StandardCharsets.UTF_8);
 
         // check for error and then parse for speed.
-        if (JetstreamAPIResponse.isError(s)) {
-            JetstreamAPIResponse resp = new JetstreamAPIResponse(response);
+        if (JetStreamApiResponse.isError(s)) {
+            JetStreamApiResponse resp = new JetStreamApiResponse(response);
             if (resp.hasError()) {
                 throw new IllegalStateException(resp.getError());
             }

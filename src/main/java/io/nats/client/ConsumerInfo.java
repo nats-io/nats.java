@@ -75,14 +75,13 @@ public class ConsumerInfo {
     private String stream;
     private String name;
     private ConsumerConfiguration configuration;
-    private String created;
-    private ZonedDateTime _created;
+    private ZonedDateTime created;
     private SequencePair delivered;
     private SequencePair ackFloor;
     private long numPending;
     private long numWaiting;
     private long numAckPending;
-    private long numRelivered;
+    private long numRedelivered;
     
     private static final String streamNameField =  "stream_name";
     private static final String nameField = "name";
@@ -126,23 +125,17 @@ public class ConsumerInfo {
 
         m = createdRE.matcher(json);
         if (m.find()) {
-            _created = ZonedDateTime.parse(m.group(1));
+            created = ZonedDateTime.parse(m.group(1));
         }
 
-        String s = JsonUtils.getJSONObject(configField, json);
-        if (s != null) {
-            this.configuration = new ConsumerConfiguration(s);
-        }
-  
-        s = JsonUtils.getJSONObject(deliveredField, json);
-        if (s != null) {
-            this.delivered = new SequencePair(s);
-        }
-          
-        s = JsonUtils.getJSONObject(ackFloorField, json);
-        if (s != null) {
-            this.ackFloor = new SequencePair(s);
-        }
+        String jsonObject = JsonUtils.getJSONObject(configField, json);
+        this.configuration = new ConsumerConfiguration(jsonObject);
+
+        jsonObject = JsonUtils.getJSONObject(deliveredField, json);
+        this.delivered = new SequencePair(jsonObject);
+
+        jsonObject = JsonUtils.getJSONObject(ackFloorField, json);
+        this.ackFloor = new SequencePair(jsonObject);
 
         m = numPendingRE.matcher(json);
         if (m.find()) {
@@ -161,8 +154,7 @@ public class ConsumerInfo {
 
         m = numRedeliveredRE.matcher(json);
         if (m.find()) {
-            // todo - double check
-            this.numRelivered = Long.parseLong(m.group(1));
+            this.numRedelivered = Long.parseLong(m.group(1));
         }
     }
     
@@ -179,10 +171,7 @@ public class ConsumerInfo {
     }
 
     public ZonedDateTime getCreationTime() {
-        if (_created == null) {
-            _created = ZonedDateTime.parse(created);
-        }
-        return _created;
+        return created;
     }
 
     public SequencePair getDelivered() {
@@ -206,7 +195,7 @@ public class ConsumerInfo {
     }
 
     public long getRedelivered() {
-        return numRelivered;
+        return numRedelivered;
     }
 
     @Override
@@ -221,7 +210,7 @@ public class ConsumerInfo {
                 ", numPending=" + numPending +
                 ", numWaiting=" + numWaiting +
                 ", numAckPending=" + numAckPending +
-                ", numRelivered=" + numRelivered +
+                ", numRedelivered=" + numRedelivered +
                 '}';
     }
 }

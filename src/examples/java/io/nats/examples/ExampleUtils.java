@@ -15,9 +15,10 @@ package io.nats.examples;
 
 import io.nats.client.*;
 import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.impl.JetStreamApiException;
 
+import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.TimeoutException;
 
 public class ExampleUtils {
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
@@ -58,12 +59,12 @@ public class ExampleUtils {
     }
 
     public static void createTestStream(JetStream js, String streamName, String subject)
-            throws TimeoutException, InterruptedException {
+            throws IOException, JetStreamApiException {
         createTestStream(js, streamName, subject, StorageType.File);
     }
 
     public static void createTestStream(JetStream js, String streamName, String subject, StorageType storageType)
-            throws TimeoutException, InterruptedException {
+            throws IOException, JetStreamApiException {
 
         // Create a stream, here will use a file storage type, and one subject,
         // the passed subject.

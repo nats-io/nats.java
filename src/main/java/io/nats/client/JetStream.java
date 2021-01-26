@@ -12,9 +12,10 @@
 // limitations under the License.
 package io.nats.client;
 
+import io.nats.client.impl.JetStreamApiException;
+
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
 
 /**
  * JetStream context for creation and access to streams and consumers in NATS.
@@ -84,187 +85,184 @@ public interface JetStream {
     /**
      * Loads or creates a stream.
      * @param config the stream configuration to use.
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IllegalArgumentException the configuration is missing or invalid
      * @return stream information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the configuration is missing or invalid
      */
-    StreamInfo addStream(StreamConfiguration config) throws TimeoutException, InterruptedException;
+    StreamInfo addStream(StreamConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Updates an existing stream.
      * @param config the stream configuration to use.
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IllegalArgumentException if the stream does not exist
      * @return stream information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the configuration is missing or invalid
      */
-    StreamInfo updateStream(StreamConfiguration config) throws TimeoutException, InterruptedException;
+    StreamInfo updateStream(StreamConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Deletes an existing stream.
      * @param streamName the stream name to use.
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IllegalStateException if the stream does not exist
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    void deleteStream(String streamName) throws TimeoutException, InterruptedException;
+    void deleteStream(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing stream.
      * @param streamName the stream name to use.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      * @return stream information
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IllegalArgumentException if the stream does not exist TODO VALIDATE
-     * @return the stream info
      */
-    StreamInfo streamInfo(String streamName) throws TimeoutException, InterruptedException;
+    StreamInfo streamInfo(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Purge stream messages
      * @param streamName the stream name to use.
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IllegalArgumentException if the stream does not exist TODO VALIDATE
-     * @return the stream info
+     * @return stream information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    StreamInfo purgeStream(String streamName) throws TimeoutException, InterruptedException;
+    StreamInfo purgeStream(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Loads or creates a consumer.
      * @param streamName name of the stream
      * @param config the consumer configuration to use.
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      * @return consumer information.
      */
-    ConsumerInfo addConsumer(String streamName, ConsumerConfiguration config) throws TimeoutException, InterruptedException, IOException;
+    ConsumerInfo addConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a consumer.
      * @param streamName name of the stream
      * @param consumer the name of the consumer.
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    void deleteConsumer(String streamName, String consumer) throws TimeoutException, InterruptedException, IOException;
+    void deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
 
     /**
      * Return pages of ConsumerInfo objects
      * @param streamName the name of the consumer.
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @return true if the consumer was deleted TODO ALSO VALIDATE
+     * @return The consumer lister
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerLister newConsumerLister(String streamName) throws TimeoutException, InterruptedException, IOException;
+    ConsumerLister newConsumerLister(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The message body <strong>will not</strong> be copied. The expected
      * usage with string content is something like:
-     * 
+     *
      * <pre>
      * nc = Nats.connect()
      * JetStream js = nc.JetStream()
      * js.publish("destination", "message".getBytes("UTF-8"), publishOptions)
      * </pre>
-     * 
+     *
      * where the sender creates a byte array immediately before calling publish.
-     * 
-     * See {@link #publish(String, byte[]) publish()} for more details on 
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * 
+     *
      * @param subject the subject to send the message to
      * @param body the message body
      * @return The publish acknowledgement
-     * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    PublishAck publish(String subject, byte[] body) throws IOException, InterruptedException, TimeoutException;
+    PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException;
 
     /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The message body <strong>will not</strong> be copied. The expected
      * usage with string content is something like:
-     * 
+     *
      * <pre>
      * nc = Nats.connect()
      * JetStream js = nc.JetStream()
      * js.publish("destination", "message".getBytes("UTF-8"), publishOptions)
      * </pre>
-     * 
+     *
      * where the sender creates a byte array immediately before calling publish.
-     * 
-     * See {@link #publish(String, byte[]) publish()} for more details on 
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * 
+     *
      * @param subject the subject to send the message to
      * @param body the message body
      * @param options publisher options
      * @return The publish acknowledgement
-     * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     */    
-    PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, InternalError, TimeoutException, InterruptedException;
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The message body <strong>will not</strong> be copied. The expected
      * usage with string content is something like:
-     * 
+     *
      * <pre>
      * nc = Nats.connect()
      * JetStream js = nc.JetStream()
      * js.publish("destination", "message".getBytes("UTF-8"), publishOptions)
      * </pre>
-     * 
+     *
      * where the sender creates a byte array immediately before calling publish.
-     * 
-     * See {@link #publish(String, byte[]) publish()} for more details on 
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * 
+     *
      * @param message the message to send
      * @return The publish acknowledgement
-     * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    PublishAck publish(Message message) throws IOException, InterruptedException, TimeoutException;
+    PublishAck publish(Message message) throws IOException, JetStreamApiException;
 
     /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The message body <strong>will not</strong> be copied. The expected
      * usage with string content is something like:
-     * 
+     *
      * <pre>
      * nc = Nats.connect()
      * JetStream js = nc.JetStream()
      * js.publish("destination", "message".getBytes("UTF-8"), publishOptions)
      * </pre>
-     * 
+     *
      * where the sender creates a byte array immediately before calling publish.
-     * 
-     * See {@link #publish(String, byte[]) publish()} for more details on 
+     *
+     * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * 
+     *
      * @param message the message to send
      * @param options publisher options
      * @return The publish acknowledgement
-     * @throws IllegalStateException if the reconnect buffer is exceeded
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     */    
-    PublishAck publish(Message message, PublishOptions options) throws IOException, InternalError, TimeoutException, InterruptedException;
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    PublishAck publish(Message message, PublishOptions options) throws IOException, JetStreamApiException;
 
     CompletableFuture<PublishAck> publishAsync(String subject, byte[] body);
     CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options);
@@ -272,21 +270,21 @@ public interface JetStream {
     CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options);
 
    /**
-     * Create a synchronous subscription to the specified subject with default options.
-     * 
-     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
-     * method to read messages for this subscription.
-     * 
-     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
-     * information about creating an asynchronous subscription with callbacks.
-     * 
-     * @param subject the subject to subscribe to
-     * @return an object representing the subscription
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IOException if there are communication issues with the NATS server
+    * Create a synchronous subscription to the specified subject with default options.
+    *
+    * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+    * method to read messages for this subscription.
+    *
+    * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+    * information about creating an asynchronous subscription with callbacks.
+    *
+    * @param subject the subject to subscribe to
+    * @return The subscription
+    * @throws IOException covers various communication issues with the NATS
+    *         server such as timeout or interruption
+    * @throws JetStreamApiException the request had an error related to the data
      */    
-    JetStreamSubscription subscribe(String subject) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject) throws IOException, JetStreamApiException;
 
 
     /**
@@ -300,12 +298,12 @@ public interface JetStream {
      * 
      * @param subject the subject to subscribe to
      * @param options subscription options
-     * @return an object representing the subscription
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IOException if there are communication issues with the NATS server
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */    
-    JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Create a synchronous subscription to the specified subject.
@@ -321,12 +319,12 @@ public interface JetStream {
      * @param subject the subject to subscribe to
      * @param queue the queue group to join
      * @param options subscription options
-     * @return an object representing the subscription
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
-     * @throws IOException if there are communication issues with the NATS server
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */    
-    JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Create a subscription to the specified subject under the control of the
@@ -336,13 +334,12 @@ public interface JetStream {
      * @param subject The subject to subscribe to
      * @param handler The target for the messages
      * @param dispatcher The dispatcher to handle this subscription
-     * @return The Subscription, so subscriptions may be later unsubscribed manually.
-     * @throws TimeoutException if communication with the NATS server timed out
-     * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws IllegalStateException if the dispatcher was previously closed
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */      
-    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Create a subscription to the specified subject under the control of the
@@ -353,13 +350,12 @@ public interface JetStream {
      * @param dispatcher The dispatcher to handle this subscription
      * @param handler The target for the messages
      * @param options The options for this subscription.
-     * @return The Subscription, so subscriptions may be later unsubscribed manually.
-     * @throws TimeoutException if communication with the NATS server timed out
-     * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws IllegalStateException if the dispatcher was previously closed
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */    
-    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Create a subscription to the specified subject under the control of the
@@ -370,13 +366,12 @@ public interface JetStream {
      * @param queue The queue group to join.
      * @param dispatcher The dispatcher to handle this subscription
      * @param handler The target for the messages
-     * @return The Subscription, so subscriptions may be later unsubscribed manually.
-     * @throws TimeoutException if communication with the NATS server timed out
-     * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws IllegalStateException if the dispatcher was previously closed
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */      
-    JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler) throws InterruptedException, TimeoutException, IOException;  
+    JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Create a subscription to the specified subject under the control of the
@@ -388,11 +383,10 @@ public interface JetStream {
      * @param dispatcher The dispatcher to handle this subscription
      * @param handler The target for the messages
      * @param options The options for this subscription.
-     * @return The Subscription, so subscriptions may be later unsubscribed manually.
-     * @throws TimeoutException if communication with the NATS server timed out
-     * @throws InterruptedException if communication with the NATS was interrupted
-     * @throws IOException if there are communication issues with the NATS server
-     * @throws IllegalStateException if the dispatcher was previously closed
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */      
-    JetStreamSubscription subscribe( String subject, String queue, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws InterruptedException, TimeoutException, IOException;
+    JetStreamSubscription subscribe( String subject, String queue, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws IOException, JetStreamApiException;
 }

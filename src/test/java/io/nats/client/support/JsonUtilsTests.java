@@ -13,11 +13,19 @@
 
 package io.nats.client.support;
 
+import io.nats.client.ConsumerInfo;
+import io.nats.client.ConsumerLister;
+import io.nats.client.StreamInfo;
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static io.nats.client.impl.JsonUtils.parseStringArray;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static io.nats.client.utils.ResourceUtils.dataAsLines;
+import static io.nats.client.utils.ResourceUtils.dataAsString;
+import static org.junit.jupiter.api.Assertions.*;
 
 public final class JsonUtilsTests {
 
@@ -38,4 +46,48 @@ public final class JsonUtilsTests {
         assertEquals("value1", a[0]);
         assertEquals("value2", a[1]);
     }
+
+    @Test
+    public void testGetJSONArray() {
+        String json = ResourceUtils.resourceAsString("data/ConsumerLister.json");
+        ConsumerLister cl = new ConsumerLister(json);
+        assertEquals(2, cl.getTotal());
+        assertEquals(0, cl.getOffset());
+        assertEquals(256, cl.getLimit());
+        List<ConsumerInfo> consumers = cl.getConsumers();
+        assertNotNull(consumers);
+        assertEquals(2, consumers.size());
+    }
+
+    @Test
+    public void testCoverage_JsonUtils_addFld() {
+        StringBuilder sb = new StringBuilder();
+        assertEquals(0, sb.length());
+        String[] strArray = null;
+        JsonUtils.addFld(sb, "na", strArray);
+        assertEquals(0, sb.length());
+        strArray = new String[]{};
+        JsonUtils.addFld(sb, "na", strArray);
+        assertEquals(0, sb.length());
+    }
+
+    @Test
+    public void testCoverage_printable() {
+        String json = dataAsString("ConsumerLister.json");
+        String printable = DebugUtil.printable(new ConsumerLister(json));
+        List<String> lines = dataAsLines("ConsumerListPrintable.txt");
+        for (String line : lines) {
+            System.out.println(line);
+            assertTrue(printable.contains(line.trim()));
+        }
+
+        json = dataAsString("StreamInfo.json");
+        printable = DebugUtil.printable(new StreamInfo(json));
+
+        lines = ResourceUtils.resourceAsLines("data/StreamInfoPrintable.txt");
+        for (String line : lines) {
+            assertTrue(printable.contains(line.trim()));
+        }
+    }
 }
+

@@ -15,10 +15,11 @@
 
 package io.nats.examples.benchmark;
 
-import static io.nats.examples.benchmark.Utils.humanBytes;
-
 import io.nats.client.Statistics;
+
 import java.text.DecimalFormat;
+
+import static io.nats.examples.benchmark.Utils.humanBytes;
 
 public class Sample {
     int jobMsgCnt;
@@ -91,7 +92,7 @@ public class Sample {
     }
 
     /**
-     * {@inheritDoc}.
+     * {@inheritDoc}
      */
     @Override
     public String toString() {

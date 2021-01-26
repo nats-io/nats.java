@@ -1,0 +1,26 @@
+StreamInfo:
+  created: 2021-01-25T15:09:10.622519100-05:00[America/New_York]
+  StreamConfiguration:
+    name: 'example-stream-1'
+    subjects:
+      - strm1sub1
+      - strm1sub2
+    retentionPolicy: limits
+    maxConsumers: -1
+    maxBytes: -1
+    maxMsgSize: -1
+    maxAge: PT0S
+    storageType: memory
+    discardPolicy: old
+    replicas: 1
+    noAck: false
+    duplicateWindow: PT2M
+    template: null
+  StreamState:
+    msgs: 0
+    bytes: 0
+    firstSeq: 0
+    firstTime: 0000-12-31T19:03:58-04:56:02[America/New_York]
+    lastSeq: 0
+    lastTime: 0000-12-31T19:03:58-04:56:02[America/New_York]
+    consumerCount: 1

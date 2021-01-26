@@ -15,7 +15,8 @@ package io.nats.client.support;
 
 import java.util.regex.Pattern;
 
-public class Validator {
+public abstract class Validator {
+    private Validator() {} /* for Jacoco */
 
     static final Pattern STREAM_PATTERN = Pattern.compile("^[a-zA-Z0-9-]+$");
 
@@ -62,8 +63,8 @@ public class Validator {
     }
 
     public static String validateDurable(String s) {
-        if (notNullButEmpty(s)) {
-            throw new IllegalArgumentException("Durable cannot be blank when provided.");
+        if (nullOrEmpty(s) || containsDot(s)) {
+            throw new IllegalArgumentException("Durable cannot be blank and cannot contain a period '.'");
         }
         return s;
     }
@@ -127,5 +128,9 @@ public class Validator {
             }
         }
         return false;
+    }
+
+    public static boolean containsDot(String s) {
+        return s.indexOf('.') > -1;
     }
 }

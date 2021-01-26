@@ -15,7 +15,7 @@ package io.nats.examples;
 
 import io.nats.client.*;
 
-import static io.nats.client.impl.JsonUtils.printObject;
+import static io.nats.client.support.DebugUtil.printable;
 
 public class NatsJsManage {
 
@@ -124,5 +124,9 @@ public class NatsJsManage {
         System.out.println("================================================================================");
         System.out.println(label);
         System.out.println("--------------------------------------------------------------------------------");
+    }
+
+    public static void printObject(Object o) {
+        System.out.println(printable(o.toString()) + "\n");
     }
 }

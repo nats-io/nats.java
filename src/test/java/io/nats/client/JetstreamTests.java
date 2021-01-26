@@ -18,6 +18,7 @@ import io.nats.client.ConsumerConfiguration.DeliverPolicy;
 import io.nats.client.StreamConfiguration.StorageType;
 import io.nats.client.StreamInfo.StreamState;
 import io.nats.client.impl.Headers;
+import io.nats.client.impl.JetStreamApiException;
 import io.nats.client.impl.NatsMessage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -26,16 +27,15 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.utils.TestMacros.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetstreamTests {
 
     private static StreamInfo createMemoryStream(JetStream js, String streamName, String... subjects)
-            throws TimeoutException, InterruptedException {
+            throws IOException, JetStreamApiException {
 
         StreamConfiguration sc = StreamConfiguration.builder().name(streamName).storageType(StorageType.Memory)
                 .subjects(subjects).build();
@@ -79,7 +79,7 @@ public class JetstreamTests {
     }
 
     @Test
-    public void testJetstreamPublishDefaultOptions() throws IOException, InterruptedException, TimeoutException {
+    public void testJetstreamPublishDefaultOptions() throws IOException, JetStreamApiException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
             JetStream js = nc.jetStream();
             createMemoryStream(js, "foo-stream", "foo");
@@ -91,12 +91,12 @@ public class JetstreamTests {
     @Test
     public void testJetstreamNotAvailable() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, false); Connection nc = Nats.connect(ts.getURI())) {
-            assertThrows(TimeoutException.class, nc::jetStream);
+            assertThrows(IOException.class, nc::jetStream);
         }
     }
 
     @Test
-    public void testJetstreamPublish() throws IOException, InterruptedException, TimeoutException {
+    public void testJetstreamPublish() throws IOException, InterruptedException, JetStreamApiException {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
             JetStream js = nc.jetStream();
 
@@ -137,7 +137,7 @@ public class JetstreamTests {
                 
                 // check with no previous message id
                 opts.setExpectedLastMsgId("invalid");
-                assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
+                assertThrows(IllegalStateException.class, ()-> js.publish("foo", null, opts));
 
                 // this should succeed.  Reset our last expected Msg ID, and set this one.
                 opts.setExpectedLastMsgId(null);
@@ -152,7 +152,7 @@ public class JetstreamTests {
                 // test invalid last ID.
                 opts.setMessageId(null);
                 opts.setExpectedLastMsgId("invalid");
-                assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
+                assertThrows(IllegalStateException.class, ()-> js.publish("foo", null, opts));
 
                 // We're expecting two messages.  Reset the last expeccted ID.
                 opts.setExpectedLastMsgId(null);
@@ -161,7 +161,7 @@ public class JetstreamTests {
 
                 // invalid last sequence.
                 opts.setExpectedLastSeqence(42);
-                assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
+                assertThrows(IllegalStateException.class, ()-> js.publish("foo", null, opts));
 
                 // check success
                  opts.setExpectedStream("foo-stream");
@@ -170,7 +170,7 @@ public class JetstreamTests {
 
                 // check failure
                 opts.setExpectedStream("oof");
-                assertThrows(IllegalStateException.class, ()-> { js.publish("foo", null, opts); });
+                assertThrows(IllegalStateException.class, ()-> js.publish("foo", null, opts));
 
             } catch (Exception ex) {
                 Assertions.fail(ex);
@@ -182,7 +182,7 @@ public class JetstreamTests {
     }                
 
     @Test
-    public void testJetstreamSubscribe() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+    public void testJetstreamSubscribe() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, true);
              Connection nc = Nats.connect(ts.getURI())) {
                 
@@ -220,9 +220,7 @@ public class JetstreamTests {
                 // try using a dispatcher and an ephemeral consumer.
                 CountDownLatch latch = new CountDownLatch(1);
                 Dispatcher d = nc.createDispatcher(null);
-                JetStreamSubscription jsub = js.subscribe("foo", d, (msg) -> {
-                    latch.countDown();
-                });
+                JetStreamSubscription jsub = js.subscribe("foo", d, (msg) -> latch.countDown());
 
                 assertTrue(latch.await(5, TimeUnit.SECONDS));
 
@@ -277,11 +275,7 @@ public class JetstreamTests {
             if (count == batch) {
                 break;
             }
-            try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
-                // noop
-            }
+            sleep(50);
             if (System.currentTimeMillis() - start > d.toMillis()) {
                 break;
             }
@@ -290,7 +284,7 @@ public class JetstreamTests {
     }
 
     @Test
-    public void testJetstreamPullBasedSubscribe() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+    public void testJetstreamPullBasedSubscribe() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, true);
              Connection nc = Nats.connect(ts.getURI())) {
                 
@@ -303,10 +297,7 @@ public class JetstreamTests {
                 // check invalid subscription
                 Dispatcher d = nc.createDispatcher(null);
                 final SubscribeOptions sop = SubscribeOptions.builder().pull(10).build();
-                assertThrows(IllegalStateException.class, () -> {
-                    js.subscribe("bar", d, (msg) -> {}, sop);
-                });
-
+                assertThrows(IllegalStateException.class, () -> js.subscribe("bar", d, (msg) -> {}, sop));
 
                 int batch = 5;
                 int toSend = 10;
@@ -346,10 +337,9 @@ public class JetstreamTests {
                 jsub.unsubscribe();
 
                 
-                assertThrows(IllegalStateException.class, () -> {
+                assertThrows(JetStreamApiException.class, () ->
                     js.subscribe("baz", SubscribeOptions.builder().
-                        attach("test-stream", "rip").pull(batch).build());
-                });
+                        attach("test-stream", "rip").pull(batch).build()));
 
                 // send 10 more messages.
                 for (int i = 0; i < toSend; i++) {
@@ -434,7 +424,7 @@ public class JetstreamTests {
     }
 
     @Test
-    public void testJetstreamAttachDirectNoConsumer() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+    public void testJetstreamAttachDirectNoConsumer() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, true);
              Connection nc = Nats.connect(ts.getURI())) {
                 
@@ -468,7 +458,7 @@ public class JetstreamTests {
     }
 
     @Test
-    public void testJetstreamAttachDirectWithConsumer() throws IOException, InterruptedException,ExecutionException, TimeoutException {
+    public void testJetstreamAttachDirectWithConsumer() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, true);
              Connection nc = Nats.connect(ts.getURI())) {
                 

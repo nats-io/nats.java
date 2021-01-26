@@ -13,8 +13,9 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.JetStreamApiException;
+
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Subscription on a JetStream context.
@@ -29,10 +30,10 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Gets information about the consumer behind this subscription.
-     * @throws IOException if there are communcation issues with the NATS server
-     * @throws TimeoutException if the NATS server does not return a response
-     * @throws InterruptedException if the thread is interrupted
      * @return consumer information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerInfo getConsumerInfo() throws IOException, TimeoutException, InterruptedException;
+    ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 }

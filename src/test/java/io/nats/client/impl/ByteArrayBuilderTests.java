@@ -2,7 +2,6 @@ package io.nats.client.impl;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -11,18 +10,18 @@ import java.util.List;
 import java.util.Random;
 
 import static io.nats.client.support.RandomUtils.PRAND;
-import static io.nats.client.utils.ResourceUtils.getFileFromResourceAsStream;
+import static io.nats.client.utils.ResourceUtils.resourceAsLines;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ByteArrayBuilderTests {
 
     @Test
-    public void byte_array_builder_works() throws IOException {
+    public void byte_array_builder_works() {
         ByteArrayBuilder bab = new ByteArrayBuilder();
         String testString = "abcdefghij";
         _test(PRAND, bab, Collections.singletonList(testString), StandardCharsets.US_ASCII);
 
-        List<String> subjects = getFileFromResourceAsStream("utf8-test-strings.txt");
+        List<String> subjects = resourceAsLines("data/utf8-test-strings.txt");
         bab = new ByteArrayBuilder(StandardCharsets.UTF_8);
         _test(PRAND, bab, subjects, StandardCharsets.UTF_8);
     }

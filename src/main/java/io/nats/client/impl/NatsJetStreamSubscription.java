@@ -17,7 +17,6 @@ import io.nats.client.ConsumerInfo;
 import io.nats.client.JetStreamSubscription;
 
 import java.io.IOException;
-import java.util.concurrent.TimeoutException;
 
 /**
  * This is a jetstream specfic subscription.
@@ -47,6 +46,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         this.pull = pull;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void poll() {
         if (deliver == null || pull == 0) {
@@ -58,8 +60,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         connection.publish(subj, getSubject(), payload);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public ConsumerInfo getConsumerInfo() throws IOException, TimeoutException, InterruptedException {
+    public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         return js.getConsumerInfo(stream, consumer);
     }
 

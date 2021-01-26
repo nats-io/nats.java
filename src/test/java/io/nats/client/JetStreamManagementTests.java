@@ -16,13 +16,13 @@ package io.nats.client;
 import io.nats.client.StreamConfiguration.DiscardPolicy;
 import io.nats.client.StreamConfiguration.RetentionPolicy;
 import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.impl.JetStreamApiException;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalTime;
-import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.impl.JsonUtils.printObject;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamManagementTests {
@@ -34,7 +34,7 @@ public class JetStreamManagementTests {
     private static final String STRM2SUB2 = "strm2sub2";
 
     @Test
-    public void testAddStream() throws Exception {
+    public void addStream() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
             LocalTime now = LocalTime.now();
 
@@ -73,7 +73,7 @@ public class JetStreamManagementTests {
     }
 
     @Test
-    public void testUpdateStream() throws Exception {
+    public void updateStream() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
             JetStream js = nc.jetStream();
             addTestStream(js);
@@ -112,23 +112,31 @@ public class JetStreamManagementTests {
     }
 
     @Test
-    public void testUpdateNonExistentStream_isNotValid() throws Exception {
+    public void addOrUpdateStream_nullConfiguration_isNotValid() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
             JetStream js = nc.jetStream();
-            StreamConfiguration sc = getTestStreamConfiguration();
-            assertThrows(IllegalStateException.class, () -> js.updateStream(sc));
+            assertThrows(IllegalArgumentException.class, () -> js.updateStream(null));
         }
     }
 
     @Test
-    public void testUpdateStream_cannotChangeMaxConsumers() throws Exception {
+    public void updateStream_cannotUpdate_nonExistentStream() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
+            JetStream js = nc.jetStream();
+            StreamConfiguration sc = getTestStreamConfiguration();
+            assertThrows(JetStreamApiException.class, () -> js.updateStream(sc));
+        }
+    }
+
+    @Test
+    public void updateStream_cannotChangeMaxConsumers() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
             JetStream js = nc.jetStream();
             addTestStream(js);
             StreamConfiguration sc = getTestStreamConfigurationBuilder()
                     .maxConsumers(2)
                     .build();
-            assertThrows(IllegalStateException.class, () -> js.updateStream(sc));
+            assertThrows(JetStreamApiException.class, () -> js.updateStream(sc));
         }
     }
 
@@ -140,12 +148,12 @@ public class JetStreamManagementTests {
             StreamConfiguration sc = getTestStreamConfigurationBuilder()
                     .retentionPolicy(RetentionPolicy.Interest)
                     .build();
-            assertThrows(IllegalStateException.class, () -> js.updateStream(sc));
+            assertThrows(JetStreamApiException.class, () -> js.updateStream(sc));
         }
     }
 
 
-    private StreamInfo addTestStream(JetStream js) throws TimeoutException, InterruptedException {
+    private StreamInfo addTestStream(JetStream js) throws IOException, JetStreamApiException {
         StreamInfo si = js.addStream(getTestStreamConfiguration());
         assertNotNull(si);
 
@@ -162,69 +170,4 @@ public class JetStreamManagementTests {
                 .storageType(StorageType.Memory)
                 .subjects(STRM1SUB1, STRM1SUB2);
     }
-
-    public static void main(String[] args) {
-        printObject(new ConsumerLister(TEST));
-    }
-
-    static String TEST = "{\n" +
-            "  \"type\": \"io.nats.jetstream.api.v1.consumer_list_response\",\n" +
-            "  \"total\": 2,\n" +
-            "  \"offset\": 0,\n" +
-            "  \"limit\": 256,\n" +
-            "  \"consumers\": [\n" +
-            "    {\n" +
-            "      \"stream_name\": \"example-stream-1\",\n" +
-            "      \"name\": \"GQJ3IvWo\",\n" +
-            "      \"created\": \"2021-01-20T23:41:08.579594Z\",\n" +
-            "      \"config\": {\n" +
-            "        \"durable_name\": \"GQJ3IvWo\",\n" +
-            "        \"deliver_subject\": \"strm1-deliver\",\n" +
-            "        \"deliver_policy\": \"all\",\n" +
-            "        \"ack_policy\": \"explicit\",\n" +
-            "        \"ack_wait\": 30000000000,\n" +
-            "        \"max_deliver\": -1,\n" +
-            "        \"replay_policy\": \"instant\"\n" +
-            "      },\n" +
-            "      \"delivered\": {\n" +
-            "        \"consumer_seq\": 0,\n" +
-            "        \"stream_seq\": 0\n" +
-            "      },\n" +
-            "      \"ack_floor\": {\n" +
-            "        \"consumer_seq\": 0,\n" +
-            "        \"stream_seq\": 0\n" +
-            "      },\n" +
-            "      \"num_ack_pending\": 0,\n" +
-            "      \"num_redelivered\": 0,\n" +
-            "      \"num_waiting\": 0,\n" +
-            "      \"num_pending\": 0\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"stream_name\": \"example-stream-1\",\n" +
-            "      \"name\": \"consumer-durable\",\n" +
-            "      \"created\": \"2021-01-20T23:26:04.6445175Z\",\n" +
-            "      \"config\": {\n" +
-            "        \"durable_name\": \"consumer-durable\",\n" +
-            "        \"deliver_subject\": \"strm1-deliver\",\n" +
-            "        \"deliver_policy\": \"all\",\n" +
-            "        \"ack_policy\": \"explicit\",\n" +
-            "        \"ack_wait\": 30000000000,\n" +
-            "        \"max_deliver\": -1,\n" +
-            "        \"replay_policy\": \"instant\"\n" +
-            "      },\n" +
-            "      \"delivered\": {\n" +
-            "        \"consumer_seq\": 0,\n" +
-            "        \"stream_seq\": 0\n" +
-            "      },\n" +
-            "      \"ack_floor\": {\n" +
-            "        \"consumer_seq\": 0,\n" +
-            "        \"stream_seq\": 0\n" +
-            "      },\n" +
-            "      \"num_ack_pending\": 0,\n" +
-            "      \"num_redelivered\": 0,\n" +
-            "      \"num_waiting\": 0,\n" +
-            "      \"num_pending\": 0\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}\n";
 }

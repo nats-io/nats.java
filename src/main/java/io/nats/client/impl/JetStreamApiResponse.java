@@ -10,6 +10,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package io.nats.client.impl;
 
 import io.nats.client.Message;
@@ -18,7 +19,7 @@ import io.nats.client.impl.JsonUtils.FieldType;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-class JetstreamAPIResponse {
+class JetStreamApiResponse {
 
     private static final int UnsetErrorCode = -1;
 
@@ -35,11 +36,11 @@ class JetstreamAPIResponse {
     private static final Pattern codeRE = JsonUtils.buildPattern(codeField, FieldType.jsonNumber);
     private static final Pattern descRE = JsonUtils.buildPattern(descField, FieldType.jsonString);
 
-    JetstreamAPIResponse(Message msg) {
+    JetStreamApiResponse(Message msg) {
         this(msg.getData());
     }
 
-    JetstreamAPIResponse(byte[] rawResponse) {
+    JetStreamApiResponse(byte[] rawResponse) {
 
         response = new String(rawResponse);
 
