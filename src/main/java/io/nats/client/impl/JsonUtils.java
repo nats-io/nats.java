@@ -97,28 +97,24 @@ public abstract class JsonUtils {
     }
 
     /**
-     * Internal method to get a JSON object.
-     * @param objectName - object name
-     * @param json - json
-     * @return string with object json
+     * Extract a JSON object string by object name. Returns empty object '{}' if not found.
+     * @param objectName object name
+     * @param json source json
+     * @return object json string
      */
     public static String getJSONObject(String objectName, String json) {
         int[] indexes = getBracketIndexes(objectName, json, "{", "}");
         return indexes[0] == -1 || indexes[1] == -1 ? "{}" : json.substring(indexes[0], indexes[1]+1);
     }
 
-    private static int[] getBracketIndexes(String objectName, String json, String start, String end) {
-        int[] result = new int[] {-1, -1};
-        int objStart = json.indexOf(objectName);
-        if (objStart != -1) {
-            result[0] = json.indexOf(start, objStart);
-            result[1] = json.indexOf(end, result[0]);
-        }
-        return result;
-    }
-
+    /**
+     * Extract a list JSON object strings for list object name. Returns empty list '{}' if not found.
+     * Assumes that there are no brackets '{' or '}' in the actual data.
+     * @param objectName list object name
+     * @param json source json
+     * @return object json string
+     */
     public static List<String> getJSONArray(String objectName, String json) {
-        // THIS ASSUMES THAT THERE ARE NO BRACKETS { or } in the data.
         int[] indexes = getBracketIndexes(objectName, json, "[", "]");
         List<String> items = new ArrayList<>();
         StringBuilder item = new StringBuilder();
@@ -143,20 +139,31 @@ public abstract class JsonUtils {
         return items;
     }
 
+    private static int[] getBracketIndexes(String objectName, String json, String start, String end) {
+        int[] result = new int[] {-1, -1};
+        int objStart = json.indexOf(objectName);
+        if (objStart != -1) {
+            result[0] = json.indexOf(start, objStart);
+            result[1] = json.indexOf(end, result[0]);
+        }
+        return result;
+    }
+
     /**
-     * Parses JSON string array field.
-     * @param fieldName - name of the field.
-     * @param json - JSON that contains this struct.
+     * Extract a list strings for list object name. Returns empty array if not found.
+     * Assumes that there are no brackets '{' or '}' in the actual data.
+     * @param objectName object name
+     * @param json source json
      * @return a string array, empty if no values are found.
      */
-    public static String[] parseStringArray(String fieldName, String json) {
+    public static String[] parseStringArray(String objectName, String json) {
         // THIS CODE MAKES SOME ASSUMPTIONS THAT THE JSON IS FORMED IN A CONSISTENT MANNER
         // ..."fieldName": [\n      ],...
         // ..."fieldName": [\n      "value"\n    ],...
         // ..."fieldName": [\n      "value",\n      "value2"\n    ],...
-        int ix = json.indexOf("\"" + fieldName + "\":");
+        int ix = json.indexOf("\"" + objectName + "\":");
         if (ix != -1) {
-            ix = json.indexOf("\"", ix + fieldName.length() + 3);
+            ix = json.indexOf("\"", ix + objectName.length() + 3);
             if (ix != -1) {
                 int endx = json.indexOf("]", ix);
                 String[] data = json.substring(ix, endx).split(",");

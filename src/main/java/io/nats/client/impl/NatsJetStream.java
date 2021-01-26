@@ -611,8 +611,7 @@ public class NatsJetStream implements JetStream {
                 sub.unsubscribe();
                 throw e;
             }
-            sub.setupJetStream(this, ci.getName(), ci.getStreamName(),
-                    deliver, o.getPullBatchSize());
+            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), deliver, o.getPullBatchSize());
 
         } else {
             String s = direct ? o.getConsumerConfiguration().getDeliverSubject() : ccfg.getDeliverSubject();
