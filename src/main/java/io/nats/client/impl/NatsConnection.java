@@ -998,9 +998,9 @@ class NatsConnection implements Connection {
         return _request(asNatsMessage(message), timeout);
     }
 
-    private Message _request(NatsMessage message, Duration timeout) throws InterruptedException {
+    private Message _request(NatsMessage message, Duration timeout) {
         Message reply = null;
-        Future<Message> incoming = _request(message);
+        CompletableFuture<Message> incoming = _request(message);
         try {
             reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException | CancellationException e) {
@@ -1899,14 +1899,14 @@ class NatsConnection implements Connection {
     }
 
     @Override
-    public JetStream jetStream() throws InterruptedException, TimeoutException {
+    public JetStream jetStream() throws IOException {
         return jetStream(null);
     }
 
     @Override
-    public JetStream jetStream(JetStreamOptions options) throws InterruptedException, TimeoutException {
+    public JetStream jetStream(JetStreamOptions options) throws IOException {
         if (isClosing() || isClosed()) {
-            throw new IllegalStateException("A jetstream context can't be estabilished during close.");
+            throw new IOException("A JetStream context can't be established during close.");
         }
         return new NatsJetStream(this, options);
     }

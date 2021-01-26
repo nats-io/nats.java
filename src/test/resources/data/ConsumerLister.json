@@ -1,0 +1,60 @@
+{
+  "type": "io.nats.jetstream.api.v1.consumer_list_response",
+  "total": 2,
+  "offset": 42,
+  "limit": 256,
+  "consumers": [
+    {
+      "stream_name": "stream-1",
+      "name": "cname1",
+      "created": "2021-01-20T23:41:08.579594Z",
+      "config": {
+        "durable_name": "cname1",
+        "deliver_subject": "strm1-deliver",
+        "deliver_policy": "all",
+        "ack_policy": "explicit",
+        "ack_wait": 30000000000,
+        "max_deliver": 99,
+        "replay_policy": "instant"
+      },
+      "delivered": {
+        "consumer_seq": 1,
+        "stream_seq": 2
+      },
+      "ack_floor": {
+        "consumer_seq": 3,
+        "stream_seq": 4
+      },
+      "num_ack_pending": 5,
+      "num_redelivered": 6,
+      "num_waiting": 7,
+      "num_pending": 8
+    },
+    {
+      "stream_name": "stream-1",
+      "name": "cname2",
+      "created": "2021-01-20T23:26:04.6445175Z",
+      "config": {
+        "durable_name": "cname2",
+        "deliver_subject": "strm1-deliver",
+        "deliver_policy": "all",
+        "ack_policy": "explicit",
+        "ack_wait": 30000000000,
+        "max_deliver": -1,
+        "replay_policy": "instant"
+      },
+      "delivered": {
+        "consumer_seq": 0,
+        "stream_seq": 0
+      },
+      "ack_floor": {
+        "consumer_seq": 0,
+        "stream_seq": 0
+      },
+      "num_ack_pending": 0,
+      "num_redelivered": 0,
+      "num_waiting": 0,
+      "num_pending": 0
+    }
+  ]
+}

@@ -13,11 +13,12 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 
 /**
@@ -32,7 +33,7 @@ public class StreamInfo {
         private ZonedDateTime firstTime;
         private long lastSeq;
         private ZonedDateTime lastTime;
-        private long consumers;
+        private long consumerCount;
 
         private static final String msgsField = "messages";
         private static final String bytesField = "bytes";
@@ -83,7 +84,7 @@ public class StreamInfo {
 
             m = consumersRE.matcher(json);
             if (m.find()) {
-                this.consumers = Long.parseLong(m.group(1));
+                this.consumerCount = Long.parseLong(m.group(1));
             }
         }
 
@@ -140,8 +141,30 @@ public class StreamInfo {
          * @return the consumer count
          */
         public long getConsumerCount() {
-            return consumers;
+            return consumerCount;
         }
+
+        @Override
+        public String toString() {
+            return "StreamState{" +
+                    "msgs=" + msgs +
+                    ", bytes=" + bytes +
+                    ", firstSeq=" + firstSeq +
+                    ", firstTime=" + firstTime +
+                    ", lastSeq=" + lastSeq +
+                    ", lastTime=" + lastTime +
+                    ", consumerCount=" + consumerCount +
+                    '}';
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "StreamInfo{" +
+                "created=" + created +
+                ", " + config +
+                ", " + state +
+                '}';
     }
 
     private StreamConfiguration config;

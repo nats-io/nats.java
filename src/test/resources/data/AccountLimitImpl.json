@@ -1,0 +1,6 @@
+{
+  "max_memory": 1,
+  "max_storage": 2,
+  "max_streams": 3,
+  "max_consumers": 4
+}

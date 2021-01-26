@@ -17,6 +17,7 @@ import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -33,7 +34,6 @@ import java.util.regex.Pattern;
  */
 public class StreamConfiguration {
 
-
     /**
      * Stream retention policies.
      */
@@ -42,7 +42,7 @@ public class StreamConfiguration {
         Interest("interest"),
         WorkQueue("workqueue");
 
-        private String policy;
+        private final String policy;
 
         RetentionPolicy(String p) {
             policy = p;
@@ -72,7 +72,7 @@ public class StreamConfiguration {
         New("new"),
         Old("old");
 
-        private String policy;
+        private final String policy;
 
         DiscardPolicy(String p) {
             policy = p;
@@ -102,7 +102,7 @@ public class StreamConfiguration {
         File("file"),
         Memory("memory");
 
-        private String policy;
+        private final String policy;
 
         StorageType(String p) {
             policy = p;
@@ -130,6 +130,7 @@ public class StreamConfiguration {
     private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
 
     private long maxConsumers = -1;
+    private long maxMsgs = -1;
     private long maxBytes = -1;
     private long maxMsgSize = -1;
     private Duration maxAge = null;
@@ -140,24 +141,46 @@ public class StreamConfiguration {
     private Duration duplicateWindow = Duration.ZERO;
     private String template = null;
 
-    private static String nameField = "name";
-    private static String subjectsField = "subjects";
-    private static String retentionField = "retention";
-    private static String maxConsumersField =  "max_consumers";
-    private static String maxBytesField =  "max_bytes";
+    @Override
+    public String toString() {
+        return "StreamConfiguration{" +
+                "name='" + name + '\'' +
+                ", subjects=" + Arrays.toString(subjects) +
+                ", retentionPolicy=" + retentionPolicy +
+                ", maxConsumers=" + maxConsumers +
+                ", maxMsgs=" + maxMsgs +
+                ", maxBytes=" + maxBytes +
+                ", maxMsgSize=" + maxMsgSize +
+                ", maxAge=" + maxAge +
+                ", storageType=" + storageType +
+                ", discardPolicy=" + discardPolicy +
+                ", replicas=" + replicas +
+                ", noAck=" + noAck +
+                ", duplicateWindow=" + duplicateWindow +
+                ", template='" + template + '\'' +
+                '}';
+    }
 
-    private static String maxAgeField =  "max_age";
-    private static String maxMsgSizeField =  "max_msg_size";
-    private static String storageTypeField =  "storage";
-    private static String discardPolicyField = "discard";
-    private static String replicasField =  "num_replicas";
-    private static String noAckField =  "no_ack";
-    private static String templateField =  "template";
-    private static String duplicatesField =  "duplicates";
+    private static final String nameField = "name";
+    private static final String subjectsField = "subjects";
+    private static final String retentionField = "retention";
+    private static final String maxConsumersField = "max_consumers";
+    private static final String maxMsgsField = "max_msgs";
+    private static final String maxBytesField =  "max_bytes";
+
+    private static final String maxAgeField =  "max_age";
+    private static final String maxMsgSizeField =  "max_msg_size";
+    private static final String storageTypeField =  "storage";
+    private static final String discardPolicyField = "discard";
+    private static final String replicasField =  "num_replicas";
+    private static final String noAckField =  "no_ack";
+    private static final String templateField =  "template";
+    private static final String duplicatesField =  "duplicate_window";
 
     private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
     private static final Pattern maxConsumersRE = JsonUtils.buildPattern(maxConsumersField, FieldType.jsonNumber);
     private static final Pattern retentionRE = JsonUtils.buildPattern(retentionField, FieldType.jsonString);
+    private static final Pattern maxMsgsRE = JsonUtils.buildPattern(maxMsgsField, FieldType.jsonNumber);
     private static final Pattern maxBytesRE = JsonUtils.buildPattern(maxBytesField, FieldType.jsonNumber);
     private static final Pattern maxAgeRE = JsonUtils.buildPattern(maxAgeField, FieldType.jsonNumber);
     private static final Pattern maxMsgSizeRE = JsonUtils.buildPattern(maxMsgSizeField, FieldType.jsonNumber);
@@ -183,6 +206,11 @@ public class StreamConfiguration {
         m = retentionRE.matcher(json);
         if (m.find()) {
             this.retentionPolicy = RetentionPolicy.get(m.group(1));
+        }
+
+        m = maxMsgsRE.matcher(json);
+        if (m.find()) {
+            this.maxMsgs = Long.parseLong(m.group(1));
         }
 
         m = maxBytesRE.matcher(json);
@@ -235,32 +263,35 @@ public class StreamConfiguration {
 
     // For the builder
     StreamConfiguration(
-        String name,
-        String[] subjects,
-        RetentionPolicy retentionPolicy,
-        long maxConsumers,
-        long maxBytes,
-        long maxMsgSize,
-        Duration maxAge,
-        StorageType storageType,
-        DiscardPolicy discardPolicy,
-        long replicas,
-        boolean noAck,
-        Duration duplicateWindow,
-        String template) {
-            this.name = name;
-            this.subjects = subjects;
-            this.retentionPolicy = retentionPolicy;
-            this.maxConsumers = maxConsumers;
-            this.maxBytes = maxBytes;
-            this.maxMsgSize = maxMsgSize;
-            this.maxAge = maxAge;
-            this.storageType = storageType;
-            this.discardPolicy = discardPolicy;
-            this.replicas = replicas;
-            this.noAck = noAck;
-            this.duplicateWindow = duplicateWindow;
-            this.template = template;
+            String name,
+            String[] subjects,
+            RetentionPolicy retentionPolicy,
+            long maxConsumers,
+            long maxMsgs,
+            long maxBytes,
+            long maxMsgSize,
+            Duration maxAge,
+            StorageType storageType,
+            DiscardPolicy discardPolicy,
+            long replicas,
+            boolean noAck,
+            Duration duplicateWindow,
+            String template)
+    {
+        this.name = name;
+        this.subjects = subjects;
+        this.retentionPolicy = retentionPolicy;
+        this.maxConsumers = maxConsumers;
+        this.maxMsgs = maxMsgs;
+        this.maxBytes = maxBytes;
+        this.maxMsgSize = maxMsgSize;
+        this.maxAge = maxAge;
+        this.storageType = storageType;
+        this.discardPolicy = discardPolicy;
+        this.replicas = replicas;
+        this.noAck = noAck;
+        this.duplicateWindow = duplicateWindow;
+        this.template = template;
     }
 
     /**
@@ -276,6 +307,7 @@ public class StreamConfiguration {
         JsonUtils.addFld(sb, subjectsField, subjects);
         JsonUtils.addFld(sb, retentionField, retentionPolicy.toString());
         JsonUtils.addFld(sb, maxConsumersField, maxConsumers);
+        JsonUtils.addFld(sb, maxMsgsField, maxMsgs);
         JsonUtils.addFld(sb, maxBytesField, maxBytes);
         JsonUtils.addFld(sb, maxMsgSizeField, maxMsgSize);
         JsonUtils.addFld(sb, maxAgeField, maxAge);
@@ -327,6 +359,14 @@ public class StreamConfiguration {
      */
     public long getMaxConsumers() {
         return maxConsumers;
+    }
+
+    /**
+     * Gets the maximum messages for this stream configuration.
+     * @return the maximum number of messages for this stream.
+     */
+    public long getMaxMsgs() {
+        return maxMsgs;
     }
 
     /**
@@ -415,6 +455,7 @@ public class StreamConfiguration {
         private String[] subjects = null;
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
         private long maxConsumers = -1;
+        private long maxMsgs = -1;
         private long maxBytes = -1;
         private long maxMsgSize = -1;
         private Duration maxAge = Duration.ZERO;
@@ -433,14 +474,14 @@ public class StreamConfiguration {
         public Builder name(String name) {
             this.name = name;
             return this;
-        }      
+        }
 
         /**
          * Sets the subjects in the StreamConfiguration.
          * @param subjects the stream's subjects
          * @return Builder
          */
-        public Builder subjects(String[] subjects) {
+        public Builder subjects(String... subjects) {
             if (subjects == null || subjects.length == 0) {
                 throw new IllegalArgumentException("Subjects cannot be null or empty");
             }
@@ -468,6 +509,15 @@ public class StreamConfiguration {
             return this;
         }
 
+        /**
+         * Sets the maximum number of consumers in the StreamConfiguration.
+         * @param maxMsgs the maximum number of messages
+         * @return Builder
+         */
+        public Builder maxMessages(long maxMsgs) {
+            this.maxMsgs = maxMsgs;
+            return this;
+        }
 
         /**
          * Sets the maximum number of bytes in the StreamConfiguration.
@@ -575,6 +625,7 @@ public class StreamConfiguration {
                 subjects,
                 retentionPolicy,
                 maxConsumers,
+                maxMsgs,
                 maxBytes,
                 maxMsgSize,
                 maxAge,

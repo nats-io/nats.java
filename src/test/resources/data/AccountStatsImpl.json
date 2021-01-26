@@ -1,0 +1,6 @@
+{
+  "memory": 1,
+  "storage": 2,
+  "streams": 3,
+  "consumers": 4
+}

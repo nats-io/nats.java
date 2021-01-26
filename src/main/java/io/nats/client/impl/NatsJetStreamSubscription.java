@@ -13,20 +13,19 @@
 
 package io.nats.client.impl;
 
-import java.io.IOException;
-import java.util.concurrent.TimeoutException;
-
 import io.nats.client.ConsumerInfo;
 import io.nats.client.JetStreamSubscription;
+
+import java.io.IOException;
 
 /**
  * This is a jetstream specfic subscription.
  */
 public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription {
 
-    // JSApiRequestNextT is the prefix for the request next message(s) for a
+    // JSAPI_REQUEST_NEXT is the prefix for the request next message(s) for a
     // consumer in worker/pull mode.
-    private static final String jSApiRequestNextT = "CONSUMER.MSG.NEXT.%s.%s";
+    private static final String JSAPI_REQUEST_NEXT = "CONSUMER.MSG.NEXT.%s.%s";
 
     NatsJetStream js;
     String consumer;
@@ -47,20 +46,35 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         this.pull = pull;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void poll() {
         if (deliver == null || pull == 0) {
             throw new IllegalStateException("Subscription type does not support poll.");
         }
 
-        String subj = js.appendPre(String.format(jSApiRequestNextT, stream, consumer));
+        String subj = js.appendPre(String.format(JSAPI_REQUEST_NEXT, stream, consumer));
         byte[] payload = String.format("{ \"batch\":%d}", pull).getBytes();
         connection.publish(subj, getSubject(), payload);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public ConsumerInfo getConsumerInfo() throws IOException, TimeoutException, InterruptedException {
+    public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         return js.getConsumerInfo(stream, consumer);
     }
-    
+
+    @Override
+    public String toString() {
+        return "NatsJetStreamSubscription{" +
+                "consumer='" + consumer + '\'' +
+                ", stream='" + stream + '\'' +
+                ", deliver='" + deliver + '\'' +
+                ", pull=" + pull +
+                '}';
+    }
 }

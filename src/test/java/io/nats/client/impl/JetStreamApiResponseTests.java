@@ -13,19 +13,17 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import org.junit.jupiter.api.Test;
 
-public class JetstreamAPIResponseTests {
+import static org.junit.jupiter.api.Assertions.*;
+
+public class JetStreamApiResponseTests {
 
     @Test void testErrorResponses() {
         String msg = "Test generated error.";
         String json = "{\"type\" : \"thetype\",\"code\" : 1234, \"description\" : \"" + msg + "\"}";
-        JetstreamAPIResponse resp = new JetstreamAPIResponse(json.getBytes());
-        assertTrue(JetstreamAPIResponse.isError(json));
+        JetStreamApiResponse resp = new JetStreamApiResponse(json.getBytes());
+        assertTrue(JetStreamApiResponse.isError(json));
         assertTrue(resp.hasError());
         assertEquals(1234, resp.getCode());
         assertEquals("thetype", resp.getType());
@@ -37,8 +35,8 @@ public class JetstreamAPIResponseTests {
     public void testSuccessResponse() {
         String json = "{\"whatever\":\"value\"}";
 
-        JetstreamAPIResponse resp = new JetstreamAPIResponse(json.getBytes());
-        assertFalse(JetstreamAPIResponse.isError(json));
+        JetStreamApiResponse resp = new JetStreamApiResponse(json.getBytes());
+        assertFalse(JetStreamApiResponse.isError(json));
         assertEquals(-1, resp.getCode());
         assertEquals(null, resp.getDescription());
         assertFalse(resp.hasError());

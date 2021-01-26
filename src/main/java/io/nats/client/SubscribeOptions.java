@@ -235,4 +235,15 @@ public class SubscribeOptions {
             return so;
         }
     }
+
+    @Override
+    public String toString() {
+        return "SubscribeOptions{" +
+                "stream='" + stream + '\'' +
+                ", consumer='" + consumer + '\'' +
+                ", " + consumerConfiguration +
+                ", autoAck=" + autoAck +
+                ", pull=" + pull +
+                '}';
+    }
 }

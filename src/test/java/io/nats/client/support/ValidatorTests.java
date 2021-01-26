@@ -16,13 +16,14 @@ package io.nats.client.support;
 import org.junit.jupiter.api.Test;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.support.Validator.validateNotNull;
 import static io.nats.client.support.Validator.validatePullBatchSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ValidatorTests {
 
-    private static final String PLAIN = "plain";
+    private static final String PLAIN     = "plain";
     private static final String HAS_SPACE = "has space";
     private static final String HAS_DASH  = "has-dash";
     private static final String HAS_DOT   = "has.dot";
@@ -61,14 +62,14 @@ public class ValidatorTests {
 
     @Test
     public void testValidateConsumer() {
-        allowed(Validator::validateConsumer, null, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateConsumer, EMPTY);
+        allowed(Validator::validateConsumer, null, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateConsumer, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
     public void testValidateDurable() {
-        allowed(Validator::validateDurable, null, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateDurable, EMPTY);
+        allowed(Validator::validateDurable, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateDurable, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
@@ -78,10 +79,18 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testvalidatePullBatchSize() {
+    public void testValidatePullBatchSize() {
         assertEquals(0, validatePullBatchSize(0));
         assertEquals(1, validatePullBatchSize(1));
         assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(-1));
+    }
+
+    @Test
+    public void testNotNull() {
+        Object o = null;
+        String s = null;
+        assertThrows(IllegalArgumentException.class, () -> validateNotNull(o, "fieldName"));
+        assertThrows(IllegalArgumentException.class, () -> validateNotNull(s, "fieldName"));
     }
 
     interface StringTest { String validate(String s); }

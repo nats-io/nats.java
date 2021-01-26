@@ -18,13 +18,14 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.regex.Matcher;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
  * Internal json parsing helpers.
  */
-public final class JsonUtils {
+public abstract class JsonUtils {
 
     private static final String OBJECT_RE = "\\{(.+?)\\}";
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
@@ -35,10 +36,12 @@ public final class JsonUtils {
     private static final String AFTER_FIELD_RE = "\"\\s*:\\s*";
 
     private static final String Q = "\"";
-    private static final String QCOLONQ = "\": \"";
-    private static final String QCOLON = "\": ";
+    private static final String QCOLONQ = "\":\"";
+    private static final String QCOLON = "\":";
     private static final String QCOMMA = "\",";
     private static final String COMMA = ",";
+
+    private JsonUtils() {} /* for Jacoco */
 
     public enum FieldType {
         jsonObject(OBJECT_RE),
@@ -94,48 +97,84 @@ public final class JsonUtils {
     }
 
     /**
-     * Internal method to get a JSON object.
-     * @param objectName - object name
-     * @param json - json
-     * @return string with object json
+     * Extract a JSON object string by object name. Returns empty object '{}' if not found.
+     * @param objectName object name
+     * @param json source json
+     * @return object json string
      */
     public static String getJSONObject(String objectName, String json) {
-
-        int objStart = json.indexOf(objectName);
-        if (objStart < 0) {
-            return null;
-        }
-    
-        int bracketStart = json.indexOf("{", objStart);
-        int bracketEnd = json.indexOf("}", bracketStart);
-    
-        if (bracketStart < 0 || bracketEnd < 0) {
-            return null;
-        }
-    
-        return json.substring(bracketStart, bracketEnd+1);
+        int[] indexes = getBracketIndexes(objectName, json, "{", "}");
+        return indexes[0] == -1 || indexes[1] == -1 ? "{}" : json.substring(indexes[0], indexes[1]+1);
     }
 
     /**
-     * Parses JSON string array field.
-     * @param fieldName - name of the field.
-     * @param json - JSON that contains this struct.
+     * Extract a list JSON object strings for list object name. Returns empty list '{}' if not found.
+     * Assumes that there are no brackets '{' or '}' in the actual data.
+     * @param objectName list object name
+     * @param json source json
+     * @return object json string
+     */
+    public static List<String> getJSONArray(String objectName, String json) {
+        int[] indexes = getBracketIndexes(objectName, json, "[", "]");
+        List<String> items = new ArrayList<>();
+        StringBuilder item = new StringBuilder();
+        int count = 0;
+        for (int x = indexes[0] + 1; x < indexes[1]; x++) {
+            char c = json.charAt(x);
+            if (c == '{') {
+                item.append(c);
+                count++;
+            }
+            else if (c == '}') {
+                item.append(c);
+                if (--count == 0) {
+                    items.add(item.toString());
+                    item.setLength(0);
+                }
+            }
+            else if (count > 0) {
+                item.append(c);
+            }
+        }
+        return items;
+    }
+
+    private static int[] getBracketIndexes(String objectName, String json, String start, String end) {
+        int[] result = new int[] {-1, -1};
+        int objStart = json.indexOf(objectName);
+        if (objStart != -1) {
+            result[0] = json.indexOf(start, objStart);
+            result[1] = json.indexOf(end, result[0]);
+        }
+        return result;
+    }
+
+    /**
+     * Extract a list strings for list object name. Returns empty array if not found.
+     * Assumes that there are no brackets '{' or '}' in the actual data.
+     * @param objectName object name
+     * @param json source json
      * @return a string array, empty if no values are found.
      */
-    public static String[] parseStringArray(String fieldName, String json) {
-        Pattern regex = JsonUtils.buildPattern(fieldName, FieldType.jsonStringArray);
-        Matcher m = regex.matcher(json);
-        if (!m.find()) {
-            return new String[0];
+    public static String[] parseStringArray(String objectName, String json) {
+        // THIS CODE MAKES SOME ASSUMPTIONS THAT THE JSON IS FORMED IN A CONSISTENT MANNER
+        // ..."fieldName": [\n      ],...
+        // ..."fieldName": [\n      "value"\n    ],...
+        // ..."fieldName": [\n      "value",\n      "value2"\n    ],...
+        int ix = json.indexOf("\"" + objectName + "\":");
+        if (ix != -1) {
+            ix = json.indexOf("\"", ix + objectName.length() + 3);
+            if (ix != -1) {
+                int endx = json.indexOf("]", ix);
+                String[] data = json.substring(ix, endx).split(",");
+                for (int x = 0; x < data.length; x++) {
+                    data[x] = data[x].trim().replaceAll("\"", "");
+                }
+                return data;
+            }
         }
-        String jsonArray = m.group(1);
-        String[] quotedStrings = jsonArray.split("\\s*,\\s*");
-        String[] rv = new String[quotedStrings.length];
-        for (int i = 0; i < quotedStrings.length; i++) {
-            // subjects cannot contain quotes, so just do a replace.
-            rv[i] = quotedStrings[i].replace(Q, "");
-        }
-        return rv;     
+
+        return new String[0];
     }
 
     public static StringBuilder beginJson() {
@@ -250,4 +289,5 @@ public final class JsonUtils {
         Instant inst = Instant.parse(dateTime);
         return ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
     }
+
 }

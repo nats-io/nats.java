@@ -15,9 +15,10 @@ package io.nats.examples;
 
 import io.nats.client.*;
 import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.impl.JetStreamApiException;
 
+import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.TimeoutException;
 
 public class ExampleUtils {
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
@@ -58,15 +59,20 @@ public class ExampleUtils {
     }
 
     public static void createTestStream(JetStream js, String streamName, String subject)
-            throws TimeoutException, InterruptedException {
+            throws IOException, JetStreamApiException {
+        createTestStream(js, streamName, subject, StorageType.File);
+    }
+
+    public static void createTestStream(JetStream js, String streamName, String subject, StorageType storageType)
+            throws IOException, JetStreamApiException {
 
         // Create a stream, here will use a file storage type, and one subject,
         // the passed subject.
-        StreamConfiguration sc = StreamConfiguration.builder().
-            name(streamName).
-            storageType(StorageType.File).
-            subjects(new String[] { subject }).
-            build();
+        StreamConfiguration sc = StreamConfiguration.builder()
+                .name(streamName)
+                .storageType(storageType)
+                .subjects(subject)
+                .build();
         
         // Add or use an existing stream.
         StreamInfo si = js.addStream(sc);
@@ -102,6 +108,15 @@ public class ExampleUtils {
 
     public static ExampleArgs readReplyArgs(String[] args, String usageString) {
         return readSubscribeArgs(args, usageString);
+    }
+
+    public static ExampleArgs readConsumerArgs(String[] args, String usageString) {
+        ExampleArgs ea = new ExampleArgs(args, false, usageString);
+        if (ea.msgCount < 1 || ea.stream == null || ea.consumer == null) {
+            System.out.println("Stream name and consumer name are required to attach.\nSubject and message count are required.\n");
+            usage(usageString);
+        }
+        return ea;
     }
 
     private static void usage(String usageString) {

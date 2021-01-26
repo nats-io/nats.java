@@ -13,14 +13,12 @@
 
 package io.nats.client;
 
-import java.time.Instant;
-import java.time.ZoneId;
+import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.JsonUtils.FieldType;
+
 import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 // TODO Add properties
 
@@ -64,6 +62,14 @@ public class ConsumerInfo {
         public long getStreamSequence() {
             return streamSeq;
         }
+
+        @Override
+        public String toString() {
+            return "SequencePair{" +
+                    "consumerSeq=" + consumerSeq +
+                    ", streamSeq=" + streamSeq +
+                    '}';
+        }
     }
 
     private String stream;
@@ -75,7 +81,7 @@ public class ConsumerInfo {
     private long numPending;
     private long numWaiting;
     private long numAckPending;
-    private long numRelivered;
+    private long numRedelivered;
     
     private static final String streamNameField =  "stream_name";
     private static final String nameField = "name";
@@ -103,7 +109,7 @@ public class ConsumerInfo {
 
     /**
      * Internal method to generate consumer information.
-     * @param json JSON represeenting the consumer information.
+     * @param json JSON representing the consumer information.
      */
     public ConsumerInfo(String json) {
         Matcher m = streamNameRE.matcher(json);
@@ -119,25 +125,17 @@ public class ConsumerInfo {
 
         m = createdRE.matcher(json);
         if (m.find()) {
-            // Instant can parse rfc 3339... we're making a time zone assumption.
-            Instant inst = Instant.parse(m.group(1));
-            this.created = ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
+            this.created = JsonUtils.parseDateTime(m.group(1));
         }
 
-        String s = JsonUtils.getJSONObject(configField, json);
-        if (s != null) {
-            this.configuration = new ConsumerConfiguration(s);
-        }
-  
-        s = JsonUtils.getJSONObject(deliveredField, json);
-        if (s != null) {
-            this.delivered = new SequencePair(s);
-        }
-          
-        s = JsonUtils.getJSONObject(ackFloorField, json);
-        if (s != null) {
-            this.ackFloor = new SequencePair(s);
-        }
+        String jsonObject = JsonUtils.getJSONObject(configField, json);
+        this.configuration = new ConsumerConfiguration(jsonObject);
+
+        jsonObject = JsonUtils.getJSONObject(deliveredField, json);
+        this.delivered = new SequencePair(jsonObject);
+
+        jsonObject = JsonUtils.getJSONObject(ackFloorField, json);
+        this.ackFloor = new SequencePair(jsonObject);
 
         m = numPendingRE.matcher(json);
         if (m.find()) {
@@ -156,8 +154,7 @@ public class ConsumerInfo {
 
         m = numRedeliveredRE.matcher(json);
         if (m.find()) {
-            // todo - double check
-            this.numRelivered = Long.parseLong(m.group(1));
+            this.numRedelivered = Long.parseLong(m.group(1));
         }
     }
     
@@ -198,6 +195,22 @@ public class ConsumerInfo {
     }
 
     public long getRedelivered() {
-        return numRelivered;
+        return numRedelivered;
+    }
+
+    @Override
+    public String toString() {
+        return "ConsumerInfo{" +
+                "stream='" + stream + '\'' +
+                ", name='" + name + '\'' +
+                ", " + configuration +
+                ", created=" + getCreationTime() +
+                ", " + delivered +
+                ", " + ackFloor +
+                ", numPending=" + numPending +
+                ", numWaiting=" + numWaiting +
+                ", numAckPending=" + numAckPending +
+                ", numRedelivered=" + numRedelivered +
+                '}';
     }
 }

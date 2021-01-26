@@ -15,10 +15,7 @@
 
 package io.nats.client;
 
-import java.nio.ByteBuffer;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Random;
+import static io.nats.client.support.RandomUtils.*;
 
 /**
  * A highly performant unique identifier generator. The library uses this to generate
@@ -52,13 +49,9 @@ public final class NUID {
     private long seq;
     private long inc;
 
-    private static final SecureRandom srand;
-    private static final Random prand;
     private static final NUID globalNUID;
 
     static {
-        srand = new SecureRandom();
-        prand = new Random(bytesToLong(srand.generateSeed(8))); // seed with 8 bytes (64 bits)
         globalNUID = new NUID();
     }
 
@@ -77,8 +70,8 @@ public final class NUID {
      */
     public NUID() {
         // Generate a cryto random int, 0 <= val < max to seed pseudorandom
-        seq = nextLong(prand, maxSeq);
-        inc = minInc + nextLong(prand, maxInc - minInc);
+        seq = nextLong(PRAND, maxSeq);
+        inc = minInc + nextLong(PRAND, maxInc - minInc);
         pre = new char[preLen];
         for (int i = 0; i < preLen; i++) {
             pre[i] = '0';
@@ -121,8 +114,8 @@ public final class NUID {
 
     // Resets the sequntial portion of the NUID
     void resetSequential() {
-        seq = nextLong(prand, maxSeq);
-        inc = minInc + nextLong(prand, maxInc - minInc);
+        seq = nextLong(PRAND, maxSeq);
+        inc = minInc + nextLong(PRAND, maxInc - minInc);
     }
 
     /*
@@ -134,29 +127,11 @@ public final class NUID {
         byte[] cb = new byte[preLen];
 
         // Use SecureRandom for prefix only
-        srand.nextBytes(cb);
+        SRAND.nextBytes(cb);
 
         for (int i = 0; i < preLen; i++) {
             pre[i] = digits[(cb[i] & 0xFF) % base];
         }
-    }
-
-    static long nextLong(Random rng, long maxValue) {
-        // error checking and 2^x checking removed for simplicity.
-        long bits;
-        long val;
-        do {
-            bits = (rng.nextLong() << 1) >>> 1;
-            val = bits % maxValue;
-        } while (bits - val + (maxValue - 1) < 0L);
-        return val;
-    }
-
-    static long bytesToLong(byte[] bytes) {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.SIZE);
-        buffer.put(bytes);
-        buffer.flip();// need flip
-        return buffer.getLong();
     }
 
     /**
