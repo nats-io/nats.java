@@ -62,14 +62,14 @@ public class ValidatorTests {
 
     @Test
     public void testValidateConsumer() {
-        allowed(Validator::validateConsumer, null, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateConsumer, EMPTY);
+        allowed(Validator::validateConsumer, null, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateConsumer, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
     public void testValidateDurable() {
-        allowed(Validator::validateDurable, PLAIN, HAS_SPACE, HAS_DASH, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateDurable, null, EMPTY, HAS_DOT);
+        allowed(Validator::validateDurable, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateDurable, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test

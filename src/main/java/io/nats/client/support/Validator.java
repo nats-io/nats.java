@@ -56,15 +56,15 @@ public abstract class Validator {
     }
 
     public static String validateConsumer(String s) {
-        if (notNullButEmpty(s)) {
-            throw new IllegalArgumentException("Consumer cannot be blank when provided.");
+        if (notNullButEmpty(s) || containsDotWildGt(s)) {
+            throw new IllegalArgumentException("Consumer cannot be blank when provided  and cannot contain a '.', '*' or '>'.");
         }
         return s;
     }
 
     public static String validateDurable(String s) {
-        if (nullOrEmpty(s) || containsDot(s)) {
-            throw new IllegalArgumentException("Durable cannot be blank and cannot contain a period '.'");
+        if (nullOrEmpty(s) || containsDotWildGt(s)) {
+            throw new IllegalArgumentException("Durable cannot be blank and cannot contain a '.', '*' or '>'");
         }
         return s;
     }
@@ -122,15 +122,31 @@ public abstract class Validator {
     }
 
     public static boolean containsWhitespace(String s) {
-        for (int i = 0; i < s.length(); i++){
-            if (Character.isWhitespace(s.charAt(i))) {
-                return true;
+        if (s != null) {
+            for (int i = 0; i < s.length(); i++) {
+                if (Character.isWhitespace(s.charAt(i))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean containsDotWildGt(String s) {
+        if (s != null) {
+            for (int i = 0; i < s.length(); i++) {
+                switch (s.charAt(i)) {
+                    case '.':
+                    case '*':
+                    case '>':
+                        return true;
+                }
             }
         }
         return false;
     }
 
     public static boolean containsDot(String s) {
-        return s.indexOf('.') > -1;
+        return s != null && s.indexOf('.') > -1;
     }
 }
