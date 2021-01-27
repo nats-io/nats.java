@@ -31,7 +31,7 @@ public class JetStreamManagementOptions extends JetStreamOptions {
      */
     public static class Builder extends JetStreamOptions.Builder {
         public Builder() {
-            direct(true);
+            direct(false);
         }
 
         /**
