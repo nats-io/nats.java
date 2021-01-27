@@ -57,7 +57,7 @@ public abstract class Validator {
 
     public static String validateConsumer(String s) {
         if (notNullButEmpty(s) || containsDotWildGt(s)) {
-            throw new IllegalArgumentException("Consumer cannot be blank when provided  and cannot contain a '.', '*' or '>'.");
+            throw new IllegalArgumentException("Consumer cannot be blank when provided and cannot contain a '.', '*' or '>'.");
         }
         return s;
     }
@@ -81,6 +81,13 @@ public abstract class Validator {
             throw new IllegalArgumentException("Batch size must be greater than or equal to zero");
         }
         return l;
+    }
+
+    public static String validateJetStreamPrefix(String s) {
+        if (containsWildGt(s)) {
+            throw new IllegalArgumentException("Prefix cannot contain a wildcard.");
+        }
+        return s;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -137,6 +144,19 @@ public abstract class Validator {
             for (int i = 0; i < s.length(); i++) {
                 switch (s.charAt(i)) {
                     case '.':
+                    case '*':
+                    case '>':
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static boolean containsWildGt(String s) {
+        if (s != null) {
+            for (int i = 0; i < s.length(); i++) {
+                switch (s.charAt(i)) {
                     case '*':
                     case '>':
                         return true;

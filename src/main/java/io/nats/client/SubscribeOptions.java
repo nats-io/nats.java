@@ -21,14 +21,19 @@ import static io.nats.client.support.Validator.*;
  */
 public class SubscribeOptions {
 
-    private String stream = null;
-    private String consumer = null;
-    private ConsumerConfiguration consumerConfiguration = null;
-    private boolean autoAck = true;
-    private long pull = 0;
+    private final String stream;
+    private final String consumer;
+    private final ConsumerConfiguration consumerConfiguration;
+    private final boolean autoAck;
+    private final long pull;
 
-    // required so it cannot be instantiated anywhere else, use the builder and getInstance
-    private SubscribeOptions() {}
+    private SubscribeOptions(String stream, String consumer, ConsumerConfiguration consumerConfiguration, boolean autoAck, long pull) {
+        this.stream = stream;
+        this.consumer = consumer;
+        this.consumerConfiguration = consumerConfiguration;
+        this.autoAck = autoAck;
+        this.pull = pull;
+    }
 
     /**
      * Gets the name of the stream.
@@ -75,25 +80,19 @@ public class SubscribeOptions {
     }
 
     /**
-     * Creates a builder for the subscribe options.
-     * @param options existing option set to copy.
-     * @return the builder.
+     * Returns a copy of the subscribe options (for thread safety) or the default instance if
+     * the supplied options are null
+     * @param options null or an existing options to copy.
+     * @return the new options.
      */
-    public static SubscribeOptions getInstance(SubscribeOptions options) {
-        SubscribeOptions so;
+    public static SubscribeOptions createOrCopy(SubscribeOptions options) {
         if (options == null) {
-            so = new Builder().build();
-        }
-        else {
-            so = new SubscribeOptions();
-            so.stream = options.stream;
-            so.consumer = options.consumer;
-            so.consumerConfiguration = new ConsumerConfiguration(options.consumerConfiguration);
-            so.autoAck = options.autoAck;
-            so.pull = options.pull;
+            return new Builder().build();
         }
 
-        return so;
+        return new SubscribeOptions(options.stream, options.consumer,
+                new ConsumerConfiguration(options.consumerConfiguration),
+                options.autoAck, options.pull);
     }
 
     /**
@@ -104,17 +103,26 @@ public class SubscribeOptions {
         return new Builder();
     }
 
+    // TODO
+//    public static SubscribeOptions createPullDirect(String stream, String consumer, long batchSize) {
+//        SubscribeOptions so = new SubscribeOptions();
+//        so.stream = validateStreamName(stream);
+//        so.consumer = validateConsumer(consumer);
+//        so.pull = validatePullBatchSize(batchSize);
+//        return so;
+//    }
+
     /**
      * SubscribeOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
     public static class Builder {
-        private String stream = null;
-        private String consumer = null;
-        private ConsumerConfiguration consumerConfig = null;
+        private String stream;
+        private String consumer;
+        private ConsumerConfiguration consumerConfig;
         private boolean autoAck = true;
-        private String durable = null;
-        private String deliverSubject = null;
+        private String durable;
+        private String deliverSubject;
         private long pull = 0;
 
         /**
@@ -188,7 +196,7 @@ public class SubscribeOptions {
         }
 
         /**
-         * Setting this specfies the push model to a delivery subject.
+         * Setting this specifies the push model to a delivery subject.
          * @param deliverSubject the subject to deliver on.
          * @return the builder.
          */
@@ -214,25 +222,19 @@ public class SubscribeOptions {
          * @return subscribe options
          */
         public SubscribeOptions build() {
-            SubscribeOptions so = new SubscribeOptions();
-            so.consumerConfiguration = consumerConfig == null
-                    ? ConsumerConfiguration.builder().build()
-                    : consumerConfig;
-
-            so.stream = stream;
-            so.consumer = consumer;
-            so.autoAck = autoAck;
-            so.pull = pull;
+            if (consumerConfig == null) {
+                consumerConfig = ConsumerConfiguration.builder().build();
+            }
 
             if (durable != null) {
-                so.consumerConfiguration.setDurable(durable);
+                consumerConfig.setDurable(durable);
             }
 
             if (deliverSubject != null) {
-                so.consumerConfiguration.setDeliverSubject(deliverSubject);
+                consumerConfig.setDeliverSubject(deliverSubject);
             }
 
-            return so;
+            return new SubscribeOptions(stream, consumer, consumerConfig, autoAck, pull);
         }
     }
 

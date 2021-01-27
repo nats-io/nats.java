@@ -23,11 +23,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
-// TODO Add properties
-
-// JSApiStreamCreateT   = "$JS.API.STREAM.CREATE.%s"
-
 /**
  * The StreamConfiguration class specifies the configuration for creating a jetstream stream on the server.
  * Options are created using a {@link StreamConfiguration.Builder Builder}.

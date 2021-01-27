@@ -1,0 +1,26 @@
+{
+  "type": "io.nats.jetstream.api.v1.consumer_info_response",
+  "stream_name": "foo-stream",
+  "name": "foo-consumer",
+  "created": "2020-11-05T19:33:21.163377Z",
+  "config": {
+    "durable_name": "foo-consumer",
+    "deliver_subject": "bar",
+    "deliver_policy": "all",
+    "ack_policy": "all",
+    "ack_wait": 30000000000,
+    "max_deliver": 10,
+    "replay_policy": "original"
+  },
+  "delivered": {
+    "consumer_seq": 1,
+    "stream_seq": 2
+  },
+  "ack_floor": {
+    "consumer_seq": 3,
+    "stream_seq": 4
+  },
+  "num_pending": 24,
+  "num_ack_pending": 42,
+  "num_redelivered": 42
+}

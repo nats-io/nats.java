@@ -18,69 +18,91 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * JetStream context for creation and access to streams and consumers in NATS.
+ * JetStream Management context for creation and access to streams and consumers in NATS.
  */
-public interface JetStream {
+public interface JetStreamManagement {
 
     /**
-     * Represents the Jetstream Account Limits
+     * Loads or creates a stream.
+     * @param config the stream configuration to use.
+     * @return stream information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the configuration is missing or invalid
      */
-    interface AccountLimits {
-
-        /**
-         * Gets the maximum amount of memory in the Jetstream deployment.
-         * @return bytes
-         */
-        long getMaxMemory();
-
-        /**
-         * Gets the maximum amount of storage in the Jetstream deployment.
-         * @return bytes
-         */
-        long getMaxStorage();
-
-         /**
-         * Gets the maximum number of allowed streams in the Jetstream deployment.
-         * @return stream maximum count
-         */       
-        long getMaxStreams();
-
-         /**
-         * Gets the maximum number of allowed consumers in the Jetstream deployment.
-         * @return consumer maximum count
-         */         
-        long getMaxConsumers();
-    }
+    StreamInfo addStream(StreamConfiguration config) throws IOException, JetStreamApiException;
 
     /**
-     *  The Jetstream Account Statistics
+     * Updates an existing stream.
+     * @param config the stream configuration to use.
+     * @return stream information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the configuration is missing or invalid
      */
-    interface AccountStatistics {
+    StreamInfo updateStream(StreamConfiguration config) throws IOException, JetStreamApiException;
 
-        /**
-         * Gets the amount of memory used by the Jetstream deployment.
-         * @return bytes
-         */
-        long getMemory();
+    /**
+     * Deletes an existing stream.
+     * @param streamName the stream name to use.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void deleteStream(String streamName) throws IOException, JetStreamApiException;
 
-        /**
-         * Gets the amount of storage used by  the Jetstream deployment.
-         * @return bytes
-         */
-        long getStorage();
+    /**
+     * Gets the info for an existing stream.
+     * @param streamName the stream name to use.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return stream information
+     */
+    StreamInfo streamInfo(String streamName) throws IOException, JetStreamApiException;
 
-         /**
-         * Gets the number of streams used by the Jetstream deployment.
-         * @return stream maximum count
-         */       
-        long getStreams();
+    /**
+     * Purge stream messages
+     * @param streamName the stream name to use.
+     * @return stream information
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    StreamInfo purgeStream(String streamName) throws IOException, JetStreamApiException;
 
-         /**
-         * Gets the number of consumers used by the Jetstream deployment.
-         * @return consumer maximum count
-         */         
-        long getConsumers();
-    }
+    /**
+     * Loads or creates a consumer.
+     * @param streamName name of the stream
+     * @param config the consumer configuration to use.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return consumer information.
+     */
+    ConsumerInfo addConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
+
+    /**
+     * Deletes a consumer.
+     * @param streamName name of the stream
+     * @param consumer the name of the consumer.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
+
+    /**
+     * Return pages of ConsumerInfo objects
+     * @param streamName the name of the consumer.
+     * @return The consumer lister
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    ConsumerLister newConsumerLister(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Send a message to the specified subject and waits for a response from
@@ -295,10 +317,10 @@ public interface JetStream {
    /**
     * Create a synchronous subscription to the specified subject with default options.
     *
-    * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+    * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage}
     * method to read messages for this subscription.
     *
-    * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+    * <p>See {@link Connection#createDispatcher(MessageHandler) createDispatcher} for
     * information about creating an asynchronous subscription with callbacks.
     *
     * @param subject the subject to subscribe to
@@ -312,10 +334,10 @@ public interface JetStream {
     /**
      * Create a synchronous subscription to the specified subject.
      * 
-     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+     * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage}
      * method to read messages for this subscription.
      * 
-     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+     * <p>See {@link Connection#createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
      * 
      * @param subject the subject to subscribe to
@@ -330,10 +352,10 @@ public interface JetStream {
     /**
      * Create a synchronous subscription to the specified subject.
      * 
-     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+     * <p>Use the {@link Subscription#nextMessage(Duration) nextMessage}
      * method to read messages for this subscription.
      * 
-     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
+     * <p>See {@link Connection#createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
      * 
      * <p>As of 2.6.1 this method will throw an IllegalArgumentException if the subject contains whitespace.

@@ -41,7 +41,8 @@ public class NatsJsPub {
 
             // if a stream name is not provided, attempt to create a test stream.
             if (exArgs.stream == null) {
-                ExampleUtils.createTestStream(js, "test-stream", exArgs.subject); 
+                JetStreamManagement jsm = nc.jetStreamManagement();
+                ExampleUtils.createTestStream(jsm, "test-stream", exArgs.subject);
             }
 
             // create a typical NATS message

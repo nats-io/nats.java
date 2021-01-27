@@ -145,7 +145,30 @@ public class JetStreamApiObjectsTests {
 
     @Test
     public void testConsumerInfo() {
-        ConsumerInfo ci = new ConsumerInfo("{}");
+        String json = dataAsString("ConsumerInfo.json");
+        ConsumerInfo ci = new ConsumerInfo(json);
+        assertEquals("foo-stream", ci.getStreamName());
+        assertEquals("foo-consumer", ci.getName());
+
+        assertEquals(1, ci.getDelivered().getConsumerSequence());
+        assertEquals(2, ci.getDelivered().getStreamSequence());
+        assertEquals(3, ci.getAckFloor().getConsumerSequence());
+        assertEquals(4, ci.getAckFloor().getStreamSequence());
+
+        assertEquals(24, ci.getNumPending());
+        assertEquals(42, ci.getNumAckPending());
+        assertEquals(42, ci.getRedelivered());
+
+        ConsumerConfiguration c = ci.getConsumerConfiguration();
+        assertEquals("foo-consumer", c.getDurable());
+        assertEquals("bar", c.getDeliverSubject());
+        assertEquals(ConsumerConfiguration.DeliverPolicy.All, c.getDeliverPolicy());
+        assertEquals(ConsumerConfiguration.AckPolicy.All, c.getAckPolicy());
+        assertEquals(Duration.ofSeconds(30), c.getAckWait());
+        assertEquals(10, c.getMaxDeliver());
+        assertEquals(ConsumerConfiguration.ReplayPolicy.Original, c.getReplayPolicy());
+
+        ci = new ConsumerInfo("{}");
         assertNull(ci.getStreamName());
         assertNull(ci.getName());
         assertNull(ci.getCreationTime());

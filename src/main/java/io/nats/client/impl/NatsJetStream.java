@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 import static io.nats.client.impl.JsonUtils.buildNumberPattern;
 import static io.nats.client.support.Validator.*;
 
-public class NatsJetStream implements JetStream {
+public class NatsJetStream implements JetStream, JetStreamManagement {
 
     private static final String JSAPI_DEFAULT_PREFIX = "$JS.API.";
 
@@ -82,6 +82,7 @@ public class NatsJetStream implements JetStream {
     private final String prefix;
     private final boolean direct;
     private final JetStreamOptions options;
+    private final Mode mode;
 
     public static class AccountLimitImpl implements AccountLimits {
         long maxMemory = -1;
@@ -200,6 +201,8 @@ public class NatsJetStream implements JetStream {
         }
     }
 
+    public enum Mode {REGULAR, MANAGEMENT, BOTH}
+
     private static boolean isJetstreamEnabled(Message msg) {
         if (msg == null) {
             return false;
@@ -209,7 +212,9 @@ public class NatsJetStream implements JetStream {
         return apiResp.getCode() != 503 && apiResp.getError() == null;
     }
 
-    NatsJetStream(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
+    NatsJetStream(NatsConnection connection, JetStreamOptions jsOptions, Mode mode) throws IOException {
+        this.mode = mode;
+
         if (jsOptions == null) {
             options = JetStreamOptions.builder().build();
         } else {
@@ -534,7 +539,7 @@ public class NatsJetStream implements JetStream {
                                                  SubscribeOptions options) throws IOException, JetStreamApiException {
 
         // setup the configuration, use a default.
-        SubscribeOptions o = SubscribeOptions.getInstance(options);
+        SubscribeOptions o = SubscribeOptions.createOrCopy(options);
         ConsumerConfiguration cfg = o.getConsumerConfiguration();
 
         boolean isPullMode = (o.getPullBatchSize() > 0);
@@ -545,7 +550,7 @@ public class NatsJetStream implements JetStream {
         boolean shouldAttach = o.getStream() != null && o.getConsumer() != null || o.getConsumerConfiguration().getDeliverSubject() != null;
         boolean shouldCreate = !shouldAttach;
 
-        if (this.direct && shouldCreate) {
+        if (direct && shouldCreate) {
             throw new IllegalStateException("Direct mode is required.");
         }
 
@@ -739,10 +744,6 @@ public class NatsJetStream implements JetStream {
             throw new JetStreamApiException(jsApiResp);
         }
         return jsApiResp;
-    }
-
-    private String appendPre(String template, Object... args) {
-        return appendPre(String.format(template, args));
     }
 
     String appendPre(String subject) {

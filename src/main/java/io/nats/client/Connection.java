@@ -412,4 +412,22 @@ public interface Connection extends AutoCloseable {
      *         server such as timeout or interruption
      */
     JetStream jetStream(JetStreamOptions options) throws IOException;
+
+    /**
+     * Gets a context for managing Jetstream streams
+     * and consumers.
+     * @return a JetStream instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    JetStreamManagement jetStreamManagement() throws IOException;
+
+    /**
+     * Gets a context for managing Jetstream streams
+     * and consumers.
+     * @param options JetStream options.
+     * @return a JetStream instance.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     */
+    JetStreamManagement jetStreamManagement(JetStreamManagementOptions options) throws IOException;
 }

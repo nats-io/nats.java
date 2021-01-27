@@ -39,17 +39,17 @@ public class NatsJsManage {
             // Create a jetstream context.  This hangs off the original connection
             // allowing us to produce data to streams and consume data from
             // jetstream consumers.
-            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
 
             action("Configure And Add Stream 1");
             StreamConfiguration sc1 = StreamConfiguration.builder()
                     .name(STREAM1)
                     .storageType(StreamConfiguration.StorageType.Memory)
-                    .subjects(STRM1SUB1, STRM1SUB2)
+                    .subjects(STRM1SUB1, STRM1SUB2).replicas(7)
                     .build();
-            js.addStream(sc1);
+            jsm.addStream(sc1);
 
-            StreamInfo si = js.streamInfo(STREAM1);
+            StreamInfo si = jsm.streamInfo(STREAM1);
             printObject(si);
 
             action("Configure And Add Stream 2");
@@ -58,17 +58,17 @@ public class NatsJsManage {
                     .storageType(StreamConfiguration.StorageType.Memory)
                     .subjects(STRM2SUB1, STRM2SUB2)
                     .build();
-            js.addStream(sc2);
+            jsm.addStream(sc2);
 
-            si = js.streamInfo(STREAM2);
+            si = jsm.streamInfo(STREAM2);
             printObject(si);
 
             action("Delete Stream 2");
-            js.deleteStream(STREAM2);
+            jsm.deleteStream(STREAM2);
 
             action("Delete Non-Existent Stream");
             try {
-                js.deleteStream(STREAM2);
+                jsm.deleteStream(STREAM2);
             }
             catch (IllegalStateException ise) {
                 System.out.println(ise.getMessage());
@@ -81,7 +81,7 @@ public class NatsJsManage {
                         .storageType(StreamConfiguration.StorageType.Memory)
                         .subjects(STRM2SUB1, STRM2SUB2)
                         .build();
-                js.updateStream(non);
+                jsm.updateStream(non);
             }
             catch (IllegalStateException ise) {
                 System.out.println(ise.getMessage());
@@ -92,9 +92,9 @@ public class NatsJsManage {
                     .deliverSubject("strm1-deliver")
                     .durable("GQJ3IvWo")
                     .build();
-            ConsumerInfo ci = js.addConsumer(STREAM1, cc);
+            ConsumerInfo ci = jsm.addConsumer(STREAM1, cc);
             printObject(ci);
-            si = js.streamInfo(STREAM1);
+            si = jsm.streamInfo(STREAM1);
             printObject(si);
 
             action("Make And Use Subscription");
@@ -104,14 +104,14 @@ public class NatsJsManage {
                     .build();
             printObject(so);
 
-            si = js.streamInfo(STREAM1);
+            si = jsm.streamInfo(STREAM1);
             printObject(si);
 
-            JetStreamSubscription sub = js.subscribe(STRM1SUB1, so);
+            JetStreamSubscription sub = jsm.subscribe(STRM1SUB1, so);
             printObject(sub);
 
             action("List Consumers");
-            ConsumerLister lister = js.newConsumerLister(STREAM1);
+            ConsumerLister lister = jsm.newConsumerLister(STREAM1);
             printObject(lister);
         }
         catch (Exception exp) {

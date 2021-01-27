@@ -58,12 +58,12 @@ public class ExampleUtils {
         return builder.build();
     }
 
-    public static void createTestStream(JetStream js, String streamName, String subject)
+    public static void createTestStream(JetStreamManagement jsm, String streamName, String subject)
             throws IOException, JetStreamApiException {
-        createTestStream(js, streamName, subject, StorageType.File);
+        createTestStream(jsm, streamName, subject, StorageType.File);
     }
 
-    public static void createTestStream(JetStream js, String streamName, String subject, StorageType storageType)
+    public static void createTestStream(JetStreamManagement jsm, String streamName, String subject, StorageType storageType)
             throws IOException, JetStreamApiException {
 
         // Create a stream, here will use a file storage type, and one subject,
@@ -75,7 +75,7 @@ public class ExampleUtils {
                 .build();
         
         // Add or use an existing stream.
-        StreamInfo si = js.addStream(sc);
+        StreamInfo si = jsm.addStream(sc);
         System.out.printf("Using stream %s on subject %s created at %s.\n",
            streamName, subject, si.getCreateTime().toLocalTime().toString());
     }    

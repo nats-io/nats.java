@@ -56,8 +56,8 @@ public class ValidatorTests {
 
     @Test
     public void testValidateStreamName() {
-        allowed(Validator::validateStreamName, PLAIN, HAS_DASH);
-        notAllowed(Validator::validateStreamName, null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT);
+        allowed(Validator::validateStreamName, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateStreamName, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
