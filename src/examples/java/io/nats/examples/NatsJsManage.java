@@ -39,6 +39,7 @@ public class NatsJsManage {
             // Create a jetstream context.  This hangs off the original connection
             // allowing us to produce data to streams and consume data from
             // jetstream consumers.
+            JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             action("Configure And Add Stream 1");
@@ -107,11 +108,11 @@ public class NatsJsManage {
             si = jsm.streamInfo(STREAM1);
             printObject(si);
 
-            JetStreamSubscription sub = jsm.subscribe(STRM1SUB1, so);
+            JetStreamSubscription sub = js.subscribe(STRM1SUB1, so);
             printObject(sub);
 
             action("List Consumers");
-            ConsumerLister lister = jsm.newConsumerLister(STREAM1);
+            ConsumerLister lister = jsm.getConsumers(STREAM1);
             printObject(lister);
         }
         catch (Exception exp) {

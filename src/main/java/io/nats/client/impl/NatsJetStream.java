@@ -341,7 +341,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerLister newConsumerLister(String streamName) throws IOException, JetStreamApiException {
+    public ConsumerLister getConsumers(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_LIST, streamName);
         Message resp = makeRequest(subj, null, defaultTimeout);
         return new ConsumerLister(extractApiResponseJson(resp));
