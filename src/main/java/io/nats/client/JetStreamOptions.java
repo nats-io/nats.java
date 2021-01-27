@@ -67,7 +67,7 @@ public class JetStreamOptions {
     }
 
     /**
-     * SubscribeOptions can be created using a Builder. The builder supports chaining and will
+     * JetStreamOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
     public static class Builder {

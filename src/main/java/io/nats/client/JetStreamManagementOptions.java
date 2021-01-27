@@ -15,8 +15,6 @@ package io.nats.client;
 
 import java.time.Duration;
 
-import static io.nats.client.support.Validator.validateJetStreamPrefix;
-
 /**
  * The JetStreamManagementOptions class specifies the general options for JetStream management.
  * Options are created using the  {@link JetStreamManagementOptions.Builder Builder}.
@@ -28,45 +26,22 @@ public class JetStreamManagementOptions extends JetStreamOptions {
     }
 
     /**
-     * SubscribeOptions can be created using a Builder. The builder supports chaining and will
+     * JetStreamManagementOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
-    public static class Builder {
-
-        private String prefix = null;
-        private Duration requestTimeout = Options.DEFAULT_CONNECTION_TIMEOUT;
-
-        /**
-         * Sets the request timeout for JetStream API calls.
-         * @param timeout the duration to wait for responses.
-         * @return the builder
-         */
-        public Builder requestTimeout(Duration timeout) {
-            if (timeout != null) {
-                this.requestTimeout = timeout;
-            }
-            return this;
+    public static class Builder extends JetStreamOptions.Builder {
+        public Builder() {
+            direct(true);
         }
 
         /**
-         * Sets the prefix for JetStream Management subjects. A prefix can be used in conjunction with
-         * user permissions to restrict access to certain JetStream instances.  This must
-         * match the prefix used in the server.
-         * @param value the JetStream Management prefix
+         * Direct mode is always on for management and is always true.
+         * @param value ignored
          * @return the builder.
          */
-        public Builder prefix(String value) {
-            this.prefix = validateJetStreamPrefix(value);
+        public JetStreamOptions.Builder direct(boolean value) {
+            // no-op, direct is always true
             return this;
         }
-
-        /**
-         * Builds the JetStream Management options.
-         * @return JetStreamManagement options
-         */
-        public JetStreamManagementOptions build() {
-            return new JetStreamManagementOptions(prefix, requestTimeout);
-        }
     }
-
 }
