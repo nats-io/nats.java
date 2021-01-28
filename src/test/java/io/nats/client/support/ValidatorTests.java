@@ -97,13 +97,13 @@ public class ValidatorTests {
 
     private void allowed(StringTest test, String... strings) {
         for (String s : strings) {
-            assertEquals(s, test.validate(s));
+            assertEquals(s, test.validate(s), s + " is allowed");
         }
     }
 
     private void notAllowed(StringTest test, String... strings) {
         for (String s : strings) {
-            assertThrows(IllegalArgumentException.class, () -> test.validate(s));
+            assertThrows(IllegalArgumentException.class, () -> test.validate(s), s + " is not allowed.");
         }
     }
 }

@@ -38,8 +38,8 @@ public class JetStreamManagementTests {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
             LocalTime now = LocalTime.now();
 
-            JetStream js = nc.jetStream();
-            StreamInfo si = addTestStream(js);
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            StreamInfo si = addTestStream(jsm);
             assertTrue(now.isBefore(si.getCreateTime().toLocalTime()));
 
             StreamConfiguration sc = si.getConfiguration();
@@ -75,8 +75,8 @@ public class JetStreamManagementTests {
     @Test
     public void updateStream() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
-            JetStream js = nc.jetStream();
-            addTestStream(js);
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            addTestStream(jsm);
 
             StreamConfiguration sc = StreamConfiguration.builder()
                     .name(STREAM1)
@@ -89,7 +89,7 @@ public class JetStreamManagementTests {
                     .noAck(true)
                     .duplicateWindow(Duration.ofMinutes(3))
                     .build();
-            StreamInfo si = js.updateStream(sc);
+            StreamInfo si = jsm.updateStream(sc);
             assertNotNull(si);
 
             sc = si.getConfiguration();
@@ -114,49 +114,51 @@ public class JetStreamManagementTests {
     @Test
     public void addOrUpdateStream_nullConfiguration_isNotValid() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
-            JetStream js = nc.jetStream();
-            assertThrows(IllegalArgumentException.class, () -> js.updateStream(null));
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            assertThrows(IllegalArgumentException.class, () -> jsm.updateStream(null));
         }
     }
 
     @Test
     public void updateStream_cannotUpdate_nonExistentStream() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
-            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
             StreamConfiguration sc = getTestStreamConfiguration();
-            assertThrows(JetStreamApiException.class, () -> js.updateStream(sc));
+            assertThrows(JetStreamApiException.class, () -> jsm.updateStream(sc));
         }
     }
 
     @Test
     public void updateStream_cannotChangeMaxConsumers() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
-            JetStream js = nc.jetStream();
-            addTestStream(js);
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            addTestStream(jsm);
             StreamConfiguration sc = getTestStreamConfigurationBuilder()
                     .maxConsumers(2)
                     .build();
-            assertThrows(JetStreamApiException.class, () -> js.updateStream(sc));
+            assertThrows(JetStreamApiException.class, () -> jsm.updateStream(sc));
         }
     }
 
     @Test
     public void testUpdateStream_cannotChangeRetentionPolicy() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
-            JetStream js = nc.jetStream();
-            addTestStream(js);
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            addTestStream(jsm);
             StreamConfiguration sc = getTestStreamConfigurationBuilder()
                     .retentionPolicy(RetentionPolicy.Interest)
                     .build();
-            assertThrows(JetStreamApiException.class, () -> js.updateStream(sc));
+            assertThrows(JetStreamApiException.class, () -> jsm.updateStream(sc));
         }
     }
 
+    private StreamInfo addTestStream(Connection nc) throws IOException, JetStreamApiException {
+        return addTestStream(nc.jetStreamManagement());
+    }
 
-    private StreamInfo addTestStream(JetStream js) throws IOException, JetStreamApiException {
-        StreamInfo si = js.addStream(getTestStreamConfiguration());
+    private StreamInfo addTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+        StreamInfo si = jsm.addStream(getTestStreamConfiguration());
         assertNotNull(si);
-
         return si;
     }
 

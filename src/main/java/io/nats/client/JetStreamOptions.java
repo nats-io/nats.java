@@ -15,17 +15,19 @@ package io.nats.client;
 
 import java.time.Duration;
 
+import static io.nats.client.support.Validator.validateJetStreamPrefix;
+
 /**
- * The JetstreamOptions class specifies the general options for Jetstream.
+ * The JetStreamOptions class specifies the general options for JetStream.
  * Options are created using the  {@link JetStreamOptions.Builder Builder}.
  */
 public class JetStreamOptions {
 
-    private String prefix = null;
-    private Duration requestTimeout = Options.DEFAULT_CONNECTION_TIMEOUT;
-    private boolean direct = false;
+    private final String prefix;
+    private final Duration requestTimeout;
+    private final boolean direct;
 
-    private JetStreamOptions(String prefix, Duration requestTimeout, boolean direct) {
+    protected JetStreamOptions(String prefix, Duration requestTimeout, boolean direct) {
         this.prefix = prefix;
         this.requestTimeout = requestTimeout;
         this.direct = direct;
@@ -40,8 +42,8 @@ public class JetStreamOptions {
     }
 
     /**
-     * Gets the prefix for this jetstream context. A prefix can be used in conjunction with
-     * user permissions to restrict access to certain Jetstream instances.
+     * Gets the prefix for this JetStream context. A prefix can be used in conjunction with
+     * user permissions to restrict access to certain JetStream instances.
      * @return the prefix to set.
      */
     public String getPrefix() {
@@ -65,7 +67,7 @@ public class JetStreamOptions {
     }
 
     /**
-     * SubscribeOptions can be created using a Builder. The builder supports chaining and will
+     * JetStreamOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
     public static class Builder {
@@ -75,8 +77,8 @@ public class JetStreamOptions {
         boolean direct = false;
         
         /**
-         * Sets the request timeout for jetstream API calls.
-         * @param timeout the duration to wait for repsonses.
+         * Sets the request timeout for JetStream API calls.
+         * @param timeout the duration to wait for responses.
          * @return the builder
          */
         public Builder requestTimeout(Duration timeout) {
@@ -85,17 +87,14 @@ public class JetStreamOptions {
         }
 
         /**
-         * Sets the prefix for jetstream subjects.  A prefix can be used in conjunction with
-         * user permissions to restrict access to certain Jetstream instances.  This must 
+         * Sets the prefix for JetStream subjects. A prefix can be used in conjunction with
+         * user permissions to restrict access to certain JetStream instances.  This must
          * match the prefix used in the server.
-         * @param value the Jetstream prefix
+         * @param value the JetStream prefix
          * @return the builder.
          */
         public Builder prefix(String value) {
-            if (value != null && (value.contains("*") || value.contains(">"))) {
-                throw new IllegalArgumentException("prefix cannot contain a wildcard.");
-            }
-            this.prefix = value;
+            this.prefix = validateJetStreamPrefix(value);
             return this;
         }
 
@@ -110,8 +109,8 @@ public class JetStreamOptions {
         }        
 
         /**
-         * Builds the jetstream options.
-         * @return Jetstream options
+         * Builds the JetStream options.
+         * @return JetStream options
          */
         public JetStreamOptions build() {
             return new JetStreamOptions(prefix, requestTimeout, direct);

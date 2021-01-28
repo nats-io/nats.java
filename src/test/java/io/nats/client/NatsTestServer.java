@@ -13,26 +13,16 @@
 
 package io.nats.client;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import io.nats.client.ConsumerConfiguration.AckPolicy;
 
 /**
  * Class to run gnatds for tests. Highly based on the 1.0 client's NatsServer code.
@@ -310,56 +300,6 @@ public class NatsTestServer implements AutoCloseable {
         return "nats://localhost:" + port;
     }
 
-    public void createMemoryStream(String streamName, String subject) throws Exception {
-
-        if (this.process == null) {
-            throw new Exception("Server must be running with jetstream enabled.");
-        }
-
-        Connection c = Nats.connect(this.getURI());
-
-        String payload = "{\"name\":\"" + streamName + "\",\"subjects\":[\"" + subject + "\"],\"retention\":\"limits\",\"max_consumers\":-1,\"max_msgs\":-1,\"max_bytes\":-1,\"max_age\":0,\"max_msg_size\":-1,\"storage\":\"memory\",\"discard\":\"old\",\"num_replicas\":1}";
-
-        try  {
-            Message msg = c.request("$JS.API.STREAM.CREATE." + streamName, payload.getBytes(), Duration.ofSeconds(2));
-            if (msg == null) {
-                throw new Exception("Timeout creating the stream");
-            }
-            String s = new String(msg.getData());
-            if (s.contains("Error")) {
-                throw new Exception("Error creating stream: " + s);
-            }
-        } catch (Exception ex) {
-           throw ex;
-        } finally {
-            c.close();
-        }
-    }
-
-    public void createPullConsumer(String stream, String durable) throws Exception {
-    
-        Connection c = Nats.connect(this.getURI());
-
-        ConsumerConfiguration cc = ConsumerConfiguration.builder().
-            ackPolicy(AckPolicy.Explicit).
-            durable(durable).
-            build();
-
-        String requestJSON = cc.toJSON(stream);
-
-        String subj = String.format("$JS.API.CONSUMER.DURABLE.CREATE.%s.%s", stream, durable);
-        
-        Message resp = c.request(subj, requestJSON.getBytes(), Duration.ofSeconds(2));
-        if (resp == null) {
-            throw new TimeoutException("Consumer request to jetstream timed out.");
-        }
-
-        String result = new String(resp.getData());
-        if (result.contains("code")) {
-            throw new IOException("Couldn't create consumer: " + result);
-        }
-    }    
-
     public void shutdown(boolean wait) throws InterruptedException {
 
         if (this.process == null) {
@@ -381,7 +321,7 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     /**
-     * Synonomous with shutdown.
+     * Synonymous with shutdown.
      */
     public void close() throws InterruptedException {
         shutdown();

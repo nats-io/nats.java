@@ -32,15 +32,20 @@ import java.util.concurrent.TimeUnit;
 import static io.nats.client.utils.TestMacros.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JetstreamTests {
+public class JetStreamRegularTests {
 
-    private static StreamInfo createMemoryStream(JetStream js, String streamName, String... subjects)
+    private static StreamInfo createMemoryStream(Connection nc, String streamName, String... subjects)
+            throws IOException, JetStreamApiException {
+        return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
+    }
+
+    private static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects)
             throws IOException, JetStreamApiException {
 
         StreamConfiguration sc = StreamConfiguration.builder().name(streamName).storageType(StorageType.Memory)
                 .subjects(subjects).build();
 
-        return js.addStream(sc);
+        return jsm.addStream(sc);
     }
 
     @Test
@@ -50,10 +55,11 @@ public class JetstreamTests {
             String[] subjects = { "foo" };
             try {
                 JetStream js = nc.jetStream();
+                JetStreamManagement jsm = nc.jetStreamManagement();
                 StreamConfiguration sc = StreamConfiguration.builder().name("foo-stream")
                         .storageType(StorageType.Memory).subjects(subjects).build();
 
-                StreamInfo si = js.addStream(sc);
+                StreamInfo si = jsm.addStream(sc);
 
                 sc = si.getConfiguration();
                 assertNotNull(sc);
@@ -65,7 +71,7 @@ public class JetstreamTests {
 
                 ConsumerConfiguration cc = ConsumerConfiguration.builder().deliverSubject("bar").durable("mydurable")
                         .build();
-                ConsumerInfo ci = js.addConsumer("foo-stream", cc);
+                ConsumerInfo ci = jsm.addConsumer("foo-stream", cc);
 
                 cc = ci.getConsumerConfiguration();
                 assertNotNull(cc);
@@ -82,7 +88,7 @@ public class JetstreamTests {
     public void testJetstreamPublishDefaultOptions() throws IOException, JetStreamApiException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
             JetStream js = nc.jetStream();
-            createMemoryStream(js, "foo-stream", "foo");
+            createMemoryStream(nc, "foo-stream", "foo");
             PublishAck ack = js.publish("foo", null);
             assertEquals(1, ack.getSeqno());
         }
@@ -103,7 +109,7 @@ public class JetstreamTests {
             // check for failure w/ no stream.
             assertThrows(Exception.class, () -> js.publish("foo", "hello".getBytes()));
 
-            createMemoryStream(js, "foo-stream", "foo");
+            createMemoryStream(nc, "foo-stream", "foo");
 
             // this should succeed
             js.publish("foo", "hello".getBytes());
@@ -131,7 +137,7 @@ public class JetstreamTests {
             try {
                 JetStream js = nc.jetStream();
 
-                createMemoryStream(js, "foo-stream", "foo");
+                createMemoryStream(nc, "foo-stream", "foo");
 
                 PublishOptions opts = PublishOptions.builder().build();
                 
@@ -190,7 +196,7 @@ public class JetstreamTests {
             
             try {
                 JetStream js = nc.jetStream();
-                createMemoryStream(js, "test-stream", subjects);
+                createMemoryStream(nc, "test-stream", subjects);
 
                 // publish to foo
                 PublishOptions popts = PublishOptions.builder().stream("test-stream").build();
@@ -285,14 +291,13 @@ public class JetstreamTests {
 
     @Test
     public void testJetstreamPullBasedSubscribe() throws IOException, InterruptedException {
-        try (NatsTestServer ts = new NatsTestServer(false, true);
-             Connection nc = Nats.connect(ts.getURI())) {
-                
+        try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
+
             String[] subjects = { "foo", "bar", "baz", "foo.*" };
 
             try {
                 JetStream js = nc.jetStream();
-                createMemoryStream(js, "test-stream", subjects);
+                createMemoryStream(nc, "test-stream", subjects);
 
                 // check invalid subscription
                 Dispatcher d = nc.createDispatcher(null);
@@ -336,7 +341,7 @@ public class JetstreamTests {
                 assertEquals(batch, waitForPending(jsub, batch, Duration.ofSeconds(2)));
                 jsub.unsubscribe();
 
-                
+
                 assertThrows(JetStreamApiException.class, () ->
                     js.subscribe("baz", SubscribeOptions.builder().
                         attach("test-stream", "rip").pull(batch).build()));
@@ -362,7 +367,7 @@ public class JetstreamTests {
                     assertNotNull(m);
                     m.ack();
                 }
-                
+
             } catch (Exception ex) {
                 Assertions.fail(ex);
             }
@@ -388,7 +393,7 @@ public class JetstreamTests {
             SubscribeOptions optNull = null;
             String subject = "sub";
             String queue = "queue";
-            createMemoryStream(js, "sub-stream", subject);
+            createMemoryStream(nc, "sub-stream", subject);
 
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(invalid)); // subject  invalid
 
@@ -436,7 +441,7 @@ public class JetstreamTests {
                 JetStream js = nc.jetStream(jso);
 
                 // Create a test-stream, but do not create the consumer.
-                createMemoryStream(js, "test-stream", "not.important");
+                createMemoryStream(nc, "test-stream", "not.important");
 
                 SubscribeOptions so = SubscribeOptions.builder().
                     attach("test-stream", "test-consumer").
@@ -468,9 +473,10 @@ public class JetstreamTests {
                     build();
 
                 JetStream js = nc.jetStream(jso);
+                JetStreamManagement jsm = nc.jetStreamManagement();
 
                 // Create a test-stream, but do not create the consumer.
-                createMemoryStream(js, "test-stream", "foo");
+                createMemoryStream(jsm, "test-stream", "foo");
 
                 // add a consumer
                 ConsumerConfiguration cc = ConsumerConfiguration.builder().
@@ -478,7 +484,7 @@ public class JetstreamTests {
                     durable("dur").
                     deliverSubject("push.subject").
                     build();
-                js.addConsumer("test-stream", cc);
+                jsm.addConsumer("test-stream", cc);
 
                 // Publish a message with headers to the stream.
                 Headers h = new Headers().add("key", "value");
