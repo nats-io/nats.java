@@ -13,8 +13,10 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.JetStreamApiResponse;
 import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.NatsJetStream;
+import io.nats.client.impl.NatsJetStreamAccountLimits;
+import io.nats.client.impl.NatsJetStreamAccountStats;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -23,8 +25,8 @@ import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamApiObjectsTests {
-    
-	@Test
+
+    @Test
     public void testOptions() {
         JetStreamOptions jo = JetStreamOptions.builder().requestTimeout(Duration.ofSeconds(42)).prefix("pre").direct(true).build();
         assertEquals("pre", jo.getPrefix());
@@ -34,14 +36,18 @@ public class JetStreamApiObjectsTests {
 
     @Test
     public void testInvalidPrefix() {
-        assertThrows(IllegalArgumentException.class, () -> { JetStreamOptions.builder().prefix(">").build();});
-        assertThrows(IllegalArgumentException.class, () -> { JetStreamOptions.builder().prefix("*").build();});
+        assertThrows(IllegalArgumentException.class, () -> {
+            JetStreamOptions.builder().prefix(">").build();
+        });
+        assertThrows(IllegalArgumentException.class, () -> {
+            JetStreamOptions.builder().prefix("*").build();
+        });
     }
 
     @Test
     public void testAccountLimitImpl() {
         String json = dataAsString("AccountLimitImpl.json");
-        NatsJetStream.AccountLimitImpl ali = new NatsJetStream.AccountLimitImpl(json);
+        NatsJetStreamAccountLimits ali = new NatsJetStreamAccountLimits(json);
         assertEquals(1, ali.getMaxMemory());
         assertEquals(2, ali.getMaxStorage());
         assertEquals(3, ali.getMaxStreams());
@@ -51,7 +57,7 @@ public class JetStreamApiObjectsTests {
     @Test
     public void testAccountStatsImpl() {
         String json = dataAsString("AccountStatsImpl.json");
-        NatsJetStream.AccountStatsImpl asi = new NatsJetStream.AccountStatsImpl(json);
+        NatsJetStreamAccountStats asi = new NatsJetStreamAccountStats(json);
         assertEquals(1, asi.getMemory());
         assertEquals(2, asi.getStorage());
         assertEquals(3, asi.getStreams());
@@ -179,5 +185,53 @@ public class JetStreamApiObjectsTests {
         assertEquals(0, ci.getNumWaiting());
         assertEquals(0, ci.getNumAckPending());
         assertEquals(0, ci.getRedelivered());
+    }
+
+    @Test
+    public void testErrorResponse() {
+        String text = dataAsString("ErrorResponses.json.txt");
+        String[] jsons = text.split("~");
+
+        JetStreamApiResponse jsApiResp = new JetStreamApiResponse(jsons[0].getBytes());
+        assertTrue(jsApiResp.hasError());
+        assertEquals("code_and_desc_response", jsApiResp.getType());
+        assertEquals(500, jsApiResp.getCode());
+        assertEquals("the description", jsApiResp.getDescription());
+        assertEquals("the description (500)", jsApiResp.getError());
+
+        jsApiResp = new JetStreamApiResponse(jsons[1].getBytes());
+        assertTrue(jsApiResp.hasError());
+        assertEquals("zero_and_desc_response", jsApiResp.getType());
+        assertEquals(0, jsApiResp.getCode());
+        assertEquals("the description", jsApiResp.getDescription());
+        assertEquals("the description (0)", jsApiResp.getError());
+
+        jsApiResp = new JetStreamApiResponse(jsons[2].getBytes());
+        assertTrue(jsApiResp.hasError());
+        assertEquals("non_zero_code_only_response", jsApiResp.getType());
+        assertEquals(500, jsApiResp.getCode());
+        assertNull(jsApiResp.getDescription());
+        assertEquals("Unknown Jetstream Error (500)", jsApiResp.getError());
+
+        jsApiResp = new JetStreamApiResponse(jsons[3].getBytes());
+        assertTrue(jsApiResp.hasError());
+        assertEquals("zero_code_only_response", jsApiResp.getType());
+        assertEquals(0, jsApiResp.getCode());
+        assertNull(jsApiResp.getDescription());
+        assertTrue(jsApiResp.getError().startsWith("Unknown Jetstream Error:"));
+        assertTrue(jsApiResp.getError().contains(jsApiResp.getResponse()));
+
+        jsApiResp = new JetStreamApiResponse(jsons[4].getBytes());
+        assertFalse(jsApiResp.hasError());
+        assertNull(jsApiResp.getError());
+        assertEquals("no_code_response", jsApiResp.getType());
+
+        jsApiResp = new JetStreamApiResponse(jsons[5].getBytes());
+        assertFalse(jsApiResp.hasError());
+        assertEquals("empty_response", jsApiResp.getType());
+
+        jsApiResp = new JetStreamApiResponse(jsons[6].getBytes());
+        assertFalse(jsApiResp.hasError());
+        assertEquals("not_error_response", jsApiResp.getType());
     }
 }

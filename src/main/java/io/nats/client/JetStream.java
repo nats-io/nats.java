@@ -23,66 +23,6 @@ import java.util.concurrent.CompletableFuture;
 public interface JetStream {
 
     /**
-     * Represents the Jetstream Account Limits
-     */
-    interface AccountLimits {
-
-        /**
-         * Gets the maximum amount of memory in the Jetstream deployment.
-         * @return bytes
-         */
-        long getMaxMemory();
-
-        /**
-         * Gets the maximum amount of storage in the Jetstream deployment.
-         * @return bytes
-         */
-        long getMaxStorage();
-
-         /**
-         * Gets the maximum number of allowed streams in the Jetstream deployment.
-         * @return stream maximum count
-         */       
-        long getMaxStreams();
-
-         /**
-         * Gets the maximum number of allowed consumers in the Jetstream deployment.
-         * @return consumer maximum count
-         */         
-        long getMaxConsumers();
-    }
-
-    /**
-     *  The Jetstream Account Statistics
-     */
-    interface AccountStatistics {
-
-        /**
-         * Gets the amount of memory used by the Jetstream deployment.
-         * @return bytes
-         */
-        long getMemory();
-
-        /**
-         * Gets the amount of storage used by  the Jetstream deployment.
-         * @return bytes
-         */
-        long getStorage();
-
-         /**
-         * Gets the number of streams used by the Jetstream deployment.
-         * @return stream maximum count
-         */       
-        long getStreams();
-
-         /**
-         * Gets the number of consumers used by the Jetstream deployment.
-         * @return consumer maximum count
-         */         
-        long getConsumers();
-    }
-
-    /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The default publish options will be used.
      * The message body <strong>will not</strong> be copied. The expected

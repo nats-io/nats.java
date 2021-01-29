@@ -26,8 +26,8 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.support.Validator.validateMessageSubject;
-import static io.nats.client.support.Validator.validateReplyTo;
+import static io.nats.client.support.Validator.validateMessageSubjectRequired;
+import static io.nats.client.support.Validator.validateReplyToNullButNotEmpty;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -79,8 +79,8 @@ public class NatsMessage implements Message {
     // Create a message to publish
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
 
-        validateMessageSubject(subject);
-        validateReplyTo(replyTo);
+        validateMessageSubjectRequired(subject);
+        validateReplyToNullButNotEmpty(replyTo);
 
         this.subject = subject;
         this.replyTo = replyTo;

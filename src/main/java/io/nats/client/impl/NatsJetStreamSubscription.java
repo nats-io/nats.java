@@ -19,13 +19,9 @@ import io.nats.client.JetStreamSubscription;
 import java.io.IOException;
 
 /**
- * This is a jetstream specfic subscription.
+ * This is a JetStream specific subscription.
  */
-public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription {
-
-    // JSAPI_REQUEST_NEXT is the prefix for the request next message(s) for a
-    // consumer in worker/pull mode.
-    private static final String JSAPI_REQUEST_NEXT = "CONSUMER.MSG.NEXT.%s.%s";
+public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription, NatsJetStreamConstants {
 
     NatsJetStream js;
     String consumer;
@@ -55,7 +51,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
             throw new IllegalStateException("Subscription type does not support poll.");
         }
 
-        String subj = js.appendPre(String.format(JSAPI_REQUEST_NEXT, stream, consumer));
+        String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
         byte[] payload = String.format("{ \"batch\":%d}", pull).getBytes();
         connection.publish(subj, getSubject(), payload);
     }

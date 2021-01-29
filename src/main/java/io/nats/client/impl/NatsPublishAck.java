@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// Internal class to handle jetstream acknowedgements
+// Internal class to handle JetStream acknowledgements
 class NatsPublishAck implements PublishAck {
 
     private String stream = null;

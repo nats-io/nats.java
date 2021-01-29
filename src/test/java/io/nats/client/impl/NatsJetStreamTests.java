@@ -95,7 +95,7 @@ public class NatsJetStreamTests {
 
     @Test
     public void constructAccountLimitImpl() {
-        NatsJetStream.AccountLimitImpl impl = new NatsJetStream.AccountLimitImpl(
+        NatsJetStreamAccountLimits impl = new NatsJetStreamAccountLimits(
                 "{\"max_memory\": 42, \"max_storage\": 24, \"max_streams\": 73, \"max_consumers\": 37}");
 
         assertEquals(42, impl.getMaxMemory());
@@ -103,7 +103,7 @@ public class NatsJetStreamTests {
         assertEquals(73, impl.getMaxStreams());
         assertEquals(37, impl.getMaxConsumers());
 
-        impl = new NatsJetStream.AccountLimitImpl("{}");
+        impl = new NatsJetStreamAccountLimits("{}");
         assertEquals(-1, impl.getMaxMemory());
         assertEquals(-1, impl.getMaxStorage());
         assertEquals(-1, impl.getMaxStreams());
@@ -112,7 +112,7 @@ public class NatsJetStreamTests {
 
     @Test
     public void constructAccountStatsImpl() {
-        NatsJetStream.AccountStatsImpl impl = new NatsJetStream.AccountStatsImpl(
+        NatsJetStreamAccountStats impl = new NatsJetStreamAccountStats(
                 "{\"memory\": 42, \"storage\": 24, \"streams\": 73, \"consumers\": 37}");
 
         assertEquals(42, impl.getMemory());
@@ -120,7 +120,7 @@ public class NatsJetStreamTests {
         assertEquals(73, impl.getStreams());
         assertEquals(37, impl.getConsumers());
 
-        impl = new NatsJetStream.AccountStatsImpl("{}");
+        impl = new NatsJetStreamAccountStats("{}");
         assertEquals(-1, impl.getMemory());
         assertEquals(-1, impl.getStorage());
         assertEquals(-1, impl.getStreams());

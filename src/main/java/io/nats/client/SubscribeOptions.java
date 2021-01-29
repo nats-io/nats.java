@@ -103,15 +103,6 @@ public class SubscribeOptions {
         return new Builder();
     }
 
-    // TODO
-//    public static SubscribeOptions createPullDirect(String stream, String consumer, long batchSize) {
-//        SubscribeOptions so = new SubscribeOptions();
-//        so.stream = validateStreamName(stream);
-//        so.consumer = validateConsumer(consumer);
-//        so.pull = validatePullBatchSize(batchSize);
-//        return so;
-//    }
-
     /**
      * SubscribeOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
@@ -120,10 +111,11 @@ public class SubscribeOptions {
         private String stream;
         private String consumer;
         private ConsumerConfiguration consumerConfig;
-        private boolean autoAck = true;
+        private long pull = 0;
+        private boolean autoAck = true; // push mode only, pull always false
+
         private String durable;
         private String deliverSubject;
-        private long pull = 0;
 
         /**
          * Attaches to a consumer for the subscription.
@@ -154,7 +146,7 @@ public class SubscribeOptions {
          * @return the builder
          */
         public Builder durable(String name) {
-            this.durable = validateDurable(name);
+            this.durable = validateDurableRequired(name);
             return this;
         }
 
@@ -189,8 +181,8 @@ public class SubscribeOptions {
          * @return the builder.
          */
         public Builder pullDirect(String stream, String consumer, long batchSize) {
-            this.stream = validateStreamName(stream);
-            this.consumer = validateConsumer(consumer);
+            this.stream = validateStreamNameRequired(stream);
+            this.consumer = validateConsumerNullButNotEmpty(consumer);
             this.pull = validatePullBatchSize(batchSize);
             return this;
         }
@@ -201,7 +193,7 @@ public class SubscribeOptions {
          * @return the builder.
          */
         public Builder pushDirect(String deliverSubject) {
-            this.deliverSubject = validateDeliverSubject(deliverSubject);
+            this.deliverSubject = validateDeliverSubjectRequired(deliverSubject);
             return this;
         }          
 
@@ -212,8 +204,8 @@ public class SubscribeOptions {
          * @return the builder.
          */
         public Builder attach(String stream, String consumer) {
-            this.stream = validateStreamName(stream);
-            this.consumer = validateConsumer(consumer);
+            this.stream = validateStreamNameRequired(stream);
+            this.consumer = validateConsumerNullButNotEmpty(consumer);
             return this;
         }
 

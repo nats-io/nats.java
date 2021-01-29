@@ -16,30 +16,35 @@ package io.nats.client;
 import java.time.Duration;
 import java.util.Properties;
 
+import static io.nats.client.support.Validator.nullOrEmpty;
+import static io.nats.client.support.Validator.validateStreamName;
+
 /**
- * The PublishOptions class specifies the options for publishing with jetstream enabled servers.
+ * The PublishOptions class specifies the options for publishing with JetStream enabled servers.
  * Options are created using a {@link PublishOptions.Builder Builder}.
  */
 public class PublishOptions {
-    public static final Duration defaultTimeout = Duration.ofSeconds(2);
+    /**
+     * Use this variable for timeout in publish options.
+     */
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(2);
 
     /**
      * Use this variable to unset a stream in publish options.
      */
-    public static final String unsetStream = null;
+    public static final String UNSET_STREAM = null;
 
     /**
-     * Use this variable to unset a sequence number in pulish options.
+     * Use this variable to unset a sequence number in publish options.
      */
-    public static final long unsetLastSequence = -1;
+    public static final long UNSET_LAST_SEQUENCE = -1;
 
-    private String stream = unsetStream;
-    private Duration streamTimeout = defaultTimeout;
-
-    String expectedStream = null;
-    String expectedLastId = null;
-    long   expectedLastSeq = unsetLastSequence;
-    String msgId = null;
+    private String stream = UNSET_STREAM;
+    private Duration streamTimeout = DEFAULT_TIMEOUT;
+    private String expectedStream;
+    private String expectedLastId;
+    private long expectedLastSeq = UNSET_LAST_SEQUENCE;
+    private String msgId;
 
     /**
      * Property used to configure a builder from a Properties object.
@@ -61,15 +66,10 @@ public class PublishOptions {
 
     /**
      * Sets the name of the stream
-     * @param stream the name fo the stream.
+     * @param stream the name of the stream.
      */
     public void setStream(String stream) {
-        if (stream != null && 
-                (stream.length() == 0 || stream.contains(">") ||
-                 stream.contains(".") || stream.contains("*"))) {
-            throw new IllegalArgumentException("stream cannot be null, empty, tokenized, or wildcarded");
-        }
-        this.stream = stream;
+        this.stream = nullOrEmpty(stream) ? UNSET_STREAM : validateStreamName(stream);
     }
 
     /**
@@ -89,7 +89,7 @@ public class PublishOptions {
     }
 
     /**
-     * Sets the expected stream of the publish. If the 
+     * Sets the expected stream of the publish. If the
      * stream does not match the server will not save the message.
      * @param stream expected stream
      */
@@ -114,6 +114,15 @@ public class PublishOptions {
     }
 
     /**
+     * Sets the expected last ID of the previously published message.  If the
+     * message ID does not match the server will not save the message.
+     * @param lastMsgId the expected last message ID in the stream.
+     */
+    public void setExpectedLastMsgId(String lastMsgId) {
+        expectedLastId = lastMsgId;
+    }
+
+    /**
      * Gets the expected last sequence number of the stream.
      * @return sequence number
      */
@@ -122,16 +131,7 @@ public class PublishOptions {
     }
 
     /**
-     * Sets the expected last ID of the previously published message.  If the 
-     * message ID does not match the server will not save the message.
-     * @param lastMsgId the expected last message ID in the stream.
-     */
-    public void setExpectedLastMsgId(String lastMsgId) {
-        expectedLastId = lastMsgId;
-    }        
-
-    /**
-     * Sets the expected last sequence of the previously published message.  If the 
+     * Sets the expected last sequence of the previously published message.  If the
      * sequence does not match the server will not save the message.
      * @param sequence the expected last sequence number of the stream.
      */
@@ -171,18 +171,17 @@ public class PublishOptions {
      * prefix PROP_ in this class.
      */
     public static class Builder {
-        String stream = PublishOptions.unsetStream;
-        Duration streamTimeout = PublishOptions.defaultTimeout;
-        String expectedStream = null;
-        String expectedLastId = null;
-        long   expectedLastSeq = 0;
+        String stream = UNSET_STREAM;
+        Duration streamTimeout = DEFAULT_TIMEOUT;
+        String expectedStream;
+        String expectedLastId;
+        long expectedLastSeq;
+        String msgId;
 
         /**
          * Constructs a new publish options Builder with the default values.
          */
-        public Builder() {
-            // NOOP.
-        }
+        public Builder() {}
         
         /**
          * Constructs a builder from properties
@@ -194,7 +193,7 @@ public class PublishOptions {
                 streamTimeout = Duration.parse(s);
             }
 
-            s = properties.getProperty((PublishOptions.PROP_STREAM_NAME));
+            s = properties.getProperty(PublishOptions.PROP_STREAM_NAME);
             if (s != null) {
                 stream = s;
             }
@@ -251,7 +250,16 @@ public class PublishOptions {
         public Builder expectedLastSeqence(long sequence) {
             expectedLastSeq = sequence;
             return this;
-        } 
+        }
+
+        /**
+         * Sets the message id. Message IDs are used for de-duplication
+         * and should be unique to each message payload.
+         * @param msgId the unique message id.
+         */
+        public void messageId(String msgId) {
+            this.msgId = msgId;
+        }
 
         /**
          * Builds the publish options.
@@ -264,6 +272,7 @@ public class PublishOptions {
             po.setExpectedLastMsgId(expectedLastId);
             po.setExpectedLastSeqence(expectedLastSeq);
             po.setExpectedStream(expectedStream);
+            po.setMessageId(msgId);
             return po;
         }
     }

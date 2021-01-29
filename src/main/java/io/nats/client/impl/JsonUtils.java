@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
  * Internal json parsing helpers.
  */
 public abstract class JsonUtils {
+    public static final String EMPTY_JSON = "{}";
 
     private static final String OBJECT_RE = "\\{(.+?)\\}";
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
@@ -104,7 +105,7 @@ public abstract class JsonUtils {
      */
     public static String getJSONObject(String objectName, String json) {
         int[] indexes = getBracketIndexes(objectName, json, "{", "}");
-        return indexes[0] == -1 || indexes[1] == -1 ? "{}" : json.substring(indexes[0], indexes[1]+1);
+        return indexes[0] == -1 || indexes[1] == -1 ? EMPTY_JSON : json.substring(indexes[0], indexes[1]+1);
     }
 
     /**

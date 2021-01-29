@@ -18,9 +18,7 @@ import java.util.regex.Pattern;
 public abstract class Validator {
     private Validator() {} /* for Jacoco */
 
-    static final Pattern STREAM_PATTERN = Pattern.compile("^[a-zA-Z0-9-]+$");
-
-    public static String validateMessageSubject(String s) {
+    public static String validateMessageSubjectRequired(String s) {
         if (nullOrEmpty(s)) {
             throw new IllegalArgumentException("Subject cannot be null or empty [" + s + "]");
         }
@@ -28,49 +26,63 @@ public abstract class Validator {
     }
 
     public static String validateJsSubscribeSubject(String s) {
-        if (provided(s) && containsWhitespace(s)) {
+        if (containsWhitespace(s)) {
             throw new IllegalArgumentException("Subject cannot have whitespace if provided [" + s + "]");
         }
         return s;
     }
 
-    public static String validateQueueName(String s) {
+    public static String validateQueueNameRequired(String s) {
         if (nullOrEmpty(s) || containsWhitespace(s)) {
             throw new IllegalArgumentException("Queue cannot be null or empty or have whitespace [" + s + "]");
         }
         return s;
     }
 
-    public static String validateReplyTo(String s) {
+    public static String validateReplyToNullButNotEmpty(String s) {
         if (notNullButEmpty(s)) {
-            throw new IllegalArgumentException("ReplyTo cannot blank when provided [" + s + "]");
+            throw new IllegalArgumentException("ReplyTo cannot be blank when provided [" + s + "]");
         }
         return s;
     }
 
     public static String validateStreamName(String s) {
-        if (nullOrEmpty(s) || doesNotMatch(STREAM_PATTERN, s)) {
-            throw new IllegalArgumentException("Stream cannot be null or empty and must be alpha, numeric or dash [" + s + "]");
+        if (containsDotWildGt(s)) {
+            throw new IllegalArgumentException("Stream cannot contain a '.', '*' or '>' [" + s + "]");
         }
         return s;
     }
 
-    public static String validateConsumer(String s) {
+    public static String validateStreamNameNullButNotEmpty(String s) {
+        if (notNullButEmpty(s)) {
+            throw new IllegalArgumentException("Stream cannot contain a '.', '*' or '>' [" + s + "]");
+        }
+        return validateStreamName(s);
+    }
+
+    public static String validateStreamNameRequired(String s) {
+        if (nullOrEmpty(s)) {
+            throw new IllegalArgumentException("Stream cannot be null or empty and cannot contain a '.', '*' or '>' [" + s + "]");
+        }
+        return validateStreamName(s);
+    }
+
+    public static String validateConsumerNullButNotEmpty(String s) {
         if (notNullButEmpty(s) || containsDotWildGt(s)) {
             throw new IllegalArgumentException("Consumer cannot be blank when provided and cannot contain a '.', '*' or '>' [" + s + "]");
         }
         return s;
     }
 
-    public static String validateDurable(String s) {
+    public static String validateDurableRequired(String s) {
         if (nullOrEmpty(s) || containsDotWildGt(s)) {
             throw new IllegalArgumentException("Durable cannot be blank and cannot contain a '.', '*' or '>' [" + s + "]");
         }
         return s;
     }
 
-    public static String validateDeliverSubject(String s) {
-        if (notNullButEmpty(s)) {
+    public static String validateDeliverSubjectRequired(String s) {
+        if (nullOrEmpty(s)) {
             throw new IllegalArgumentException("Deliver Subject cannot be blank when provided [" + s + "]");
         }
         return s;
@@ -90,10 +102,6 @@ public abstract class Validator {
         return s;
     }
 
-    // ----------------------------------------------------------------------------------------------------
-    // Helpers
-    // ----------------------------------------------------------------------------------------------------
-
     public static Object validateNotNull(Object o, String fieldName) {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + "cannot be null");
@@ -108,16 +116,15 @@ public abstract class Validator {
         return s;
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Helpers
+    // ----------------------------------------------------------------------------------------------------
     public static boolean matches(Pattern pattern, String stream) {
         return pattern.matcher(stream).matches();
     }
 
     public static boolean doesNotMatch(Pattern pattern, String stream) {
         return !pattern.matcher(stream).matches();
-    }
-
-    public static boolean provided(String s) {
-        return s != null && s.length() > 0;
     }
 
     public static boolean nullOrEmpty(String s) {

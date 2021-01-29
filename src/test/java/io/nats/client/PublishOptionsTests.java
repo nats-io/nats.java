@@ -13,20 +13,20 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Properties;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class PublishOptionsTests {
     @Test
     public void testDefaultOptions() {
         PublishOptions o = new PublishOptions.Builder().build();
 
-        assertEquals(PublishOptions.unsetStream, o.getStream(), "default stream");
-        assertEquals(PublishOptions.defaultTimeout, o.getStreamTimeout(), "default timeout");
+        assertEquals(PublishOptions.UNSET_STREAM, o.getStream(), "default stream");
+        assertEquals(PublishOptions.DEFAULT_TIMEOUT, o.getStreamTimeout(), "default timeout");
     }
 
     @Test

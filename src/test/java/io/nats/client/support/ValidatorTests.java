@@ -31,9 +31,9 @@ public class ValidatorTests {
     private static final String HAS_GT    = "has>gt";
 
     @Test
-    public void testValidateMessageSubject() {
-        allowed(Validator::validateMessageSubject, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateMessageSubject, null, EMPTY);
+    public void testValidateMessageSubjectRequired() {
+        allowed(Validator::validateMessageSubjectRequired, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateMessageSubjectRequired, null, EMPTY);
     }
 
     @Test
@@ -43,39 +43,45 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateQueueName() {
-        allowed(Validator::validateQueueName, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateQueueName, null, EMPTY, HAS_SPACE);
+    public void testvalidateQueueNameRequired() {
+        allowed(Validator::validateQueueNameRequired, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateQueueNameRequired, null, EMPTY, HAS_SPACE);
     }
 
     @Test
     public void testValidateReplyTo() {
-        allowed(Validator::validateReplyTo, null, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateReplyTo, EMPTY);
+        allowed(Validator::validateReplyToNullButNotEmpty, null, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateReplyToNullButNotEmpty, EMPTY);
     }
 
     @Test
     public void testValidateStreamName() {
-        allowed(Validator::validateStreamName, PLAIN, HAS_DASH);
-        notAllowed(Validator::validateStreamName, null, EMPTY, HAS_SPACE, HAS_DOT, HAS_STAR, HAS_GT);
+        allowed(Validator::validateStreamName, null, EMPTY, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateStreamName, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
-    public void testValidateConsumer() {
-        allowed(Validator::validateConsumer, null, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateConsumer, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateStreamNameRequired() {
+        allowed(Validator::validateStreamNameRequired, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateStreamNameRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
-    public void testValidateDurable() {
-        allowed(Validator::validateDurable, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateDurable, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateConsumerNullButNotEmpty() {
+        allowed(Validator::validateConsumerNullButNotEmpty, null, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateConsumerNullButNotEmpty, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
-    public void testValidateDeliverSubject() {
-        allowed(Validator::validateDeliverSubject, null, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateDeliverSubject, EMPTY);
+    public void testValidateDurableRequired() {
+        allowed(Validator::validateDurableRequired, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateDurableRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
+    }
+
+    @Test
+    public void testValidateDeliverSubjectRequired() {
+        allowed(Validator::validateDeliverSubjectRequired, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateDeliverSubjectRequired, null, EMPTY);
     }
 
     @Test

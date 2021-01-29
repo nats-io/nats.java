@@ -171,7 +171,7 @@ public class JetStreamRegularTests {
 
                 // check success
                  opts.setExpectedStream("foo-stream");
-                 opts.setExpectedLastSeqence(PublishOptions.unsetLastSequence);
+                 opts.setExpectedLastSeqence(PublishOptions.UNSET_LAST_SEQUENCE);
                  js.publish("foo", null, opts);
 
                 // check failure

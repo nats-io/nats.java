@@ -141,20 +141,20 @@ public class ConsumerConfiguration {
     private long maxWaiting = 0;
     private long maxAckPending = 0;
 
-    private static String durableNameField =  "durable_name";
-    private static String deliverSubjField = "deliver_subject";
-    private static String deliverPolicyField =  "deliver_policy";
-    private static String startSeqField =  "opt_start_seq";
-    private static String startTimeField=  "opt_start_time";
-    private static String ackPolicyField =  "ack_policy";
-    private static String ackWaitField =  "ack_wait";
-    private static String maxDeliverField =  "max_deliver";
-    private static String filterSubjectField =  "filter_subject";
-    private static String replayPolicyField =  "replay_policy";
-    private static String sampleFreqField =  "sample_frequency";
-    private static String rateLimitField =  "rate_limit";    
-    private static String maxWaitingField =  "max_waiting";
-    private static String maxAckPendingField =  "max_ack_pending";
+    private static final String durableNameField =  "durable_name";
+    private static final String deliverSubjField = "deliver_subject";
+    private static final String deliverPolicyField =  "deliver_policy";
+    private static final String startSeqField =  "opt_start_seq";
+    private static final String startTimeField=  "opt_start_time";
+    private static final String ackPolicyField =  "ack_policy";
+    private static final String ackWaitField =  "ack_wait";
+    private static final String maxDeliverField =  "max_deliver";
+    private static final String filterSubjectField =  "filter_subject";
+    private static final String replayPolicyField =  "replay_policy";
+    private static final String sampleFreqField =  "sample_frequency";
+    private static final String rateLimitField =  "rate_limit";
+    private static final String maxWaitingField =  "max_waiting";
+    private static final String maxAckPendingField =  "max_ack_pending";
 
     private static final Pattern durableRE = JsonUtils.buildPattern(durableNameField, FieldType.jsonString);
     private static final Pattern deliverSubjectRE = JsonUtils.buildPattern(deliverSubjField, FieldType.jsonString);
