@@ -13,15 +13,11 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishAckTests {
     @Test
@@ -32,7 +28,7 @@ public class PublishAckTests {
             NatsPublishAck ack = new NatsPublishAck(json.getBytes());
             assertEquals("test", ack.getStream());
             assertEquals(42, ack.getSeqno());
-            assertEquals(true, ack.isDuplicate());
+            assertTrue(ack.isDuplicate());
         }
         catch (Exception e) {
             fail("Unexpected Exception: " + e.getMessage());
@@ -42,22 +38,22 @@ public class PublishAckTests {
     @Test
     public void testThrowsOnGarbage() {
         assertThrows(IOException.class, () -> {
-            String json = "foo";
-            new NatsPublishAck(json.getBytes());
-            assertFalse(true);
-        });
+            new NatsPublishAck("notjson".getBytes());
+       });
     }
       
     @Test
     public void testThrowsOnERR() {
-        String msg = "Test generated error.";
-        try {
-            String json = "{\"type\" : \"thetype\",\"code\" : 1234, \"description\" : \"" + msg + "\"}";
-            new NatsPublishAck(json.getBytes());
-            assertFalse(true);
-        } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains(msg));
-        }
+        String json ="{" +
+                "  \"type\": \"io.nats.jetstream.api.v1.pub_ack_response\"," +
+                "  \"error\": {" +
+                "    \"code\": 500," +
+                "    \"description\": \"the description\"" +
+                "  }" +
+                "}";
+
+        IllegalStateException ise = assertThrows(IllegalStateException.class, () -> new NatsPublishAck(json.getBytes()));
+        assertEquals("the description (500)", ise.getMessage());
     }
 
     @Test
@@ -65,14 +61,9 @@ public class PublishAckTests {
         String json = "+OK {" +
                         "\"missing_stream\":\"test\"" + "," +
                         "\"missing_seq\":\"0\"" +
-                       "}";   
-        try {
-            NatsPublishAck ack = new NatsPublishAck(json.getBytes());
-            assertEquals(null, ack.getStream());
-            assertEquals(-1, ack.getSeqno());
-        }
-        catch (Exception e) {
-            fail("Unexpected Exception: " + e.getMessage());
-        }
+                       "}";
+
+        IOException ioe = assertThrows(IOException.class, () -> new NatsPublishAck(json.getBytes()));
+        assertEquals("Invalid ack from a JetStream publish", ioe.getMessage());
     }
 }

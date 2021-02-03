@@ -78,8 +78,8 @@ public class NatsJsSubCb {
                     System.out.printf("  Consumer Name: %s\n", meta.getConsumer());
                     System.out.printf("  Consumer Seq:  %d\n", meta.consumerSequence());
 
-                    // If you don't disable auto ack mode NATS will automatically
-                    // ack for you.  Otherwise, you'll need to ack, e.g.
+                    // If you set auto ack to true, mode NATS will automatically
+                    // ack for you. Otherwise, you'll need to ack, e.g.
                     // msg.ack();                    
                 }
                 msgLatch.countDown();
@@ -91,7 +91,7 @@ public class NatsJsSubCb {
 
             // Subscribe using the handler, and then wait for the requested number of 
             // messages to arrive using the countdown latch.
-            js.subscribe(exArgs.subject, d, handler, so);
+            js.subscribe(exArgs.subject, d, handler, true, so);
 
             msgLatch.await();
             System.out.printf("Received %d messages.  Done.\n", exArgs.msgCount);

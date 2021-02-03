@@ -27,19 +27,19 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     String consumer;
     String stream;
     String deliver;
-    long pull;
+    int pullBatchSize;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(sid, subject, queueName, connection, dispatcher);
     }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, long pull) {
+    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, int pull) {
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.pull = pull;
+        this.pullBatchSize = pull;
     }
 
     /**
@@ -47,12 +47,12 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void poll() {
-        if (deliver == null || pull == 0) {
+        if (pullBatchSize == 0) {
             throw new IllegalStateException("Subscription type does not support poll.");
         }
 
         String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
-        byte[] payload = String.format("{ \"batch\":%d}", pull).getBytes();
+        byte[] payload = String.format("{ \"batch\":%d}", pullBatchSize).getBytes();
         connection.publish(subj, getSubject(), payload);
     }
 
@@ -61,7 +61,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        return js.getConsumerInfo(stream, consumer);
+        return js.lookupConsumerInfo(stream, consumer);
     }
 
     @Override
@@ -70,7 +70,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 "consumer='" + consumer + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
-                ", pull=" + pull +
+                ", pull=" + pullBatchSize +
                 '}';
     }
 }

@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.utils.ResourceUtils.resourceAsLines;
+import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestMacros.standardCloseConnection;
 import static io.nats.client.utils.TestMacros.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
@@ -173,7 +173,7 @@ public class SubscriberTests {
             standardConnectionWait(nc);
 
             // Some UTF8 from http://www.columbia.edu/~fdc/utf8/
-            List<String> subjects = resourceAsLines("data/utf8-test-strings.txt");
+            List<String> subjects = dataAsLines("utf8-test-strings.txt");
 
             for (String subject : subjects) {
                 subject = subject.replace(" ",""); // get rid of spaces

@@ -28,10 +28,16 @@ public class JetStreamApiObjectsTests {
 
     @Test
     public void testOptions() {
-        JetStreamOptions jo = JetStreamOptions.builder().requestTimeout(Duration.ofSeconds(42)).prefix("pre").direct(true).build();
-        assertEquals("pre", jo.getPrefix());
-        assertEquals(Duration.ofSeconds(42), jo.getRequestTimeout());
-        assertTrue(jo.isDirectMode());
+        JetStreamOptions jso = JetStreamOptions.defaultOptions();
+        assertNull(jso.getPrefix());
+        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+
+        jso = JetStreamOptions.builder()
+                .requestTimeout(Duration.ofSeconds(42))
+                .prefix("pre")
+                .build();
+        assertEquals("pre", jso.getPrefix());
+        assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
     }
 
     @Test
@@ -195,42 +201,40 @@ public class JetStreamApiObjectsTests {
         JetStreamApiResponse jsApiResp = new JetStreamApiResponse(jsons[0].getBytes());
         assertTrue(jsApiResp.hasError());
         assertEquals("code_and_desc_response", jsApiResp.getType());
-        assertEquals(500, jsApiResp.getCode());
+        assertEquals(500, jsApiResp.getErrorCode());
         assertEquals("the description", jsApiResp.getDescription());
         assertEquals("the description (500)", jsApiResp.getError());
 
         jsApiResp = new JetStreamApiResponse(jsons[1].getBytes());
         assertTrue(jsApiResp.hasError());
         assertEquals("zero_and_desc_response", jsApiResp.getType());
-        assertEquals(0, jsApiResp.getCode());
+        assertEquals(0, jsApiResp.getErrorCode());
         assertEquals("the description", jsApiResp.getDescription());
         assertEquals("the description (0)", jsApiResp.getError());
 
         jsApiResp = new JetStreamApiResponse(jsons[2].getBytes());
         assertTrue(jsApiResp.hasError());
         assertEquals("non_zero_code_only_response", jsApiResp.getType());
-        assertEquals(500, jsApiResp.getCode());
+        assertEquals(500, jsApiResp.getErrorCode());
         assertNull(jsApiResp.getDescription());
         assertEquals("Unknown Jetstream Error (500)", jsApiResp.getError());
 
         jsApiResp = new JetStreamApiResponse(jsons[3].getBytes());
         assertTrue(jsApiResp.hasError());
-        assertEquals("zero_code_only_response", jsApiResp.getType());
-        assertEquals(0, jsApiResp.getCode());
+        assertEquals("no_code_response", jsApiResp.getType());
+        assertEquals(JetStreamApiResponse.NOT_SET, jsApiResp.getErrorCode());
+        assertEquals("no code", jsApiResp.getDescription());
+        assertEquals("no code (-1)", jsApiResp.getError());
+
+        jsApiResp = new JetStreamApiResponse(jsons[4].getBytes());
+        assertTrue(jsApiResp.hasError());
+        assertEquals("empty_response", jsApiResp.getType());
+        assertEquals(JetStreamApiResponse.NOT_SET, jsApiResp.getErrorCode());
         assertNull(jsApiResp.getDescription());
         assertTrue(jsApiResp.getError().startsWith("Unknown Jetstream Error:"));
         assertTrue(jsApiResp.getError().contains(jsApiResp.getResponse()));
 
-        jsApiResp = new JetStreamApiResponse(jsons[4].getBytes());
-        assertFalse(jsApiResp.hasError());
-        assertNull(jsApiResp.getError());
-        assertEquals("no_code_response", jsApiResp.getType());
-
         jsApiResp = new JetStreamApiResponse(jsons[5].getBytes());
-        assertFalse(jsApiResp.hasError());
-        assertEquals("empty_response", jsApiResp.getType());
-
-        jsApiResp = new JetStreamApiResponse(jsons[6].getBytes());
         assertFalse(jsApiResp.hasError());
         assertEquals("not_error_response", jsApiResp.getType());
     }

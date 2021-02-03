@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.nats.client.impl.JsonUtils.parseStringArray;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,16 +30,16 @@ public final class JsonUtilsTests {
 
     @Test
     public void testParseStringArray() {
-        String[] a = parseStringArray("fieldName", "...\"fieldName\": [\n      ],...");
+        String[] a = JsonUtils.parseStringArray("fieldName", "...\"fieldName\": [\n      ],...");
         assertNotNull(a);
         assertEquals(0, a.length);
 
-        a = parseStringArray("fieldName", "...\"fieldName\": [\n      \"value1\"\n    ],...");
+        a = JsonUtils.parseStringArray("fieldName", "...\"fieldName\": [\n      \"value1\"\n    ],...");
         assertNotNull(a);
         assertEquals(1, a.length);
         assertEquals("value1", a[0]);
 
-        a = parseStringArray("fieldName", "...\"fieldName\": [\n      \"value1\",\n      \"value2\"\n    ],...");
+        a = JsonUtils.parseStringArray("fieldName", "...\"fieldName\": [\n      \"value1\",\n      \"value2\"\n    ],...");
         assertNotNull(a);
         assertEquals(2, a.length);
         assertEquals("value1", a[0]);
@@ -49,7 +48,7 @@ public final class JsonUtilsTests {
 
     @Test
     public void testGetJSONArray() {
-        String json = ResourceUtils.resourceAsString("data/ConsumerLister.json");
+        String json = ResourceUtils.dataAsString("ConsumerLister.json");
         ConsumerLister cl = new ConsumerLister(json);
         assertEquals(2, cl.getTotal());
         assertEquals(42, cl.getOffset());
@@ -69,6 +68,13 @@ public final class JsonUtilsTests {
         strArray = new String[]{};
         JsonUtils.addFld(sb, "na", strArray);
         assertEquals(0, sb.length());
+    }
+
+    @Test
+    public void testParseDateTime() {
+        assertEquals(1611186068, JsonUtils.parseDateTime("2021-01-20T23:41:08.579594Z").toEpochSecond());
+        assertEquals(1612293508, JsonUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00").toEpochSecond());
+        assertEquals(-62135596800L, JsonUtils.parseDateTime("anything-not-valid").toEpochSecond());
     }
 
     @Test

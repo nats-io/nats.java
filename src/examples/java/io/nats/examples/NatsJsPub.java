@@ -27,6 +27,7 @@ public class NatsJsPub {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
+        args="test-sub foo msg".split(" ");
         ExampleArgs exArgs = ExampleUtils.readPublishArgs(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {

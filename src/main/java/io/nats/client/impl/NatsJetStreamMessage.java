@@ -119,7 +119,7 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
         if (!(this.subscription instanceof NatsJetStreamSubscription)) {
             return false;
         }
-        return (((NatsJetStreamSubscription) this.subscription).pull > 0);
+        return (((NatsJetStreamSubscription) this.subscription).pullBatchSize > 0);
     }
 
     private Connection getJetStreamValidatedConnection() {

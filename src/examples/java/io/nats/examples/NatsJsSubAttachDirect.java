@@ -38,17 +38,17 @@ public class NatsJsSubAttachDirect {
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
-            // Ensure we are in direct mode.
-            JetStreamOptions jopts = JetStreamOptions.builder().direct(true).build();
+            JetStreamOptions jopts = JetStreamOptions.builder().build();
             JetStream js = nc.jetStream(jopts);
 
             // Attach to an existing consumer and setup the subscription
             // to expect messages directly pushed from the server to the specified
             // subject.
-            SubscribeOptions so = SubscribeOptions.builder().
-                attach(exArgs.stream, exArgs.consumer).
-                pushDirect(exArgs.subject).
-                build();
+            SubscribeOptions so = SubscribeOptions.builder()
+                    .stream(exArgs.stream)
+                    .durable(exArgs.consumer)
+                    .deliverSubject(exArgs.subject)
+                    .build();
 
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
             nc.flush(Duration.ofSeconds(5));

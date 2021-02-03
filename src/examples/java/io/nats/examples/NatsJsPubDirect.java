@@ -34,12 +34,12 @@ public class NatsJsPubDirect {
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nPublishing '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            // Create a jetstream context.  This hangs off the original connection
+            // Create a JetStream context.  This hangs off the original connection
             // allowing us to produce data to streams and consume data from
-            // jetstream consumers.  Set direct mode for this example.  Direct mode
+            // JetStream consumers.  Set direct mode for this example.  Direct mode
             // configures the client not to use any of the internal Jetstream API
             // calls.
-            JetStreamOptions jopts = JetStreamOptions.builder().direct(true).build();
+            JetStreamOptions jopts = JetStreamOptions.builder().build();
             JetStream js = nc.jetStream(jopts);
 
             // create a typical NATS message

@@ -40,7 +40,11 @@ public class NatsJsSubAttach {
 
             JetStream js = nc.jetStream();
 
-            SubscribeOptions so = SubscribeOptions.builder().attach(exArgs.stream, exArgs.consumer).durable("sub-example").build();
+            SubscribeOptions so = SubscribeOptions.builder()
+                    .stream(exArgs.stream)
+                    .durable(exArgs.consumer)
+                    .deliverSubject("sub-example")
+                    .build();
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
             nc.flush(Duration.ofSeconds(5));
 

@@ -1907,7 +1907,7 @@ class NatsConnection implements Connection {
     }
 
     @Override
-    public JetStreamManagement jetStreamManagement(JetStreamManagementOptions options) throws IOException {
+    public JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException {
         return getNatsJetStream(options);
     }
 

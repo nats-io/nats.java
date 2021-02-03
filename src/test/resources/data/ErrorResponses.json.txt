@@ -22,13 +22,6 @@
 }
 ~
 {
-  "type": "zero_code_only_response",
-  "error": {
-    "code": 0
-  }
-}
-~
-{
   "type": "no_code_response",
   "error": {
     "description": "no code"

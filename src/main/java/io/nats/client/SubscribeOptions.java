@@ -16,23 +16,29 @@ package io.nats.client;
 import static io.nats.client.support.Validator.*;
 
 /**
- * The SubscribeOptions class specifies the options for subscribing with jetstream enabled servers.
- * Options are created using the constructor or a {@link SubscribeOptions.Builder Builder}.
+ * The SubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
+ * Options are created using the constructors or a {@link Builder}.
  */
 public class SubscribeOptions {
 
     private final String stream;
-    private final String consumer;
-    private final ConsumerConfiguration consumerConfiguration;
-    private final boolean autoAck;
-    private final long pull;
+    private final String durable;
+    private final String deliverSubject;
+    private final ConsumerConfiguration consumerConfig;
 
-    private SubscribeOptions(String stream, String consumer, ConsumerConfiguration consumerConfiguration, boolean autoAck, long pull) {
+    private SubscribeOptions() {
+        this(null, null, null, null);
+    }
+
+    private SubscribeOptions(String stream, String durable, String deliverSubject,
+                             ConsumerConfiguration consumerConfig) {
+
         this.stream = stream;
-        this.consumer = consumer;
-        this.consumerConfiguration = consumerConfiguration;
-        this.autoAck = autoAck;
-        this.pull = pull;
+        this.durable = durable;
+        this.deliverSubject = deliverSubject;
+        this.consumerConfig = (consumerConfig == null)
+                ? ConsumerConfiguration.defaultConfiguration()
+                : consumerConfig;
     }
 
     /**
@@ -43,12 +49,12 @@ public class SubscribeOptions {
         return stream;
     }
 
-    /** 
-     * Gets automatic message acknowedgement for this subscriber.
-     * @return true is auto ack is enabled, false otherwise.
-     */
-    public boolean isAutoAck() {
-        return autoAck;
+    public String getDurable() {
+        return durable;
+    }
+
+    public String getDeliverSubject() {
+        return deliverSubject;
     }
 
     /**
@@ -56,27 +62,7 @@ public class SubscribeOptions {
      * @return the consumer configuration.
      */
     public ConsumerConfiguration getConsumerConfiguration() {
-        return consumerConfiguration;
-    }
-
-    /**
-     * Gets the attached consumer name.
-     * @return the consumer name.
-     */
-    public String getConsumer() {
-        return consumer;
-    }
-
-    public long getPullBatchSize() {
-        return pull;
-    }
-
-    /**
-     * Get a default instance of SubscribeOptions
-     * @return the instance
-     */
-    public static SubscribeOptions getDefaultInstance() {
-        return new Builder().build();
+        return consumerConfig;
     }
 
     /**
@@ -87,18 +73,30 @@ public class SubscribeOptions {
      */
     public static SubscribeOptions createOrCopy(SubscribeOptions options) {
         if (options == null) {
-            return new Builder().build();
+            return new SubscribeOptions();
         }
 
-        return new SubscribeOptions(options.stream, options.consumer,
-                new ConsumerConfiguration(options.consumerConfiguration),
-                options.autoAck, options.pull);
+        return new SubscribeOptions(options.stream, options.durable, options.deliverSubject, options.consumerConfig);
+    }
+
+    @Override
+    public String toString() {
+        return "SubscribeOptions{" +
+                "stream='" + stream + '\'' +
+                ", durable='" + durable + '\'' +
+                ", deliverSubject='" + deliverSubject + '\'' +
+                ", " + consumerConfig +
+                '}';
     }
 
     /**
-     * Creates a builder for the subscribe options.
-     * @return the builder.
+     * Get a default instance of SubscribeOptions
+     * @return the instance
      */
+    public static SubscribeOptions defaultInstance() {
+        return new SubscribeOptions();
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -108,30 +106,45 @@ public class SubscribeOptions {
      * create a default set of options if no methods are calls.
      */
     public static class Builder {
-        private String stream;
-        private String consumer;
-        private ConsumerConfiguration consumerConfig;
-        private long pull = 0;
-        private boolean autoAck = true; // push mode only, pull always false
-
-        private String durable;
-        private String deliverSubject;
+        protected String stream;
+        protected String durable;
+        protected String deliverSubject;
+        protected ConsumerConfiguration consumerConfig;
 
         /**
-         * Attaches to a consumer for the subscription.
+         * Specify the stream to attach to. If not supplied the stream will be looked up by subject.
          * @param stream the name of the stream
-         * @param configuration the consumer configuration.
          * @return the builder
          */
-        public Builder configuration(String stream, ConsumerConfiguration configuration) {
+        public Builder stream(String stream) {
             this.stream = validateStreamName(stream);
-            this.consumerConfig = configuration;
             return this;
         }
 
         /**
-         * Attaches to a consumer for the subscription.  Will look up the stream
-         * based on the subscription.
+         * Sets the durable consumer name for the subscriber.
+         * @param durable the durable name
+         * @return the builder
+         */
+        public Builder durable(String durable) {
+            this.durable = validateConsumerRequired(durable);
+            return this;
+        }
+
+        /**
+         * Setting this specifies the push model to a delivery subject.
+         * @param deliverSubject the subject to deliver on.
+         * @return the builder.
+         */
+        public Builder deliverSubject(String deliverSubject) {
+            this.deliverSubject = validateDeliverSubjectRequired(deliverSubject);
+            return this;
+        }
+
+        /**
+         * The consumer configuration. The configuration durable name will be replaced
+         * if you supply a consumer name in the builder. The configuration deliver subject
+         * will be replaced if you supply a name in the builder.
          * @param configuration the consumer configuration.
          * @return the builder
          */
@@ -141,103 +154,11 @@ public class SubscribeOptions {
         }
 
         /**
-         * Sets the durable name for the subscriber.
-         * @param name the durable name
-         * @return the builder
-         */
-        public Builder durable(String name) {
-            this.durable = validateDurableRequired(name);
-            return this;
-        }
-
-        /**
-         * Sets the auto ack mode of this subscriber.  It is off by default.  When disabled
-         * the application must manually ack using one of the message's Ack methods.
-         * @param value true enables auto ack, false disables.
-         * @return the builder.
-         */
-        public Builder autoAck(boolean value) {
-            this.autoAck = value;
-            return this;
-        }
-
-        /**
-         * Setting this enables pull based consumers.  This sets the batch size the server
-         * will send.  Default is 0 (disabled).
-         * @param batchSize number of messages to request in poll. 
-         * @return the builder.
-         */
-        public Builder pull(long batchSize) {
-            this.pull = validatePullBatchSize(batchSize);
-            return this;
-        }
-
-        /**
-         * Setting this enables pull based consumers.  This sets the batch size the server
-         * will send.  Default is 0 (disabled).
-         * @param stream the name of the stream
-         * @param consumer the name of the consumer
-         * @param batchSize number of messages to request in poll. 
-         * @return the builder.
-         */
-        public Builder pullDirect(String stream, String consumer, long batchSize) {
-            this.stream = validateStreamNameRequired(stream);
-            this.consumer = validateConsumerNullButNotEmpty(consumer);
-            this.pull = validatePullBatchSize(batchSize);
-            return this;
-        }
-
-        /**
-         * Setting this specifies the push model to a delivery subject.
-         * @param deliverSubject the subject to deliver on.
-         * @return the builder.
-         */
-        public Builder pushDirect(String deliverSubject) {
-            this.deliverSubject = validateDeliverSubjectRequired(deliverSubject);
-            return this;
-        }          
-
-        /**
-         * Attaches to an existing consumer.
-         * @param stream the stream name.
-         * @param consumer the consumer name.
-         * @return the builder.
-         */
-        public Builder attach(String stream, String consumer) {
-            this.stream = validateStreamNameRequired(stream);
-            this.consumer = validateConsumerNullButNotEmpty(consumer);
-            return this;
-        }
-
-        /**
          * Builds the subscribe options.
          * @return subscribe options
          */
         public SubscribeOptions build() {
-            if (consumerConfig == null) {
-                consumerConfig = ConsumerConfiguration.builder().build();
-            }
-
-            if (durable != null) {
-                consumerConfig.setDurable(durable);
-            }
-
-            if (deliverSubject != null) {
-                consumerConfig.setDeliverSubject(deliverSubject);
-            }
-
-            return new SubscribeOptions(stream, consumer, consumerConfig, autoAck, pull);
+            return new SubscribeOptions(stream, durable, deliverSubject, consumerConfig);
         }
-    }
-
-    @Override
-    public String toString() {
-        return "SubscribeOptions{" +
-                "stream='" + stream + '\'' +
-                ", consumer='" + consumer + '\'' +
-                ", " + consumerConfiguration +
-                ", autoAck=" + autoAck +
-                ", pull=" + pull +
-                '}';
     }
 }

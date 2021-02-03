@@ -14,10 +14,10 @@
 package io.nats.client.impl;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -142,7 +142,7 @@ public abstract class JsonUtils {
 
     private static int[] getBracketIndexes(String objectName, String json, String start, String end) {
         int[] result = new int[] {-1, -1};
-        int objStart = json.indexOf(objectName);
+        int objStart = json.indexOf(Q + objectName + Q);
         if (objStart != -1) {
             result[0] = json.indexOf(start, objStart);
             result[1] = json.indexOf(end, result[0]);
@@ -287,8 +287,11 @@ public abstract class JsonUtils {
      * @return a Zoned Date time.
      */
     public static ZonedDateTime parseDateTime(String dateTime) {
-        Instant inst = Instant.parse(dateTime);
-        return ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
+        try {
+            return ZonedDateTime.parse(dateTime);
+        }
+        catch (DateTimeParseException s) {
+            return ZonedDateTime.of(1, 1, 1, 0, 0, 0, 0, ZoneId.of("GMT"));
+        }
     }
-
 }

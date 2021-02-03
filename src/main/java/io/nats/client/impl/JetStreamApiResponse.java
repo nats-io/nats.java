@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Message;
 import io.nats.client.impl.JsonUtils.FieldType;
 
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,12 +24,17 @@ import static io.nats.client.impl.JsonUtils.buildPattern;
 
 public class JetStreamApiResponse {
 
-    private static final int NOT_ERROR = -1;
+    public static final int NOT_SET = -1;
+    public static final String NOT_TYPED = "io.nats.jetstream.api.v1.no_type";
 
-    private int code = NOT_ERROR;
-    private String desc;
+    private final String response;
+    private final boolean hasError;
+
+    private String errorJson;
+
     private String type;
-    private String response;
+    private Integer errorCode;
+    private String errorDesc;
 
     private static final Pattern typeRE = buildPattern("type", FieldType.jsonString);
     private static final Pattern codeRE = buildPattern("code", FieldType.jsonNumber);
@@ -39,59 +45,74 @@ public class JetStreamApiResponse {
     }
 
     public JetStreamApiResponse(byte[] rawResponse) {
-
-        response = new String(rawResponse);
-
-        Matcher m = typeRE.matcher(response);
-        if (m.find()) {
-            this.type = m.group(1);
-        }
-
-        String error = JsonUtils.getJSONObject("error", response);
-        m = codeRE.matcher(error);
-        if (m.find()) {
-            this.code = Integer.parseInt(m.group(1));
-        }
-
-        m = descRE.matcher(error);
-        if (m.find()) {
-            this.desc = m.group(1);
-        }
+        response = new String(rawResponse, StandardCharsets.UTF_8);
+        hasError = response.contains("\"error\"");
     }
 
-    public String getType() {
-        return type;
-    }
-
-    public long getCode() {
-        return code;
+    protected String ensureErrorJson() {
+        if (errorJson == null) {
+            errorJson = JsonUtils.getJSONObject("error", response);
+        }
+        return errorJson;
     }
 
     public boolean hasError() {
-        return code != NOT_ERROR;
+        return hasError;
     }
 
-    public String getError() {
-        if (code == NOT_ERROR) {
-            return null;
+    public String getType() {
+        if (type == null) {
+            Matcher m = typeRE.matcher(response);
+            if (m.find()) {
+                type = m.group(1);
+            }
+            else {
+                type = NOT_TYPED;
+            }
         }
-        if (desc == null) {
-            return code == 0
-                    ? "Unknown Jetstream Error: " + response
-                    : "Unknown Jetstream Error (" + code + ")";
+        return type;
+    }
+
+    public long getErrorCode() {
+        if (errorCode == null) {
+            Matcher m = codeRE.matcher(ensureErrorJson());
+            if (m.find()) {
+                errorCode = Integer.parseInt(m.group(1));
+            }
+            else {
+                errorCode = NOT_SET;
+            }
         }
-        return desc + " (" + code + ")";
+        return errorCode;
     }
 
     public String getDescription() {
-        return desc;
+        if (errorDesc == null) {
+            Matcher m = descRE.matcher(ensureErrorJson());
+            if (m.find()) {
+                this.errorDesc = m.group(1);
+            }
+            else {
+                errorDesc = "";
+            }
+        }
+        return errorDesc.length() == 0 ? null : errorDesc;
+    }
+
+    public String getError() {
+        if (hasError()) {
+            if (getDescription() == null) {
+                return getErrorCode() == NOT_SET
+                        ? "Unknown Jetstream Error: " + response
+                        : "Unknown Jetstream Error (" + errorCode + ")";
+            }
+
+            return errorDesc + " (" + getErrorCode() + ")";
+        }
+        return null;
     }
 
     public String getResponse() {
         return response;
-    }
-
-    static boolean isError(String s) {
-        return s.contains("code");
     }
 }

@@ -119,6 +119,13 @@ public class ExampleUtils {
         return ea;
     }
 
+    public static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            // ignore
+        }
+    }
     private static void usage(String usageString) {
         System.out.println(usageString);
         System.exit(-1);

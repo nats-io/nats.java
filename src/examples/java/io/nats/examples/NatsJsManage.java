@@ -15,6 +15,8 @@ package io.nats.examples;
 
 import io.nats.client.*;
 
+import java.nio.charset.StandardCharsets;
+
 import static io.nats.client.support.DebugUtil.printable;
 
 public class NatsJsManage {
@@ -36,9 +38,9 @@ public class NatsJsManage {
         ExampleArgs exArgs = new ExampleArgs(args, false, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
-            // Create a jetstream context.  This hangs off the original connection
+            // Create a JetStream context.  This hangs off the original connection
             // allowing us to produce data to streams and consume data from
-            // jetstream consumers.
+            // JetStream consumers.
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -46,10 +48,11 @@ public class NatsJsManage {
             StreamConfiguration sc1 = StreamConfiguration.builder()
                     .name(STREAM1)
                     .storageType(StreamConfiguration.StorageType.Memory)
-                    .subjects(STRM1SUB1, STRM1SUB2).replicas(7)
+                    .subjects(STRM1SUB1, STRM1SUB2).replicas(3)
                     .build();
             jsm.addStream(sc1);
 
+            js.publish(STRM1SUB1, "blah blah".getBytes(StandardCharsets.UTF_8));
             StreamInfo si = jsm.streamInfo(STREAM1);
             printObject(si);
 
@@ -100,7 +103,7 @@ public class NatsJsManage {
 
             action("Make And Use Subscription");
             SubscribeOptions so = SubscribeOptions.builder()
-                    .pullDirect(STREAM1, "GQJ3IvWo", 10)
+//                    .pullDirect(STREAM1, "GQJ3IvWo", 10)
 //                    .configuration(STREAM1, cc)
                     .build();
             printObject(so);
@@ -108,7 +111,7 @@ public class NatsJsManage {
             si = jsm.streamInfo(STREAM1);
             printObject(si);
 
-            JetStreamSubscription sub = js.subscribe(STRM1SUB1, so);
+            JetStreamSubscription sub = js.subscribe(STRM1SUB1, null, so);
             printObject(sub);
 
             action("List Consumers");

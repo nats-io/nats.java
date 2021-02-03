@@ -25,18 +25,18 @@ public abstract class Validator {
         return s;
     }
 
-    public static String validateJsSubscribeSubject(String s) {
-        if (containsWhitespace(s)) {
+    public static String validateJsSubscribeSubjectRequired(String s) {
+        if (nullOrEmpty(s) || containsWhitespace(s)) {
             throw new IllegalArgumentException("Subject cannot have whitespace if provided [" + s + "]");
         }
         return s;
     }
 
-    public static String validateQueueNameRequired(String s) {
-        if (nullOrEmpty(s) || containsWhitespace(s)) {
-            throw new IllegalArgumentException("Queue cannot be null or empty or have whitespace [" + s + "]");
+    public static String validateQueueNameNotRequired(String s) {
+        if (containsWhitespace(s)) {
+            throw new IllegalArgumentException("Queue have whitespace [" + s + "]");
         }
-        return s;
+        return emptyAsNull(s);
     }
 
     public static String validateReplyToNullButNotEmpty(String s) {
@@ -54,7 +54,7 @@ public abstract class Validator {
     }
 
     public static String validateStreamNameNullButNotEmpty(String s) {
-        if (notNullButEmpty(s)) {
+        if (s == null || containsDotWildGt(s)) {
             throw new IllegalArgumentException("Stream cannot contain a '.', '*' or '>' [" + s + "]");
         }
         return validateStreamName(s);
@@ -67,16 +67,9 @@ public abstract class Validator {
         return validateStreamName(s);
     }
 
-    public static String validateConsumerNullButNotEmpty(String s) {
-        if (notNullButEmpty(s) || containsDotWildGt(s)) {
-            throw new IllegalArgumentException("Consumer cannot be blank when provided and cannot contain a '.', '*' or '>' [" + s + "]");
-        }
-        return s;
-    }
-
-    public static String validateDurableRequired(String s) {
+    public static String validateConsumerRequired(String s) {
         if (nullOrEmpty(s) || containsDotWildGt(s)) {
-            throw new IllegalArgumentException("Durable cannot be blank and cannot contain a '.', '*' or '>' [" + s + "]");
+            throw new IllegalArgumentException("Consumer cannot be blank when provided and cannot contain a '.', '*' or '>' [" + s + "]");
         }
         return s;
     }
@@ -88,9 +81,10 @@ public abstract class Validator {
         return s;
     }
 
+    public static final int MAX_PULL_SIZE = 256;
     public static long validatePullBatchSize(long l) {
-        if (l < 0) {
-            throw new IllegalArgumentException("Batch size must be greater than or equal to zero [" + l + "]");
+        if (l < 1 || l > MAX_PULL_SIZE) {
+            throw new IllegalArgumentException("Pull Batch Size must be betweeen 1 and " + MAX_PULL_SIZE + " inclusive [" + l + "]");
         }
         return l;
     }
@@ -100,6 +94,12 @@ public abstract class Validator {
             throw new IllegalArgumentException("Prefix cannot contain a wildcard [" + s + "]");
         }
         return s;
+    }
+
+    public static void mustBeNull(String theOther, String message) {
+        if (theOther != null) {
+            throw new IllegalArgumentException(message);
+        }
     }
 
     public static Object validateNotNull(Object o, String fieldName) {
@@ -175,5 +175,9 @@ public abstract class Validator {
 
     public static boolean containsDot(String s) {
         return s != null && s.indexOf('.') > -1;
+    }
+
+    public static String emptyAsNull(String s) {
+        return nullOrEmpty(s) ? null : s;
     }
 }

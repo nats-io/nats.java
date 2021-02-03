@@ -18,8 +18,7 @@ import org.junit.jupiter.api.Test;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.Validator.validateNotNull;
 import static io.nats.client.support.Validator.validatePullBatchSize;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ValidatorTests {
 
@@ -37,15 +36,18 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateJsSubscribeSubject() {
-        allowed(Validator::validateJsSubscribeSubject, null, EMPTY, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateJsSubscribeSubject, HAS_SPACE);
+    public void testValidateJsSubscribeSubjectRequired() {
+        allowed(Validator::validateJsSubscribeSubjectRequired, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateJsSubscribeSubjectRequired, null, EMPTY, HAS_SPACE);
     }
 
     @Test
-    public void testvalidateQueueNameRequired() {
-        allowed(Validator::validateQueueNameRequired, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateQueueNameRequired, null, EMPTY, HAS_SPACE);
+    public void testvalidateQueueNameNotRequired() {
+        allowed(Validator::validateQueueNameNotRequired, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateQueueNameNotRequired, HAS_SPACE);
+
+        assertNull(Validator.validateQueueNameNotRequired(null), allowedMessage(null));
+        assertNull(Validator.validateQueueNameNotRequired(EMPTY), allowedMessage(null));
     }
 
     @Test
@@ -67,15 +69,15 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateConsumerNullButNotEmpty() {
-        allowed(Validator::validateConsumerNullButNotEmpty, null, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateConsumerNullButNotEmpty, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateStreamNameNullButNotEmpty() {
+        allowed(Validator::validateStreamNameNullButNotEmpty, EMPTY, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateStreamNameNullButNotEmpty, null, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
-    public void testValidateDurableRequired() {
-        allowed(Validator::validateDurableRequired, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateDurableRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateConsumerRequire() {
+        allowed(Validator::validateConsumerRequired, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateConsumerRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
@@ -86,9 +88,11 @@ public class ValidatorTests {
 
     @Test
     public void testValidatePullBatchSize() {
-        assertEquals(0, validatePullBatchSize(0));
         assertEquals(1, validatePullBatchSize(1));
+        assertEquals(Validator.MAX_PULL_SIZE, validatePullBatchSize(Validator.MAX_PULL_SIZE));
+        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(0));
         assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(Validator.MAX_PULL_SIZE + 1));
     }
 
     @Test
@@ -103,13 +107,21 @@ public class ValidatorTests {
 
     private void allowed(StringTest test, String... strings) {
         for (String s : strings) {
-            assertEquals(s, test.validate(s), s + " is allowed");
+            assertEquals(s, test.validate(s), allowedMessage(s));
         }
     }
 
     private void notAllowed(StringTest test, String... strings) {
         for (String s : strings) {
-            assertThrows(IllegalArgumentException.class, () -> test.validate(s), s + " is not allowed.");
+            assertThrows(IllegalArgumentException.class, () -> test.validate(s), notAllowedMessage(s));
         }
+    }
+
+    private String allowedMessage(String s) {
+        return "[" + s + "] is allowed.";
+    }
+
+    private String notAllowedMessage(String s) {
+        return "[" + s + "] is not allowed.";
     }
 }

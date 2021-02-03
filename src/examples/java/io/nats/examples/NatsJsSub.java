@@ -81,7 +81,7 @@ public class NatsJsSub {
                     System.out.printf("  Consumer Name: %s\n", meta.getConsumer());
                     System.out.printf("  Consumer Seq:  %d\n", meta.consumerSequence());
                     
-                    // Because this is a syncronous subscriber, there's no auto-ack. 
+                    // Because this is a synchronous subscriber, there's no auto-ack.
                     // We need to ack the message or it'll be redelivered.  
                     msg.ack();
                 }

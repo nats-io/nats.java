@@ -422,6 +422,14 @@ public class ConsumerConfiguration {
     }
 
     /**
+     * Get an instance of ConsumerConfiguration with all defaults
+     * @return the configuration
+     */
+    public static ConsumerConfiguration defaultConfiguration() {
+        return new Builder().build();
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return a publish options builder
      */
@@ -433,7 +441,7 @@ public class ConsumerConfiguration {
      * ConsumerConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      * 
-     * <p>{@code new ConsumerConfiguration.Builder().build()} will create a new ConsumerConfiguration.
+     * <p>{@code new ConsumerConfiguration.Builder().build()} will create a default ConsumerConfiguration.
      * 
      */
     public static class Builder {
