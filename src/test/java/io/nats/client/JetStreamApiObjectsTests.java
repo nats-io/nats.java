@@ -27,30 +27,6 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamApiObjectsTests {
 
     @Test
-    public void testOptions() {
-        JetStreamOptions jso = JetStreamOptions.defaultOptions();
-        assertNull(jso.getPrefix());
-        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
-
-        jso = JetStreamOptions.builder()
-                .requestTimeout(Duration.ofSeconds(42))
-                .prefix("pre")
-                .build();
-        assertEquals("pre", jso.getPrefix());
-        assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
-    }
-
-    @Test
-    public void testInvalidPrefix() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            JetStreamOptions.builder().prefix(">").build();
-        });
-        assertThrows(IllegalArgumentException.class, () -> {
-            JetStreamOptions.builder().prefix("*").build();
-        });
-    }
-
-    @Test
     public void testAccountLimitImpl() {
         String json = dataAsString("AccountLimitImpl.json");
         NatsJetStreamAccountLimits ali = new NatsJetStreamAccountLimits(json);

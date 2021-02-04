@@ -22,8 +22,6 @@ import static io.nats.client.support.Validator.*;
 public class SubscribeOptions {
 
     private final String stream;
-    private final String durable;
-    private final String deliverSubject;
     private final ConsumerConfiguration consumerConfig;
 
     private SubscribeOptions() {
@@ -34,11 +32,17 @@ public class SubscribeOptions {
                              ConsumerConfiguration consumerConfig) {
 
         this.stream = stream;
-        this.durable = durable;
-        this.deliverSubject = deliverSubject;
+
         this.consumerConfig = (consumerConfig == null)
                 ? ConsumerConfiguration.defaultConfiguration()
                 : consumerConfig;
+
+        if (durable != null) {
+            this.consumerConfig.setDurable(durable);
+        }
+        if (deliverSubject != null) {
+            this.consumerConfig.setDeliverSubject(deliverSubject);
+        }
     }
 
     /**
@@ -49,12 +53,20 @@ public class SubscribeOptions {
         return stream;
     }
 
+    /**
+     * Gets the durable consumer name held in the consumer configuration.
+     * @return the durable consumer name
+     */
     public String getDurable() {
-        return durable;
+        return consumerConfig.getDurable();
     }
 
+    /**
+     * Gets the deliver subject held in the consumer configuration.
+     * @return the Deliver subject
+     */
     public String getDeliverSubject() {
-        return deliverSubject;
+        return consumerConfig.getDeliverSubject();
     }
 
     /**
@@ -76,15 +88,13 @@ public class SubscribeOptions {
             return new SubscribeOptions();
         }
 
-        return new SubscribeOptions(options.stream, options.durable, options.deliverSubject, options.consumerConfig);
+        return new SubscribeOptions(options.stream, options.getDurable(), options.getDeliverSubject(), options.consumerConfig);
     }
 
     @Override
     public String toString() {
         return "SubscribeOptions{" +
                 "stream='" + stream + '\'' +
-                ", durable='" + durable + '\'' +
-                ", deliverSubject='" + deliverSubject + '\'' +
                 ", " + consumerConfig +
                 '}';
     }
@@ -127,7 +137,7 @@ public class SubscribeOptions {
          * @return the builder
          */
         public Builder durable(String durable) {
-            this.durable = validateConsumerRequired(durable);
+            this.durable = validateDurableRequired(durable);
             return this;
         }
 

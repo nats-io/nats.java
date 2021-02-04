@@ -405,7 +405,7 @@ public class StreamConfiguration {
     }
 
     /**
-     * Gets whether or not acknowedgements are required in this stream configuration.
+     * Gets whether or not acknowledgements are required in this stream configuration.
      * @return true if acknowedgments are not required.
      */
     public boolean getNoAck() {
@@ -579,9 +579,9 @@ public class StreamConfiguration {
         } 
 
         /**
-         * Sets the acknowedgement mode of the StreamConfiguration.  if no acknowedgements are
-         * set, then acknowedgements are not sent back to the client.  The default is false.
-         * @param noAck true to disable acknowedgements.
+         * Sets the acknowedgement mode of the StreamConfiguration.  if no acknowledgements are
+         * set, then acknowledgements are not sent back to the client.  The default is false.
+         * @param noAck true to disable acknowledgements.
          * @return Builder
          */        
         public Builder noAck(boolean noAck) {

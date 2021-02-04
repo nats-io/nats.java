@@ -75,9 +75,9 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateConsumerRequire() {
-        allowed(Validator::validateConsumerRequired, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateConsumerRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateDurableRequire() {
+        allowed(Validator::validateDurableRequired, PLAIN, HAS_SPACE, HAS_DASH);
+        notAllowed(Validator::validateDurableRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test

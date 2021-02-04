@@ -316,7 +316,6 @@ public class ConsumerConfiguration {
         return sb.toString();
     }
 
-    
     /**
      * Sets the durable name of the configuration.
      * @param value name of the durable
@@ -419,6 +418,39 @@ public class ConsumerConfiguration {
      */      
     public long getRateLimit() {
         return rateLimit;
+    }
+
+    /**
+     * Sets the filter subject of the configuration.
+     * @param subject filter subject.
+     */
+    public void setFilterSubject(String subject) {
+        this.filterSubject = subject;
+    }
+
+    /**
+     * Gets the maximum ack pending configuration.
+     * @return maxumum ack pending.
+     */
+    public long getMaxAckPending() {
+        return maxAckPending;
+    }
+
+    /**
+     * Sets the maximum ack pending.
+     * @param maxAckPending maximum pending acknowledgements.
+     */
+    public void setMaxAckPending(long maxAckPending) {
+        this.maxAckPending = maxAckPending;
+    }
+
+    /**
+     * Gets the maximum waiting acknowledgements.
+     *
+     * @return the max waiting value
+     */
+    public long getMaxWaiting() {
+        return maxWaiting;
     }
 
     /**
@@ -625,39 +657,6 @@ public class ConsumerConfiguration {
         }
     }
 
-    /**
-     * Sets the filter subject of the configuration.
-     * @param subject filter subject.
-     */
-	public void setFilterSubject(String subject) {
-        this.filterSubject = subject;
-	}
-
-    /**
-     * Gets the maximum ack pending configuration.
-     * @return maxumum ack pending.
-     */
-	public long getMaxAckPending() {
-	    return maxAckPending;
-	}
-
-    /**
-     * Sets the maximum ack pending.
-     * @param maxAckPending maximum pending acknowledgements.
-     */
-	public void setMaxAckPending(long maxAckPending) {
-        this.maxAckPending = maxAckPending;
-    }
-    
-    /**
-     * Gets the maximum waiting acknowedgements.
-     *
-     * @return the max waiting value
-     */
-	public long getMaxWaiting() {
-        return maxWaiting;
-	}
-
     @Override
     public String toString() {
         return "ConsumerConfiguration{" +
@@ -676,5 +675,30 @@ public class ConsumerConfiguration {
                 ", maxWaiting=" + maxWaiting +
                 ", maxAckPending=" + maxAckPending +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ConsumerConfiguration that = (ConsumerConfiguration) o;
+
+        if (startSeq != that.startSeq) return false;
+        if (maxDeliver != that.maxDeliver) return false;
+        if (rateLimit != that.rateLimit) return false;
+        if (maxWaiting != that.maxWaiting) return false;
+        if (maxAckPending != that.maxAckPending) return false;
+        if (durable != null ? !durable.equals(that.durable) : that.durable != null) return false;
+        if (deliverPolicy != that.deliverPolicy) return false;
+        if (deliverSubject != null ? !deliverSubject.equals(that.deliverSubject) : that.deliverSubject != null)
+            return false;
+        if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
+        if (ackPolicy != that.ackPolicy) return false;
+        if (ackWait != null ? !ackWait.equals(that.ackWait) : that.ackWait != null) return false;
+        if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
+            return false;
+        if (replayPolicy != that.replayPolicy) return false;
+        return sampleFrequency != null ? sampleFrequency.equals(that.sampleFrequency) : that.sampleFrequency == null;
     }
 }

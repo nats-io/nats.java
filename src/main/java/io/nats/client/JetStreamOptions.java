@@ -23,12 +23,14 @@ import static io.nats.client.support.Validator.validateJetStreamPrefix;
  */
 public class JetStreamOptions {
 
+    public static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
+
     private final String prefix;
     private final Duration requestTimeout;
 
     public JetStreamOptions(String prefix, Duration requestTimeout) {
         this.prefix = validateJetStreamPrefix(prefix);
-        this.requestTimeout = requestTimeout == null ? Options.DEFAULT_CONNECTION_TIMEOUT : requestTimeout;
+        this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
     }
 
     public static JetStreamOptions createOrCopy(JetStreamOptions options) {

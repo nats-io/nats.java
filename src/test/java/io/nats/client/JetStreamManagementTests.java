@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.time.LocalTime;
+import java.time.ZonedDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,11 +36,11 @@ public class JetStreamManagementTests {
     @Test
     public void addStream() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
-            LocalTime now = LocalTime.now();
+            long now = ZonedDateTime.now().toEpochSecond();
 
             JetStreamManagement jsm = nc.jetStreamManagement();
             StreamInfo si = addTestStream(jsm);
-            assertTrue(now.isBefore(si.getCreateTime().toLocalTime()));
+            assertTrue(now <= si.getCreateTime().toEpochSecond());
 
             StreamConfiguration sc = si.getConfiguration();
             assertNotNull(sc);

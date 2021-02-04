@@ -10,22 +10,25 @@ import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStreamConstants {
 
-    private static final PublishOptions DEFAULT_PUB_OPTS = PublishOptions.builder().build();
-    private static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
-
     private static final String msgIdHdr             = "Nats-Msg-Id";
     private static final String expectedStreamHdr    = "Nats-Expected-Stream";
     private static final String expectedLastSeqHdr   = "Nats-Expected-Last-Sequence";
     private static final String expectedLastMsgIdHdr = "Nats-Expected-Last-Msg-Id";
 
     private final NatsConnection conn;
-    private final JetStreamOptions jsOptions;
     private final String prefix;
+    private final Duration requestTimeout;
 
-    NatsJetStream(NatsConnection connection, JetStreamOptions inJsOptions) throws IOException {
-        jsOptions = JetStreamOptions.createOrCopy(inJsOptions);
+    NatsJetStream(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         conn = connection;
-        prefix = jsOptions.getPrefix();
+        if (jsOptions == null) {
+            prefix = null;
+            requestTimeout = JetStreamOptions.DEFAULT_TIMEOUT;
+        }
+        else {
+            prefix = jsOptions.getPrefix();
+            requestTimeout = jsOptions.getRequestTimeout();
+        }
 
         // override request style.
         conn.getOptions().setOldRequestStyle(true);
@@ -36,7 +39,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     private void checkEnabled() throws IOException {
         try {
             JetStreamApiResponse jsApiResp = null;
-            Message respMessage = conn.request(appendPrefix(JSAPI_ACCOUNT_INFO), null, DEFAULT_TIMEOUT);
+            Message respMessage = conn.request(appendPrefix(JSAPI_ACCOUNT_INFO), null, requestTimeout);
             if (respMessage != null) {
                 jsApiResp = new JetStreamApiResponse(respMessage);
             }
@@ -93,14 +96,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
 
         String subj = String.format(template, streamName);
-        Message resp = makeRequestResponseRequired(subj, config.toJSON().getBytes(), DEFAULT_TIMEOUT);
+        Message resp = makeRequestResponseRequired(subj, config.toJSON().getBytes(), requestTimeout);
         return new StreamInfo(extractApiResponseThrowOnError(resp).getResponse());
     }
 
     @Override
     public void deleteStream(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_DELETE, streamName);
-        extractApiResponseThrowOnError( makeRequestResponseRequired(subj, null, DEFAULT_TIMEOUT) );
+        extractApiResponseThrowOnError( makeRequestResponseRequired(subj, null, requestTimeout) );
     }
 
     /**
@@ -109,7 +112,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public StreamInfo streamInfo(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, DEFAULT_TIMEOUT);
+        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
         return new StreamInfo(extractJsonThrowOnError(resp));
     }
 
@@ -119,7 +122,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public StreamInfo purgeStream(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, DEFAULT_TIMEOUT);
+        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
         return new StreamInfo(extractJsonThrowOnError(resp));
     }
 
@@ -148,7 +151,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public void deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumer);
-        extractApiResponseThrowOnError( makeRequestResponseRequired(subj, null, DEFAULT_TIMEOUT) );
+        extractApiResponseThrowOnError( makeRequestResponseRequired(subj, null, requestTimeout) );
     }
 
     /**
@@ -157,7 +160,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public ConsumerLister getConsumers(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_LIST, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, DEFAULT_TIMEOUT);
+        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
         return new ConsumerLister(extractJsonThrowOnError(resp));
     }
 
@@ -258,37 +261,41 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
         NatsMessage natsMessage = message instanceof NatsMessage ? (NatsMessage)message : new NatsMessage(message);
 
-        PublishOptions opts;
+        Duration timeout;
+        String pubStream = null;
+
         if (options == null) {
-            opts = DEFAULT_PUB_OPTS;
-        } else {
-            opts = options;
+            timeout = requestTimeout;
+        }
+        else {
+            timeout = options.getStreamTimeout();
+            pubStream = options.getStream();
 
             Headers headers = natsMessage.getOrCreateHeaders();
 
             // we know no headers are set with default options
-            long seqno = opts.getExpectedLastSequence();
+            long seqno = options.getExpectedLastSequence();
             if (seqno > 0) {
                 headers.add(expectedLastSeqHdr, Long.toString(seqno));
             }
 
-            String s = opts.getExpectedLastMsgId();
+            String s = options.getExpectedLastMsgId();
             if (s != null) {
                 headers.add(expectedLastMsgIdHdr, s);
             }
 
-            s = opts.getExpectedStream();
+            s = options.getExpectedStream();
             if (s != null) {
                 headers.add(expectedStreamHdr, s);
             }
 
-            s = opts.getMessageId();
+            s = options.getMessageId();
             if (s != null) {
                 headers.add(msgIdHdr, s);
             }
         }
 
-        Message resp = makeRequestResponseRequired(natsMessage, opts.getStreamTimeout());
+        Message resp = makeRequestResponseRequired(natsMessage, timeout);
         NatsPublishAck ack = new NatsPublishAck(resp.getData());
 
         String ackStream = ack.getStream();
@@ -296,7 +303,6 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             throw new IOException("Invalid JetStream ack.");
         }
 
-        String pubStream = opts.getStream();
         if (isStreamSpecified(pubStream) && !pubStream.equals(ackStream)) {
             throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
         }
@@ -310,7 +316,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
     ConsumerInfo lookupConsumerInfo(String stream, String consumer) throws IOException, JetStreamApiException {
         String ccInfoSubj = String.format(JSAPI_CONSUMER_INFO, stream, consumer);
-        Message resp = makeRequestResponseRequired(ccInfoSubj, null, DEFAULT_TIMEOUT);
+        Message resp = makeRequestResponseRequired(ccInfoSubj, null, requestTimeout);
         JetStreamApiResponse jsApiResp = extractApiResponse(resp);
         if (jsApiResp.hasError()) {
             if (jsApiResp.getErrorCode() == 404) {
@@ -327,7 +333,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
         String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
 
-        Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), DEFAULT_TIMEOUT);
+        Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), requestTimeout);
 
         String[] streams = JsonUtils.parseStringArray("streams", extractJsonThrowOnError(resp));
         if (streams.length != 1) {
@@ -347,9 +353,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         @Override
         public void onMessage(Message msg) throws InterruptedException {
             try  {
-                if (userMH != null) {
-                    userMH.onMessage(msg);
-                }
+                userMH.onMessage(msg);
                 msg.ack();
             } catch (Exception e) {
                 // TODO ignore??  schedule async error?
@@ -428,7 +432,6 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         // if we're updating or creating the consumer, give it a go here.
         if (shouldCreate) {
             // Defaults should set the right ack pending.
-
             // if we have acks and the maxAckPending is not set, set it
             // to the internal Max.
             // TODO: too high value?

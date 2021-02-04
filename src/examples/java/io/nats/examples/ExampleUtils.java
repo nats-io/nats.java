@@ -126,6 +126,7 @@ public class ExampleUtils {
             // ignore
         }
     }
+
     private static void usage(String usageString) {
         System.out.println(usageString);
         System.exit(-1);

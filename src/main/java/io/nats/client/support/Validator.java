@@ -67,7 +67,7 @@ public abstract class Validator {
         return validateStreamName(s);
     }
 
-    public static String validateConsumerRequired(String s) {
+    public static String validateDurableRequired(String s) {
         if (nullOrEmpty(s) || containsDotWildGt(s)) {
             throw new IllegalArgumentException("Consumer cannot be blank when provided and cannot contain a '.', '*' or '>' [" + s + "]");
         }
