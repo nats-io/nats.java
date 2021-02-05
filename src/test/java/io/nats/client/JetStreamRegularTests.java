@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.JetStreamApiException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -22,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamRegularTests extends JetStreamTestBase {
 
     @Test
-    public void testJetStreamStrict() throws Exception {
+    public void testJetEnabled() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, false); Connection nc = Nats.connect(ts.getURI())) {
             IllegalStateException ise = assertThrows(IllegalStateException.class, nc::jetStream);
             assertEquals("JetStream is not enabled.", ise.getMessage());
@@ -68,5 +69,36 @@ public class JetStreamRegularTests extends JetStreamTestBase {
         });
     }
 
+    @Test
+    public void testNoMatchingStreams() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+            IllegalStateException ise = assertThrows(IllegalStateException.class, () -> js.subscribe(SUBJECT));
+        });
+    }
+
+    @Test
+    public void testConsumerInPullModeRequiresExplicitAckPolicy() throws Exception {
+        runInJsServer(nc -> {
+            createTestStream(nc);
+            JetStream js = nc.jetStream();
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .ackPolicy(ConsumerConfiguration.AckPolicy.All).build();
+            PullSubscribeOptions pullOptsAll = PullSubscribeOptions.builder()
+                    .defaultBatchSize(1)
+                    .durable(DURABLE)
+                    .configuration(cc).build();
+            assertThrows(JetStreamApiException.class, () -> js.subscribe(SUBJECT, pullOptsAll));
+
+            cc = ConsumerConfiguration.builder()
+                    .ackPolicy(ConsumerConfiguration.AckPolicy.None).build();
+            PullSubscribeOptions pullOptsNone = PullSubscribeOptions.builder()
+                    .defaultBatchSize(1)
+                    .durable(DURABLE)
+                    .configuration(cc).build();
+            assertThrows(JetStreamApiException.class, () -> js.subscribe(SUBJECT, pullOptsNone));
+        });
+    }
 
 }

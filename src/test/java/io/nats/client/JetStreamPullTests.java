@@ -20,8 +20,6 @@ import java.time.Duration;
 
 public class JetStreamPullTests extends JetStreamTestBase {
 
-    static final boolean TEMP_PULL_IS_WORKING = false;
-
     @Test
     public void testPull() throws Exception {
 
@@ -33,14 +31,14 @@ public class JetStreamPullTests extends JetStreamTestBase {
             ExampleUtils.createTestStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().batchSize(10).durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
 
-            // Subscribe synchronously. The subscription does the first sub.pull for us
+            // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish some amount of messages, but not entire pull size
-            int demoMessageNumber = publish(js, SUBJECT, 4, 0);
+            publish(js, SUBJECT, 0, 4);
 
             // start the pull
             sub.pull();
@@ -50,41 +48,18 @@ public class JetStreamPullTests extends JetStreamTestBase {
             int total = red;
             validateRedAndTotal(4, red, 4, total);
 
-            if (!TEMP_PULL_IS_WORKING) return;
-
             // publish some more covering our initial pull and more
-            demoMessageNumber = publish(js, SUBJECT, 20, demoMessageNumber);
+            publish(js, SUBJECT, 5, 20);
 
             // read what is available, expect 6 more
             red = readMessagesAck(sub);
             total += red;
-            validateRedAndTotal(6, red, 10, total);
+            validateRedAndTotal(20, red, 24, total);
 
-            // read what is available, but we have not polled, we should not get any more messages
+            // read what is available
             red = readMessagesAck(sub);
             total += red;
-            validateRedAndTotal(0, red, 10, total);
-
-            // pull more
-            sub.pull();
-
-            // read what is available, expect 10
-            red = readMessagesAck(sub);
-            total += red;
-            validateRedAndTotal(10, red, 20, total);
-
-            // read what is available, but we have not polled, we should not get any more messages
-            red = readMessagesAck(sub);
-            total += red;
-            validateRedAndTotal(0, red, 20, total);
-
-            // pull more
-            sub.pull();
-
-            // read what is available, expect 4
-            red = readMessagesAck(sub);
-            total += red;
-            validateRedAndTotal(4, red, 24, total);
+            validateRedAndTotal(0, red, 24, total);
         });
     }
 }

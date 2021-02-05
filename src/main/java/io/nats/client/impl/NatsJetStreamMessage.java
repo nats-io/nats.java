@@ -18,20 +18,30 @@ import io.nats.client.MessageMetaData;
 import io.nats.client.impl.NatsMessage.SelfCalculatingMessage;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.TimeoutException;
+
+import static io.nats.client.impl.NatsJetStreamMessage.AckType.*;
+import static io.nats.client.support.Validator.validateDurationRequired;
 
 class NatsJetStreamMessage extends SelfCalculatingMessage {
 
-    // Acknowledgement protocol messages
-    private static final byte[] AckAck = "+ACK".getBytes();
-    private static final byte[] AckNak = "-NAK".getBytes();
-    private static final byte[] AckProgress = "+WPI".getBytes();
+    enum AckType {
+        // Acknowledgement protocol messages
+        AckAck("+ACK"),
+        AckNak("-NAK"),
+        AckProgress("+WPI"),
 
-    // special case
-    private static final byte[] AckNext = "+NXT".getBytes();
-    private static final byte[] AckTerm = "+TERM".getBytes();
-    private static final byte[] AckNextOne = "+NXT {\"batch\":1}".getBytes();
+        // special case
+        AckNext("+NXT"),
+        AckTerm("+TERM"),
+        AckNextOne("+NXT {\"batch\":1}");
+
+        final byte[] body;
+
+        AckType(String body) {
+            this.body = body.getBytes();
+        }
+    }
 
     private NatsJetStreamMetaData jsMetaData = null;
 
@@ -48,7 +58,7 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
 
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
-        ackReply(AckAck, d);
+        ackReply(AckAck, validateDurationRequired(d));
     }
 
     @Override
@@ -79,9 +89,9 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
         return true;
     }
 
-    private void ackReply(byte[] ackType) {
+    private void ackReply(AckType ackType) {
         try {
-            ackReply(ackType, Duration.ZERO);
+            ackReply(ackType, null);
         } catch (InterruptedException e) {
             // we should never get here, but satisfy the linters.
             Thread.currentThread().interrupt();
@@ -90,36 +100,45 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
         }
     }
 
-    private void ackReply(byte[] ackType, Duration d) throws InterruptedException, TimeoutException {
-        if (d == null) {
-            throw new IllegalArgumentException("Duration cannot be null.");
-        }
+    private void ackReply(AckType ackType, Duration dur) throws InterruptedException, TimeoutException {
 
-        boolean isSync = (d != Duration.ZERO);
+        // all calls to this must pre-validate the duration
+        // this is internal only code and makes this assumption
+        boolean isSync = (dur != null);
+
         Connection nc = getJetStreamValidatedConnection();
 
         if (isPullMode()) {
-            if (Arrays.equals(ackType, AckAck)) {
-                nc.publish(replyTo, subscription.getSubject(), AckNext);
-            } else if (Arrays.equals(ackType, AckNak) || Arrays.equals(ackType, AckTerm)) {
-                nc.publish(replyTo, subscription.getSubject(), AckNextOne);
+            switch (ackType) {
+                case AckAck:
+                    nc.publish(replyTo, subscription.getSubject(), AckNext.body);
+                    break;
+
+                case AckNak:
+                    nc.publish(replyTo, subscription.getSubject(), AckNextOne.body);
+                    break;
+
+                case AckTerm:
+                    nc.publish(replyTo, subscription.getSubject(), AckNextOne.body);
+                    break;
             }
-            if (isSync && nc.request(replyTo, null, d) == null) {
+            if (isSync && nc.request(replyTo, null, dur) == null) {
                 throw new TimeoutException("Ack request next timed out.");
             }
-
-        } else if (isSync && nc.request(replyTo, ackType, d) == null) {
-            throw new TimeoutException("Ack response timed out.");
-        } else {
-            nc.publish(replyTo, ackType);
+        }
+        else if (isSync) {
+            if (nc.request(replyTo, ackType.body, dur) == null) {
+                throw new TimeoutException("Ack response timed out.");
+            }
+        }
+        else {
+            nc.publish(replyTo, ackType.body);
         }
     }
 
     private boolean isPullMode() {
-        if (!(this.subscription instanceof NatsJetStreamSubscription)) {
-            return false;
-        }
-        return (((NatsJetStreamSubscription) this.subscription).batchSize > 0);
+        return subscription instanceof NatsJetStreamSubscription
+                && (((NatsJetStreamSubscription) subscription).defaultBatchSize > 0);
     }
 
     private Connection getJetStreamValidatedConnection() {

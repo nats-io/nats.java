@@ -19,6 +19,8 @@ import io.nats.client.JetStreamSubscription;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 
+import static io.nats.client.support.Validator.validatePullBatchSize;
+
 /**
  * This is a JetStream specific subscription.
  */
@@ -28,21 +30,21 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     String consumer;
     String stream;
     String deliver;
-    int batchSize;
-    boolean noWait;
+    int defaultBatchSize;
+    boolean defaultNoWait;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(sid, subject, queueName, connection, dispatcher);
     }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, int batchSize, boolean noWait) {
+    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, int defaultBatchSize, boolean defaultNoWait) {
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.batchSize = batchSize;
-        this.noWait = noWait;
+        this.defaultBatchSize = defaultBatchSize;
+        this.defaultNoWait = defaultNoWait;
     }
 
     /**
@@ -50,7 +52,23 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pull() {
-        pull(null);
+        pull(null, null, null); // nulls mean use default
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pull(int batchSize) {
+        pull(batchSize, null, null); // nulls mean use default
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pull(boolean noWait) {
+        pull(null, noWait, null); // nulls mean use default
     }
 
     /**
@@ -58,17 +76,27 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pull(ZonedDateTime expires) {
-        if (batchSize <= 0) {
+        pull(null, null, expires); // nulls mean use default
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pull(Integer batchSize, Boolean noWait, ZonedDateTime expires) {
+        if (defaultBatchSize <= 0) {
             throw new IllegalStateException("Subscription type does not support pull.");
         }
 
-        String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
+        int batch = (batchSize == null) ? defaultBatchSize : validatePullBatchSize(batchSize);
 
         StringBuilder sb = JsonUtils.beginJson();
         JsonUtils.addFld(sb, "expires", expires);
-        JsonUtils.addFld(sb, "batch", batchSize);
-        JsonUtils.addFld(sb, "no_wait", noWait);
+        JsonUtils.addFld(sb, "batch", batch);
+        JsonUtils.addFld(sb, "no_wait", (noWait == null) ? defaultNoWait : noWait);
         byte[] payload = JsonUtils.endJson(sb).toString().getBytes();
+
+        String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
         connection.publish(subj, getSubject(), payload);
     }
 
@@ -86,7 +114,8 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 "consumer='" + consumer + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
-                ", pull=" + batchSize +
+                ", defaultBatchSize=" + defaultBatchSize +
+                ", defaultNoWait=" + defaultNoWait +
                 '}';
     }
 }

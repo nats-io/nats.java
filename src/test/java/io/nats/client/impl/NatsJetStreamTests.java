@@ -45,8 +45,9 @@ public class NatsJetStreamTests {
 
         assertThrows(IllegalArgumentException.class, () -> msg.ackSync(null));
 
-        // coverage of isSync flag
-        assertThrows(IllegalStateException.class, () -> msg.ackSync(Duration.ZERO));
+        // cannot ackSync with no or negative duration
+        assertThrows(IllegalArgumentException.class, () -> msg.ackSync(Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> msg.ackSync(Duration.ofSeconds(-1)));
 
         assertThrows(IllegalStateException.class, () -> msg.ackSync(Duration.ofSeconds(1)));
     }

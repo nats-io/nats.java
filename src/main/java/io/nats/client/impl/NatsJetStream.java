@@ -374,14 +374,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         // setup the configuration, use a default.
         String stream;
         ConsumerConfiguration workingCC;
-        int batchSize = 0;
-        boolean noWait = false;
+        int defaultBatchSize = 0;
+        boolean defaultNoWait = false;
 
         if (isPullMode) {
             stream = pullSubscribeOptions.getStream();
             workingCC = pullSubscribeOptions.getConsumerConfiguration();
-            batchSize = pullSubscribeOptions.getBatchSize();
-            noWait = pullSubscribeOptions.isNoWait();
+            defaultBatchSize = pullSubscribeOptions.getDefaultBatchSize();
+            defaultNoWait = pullSubscribeOptions.getDefaultNoWait();
         }
         else if (pushSubscribeOptions == null) {
             stream = null;
@@ -471,11 +471,11 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                 sub.unsubscribe();
                 throw e;
             }
-            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, batchSize, noWait);
+            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, defaultBatchSize, defaultNoWait);
         }
         // 7-Exists.
         else {
-            sub.setupJetStream(this, durable, stream, inbox, batchSize, noWait);
+            sub.setupJetStream(this, durable, stream, inbox, defaultBatchSize, defaultNoWait);
         }
 
         return sub;

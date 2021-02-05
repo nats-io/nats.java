@@ -24,17 +24,45 @@ import java.time.ZonedDateTime;
 public interface JetStreamSubscription extends Subscription {
 
     /**
-     * Polls for new messages.  This should only be used when the subscription
+     * Polls for new messages. This should only be used when the subscription
      * is pull based.
      */
     void pull();
 
     /**
+     * Polls for new messages, overriding the default batch size.
+     * This should only be used when the subscription is pull based.
+     *
+     * @param batchSize the size of the batch
+     */
+    void pull(int batchSize);
+
+    /**
+     * Polls for new messages overriding the default noWait flag.
+     * When true a response with a 404 status header will be returned
+     * when no messages are available.
+     * This should only be used when the subscription is pull based.
+     *
+     * @param noWait the flag
+     */
+    void pull(boolean noWait);
+
+    /**
      * Polls for new messages, sets an expire time.
      * This should only be used when the subscription is pull based.
+     *
      * @param expires the time when this request should be expired from the server wait list
      */
     void pull(ZonedDateTime expires);
+
+    /**
+     * Polls for new messages optionally overriding the defaults
+     * This should only be used when the subscription is pull based.
+     *  @param batchSize optional size of the batch, overrides the default
+     * @param noWait optional. Use default if not supplied.
+     * @param expires optional expires. No expires if not supplied.
+     */
+    void pull(Integer batchSize, Boolean noWait, ZonedDateTime expires);
 
     /**
      * Gets information about the consumer behind this subscription.

@@ -13,6 +13,7 @@
 
 package io.nats.client.support;
 
+import java.time.Duration;
 import java.util.regex.Pattern;
 
 public abstract class Validator {
@@ -78,16 +79,19 @@ public abstract class Validator {
         return s;
     }
 
-    public static String validateDeliverSubjectOrEmptyAsNull(String s) {
-        return emptyAsNull(s);
-    }
-
     public static final int MAX_PULL_SIZE = 256;
     public static int validatePullBatchSize(int pullBatchSize) {
         if (pullBatchSize < 1 || pullBatchSize > MAX_PULL_SIZE) {
             throw new IllegalArgumentException("Pull Batch Size must be between 1 and " + MAX_PULL_SIZE + " inclusive [" + pullBatchSize + "]");
         }
         return pullBatchSize;
+    }
+
+    public static Duration validateDurationRequired(Duration d) {
+        if (d == null || d.isZero() || d.isNegative()) {
+            throw new IllegalArgumentException("Duration required and must be greater than 0.");
+        }
+        return d;
     }
 
     public static String validateJetStreamPrefix(String s) {

@@ -277,11 +277,6 @@ public abstract class JsonUtils {
         return RFC3339_FORMATTER.format(temporal);
     }
 
-    public static void main(String[] args) {
-        ZonedDateTime zdt = ZonedDateTime.now();
-        System.out.println(toRfc3339(zdt));
-    }
-
     /**
      * Parses a date time from the server.
      * @param dateTime - date time from the server.

@@ -54,19 +54,26 @@ public class JetStreamTestBase {
         return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
-    protected static int publish(JetStream js, String subject, int times, int seq) throws IOException, JetStreamApiException {
-        for (int x = 0; x < times; x++) {
+    protected static void publish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
+        for (int x = 0; x < count; x++) {
             Message msg = NatsMessage.builder()
                     .subject(subject)
-                    .data((data(++seq)).getBytes(StandardCharsets.US_ASCII))
+                    .data((data(startId++)).getBytes(StandardCharsets.US_ASCII))
                     .build();
             js.publish(msg);
         }
-        return seq;
     }
 
-    protected static void publish(Connection nc, String subject, int times, int seq) throws IOException, JetStreamApiException {
-        publish(nc.jetStream(), subject, times, seq);
+    protected static void publish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
+        publish(js, subject, 1, count);
+    }
+
+    protected static void publish(Connection nc, String subject, int count) throws IOException, JetStreamApiException {
+        publish(nc.jetStream(), subject, 1, count);
+    }
+
+    protected static void publish(Connection nc, String subject, int startId, int count) throws IOException, JetStreamApiException {
+        publish(nc.jetStream(), subject, startId, count);
     }
 
     protected static PublishAck publish(JetStream js) throws IOException, JetStreamApiException {

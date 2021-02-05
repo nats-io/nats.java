@@ -17,8 +17,6 @@ import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -196,9 +194,7 @@ public class ConsumerConfiguration {
 
         m = startTimeRE.matcher(json);
         if (m.find()) {
-            // Instant can parse rfc 3339... we're making a time zone assumption.
-            Instant inst = Instant.parse(m.group(1));
-            this.startTime = ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
+            this.startTime = JsonUtils.parseDateTime(m.group(1));
         }
 
         m = ackPolicyRE.matcher(json);

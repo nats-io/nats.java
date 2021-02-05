@@ -19,7 +19,7 @@ import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JetStreamOptionObjectsTests {
+public class JetStreamOptionObjectsTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamOptions() {
@@ -37,31 +37,72 @@ public class JetStreamOptionObjectsTests {
 
     @Test
     public void testJetStreamOptionsInvalidPrefix() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            JetStreamOptions.builder().prefix(">").build();
-        });
-        assertThrows(IllegalArgumentException.class, () -> {
-            JetStreamOptions.builder().prefix("*").build();
-        });
+        assertThrows(IllegalArgumentException.class, () -> JetStreamOptions.builder().prefix(">").build());
+        assertThrows(IllegalArgumentException.class, () -> JetStreamOptions.builder().prefix("*").build());
     }
 
     @Test
-    public void testSubscribeOptions() {
-        PushSubscribeOptions so = PushSubscribeOptions.builder()
-                .stream("strm")
-                .durable("drbl")
-                .deliverSubject("dlvrsbjct")
+    public void testPushSubscribeOptions() {
+        PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
+
+        PushSubscribeOptions so = builder.build();
+
+        // starts out all null which is fine
+        assertNull(so.getStream());
+        assertNull(so.getDurable());
+        assertNull(so.getDeliverSubject());
+
+        so = builder.stream(STREAM).durable(DURABLE).deliverSubject(DELIVER).build();
+
+        assertEquals(STREAM, so.getStream());
+        assertEquals(DURABLE, so.getDurable());
+        assertEquals(DELIVER, so.getDeliverSubject());
+
+        // demonstrate that you can clear the builder
+        so = builder.stream(null).deliverSubject(null).durable(null).build();
+        assertNull(so.getStream());
+        assertNull(so.getDurable());
+        assertNull(so.getDeliverSubject());
+
+        PushSubscribeOptions.Builder fieldError = PushSubscribeOptions.builder();
+        assertThrows(IllegalArgumentException.class, () -> fieldError.stream("foo."));
+        assertThrows(IllegalArgumentException.class, () -> fieldError.durable("foo."));
+    }
+
+    @Test
+    public void testPullSubscribeOptions() {
+        PullSubscribeOptions so = PullSubscribeOptions.builder()
+                .defaultBatchSize(1)
+                .defaultNoWait(true)
+                .stream(STREAM)
+                .durable(DURABLE)
                 .build();
 
-        assertEquals("strm", so.getStream());
-        assertEquals("drbl", so.getDurable());
-        assertEquals("dlvrsbjct", so.getDeliverSubject());
+        assertEquals(1, so.getDefaultBatchSize());
+        assertTrue(so.getDefaultNoWait());
+        assertEquals(STREAM, so.getStream());
+        assertEquals(DURABLE, so.getDurable());
+
+        PullSubscribeOptions.Builder buildError = PullSubscribeOptions.builder();
+        assertThrows(IllegalArgumentException.class, buildError::build);
+        buildError.defaultBatchSize(1); // need batch size
+        assertThrows(IllegalArgumentException.class, buildError::build);
+        buildError.durable(DURABLE); // also need durable
+        buildError.build();
+
+        PullSubscribeOptions.Builder fieldError = PullSubscribeOptions.builder();
+        assertThrows(IllegalArgumentException.class, () -> fieldError.defaultBatchSize(0));
+        assertThrows(IllegalArgumentException.class, () -> fieldError.defaultBatchSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> fieldError.defaultBatchSize(257));
+        assertThrows(IllegalArgumentException.class, () -> fieldError.stream("foo."));
+        assertThrows(IllegalArgumentException.class, () -> fieldError.durable(null));
+        assertThrows(IllegalArgumentException.class, () -> fieldError.durable("foo."));
     }
 
     @Test
     public void testPublishOptions() {
         PublishOptions po = PublishOptions.builder()
-                .stream("strm")
+                .stream(STREAM)
                 .streamTimeout(Duration.ofSeconds(42))
                 .expectedStream("expectedStream")
                 .expectedLastMsgId("expectedLastMsgId")
@@ -69,7 +110,7 @@ public class JetStreamOptionObjectsTests {
                 .messageId("messageId")
                 .build();
 
-        assertEquals("strm", po.getStream());
+        assertEquals(STREAM, po.getStream());
         assertEquals(Duration.ofSeconds(42), po.getStreamTimeout());
         assertEquals("expectedStream", po.getExpectedStream());
         assertEquals("expectedLastMsgId", po.getExpectedLastMsgId());

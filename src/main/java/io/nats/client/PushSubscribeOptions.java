@@ -136,7 +136,7 @@ public class PushSubscribeOptions {
          * @return the builder.
          */
         public Builder deliverSubject(String deliverSubject) {
-            this.deliverSubject = validateDeliverSubjectOrEmptyAsNull(deliverSubject);
+            this.deliverSubject = emptyAsNull(deliverSubject);
             return this;
         }
 

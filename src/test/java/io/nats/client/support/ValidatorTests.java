@@ -15,9 +15,10 @@ package io.nats.client.support;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static io.nats.client.support.Validator.validateNotNull;
-import static io.nats.client.support.Validator.validatePullBatchSize;
+import static io.nats.client.support.Validator.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ValidatorTests {
@@ -81,18 +82,23 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateDeliverSubjectOrEmptyAsNull() {
-        allowed(Validator::validateDeliverSubjectOrEmptyAsNull, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        allowedEmptyAsNull(Validator::validateDurableOrEmptyAsNull, null, EMPTY);
-    }
-
-    @Test
     public void testValidatePullBatchSize() {
         assertEquals(1, validatePullBatchSize(1));
         assertEquals(Validator.MAX_PULL_SIZE, validatePullBatchSize(Validator.MAX_PULL_SIZE));
         assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(0));
         assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(-1));
         assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(Validator.MAX_PULL_SIZE + 1));
+    }
+
+    @Test
+    public void testValidateDurationRequired() {
+        assertEquals(Duration.ofNanos(1), validateDurationRequired(Duration.ofNanos(1)));
+        assertEquals(Duration.ofSeconds(1), validateDurationRequired(Duration.ofSeconds(1)));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationRequired(null));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationRequired(Duration.ofNanos(0)));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationRequired(Duration.ofSeconds(0)));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationRequired(Duration.ofNanos(-1)));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationRequired(Duration.ofSeconds(-1)));
     }
 
     @Test

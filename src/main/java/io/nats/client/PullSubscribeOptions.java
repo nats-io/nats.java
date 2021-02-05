@@ -22,14 +22,14 @@ import static io.nats.client.support.Validator.*;
 public class PullSubscribeOptions {
 
     private final String stream;
-    private final int batchSize;
-    private final boolean noWait;
+    private final int defaultBatchSize;
+    private final boolean defaultNoWait;
     private final ConsumerConfiguration consumerConfig;
 
-    public PullSubscribeOptions(String stream, int batchSize, boolean noWait, ConsumerConfiguration consumerConfig) {
+    public PullSubscribeOptions(String stream, int defaultBatchSize, boolean defaultNoWait, ConsumerConfiguration consumerConfig) {
         this.stream = stream;
-        this.batchSize = batchSize;
-        this.noWait = noWait;
+        this.defaultBatchSize = defaultBatchSize;
+        this.defaultNoWait = defaultNoWait;
         this.consumerConfig = consumerConfig;
     }
 
@@ -45,8 +45,8 @@ public class PullSubscribeOptions {
      * Gets the pull batch size
      * @return the size
      */
-    public int getBatchSize() {
-        return batchSize;
+    public int getDefaultBatchSize() {
+        return defaultBatchSize;
     }
 
     /**
@@ -61,8 +61,8 @@ public class PullSubscribeOptions {
      * When true a response with a 404 status header will be returned when no messages are available
      * @return the flag
      */
-    public boolean isNoWait() {
-        return noWait;
+    public boolean getDefaultNoWait() {
+        return defaultNoWait;
     }
 
     /**
@@ -77,8 +77,8 @@ public class PullSubscribeOptions {
     public String toString() {
         return "PullSubscribeOptions{" +
                 "stream='" + stream + '\'' +
-                ", batchSize=" + batchSize +
-                ", noWait=" + noWait +
+                ", batchSize=" + defaultBatchSize +
+                ", noWait=" + defaultNoWait +
                 ", " + consumerConfig +
                 '}';
     }
@@ -93,8 +93,8 @@ public class PullSubscribeOptions {
      */
     public static class Builder {
         private String stream;
-        private int batchSize;
-        private boolean noWait;
+        private int defaultBatchSize;
+        private boolean defaultNoWait;
         private String durable;
         private ConsumerConfiguration consumerConfig;
 
@@ -111,20 +111,21 @@ public class PullSubscribeOptions {
 
         /**
          * Sets the pull batch size.
-         * @param batchSize the size
+         * @param defaultBatchSize the size
          * @return the builder
          */
-        public Builder batchSize(int batchSize) {
-            this.batchSize = validatePullBatchSize(batchSize);
+        public Builder defaultBatchSize(int defaultBatchSize) {
+            this.defaultBatchSize = validatePullBatchSize(defaultBatchSize);
             return this;
         }
 
         /**
          * When true a response with a 404 status header will be returned when no messages are available
-         * @param noWait true to turn on this behavior
+         * @param defaultNoWait true to turn on this behavior
          */
-        public void setNoWait(boolean noWait) {
-            this.noWait = noWait;
+        public Builder defaultNoWait(boolean defaultNoWait) {
+            this.defaultNoWait = defaultNoWait;
+            return this;
         }
 
         /**
@@ -155,7 +156,7 @@ public class PullSubscribeOptions {
          */
         public PullSubscribeOptions build() {
 
-            validatePullBatchSize(batchSize);
+            validatePullBatchSize(defaultBatchSize);
 
             this.consumerConfig = (consumerConfig == null)
                     ? ConsumerConfiguration.defaultConfiguration()
@@ -168,7 +169,7 @@ public class PullSubscribeOptions {
                 validateDurableRequired(consumerConfig.getDurable());
             }
 
-            return new PullSubscribeOptions(stream, batchSize, noWait, consumerConfig);
+            return new PullSubscribeOptions(stream, defaultBatchSize, defaultNoWait, consumerConfig);
         }
     }
 }
