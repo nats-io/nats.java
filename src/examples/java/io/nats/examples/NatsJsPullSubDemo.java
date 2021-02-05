@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-public class NatsJsPollSubDemo {
+public class NatsJsPullSubDemo {
 
     public static void main(String[] args) {
 
