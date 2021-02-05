@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 
-import static io.nats.client.utils.TestMacros.standardConnectionWait;
+import static io.nats.client.utils.TestBase.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsMessageTests {

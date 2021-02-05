@@ -11,16 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
-import io.nats.client.impl.JetStreamApiException;
+import io.nats.client.*;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class JetStreamRegularTests extends JetStreamTestBase {
+public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetEnabled() throws Exception {
@@ -38,6 +38,17 @@ public class JetStreamRegularTests extends JetStreamTestBase {
             PublishAck ack = publish(js);
             assertEquals(1, ack.getSeqno());
         });
+    }
+
+    @Test
+    public void notJetStream() {
+        NatsMessage m = NatsMessage.builder().subject("test").build();
+        assertThrows(IllegalStateException.class, m::ack);
+        assertThrows(IllegalStateException.class, m::nak);
+        assertThrows(IllegalStateException.class, () -> m.ackSync(Duration.ZERO));
+        assertThrows(IllegalStateException.class, m::inProgress);
+        assertThrows(IllegalStateException.class, m::term);
+        assertThrows(IllegalStateException.class, m::metaData);
     }
 
     @Test
@@ -73,7 +84,7 @@ public class JetStreamRegularTests extends JetStreamTestBase {
     public void testNoMatchingStreams() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
-            IllegalStateException ise = assertThrows(IllegalStateException.class, () -> js.subscribe(SUBJECT));
+            assertThrows(IllegalStateException.class, () -> js.subscribe(SUBJECT));
         });
     }
 

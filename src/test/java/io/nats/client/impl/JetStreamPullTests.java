@@ -11,8 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamSubscription;
+import io.nats.client.PullSubscribeOptions;
 import io.nats.examples.ExampleUtils;
 import org.junit.jupiter.api.Test;
 

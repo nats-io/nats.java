@@ -15,7 +15,7 @@ package io.nats.client;
 
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.utils.TestMacros;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedWriter;
@@ -26,7 +26,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.utils.TestMacros.*;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthTests {
@@ -64,7 +64,7 @@ public class AuthTests {
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
-        TestMacros.flushConnection(nc);
+        TestBase.flushConnection(nc);
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
         assertTrue(
@@ -134,7 +134,7 @@ public class AuthTests {
             handler.prepForStatusChange(Events.DISCONNECTED);
         }
 
-        TestMacros.flushConnection(nc);
+        TestBase.flushConnection(nc);
 
         handler.waitForStatusChange(5, TimeUnit.SECONDS);
 

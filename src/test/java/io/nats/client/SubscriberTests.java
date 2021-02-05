@@ -23,8 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
-import static io.nats.client.utils.TestMacros.standardCloseConnection;
-import static io.nats.client.utils.TestMacros.standardConnectionWait;
+import static io.nats.client.utils.TestBase.standardCloseConnection;
+import static io.nats.client.utils.TestBase.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscriberTests {

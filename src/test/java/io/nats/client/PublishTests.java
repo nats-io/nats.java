@@ -25,8 +25,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.utils.TestMacros.standardCloseConnection;
-import static io.nats.client.utils.TestMacros.standardConnection;
+import static io.nats.client.utils.TestBase.standardCloseConnection;
+import static io.nats.client.utils.TestBase.standardConnection;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests {

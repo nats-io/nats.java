@@ -13,17 +13,15 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.time.Duration;
-
-import org.junit.jupiter.api.Test;
-
 import io.nats.client.StreamConfiguration.DiscardPolicy;
 import io.nats.client.StreamConfiguration.RetentionPolicy;
 import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.utils.ResourceUtils;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests {
     @Test
@@ -40,7 +38,7 @@ public class StreamConfigurationTests {
             .replicas(42)
             .storageType(StorageType.Memory)
             .retentionPolicy(RetentionPolicy.Interest)
-            .subjects(new String[] { "foo", "bar"})
+            .subjects("foo", "bar")
             .template("fake").build();
 
         assertEquals(DiscardPolicy.Old, c.getDiscardPolicy());
@@ -50,7 +48,7 @@ public class StreamConfigurationTests {
         assertEquals(512, c.getMaxConsumers());
         assertEquals(1024*1024, c.getMaxMsgSize());
         assertEquals("stream-name", c.getName());
-        assertEquals(true, c.getNoAck());
+        assertTrue(c.getNoAck());
         assertEquals(42, c.getReplicas());
         assertEquals(StorageType.Memory, c.getStorageType());
         assertEquals(RetentionPolicy.Interest, c.getRetentionPolicy());
@@ -71,7 +69,7 @@ public class StreamConfigurationTests {
         assertEquals(512, c.getMaxConsumers());
         assertEquals(1024*1024, c.getMaxMsgSize());
         assertEquals("stream-name", c.getName());
-        assertEquals(true, c.getNoAck());
+        assertTrue(c.getNoAck());
         assertEquals(42, c.getReplicas());
         assertEquals(StorageType.Memory, c.getStorageType());
         assertEquals(RetentionPolicy.Interest, c.getRetentionPolicy());
@@ -84,15 +82,14 @@ public class StreamConfigurationTests {
 
     @Test
     public void testJSONParsing() {
-        String configJSON = "{\n \"name\":   \"sname\",\"subjects\":[\"foo\", \"bar\"],   \n \"retention\":   \"limits\",\"max_consumers\":-1,\"max_msgs\":-1,\"max_bytes\":-1,\"max_age\":0,\"max_msg_size\":-1,\"storage\":\"memory\",\"discard\":\"old\",\"num_replicas\":1}";
-
+        String configJSON = ResourceUtils.dataAsString("StreamConfiguration.json");
         // spot check a configuration with spaces, \n, etc.
         StreamConfiguration c = new StreamConfiguration(configJSON);
         assertEquals("sname", c.getName());
         assertEquals(2, c.getSubjects().length);
         assertEquals("foo", c.getSubjects()[0]);
         assertEquals("bar", c.getSubjects()[1]);
-        assertEquals(null, c.getTemplate());
+        assertNull(c.getTemplate());
         assertEquals(StorageType.Memory, c.getStorageType());
     }
 

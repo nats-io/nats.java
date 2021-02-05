@@ -13,25 +13,70 @@
 
 package io.nats.client.utils;
 
-import io.nats.client.Connection;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.TestHandler;
+import io.nats.client.*;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.support.DebugUtil.printable;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-public final class TestMacros {
+public class TestBase {
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
     public static final long LONG_FLUSH_TIMEOUT_MS = 15000;
+    public static final String STREAM = "stream-";
+    public static final String SUBJECT = "subject-";
+    public static final String DURABLE = "durable-";
+    public static final String DATA = "data-";
+    public static final String DELIVER = "deliver-";
+
+    // ----------------------------------------------------------------------------------------------------
+    // runners
+    // ----------------------------------------------------------------------------------------------------
+    public interface InServerTest {
+        void test(Connection nc) throws Exception;
+    }
+
+    public static void runInServer(InServerTest inServerTest) throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false, false); Connection nc = Nats.connect(ts.getURI())) {
+            inServerTest.test(nc);
+        }
+    }
+
+    public static void runInJsServer(InServerTest inServerTest) throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
+            inServerTest.test(nc);
+        }
+    }
+
+    public static void printObject(Object o) {
+        System.out.println(printable(o.toString()) + "\n");
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // data makers
+    // ----------------------------------------------------------------------------------------------------
+    public static String stream(int seq) {
+        return STREAM + seq;
+    }
+
+    public static String subject(int seq) {
+        return SUBJECT + seq;
+    }
+
+    public static String durable(int seq) {
+        return DURABLE + seq;
+    }
+
+    public static String data(int seq) {
+        return DATA + seq;
+    }
 
     // ----------------------------------------------------------------------------------------------------
     // assertions

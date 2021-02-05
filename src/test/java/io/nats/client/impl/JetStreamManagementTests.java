@@ -11,12 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
+import io.nats.client.JetStreamManagement;
+import io.nats.client.StreamConfiguration;
 import io.nats.client.StreamConfiguration.DiscardPolicy;
 import io.nats.client.StreamConfiguration.RetentionPolicy;
 import io.nats.client.StreamConfiguration.StorageType;
-import io.nats.client.impl.JetStreamApiException;
+import io.nats.client.StreamInfo;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
