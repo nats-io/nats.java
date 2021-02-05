@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.impl.JetStreamApiException;
 
 import java.io.IOException;
+import java.time.ZonedDateTime;
 
 /**
  * Subscription on a JetStream context.
@@ -26,7 +27,14 @@ public interface JetStreamSubscription extends Subscription {
      * Polls for new messages.  This should only be used when the subscription
      * is pull based.
      */
-    void poll();
+    void pull();
+
+    /**
+     * Polls for new messages, sets an expire time.
+     * This should only be used when the subscription is pull based.
+     * @param expires the time when this request should be expired from the server wait list
+     */
+    void pull(ZonedDateTime expires);
 
     /**
      * Gets information about the consumer behind this subscription.

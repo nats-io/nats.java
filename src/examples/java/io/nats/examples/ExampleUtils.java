@@ -58,12 +58,16 @@ public class ExampleUtils {
         return builder.build();
     }
 
-    public static void createTestStream(JetStreamManagement jsm, String streamName, String subject)
-            throws IOException, JetStreamApiException {
-        createTestStream(jsm, streamName, subject, StorageType.File);
+    public static void createTestStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
+        ExampleUtils.createTestStream(nc.jetStreamManagement(), stream, StorageType.Memory, subjects);
     }
 
-    public static void createTestStream(JetStreamManagement jsm, String streamName, String subject, StorageType storageType)
+    public static void createTestStream(JetStreamManagement jsm, String streamName, String... subjects)
+            throws IOException, JetStreamApiException {
+        createTestStream(jsm, streamName, StorageType.File, subjects);
+    }
+
+    public static void createTestStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects)
             throws IOException, JetStreamApiException {
 
         // Create a stream, here will use a file storage type, and one subject,
@@ -71,13 +75,13 @@ public class ExampleUtils {
         StreamConfiguration sc = StreamConfiguration.builder()
                 .name(streamName)
                 .storageType(storageType)
-                .subjects(subject)
+                .subjects(subjects)
                 .build();
         
         // Add or use an existing stream.
         StreamInfo si = jsm.addStream(sc);
-        System.out.printf("Using stream %s on subject %s created at %s.\n",
-           streamName, subject, si.getCreateTime().toLocalTime().toString());
+        System.out.printf("Using stream %s on subject(s) %s created at %s.\n",
+           streamName, String.join(",", subjects), si.getCreateTime().toLocalTime().toString());
     }    
 
     // Publish:   [options] <subject> <message>

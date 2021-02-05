@@ -102,7 +102,7 @@ public class NatsJsManage {
             printObject(si);
 
             action("Make And Use Subscription");
-            SubscribeOptions so = SubscribeOptions.builder()
+            PushSubscribeOptions so = PushSubscribeOptions.builder()
 //                    .pullDirect(STREAM1, "GQJ3IvWo", 10)
 //                    .configuration(STREAM1, cc)
                     .build();

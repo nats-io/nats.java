@@ -24,7 +24,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The StreamConfiguration class specifies the configuration for creating a jetstream stream on the server.
+ * The StreamConfiguration class specifies the configuration for creating a JetStream stream on the server.
  * Options are created using a {@link StreamConfiguration.Builder Builder}.
  */
 public class StreamConfiguration {
@@ -579,7 +579,7 @@ public class StreamConfiguration {
         } 
 
         /**
-         * Sets the acknowedgement mode of the StreamConfiguration.  if no acknowledgements are
+         * Sets the acknowledgement mode of the StreamConfiguration.  if no acknowledgements are
          * set, then acknowledgements are not sent back to the client.  The default is false.
          * @param noAck true to disable acknowledgements.
          * @return Builder

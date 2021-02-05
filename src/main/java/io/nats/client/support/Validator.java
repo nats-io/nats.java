@@ -32,7 +32,7 @@ public abstract class Validator {
         return s;
     }
 
-    public static String validateQueueNameNotRequired(String s) {
+    public static String validateQueueNameOrEmptyAsNull(String s) {
         if (containsWhitespace(s)) {
             throw new IllegalArgumentException("Queue have whitespace [" + s + "]");
         }
@@ -53,11 +53,8 @@ public abstract class Validator {
         return s;
     }
 
-    public static String validateStreamNameNullButNotEmpty(String s) {
-        if (s == null || containsDotWildGt(s)) {
-            throw new IllegalArgumentException("Stream cannot contain a '.', '*' or '>' [" + s + "]");
-        }
-        return validateStreamName(s);
+    public static String validateStreamNameOrEmptyAsNull(String s) {
+        return emptyAsNull(validateStreamName(s));
     }
 
     public static String validateStreamNameRequired(String s) {
@@ -67,26 +64,30 @@ public abstract class Validator {
         return validateStreamName(s);
     }
 
+    public static String validateDurableOrEmptyAsNull(String s) {
+        if (containsDotWildGt(s)) {
+            throw new IllegalArgumentException("Durable cannot contain a '.', '*' or '>' [" + s + "]");
+        }
+        return emptyAsNull(s);
+    }
+
     public static String validateDurableRequired(String s) {
         if (nullOrEmpty(s) || containsDotWildGt(s)) {
-            throw new IllegalArgumentException("Consumer cannot be blank when provided and cannot contain a '.', '*' or '>' [" + s + "]");
+            throw new IllegalArgumentException("Durable is required and cannot contain a '.', '*' or '>' [" + s + "]");
         }
         return s;
     }
 
-    public static String validateDeliverSubjectRequired(String s) {
-        if (nullOrEmpty(s)) {
-            throw new IllegalArgumentException("Deliver Subject cannot be blank when provided [" + s + "]");
-        }
-        return s;
+    public static String validateDeliverSubjectOrEmptyAsNull(String s) {
+        return emptyAsNull(s);
     }
 
     public static final int MAX_PULL_SIZE = 256;
-    public static long validatePullBatchSize(long l) {
-        if (l < 1 || l > MAX_PULL_SIZE) {
-            throw new IllegalArgumentException("Pull Batch Size must be betweeen 1 and " + MAX_PULL_SIZE + " inclusive [" + l + "]");
+    public static int validatePullBatchSize(int pullBatchSize) {
+        if (pullBatchSize < 1 || pullBatchSize > MAX_PULL_SIZE) {
+            throw new IllegalArgumentException("Pull Batch Size must be between 1 and " + MAX_PULL_SIZE + " inclusive [" + pullBatchSize + "]");
         }
-        return l;
+        return pullBatchSize;
     }
 
     public static String validateJetStreamPrefix(String s) {

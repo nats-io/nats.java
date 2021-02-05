@@ -59,7 +59,7 @@ public class NatsJsPubDirect {
             //    build();
             // js.publish(msg, pops);
 
-            // Publish a message and print the results of the publish acknowedgement.
+            // Publish a message and print the results of the publish acknowledgement.
             // An exception will be thrown if there is a failure.
             PublishAck pa = js.publish(msg);
             System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",

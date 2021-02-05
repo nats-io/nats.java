@@ -322,7 +322,7 @@ and client disconnects.  Any subscriber can be a queue subscriber to load balanc
 
 **Synchronous with poll:**
 
-A subscription can be set up to poll to request messages from a jetstream consumer, allowing for high performance while reducing impact to the server.
+A subscription can be set up to poll to request messages from a JetStream consumer, allowing for high performance while reducing impact to the server.
 
 ```java
     SubscribeOptions so = SubscribeOptions.builder().poll(64).durable("sub-example").build();

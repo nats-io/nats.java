@@ -17,6 +17,7 @@ import io.nats.client.ConsumerInfo;
 import io.nats.client.JetStreamSubscription;
 
 import java.io.IOException;
+import java.time.ZonedDateTime;
 
 /**
  * This is a JetStream specific subscription.
@@ -27,32 +28,47 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     String consumer;
     String stream;
     String deliver;
-    int pullBatchSize;
+    int batchSize;
+    boolean noWait;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(sid, subject, queueName, connection, dispatcher);
     }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, int pull) {
+    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, int batchSize, boolean noWait) {
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.pullBatchSize = pull;
+        this.batchSize = batchSize;
+        this.noWait = noWait;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void poll() {
-        if (pullBatchSize == 0) {
-            throw new IllegalStateException("Subscription type does not support poll.");
+    public void pull() {
+        pull(null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pull(ZonedDateTime expires) {
+        if (batchSize <= 0) {
+            throw new IllegalStateException("Subscription type does not support pull.");
         }
 
         String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
-        byte[] payload = String.format("{ \"batch\":%d}", pullBatchSize).getBytes();
+
+        StringBuilder sb = JsonUtils.beginJson();
+        JsonUtils.addFld(sb, "expires", expires);
+        JsonUtils.addFld(sb, "batch", batchSize);
+        JsonUtils.addFld(sb, "no_wait", noWait);
+        byte[] payload = JsonUtils.endJson(sb).toString().getBytes();
         connection.publish(subj, getSubject(), payload);
     }
 
@@ -70,7 +86,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 "consumer='" + consumer + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
-                ", pull=" + pullBatchSize +
+                ", pull=" + batchSize +
                 '}';
     }
 }

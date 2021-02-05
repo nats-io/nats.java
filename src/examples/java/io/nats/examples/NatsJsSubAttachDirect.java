@@ -19,7 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /**
- * This jetstream example attaches to an existing consumer given a stream and consumer name.
+ * This JetStream example attaches to an existing consumer given a stream and consumer name.
  * The stream and consumer must exist in the NATS deployment.
  */
 public class NatsJsSubAttachDirect {
@@ -44,7 +44,7 @@ public class NatsJsSubAttachDirect {
             // Attach to an existing consumer and setup the subscription
             // to expect messages directly pushed from the server to the specified
             // subject.
-            SubscribeOptions so = SubscribeOptions.builder()
+            PushSubscribeOptions so = PushSubscribeOptions.builder()
                     .stream(exArgs.stream)
                     .durable(exArgs.consumer)
                     .deliverSubject(exArgs.subject)

@@ -24,13 +24,13 @@ public class ExampleArgs {
     public int msgCount = -1;
     public String stream = null;
     public String consumer = null;
-    public int poll = 0;
+    public int pollSize = 0;
 
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
     }
 
-    ExampleArgs(String[] args, boolean pubReq, String usageString) {
+    public ExampleArgs(String[] args, boolean pubReq, String usageString) {
         try {
             for (int x = 0; x < args.length; x++) {
                 String arg = args[x];
@@ -70,7 +70,7 @@ public class ExampleArgs {
         else if (name.equals("-stream")) {
             stream = value;
         } else if (name.equals("-poll")) {
-            poll = Integer.parseInt(value);
+            pollSize = Integer.parseInt(value);
         }
         else if (name.equals("-h")) {
             if (headers == null) {

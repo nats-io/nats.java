@@ -47,7 +47,7 @@ public class JetStreamOptionObjectsTests {
 
     @Test
     public void testSubscribeOptions() {
-        SubscribeOptions so = SubscribeOptions.builder()
+        PushSubscribeOptions so = PushSubscribeOptions.builder()
                 .stream("strm")
                 .durable("drbl")
                 .deliverSubject("dlvrsbjct")

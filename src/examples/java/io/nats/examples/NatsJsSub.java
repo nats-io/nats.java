@@ -34,7 +34,7 @@ public class NatsJsSub {
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
-            // Create our jetstream context to receive jetstream 
+            // Create our JetStream context to receive JetStream
             // messages.
             JetStream js = nc.jetStream();
 
@@ -46,7 +46,7 @@ public class NatsJsSub {
 
             // Build our subscription options.  We'll create a durable subscription named
             // "sub-example".            
-            SubscribeOptions so = SubscribeOptions.builder().durable("sub-example").build();
+            PushSubscribeOptions so = PushSubscribeOptions.builder().durable("sub-example").build();
 
             // Subscribe synchronously, the keep waiting for messages.
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
@@ -88,8 +88,8 @@ public class NatsJsSub {
 
                 // if we've designated this subscriber as a poll subscriber,
                 // poll for messages when we need to.
-                if (exArgs.poll > 0 && i % exArgs.poll == 0) {
-                    sub.poll();
+                if (exArgs.pollSize > 0 && i % exArgs.pollSize == 0) {
+                    sub.pull();
                 }
             }
         }

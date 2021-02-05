@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 // TODO Add properties
 
 /**
- * The ConsumerInfo class returns information about a jetstream consumer.
+ * The ConsumerInfo class returns information about a JetStream consumer.
  */
 public class ConsumerInfo {
 

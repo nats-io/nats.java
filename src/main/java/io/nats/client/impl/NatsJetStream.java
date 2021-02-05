@@ -363,28 +363,44 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
     NatsJetStreamSubscription createSubscription(String subject, String queueName,
                                                  NatsDispatcher dispatcher, MessageHandler handler, boolean autoAck,
-                                                 SubscribeOptions subscribeOptions, int pullBatchSize) throws IOException, JetStreamApiException {
-
-        // setup the configuration, use a default.
-        SubscribeOptions subOpts = SubscribeOptions.createOrCopy(subscribeOptions);
-        ConsumerConfiguration targetConsCfg = subOpts.getConsumerConfiguration();
-
-        boolean isPullMode = (pullBatchSize > 0);
+                                                 PushSubscribeOptions pushSubscribeOptions,
+                                                 PullSubscribeOptions pullSubscribeOptions) throws IOException, JetStreamApiException {
+        // first things first...
+        boolean isPullMode = pullSubscribeOptions != null;
         if (handler != null && isPullMode) {
             throw new IllegalStateException("Pull mode is not allowed with dispatcher.");
         }
 
+        // setup the configuration, use a default.
+        String stream;
+        ConsumerConfiguration workingCC;
+        int batchSize = 0;
+        boolean noWait = false;
+
+        if (isPullMode) {
+            stream = pullSubscribeOptions.getStream();
+            workingCC = pullSubscribeOptions.getConsumerConfiguration();
+            batchSize = pullSubscribeOptions.getBatchSize();
+            noWait = pullSubscribeOptions.isNoWait();
+        }
+        else if (pushSubscribeOptions == null) {
+            stream = null;
+            workingCC = ConsumerConfiguration.defaultConfiguration();
+        }
+        else {
+            stream = pushSubscribeOptions.getStream();
+            workingCC = pushSubscribeOptions.getConsumerConfiguration();
+        }
+        String durable = workingCC.getDurable();
+        String inbox = workingCC.getDeliverSubject();
+        boolean shouldCreate = true;
+
         // 1. Did they tell me what stream? No? look it up
-        String stream = subOpts.getStream();
         if (stream == null) {
             stream = lookupStreamBySubject(subject);
         }
 
-        String deliverSubject = null;
-        boolean shouldCreate = true;
-
         // 2. Is this a durable or ephemeral
-        String durable = targetConsCfg.getDurable();
         if (durable != null) {
             ConsumerInfo consumerInfo =
                     lookupConsumerInfo(stream, durable);
@@ -398,26 +414,34 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                             String.format("Subject %s mismatches consumer configuration %s.", subject, filterSub));
                 }
 
-                deliverSubject = cc.getDeliverSubject();
+                // since we found a valid config for the durable, it existed.
+                // Make the config the working one.
+                workingCC = cc;
+                inbox = workingCC.getDeliverSubject();
                 shouldCreate = false;
             }
         }
 
-        if (deliverSubject == null) {
-            deliverSubject = subOpts.getConsumerConfiguration().getDeliverSubject();
-            if (deliverSubject == null) {
-                deliverSubject = conn.createInbox();
-            }
+        // 3. No deliver subject (inbox) provided or found in existing config? Make an inbox
+        if (inbox == null) {
+            inbox = conn.createInbox();
         }
 
-        if (!isPullMode) {
-            targetConsCfg.setDeliverSubject(deliverSubject);
+        // 4. Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
+        if (isPullMode) {
+            workingCC.setDeliverSubject(null);
         }
-        targetConsCfg.setFilterSubject(subject);
+        else {
+            workingCC.setDeliverSubject(inbox);
+        }
 
+        // 5.
+        workingCC.setFilterSubject(subject);
+
+        // 6.
         NatsJetStreamSubscription sub;
         if (dispatcher == null) {
-            sub = (NatsJetStreamSubscription) conn.createSubscription(deliverSubject, queueName, null, true);
+            sub = (NatsJetStreamSubscription) conn.createSubscription(inbox, queueName, null, true);
         }
         else {
             MessageHandler mh;
@@ -426,34 +450,32 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             } else {
                 mh = handler;
             }
-            sub = (NatsJetStreamSubscription) dispatcher.subscribeImpl(deliverSubject, queueName, mh, true);
+            sub = (NatsJetStreamSubscription) dispatcher.subscribeImpl(inbox, queueName, mh, true);
         }
 
-        // if we're updating or creating the consumer, give it a go here.
+        // 7-Create. Creating the consumer. It either isn't durable or a duable that didn't already exist.
         if (shouldCreate) {
             // Defaults should set the right ack pending.
             // if we have acks and the maxAckPending is not set, set it
             // to the internal Max.
             // TODO: too high value?
-            if (targetConsCfg.getMaxAckPending() == 0) {
-                targetConsCfg.setMaxAckPending(sub.getPendingMessageLimit());
+            if (workingCC.getMaxAckPending() == 0) {
+                workingCC.setMaxAckPending(sub.getPendingMessageLimit());
             }
 
+            // A. createOrUpdateConsumer can fail for security reasons, maybe other reasons?
             ConsumerInfo ci;
             try {
-                ci = createOrUpdateConsumer(stream, targetConsCfg);
+                ci = createOrUpdateConsumer(stream, workingCC);
             } catch (JetStreamApiException e) {
                 sub.unsubscribe();
                 throw e;
             }
-            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), deliverSubject, pullBatchSize);
+            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, batchSize, noWait);
         }
+        // 7-Exists.
         else {
-            sub.setupJetStream(this, durable, stream, deliverSubject, pullBatchSize);
-        }
-
-        if (isPullMode) {
-            sub.poll();
+            sub.setupJetStream(this, durable, stream, inbox, batchSize, noWait);
         }
 
         return sub;
@@ -465,23 +487,23 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public JetStreamSubscription subscribe(String subject) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
-        return createSubscription(subject, null, null, null, false, null, 0);
+        return createSubscription(subject, null, null, null, false, null, null);
     }
 
     @Override
-    public JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws IOException, JetStreamApiException {
+    public JetStreamSubscription subscribe(String subject, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
-        return createSubscription(subject, null, null, null, false, null, 0);
+        return createSubscription(subject, null, null, null, false, options, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws IOException, JetStreamApiException {
+    public JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
-        String qOrNull = validateQueueNameNotRequired(queue);
-        return createSubscription(subject, qOrNull, null, null, false, null, 0);
+        String qOrNull = validateQueueNameOrEmptyAsNull(queue);
+        return createSubscription(subject, qOrNull, null, null, false, options, null);
     }
 
     /**
@@ -492,50 +514,41 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         validateJsSubscribeSubjectRequired(subject);
         validateNotNull(dispatcher, "dispatcher");
         validateNotNull(handler, "handler");
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, null, 0);
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, null, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, SubscribeOptions options) throws IOException, JetStreamApiException {
+    public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
         validateNotNull(dispatcher, "dispatcher");
         validateNotNull(handler, "handler");
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, null, 0);
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, SubscribeOptions options) throws IOException, JetStreamApiException {
+    public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
-        String qOrNull = validateQueueNameNotRequired(queue);
+        String qOrNull = validateQueueNameOrEmptyAsNull(queue);
         validateNotNull(dispatcher, "dispatcher");
         validateNotNull(handler, "handler");
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, 0);
+        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public JetStreamSubscription subscribe(String subject, int pullBatchSize) throws IOException, JetStreamApiException {
+    public JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
-        validatePullBatchSize(pullBatchSize);
-        return createSubscription(subject, null, null, null, false, null, pullBatchSize);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public JetStreamSubscription subscribe(String subject, int pullBatchSize, SubscribeOptions options) throws IOException, JetStreamApiException {
-        validateJsSubscribeSubjectRequired(subject);
-        validatePullBatchSize(pullBatchSize);
-        return createSubscription(subject, null, null, null, false, options, pullBatchSize);
+        validateNotNull(options, "options");
+        validateNotNull(options.getDurable(), "durable");
+        return createSubscription(subject, null, null, null, false, null, options);
     }
 
     private Message makeRequestResponseRequired(String subject, byte[] bytes, Duration timeout) throws IOException {

@@ -23,7 +23,7 @@ import java.util.concurrent.TimeoutException;
 
 class NatsJetStreamMessage extends SelfCalculatingMessage {
 
-    // Acknowedgement protocol messages
+    // Acknowledgement protocol messages
     private static final byte[] AckAck = "+ACK".getBytes();
     private static final byte[] AckNak = "-NAK".getBytes();
     private static final byte[] AckProgress = "+WPI".getBytes();
@@ -119,7 +119,7 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
         if (!(this.subscription instanceof NatsJetStreamSubscription)) {
             return false;
         }
-        return (((NatsJetStreamSubscription) this.subscription).pullBatchSize > 0);
+        return (((NatsJetStreamSubscription) this.subscription).batchSize > 0);
     }
 
     private Connection getJetStreamValidatedConnection() {

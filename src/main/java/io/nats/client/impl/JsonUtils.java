@@ -18,6 +18,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -26,9 +27,10 @@ import java.util.regex.Pattern;
  * Internal json parsing helpers.
  */
 public abstract class JsonUtils {
+    public static final DateTimeFormatter RFC3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn'Z'");
+
     public static final String EMPTY_JSON = "{}";
 
-    private static final String OBJECT_RE = "\\{(.+?)\\}";
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
     private static final String BOOLEAN_RE =  "\\s*(true|false)";
     private static final String NUMBER_RE =  "\\s*(\\d+)";
@@ -45,7 +47,6 @@ public abstract class JsonUtils {
     private JsonUtils() {} /* for Jacoco */
 
     public enum FieldType {
-        jsonObject(OBJECT_RE),
         jsonString(STRING_RE),
         jsonBoolean(BOOLEAN_RE),
         jsonNumber(NUMBER_RE),
@@ -57,14 +58,8 @@ public abstract class JsonUtils {
         }
     }
 
-    private static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn");
-
     public static Pattern buildCustomPattern(String re) {
         return Pattern.compile(re, Pattern.CASE_INSENSITIVE);
-    }
-
-    public static Pattern buildObjectPattern() {
-        return Pattern.compile(OBJECT_RE, Pattern.CASE_INSENSITIVE);
     }
 
     public static Pattern buildStringPattern(String field) {
@@ -270,16 +265,22 @@ public abstract class JsonUtils {
      * Appends a date/time to a string builder as a rfc 3339 formatted field.
      * @param sb string builder
      * @param fname fieldname
-     * @param time field value
+     * @param zonedDateTime field value
      */
-    public static void addFld(StringBuilder sb, String fname, ZonedDateTime time) {
-        if (time == null) {
-            return;
+    public static void addFld(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
+        if (zonedDateTime != null) {
+            sb.append(Q).append(fname).append(QCOLONQ).append(toRfc3339(zonedDateTime)).append(QCOMMA);
         }
+    }
 
-        String s = rfc3339Formatter.format(time);
-        sb.append(Q + fname + QCOLONQ + s + "Z\",");
-    }    
+    public static String toRfc3339(TemporalAccessor temporal) {
+        return RFC3339_FORMATTER.format(temporal);
+    }
+
+    public static void main(String[] args) {
+        ZonedDateTime zdt = ZonedDateTime.now();
+        System.out.println(toRfc3339(zdt));
+    }
 
     /**
      * Parses a date time from the server.

@@ -26,7 +26,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The ConsumerConfiguration class specifies the configuration for creating a jetstream consumer on the client and 
+ * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
  * if necessary the server.
  * Options are created using a {@link PublishOptions.Builder Builder}.
  */

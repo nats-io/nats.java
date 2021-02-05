@@ -42,12 +42,10 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testvalidateQueueNameNotRequired() {
-        allowed(Validator::validateQueueNameNotRequired, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateQueueNameNotRequired, HAS_SPACE);
-
-        assertNull(Validator.validateQueueNameNotRequired(null), allowedMessage(null));
-        assertNull(Validator.validateQueueNameNotRequired(EMPTY), allowedMessage(null));
+    public void testValidateQueueNameOrEmptyAsNull() {
+        allowed(Validator::validateQueueNameOrEmptyAsNull, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        allowedEmptyAsNull(Validator::validateQueueNameOrEmptyAsNull, null, EMPTY);
+        notAllowed(Validator::validateQueueNameOrEmptyAsNull, HAS_SPACE);
     }
 
     @Test
@@ -69,21 +67,23 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateStreamNameNullButNotEmpty() {
-        allowed(Validator::validateStreamNameNullButNotEmpty, EMPTY, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateStreamNameNullButNotEmpty, null, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateStreamNameOrEmptyAsNull() {
+        allowed(Validator::validateStreamNameOrEmptyAsNull, PLAIN, HAS_SPACE, HAS_DASH);
+        allowedEmptyAsNull(Validator::validateQueueNameOrEmptyAsNull, null, EMPTY);
+        notAllowed(Validator::validateStreamNameOrEmptyAsNull, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
-    public void testValidateDurableRequire() {
-        allowed(Validator::validateDurableRequired, PLAIN, HAS_SPACE, HAS_DASH);
-        notAllowed(Validator::validateDurableRequired, null, EMPTY, HAS_DOT, HAS_STAR, HAS_GT);
+    public void testValidateDurableOrEmptyAsNull() {
+        allowed(Validator::validateDurableOrEmptyAsNull, PLAIN, HAS_SPACE, HAS_DASH);
+        allowedEmptyAsNull(Validator::validateDurableOrEmptyAsNull, null, EMPTY);
+        notAllowed(Validator::validateDurableOrEmptyAsNull, HAS_DOT, HAS_STAR, HAS_GT);
     }
 
     @Test
-    public void testValidateDeliverSubjectRequired() {
-        allowed(Validator::validateDeliverSubjectRequired, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        notAllowed(Validator::validateDeliverSubjectRequired, null, EMPTY);
+    public void testValidateDeliverSubjectOrEmptyAsNull() {
+        allowed(Validator::validateDeliverSubjectOrEmptyAsNull, PLAIN, HAS_SPACE, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        allowedEmptyAsNull(Validator::validateDurableOrEmptyAsNull, null, EMPTY);
     }
 
     @Test
@@ -111,6 +111,12 @@ public class ValidatorTests {
         }
     }
 
+    private void allowedEmptyAsNull(StringTest test, String... strings) {
+        for (String s : strings) {
+            assertNull(test.validate(s), allowedMessage(s));
+        }
+    }
+
     private void notAllowed(StringTest test, String... strings) {
         for (String s : strings) {
             assertThrows(IllegalArgumentException.class, () -> test.validate(s), notAllowedMessage(s));
@@ -118,10 +124,10 @@ public class ValidatorTests {
     }
 
     private String allowedMessage(String s) {
-        return "[" + s + "] is allowed.";
+        return "Testing [" + s + "] as allowed.";
     }
 
     private String notAllowedMessage(String s) {
-        return "[" + s + "] is not allowed.";
+        return "Testing [" + s + "] as not allowed.";
     }
 }

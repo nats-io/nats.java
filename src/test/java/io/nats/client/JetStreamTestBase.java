@@ -19,8 +19,10 @@ import io.nats.client.impl.NatsMessage;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 import static io.nats.client.support.DebugUtil.printable;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JetStreamTestBase {
 
@@ -52,14 +54,15 @@ public class JetStreamTestBase {
         return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
-    protected static void publish(JetStream js, String subject, int times, int seq) throws IOException, JetStreamApiException {
+    protected static int publish(JetStream js, String subject, int times, int seq) throws IOException, JetStreamApiException {
         for (int x = 0; x < times; x++) {
             Message msg = NatsMessage.builder()
                     .subject(subject)
-                    .data((data(seq++)).getBytes(StandardCharsets.US_ASCII))
+                    .data((data(++seq)).getBytes(StandardCharsets.US_ASCII))
                     .build();
             js.publish(msg);
         }
+        return seq;
     }
 
     protected static void publish(Connection nc, String subject, int times, int seq) throws IOException, JetStreamApiException {
@@ -74,15 +77,39 @@ public class JetStreamTestBase {
         return js.publish(msg);
     }
 
+    protected static int readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
+        int red = 0;
+        Message msg = sub.nextMessage(Duration.ofSeconds(1));
+        while (msg != null) {
+            ++red;
+            msg.ack();
+            msg = sub.nextMessage(Duration.ofSeconds(1));
+        }
+        return red;
+    }
+
+    protected static void validateRedAndTotal(int expectedRed, int actualRed, int expectedTotal, int actualTotal) {
+        validateRead(expectedRed, actualRed);
+        validateTotal(expectedTotal, actualTotal);
+    }
+
+    private static void validateTotal(int expectedTotal, int actualTotal) {
+        assertEquals(expectedTotal, actualTotal, "Total does not match");
+    }
+
+    protected static void validateRead(int expectedRed, int actualRed) {
+        assertEquals(expectedRed, actualRed, "Read does not match");
+    }
+
     protected static void printObject(Object o) {
         System.out.println(printable(o.toString()) + "\n");
     }
 
-    protected static final String STREAM = "jsregtest-stream-";
-    protected static final String SUBJECT = "jsregtest-publish-subject-";
-    protected static final String DURABLE = "jsregtest-durable-consumer-";
-    protected static final String DATA = "jsregtest-data-";
-    protected static final String DELIVER = "jsregtest-deliver-subject-";
+    protected static final String STREAM = "jstest-stream-";
+    protected static final String SUBJECT = "jstest-subject-";
+    protected static final String DURABLE = "jstest-durable-";
+    protected static final String DATA = "jstest-data-";
+    protected static final String DELIVER = "jstest-deliver-";
 
     protected static String stream(int seq) {
         return STREAM + seq;

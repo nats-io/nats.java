@@ -27,7 +27,9 @@ public class NatsJsPub {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        args="test-sub foo msg".split(" ");
+        // circumvent the need for command line arguments by uncommenting the next line
+        args = "test-sub foo msg".split(" ");
+
         ExampleArgs exArgs = ExampleUtils.readPublishArgs(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
@@ -35,9 +37,9 @@ public class NatsJsPub {
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)," : "";
             System.out.printf("\nPublishing '%s' on %s,%s server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            // Create a jetstream context.  This hangs off the original connection
+            // Create a JetStream context.  This hangs off the original connection
             // allowing us to produce data to streams and consume data from
-            // jetstream consumers.
+            // JetStream consumers.
             JetStream js = nc.jetStream();
 
             // if a stream name is not provided, attempt to create a test stream.
@@ -54,16 +56,16 @@ public class NatsJsPub {
                     .build();
 
             // We'll use the defaults for this simple example, but there are options
-            // to contrain publishing to certain streams, expect sequence numbers and
+            // to constrain publishing to certain streams, expect sequence numbers and
             // more. e.g.:
             //
-            // PublishOptions pops = PublishOptions.builder().
-            //    stream("test-stream").
-            //    expectedLastMsgId("transaction-42").
-            //    build();
+            // PublishOptions pops = PublishOptions.builder()
+            //    .stream("test-stream")
+            //    .expectedLastMsgId("transaction-42")
+            //    .build();
             // js.publish(msg, pops);
 
-            // Publish a message and print the results of the publish acknowedgement.
+            // Publish a message and print the results of the publish acknowledgement.
             // An exception will be thrown if there is a failure.
             PublishAck pa = js.publish(msg);
             System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",

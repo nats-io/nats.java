@@ -37,7 +37,7 @@ public class NatsJsSubCb {
             // create a dispatcher without a default handler.
             Dispatcher d = nc.createDispatcher(null);
 
-            // Create our jetstream context to subscribe to jetstream 
+            // Create our JetStream context to subscribe to JetStream
             // messages.
             JetStream js = nc.jetStream();
 
@@ -87,7 +87,7 @@ public class NatsJsSubCb {
 
             // Build our subscription options.  We'll create a durable subscription named
             // "sub-example".
-            SubscribeOptions so = SubscribeOptions.builder().durable("sub-example").build();
+            PushSubscribeOptions so = PushSubscribeOptions.builder().durable("sub-example").build();
 
             // Subscribe using the handler, and then wait for the requested number of 
             // messages to arrive using the countdown latch.

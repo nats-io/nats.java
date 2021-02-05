@@ -265,7 +265,7 @@ public interface JetStream {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Create a synchronous subscription to the specified subject.
@@ -284,7 +284,7 @@ public interface JetStream {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */    
-    JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Create an asynchronous subscription to the specified subject under the control of the
@@ -317,7 +317,7 @@ public interface JetStream {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, SubscribeOptions options) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Create an asynchronous subscription to the specified subject under the control of the
@@ -335,30 +335,17 @@ public interface JetStream {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */    
-    JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, SubscribeOptions options) throws IOException, JetStreamApiException;
-
-    /**
-     * Create a subscription to the specified subject in the mode of pull.
-     *
-     * @param subject The subject to subscribe to.
-     * @param pullBatchSize The pull batch size
-     * @return The subscription
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */
-    JetStreamSubscription subscribe(String subject, int pullBatchSize) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Create a subscription to the specified subject in the mode of pull, with additional options
      *
-     * @param subject The subject to subscribe to.
-     * @param pullBatchSize The pull batch size
-     * @param options optional subscription options
+     * @param subject The subject to subscribe to
+     * @param options pull subscription options
      * @return The subscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */      
-    JetStreamSubscription subscribe(String subject, int pullBatchSize, SubscribeOptions options) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException;
 }

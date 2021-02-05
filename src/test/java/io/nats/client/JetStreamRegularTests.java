@@ -22,40 +22,6 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamRegularTests extends JetStreamTestBase {
 
     @Test
-    public void testStreamCreate() throws Exception {
-        runInJsServer(nc -> {
-            StreamInfo si = createMemoryStream(nc, STREAM, subject(0), subject(1));
-            StreamConfiguration sc = si.getConfiguration();
-            assertEquals(STREAM, sc.getName());
-            assertEquals(2, sc.getSubjects().length);
-            assertEquals(subject(0), sc.getSubjects()[0]);
-            assertEquals(subject(1), sc.getSubjects()[1]);
-
-            assertEquals(StreamConfiguration.RetentionPolicy.Limits, sc.getRetentionPolicy());
-            assertEquals(StreamConfiguration.DiscardPolicy.Old, sc.getDiscardPolicy());
-            assertEquals(StreamConfiguration.StorageType.Memory, sc.getStorageType());
-
-            assertNotNull(si.getConfiguration());
-            assertNotNull(si.getStreamState());
-            assertEquals(-1, sc.getMaxConsumers());
-            assertEquals(-1, sc.getMaxMsgs());
-            assertEquals(-1, sc.getMaxBytes());
-            assertEquals(-1, sc.getMaxMsgSize());
-            assertEquals(1, sc.getReplicas());
-
-            assertEquals(Duration.ofSeconds(0), sc.getMaxAge());
-            assertEquals(Duration.ofSeconds(120), sc.getDuplicateWindow());
-
-            StreamInfo.StreamState ss = si.getStreamState();
-            assertEquals(0, ss.getMsgCount());
-            assertEquals(0, ss.getByteCount());
-            assertEquals(0, ss.getFirstSequence());
-            assertEquals(0, ss.getLastSequence());
-            assertEquals(0, ss.getConsumerCount());
-        });
-    }
-
-    @Test
     public void testJetStreamStrict() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, false); Connection nc = Nats.connect(ts.getURI())) {
             IllegalStateException ise = assertThrows(IllegalStateException.class, nc::jetStream);
@@ -87,13 +53,13 @@ public class JetStreamRegularTests extends JetStreamTestBase {
             assertEquals(DATA, new String(m.getData()));
 
             // default subscribe options // ephemeral subscription.
-            s = js.subscribe(SUBJECT, SubscribeOptions.defaultInstance());
+            s = js.subscribe(SUBJECT, PushSubscribeOptions.defaultInstance());
             m = s.nextMessage(Duration.ofSeconds(1));
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
 
             // set the stream
-            SubscribeOptions so = SubscribeOptions.builder().stream(STREAM).build();
+            PushSubscribeOptions so = PushSubscribeOptions.builder().stream(STREAM).build();
             s = js.subscribe(SUBJECT, so);
             m = s.nextMessage(Duration.ofSeconds(1));
             assertNotNull(m);

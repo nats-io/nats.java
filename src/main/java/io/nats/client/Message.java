@@ -86,8 +86,8 @@ public interface Message {
 	Connection getConnection();
 
 	/**
-	 * Gets the metadata associated with a jetstream message.
-	 * @return metadata or null if the message is not a jetstream message.
+	 * Gets the metadata associated with a JetStream message.
+	 * @return metadata or null if the message is not a JetStream message.
 	 */
 	MessageMetaData metaData();
 
