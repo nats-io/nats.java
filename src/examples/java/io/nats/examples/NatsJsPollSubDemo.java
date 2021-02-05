@@ -42,7 +42,7 @@ public class NatsJsPollSubDemo {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder().batchSize(10).durable(durable).build();
 
-            // Subscribe synchronously. The subscription does the first sub.pull for us
+            // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(subject, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
