@@ -20,6 +20,9 @@ import io.nats.client.impl.JsonUtils;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -74,13 +77,32 @@ public final class JsonUtilsTests {
     public void testParseDateTime() {
         assertEquals(1611186068, JsonUtils.parseDateTime("2021-01-20T23:41:08.579594Z").toEpochSecond());
         assertEquals(1612293508, JsonUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00").toEpochSecond());
-        assertEquals(-62135596800L, JsonUtils.parseDateTime("anything-not-valid").toEpochSecond());
+        assertEquals(JsonUtils.DEFAULT_TIME, JsonUtils.parseDateTime("anything-not-valid"));
+
+        ZonedDateTime zdt1 = JsonUtils.parseDateTime("2021-01-20T18:41:08-05:00");
+        ZonedDateTime zdt2 = JsonUtils.parseDateTime("2021-01-20T23:41:08.000000Z");
+        assertEquals(zdt1, zdt2);
+
+        zdt1 = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, JsonUtils.ZONE_ID_GMT);
+        assertEquals(zdt1.toEpochSecond(), JsonUtils.parseDateTime("2012-01-12T06:30:01.000000500Z").toEpochSecond());
     }
 
     @Test
     public void testToRfc3339() {
+        Instant i = Instant.ofEpochSecond(1611186068);
+        ZonedDateTime zdt1 = ZonedDateTime.ofInstant(i, ZoneId.systemDefault());
+        ZonedDateTime zdt2 = ZonedDateTime.ofInstant(i, JsonUtils.ZONE_ID_GMT);
+        System.out.println(zdt1);
+        System.out.println(zdt2);
+        assertEquals(zdt1.toEpochSecond(), zdt2.toEpochSecond());
+
+        String rfc1 = JsonUtils.toRfc3339(zdt1);
+        String rfc2 = JsonUtils.toRfc3339(zdt2);
+        assertEquals(rfc1, rfc2);
+        System.out.println(zdt2.toEpochSecond());
+
         assertEquals("2021-01-20T23:41:08.579594000Z", JsonUtils.toRfc3339(JsonUtils.parseDateTime("2021-01-20T23:41:08.579594Z")));
-        assertEquals("2021-02-02T11:18:28.347722551Z", JsonUtils.toRfc3339(JsonUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00")));
+        assertEquals("2021-02-02T19:18:28.347722551Z", JsonUtils.toRfc3339(JsonUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00")));
     }
 
     @Test
