@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
@@ -125,7 +126,7 @@ public class ConsumerInfo {
 
         m = createdRE.matcher(json);
         if (m.find()) {
-            this.created = JsonUtils.parseDateTime(m.group(1));
+            this.created = DateTimeUtils.parseDateTime(m.group(1));
         }
 
         String jsonObject = JsonUtils.getJSONObject(configField, json);

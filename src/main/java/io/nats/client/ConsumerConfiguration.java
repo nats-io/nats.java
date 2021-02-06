@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
@@ -194,7 +195,7 @@ public class ConsumerConfiguration {
 
         m = startTimeRE.matcher(json);
         if (m.find()) {
-            this.startTime = JsonUtils.parseDateTime(m.group(1));
+            this.startTime = DateTimeUtils.parseDateTime(m.group(1));
         }
 
         m = ackPolicyRE.matcher(json);

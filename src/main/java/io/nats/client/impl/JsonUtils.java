@@ -14,11 +14,7 @@
 package io.nats.client.impl;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -27,10 +23,6 @@ import java.util.regex.Pattern;
  * Internal json parsing helpers.
  */
 public abstract class JsonUtils {
-    public static final ZoneId ZONE_ID_GMT = ZoneId.of("GMT");
-    public static final ZonedDateTime DEFAULT_TIME = ZonedDateTime.of(1, 1, 1, 0, 0, 0, 0, ZONE_ID_GMT);
-    public static final DateTimeFormatter RFC3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn'Z'");
-
     public static final String EMPTY_JSON = "{}";
 
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
@@ -271,29 +263,8 @@ public abstract class JsonUtils {
      */
     public static void addFld(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
         if (zonedDateTime != null) {
-            sb.append(Q).append(fname).append(QCOLONQ).append(toRfc3339(zonedDateTime)).append(QCOMMA);
-        }
-    }
-
-    public static ZonedDateTime toGmt(ZonedDateTime zonedDateTime) {
-        return ZonedDateTime.ofInstant(Instant.from(zonedDateTime), ZONE_ID_GMT);
-    }
-
-    public static String toRfc3339(ZonedDateTime zonedDateTime) {
-        return RFC3339_FORMATTER.format(toGmt(zonedDateTime));
-    }
-
-    /**
-     * Parses a date time from the server.
-     * @param dateTime - date time from the server.
-     * @return a Zoned Date time.
-     */
-    public static ZonedDateTime parseDateTime(String dateTime) {
-        try {
-            return toGmt(ZonedDateTime.parse(dateTime));
-        }
-        catch (DateTimeParseException s) {
-            return DEFAULT_TIME;
+            sb.append(Q).append(fname).append(QCOLONQ)
+                    .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
         }
     }
 }

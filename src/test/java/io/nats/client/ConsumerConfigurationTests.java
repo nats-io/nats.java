@@ -16,7 +16,7 @@ package io.nats.client;
 import io.nats.client.ConsumerConfiguration.AckPolicy;
 import io.nats.client.ConsumerConfiguration.DeliverPolicy;
 import io.nats.client.ConsumerConfiguration.ReplayPolicy;
-import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ConsumerConfigurationTests extends TestBase {
     @Test
     public void testBuilder() {
-        ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, JsonUtils.ZONE_ID_GMT);
+        ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
 
         ConsumerConfiguration c = ConsumerConfiguration.builder()
                 .ackPolicy(AckPolicy.Explicit)

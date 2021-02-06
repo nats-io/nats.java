@@ -13,7 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.JsonUtils;
+import io.nats.client.impl.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -27,7 +27,7 @@ public class StreamInfoTests {
     public void testStreamInfo() {
         String json = dataAsString("StreamInfo.json");
         StreamInfo si = new StreamInfo(json);
-        long expected = JsonUtils.parseDateTime("2021-01-25T20:09:10.6225191Z").toEpochSecond();
+        long expected = DateTimeUtils.parseDateTime("2021-01-25T20:09:10.6225191Z").toEpochSecond();
         assertEquals(expected, si.getCreateTime().toEpochSecond());
 
         StreamConfiguration sc = si.getConfiguration();
@@ -58,8 +58,8 @@ public class StreamInfoTests {
         assertEquals(14, ss.getLastSequence());
         assertEquals(15, ss.getConsumerCount());
 
-        assertEquals(JsonUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getFirstTime());
-        assertEquals(JsonUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getLastTime());
+        assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getFirstTime());
+        assertEquals(DateTimeUtils.parseDateTime("0001-01-01T00:00:00Z"), ss.getLastTime());
 
         si = new StreamInfo("{}");
         assertNull(si.getCreateTime());

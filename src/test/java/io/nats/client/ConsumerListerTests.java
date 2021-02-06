@@ -13,8 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JetStreamTestBase;
-import io.nats.client.impl.JsonUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +37,7 @@ public class ConsumerListerTests extends JetStreamTestBase {
         ConsumerInfo ci = cl.getConsumers().get(0);
         assertEquals("stream-1", ci.getStreamName());
         assertEquals("cname1", ci.getName());
-        Assertions.assertEquals(JsonUtils.parseDateTime("2021-01-20T23:41:08.579594Z"), ci.getCreationTime());
+        Assertions.assertEquals(DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z"), ci.getCreationTime());
         assertEquals(5, ci.getNumAckPending());
         assertEquals(6, ci.getRedelivered());
         assertEquals(7, ci.getNumWaiting());

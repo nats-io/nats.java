@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
@@ -69,7 +70,7 @@ public class StreamInfo {
 
             m = firstTimeRE.matcher(json);
             if (m.find()) {
-                this.firstTime = JsonUtils.parseDateTime(m.group(1));
+                this.firstTime = DateTimeUtils.parseDateTime(m.group(1));
             }
 
             m = lastSeqRE.matcher(json);
@@ -79,7 +80,7 @@ public class StreamInfo {
 
             m = lastTimeRE.matcher(json);
             if (m.find()) {
-                this.lastTime = JsonUtils.parseDateTime(m.group(1));
+                this.lastTime = DateTimeUtils.parseDateTime(m.group(1));
             }
 
             m = consumersRE.matcher(json);
@@ -180,7 +181,7 @@ public class StreamInfo {
      */
     public StreamInfo(String json) {
         Matcher m = createdRE.matcher(json);
-        this.created = m.find() ? JsonUtils.parseDateTime(m.group(1)) : null;
+        this.created = m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;
 
         this.config = new StreamConfiguration(JsonUtils.getJSONObject("config", json));
         this.state = new StreamState(JsonUtils.getJSONObject("state", json));
