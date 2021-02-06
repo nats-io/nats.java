@@ -129,7 +129,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish 10 messages
-            // no wait, batch size 10, there are 10 messages, we will read them all
+            // expire, batch size 10, there are 10 messages, we will read them all
             publish(js, SUBJECT, 100, 10);
             sub.pullExpiresIn(Duration.ofSeconds(3));
             List<Message> messages = readMessagesAck(sub);
@@ -138,7 +138,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 15 messages
             publish(js, SUBJECT, 200, 15);
-            // no wait, batch size 10, there are 15 messages, we will read them all
+            // expire, batch size 10, there are 15 messages, we will read them all
             // and for expire, since we got more than batch size we do not trip expire
             sub.pullExpiresIn(Duration.ofSeconds(3));
             messages = readMessagesAck(sub);
@@ -147,13 +147,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 5 messages
             publish(js, SUBJECT, 300, 5);
-            // no wait, batch size 10, there are 5 messages
+            // expire, batch size 10, there are 5 messages
             sub.pullExpiresIn(Duration.ofSeconds(3));
             messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);
 
-            // no wait, batch size 10, there are 0 messages
+            // expire, batch size 10, there are 0 messages
             sub.pullExpiresIn(Duration.ofSeconds(3));
             messages = readMessagesAck(sub);
             assertEquals(0, messages.size());
@@ -178,7 +178,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish 10 messages
-            // no wait, batch size 10, there are 10 messages, we will read them all
+            // expire, batch size 10, there are 10 messages, we will read them all
             publish(js, SUBJECT, 100, 10);
             sub.pullExpiresIn(Duration.ZERO);
             List<Message> messages = readMessagesAck(sub);
@@ -187,7 +187,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 15 messages
             publish(js, SUBJECT, 200, 15);
-            // no wait, batch size 10, there are 15 messages, we will read them all
+            // expire, batch size 10, there are 15 messages, we will read them all
             // and for expire, since we got more than batch size we do not trip expire
             sub.pullExpiresIn(Duration.ZERO);
             messages = readMessagesAck(sub);
@@ -196,7 +196,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 5 messages
             publish(js, SUBJECT, 300, 5);
-            // no wait, batch size 10, there are 5 messages
+            // expire, batch size 10, there are 5 messages
             sub.pullExpiresIn(Duration.ZERO);
             messages = readMessagesAck(sub);
             assertEquals(1, messages.size());
