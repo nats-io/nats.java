@@ -15,17 +15,20 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamSubscription;
+import io.nats.client.Message;
 import io.nats.client.PullSubscribeOptions;
 import io.nats.examples.ExampleUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testPull() throws Exception {
-
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -47,22 +50,184 @@ public class JetStreamPullTests extends JetStreamTestBase {
             sub.pull();
 
             // read what is available, expect 4
-            int red = readMessagesAck(sub);
-            int total = red;
-            validateRedAndTotal(4, red, 4, total);
+            List<Message> messages = readMessagesAck(sub);
+            int total = messages.size();
+            validateRedAndTotal(4, messages.size(), 4, total);
 
             // publish some more covering our initial pull and more
             publish(js, SUBJECT, 5, 20);
 
             // read what is available, expect 6 more
-            red = readMessagesAck(sub);
-            total += red;
-            validateRedAndTotal(20, red, 24, total);
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(20, messages.size(), 24, total);
 
             // read what is available
-            red = readMessagesAck(sub);
-            total += red;
-            validateRedAndTotal(0, red, 24, total);
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(0, messages.size(), 24, total);
         });
+    }
+
+    @Test
+    public void testPullNoWait() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            ExampleUtils.createTestStream(nc, STREAM, SUBJECT);
+
+            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
+
+            // Subscribe synchronously.
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // publish 10 messages
+            // no wait, batch size 10, there are 10 messages, we will read them all and not trip nowait
+            publish(js, SUBJECT, 100, 10);
+            sub.pullNoWait(true);
+            List<Message> messages = readMessagesAck(sub);
+            assertEquals(10, messages.size());
+            assertAllJetStream(messages);
+
+            // publish 15 messages
+            // no wait, batch size 10, there are 15 messages, we will read them all
+            // but since we are in the second block of 10 and there are less than 10, we DO trip the nowait
+            publish(js, SUBJECT, 200, 15);
+            sub.pullNoWait(true);
+            messages = readMessagesAck(sub);
+            assertEquals(16, messages.size());
+            assertLastIsStatus(messages, 404);
+
+            // publish 5 messages
+            // no wait, batch size 10, there are 5 messages, we WILL trip nowait
+            publish(js, SUBJECT, 300, 5);
+            sub.pullNoWait(true);
+            messages = readMessagesAck(sub);
+            assertEquals(6, messages.size());
+            assertLastIsStatus(messages, 404);
+        });
+    }
+
+    @Test
+    public void testPullExpireFuture() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            ExampleUtils.createTestStream(nc, STREAM, SUBJECT);
+
+            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
+
+            // Subscribe synchronously.
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // publish 10 messages
+            // no wait, batch size 10, there are 10 messages, we will read them all
+            publish(js, SUBJECT, 100, 10);
+            sub.pullExpiresIn(Duration.ofSeconds(3));
+            List<Message> messages = readMessagesAck(sub);
+            assertEquals(10, messages.size());
+            assertAllJetStream(messages);
+
+            // publish 15 messages
+            publish(js, SUBJECT, 200, 15);
+            // no wait, batch size 10, there are 15 messages, we will read them all
+            // and for expire, since we got more than batch size we do not trip expire
+            sub.pullExpiresIn(Duration.ofSeconds(3));
+            messages = readMessagesAck(sub);
+            assertEquals(15, messages.size());
+            assertAllJetStream(messages);
+
+            // publish 5 messages
+            publish(js, SUBJECT, 300, 5);
+            // no wait, batch size 10, there are 5 messages
+            sub.pullExpiresIn(Duration.ofSeconds(3));
+            messages = readMessagesAck(sub);
+            assertEquals(5, messages.size());
+            assertAllJetStream(messages);
+
+            // no wait, batch size 10, there are 0 messages
+            sub.pullExpiresIn(Duration.ofSeconds(3));
+            messages = readMessagesAck(sub);
+            assertEquals(0, messages.size());
+            assertAllJetStream(messages);
+        });
+    }
+
+    @Test
+    public void testPullExpireImmediately() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            ExampleUtils.createTestStream(nc, STREAM, SUBJECT);
+
+            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
+
+            // Subscribe synchronously.
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // publish 10 messages
+            // no wait, batch size 10, there are 10 messages, we will read them all
+            publish(js, SUBJECT, 100, 10);
+            sub.pullExpiresIn(Duration.ZERO);
+            List<Message> messages = readMessagesAck(sub);
+            assertEquals(10, messages.size());
+            assertAllJetStream(messages);
+
+            // publish 15 messages
+            publish(js, SUBJECT, 200, 15);
+            // no wait, batch size 10, there are 15 messages, we will read them all
+            // and for expire, since we got more than batch size we do not trip expire
+            sub.pullExpiresIn(Duration.ZERO);
+            messages = readMessagesAck(sub);
+            assertEquals(15, messages.size());
+            assertAllJetStream(messages);
+
+            // publish 5 messages
+            publish(js, SUBJECT, 300, 5);
+            // no wait, batch size 10, there are 5 messages
+            sub.pullExpiresIn(Duration.ZERO);
+            messages = readMessagesAck(sub);
+            assertEquals(1, messages.size());
+            assertLastIsStatus(messages, 408);
+        });
+    }
+
+    private void assertAllJetStream(List<Message> messages) {
+        for (Message m : messages) {
+            assertTrue(m.isJetStream());
+        }
+    }
+
+    private void assertLastIsStatus(List<Message> messages, int code) {
+        int lastIndex = messages.size() - 1;
+        for (int x = 0; x < lastIndex; x++) {
+            Message m = messages.get(x);
+            assertTrue(m.isJetStream());
+        }
+        Message m = messages.get(lastIndex);
+        assertFalse(m.isJetStream());
+        assertIsStatus(messages, code, lastIndex);
+    }
+
+    private void assertIsStatus(List<Message> messages, int code, int index) {
+        assertEquals(index + 1, messages.size());
+        Message statusMsg = messages.get(index);
+        System.out.println(statusMsg.getStatus().getCode());
+        System.out.println(statusMsg.getStatus().getMessage());
+        assertFalse(statusMsg.isJetStream());
+        assertNotNull(statusMsg.getStatus());
+        assertEquals(code, statusMsg.getStatus().getCode());
     }
 }

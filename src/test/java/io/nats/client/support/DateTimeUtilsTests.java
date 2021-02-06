@@ -13,17 +13,16 @@
 
 package io.nats.client.support;
 
-import io.nats.client.ConsumerLister;
-import io.nats.client.StreamInfo;
 import io.nats.client.impl.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
-import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class DateTimeUtilsTests {
 
@@ -60,9 +59,13 @@ public final class DateTimeUtilsTests {
     }
 
     @Test
-    public void testCoverage_printable() {
-        // doesn't really test anything, this is not production code. just for coverage
-        DebugUtil.printable(new ConsumerLister(dataAsString("ConsumerLister.json")));
-        DebugUtil.printable(new StreamInfo(dataAsString("StreamInfo.json")));
+    public void testFromNow() {
+        long now = Instant.now().toEpochMilli();
+        long then = Instant.from(DateTimeUtils.fromNow(5000)).toEpochMilli();
+        assertTrue(then - now < 5050); // it takes about 10 ms to execute fromNow
+
+        now = Instant.now().toEpochMilli();
+        then = Instant.from(DateTimeUtils.fromNow(Duration.ofMillis(5000))).toEpochMilli();
+        assertTrue(then - now < 5050);
     }
 }

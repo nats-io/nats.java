@@ -17,7 +17,7 @@ import io.nats.client.ConsumerInfo;
 import io.nats.client.JetStreamSubscription;
 
 import java.io.IOException;
-import java.time.ZonedDateTime;
+import java.time.Duration;
 
 import static io.nats.client.support.Validator.validatePullBatchSize;
 
@@ -67,7 +67,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      * {@inheritDoc}
      */
     @Override
-    public void pull(boolean noWait) {
+    public void pullNoWait(boolean noWait) {
         pull(null, noWait, null); // nulls mean use default
     }
 
@@ -75,15 +75,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      * {@inheritDoc}
      */
     @Override
-    public void pull(ZonedDateTime expires) {
-        pull(null, null, expires); // nulls mean use default
+    public void pullExpiresIn(Duration expiresIn) {
+        pull(null, null, expiresIn); // nulls mean use default
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void pull(Integer batchSize, Boolean noWait, ZonedDateTime expires) {
+    private void pull(Integer batchSize, Boolean noWait, Duration expiresIn) {
         if (defaultBatchSize <= 0) {
             throw new IllegalStateException("Subscription type does not support pull.");
         }
@@ -91,9 +87,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         int batch = (batchSize == null) ? defaultBatchSize : validatePullBatchSize(batchSize);
 
         StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addFld(sb, "expires", expires);
+        JsonUtils.addFld(sb, "expires", expiresIn == null ? null : DateTimeUtils.fromNow(expiresIn));
         JsonUtils.addFld(sb, "batch", batch);
-        JsonUtils.addFld(sb, "no_wait", (noWait == null) ? defaultNoWait : noWait);
+        JsonUtils.addFldWhenTrue(sb, "no_wait", (noWait == null) ? defaultNoWait : noWait);
         byte[] payload = JsonUtils.endJson(sb).toString().getBytes();
 
         String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));

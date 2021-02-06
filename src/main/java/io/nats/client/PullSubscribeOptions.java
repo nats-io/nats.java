@@ -122,6 +122,7 @@ public class PullSubscribeOptions {
         /**
          * When true a response with a 404 status header will be returned when no messages are available
          * @param defaultNoWait true to turn on this behavior
+         * @return the builder
          */
         public Builder defaultNoWait(boolean defaultNoWait) {
             this.defaultNoWait = defaultNoWait;

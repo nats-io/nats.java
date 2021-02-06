@@ -20,6 +20,8 @@ import io.nats.client.utils.TestBase;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -78,15 +80,22 @@ public class JetStreamTestBase extends TestBase {
         return js.publish(msg);
     }
 
-    public static int readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        int red = 0;
+    public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
+        List<Message> messages = new ArrayList<>();
         Message msg = sub.nextMessage(Duration.ofSeconds(1));
         while (msg != null) {
-            ++red;
-            msg.ack();
-            msg = sub.nextMessage(Duration.ofSeconds(1));
+            messages.add(msg);
+            if (msg.isJetStream()) {
+//                System.out.println("ACK " + new String(msg.getData()));
+                msg.ack();
+                msg = sub.nextMessage(Duration.ofSeconds(1));
+            }
+            else {
+//                System.out.println("NOT");
+                msg = null; // so we break the loop
+            }
         }
-        return red;
+        return messages;
     }
 
     public static void validateRedAndTotal(int expectedRed, int actualRed, int expectedTotal, int actualTotal) {

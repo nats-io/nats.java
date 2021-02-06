@@ -44,13 +44,23 @@ public class TestBase {
     }
 
     public static void runInServer(InServerTest inServerTest) throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false, false); Connection nc = Nats.connect(ts.getURI())) {
-            inServerTest.test(nc);
-        }
+        runInServer(false, false, inServerTest);
+    }
+
+    public static void runInServer(boolean debug, InServerTest inServerTest) throws Exception {
+        runInServer(debug, false, inServerTest);
     }
 
     public static void runInJsServer(InServerTest inServerTest) throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false, true); Connection nc = Nats.connect(ts.getURI())) {
+        runInServer(false, true, inServerTest);
+    }
+
+    public static void runInJsServer(boolean debug, InServerTest inServerTest) throws Exception {
+        runInServer(debug, true, inServerTest);
+    }
+
+    public static void runInServer(boolean debug, boolean jetstream, InServerTest inServerTest) throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(debug, jetstream); Connection nc = Nats.connect(ts.getURI())) {
             inServerTest.test(nc);
         }
     }

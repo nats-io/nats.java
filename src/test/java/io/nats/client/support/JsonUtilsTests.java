@@ -15,12 +15,14 @@ package io.nats.client.support;
 
 import io.nats.client.ConsumerInfo;
 import io.nats.client.ConsumerLister;
+import io.nats.client.StreamInfo;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -66,5 +68,12 @@ public final class JsonUtilsTests {
         strArray = new String[]{};
         JsonUtils.addFld(sb, "na", strArray);
         assertEquals(0, sb.length());
+    }
+
+    @Test
+    public void testCoverage_printable() {
+        // doesn't really test anything, this is not production code. just for coverage
+        DebugUtil.printable(new ConsumerLister(dataAsString("ConsumerLister.json")));
+        DebugUtil.printable(new StreamInfo(dataAsString("StreamInfo.json")));
     }
 }

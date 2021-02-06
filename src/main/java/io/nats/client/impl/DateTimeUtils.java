@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -47,5 +48,13 @@ public abstract class DateTimeUtils {
         catch (DateTimeParseException s) {
             return DEFAULT_TIME;
         }
+    }
+
+    public static ZonedDateTime fromNow(long millis) {
+        return ZonedDateTime.ofInstant(Instant.now().plusMillis(millis), ZONE_ID_GMT);
+    }
+
+    public static ZonedDateTime fromNow(Duration dur) {
+        return ZonedDateTime.ofInstant(Instant.now().plusMillis(dur.toMillis()), ZONE_ID_GMT);
     }
 }

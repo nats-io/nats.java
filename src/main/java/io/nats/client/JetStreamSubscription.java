@@ -16,7 +16,7 @@ package io.nats.client;
 import io.nats.client.impl.JetStreamApiException;
 
 import java.io.IOException;
-import java.time.ZonedDateTime;
+import java.time.Duration;
 
 /**
  * Subscription on a JetStream context.
@@ -30,7 +30,7 @@ public interface JetStreamSubscription extends Subscription {
     void pull();
 
     /**
-     * Polls for new messages, overriding the default batch size.
+     * Polls for new messages, overriding the default batch size for this pull only.
      * This should only be used when the subscription is pull based.
      *
      * @param batchSize the size of the batch
@@ -38,31 +38,22 @@ public interface JetStreamSubscription extends Subscription {
     void pull(int batchSize);
 
     /**
-     * Polls for new messages overriding the default noWait flag.
+     * Polls for new messages overriding the default noWait flag for this pull only.
      * When true a response with a 404 status header will be returned
      * when no messages are available.
      * This should only be used when the subscription is pull based.
      *
      * @param noWait the flag
      */
-    void pull(boolean noWait);
+    void pullNoWait(boolean noWait);
 
     /**
-     * Polls for new messages, sets an expire time.
+     * Polls for new messages, sets an expire time for this pull only.
      * This should only be used when the subscription is pull based.
      *
-     * @param expires the time when this request should be expired from the server wait list
+     * @param expiresIn how long from now this request should be expired from the server wait list
      */
-    void pull(ZonedDateTime expires);
-
-    /**
-     * Polls for new messages optionally overriding the defaults
-     * This should only be used when the subscription is pull based.
-     *  @param batchSize optional size of the batch, overrides the default
-     * @param noWait optional. Use default if not supplied.
-     * @param expires optional expires. No expires if not supplied.
-     */
-    void pull(Integer batchSize, Boolean noWait, ZonedDateTime expires);
+    void pullExpiresIn(Duration expiresIn);
 
     /**
      * Gets information about the consumer behind this subscription.

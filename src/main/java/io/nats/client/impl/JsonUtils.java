@@ -215,6 +215,18 @@ public abstract class JsonUtils {
      * @param sb string builder
      * @param fname fieldname
      * @param value field value
+     */
+    public static void addFldWhenTrue(StringBuilder sb, String fname, boolean value) {
+        if (value) {
+            addFld(sb, fname, true);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
      */    
     public static void addFld(StringBuilder sb, String fname, long value) {
         if (value >= 0) {
