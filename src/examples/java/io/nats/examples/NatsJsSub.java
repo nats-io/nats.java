@@ -22,7 +22,7 @@ import static io.nats.examples.NatsJsManagement.streamExists;
 
 public class NatsJsSub {
 
-    static final String usageString = "\nUsage: java NatsJsSub [-s server] [-durable durable] <streamName> <subject>\n"
+    static final String usageString = "\nUsage: java NatsJsSub [-s server] [-durable durable] <streamName> <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -30,8 +30,8 @@ public class NatsJsSub {
 
     public static void main(String[] args) {
         // circumvent the need for command line arguments by uncommenting / customizing the next line
-        // args = "hello-stream hello-subject 2".split(" ");
-        // args = "-durable hello-durable hello-stream hello-subject 2".split(" ");
+        args = new String[]{"hello-stream", "hello-subject", "2"};
+        // args = new String[]{"-durable", "hello-durable", "hello-stream", "hello-subject", "2"};
 
         ExampleArgs exArgs = ExampleUtils.readJsSubscribeArgs(args, usageString);
 
@@ -51,7 +51,6 @@ public class NatsJsSub {
             // A push subscription means the server will "push" us messages.
             // Build our subscription options. We'll create a durable subscription.
             // Durable means the server will remember where we are if we use that name.
-
             PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
             if (exArgs.durable != null) {
                 builder.durable(exArgs.durable);
@@ -98,7 +97,7 @@ public class NatsJsSub {
                 msg = sub.nextMessage(Duration.ofSeconds(1));
             }
 
-            System.out.println("\nThere are no messages on the server that the consumer has not received.");
+            System.out.println("\nThere are no messages on the server that the consumer has not received.\n");
         }
         catch (Exception e) {
             e.printStackTrace();

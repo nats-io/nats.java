@@ -106,10 +106,9 @@ public class ExampleUtils {
         return ea;
     }
 
-    public static ExampleArgs readConsumerArgs(String[] args, String usageString) {
+    public static ExampleArgs readJsSubscribeCountArgs(String[] args, String usageString) {
         ExampleArgs ea = new ExampleArgs(args, false, true, usageString);
-        if (ea.msgCount < 1 || ea.stream == null || ea.consumer == null) {
-            System.out.println("Stream name and consumer name are required to attach.\nSubject and message count are required.\n");
+        if (ea.msgCount < 1) {
             usage(usageString);
         }
         return ea;
