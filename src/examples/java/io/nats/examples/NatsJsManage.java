@@ -17,7 +17,7 @@ import io.nats.client.*;
 
 import java.nio.charset.StandardCharsets;
 
-import static io.nats.client.support.DebugUtil.printable;
+import static io.nats.examples.ExampleUtils.printObject;
 
 public class NatsJsManage {
 
@@ -35,7 +35,7 @@ public class NatsJsManage {
     private static final String STRM2SUB2 = "strm2sub2";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = new ExampleArgs(args, false, usageString);
+        ExampleArgs exArgs = new ExampleArgs(args, false, true, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
             // Create a JetStream context.  This hangs off the original connection
@@ -128,9 +128,5 @@ public class NatsJsManage {
         System.out.println("================================================================================");
         System.out.println(label);
         System.out.println("--------------------------------------------------------------------------------");
-    }
-
-    public static void printObject(Object o) {
-        System.out.println(printable(o.toString()) + "\n");
     }
 }

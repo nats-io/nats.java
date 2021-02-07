@@ -24,47 +24,33 @@ import java.util.List;
 
 public class NatsJsManagement {
 
-    public static StreamInfo createTestStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
-        return createTestStream(nc.jetStreamManagement(), stream, StreamConfiguration.StorageType.Memory, subjects);
+    public static StreamInfo createStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
+        return createStream(nc.jetStreamManagement(), stream, StreamConfiguration.StorageType.Memory, subjects);
     }
 
-    public static StreamInfo createTestStream(JetStreamManagement jsm, String streamName, String... subjects)
+    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, String... subjects)
             throws IOException, JetStreamApiException {
-        return createTestStream(jsm, streamName, StreamConfiguration.StorageType.Memory, subjects);
+        return createStream(jsm, streamName, StreamConfiguration.StorageType.Memory, subjects);
     }
 
-    public static StreamInfo createTestStream(JetStreamManagement jsm, String streamName, StreamConfiguration.StorageType storageType, String... subjects)
+    public static StreamInfo createOrUpdateStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
+        return createOrUpdateStream(nc.jetStreamManagement(), stream, StreamConfiguration.StorageType.Memory, subjects);
+    }
+
+    public static StreamInfo createOrUpdateStream(JetStreamManagement jsm, String streamName, String... subjects)
             throws IOException, JetStreamApiException {
+        return createOrUpdateStream(jsm, streamName, StreamConfiguration.StorageType.Memory, subjects);
+    }
 
-        try {
-            // lookup stream info, if not found it throws the exception
-            StreamInfo si = jsm.streamInfo(streamName);
+    public static boolean streamExists(Connection nc, String streamName) throws IOException, JetStreamApiException {
+        return getStreamInfo(nc.jetStreamManagement(), streamName) != null;
+    }
 
-            // check to see if the configuration has all the subject we want
-            StreamConfiguration sc = si.getConfiguration();
-            boolean needToUpdate = false;
-            List<String> combined = sc.getSubjects();
-            for (String sub : subjects) {
-                if (!combined.contains(sub)) {
-                    needToUpdate = true;
-                    combined.add(sub);
-                }
-            }
+    public static boolean streamExists(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
+        return getStreamInfo(jsm, streamName) != null;
+    }
 
-            if (needToUpdate) {
-                sc = new StreamConfiguration.Builder(sc).subjects(combined).build();
-                si = jsm.updateStream(sc);
-            }
-
-            System.out.printf("Using existing stream %s on subject(s) %s created at %s.\n",
-                    streamName, String.join(",", subjects), si.getCreateTime().toLocalTime().toString());
-        }
-        catch (JetStreamApiException jsae) {
-            if (jsae.getErrorCode() != 404) {
-                throw jsae;
-            }
-        }
-
+    public static StreamInfo createStream(JetStreamManagement jsm, String streamName, StreamConfiguration.StorageType storageType, String[] subjects) throws IOException, JetStreamApiException {
         // Create a stream, here will use a file storage type, and one subject,
         // the passed subject.
         StreamConfiguration sc = StreamConfiguration.builder()
@@ -75,9 +61,51 @@ public class NatsJsManagement {
 
         // Add or use an existing stream.
         StreamInfo si = jsm.addStream(sc);
-        System.out.printf("Using stream %s on subject(s) %s created at %s.\n",
+        System.out.printf("Created stream %s with subject(s) %s created at %s.\n",
                 streamName, String.join(",", subjects), si.getCreateTime().toLocalTime().toString());
 
         return si;
+    }
+
+    public static StreamInfo createOrUpdateStream(JetStreamManagement jsm, String streamName, StreamConfiguration.StorageType storageType, String... subjects)
+            throws IOException, JetStreamApiException {
+
+        StreamInfo si = getStreamInfo(jsm, streamName);
+        if (si == null) {
+            return createStream(jsm, streamName, storageType, subjects);
+        }
+
+        // check to see if the configuration has all the subject we want
+        StreamConfiguration sc = si.getConfiguration();
+        boolean needToUpdate = false;
+        List<String> combined = sc.getSubjects();
+        for (String sub : subjects) {
+            if (!combined.contains(sub)) {
+                needToUpdate = true;
+                combined.add(sub);
+            }
+        }
+
+        if (needToUpdate) {
+            sc = new StreamConfiguration.Builder(sc).subjects(combined).build();
+            si = jsm.updateStream(sc);
+        }
+
+        System.out.printf("Existing stream %s with subject(s) %s created at %s.\n",
+                streamName, si.getConfiguration().getSubjects(), si.getCreateTime().toLocalTime().toString());
+
+        return si;
+    }
+
+    public static StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
+        try {
+            return jsm.streamInfo(streamName);
+        }
+        catch (JetStreamApiException jsae) {
+            if (jsae.getErrorCode() == 404) {
+                return null;
+            }
+            throw jsae;
+        }
     }
 }

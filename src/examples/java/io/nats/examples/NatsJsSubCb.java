@@ -44,7 +44,7 @@ public class NatsJsSubCb {
             // create a stream just in case it doesn't exist.
             if (exArgs.stream == null) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
-                NatsJsManagement.createTestStream(jsm, "test-stream", exArgs.subject);
+                NatsJsManagement.createOrUpdateStream(jsm, "test-stream", exArgs.subject);
             }
 
             CountDownLatch msgLatch = new CountDownLatch(exArgs.msgCount);

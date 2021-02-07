@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 
 public class NatsJsPub {
 
-    static final String usageString = "\nUsage: java NatsJsPub [-s server] [-stream name] [-h headerKey:headerValue]* <subject> <message>\n"
+    static final String usageString = "\nUsage: java NatsJsPub [-s server] [-h headerKey:headerValue]* <streamName> <subject> <message>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -28,10 +28,9 @@ public class NatsJsPub {
 
     public static void main(String[] args) {
         // circumvent the need for command line arguments by uncommenting / customizing the next line
-        // args = "-s hello-stream hello-subject hello world".split(" ");
-        args = "-stream hello-stream hello-subject hello world".split(" ");
+        args = new String[]{"hello-stream", "hello-subject", "hello world"};
 
-        ExampleArgs exArgs = ExampleUtils.readPublishArgs(args, usageString).defaultStreamName("test-stream");
+        ExampleArgs exArgs = ExampleUtils.readJsPublishArgs(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 
@@ -44,7 +43,7 @@ public class NatsJsPub {
             JetStream js = nc.jetStream();
 
             // See NatsJsManagement for examples on how to create the stream
-            NatsJsManagement.createTestStream(nc, exArgs.stream, exArgs.subject);
+            NatsJsManagement.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
             // create a typical NATS message
             Message msg = NatsMessage.builder()

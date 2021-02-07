@@ -17,6 +17,7 @@ import io.nats.client.Options;
 import io.nats.client.impl.Headers;
 
 public class ExampleArgs {
+
     public String server = Options.DEFAULT_URL;
     public Headers headers;
     public String subject;
@@ -24,21 +25,22 @@ public class ExampleArgs {
     public int msgCount = -1;
     public String stream = null;
     public String consumer = null;
+    public String durable = null;
     public int pollSize = 0;
 
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
     }
 
-    public ExampleArgs(String[] args, boolean pubReq, String usageString) {
+    public ExampleArgs(String[] args, boolean pubNotSub, boolean js, String usageString) {
         try {
             for (int x = 0; x < args.length; x++) {
                 String arg = args[x];
                 if (arg.startsWith("-")) {
-                    handleArg(pubReq, args[++x], arg);
+                    handleArg(pubNotSub, js, args[++x], arg);
                 }
                 else {
-                    handleArg(pubReq, arg, null);
+                    handleArg(pubNotSub, js, arg, null);
                 }
             }
         }
@@ -49,19 +51,15 @@ public class ExampleArgs {
         }
     }
 
-    public ExampleArgs defaultStreamName(String name) {
-        if (stream == null) {
-            stream = name;
-        }
-        return this;
-    }
-
-    private void handleArg(boolean pubReq, String value, String name) {
+    private void handleArg(boolean pubNotSub, boolean js, String value, String name) {
         if (name == null) {
-            if (subject == null) {
+            if (js && stream == null) {
+                stream = value;
+            }
+            else if (subject == null) {
                 subject = value;
             }
-            else if (pubReq) {
+            else if (pubNotSub) {
                 if (message == null) {
                     message = value;
                 }
@@ -86,6 +84,9 @@ public class ExampleArgs {
         }
         else if (name.equals("-count")) {
             msgCount = Integer.parseInt(value);
+        }
+        else if (name.equals("-durable")) {
+            durable = value;
         }
         else if (name.equals("-h")) {
             if (headers == null) {
