@@ -27,10 +27,11 @@ public class NatsJsPub {
             + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        // circumvent the need for command line arguments by uncommenting the next line
-        args = "test-sub foo msg".split(" ");
+        // circumvent the need for command line arguments by uncommenting / customizing the next line
+        // args = "-s hello-stream hello-subject hello world".split(" ");
+        args = "-stream hello-stream hello-subject hello world".split(" ");
 
-        ExampleArgs exArgs = ExampleUtils.readPublishArgs(args, usageString);
+        ExampleArgs exArgs = ExampleUtils.readPublishArgs(args, usageString).defaultStreamName("test-stream");
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 
@@ -42,11 +43,8 @@ public class NatsJsPub {
             // JetStream consumers.
             JetStream js = nc.jetStream();
 
-            // if a stream name is not provided, attempt to create a test stream.
-            if (exArgs.stream == null) {
-                JetStreamManagement jsm = nc.jetStreamManagement();
-                ExampleUtils.createTestStream(jsm, "test-stream", exArgs.subject);
-            }
+            // See NatsJsManagement for examples on how to create the stream
+            NatsJsManagement.createTestStream(nc, exArgs.stream, exArgs.subject);
 
             // create a typical NATS message
             Message msg = NatsMessage.builder()
@@ -71,8 +69,8 @@ public class NatsJsPub {
             System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                    exArgs.subject, pa.getStream(), pa.getSeqno());
         }
-        catch (Exception exp) {
-            System.err.println(exp);
+        catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }

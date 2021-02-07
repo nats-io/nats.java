@@ -14,10 +14,7 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.StreamConfiguration.StorageType;
-import io.nats.client.impl.JetStreamApiException;
 
-import java.io.IOException;
 import java.time.Duration;
 
 public class ExampleUtils {
@@ -57,32 +54,6 @@ public class ExampleUtils {
 
         return builder.build();
     }
-
-    public static void createTestStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
-        ExampleUtils.createTestStream(nc.jetStreamManagement(), stream, StorageType.Memory, subjects);
-    }
-
-    public static void createTestStream(JetStreamManagement jsm, String streamName, String... subjects)
-            throws IOException, JetStreamApiException {
-        createTestStream(jsm, streamName, StorageType.File, subjects);
-    }
-
-    public static void createTestStream(JetStreamManagement jsm, String streamName, StorageType storageType, String... subjects)
-            throws IOException, JetStreamApiException {
-
-        // Create a stream, here will use a file storage type, and one subject,
-        // the passed subject.
-        StreamConfiguration sc = StreamConfiguration.builder()
-                .name(streamName)
-                .storageType(storageType)
-                .subjects(subjects)
-                .build();
-        
-        // Add or use an existing stream.
-        StreamInfo si = jsm.addStream(sc);
-        System.out.printf("Using stream %s on subject(s) %s created at %s.\n",
-           streamName, String.join(",", subjects), si.getCreateTime().toLocalTime().toString());
-    }    
 
     // Publish:   [options] <subject> <message>
     // Subscribe: [options] <subject> <msgCount>

@@ -17,7 +17,6 @@ import io.nats.client.JetStream;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
 import io.nats.client.PullSubscribeOptions;
-import io.nats.examples.ExampleUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -34,7 +33,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            ExampleUtils.createTestStream(nc, STREAM, SUBJECT);
+            createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
@@ -76,7 +75,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            ExampleUtils.createTestStream(nc, STREAM, SUBJECT);
+            createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
@@ -119,7 +118,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            ExampleUtils.createTestStream(nc, STREAM, SUBJECT);
+            createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
@@ -168,7 +167,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // create the stream.
-            ExampleUtils.createTestStream(nc, STREAM, SUBJECT);
+            createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
@@ -224,8 +223,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
     private void assertIsStatus(List<Message> messages, int code, int index) {
         assertEquals(index + 1, messages.size());
         Message statusMsg = messages.get(index);
-        System.out.println(statusMsg.getStatus().getCode());
-        System.out.println(statusMsg.getStatus().getMessage());
         assertFalse(statusMsg.isJetStream());
         assertNotNull(statusMsg.getStatus());
         assertEquals(code, statusMsg.getStatus().getCode());

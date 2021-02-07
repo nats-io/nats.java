@@ -91,6 +91,43 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateMaxConsumers() {
+        assertEquals(1, validateMaxConsumers(1));
+        assertEquals(-1, validateMaxConsumers(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxConsumers(0));
+    }
+
+    @Test
+    public void testValidateMaxMessages() {
+        assertEquals(1, validateMaxMessages(1));
+        assertEquals(-1, validateMaxMessages(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessages(0));
+    }
+
+    @Test
+    public void testValidateMaxBytes() {
+        assertEquals(1, validateMaxBytes(1));
+        assertEquals(-1, validateMaxBytes(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxBytes(0));
+    }
+
+    @Test
+    public void testValidateMaxMessageSize() {
+        assertEquals(1, validateMaxMessageSize(1));
+        assertEquals(-1, validateMaxMessageSize(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateMaxMessageSize(0));
+    }
+
+    @Test
+    public void testValidateNumberOfReplicas() {
+        assertEquals(1, validateNumberOfReplicas(1));
+        assertEquals(5, validateNumberOfReplicas(5));
+        assertThrows(IllegalArgumentException.class, () -> validateNumberOfReplicas(-1));
+        assertThrows(IllegalArgumentException.class, () -> validateNumberOfReplicas(0));
+        assertThrows(IllegalArgumentException.class, () -> validateNumberOfReplicas(7));
+    }
+
+    @Test
     public void testValidateDurationRequired() {
         assertEquals(Duration.ofNanos(1), validateDurationRequired(Duration.ofNanos(1)));
         assertEquals(Duration.ofSeconds(1), validateDurationRequired(Duration.ofSeconds(1)));
@@ -99,6 +136,18 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateDurationRequired(Duration.ofSeconds(0)));
         assertThrows(IllegalArgumentException.class, () -> validateDurationRequired(Duration.ofNanos(-1)));
         assertThrows(IllegalArgumentException.class, () -> validateDurationRequired(Duration.ofSeconds(-1)));
+    }
+
+    @Test
+    public void testValidateDurationNotRequiredGtOrEqZero() {
+        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(null));
+        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(null));
+        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(Duration.ZERO));
+        assertEquals(Duration.ZERO, validateDurationNotRequiredGtOrEqZero(Duration.ZERO));
+        assertEquals(Duration.ofNanos(1), validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(1)));
+        assertEquals(Duration.ofSeconds(1), validateDurationNotRequiredGtOrEqZero(Duration.ofSeconds(1)));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqZero(Duration.ofNanos(-1)));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqZero(Duration.ofSeconds(-1)));
     }
 
     @Test

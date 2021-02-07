@@ -49,13 +49,25 @@ public class ExampleArgs {
         }
     }
 
+    public ExampleArgs defaultStreamName(String name) {
+        if (stream == null) {
+            stream = name;
+        }
+        return this;
+    }
+
     private void handleArg(boolean pubReq, String value, String name) {
         if (name == null) {
             if (subject == null) {
                 subject = value;
             }
             else if (pubReq) {
-                message = value;
+                if (message == null) {
+                    message = value;
+                }
+                else {
+                    message = message + " " + value;
+                }
             }
             else {
                 msgCount = Integer.parseInt(value);
@@ -71,6 +83,9 @@ public class ExampleArgs {
             stream = value;
         } else if (name.equals("-poll")) {
             pollSize = Integer.parseInt(value);
+        }
+        else if (name.equals("-count")) {
+            msgCount = Integer.parseInt(value);
         }
         else if (name.equals("-h")) {
             if (headers == null) {

@@ -35,9 +35,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = createMemoryStream(nc, STREAM, subject(0), subject(1));
             StreamConfiguration sc = si.getConfiguration();
             assertEquals(STREAM, sc.getName());
-            assertEquals(2, sc.getSubjects().length);
-            assertEquals(subject(0), sc.getSubjects()[0]);
-            assertEquals(subject(1), sc.getSubjects()[1]);
+            assertEquals(2, sc.getSubjects().size());
+            assertEquals(subject(0), sc.getSubjects().get(0));
+            assertEquals(subject(1), sc.getSubjects().get(1));
 
             assertEquals(StreamConfiguration.RetentionPolicy.Limits, sc.getRetentionPolicy());
             assertEquals(StreamConfiguration.DiscardPolicy.Old, sc.getDiscardPolicy());
@@ -76,9 +76,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNotNull(sc);
             assertEquals(STREAM, sc.getName());
             assertNotNull(sc.getSubjects());
-            assertEquals(2, sc.getSubjects().length);
-            assertEquals(subject(0), sc.getSubjects()[0]);
-            assertEquals(subject(1), sc.getSubjects()[1]);
+            assertEquals(2, sc.getSubjects().size());
+            assertEquals(subject(0), sc.getSubjects().get(0));
+            assertEquals(subject(1), sc.getSubjects().get(1));
             assertEquals(RetentionPolicy.Limits, sc.getRetentionPolicy());
             assertEquals(-1, sc.getMaxConsumers());
             assertEquals(-1, sc.getMaxBytes());
@@ -89,7 +89,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(1, sc.getReplicas());
             assertFalse(sc.getNoAck());
             assertEquals(Duration.ofMinutes(2), sc.getDuplicateWindow());
-            assertNull(sc.getTemplate());
+            assertNull(sc.getTemplateOwner());
 
             StreamInfo.StreamState state = si.getStreamState();
             assertNotNull(state);
@@ -126,9 +126,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNotNull(sc);
             assertEquals(STREAM, sc.getName());
             assertNotNull(sc.getSubjects());
-            assertEquals(2, sc.getSubjects().length);
-            assertEquals(subject(0), sc.getSubjects()[0]);
-            assertEquals(subject(1), sc.getSubjects()[1]);
+            assertEquals(2, sc.getSubjects().size());
+            assertEquals(subject(0), sc.getSubjects().get(0));
+            assertEquals(subject(1), sc.getSubjects().get(1));
             assertEquals(43, sc.getMaxBytes());
             assertEquals(44, sc.getMaxMsgSize());
             assertEquals(Duration.ofDays(100), sc.getMaxAge());
@@ -137,7 +137,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(1, sc.getReplicas());
             assertTrue(sc.getNoAck());
             assertEquals(Duration.ofMinutes(3), sc.getDuplicateWindow());
-            assertNull(sc.getTemplate());
+            assertNull(sc.getTemplateOwner());
         });
     }
 

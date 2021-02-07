@@ -32,9 +32,9 @@ public class StreamInfoTests {
 
         StreamConfiguration sc = si.getConfiguration();
         assertEquals("streamName", sc.getName());
-        assertEquals(2, sc.getSubjects().length);
-        assertEquals("sub0", sc.getSubjects()[0]);
-        assertEquals("sub1", sc.getSubjects()[1]);
+        assertEquals(2, sc.getSubjects().size());
+        assertEquals("sub0", sc.getSubjects().get(0));
+        assertEquals("sub1", sc.getSubjects().get(1));
 
         assertEquals(StreamConfiguration.RetentionPolicy.Limits, sc.getRetentionPolicy());
         assertEquals(StreamConfiguration.DiscardPolicy.Old, sc.getDiscardPolicy());

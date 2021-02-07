@@ -87,9 +87,42 @@ public abstract class Validator {
         return pullBatchSize;
     }
 
+    public static long validateMaxConsumers(long max) {
+        return validateGtZeroOrMinus1(max, "Max Consumers");
+    }
+
+    public static long validateMaxMessages(long max) {
+        return validateGtZeroOrMinus1(max, "Max Messages");
+    }
+
+    public static long validateMaxBytes(long max) {
+        return validateGtZeroOrMinus1(max, "Max Bytes");
+    }
+
+    public static long validateMaxMessageSize(long max) {
+        return validateGtZeroOrMinus1(max, "Max message size");
+    }
+
+    public static int validateNumberOfReplicas(int replicas) {
+        if (replicas < 1 || replicas > 5) {
+            throw new IllegalArgumentException("Replicas must be from 1 to 5 inclusive.");
+        }
+        return replicas;
+    }
+
     public static Duration validateDurationRequired(Duration d) {
         if (d == null || d.isZero() || d.isNegative()) {
             throw new IllegalArgumentException("Duration required and must be greater than 0.");
+        }
+        return d;
+    }
+
+    public static Duration validateDurationNotRequiredGtOrEqZero(Duration d) {
+        if (d == null) {
+            return Duration.ZERO;
+        }
+        if (d.isNegative()) {
+            throw new IllegalArgumentException("Duration must be greater than or equal to 0.");
         }
         return d;
     }
@@ -119,6 +152,13 @@ public abstract class Validator {
             throw new IllegalArgumentException(fieldName + "cannot be null");
         }
         return s;
+    }
+
+    public static long validateGtZeroOrMinus1(long l, String label) {
+        if (gtZeroOrMinus1(l)) {
+            throw new IllegalArgumentException(label + " must be greater than zero or -1 for unlimited");
+        }
+        return l;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -184,5 +224,9 @@ public abstract class Validator {
 
     public static String emptyAsNull(String s) {
         return nullOrEmpty(s) ? null : s;
+    }
+
+    public static boolean gtZeroOrMinus1(long maxMsgSize) {
+        return maxMsgSize == 0 || maxMsgSize < -1;
     }
 }

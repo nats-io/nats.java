@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -251,16 +252,31 @@ public abstract class JsonUtils {
      * @param sb string builder
      * @param fname fieldname
      * @param strArray field value
-     */    
+     */
     public static void addFld(StringBuilder sb, String fname, String[] strArray) {
         if (strArray == null || strArray.length == 0) {
             return;
         }
 
-        sb.append(Q + fname  + "\":[");
-        for (int i = 0; i < strArray.length; i++) {
-            sb.append(Q + strArray[i] + Q);
-            if (i < strArray.length-1) {
+        addFld(sb, fname, Arrays.asList(strArray));
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param strings field value
+     */
+    public static void addFld(StringBuilder sb, String fname, List<String> strings) {
+        if (strings == null || strings.size() == 0) {
+            return;
+        }
+
+        sb.append(Q).append(fname).append("\":[");
+        for (int i = 0; i < strings.size(); i++) {
+            String s = strings.get(i);
+            sb.append(Q).append(s).append(Q);
+            if (i < strings.size()-1) {
                 sb.append(COMMA);
             }
         }

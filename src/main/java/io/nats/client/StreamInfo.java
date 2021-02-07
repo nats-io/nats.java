@@ -21,7 +21,6 @@ import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 /**
  * The StreamInfo class contains information about a JetStream stream.
  */
@@ -183,7 +182,7 @@ public class StreamInfo {
         Matcher m = createdRE.matcher(json);
         this.created = m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;
 
-        this.config = new StreamConfiguration(JsonUtils.getJSONObject("config", json));
+        this.config = StreamConfiguration.fromJson(JsonUtils.getJSONObject("config", json));
         this.state = new StreamState(JsonUtils.getJSONObject("state", json));
     }
     

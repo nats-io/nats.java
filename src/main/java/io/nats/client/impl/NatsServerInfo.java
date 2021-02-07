@@ -18,6 +18,7 @@ import io.nats.client.ServerInfo;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -270,7 +271,7 @@ class NatsServerInfo implements ServerInfo {
         if (m.find()) {
             String arrayString = m.group(1);
             String[] raw = arrayString.split(",");
-            ArrayList<String> urls = new ArrayList<>();
+            List<String> urls = new ArrayList<>();
 
             for (String s : raw) {
                 String cleaned = s.trim().replace("\"", "");;

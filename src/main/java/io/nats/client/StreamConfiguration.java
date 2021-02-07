@@ -17,11 +17,11 @@ import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static io.nats.client.support.Validator.*;
 
 /**
  * The StreamConfiguration class specifies the configuration for creating a JetStream stream on the server.
@@ -120,39 +120,39 @@ public class StreamConfiguration {
         }
     }
 
-	private String name = null;
-    private String[] subjects = null;
-    private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
-
-    private long maxConsumers = -1;
-    private long maxMsgs = -1;
-    private long maxBytes = -1;
-    private long maxMsgSize = -1;
-    private Duration maxAge = null;
-    private StorageType storageType = StorageType.File;
-    private DiscardPolicy discardPolicy = DiscardPolicy.Old;
-    private long replicas = -1;
-    private boolean noAck = false;
-    private Duration duplicateWindow = Duration.ZERO;
-    private String template = null;
+    // see builder for defaults
+	private final String name;
+    private final List<String> subjects;
+    private final RetentionPolicy retentionPolicy;
+    private final long maxConsumers;
+    private final long maxMsgs;
+    private final long maxBytes;
+    private final Duration maxAge;
+    private final long maxMsgSize;
+    private final StorageType storageType;
+    private final int replicas;
+    private final boolean noAck;
+    private final String templateOwner;
+    private final DiscardPolicy discardPolicy;
+    private final Duration duplicateWindow;
 
     @Override
     public String toString() {
         return "StreamConfiguration{" +
                 "name='" + name + '\'' +
-                ", subjects=" + Arrays.toString(subjects) +
+                ", subjects=" + subjects +
                 ", retentionPolicy=" + retentionPolicy +
                 ", maxConsumers=" + maxConsumers +
                 ", maxMsgs=" + maxMsgs +
                 ", maxBytes=" + maxBytes +
-                ", maxMsgSize=" + maxMsgSize +
                 ", maxAge=" + maxAge +
+                ", maxMsgSize=" + maxMsgSize +
                 ", storageType=" + storageType +
-                ", discardPolicy=" + discardPolicy +
                 ", replicas=" + replicas +
                 ", noAck=" + noAck +
+                ", template='" + templateOwner + '\'' +
+                ", discardPolicy=" + discardPolicy +
                 ", duplicateWindow=" + duplicateWindow +
-                ", template='" + template + '\'' +
                 '}';
     }
 
@@ -187,91 +187,85 @@ public class StreamConfiguration {
     private static final Pattern duplicatesRE = JsonUtils.buildPattern(duplicatesField, FieldType.jsonNumber);
     
     // for the response from the server
-    StreamConfiguration(String json) {
+    static StreamConfiguration fromJson(String json) {
+        Builder builder = new Builder();
         Matcher m = nameRE.matcher(json);
         if (m.find()) {
-            this.name = m.group(1);
+            builder.name = m.group(1);
         }
 
         m = maxConsumersRE.matcher(json);
         if (m.find()) {
-            this.maxConsumers = Long.parseLong(m.group(1));
+            builder.maxConsumers = Long.parseLong(m.group(1));
         }
         
         m = retentionRE.matcher(json);
         if (m.find()) {
-            this.retentionPolicy = RetentionPolicy.get(m.group(1));
+            builder.retentionPolicy = RetentionPolicy.get(m.group(1));
         }
 
         m = maxMsgsRE.matcher(json);
         if (m.find()) {
-            this.maxMsgs = Long.parseLong(m.group(1));
+            builder.maxMsgs = Long.parseLong(m.group(1));
         }
 
         m = maxBytesRE.matcher(json);
         if (m.find()) {
-            this.maxBytes = Long.parseLong(m.group(1));
+            builder.maxBytes = Long.parseLong(m.group(1));
         }
 
         m = maxAgeRE.matcher(json);
         if (m.find()) {
-            this.maxAge = Duration.ofNanos(Long.parseLong(m.group(1)));
+            builder.maxAge = Duration.ofNanos(Long.parseLong(m.group(1)));
         }        
 
         m = maxMsgSizeRE.matcher(json);
         if (m.find()) {
-            this.maxMsgSize = Long.parseLong(m.group(1));
+            builder.maxMsgSize = Long.parseLong(m.group(1));
         } 
 
         m = storageTypeRE.matcher(json);
         if (m.find()) {
-            this.storageType = StorageType.get(m.group(1));
+            builder.storageType = StorageType.get(m.group(1));
         }
 
         m = discardPolicyRE.matcher(json);
         if (m.find()) {
-            this.discardPolicy = DiscardPolicy.get(m.group(1));
+            builder.discardPolicy = DiscardPolicy.get(m.group(1));
         }
 
         m = replicasRE.matcher(json);
         if (m.find()) {
-            this.replicas = Long.parseLong(m.group(1));
+            builder.replicas = Integer.parseInt(m.group(1));
         }
 
         m = noAckRE.matcher(json);
         if (m.find()) {
-            this.noAck = Boolean.parseBoolean(m.group(1));
+            builder.noAck = Boolean.parseBoolean(m.group(1));
         }
 
         m = templateRE.matcher(json);
         if (m.find()) {
-            this.template = m.group(1);
+            builder.templateOwner = m.group(1);
         }
 
         m = duplicatesRE.matcher(json);
         if (m.find()) {
-            this.duplicateWindow = Duration.ofNanos(Long.parseLong(m.group(1)));
+            builder.duplicateWindow = Duration.ofNanos(Long.parseLong(m.group(1)));
         }
         
-        this.subjects = JsonUtils.parseStringArray(subjectsField, json);
+        builder.subjects(JsonUtils.parseStringArray(subjectsField, json));
+
+        return builder.build();
     }
 
-    // For the builder
+    // For the builder, assumes all valdiations are already done in builder
     StreamConfiguration(
-            String name,
-            String[] subjects,
-            RetentionPolicy retentionPolicy,
-            long maxConsumers,
-            long maxMsgs,
-            long maxBytes,
-            long maxMsgSize,
-            Duration maxAge,
-            StorageType storageType,
-            DiscardPolicy discardPolicy,
-            long replicas,
-            boolean noAck,
-            Duration duplicateWindow,
-            String template)
+            String name, List<String> subjects, RetentionPolicy retentionPolicy,
+            long maxConsumers, long maxMsgs, long maxBytes,
+            Duration maxAge, long maxMsgSize, StorageType storageType,
+            int replicas, boolean noAck, String templateOwner,
+            DiscardPolicy discardPolicy, Duration duplicateWindow)
     {
         this.name = name;
         this.subjects = subjects;
@@ -279,14 +273,14 @@ public class StreamConfiguration {
         this.maxConsumers = maxConsumers;
         this.maxMsgs = maxMsgs;
         this.maxBytes = maxBytes;
-        this.maxMsgSize = maxMsgSize;
         this.maxAge = maxAge;
+        this.maxMsgSize = maxMsgSize;
         this.storageType = storageType;
-        this.discardPolicy = discardPolicy;
         this.replicas = replicas;
         this.noAck = noAck;
+        this.templateOwner = templateOwner;
+        this.discardPolicy = discardPolicy;
         this.duplicateWindow = duplicateWindow;
-        this.template = template;
     }
 
     /**
@@ -304,13 +298,13 @@ public class StreamConfiguration {
         JsonUtils.addFld(sb, maxConsumersField, maxConsumers);
         JsonUtils.addFld(sb, maxMsgsField, maxMsgs);
         JsonUtils.addFld(sb, maxBytesField, maxBytes);
-        JsonUtils.addFld(sb, maxMsgSizeField, maxMsgSize);
         JsonUtils.addFld(sb, maxAgeField, maxAge);
+        JsonUtils.addFld(sb, maxMsgSizeField, maxMsgSize);
         JsonUtils.addFld(sb, storageTypeField , storageType.toString());
-        JsonUtils.addFld(sb, discardPolicyField, discardPolicy.toString());
         JsonUtils.addFld(sb, replicasField, replicas);
         JsonUtils.addFld(sb, noAckField, noAck);
-        JsonUtils.addFld(sb, templateField, template);
+        JsonUtils.addFld(sb, templateField, templateOwner);
+        JsonUtils.addFld(sb, discardPolicyField, discardPolicy.toString());
         JsonUtils.addFld(sb, duplicatesField, duplicateWindow);
 
         return JsonUtils.endJson(sb).toString();
@@ -328,7 +322,7 @@ public class StreamConfiguration {
      * Gets the subjects for this stream configuration.
      * @return the subject of the stream.
      */
-    public String[] getSubjects() {
+    public List<String> getSubjects() {
         return subjects;
     }
 
@@ -416,8 +410,8 @@ public class StreamConfiguration {
      * Gets the template json for this stream configuration.
      * @return the template for this stream.
      */    
-    public String getTemplate() {
-        return template;
+    public String getTemplateOwner() {
+        return templateOwner;
     }
 
     /**
@@ -447,20 +441,45 @@ public class StreamConfiguration {
     public static class Builder {
 
         private String name = null;
-        private String[] subjects = null;
+        private List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
         private long maxConsumers = -1;
         private long maxMsgs = -1;
         private long maxBytes = -1;
-        private long maxMsgSize = -1;
         private Duration maxAge = Duration.ZERO;
+        private long maxMsgSize = -1;
         private StorageType storageType = StorageType.File;
-        private DiscardPolicy discardPolicy = DiscardPolicy.Old;
-        private long replicas = 1;
+        private int replicas = 1;
         private boolean noAck = false;
+        private String templateOwner = null;
+        private DiscardPolicy discardPolicy = DiscardPolicy.Old;
         private Duration duplicateWindow = Duration.ZERO;
-        private String template = null;
-    
+
+        /**
+         * Default Builder
+         */
+        public Builder() {}
+
+        /**
+         * Update Builder, useful if you need to update a configuration
+         */
+        public Builder(StreamConfiguration sc) {
+            this.name = sc.name;
+            subjects(sc.subjects);
+            this.retentionPolicy = sc.retentionPolicy;
+            this.maxConsumers = sc.maxConsumers;
+            this.maxMsgs = sc.maxMsgs;
+            this.maxBytes = sc.maxBytes;
+            this.maxAge = sc.maxAge;
+            this.maxMsgSize = sc.maxMsgSize;
+            this.storageType = sc.storageType;
+            this.replicas = sc.replicas;
+            this.noAck = sc.noAck;
+            this.templateOwner = sc.templateOwner;
+            this.discardPolicy = sc.discardPolicy;
+            this.duplicateWindow = sc.duplicateWindow;
+        }
+
         /**
          * Sets the name of the stream.
          * @param name name of the stream.
@@ -477,10 +496,45 @@ public class StreamConfiguration {
          * @return Builder
          */
         public Builder subjects(String... subjects) {
-            if (subjects == null || subjects.length == 0) {
-                throw new IllegalArgumentException("Subjects cannot be null or empty");
+            this.subjects.clear();
+            return addSubjects(subjects);
+        }
+
+        /**
+         * Sets the subjects in the StreamConfiguration.
+         * @param subjects the stream's subjects
+         * @return Builder
+         */
+        public Builder subjects(Collection<String> subjects) {
+            this.subjects.clear();
+            return addSubjects(subjects);
+        }
+
+        /**
+         * Sets the subjects in the StreamConfiguration.
+         * @param subjects the stream's subjects
+         * @return Builder
+         */
+        public Builder addSubjects(String... subjects) {
+            if (subjects != null) {
+                return addSubjects(Arrays.asList(subjects));
             }
-            this.subjects = subjects;
+            return this;
+        }
+
+        /**
+         * Sets the subjects in the StreamConfiguration.
+         * @param subjects the stream's subjects
+         * @return Builder
+         */
+        public Builder addSubjects(Collection<String> subjects) {
+            if (subjects != null) {
+                for (String sub : subjects) {
+                    if (!this.subjects.contains(sub)) {
+                        this.subjects.add(sub);
+                    }
+                }
+            }
             return this;
         }
 
@@ -490,7 +544,7 @@ public class StreamConfiguration {
          * @return Builder
          */
         public Builder retentionPolicy(RetentionPolicy policy) {
-            this.retentionPolicy = policy;
+            this.retentionPolicy = policy == null ? RetentionPolicy.Limits : policy;
             return this;
         }
 
@@ -500,7 +554,7 @@ public class StreamConfiguration {
          * @return Builder
          */        
         public Builder maxConsumers(long maxConsumers) {
-            this.maxConsumers = maxConsumers;
+            this.maxConsumers = validateMaxConsumers(maxConsumers);
             return this;
         }
 
@@ -510,7 +564,7 @@ public class StreamConfiguration {
          * @return Builder
          */
         public Builder maxMessages(long maxMsgs) {
-            this.maxMsgs = maxMsgs;
+            this.maxMsgs = validateMaxMessages(maxMsgs);
             return this;
         }
 
@@ -520,7 +574,7 @@ public class StreamConfiguration {
          * @return Builder
          */        
         public Builder maxBytes(long maxBytes) {
-            this.maxBytes = maxBytes;
+            this.maxBytes = validateMaxBytes(maxBytes);
             return this;
         }
 
@@ -530,22 +584,19 @@ public class StreamConfiguration {
          * @return Builder
          */        
         public Builder maxAge(Duration maxAge) {
-            this.maxAge = maxAge;
+            this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAge);
             return this;
         }
-        
+
         /**
          * Sets the maximum message size in the StreamConfiguration.
          * @param maxMsgSize the maximum message size
          * @return Builder
-         */        
+         */
         public Builder maxMsgSize(long maxMsgSize) {
-            if (maxMsgSize <= 0) {
-                throw new IllegalArgumentException("value must be greater than zero");
-            }
-            this.maxMsgSize = maxMsgSize;
+            this.maxMsgSize = validateMaxMessageSize(maxMsgSize);
             return this;
-        }  
+        }
 
         /**
          * Sets the storage type in the StreamConfiguration.
@@ -553,18 +604,7 @@ public class StreamConfiguration {
          * @return Builder
          */        
         public Builder storageType(StorageType storageType) {
-            this.storageType = storageType;
-            return this;
-        }       
-        
-        
-        /**
-         * Sets the discard policy in the StreamConfiguration.
-         * @param policy the discard policy of the StreamConfguration
-         * @return Builder
-         */
-        public Builder discardPolicy(DiscardPolicy policy) {
-            this.discardPolicy = policy;
+            this.storageType = storageType == null ? StorageType.File : storageType;
             return this;
         }
 
@@ -572,11 +612,11 @@ public class StreamConfiguration {
          * Sets the number of replicas a message must be stored on in the StreamConfiguration.
          * @param replicas the number of replicas to store this message on
          * @return Builder
-         */        
-        public Builder replicas(long replicas) {
-            this.replicas = replicas;
+         */
+        public Builder replicas(int replicas) {
+            this.replicas = validateNumberOfReplicas(replicas);
             return this;
-        } 
+        }
 
         /**
          * Sets the acknowledgement mode of the StreamConfiguration.  if no acknowledgements are
@@ -587,18 +627,7 @@ public class StreamConfiguration {
         public Builder noAck(boolean noAck) {
             this.noAck = noAck;
             return this;
-        }        
-
-        /**
-         * Sets the duplicate checking window in the the StreamConfiguration.  A Duration.Zero
-         * disables duplicate checking.  Duplicate checking is disabled by default.
-         * @param window duration to hold message ids for duplicate checking.
-         * @return Builder
-         */        
-        public Builder duplicateWindow(Duration  window) {
-            this.duplicateWindow = window;
-            return this;
-        } 
+        }
 
         /**
          * Sets the template a stream in the form of raw JSON.
@@ -606,9 +635,30 @@ public class StreamConfiguration {
          * @return the builder
          */
         public Builder template(String template) {
-            this.template = template;
+            this.templateOwner = emptyAsNull(template);
             return this;
-        }  
+        }
+
+        /**
+         * Sets the discard policy in the StreamConfiguration.
+         * @param policy the discard policy of the StreamConfguration
+         * @return Builder
+         */
+        public Builder discardPolicy(DiscardPolicy policy) {
+            this.discardPolicy = policy == null ? DiscardPolicy.Old : policy;
+            return this;
+        }
+
+        /**
+         * Sets the duplicate checking window in the the StreamConfiguration.  A Duration.Zero
+         * disables duplicate checking.  Duplicate checking is disabled by default.
+         * @param window duration to hold message ids for duplicate checking.
+         * @return Builder
+         */        
+        public Builder duplicateWindow(Duration window) {
+            this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(window);
+            return this;
+        } 
 
         /**
          * Builds the ConsumerConfiguration
@@ -616,20 +666,20 @@ public class StreamConfiguration {
          */
         public StreamConfiguration build() {
             return new StreamConfiguration(
-                name,
-                subjects,
-                retentionPolicy,
-                maxConsumers,
-                maxMsgs,
-                maxBytes,
-                maxMsgSize,
-                maxAge,
-                storageType,
-                discardPolicy,
-                replicas,
-                noAck,
-                duplicateWindow,
-                template
+                    name,
+                    subjects,
+                    retentionPolicy,
+                    maxConsumers,
+                    maxMsgs,
+                    maxBytes,
+                    maxAge,
+                    maxMsgSize,
+                    storageType,
+                    replicas,
+                    noAck,
+                    templateOwner,
+                    discardPolicy,
+                    duplicateWindow
             );
         }
 
