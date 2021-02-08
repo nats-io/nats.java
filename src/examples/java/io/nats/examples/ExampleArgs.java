@@ -82,7 +82,7 @@ public class ExampleArgs {
         } else if (name.equals("-poll")) {
             pollSize = Integer.parseInt(value);
         }
-        else if (name.equals("-count")) {
+        else if (name.equals("-msgCount")) {
             msgCount = Integer.parseInt(value);
         }
         else if (name.equals("-durable")) {

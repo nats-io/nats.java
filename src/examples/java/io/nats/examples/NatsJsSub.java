@@ -22,7 +22,7 @@ import static io.nats.examples.NatsJsManagement.streamExists;
 
 public class NatsJsSub {
 
-    static final String usageString = "\nUsage: java NatsJsSub [-s server] [-durable durable] <streamName> <subject> <msgCount>\n"
+    static final String usageString = "\nUsage: java NatsJsSub [-s server] [-durable durable] [-msgCount #] <streamName> <subject>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -30,8 +30,10 @@ public class NatsJsSub {
 
     public static void main(String[] args) {
         // circumvent the need for command line arguments by uncommenting / customizing the next line
-        args = new String[]{"hello-stream", "hello-subject", "2"};
-        // args = new String[]{"-durable", "hello-durable", "hello-stream", "hello-subject", "2"};
+        // args = "hello-stream hello-subject".split(" ");
+        // args = "hello-stream hello-subject 2".split(" ");
+        // args = "-durable jsSub-durable hello-stream hello-subject".split(" ");
+        // args = "-durable jsSub-durable hello-stream hello-subject 2".split(" ");
 
         ExampleArgs exArgs = ExampleUtils.readJsSubscribeArgs(args, usageString);
 
@@ -61,6 +63,10 @@ public class NatsJsSub {
             JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
             nc.flush(Duration.ofSeconds(5));
 
+            boolean noMoreMessages = false;
+
+            int count = exArgs.msgCount < 1 ? Integer.MAX_VALUE : exArgs.msgCount;
+            int red = 0;
             Message msg = sub.nextMessage(Duration.ofSeconds(1));
             while (msg != null) {
 
@@ -94,10 +100,24 @@ public class NatsJsSub {
                     msg.ack();
                 }
 
-                msg = sub.nextMessage(Duration.ofSeconds(1));
+                ++red;
+                if (--count == 0) {
+                    msg = null;
+                }
+                else {
+                    msg = sub.nextMessage(Duration.ofSeconds(1));
+                    noMoreMessages = msg == null;
+                }
             }
 
-            System.out.println("\nThere are no messages on the server that the consumer has not received.\n");
+            System.out.println("\n" + red + " message(s) were received.");
+
+            if (noMoreMessages) {
+                System.out.println("There are no more messages on the server.\n");
+            }
+            else {
+                System.out.println("There might be more messages on the server.\n");
+            }
         }
         catch (Exception e) {
             e.printStackTrace();

@@ -115,11 +115,8 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
                     break;
 
                 case AckNak:
-                    nc.publish(replyTo, subscription.getSubject(), AckNextOne.body);
-                    break;
-
                 case AckTerm:
-                    nc.publish(replyTo, subscription.getSubject(), AckNextOne.body);
+                    nc.publish(replyTo, subscription.getSubject(), ackType.body);
                     break;
             }
             if (isSync && nc.request(replyTo, null, dur) == null) {

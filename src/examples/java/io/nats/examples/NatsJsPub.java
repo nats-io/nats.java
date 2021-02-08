@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 
 public class NatsJsPub {
 
-    static final String usageString = "\nUsage: java NatsJsPub [-s server] [-h headerKey:headerValue]* <streamName> <subject> <message>\n"
+    static final String usageString = "\nUsage: java NatsJsPub [-s server] [-h headerKey:headerValue]* [-msgCount #] <streamName> <subject> <message>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -28,7 +28,8 @@ public class NatsJsPub {
 
     public static void main(String[] args) {
         // circumvent the need for command line arguments by uncommenting / customizing the next line
-        args = new String[]{"hello-stream", "hello-subject", "hello world"};
+        // args = "hello-stream hello-subject hello world".split(" ");
+        // args = "-msgCount 5 hello-stream hello-subject hello world".split(" ");
 
         ExampleArgs exArgs = ExampleUtils.readJsPublishArgs(args, usageString);
 
@@ -45,28 +46,34 @@ public class NatsJsPub {
             // See NatsJsManagement for examples on how to create the stream
             NatsJsManagement.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
-            // create a typical NATS message
-            Message msg = NatsMessage.builder()
-                    .subject(exArgs.subject)
-                    .headers(exArgs.headers)
-                    .data(exArgs.message, StandardCharsets.UTF_8)
-                    .build();
+            int stop = exArgs.msgCount < 2 ? 2 : exArgs.msgCount + 1;
+            for (int x = 1; x < stop; x++) {
+                // make unique message data if you want more than 1 message
+                String data = exArgs.msgCount < 2 ? exArgs.message : exArgs.message + "-" + x;
 
-            // We'll use the defaults for this simple example, but there are options
-            // to constrain publishing to certain streams, expect sequence numbers and
-            // more. e.g.:
-            //
-            // PublishOptions pops = PublishOptions.builder()
-            //    .stream("test-stream")
-            //    .expectedLastMsgId("transaction-42")
-            //    .build();
-            // js.publish(msg, pops);
+                // create a typical NATS message
+                Message msg = NatsMessage.builder()
+                        .subject(exArgs.subject)
+                        .headers(exArgs.headers)
+                        .data(data, StandardCharsets.UTF_8)
+                        .build();
 
-            // Publish a message and print the results of the publish acknowledgement.
-            // An exception will be thrown if there is a failure.
-            PublishAck pa = js.publish(msg);
-            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
-                   exArgs.subject, pa.getStream(), pa.getSeqno());
+                // We'll use the defaults for this simple example, but there are options
+                // to constrain publishing to certain streams, expect sequence numbers and
+                // more. e.g.:
+                //
+                // PublishOptions pops = PublishOptions.builder()
+                //    .stream("test-stream")
+                //    .expectedLastMsgId("transaction-42")
+                //    .build();
+                // js.publish(msg, pops);
+
+                // Publish a message and print the results of the publish acknowledgement.
+                // An exception will be thrown if there is a failure.
+                PublishAck pa = js.publish(msg);
+                System.out.printf("Published message %d on subject %s, stream %s, seqno %d.\n",
+                       x, exArgs.subject, pa.getStream(), pa.getSeqno());
+            }
         }
         catch (Exception e) {
             e.printStackTrace();

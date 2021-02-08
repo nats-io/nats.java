@@ -24,7 +24,7 @@ import static io.nats.examples.NatsJsManagement.streamExists;
 
 public class NatsJsSubHandler {
 
-    static final String usageString = "\nUsage: java NatsJsSubHandler [-s server] <streamName> <subject> <msgCount>\n"
+    static final String usageString = "\nUsage: java NatsJsSubHandler [-s server] [-durable durable] <streamName> <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -32,8 +32,8 @@ public class NatsJsSubHandler {
 
     public static void main(String[] args) {
         // circumvent the need for command line arguments by uncommenting / customizing the next line
-        args = new String[]{"hello-stream", "hello-subject", "3"};
-        // args = new String[]{"-durable", "hello-durable", "hello-stream", "hello-subject", "3"};
+        // args = "hello-stream hello-subject 2".split(" ");
+        // args = "-durable jsSubHandler-durable hello-stream hello-subject 2".split(" ");
 
         ExampleArgs exArgs = ExampleUtils.readJsSubscribeCountArgs(args, usageString);
 
@@ -61,9 +61,9 @@ public class NatsJsSubHandler {
             MessageHandler handler = (Message msg) -> {
                 if (msgLatch.getCount() == 0) {
                     ignored.incrementAndGet();
-                    System.out.println("Message Ignored, latch count already reached.");
                     if (msg.isJetStream()) {
-                        // TODO ???
+                        System.out.println("Message Ignored, latch count already reached "
+                                + new String(msg.getData(), StandardCharsets.UTF_8));
                         msg.nak();
                     }
                 }
