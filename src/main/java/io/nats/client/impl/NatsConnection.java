@@ -1891,6 +1891,15 @@ class NatsConnection implements Connection {
         writer.flushBuffer();
     }
 
+    void lenientFlushBuffer()  {
+        try {
+            writer.flushBuffer();
+        }
+        catch (Exception e) {
+            // ignore
+        }
+    }
+
     @Override
     public JetStream jetStream() throws IOException {
         return getNatsJetStream(null);

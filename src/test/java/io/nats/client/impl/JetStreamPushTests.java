@@ -101,7 +101,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
             PushSubscribeOptions options = builder.build();
 
-            // Subscribe synchronously.
+            // Subscribe.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
@@ -115,7 +115,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             total += messages.size();
             validateRedAndTotal(0, messages.size(), 5, total);
 
-            sub.unsubscribe(); // don't know if this does anmything
+            sub.unsubscribe();
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // re-subscribe

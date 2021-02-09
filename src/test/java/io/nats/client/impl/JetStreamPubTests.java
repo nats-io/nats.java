@@ -23,9 +23,9 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPub() throws Exception {
-        int COUNT = 100;
+        int COUNT = 10000;
 
-        runInJsServer(nc -> {
+        runAgainstServer(nc -> {
             JetStream js = nc.jetStream();
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
@@ -39,8 +39,11 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 long now = System.currentTimeMillis();
                 js.publish(msg);
                 timer += (System.currentTimeMillis() - now);
+                int y = x + 1;
+                if (y == 100 || (y % 500 == 0)) {
+                    System.out.println("Time for " + y + " messages: " + timer);
+                }
             }
-            System.out.println("Time for " + COUNT + " messages: " + timer);
         });
     }
 }

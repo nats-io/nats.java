@@ -30,9 +30,6 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             requestTimeout = jsOptions.getRequestTimeout();
         }
 
-        // override request style.
-//        conn.getOptions().setOldRequestStyle(true);
-
         checkEnabled();
     }
 

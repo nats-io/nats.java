@@ -75,17 +75,18 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         }
 
         int batch = validatePullBatchSize(batchSize);
+        String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
 
         StringBuilder sb = JsonUtils.beginJson();
+        JsonUtils.addFld(sb, "batch", batch);
+        JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
         if (expiresIn != null) {
             JsonUtils.addFld(sb, "expires", DateTimeUtils.fromNow(expiresIn));
         }
-        JsonUtils.addFld(sb, "batch", batch);
-        JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
         byte[] payload = JsonUtils.endJson(sb).toString().getBytes();
 
-        String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
         connection.publish(subj, getSubject(), payload);
+        connection.lenientFlushBuffer();
     }
 
     /**

@@ -65,6 +65,16 @@ public class TestBase {
         }
     }
 
+    public static void runAgainstServer(InServerTest inServerTest) throws Exception {
+        runAgainstServer(Options.DEFAULT_URL, inServerTest);
+    }
+
+    public static void runAgainstServer(String url, InServerTest inServerTest) throws Exception {
+        try (Connection nc = Nats.connect(url)) {
+            inServerTest.test(nc);
+        }
+    }
+
     public static void printObject(Object o) {
         System.out.println(printable(o.toString()) + "\n");
     }
