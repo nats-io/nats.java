@@ -62,4 +62,12 @@ public class Status {
         String message = MESSAGE_MAP.get(code);
         return message == null ? "Server Status Message: " + code : message;
     }
+
+    @Override
+    public String toString() {
+        return "Status{" +
+                "code=" + code +
+                ", message='" + message + '\'' +
+                '}';
+    }
 }

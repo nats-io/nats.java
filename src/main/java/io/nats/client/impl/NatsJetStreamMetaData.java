@@ -32,6 +32,19 @@ public class NatsJetStreamMetaData implements MessageMetaData {
     private final ZonedDateTime timestamp;
     private long pending = -1;
 
+    @Override
+    public String toString() {
+        return "NatsJetStreamMetaData{" +
+                "stream='" + stream + '\'' +
+                ", consumer='" + consumer + '\'' +
+                ", delivered=" + delivered +
+                ", streamSeq=" + streamSeq +
+                ", consumerSeq=" + consumerSeq +
+                ", timestamp=" + timestamp +
+                ", pending=" + pending +
+                '}';
+    }
+
     NatsJetStreamMetaData(NatsMessage natsMessage) {
         if (!natsMessage.isJetStream()) {
             throwNotAJetStreamMessage(natsMessage.replyTo);

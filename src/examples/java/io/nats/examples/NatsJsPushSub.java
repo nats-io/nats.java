@@ -18,33 +18,49 @@ import io.nats.client.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-import static io.nats.examples.NatsJsManagement.streamExists;
+import static io.nats.examples.NatsJsUtils.streamExists;
 
-public class NatsJsSub {
+/**
+ * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
+ *
+ * Usage: java NatsJsPushSub [-s server]
+ *   Use tls:// or opentls:// to require tls, via the Default SSLContext
+ *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
+ *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
+ *   Use the URL for user/pass/token authentication.
+ */
+public class NatsJsPushSub {
 
-    static final String usageString = "\nUsage: java NatsJsSub [-s server] [-durable durable] [-msgCount #] <streamName> <subject>\n"
-            + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-            + "\nUse the URL for user/pass/token authentication.\n";
+    // STREAM and SUBJECT are required.
+    // DURABLE is optional (null), durable behaves differently, try it by running this twice with durable set
+    // MSG_COUNT < 1 will just loop until there are no more messages
+    static final String STREAM = "example-stream";
+    static final String SUBJECT = "example-subject";
+    static final String DURABLE = null; // "push-sub-durable";
+    static final int MSG_COUNT = 0;
 
     public static void main(String[] args) {
-        // circumvent the need for command line arguments by uncommenting / customizing the next line
-        // args = "hello-stream hello-subject".split(" ");
-        // args = "hello-stream hello-subject 2".split(" ");
-        // args = "-durable jsSub-durable hello-stream hello-subject".split(" ");
-        // args = "-durable jsSub-durable hello-stream hello-subject 2".split(" ");
+        String server = ExampleArgs.getServer(args);
+        int count = MSG_COUNT < 1 ? Integer.MAX_VALUE : MSG_COUNT;
 
-        ExampleArgs exArgs = ExampleUtils.readJsSubscribeArgs(args, usageString);
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args, true))) {
 
-        System.out.printf("\nTrying to connect to %s, and listen to %s for %d messages.\n\n", exArgs.server,
-                exArgs.subject, exArgs.msgCount);
-
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
-
-            if (!streamExists(nc, exArgs.stream)) {
-                System.out.println("Stopping program, stream does not exist: " + exArgs.stream);
+            if (!streamExists(nc, STREAM)) {
+                System.out.println("Stopping program, stream does not exist: " + STREAM);
                 return;
+            }
+
+            // just some reporting
+            System.out.println("\nConnected to server " + server + ". Listening to...");
+            System.out.println("  Subject: " + SUBJECT);
+            if (DURABLE != null) {
+                System.out.println("  Durable: " + DURABLE);
+            }
+            if (count == Integer.MAX_VALUE) {
+                System.out.println("  Until there are no more messages");
+            }
+            else {
+                System.out.println("  For " + count + " messages max");
             }
 
             // Create our JetStream context to receive JetStream messages.
@@ -54,22 +70,18 @@ public class NatsJsSub {
             // Build our subscription options. We'll create a durable subscription.
             // Durable means the server will remember where we are if we use that name.
             PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-            if (exArgs.durable != null) {
-                builder.durable(exArgs.durable);
+            if (DURABLE != null) {
+                builder.durable(DURABLE);
             }
             PushSubscribeOptions so = builder.build();
 
             // Subscribe synchronously, then just wait for messages.
-            JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
+            JetStreamSubscription sub = js.subscribe(SUBJECT, so);
             nc.flush(Duration.ofSeconds(5));
 
-            boolean noMoreMessages = false;
-
-            int count = exArgs.msgCount < 1 ? Integer.MAX_VALUE : exArgs.msgCount;
             int red = 0;
             Message msg = sub.nextMessage(Duration.ofSeconds(1));
             while (msg != null) {
-
                 System.out.println("\nMessage Received:");
                 if (msg.hasHeaders()) {
                     System.out.println("  Headers:");
@@ -89,12 +101,7 @@ public class NatsJsSub {
                 // is set on a consumer, messages can be received from applications
                 // that are NATS producers and from streams in NATS servers.
                 if (msg.isJetStream()) {
-                    MessageMetaData meta = msg.metaData();
-                    System.out.printf("  Stream Name: %s\n", meta.getStream());
-                    System.out.printf("  Stream Seq:  %d\n",  meta.streamSequence());
-                    System.out.printf("  Consumer Name: %s\n", meta.getConsumer());
-                    System.out.printf("  Consumer Seq:  %d\n", meta.consumerSequence());
-                    
+                    System.out.println("  " + msg.metaData());
                     // Because this is a synchronous subscriber, there's no auto-ack.
                     // We need to ack the message or it'll be redelivered.  
                     msg.ack();
@@ -106,18 +113,13 @@ public class NatsJsSub {
                 }
                 else {
                     msg = sub.nextMessage(Duration.ofSeconds(1));
-                    noMoreMessages = msg == null;
                 }
             }
 
-            System.out.println("\n" + red + " message(s) were received.");
+            System.out.println("\n" + red + " message(s) were received.\n");
 
-            if (noMoreMessages) {
-                System.out.println("There are no more messages on the server.\n");
-            }
-            else {
-                System.out.println("There might be more messages on the server.\n");
-            }
+            sub.unsubscribe();
+            nc.flush(Duration.ofSeconds(5));
         }
         catch (Exception e) {
             e.printStackTrace();

@@ -36,17 +36,17 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish some amount of messages, but not entire pull size
-            publish(js, SUBJECT, 0, 4);
+            publish(js, SUBJECT, 1, 4);
 
             // start the pull
-            sub.pull();
+            sub.pull(10);
 
             // read what is available, expect 4
             List<Message> messages = readMessagesAck(sub);
@@ -56,7 +56,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // publish some more covering our initial pull and more
             publish(js, SUBJECT, 5, 20);
 
-            // read what is available, expect 6 more
+            // read what is available, expect 20 more
             messages = readMessagesAck(sub);
             total += messages.size();
             validateRedAndTotal(20, messages.size(), 24, total);
@@ -78,7 +78,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -86,8 +86,8 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 10 messages
             // no wait, batch size 10, there are 10 messages, we will read them all and not trip nowait
-            publish(js, SUBJECT, 100, 10);
-            sub.pullNoWait(true);
+            publish(js, SUBJECT, 101, 10);
+            sub.pullNoWait(10);
             List<Message> messages = readMessagesAck(sub);
             assertEquals(10, messages.size());
             assertAllJetStream(messages);
@@ -95,16 +95,16 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // publish 15 messages
             // no wait, batch size 10, there are 15 messages, we will read them all
             // but since we are in the second block of 10 and there are less than 10, we DO trip the nowait
-            publish(js, SUBJECT, 200, 15);
-            sub.pullNoWait(true);
+            publish(js, SUBJECT, 201, 15);
+            sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             assertEquals(16, messages.size());
             assertLastIsStatus(messages, 404);
 
             // publish 5 messages
             // no wait, batch size 10, there are 5 messages, we WILL trip nowait
-            publish(js, SUBJECT, 300, 5);
-            sub.pullNoWait(true);
+            publish(js, SUBJECT, 301, 5);
+            sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             assertEquals(6, messages.size());
             assertLastIsStatus(messages, 404);
@@ -121,7 +121,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -129,34 +129,36 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 10 messages
             // expire, batch size 10, there are 10 messages, we will read them all
-            publish(js, SUBJECT, 100, 10);
-            sub.pullExpiresIn(Duration.ofSeconds(3));
+            publish(js, SUBJECT, 101, 10);
+            sub.pullExpiresIn(10, Duration.ofSeconds(2));
             List<Message> messages = readMessagesAck(sub);
             assertEquals(10, messages.size());
             assertAllJetStream(messages);
+            sleep(2); // make sure we are passed the expiration
 
             // publish 15 messages
-            publish(js, SUBJECT, 200, 15);
+            publish(js, SUBJECT, 201, 15);
             // expire, batch size 10, there are 15 messages, we will read them all
             // and for expire, since we got more than batch size we do not trip expire
-            sub.pullExpiresIn(Duration.ofSeconds(3));
+            sub.pullExpiresIn(10, Duration.ofSeconds(2));
             messages = readMessagesAck(sub);
             assertEquals(15, messages.size());
             assertAllJetStream(messages);
+            sleep(2); // make sure we are passed the expiration
 
             // publish 5 messages
-            publish(js, SUBJECT, 300, 5);
+            publish(js, SUBJECT, 301, 5);
             // expire, batch size 10, there are 5 messages
-            sub.pullExpiresIn(Duration.ofSeconds(3));
+            sub.pullExpiresIn(10, Duration.ofSeconds(2));
             messages = readMessagesAck(sub);
             assertEquals(5, messages.size());
             assertAllJetStream(messages);
+            sleep(2); // make sure we are passed the expiration
 
             // expire, batch size 10, there are 0 messages
-            sub.pullExpiresIn(Duration.ofSeconds(3));
+            sub.pullExpiresIn(10, Duration.ofSeconds(2));
             messages = readMessagesAck(sub);
             assertEquals(0, messages.size());
-            assertAllJetStream(messages);
         });
     }
 
@@ -170,7 +172,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().defaultBatchSize(10).durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -179,7 +181,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // publish 10 messages
             // expire, batch size 10, there are 10 messages, we will read them all
             publish(js, SUBJECT, 100, 10);
-            sub.pullExpiresIn(Duration.ZERO);
+            sub.pullExpiresIn(10, Duration.ZERO);
             List<Message> messages = readMessagesAck(sub);
             assertEquals(10, messages.size());
             assertAllJetStream(messages);
@@ -188,7 +190,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             publish(js, SUBJECT, 200, 15);
             // expire, batch size 10, there are 15 messages, we will read them all
             // and for expire, since we got more than batch size we do not trip expire
-            sub.pullExpiresIn(Duration.ZERO);
+            sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
             assertEquals(15, messages.size());
             assertAllJetStream(messages);
@@ -196,7 +198,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             // publish 5 messages
             publish(js, SUBJECT, 300, 5);
             // expire, batch size 10, there are 5 messages
-            sub.pullExpiresIn(Duration.ZERO);
+            sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
             assertEquals(1, messages.size());
             assertLastIsStatus(messages, 408);

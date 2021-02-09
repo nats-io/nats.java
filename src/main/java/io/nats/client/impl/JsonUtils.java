@@ -217,8 +217,8 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param value field value
      */
-    public static void addFldWhenTrue(StringBuilder sb, String fname, boolean value) {
-        if (value) {
+    public static void addFldWhenTrue(StringBuilder sb, String fname, Boolean value) {
+        if (value != null && value) {
             addFld(sb, fname, true);
         }
     }

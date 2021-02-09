@@ -30,29 +30,19 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     String consumer;
     String stream;
     String deliver;
-    int defaultBatchSize;
-    boolean defaultNoWait;
+    boolean isPullMode;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(sid, subject, queueName, connection, dispatcher);
     }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, int defaultBatchSize, boolean defaultNoWait) {
+    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, boolean isPullMode) {
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.defaultBatchSize = defaultBatchSize;
-        this.defaultNoWait = defaultNoWait;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void pull() {
-        pull(null, null, null); // nulls mean use default
+        this.isPullMode = isPullMode;
     }
 
     /**
@@ -60,36 +50,38 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pull(int batchSize) {
-        pull(batchSize, null, null); // nulls mean use default
+        _pull(batchSize, false, null); // nulls mean use default
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void pullNoWait(boolean noWait) {
-        pull(null, noWait, null); // nulls mean use default
+    public void pullNoWait(int batchSize) {
+        _pull(batchSize, true, null); // nulls mean use default
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void pullExpiresIn(Duration expiresIn) {
-        pull(null, null, expiresIn); // nulls mean use default
+    public void pullExpiresIn(int batchSize, Duration expiresIn) {
+        _pull(batchSize, false, expiresIn); // nulls mean use default
     }
 
-    private void pull(Integer batchSize, Boolean noWait, Duration expiresIn) {
-        if (defaultBatchSize <= 0) {
+    private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
+        if (!isPullMode) {
             throw new IllegalStateException("Subscription type does not support pull.");
         }
 
-        int batch = (batchSize == null) ? defaultBatchSize : validatePullBatchSize(batchSize);
+        int batch = validatePullBatchSize(batchSize);
 
         StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addFld(sb, "expires", expiresIn == null ? null : DateTimeUtils.fromNow(expiresIn));
+        if (expiresIn != null) {
+            JsonUtils.addFld(sb, "expires", DateTimeUtils.fromNow(expiresIn));
+        }
         JsonUtils.addFld(sb, "batch", batch);
-        JsonUtils.addFldWhenTrue(sb, "no_wait", (noWait == null) ? defaultNoWait : noWait);
+        JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
         byte[] payload = JsonUtils.endJson(sb).toString().getBytes();
 
         String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
@@ -110,8 +102,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 "consumer='" + consumer + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
-                ", defaultBatchSize=" + defaultBatchSize +
-                ", defaultNoWait=" + defaultNoWait +
+                ", isPullMode='" + isPullMode +
                 '}';
     }
 }

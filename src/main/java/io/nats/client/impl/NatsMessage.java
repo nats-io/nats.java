@@ -236,7 +236,7 @@ public class NatsMessage implements Message {
     }
 
     @Override
-    public boolean hasStatus() {
+    public boolean isStatusMessage() {
         return status != null;
     }
 

@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
+import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.Validator.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -84,10 +85,10 @@ public class ValidatorTests {
     @Test
     public void testValidatePullBatchSize() {
         assertEquals(1, validatePullBatchSize(1));
-        assertEquals(Validator.MAX_PULL_SIZE, validatePullBatchSize(Validator.MAX_PULL_SIZE));
+        assertEquals(MAX_PULL_SIZE, validatePullBatchSize(MAX_PULL_SIZE));
         assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(0));
         assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(-1));
-        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(Validator.MAX_PULL_SIZE + 1));
+        assertThrows(IllegalArgumentException.class, () -> validatePullBatchSize(MAX_PULL_SIZE + 1));
     }
 
     @Test

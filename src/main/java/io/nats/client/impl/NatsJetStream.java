@@ -374,14 +374,10 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         // setup the configuration, use a default.
         String stream;
         ConsumerConfiguration workingCC;
-        int defaultBatchSize = 0;
-        boolean defaultNoWait = false;
 
         if (isPullMode) {
             stream = pullSubscribeOptions.getStream();
             workingCC = pullSubscribeOptions.getConsumerConfiguration();
-            defaultBatchSize = pullSubscribeOptions.getDefaultBatchSize();
-            defaultNoWait = pullSubscribeOptions.getDefaultNoWait();
         }
         else if (pushSubscribeOptions == null) {
             stream = null;
@@ -471,11 +467,11 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                 sub.unsubscribe();
                 throw e;
             }
-            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, defaultBatchSize, defaultNoWait);
+            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, isPullMode);
         }
         // 7-Exists.
         else {
-            sub.setupJetStream(this, durable, stream, inbox, defaultBatchSize, defaultNoWait);
+            sub.setupJetStream(this, durable, stream, inbox, isPullMode);
         }
 
         return sub;
@@ -537,7 +533,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         String qOrNull = validateQueueNameOrEmptyAsNull(queue);
         validateNotNull(dispatcher, "dispatcher");
         validateNotNull(handler, "handler");
-        return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
+        return createSubscription(subject, qOrNull, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
     }
 
     /**

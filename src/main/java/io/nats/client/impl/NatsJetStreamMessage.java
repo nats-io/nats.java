@@ -86,7 +86,7 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
 
     @Override
     public boolean isJetStream() {
-        return true;
+        return !isStatusMessage(); // if it's a status message, it's not a JetStreamMessage even if it's wrapped in one.
     }
 
     private void ackReply(AckType ackType) {
@@ -135,7 +135,7 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
 
     private boolean isPullMode() {
         return subscription instanceof NatsJetStreamSubscription
-                && (((NatsJetStreamSubscription) subscription).defaultBatchSize > 0);
+                && ((NatsJetStreamSubscription) subscription).isPullMode;
     }
 
     private Connection getJetStreamValidatedConnection() {
@@ -149,9 +149,5 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
             throw new IllegalStateException("Message is not bound to a connection");
         }
         return c;
-    }
-
-    static IllegalStateException notAJetStreamMessage() {
-        return new IllegalStateException("Message is not a JetStream message");
     }
 }

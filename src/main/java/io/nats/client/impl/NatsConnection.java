@@ -1077,7 +1077,7 @@ class NatsConnection implements Connection {
         }
         if (f != null) {
             statistics.decrementOutstandingRequests();
-            if (msg.hasStatus() && msg.getStatus().getCode() == 503) {
+            if (msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
                 f.cancel(true);
             }
             else {

@@ -22,12 +22,10 @@ import java.time.Duration;
  * Subscription on a JetStream context.
  */
 public interface JetStreamSubscription extends Subscription {
-
     /**
-     * Polls for new messages. This should only be used when the subscription
-     * is pull based.
+     * The maximum pull size
      */
-    void pull();
+    public static final int MAX_PULL_SIZE = 256;
 
     /**
      * Polls for new messages, overriding the default batch size for this pull only.
@@ -38,22 +36,23 @@ public interface JetStreamSubscription extends Subscription {
     void pull(int batchSize);
 
     /**
-     * Polls for new messages overriding the default noWait flag for this pull only.
+     * Polls for new messages in noWait mode with the specified batch size.
      * When true a response with a 404 status header will be returned
      * when no messages are available.
      * This should only be used when the subscription is pull based.
      *
-     * @param noWait the flag
+     * @param batchSize the size of the batch
      */
-    void pullNoWait(boolean noWait);
+    void pullNoWait(int batchSize);
 
     /**
      * Polls for new messages, sets an expire time for this pull only.
      * This should only be used when the subscription is pull based.
      *
+     * @param batchSize the size of the batch
      * @param expiresIn how long from now this request should be expired from the server wait list
      */
-    void pullExpiresIn(Duration expiresIn);
+    void pullExpiresIn(int batchSize, Duration expiresIn);
 
     /**
      * Gets information about the consumer behind this subscription.

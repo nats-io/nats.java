@@ -22,7 +22,7 @@ import io.nats.client.impl.JetStreamApiException;
 import java.io.IOException;
 import java.util.List;
 
-public class NatsJsManagement {
+public class NatsJsUtils {
 
     public static StreamInfo createStream(Connection nc, String stream, String... subjects) throws IOException, JetStreamApiException {
         return createStream(nc.jetStreamManagement(), stream, StreamConfiguration.StorageType.Memory, subjects);

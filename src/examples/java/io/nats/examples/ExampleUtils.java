@@ -20,6 +20,20 @@ import java.time.Duration;
 import static io.nats.client.support.DebugUtil.printable;
 
 public class ExampleUtils {
+    public static Options createExampleOptions(String[] args) throws Exception {
+        String server = ExampleArgs.getServer(args);
+        return createExampleOptions(server, false);
+    }
+
+    public static Options createExampleOptions(String[] args, boolean allowReconnect) throws Exception {
+        String server = ExampleArgs.getServer(args);
+        return createExampleOptions(server, allowReconnect);
+    }
+
+    public static Options createExampleOptions(String server) throws Exception {
+        return createExampleOptions(server, false);
+    }
+
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
         Options.Builder builder = new Options.Builder()
                 .server(server)

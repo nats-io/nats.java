@@ -16,20 +16,17 @@ package io.nats.client;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class PullSubscribeOptionsTests extends TestBase {
 
     @Test
     public void testAffirmative() {
         PullSubscribeOptions so = PullSubscribeOptions.builder()
-                .defaultBatchSize(1)
-                .defaultNoWait(true)
                 .stream(STREAM)
                 .durable(DURABLE)
                 .build();
-        assertEquals(1, so.getDefaultBatchSize());
-        assertTrue(so.getDefaultNoWait());
         assertEquals(STREAM, so.getStream());
         assertEquals(DURABLE, so.getDurable());
     }
@@ -37,8 +34,6 @@ public class PullSubscribeOptionsTests extends TestBase {
     @Test
     public void testBuildValidation() {
         PullSubscribeOptions.Builder builder = PullSubscribeOptions.builder();
-        assertThrows(IllegalArgumentException.class, builder::build);
-        builder.defaultBatchSize(1); // need batch size
         assertThrows(IllegalArgumentException.class, builder::build);
         builder.durable(DURABLE); // also need durable
         builder.build();
@@ -48,9 +43,6 @@ public class PullSubscribeOptionsTests extends TestBase {
     @Test
     public void testFieldValidation() {
         PullSubscribeOptions.Builder builder = PullSubscribeOptions.builder();
-        assertThrows(IllegalArgumentException.class, () -> builder.defaultBatchSize(0));
-        assertThrows(IllegalArgumentException.class, () -> builder.defaultBatchSize(-1));
-        assertThrows(IllegalArgumentException.class, () -> builder.defaultBatchSize(257));
         assertThrows(IllegalArgumentException.class, () -> builder.stream("foo."));
         assertThrows(IllegalArgumentException.class, () -> builder.durable(null));
         assertThrows(IllegalArgumentException.class, () -> builder.durable("foo."));

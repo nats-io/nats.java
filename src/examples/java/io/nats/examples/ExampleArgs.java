@@ -32,6 +32,11 @@ public class ExampleArgs {
         return headers != null && headers.size() > 0;
     }
 
+    public static String getServer(String[] args) {
+        ExampleArgs ea = new ExampleArgs(args, false, false, null);
+        return ea.server;
+    }
+
     public ExampleArgs(String[] args, boolean pubNotSub, boolean js, String usageString) {
         try {
             for (int x = 0; x < args.length; x++) {

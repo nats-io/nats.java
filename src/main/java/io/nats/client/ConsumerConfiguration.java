@@ -363,7 +363,7 @@ public class ConsumerConfiguration {
 
     /**
      * Gets the acknowledgment policy of this consumer configuration.
-     * @return the acknoledgment policy.
+     * @return the acknowledgment policy.
      */    
     public AckPolicy getAckPolicy() {
         return ackPolicy;
@@ -371,7 +371,7 @@ public class ConsumerConfiguration {
 
     /**
      * Gets the acknowledgment wait of this consumer configuration.
-     * @return the acknoledgment wait duration.
+     * @return the acknowledgment wait duration.
      */     
     public Duration getAckWait() {
         return ackWait;

@@ -20,32 +20,44 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.examples.NatsJsManagement.streamExists;
+import static io.nats.examples.NatsJsUtils.streamExists;
 
-public class NatsJsSubHandler {
+/**
+ * This example will demonstrate JetStream push subscribing with a handler. Run NatsJsPub first to setup message data.
+ *
+ * Usage: java NatsJsPushSubWithHandler [-s server]
+ *   Use tls:// or opentls:// to require tls, via the Default SSLContext
+ *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
+ *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
+ *   Use the URL for user/pass/token authentication.
+ */
+public class NatsJsPushSubWithHandler {
 
-    static final String usageString = "\nUsage: java NatsJsSubHandler [-s server] [-durable durable] <streamName> <subject> <msgCount>\n"
-            + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-            + "\nUse the URL for user/pass/token authentication.\n";
+    // STREAM and SUBJECT are required.
+    // DURABLE is optional (null), durable behaves differently, try it by running this twice with durable set
+    // MSG_COUNT should be > 0
+    static final String STREAM = "example-stream";
+    static final String SUBJECT = "example-subject";
+    static final String DURABLE = "push-sub-handler-durable";
+    static final int MSG_COUNT = 3;
 
     public static void main(String[] args) {
-        // circumvent the need for command line arguments by uncommenting / customizing the next line
-        // args = "hello-stream hello-subject 2".split(" ");
-        // args = "-durable jsSubHandler-durable hello-stream hello-subject 2".split(" ");
+        String server = ExampleArgs.getServer(args);
 
-        ExampleArgs exArgs = ExampleUtils.readJsSubscribeCountArgs(args, usageString);
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args, true))) {
 
-        System.out.printf("\nTrying to connect to %s, and listen to %s for %d messages.\n\n", exArgs.server,
-                exArgs.subject, exArgs.msgCount);
-
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
-
-            if (!streamExists(nc, exArgs.stream)) {
-                System.out.println("Stopping program, stream does not exist: " + exArgs.stream);
+            if (!streamExists(nc, STREAM)) {
+                System.out.println("Stopping program, stream does not exist: " + STREAM);
                 return;
             }
+
+            // just some reporting
+            System.out.println("\nConnected to server " + server + ". Listening to...");
+            System.out.println("  Subject: " + SUBJECT);
+            if (DURABLE != null) {
+                System.out.println("  Durable: " + DURABLE);
+            }
+            System.out.println("  For " + MSG_COUNT + " messages max");
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher(null);
@@ -53,7 +65,7 @@ public class NatsJsSubHandler {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
-            CountDownLatch msgLatch = new CountDownLatch(exArgs.msgCount);
+            CountDownLatch msgLatch = new CountDownLatch(MSG_COUNT);
             AtomicInteger received = new AtomicInteger();
             AtomicInteger ignored = new AtomicInteger();
 
@@ -89,21 +101,11 @@ public class NatsJsSubHandler {
                     // is set on a consumer, messages can be received from applications
                     // that are NATS producers and from streams in NATS servers.
                     if (msg.isJetStream()) {
-                        MessageMetaData meta = msg.metaData();
-                        System.out.printf("  Stream Name: %s\n", meta.getStream());
-                        System.out.printf("  Stream Seq:  %d\n", meta.streamSequence());
-                        System.out.printf("  Consumer Name: %s\n", meta.getConsumer());
-                        System.out.printf("  Consumer Seq:  %d\n", meta.consumerSequence());
-
+                        System.out.println("  " + msg.metaData());
                         msg.ack();
                     }
 
                     msgLatch.countDown();
-
-                    // TODO ???
-                    if (msgLatch.getCount() == 0) {
-                        dispatcher.unsubscribe(exArgs.subject);
-                    }
                 }
             };
 
@@ -111,16 +113,16 @@ public class NatsJsSubHandler {
             // Build our subscription options. We'll create a durable subscription.
             // Durable means the server will remember where we are if we use that name.
             PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-            if (exArgs.durable != null) {
-                builder.durable(exArgs.durable);
+            if (DURABLE != null) {
+                builder.durable(DURABLE);
             }
             PushSubscribeOptions so = builder.build();
 
             // Subscribe using the handler
-            js.subscribe(exArgs.subject, dispatcher, handler, false, so);
+            js.subscribe(SUBJECT, dispatcher, handler, false, so);
 
             // Wait for messages to arrive using the countdown latch. But don't wait forever.
-            boolean countReachedZero = msgLatch.await(exArgs.msgCount * 2L, TimeUnit.SECONDS);
+            boolean countReachedZero = msgLatch.await(3, TimeUnit.SECONDS);
 
             System.out.printf("Received %d messages. Ignored %d messages. Timeout out ? %B.\n",
                     received.get(), ignored.get(), !countReachedZero) ;

@@ -97,7 +97,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                     .ackPolicy(ConsumerConfiguration.AckPolicy.All).build();
             PullSubscribeOptions pullOptsAll = PullSubscribeOptions.builder()
-                    .defaultBatchSize(1)
                     .durable(DURABLE)
                     .configuration(cc).build();
             assertThrows(JetStreamApiException.class, () -> js.subscribe(SUBJECT, pullOptsAll));
@@ -105,7 +104,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             cc = ConsumerConfiguration.builder()
                     .ackPolicy(ConsumerConfiguration.AckPolicy.None).build();
             PullSubscribeOptions pullOptsNone = PullSubscribeOptions.builder()
-                    .defaultBatchSize(1)
                     .durable(DURABLE)
                     .configuration(cc).build();
             assertThrows(JetStreamApiException.class, () -> js.subscribe(SUBJECT, pullOptsNone));

@@ -16,6 +16,8 @@ package io.nats.client.support;
 import java.time.Duration;
 import java.util.regex.Pattern;
 
+import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
+
 public abstract class Validator {
     private Validator() {} /* for Jacoco */
 
@@ -79,7 +81,6 @@ public abstract class Validator {
         return s;
     }
 
-    public static final int MAX_PULL_SIZE = 256;
     public static int validatePullBatchSize(int pullBatchSize) {
         if (pullBatchSize < 1 || pullBatchSize > MAX_PULL_SIZE) {
             throw new IllegalArgumentException("Pull Batch Size must be between 1 and " + MAX_PULL_SIZE + " inclusive [" + pullBatchSize + "]");

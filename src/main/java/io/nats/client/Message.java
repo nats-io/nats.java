@@ -52,7 +52,7 @@ public interface Message {
 	/**
 	 * @return true if there is status
 	 */
-	boolean hasStatus();
+	boolean isStatusMessage();
 
 	/**
 	 * @return the status object message
