@@ -25,7 +25,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
     public void testPub() throws Exception {
         int COUNT = 10000;
 
-        runAgainstServer(nc -> {
+        runInJsServer(nc -> {
             JetStream js = nc.jetStream();
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
