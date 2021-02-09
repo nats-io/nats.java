@@ -22,8 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
     public static final String JS_REPLY_TO = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
@@ -109,5 +110,41 @@ public class JetStreamTestBase extends TestBase {
 
     public static void validateRead(int expectedRed, int actualRed) {
         assertEquals(expectedRed, actualRed, "Read does not match");
+    }
+
+    public static void assertSameMessages(List<Message> l1, List<Message> l2) {
+        assertEquals(l1.size(), l2.size());
+        List<String> data1 = l1.stream()
+                .map(m -> new String(m.getData()))
+                .collect(Collectors.toList());
+        List<String> data2 = l2.stream()
+                .map(m -> new String(m.getData()))
+                .collect(Collectors.toList());
+        assertEquals(data1, data2);
+    }
+
+    public static void assertAllJetStream(List<Message> messages) {
+        for (Message m : messages) {
+            assertTrue(m.isJetStream());
+        }
+    }
+
+    public static void assertLastIsStatus(List<Message> messages, int code) {
+        int lastIndex = messages.size() - 1;
+        for (int x = 0; x < lastIndex; x++) {
+            Message m = messages.get(x);
+            assertTrue(m.isJetStream());
+        }
+        Message m = messages.get(lastIndex);
+        assertFalse(m.isJetStream());
+        assertIsStatus(messages, code, lastIndex);
+    }
+
+    public static void assertIsStatus(List<Message> messages, int code, int index) {
+        assertEquals(index + 1, messages.size());
+        Message statusMsg = messages.get(index);
+        assertFalse(statusMsg.isJetStream());
+        assertNotNull(statusMsg.getStatus());
+        assertEquals(code, statusMsg.getStatus().getCode());
     }
 }

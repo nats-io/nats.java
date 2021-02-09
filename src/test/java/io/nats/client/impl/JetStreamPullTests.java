@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JetStreamPullTests extends JetStreamTestBase {
 
@@ -203,30 +203,5 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertEquals(1, messages.size());
             assertLastIsStatus(messages, 408);
         });
-    }
-
-    private void assertAllJetStream(List<Message> messages) {
-        for (Message m : messages) {
-            assertTrue(m.isJetStream());
-        }
-    }
-
-    private void assertLastIsStatus(List<Message> messages, int code) {
-        int lastIndex = messages.size() - 1;
-        for (int x = 0; x < lastIndex; x++) {
-            Message m = messages.get(x);
-            assertTrue(m.isJetStream());
-        }
-        Message m = messages.get(lastIndex);
-        assertFalse(m.isJetStream());
-        assertIsStatus(messages, code, lastIndex);
-    }
-
-    private void assertIsStatus(List<Message> messages, int code, int index) {
-        assertEquals(index + 1, messages.size());
-        Message statusMsg = messages.get(index);
-        assertFalse(statusMsg.isJetStream());
-        assertNotNull(statusMsg.getStatus());
-        assertEquals(code, statusMsg.getStatus().getCode());
     }
 }
