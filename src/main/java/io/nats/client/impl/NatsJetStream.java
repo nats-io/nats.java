@@ -31,7 +31,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
 
         // override request style.
-        conn.getOptions().setOldRequestStyle(true);
+//        conn.getOptions().setOldRequestStyle(true);
 
         checkEnabled();
     }

@@ -136,7 +136,7 @@ public class ExampleUtils {
         }
     }
 
-    public static void printObject(Object o) {
+    public static void formatPrint(Object o) {
         System.out.println(printable(o.toString()) + "\n");
     }
 

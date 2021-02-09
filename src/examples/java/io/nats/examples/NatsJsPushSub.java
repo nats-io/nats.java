@@ -33,10 +33,12 @@ public class NatsJsPushSub {
 
     // STREAM and SUBJECT are required.
     // DURABLE is optional (null), durable behaves differently, try it by running this twice with durable set
+    // DELIVER is optional (null)
     // MSG_COUNT < 1 will just loop until there are no more messages
     static final String STREAM = "example-stream";
     static final String SUBJECT = "example-subject";
     static final String DURABLE = null; // "push-sub-durable";
+    static final String DELIVER = null; // "push-sub-deliver";
     static final int MSG_COUNT = 0;
 
     public static void main(String[] args) {
@@ -56,6 +58,9 @@ public class NatsJsPushSub {
             if (DURABLE != null) {
                 System.out.println("  Durable: " + DURABLE);
             }
+            if (DELIVER != null) {
+                System.out.println("  Deliver Subject: " + DELIVER);
+            }
             if (count == Integer.MAX_VALUE) {
                 System.out.println("  Until there are no more messages");
             }
@@ -72,6 +77,9 @@ public class NatsJsPushSub {
             PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
             if (DURABLE != null) {
                 builder.durable(DURABLE);
+            }
+            if (DELIVER != null) {
+                builder.deliverSubject(DELIVER);
             }
             PushSubscribeOptions so = builder.build();
 

@@ -1059,6 +1059,7 @@ class NatsConnection implements Connection {
 
         natsMsg.updateReplyTo(responseInbox);
         publish(natsMsg);
+        writer.flushBuffer();
         statistics.incrementRequestsSent();
 
         return future;
@@ -1887,8 +1888,7 @@ class NatsConnection implements Connection {
         if (!isConnected()) {
             throw new IllegalStateException("Connection is not active.");
         }
-
-        dataPort.flush();
+        writer.flushBuffer();
     }
 
     @Override

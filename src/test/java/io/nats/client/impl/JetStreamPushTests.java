@@ -14,15 +14,19 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.List;
 
 public class JetStreamPushTests extends JetStreamTestBase {
 
-    @Test
-    public void testPushEphemeral() throws Exception {
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {DELIVER})
+    public void testPushEphemeral(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -34,7 +38,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
             publish(js, SUBJECT, 1, 5);
 
             // Build our subscription options.
-            PushSubscribeOptions options = PushSubscribeOptions.builder().build();
+            PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
+            if (deliverSubject != null) {
+                builder.deliverSubject(deliverSubject);
+            }
+            PushSubscribeOptions options = builder.build();
 
             // Subscription 1
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -68,8 +76,10 @@ public class JetStreamPushTests extends JetStreamTestBase {
         });
     }
 
-    @Test
-    public void testPushDurable() throws Exception {
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {DELIVER})
+    public void testPushDurable(String deliverSubject) throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -84,10 +94,12 @@ public class JetStreamPushTests extends JetStreamTestBase {
             ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(3)).build();
 
             // Build our subscription options.
-            PushSubscribeOptions options = PushSubscribeOptions.builder()
-                    .durable(DURABLE)
-                    .configuration(cc)
-                    .build();
+            PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder()
+                    .durable(DURABLE).configuration(cc);
+            if (deliverSubject != null) {
+                builder.deliverSubject(deliverSubject);
+            }
+            PushSubscribeOptions options = builder.build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);

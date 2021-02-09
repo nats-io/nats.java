@@ -108,4 +108,19 @@ public class NatsJsUtils {
             throw jsae;
         }
     }
+
+    public static void printObject(StreamInfo si) {
+        printObject(si, "StreamConfiguration", "StreamState");
+    }
+
+    public static void printObject(Object o, String... subObjectNames) {
+        String s = o.toString();
+        for (String sub : subObjectNames) {
+            String oldRx = ", " + sub + "";
+            String repl = ",\n    " + sub;
+            s = s.replace(oldRx, repl);
+        }
+
+        System.out.println(s + "\n");
+    }
 }
