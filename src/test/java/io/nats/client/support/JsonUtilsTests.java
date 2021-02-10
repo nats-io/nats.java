@@ -16,6 +16,7 @@ package io.nats.client.support;
 import io.nats.client.ConsumerInfo;
 import io.nats.client.ConsumerLister;
 import io.nats.client.StreamInfo;
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
@@ -72,9 +73,9 @@ public final class JsonUtilsTests {
 
     @Test
     public void testParseDateTime() {
-        assertEquals(1611186068, JsonUtils.parseDateTime("2021-01-20T23:41:08.579594Z").toEpochSecond());
-        assertEquals(1612293508, JsonUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00").toEpochSecond());
-        assertEquals(-62135596800L, JsonUtils.parseDateTime("anything-not-valid").toEpochSecond());
+        assertEquals(1611186068, DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z").toEpochSecond());
+        assertEquals(1612293508, DateTimeUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00").toEpochSecond());
+        assertEquals(-62135596800L, DateTimeUtils.parseDateTime("anything-not-valid").toEpochSecond());
     }
 
     @Test
