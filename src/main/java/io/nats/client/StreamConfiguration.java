@@ -254,12 +254,12 @@ public class StreamConfiguration {
             builder.duplicateWindow = Duration.ofNanos(Long.parseLong(m.group(1)));
         }
         
-        builder.subjects(JsonUtils.parseStringArray(subjectsField, json));
+        builder.subjects(JsonUtils.getStringArray(subjectsField, json));
 
         return builder.build();
     }
 
-    // For the builder, assumes all valdiations are already done in builder
+    // For the builder, assumes all validations are already done in builder
     StreamConfiguration(
             String name, List<String> subjects, RetentionPolicy retentionPolicy,
             long maxConsumers, long maxMsgs, long maxBytes,
@@ -429,7 +429,15 @@ public class StreamConfiguration {
      */
     public static Builder builder() {
         return new Builder();
-    } 
+    }
+
+    /**
+     * Creates a builder for the stream configuration.
+     * @return a stream configuration builder
+     */
+    public static Builder builder(StreamConfiguration sc) {
+        return new Builder(sc);
+    }
 
     /**
      * StreamConfiguration is created using a Builder. The builder supports chaining and will
@@ -530,7 +538,7 @@ public class StreamConfiguration {
         public Builder addSubjects(Collection<String> subjects) {
             if (subjects != null) {
                 for (String sub : subjects) {
-                    if (!this.subjects.contains(sub)) {
+                    if (sub != null && !this.subjects.contains(sub)) {
                         this.subjects.add(sub);
                     }
                 }

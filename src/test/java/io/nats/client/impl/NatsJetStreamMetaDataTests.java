@@ -41,6 +41,8 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
 
         jsmd = getJsMessage(JS_REPLY_TO + ".555").metaData();
         assertEquals(555, jsmd.pendingCount());
+
+        assertNotNull(jsmd.toString()); // COVERAGE
     }
 
     @Test

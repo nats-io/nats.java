@@ -66,4 +66,11 @@ public class StreamInfoTests {
         assertNotNull(si.getStreamState());
         assertNotNull(si.getConfiguration());
     }
+
+    @Test
+    public void testToString() {
+        // COVERAGE
+        String json = dataAsString("StreamInfo.json");
+        assertNotNull(new StreamInfo(json).toString());
+    }
 }

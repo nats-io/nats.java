@@ -16,8 +16,7 @@ package io.nats.client;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PullSubscribeOptionsTests extends TestBase {
 
@@ -29,14 +28,25 @@ public class PullSubscribeOptionsTests extends TestBase {
                 .build();
         assertEquals(STREAM, so.getStream());
         assertEquals(DURABLE, so.getDurable());
+
+        assertNotNull(so.toString()); // COVERAGE
     }
 
     @Test
     public void testBuildValidation() {
         PullSubscribeOptions.Builder builder = PullSubscribeOptions.builder();
+        // durable required direct or in configuration
         assertThrows(IllegalArgumentException.class, builder::build);
-        builder.durable(DURABLE); // also need durable
-        builder.build();
+
+        final ConsumerConfiguration ccNoDur = ConsumerConfiguration.builder().build();
+        assertThrows(IllegalArgumentException.class, () -> builder.configuration(ccNoDur).build());
+
+        // durable directly
+        builder.durable(DURABLE).build();
+
+        // in configuration
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
+        PullSubscribeOptions.builder().configuration(cc).build();
     }
 
 

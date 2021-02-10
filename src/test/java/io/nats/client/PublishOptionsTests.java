@@ -23,21 +23,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class PublishOptionsTests extends TestBase {
     @Test
-    public void testDefaultOptions() {
-        PublishOptions po = new PublishOptions.Builder().build();
+    public void testBuilder() {
+        PublishOptions.Builder builder = PublishOptions.builder();
+        PublishOptions po = builder.build();
         assertEquals(PublishOptions.UNSET_STREAM, po.getStream(), "default stream");
         assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout(), "default timeout");
         assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSequence());
-    }
 
-    @Test
-    public void testChainedOptions() {
-        PublishOptions po = new PublishOptions.Builder()
+        po = builder
                 .stream(STREAM)
                 .streamTimeout(Duration.ofSeconds(99))
                 .expectedLastMsgId("1")
                 .expectedStream("bar")
                 .expectedLastSeqence(42)
+                .messageId("msgId")
                 .build();
 
         assertEquals(STREAM, po.getStream(), "stream");
@@ -45,6 +44,17 @@ public class PublishOptionsTests extends TestBase {
         assertEquals("1", po.getExpectedLastMsgId(), "expected msgid");
         assertEquals(42, po.getExpectedLastSequence(), "expected last seqno");
         assertEquals("bar", po.getExpectedStream(), "expected stream");
+        assertEquals("msgId", po.getMessageId(), "expected message id");
+
+        po = builder.stream(null).streamTimeout(null).build();
+        assertEquals(PublishOptions.UNSET_STREAM, po.getStream());
+        assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout());
+
+        po = builder.stream(STREAM).build();
+        assertEquals(STREAM, po.getStream());
+
+        po = builder.stream("").build();
+        assertEquals(PublishOptions.UNSET_STREAM, po.getStream());
     }
 
     @Test
@@ -55,5 +65,10 @@ public class PublishOptionsTests extends TestBase {
         PublishOptions po = new PublishOptions.Builder(p).build();
         assertEquals(STREAM, po.getStream(), "stream foo");
         assertEquals(Duration.ofMinutes(20), po.getStreamTimeout(), "20M timeout");
+
+        p = new Properties();
+        po = new PublishOptions.Builder(p).build();
+        assertEquals(PublishOptions.UNSET_STREAM, po.getStream());
+        assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout());
     }
 }

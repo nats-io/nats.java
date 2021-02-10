@@ -17,22 +17,25 @@ import org.junit.jupiter.api.Test;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class NatsJetStreamAccountStatsTests extends JetStreamTestBase {
 
     @Test
     public void testAccountStatsImpl() {
         String json = dataAsString("AccountStatsImpl.json");
-        NatsJetStreamAccountStats asi = new NatsJetStreamAccountStats(json);
-        assertEquals(1, asi.getMemory());
-        assertEquals(2, asi.getStorage());
-        assertEquals(3, asi.getStreams());
-        assertEquals(4, asi.getConsumers());
+        NatsJetStreamAccountStats as = new NatsJetStreamAccountStats(json);
+        assertEquals(1, as.getMemory());
+        assertEquals(2, as.getStorage());
+        assertEquals(3, as.getStreams());
+        assertEquals(4, as.getConsumers());
 
-        asi = new NatsJetStreamAccountStats("{}");
-        assertEquals(-1, asi.getMemory());
-        assertEquals(-1, asi.getStorage());
-        assertEquals(-1, asi.getStreams());
-        assertEquals(+1, asi.getConsumers());
+        as = new NatsJetStreamAccountStats("{}");
+        assertEquals(-1, as.getMemory());
+        assertEquals(-1, as.getStorage());
+        assertEquals(-1, as.getStreams());
+        assertEquals(+1, as.getConsumers());
+
+        assertNotNull(as.toString()); // COVERAGE
     }
 }

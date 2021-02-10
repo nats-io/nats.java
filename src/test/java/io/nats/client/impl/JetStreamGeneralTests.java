@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,6 +38,22 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
             PublishAck ack = publish(js);
             assertEquals(1, ack.getSeqno());
+        });
+    }
+
+    @Test
+    public void testConnectionClosing() throws Exception {
+        runInJsServer(nc -> {
+            nc.close();
+            assertThrows(IOException.class, nc::jetStream);
+        });
+    }
+
+    @Test
+    public void testCreateWithOptionsForCoverage() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamOptions jso = JetStreamOptions.builder().build();
+            nc.jetStream(jso);
         });
     }
 

@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
-import io.nats.client.impl.DateTimeUtils;
-import io.nats.client.impl.JetStreamTestBase;
+import io.nats.client.ConsumerConfiguration;
+import io.nats.client.ConsumerInfo;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -23,18 +23,16 @@ import java.time.Duration;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class ConsumerListerTests extends JetStreamTestBase {
+public class ListResponseObjectTests extends JetStreamTestBase {
 
     @Test
-    public void testConsumerLister() {
-        String json = dataAsString("ConsumerLister.json");
-        ConsumerLister cl = new ConsumerLister(json);
-        assertEquals(2, cl.getTotal());
-        assertEquals(42, cl.getOffset());
-        assertEquals(256, cl.getLimit());
-        assertEquals(2, cl.getConsumers().size());
+    public void testConsumerListResponse() {
+        String json = dataAsString("ConsumerListResponse.json");
+        ConsumerListResponse clr = new ConsumerListResponse();
+        clr.update(json);
+        assertEquals(2, clr.getConsumers().size());
 
-        ConsumerInfo ci = cl.getConsumers().get(0);
+        ConsumerInfo ci = clr.getConsumers().get(0);
         assertEquals("stream-1", ci.getStreamName());
         assertEquals("cname1", ci.getName());
         Assertions.assertEquals(DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z"), ci.getCreationTime());
@@ -60,10 +58,18 @@ public class ConsumerListerTests extends JetStreamTestBase {
         assertEquals(3, sp.getConsumerSequence());
         assertEquals(4, sp.getStreamSequence());
 
-        cl = new ConsumerLister("{}");
-        assertEquals(0, cl.getTotal());
-        assertEquals(0, cl.getOffset());
-        assertEquals(0, cl.getLimit());
-        assertEquals(0, cl.getConsumers().size());
+        clr = new ConsumerListResponse();
+        clr.update("{}");
+        assertEquals(0, clr.getConsumers().size());
+    }
+
+    @Test
+    public void testStreamListResponse() {
+        String json = dataAsString("StreamListResponse.json");
+        StreamListResponse slr = new StreamListResponse();
+        slr.update(json);
+        assertEquals(2, slr.getStreams().size());
+        assertEquals("stream-0", slr.getStreams().get(0).getConfiguration().getName());
+        assertEquals("stream-1", slr.getStreams().get(1).getConfiguration().getName());
     }
 }

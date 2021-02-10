@@ -33,13 +33,6 @@ public class JetStreamOptions {
         this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
     }
 
-    public static JetStreamOptions createOrCopy(JetStreamOptions options) {
-        if (options == null) {
-            return new JetStreamOptions(null, null);
-        }
-        return new JetStreamOptions(options.prefix, options.requestTimeout);
-    }
-
     /**
      * Gets the request timeout the stream.
      * @return the name of the stream.

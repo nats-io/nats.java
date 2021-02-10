@@ -13,17 +13,16 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamManagement;
-import io.nats.client.StreamConfiguration;
+import io.nats.client.*;
 import io.nats.client.StreamConfiguration.DiscardPolicy;
 import io.nats.client.StreamConfiguration.RetentionPolicy;
 import io.nats.client.StreamConfiguration.StorageType;
-import io.nats.client.StreamInfo;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -197,5 +196,136 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .name(STREAM)
                 .storageType(StorageType.Memory)
                 .subjects(subject(0), subject(1));
+    }
+
+    @Test
+    public void testGetStreamInfo() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            assertNull(getStreamInfo(jsm, STREAM));
+            createMemoryStream(nc, STREAM, SUBJECT);
+            assertNotNull(getStreamInfo(jsm, STREAM));
+        });
+    }
+
+    @Test
+    public void testDeleteStream() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
+            createMemoryStream(nc, STREAM, SUBJECT);
+            assertNotNull(getStreamInfo(jsm, STREAM));
+            jsm.deleteStream(STREAM);
+            assertNull(getStreamInfo(jsm, STREAM));
+        });
+    }
+
+    @Test
+    public void testPurgeStream() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            StreamInfo si = jsm.streamInfo(STREAM);
+            assertEquals(0, si.getStreamState().getMsgCount());
+
+            publish(nc, SUBJECT, 1);
+            si = jsm.streamInfo(STREAM);
+            assertEquals(1, si.getStreamState().getMsgCount());
+
+            si = jsm.purgeStream(STREAM);
+            assertEquals(0, si.getStreamState().getMsgCount());
+        });
+    }
+
+    @Test
+    public void testAddDeleteConsumer() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            createMemoryStream(nc, STREAM, subject(0), subject(1));
+
+            List<ConsumerInfo> list = jsm.getConsumers(STREAM);
+            assertEquals(0, list.size());
+
+            final ConsumerConfiguration cc = ConsumerConfiguration.builder().build();
+            IllegalArgumentException iae =
+                    assertThrows(IllegalArgumentException.class, () -> jsm.addConsumer(null, cc));
+            assertTrue(iae.getMessage().contains("Stream cannot be null or empty"));
+            iae = assertThrows(IllegalArgumentException.class, () -> jsm.addConsumer(STREAM, null));
+            assertTrue(iae.getMessage().contains("Config cannot be null"));
+            iae = assertThrows(IllegalArgumentException.class, () -> jsm.addConsumer(STREAM, cc));
+            assertTrue(iae.getMessage().contains("Durable cannot be null"));
+
+            final ConsumerConfiguration cc0 = ConsumerConfiguration.builder()
+                    .durable(durable(0))
+                    .build();
+            ConsumerInfo ci = jsm.addConsumer(STREAM, cc0);
+            assertEquals(durable(0), ci.getName());
+            assertEquals(durable(0), ci.getConsumerConfiguration().getDurable());
+            assertNull(ci.getConsumerConfiguration().getDeliverSubject());
+
+            final ConsumerConfiguration cc1 = ConsumerConfiguration.builder()
+                    .durable(durable(1))
+                    .deliverSubject(deliver(1))
+                    .build();
+            ci = jsm.addConsumer(STREAM, cc1);
+            assertEquals(durable(1), ci.getName());
+            assertEquals(durable(1), ci.getConsumerConfiguration().getDurable());
+            assertEquals(deliver(1), ci.getConsumerConfiguration().getDeliverSubject());
+        });
+    }
+
+    @Test
+    public void testGetConsumers() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            createMemoryStream(nc, STREAM, subject(0), subject(1));
+
+            addConsumers(jsm, 600, 0); // getConsumers pages at 256
+
+            List<ConsumerInfo> list = jsm.getConsumers(STREAM);
+            assertEquals(600, list.size());
+
+            addConsumers(jsm, 500, 600); // getConsumerNames pages at 1024
+            List<String> names = jsm.getConsumerNames(STREAM);
+            assertEquals(1100, names.size());
+        });
+    }
+
+    private void addConsumers(JetStreamManagement jsm, int count, int adj) throws IOException, JetStreamApiException {
+        for (int x = 0; x < count; x++) {
+            String dur = durable(x + adj);
+            ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder();
+            builder.durable(dur);
+            ConsumerConfiguration cc = builder.build();
+            ConsumerInfo ci = jsm.addConsumer(STREAM, cc);
+            assertEquals(dur, ci.getName());
+            assertEquals(dur, ci.getConsumerConfiguration().getDurable());
+            assertNull(ci.getConsumerConfiguration().getDeliverSubject());
+        }
+    }
+
+    @Test
+    public void testGetStreams() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            addStreams(nc, 600, 0); // getStreams pages at 256
+
+            List<StreamInfo> list = jsm.getStreams();
+            assertEquals(600, list.size());
+
+            addStreams(nc, 500, 600); // getStreamNames pages at 1024
+
+            List<String> names = jsm.getStreamNames();
+            assertEquals(1100, names.size());
+        });
+    }
+
+    private void addStreams(Connection nc, int count, int adj) throws IOException, JetStreamApiException {
+        for (int x = 0; x < count; x++) {
+            createMemoryStream(nc, stream(x + adj), subject(x + adj));
+        }
     }
 }
