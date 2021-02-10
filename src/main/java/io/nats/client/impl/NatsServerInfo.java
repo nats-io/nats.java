@@ -17,6 +17,8 @@ import io.nats.client.ServerInfo;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -47,30 +49,6 @@ class NatsServerInfo implements ServerInfo {
     public NatsServerInfo(String json) {
         this.rawInfoJson = json;
         parseInfo(json);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = JsonUtils.beginFormattedJson();
-        addFld(sb, SERVER_ID, serverId);
-        addFld(sb, SERVER_NAME, serverName);
-        addFld(sb, VERSION, version);
-        addFld(sb, GO, go);
-        addFld(sb, HOST, host);
-        addFld(sb, PORT,  + port);
-        addFld(sb, HEADERS, headersSupported);
-        addFld(sb, AUTH, authRequired);
-        addFld(sb, TLS, tlsRequired);
-        addFld(sb, MAX_PAYLOAD,  + maxPayload);
-        addFld(sb, CONNECT_URLS, connectURLs);
-        addFld(sb, PROTOCOL_VERSION, protocolVersion);
-        addFld(sb, NONCE, nonce == null ? null : new String(nonce));
-        addFld(sb, LAME_DUCK_MODE, lameDuckMode);
-        addFld(sb, JETSTREAM, jetStream);
-        addFld(sb, CLIENT_ID,  + clientId);
-        addFld(sb, CLIENT_IP, clientIp);
-        addFld(sb, CLUSTER, cluster);
-        return endFormattedJson(sb);
     }
 
     @Override
@@ -185,7 +163,7 @@ class NatsServerInfo implements ServerInfo {
     private static final Pattern clientIdRE = buildNumberPattern(CLIENT_ID);
     private static final Pattern clientIpRE = buildStringPattern(CLIENT_IP);
     private static final Pattern clusterRE = buildStringPattern(CLUSTER);
-    private static final Pattern infoObject = buildObjectPattern();
+    private static final Pattern infoObject = buildCustomPattern("\\{(.+?)\\}");
 
     void parseInfo(String jsonString) {
 
@@ -293,7 +271,7 @@ class NatsServerInfo implements ServerInfo {
         if (m.find()) {
             String arrayString = m.group(1);
             String[] raw = arrayString.split(",");
-            ArrayList<String> urls = new ArrayList<>();
+            List<String> urls = new ArrayList<>();
 
             for (String s : raw) {
                 String cleaned = s.trim().replace("\"", "");;
@@ -358,5 +336,53 @@ class NatsServerInfo implements ServerInfo {
             sb.append(ch);
         }
         return sb.toString();
+    }
+
+    @Override
+    public String toString() {
+        return "NatsServerInfo{" +
+                "serverId='" + serverId + '\'' +
+                ", serverName='" + serverName + '\'' +
+                ", version='" + version + '\'' +
+                ", go='" + go + '\'' +
+                ", host='" + host + '\'' +
+                ", port=" + port +
+                ", headersSupported=" + headersSupported +
+                ", authRequired=" + authRequired +
+                ", tlsRequired=" + tlsRequired +
+                ", maxPayload=" + maxPayload +
+                ", connectURLs=" + Arrays.toString(connectURLs) +
+                ", rawInfoJson='" + rawInfoJson + '\'' +
+                ", protocolVersion=" + protocolVersion +
+                ", nonce=" + Arrays.toString(nonce) +
+                ", lameDuckMode=" + lameDuckMode +
+                ", jetStream=" + jetStream +
+                ", clientId=" + clientId +
+                ", clientIp='" + clientIp + '\'' +
+                ", cluster='" + cluster + '\'' +
+                '}';
+    }
+
+    public String toJsonString() {
+        StringBuilder sb = JsonUtils.beginFormattedJson();
+        addFld(sb, SERVER_ID, serverId);
+        addFld(sb, SERVER_NAME, serverName);
+        addFld(sb, VERSION, version);
+        addFld(sb, GO, go);
+        addFld(sb, HOST, host);
+        addFld(sb, PORT,  + port);
+        addFld(sb, HEADERS, headersSupported);
+        addFld(sb, AUTH, authRequired);
+        addFld(sb, TLS, tlsRequired);
+        addFld(sb, MAX_PAYLOAD,  + maxPayload);
+        addFld(sb, CONNECT_URLS, connectURLs);
+        addFld(sb, PROTOCOL_VERSION, protocolVersion);
+        addFld(sb, NONCE, nonce == null ? null : new String(nonce));
+        addFld(sb, LAME_DUCK_MODE, lameDuckMode);
+        addFld(sb, JETSTREAM, jetStream);
+        addFld(sb, CLIENT_ID,  + clientId);
+        addFld(sb, CLIENT_IP, clientIp);
+        addFld(sb, CLUSTER, cluster);
+        return endFormattedJson(sb);
     }
 }

@@ -13,17 +13,15 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.time.Duration;
-
-import org.junit.jupiter.api.Test;
-
 import io.nats.client.StreamConfiguration.DiscardPolicy;
 import io.nats.client.StreamConfiguration.RetentionPolicy;
 import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.utils.ResourceUtils;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests {
     @Test
@@ -37,10 +35,10 @@ public class StreamConfigurationTests {
             .maxMsgSize(1024*1024)
             .name("stream-name")
             .noAck(true)
-            .replicas(42)
+            .replicas(5)
             .storageType(StorageType.Memory)
             .retentionPolicy(RetentionPolicy.Interest)
-            .subjects(new String[] { "foo", "bar"})
+            .subjects("foo", "bar")
             .template("fake").build();
 
         assertEquals(DiscardPolicy.Old, c.getDiscardPolicy());
@@ -50,20 +48,20 @@ public class StreamConfigurationTests {
         assertEquals(512, c.getMaxConsumers());
         assertEquals(1024*1024, c.getMaxMsgSize());
         assertEquals("stream-name", c.getName());
-        assertEquals(true, c.getNoAck());
-        assertEquals(42, c.getReplicas());
+        assertTrue(c.getNoAck());
+        assertEquals(5, c.getReplicas());
         assertEquals(StorageType.Memory, c.getStorageType());
         assertEquals(RetentionPolicy.Interest, c.getRetentionPolicy());
         assertNotNull(c.getSubjects());
-        assertEquals(2, c.getSubjects().length);
-        assertEquals("foo", c.getSubjects()[0]);
-        assertEquals("bar", c.getSubjects()[1]);
-        assertEquals("fake", c.getTemplate());
+        assertEquals(2, c.getSubjects().size());
+        assertEquals("foo", c.getSubjects().get(0));
+        assertEquals("bar", c.getSubjects().get(1));
+        assertEquals("fake", c.getTemplateOwner());
 
         String json = c.toJSON();
         assertTrue(json.length() > 0);
 
-        c = new StreamConfiguration(json);
+        c = StreamConfiguration.fromJson(json);
         assertEquals(DiscardPolicy.Old, c.getDiscardPolicy());
         assertEquals(Duration.ofSeconds(99), c.getDuplicateWindow());
         assertEquals(Duration.ofDays(42), c.getMaxAge());
@@ -71,28 +69,27 @@ public class StreamConfigurationTests {
         assertEquals(512, c.getMaxConsumers());
         assertEquals(1024*1024, c.getMaxMsgSize());
         assertEquals("stream-name", c.getName());
-        assertEquals(true, c.getNoAck());
-        assertEquals(42, c.getReplicas());
+        assertTrue(c.getNoAck());
+        assertEquals(5, c.getReplicas());
         assertEquals(StorageType.Memory, c.getStorageType());
         assertEquals(RetentionPolicy.Interest, c.getRetentionPolicy());
         assertNotNull(c.getSubjects());
-        assertEquals(2, c.getSubjects().length);
-        assertEquals("foo", c.getSubjects()[0]);
-        assertEquals("bar", c.getSubjects()[1]);
-        assertEquals("fake", c.getTemplate());
+        assertEquals(2, c.getSubjects().size());
+        assertEquals("foo", c.getSubjects().get(0));
+        assertEquals("bar", c.getSubjects().get(1));
+        assertEquals("fake", c.getTemplateOwner());
     }
 
     @Test
     public void testJSONParsing() {
-        String configJSON = "{\n \"name\":   \"sname\",\"subjects\":[\"foo\", \"bar\"],   \n \"retention\":   \"limits\",\"max_consumers\":-1,\"max_msgs\":-1,\"max_bytes\":-1,\"max_age\":0,\"max_msg_size\":-1,\"storage\":\"memory\",\"discard\":\"old\",\"num_replicas\":1}";
-
+        String configJSON = ResourceUtils.dataAsString("StreamConfiguration.json");
         // spot check a configuration with spaces, \n, etc.
-        StreamConfiguration c = new StreamConfiguration(configJSON);
+        StreamConfiguration c = StreamConfiguration.fromJson(configJSON);
         assertEquals("sname", c.getName());
-        assertEquals(2, c.getSubjects().length);
-        assertEquals("foo", c.getSubjects()[0]);
-        assertEquals("bar", c.getSubjects()[1]);
-        assertEquals(null, c.getTemplate());
+        assertEquals(2, c.getSubjects().size());
+        assertEquals("foo", c.getSubjects().get(0));
+        assertEquals("bar", c.getSubjects().get(1));
+        assertNull(c.getTemplateOwner());
         assertEquals(StorageType.Memory, c.getStorageType());
     }
 

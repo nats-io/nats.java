@@ -13,47 +13,47 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import io.nats.client.utils.TestBase;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Properties;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class PublishOptionsTests {
+public class PublishOptionsTests extends TestBase {
     @Test
     public void testDefaultOptions() {
-        PublishOptions o = new PublishOptions.Builder().build();
-
-        assertEquals(PublishOptions.unsetStream, o.getStream(), "default stream");
-        assertEquals(PublishOptions.defaultTimeout, o.getStreamTimeout(), "default timeout");
+        PublishOptions po = new PublishOptions.Builder().build();
+        assertEquals(PublishOptions.UNSET_STREAM, po.getStream(), "default stream");
+        assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout(), "default timeout");
+        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSequence());
     }
 
     @Test
     public void testChainedOptions() {
-        PublishOptions o = new PublishOptions.Builder().
-            stream("foo").
-            streamTimeout(Duration.ofSeconds(99)).
-            expectedLastMsgId("1").
-            expectedStream("bar").
-            expectedLastSeqence(42).
-            build();
+        PublishOptions po = new PublishOptions.Builder()
+                .stream(STREAM)
+                .streamTimeout(Duration.ofSeconds(99))
+                .expectedLastMsgId("1")
+                .expectedStream("bar")
+                .expectedLastSeqence(42)
+                .build();
 
-        assertEquals("foo", o.getStream(), "stream");
-        assertEquals(Duration.ofSeconds(99), o.getStreamTimeout(), "timeout");
-        assertEquals("1", o.getExpectedLastMsgId(), "expected msgid");
-        assertEquals(42, o.getExpectedLastSequence(), "expected last seqno");
-        assertEquals("bar", o.getExpectedStream(), "expected stream");
+        assertEquals(STREAM, po.getStream(), "stream");
+        assertEquals(Duration.ofSeconds(99), po.getStreamTimeout(), "timeout");
+        assertEquals("1", po.getExpectedLastMsgId(), "expected msgid");
+        assertEquals(42, po.getExpectedLastSequence(), "expected last seqno");
+        assertEquals("bar", po.getExpectedStream(), "expected stream");
     }
 
     @Test
     public void testProperties() {
         Properties p = new Properties();
         p.setProperty(PublishOptions.PROP_PUBLISH_TIMEOUT, "PT20M");
-        p.setProperty(PublishOptions.PROP_STREAM_NAME, "foo");
-        PublishOptions o = new PublishOptions.Builder(p).build();
-        assertEquals("foo", o.getStream(), "stream foo");
-        assertEquals(Duration.ofMinutes(20), o.getStreamTimeout(), "20M timeout");
-
+        p.setProperty(PublishOptions.PROP_STREAM_NAME, STREAM);
+        PublishOptions po = new PublishOptions.Builder(p).build();
+        assertEquals(STREAM, po.getStream(), "stream foo");
+        assertEquals(Duration.ofMinutes(20), po.getStreamTimeout(), "20M timeout");
     }
 }

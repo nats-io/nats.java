@@ -14,11 +14,9 @@
 package io.nats.client.impl;
 
 import java.time.Duration;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -26,8 +24,8 @@ import java.util.regex.Pattern;
  * Internal json parsing helpers.
  */
 public abstract class JsonUtils {
+    public static final String EMPTY_JSON = "{}";
 
-    private static final String OBJECT_RE = "\\{(.+?)\\}";
     private static final String STRING_RE  = "\\s*\"(.+?)\"";
     private static final String BOOLEAN_RE =  "\\s*(true|false)";
     private static final String NUMBER_RE =  "\\s*(\\d+)";
@@ -44,7 +42,6 @@ public abstract class JsonUtils {
     private JsonUtils() {} /* for Jacoco */
 
     public enum FieldType {
-        jsonObject(OBJECT_RE),
         jsonString(STRING_RE),
         jsonBoolean(BOOLEAN_RE),
         jsonNumber(NUMBER_RE),
@@ -56,14 +53,8 @@ public abstract class JsonUtils {
         }
     }
 
-    private static final DateTimeFormatter rfc3339Formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn");
-
     public static Pattern buildCustomPattern(String re) {
         return Pattern.compile(re, Pattern.CASE_INSENSITIVE);
-    }
-
-    public static Pattern buildObjectPattern() {
-        return Pattern.compile(OBJECT_RE, Pattern.CASE_INSENSITIVE);
     }
 
     public static Pattern buildStringPattern(String field) {
@@ -104,7 +95,7 @@ public abstract class JsonUtils {
      */
     public static String getJSONObject(String objectName, String json) {
         int[] indexes = getBracketIndexes(objectName, json, "{", "}");
-        return indexes[0] == -1 || indexes[1] == -1 ? "{}" : json.substring(indexes[0], indexes[1]+1);
+        return indexes[0] == -1 || indexes[1] == -1 ? EMPTY_JSON : json.substring(indexes[0], indexes[1]+1);
     }
 
     /**
@@ -141,7 +132,7 @@ public abstract class JsonUtils {
 
     private static int[] getBracketIndexes(String objectName, String json, String start, String end) {
         int[] result = new int[] {-1, -1};
-        int objStart = json.indexOf(objectName);
+        int objStart = json.indexOf(Q + objectName + Q);
         if (objStart != -1) {
             result[0] = json.indexOf(start, objStart);
             result[1] = json.indexOf(end, result[0]);
@@ -225,6 +216,18 @@ public abstract class JsonUtils {
      * @param sb string builder
      * @param fname fieldname
      * @param value field value
+     */
+    public static void addFldWhenTrue(StringBuilder sb, String fname, Boolean value) {
+        if (value != null && value) {
+            addFld(sb, fname, true);
+        }
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param value field value
      */    
     public static void addFld(StringBuilder sb, String fname, long value) {
         if (value >= 0) {
@@ -249,16 +252,31 @@ public abstract class JsonUtils {
      * @param sb string builder
      * @param fname fieldname
      * @param strArray field value
-     */    
+     */
     public static void addFld(StringBuilder sb, String fname, String[] strArray) {
         if (strArray == null || strArray.length == 0) {
             return;
         }
 
-        sb.append(Q + fname  + "\":[");
-        for (int i = 0; i < strArray.length; i++) {
-            sb.append(Q + strArray[i] + Q);
-            if (i < strArray.length-1) {
+        addFld(sb, fname, Arrays.asList(strArray));
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param strings field value
+     */
+    public static void addFld(StringBuilder sb, String fname, List<String> strings) {
+        if (strings == null || strings.size() == 0) {
+            return;
+        }
+
+        sb.append(Q).append(fname).append("\":[");
+        for (int i = 0; i < strings.size(); i++) {
+            String s = strings.get(i);
+            sb.append(Q).append(s).append(Q);
+            if (i < strings.size()-1) {
                 sb.append(COMMA);
             }
         }
@@ -269,28 +287,12 @@ public abstract class JsonUtils {
      * Appends a date/time to a string builder as a rfc 3339 formatted field.
      * @param sb string builder
      * @param fname fieldname
-     * @param time field value
+     * @param zonedDateTime field value
      */
-    public static void addFld(StringBuilder sb, String fname, ZonedDateTime time) {
-        if (time == null) {
-            return;
-        }
-
-        String s = rfc3339Formatter.format(time);
-        sb.append(Q + fname + QCOLONQ + s + "Z\",");
-    }    
-
-    /**
-     * Parses a date time from the server.
-     * @param dateTime - date time from the server.
-     * @return a Zoned Date time.
-     */
-    public static ZonedDateTime parseDateTime(String dateTime) {
-        try {
-            return ZonedDateTime.parse(dateTime);
-        }
-        catch (DateTimeParseException s) {
-            return ZonedDateTime.of(1, 1, 1, 0, 0, 0, 0, ZoneId.of("GMT"));
+    public static void addFld(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
+        if (zonedDateTime != null) {
+            sb.append(Q).append(fname).append(QCOLONQ)
+                    .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
         }
     }
 }

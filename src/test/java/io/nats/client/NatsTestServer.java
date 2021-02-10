@@ -237,6 +237,10 @@ public class NatsTestServer implements AutoCloseable {
         // Enable to debug verbosely 
         // cmd.add("-DVV");
 
+        if (debug) {
+            cmd.add("-DVV");
+        }
+
         this.cmdLine = String.join(" ", cmd);
 
         try {

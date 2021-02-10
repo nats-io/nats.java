@@ -52,7 +52,7 @@ public interface Message {
 	/**
 	 * @return true if there is status
 	 */
-	boolean hasStatus();
+	boolean isStatusMessage();
 
 	/**
 	 * @return the status object message
@@ -86,8 +86,8 @@ public interface Message {
 	Connection getConnection();
 
 	/**
-	 * Gets the metadata associated with a jetstream message.
-	 * @return metadata or null if the message is not a jetstream message.
+	 * Gets the metadata associated with a JetStream message.
+	 * @return metadata or null if the message is not a JetStream message.
 	 */
 	MessageMetaData metaData();
 
@@ -118,7 +118,7 @@ public interface Message {
 	void term();
 
 	/**
-	 *  Indicates that this message is being worked on and reset redelkivery timer in the server.
+	 *  Indicates that this message is being worked on and reset redelivery timer in the server.
 	 */
 	void inProgress();
 

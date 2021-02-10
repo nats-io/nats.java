@@ -13,9 +13,9 @@
 
 package io.nats.client;
 
-import java.io.IOException;
-
 import io.nats.client.impl.NatsImpl;
+
+import java.io.IOException;
 
 /**
  * The Nats class is the entry point into the NATS client for Java. This class
@@ -72,7 +72,7 @@ public class Nats {
     /**
      * Current version of the library - {@value #CLIENT_VERSION}
      */
-    public static final String CLIENT_VERSION = "2.9.0";
+    public static final String CLIENT_VERSION = "2.9.0-BETA1";
 
     /**
      * Current language of the library - {@value #CLIENT_LANGUAGE}

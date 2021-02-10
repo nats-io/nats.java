@@ -23,66 +23,6 @@ import java.util.concurrent.CompletableFuture;
 public interface JetStream {
 
     /**
-     * Represents the Jetstream Account Limits
-     */
-    interface AccountLimits {
-
-        /**
-         * Gets the maximum amount of memory in the Jetstream deployment.
-         * @return bytes
-         */
-        long getMaxMemory();
-
-        /**
-         * Gets the maximum amount of storage in the Jetstream deployment.
-         * @return bytes
-         */
-        long getMaxStorage();
-
-         /**
-         * Gets the maximum number of allowed streams in the Jetstream deployment.
-         * @return stream maximum count
-         */       
-        long getMaxStreams();
-
-         /**
-         * Gets the maximum number of allowed consumers in the Jetstream deployment.
-         * @return consumer maximum count
-         */         
-        long getMaxConsumers();
-    }
-
-    /**
-     *  The Jetstream Account Statistics
-     */
-    interface AccountStatistics {
-
-        /**
-         * Gets the amount of memory used by the Jetstream deployment.
-         * @return bytes
-         */
-        long getMemory();
-
-        /**
-         * Gets the amount of storage used by  the Jetstream deployment.
-         * @return bytes
-         */
-        long getStorage();
-
-         /**
-         * Gets the number of streams used by the Jetstream deployment.
-         * @return stream maximum count
-         */       
-        long getStreams();
-
-         /**
-         * Gets the number of consumers used by the Jetstream deployment.
-         * @return consumer maximum count
-         */         
-        long getConsumers();
-    }
-
-    /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The default publish options will be used.
      * The message body <strong>will not</strong> be copied. The expected
@@ -311,21 +251,21 @@ public interface JetStream {
 
     /**
      * Create a synchronous subscription to the specified subject.
-     * 
+     *
      * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
      * method to read messages for this subscription.
-     * 
+     *
      * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
-     * 
+     *
      * @param subject the subject to subscribe to
-     * @param options subscription options
+     * @param options optional subscription options
      * @return The subscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     */    
-    JetStreamSubscription subscribe(String subject, SubscribeOptions options) throws IOException, JetStreamApiException;
+     */
+    JetStreamSubscription subscribe(String subject, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Create a synchronous subscription to the specified subject.
@@ -335,80 +275,77 @@ public interface JetStream {
      * 
      * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
      * information about creating an asynchronous subscription with callbacks.
-     * 
-     * <p>As of 2.6.1 this method will throw an IllegalArgumentException if the subject contains whitespace.
-     * 
+     *
      * @param subject the subject to subscribe to
-     * @param queue the queue group to join
-     * @param options subscription options
+     * @param queue the optional queue group to join
+     * @param options optional subscription options
      * @return The subscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */    
-    JetStreamSubscription subscribe(String subject, String queue, SubscribeOptions options) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
-     * Create a subscription to the specified subject under the control of the
+     * Create an asynchronous subscription to the specified subject under the control of the
      * specified dispatcher. Since a MessageHandler is also required, the Dispatcher will
      * not prevent duplicate subscriptions from being made.
      *
      * @param subject The subject to subscribe to
-     * @param handler The target for the messages
      * @param dispatcher The dispatcher to handle this subscription
+     * @param handler The target for the messages
+     * @param autoAck Whether to auto ack
      * @return The subscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */      
-    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException;
 
     /**
-     * Create a subscription to the specified subject under the control of the
+     * Create an asynchronous subscription to the specified subject under the control of the
      * specified dispatcher. Since a MessageHandler is also required, the Dispatcher will
      * not prevent duplicate subscriptions from being made.
      *
      * @param subject The subject to subscribe to.
      * @param dispatcher The dispatcher to handle this subscription
      * @param handler The target for the messages
+     * @param autoAck Whether to auto ack
      * @param options The options for this subscription.
+     * @return The subscription
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException;
+
+    /**
+     * Create an asynchronous subscription to the specified subject under the control of the
+     * specified dispatcher. Since a MessageHandler is also required, the Dispatcher will
+     * not prevent duplicate subscriptions from being made.
+     *
+     * @param subject The subject to subscribe to.
+     * @param queue the optional queue group to join
+     * @param dispatcher The dispatcher to handle this subscription
+     * @param handler The target for the messages
+     * @param autoAck Whether to auto ack
+     * @param options optional subscription options
      * @return The subscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */    
-    JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException;
 
     /**
-     * Create a subscription to the specified subject under the control of the
-     * specified dispatcher. Since a MessageHandler is also required, the Dispatcher will
-     * not prevent duplicate subscriptions from being made.
+     * Create a subscription to the specified subject in the mode of pull, with additional options
      *
-     * @param subject The subject to subscribe to.
-     * @param queue The queue group to join.
-     * @param dispatcher The dispatcher to handle this subscription
-     * @param handler The target for the messages
+     * @param subject The subject to subscribe to
+     * @param options pull subscription options
      * @return The subscription
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */      
-    JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
-
-    /**
-     * Create a subscription to the specified subject under the control of the
-     * specified dispatcher. Since a MessageHandler is also required, the Dispatcher will
-     * not prevent duplicate subscriptions from being made.
-     *
-     * @param subject The subject to subscribe to.
-     * @param queue The queue group to join.
-     * @param dispatcher The dispatcher to handle this subscription
-     * @param handler The target for the messages
-     * @param options The options for this subscription.
-     * @return The subscription
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */      
-    JetStreamSubscription subscribe( String subject, String queue, Dispatcher dispatcher, MessageHandler handler, SubscribeOptions options) throws IOException, JetStreamApiException;
+    JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException;
 }

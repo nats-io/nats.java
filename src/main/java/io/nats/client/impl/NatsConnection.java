@@ -939,23 +939,16 @@ class NatsConnection implements Connection {
 
     @Override
     public String createInbox() {
-        String prefix = options.getInboxPrefix();
-        StringBuilder builder = new StringBuilder();
-        builder.append(prefix);
-        builder.append(this.nuid.next());
-        return builder.toString();
+        return options.getInboxPrefix() + nuid.next();
     }
 
     int getRespInboxLength() {
-        String prefix = options.getInboxPrefix();
-        return prefix.length() + 22 + 1; // 22 for nuid, 1 for .
+        return options.getInboxPrefix().length() + 22 + 1; // 22 for nuid, 1 for .
     }
 
     String createResponseInbox(String inbox) {
-        StringBuilder builder = new StringBuilder();
-        builder.append(inbox.substring(0, getRespInboxLength())); // Get rid of the *
-        builder.append(this.nuid.next());
-        return builder.toString();
+        // Substring gets rid of the * [trailing]
+        return inbox.substring(0, getRespInboxLength()) + nuid.next();
     }
 
     // If the inbox is long enough, pull out the end part, otherwise, just use the
@@ -1066,6 +1059,7 @@ class NatsConnection implements Connection {
 
         natsMsg.updateReplyTo(responseInbox);
         publish(natsMsg);
+        writer.flushBuffer();
         statistics.incrementRequestsSent();
 
         return future;
@@ -1084,7 +1078,7 @@ class NatsConnection implements Connection {
         }
         if (f != null) {
             statistics.decrementOutstandingRequests();
-            if (msg.hasStatus() && msg.getStatus().getCode() == 503) {
+            if (msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
                 f.cancel(true);
             }
             else {
@@ -1894,34 +1888,42 @@ class NatsConnection implements Connection {
         if (!isConnected()) {
             throw new IllegalStateException("Connection is not active.");
         }
+        writer.flushBuffer();
+    }
 
-        dataPort.flush();
+    void lenientFlushBuffer()  {
+        try {
+            writer.flushBuffer();
+        }
+        catch (Exception e) {
+            // ignore
+        }
     }
 
     @Override
     public JetStream jetStream() throws IOException {
-        return getNatsJetStream(null, NatsJetStream.Mode.REGULAR);
+        return getNatsJetStream(null);
     }
 
     @Override
     public JetStream jetStream(JetStreamOptions options) throws IOException {
-        return getNatsJetStream(options, NatsJetStream.Mode.REGULAR);
+        return getNatsJetStream(options);
     }
 
     @Override
     public JetStreamManagement jetStreamManagement() throws IOException {
-        return getNatsJetStream(null, NatsJetStream.Mode.MANAGEMENT);
+        return getNatsJetStream(null);
     }
 
     @Override
-    public JetStreamManagement jetStreamManagement(JetStreamManagementOptions options) throws IOException {
-        return getNatsJetStream(options, NatsJetStream.Mode.MANAGEMENT);
+    public JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException {
+        return getNatsJetStream(options);
     }
 
-    private NatsJetStream getNatsJetStream(JetStreamOptions options, NatsJetStream.Mode mode) throws IOException {
+    private NatsJetStream getNatsJetStream(JetStreamOptions options) throws IOException {
         if (isClosing() || isClosed()) {
             throw new IOException("A JetStream context can't be established during close.");
         }
-        return new NatsJetStream(this, options, mode);
+        return new NatsJetStream(this, options);
     }
 }

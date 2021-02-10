@@ -16,30 +16,44 @@ package io.nats.client;
 import java.time.Duration;
 import java.util.Properties;
 
+import static io.nats.client.support.Validator.nullOrEmpty;
+import static io.nats.client.support.Validator.validateStreamName;
+
 /**
- * The PublishOptions class specifies the options for publishing with jetstream enabled servers.
+ * The PublishOptions class specifies the options for publishing with JetStream enabled servers.
  * Options are created using a {@link PublishOptions.Builder Builder}.
  */
 public class PublishOptions {
-    public static final Duration defaultTimeout = Duration.ofSeconds(2);
+    /**
+     * Use this variable for timeout in publish options.
+     */
+    public static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
 
     /**
      * Use this variable to unset a stream in publish options.
      */
-    public static final String unsetStream = null;
+    public static final String UNSET_STREAM = null;
 
     /**
-     * Use this variable to unset a sequence number in pulish options.
+     * Use this variable to unset a sequence number in publish options.
      */
-    public static final long unsetLastSequence = -1;
+    public static final long UNSET_LAST_SEQUENCE = -1;
 
-    private String stream = unsetStream;
-    private Duration streamTimeout = defaultTimeout;
+    private final String stream;
+    private final Duration streamTimeout;
+    private final String expectedStream;
+    private final String expectedLastId;
+    private final long expectedLastSeq;
+    private final String msgId;
 
-    String expectedStream = null;
-    String expectedLastId = null;
-    long   expectedLastSeq = unsetLastSequence;
-    String msgId = null;
+    private PublishOptions(String stream, Duration streamTimeout, String expectedStream, String expectedLastId, long expectedLastSeq, String msgId) {
+        this.stream = stream;
+        this.streamTimeout = streamTimeout;
+        this.expectedStream = expectedStream;
+        this.expectedLastId = expectedLastId;
+        this.expectedLastSeq = expectedLastSeq;
+        this.msgId = msgId;
+    }
 
     /**
      * Property used to configure a builder from a Properties object.
@@ -60,41 +74,11 @@ public class PublishOptions {
     }
 
     /**
-     * Sets the name of the stream
-     * @param stream the name fo the stream.
-     */
-    public void setStream(String stream) {
-        if (stream != null && 
-                (stream.length() == 0 || stream.contains(">") ||
-                 stream.contains(".") || stream.contains("*"))) {
-            throw new IllegalArgumentException("stream cannot be null, empty, tokenized, or wildcarded");
-        }
-        this.stream = stream;
-    }
-
-    /**
      * Gets the publish timeout.
      * @return the publish timeout.
      */
     public Duration getStreamTimeout() {
         return streamTimeout;
-    }
-
-    /**
-     * Sets the publish timeout.
-     * @param timeout the publish timeout.
-     */
-    public void setStreamTimeout(Duration timeout) {
-        this.streamTimeout = timeout;
-    }
-
-    /**
-     * Sets the expected stream of the publish. If the 
-     * stream does not match the server will not save the message.
-     * @param stream expected stream
-     */
-    public void setExpectedStream(String stream) {
-        expectedStream = stream;
     }
 
     /**
@@ -122,38 +106,11 @@ public class PublishOptions {
     }
 
     /**
-     * Sets the expected last ID of the previously published message.  If the 
-     * message ID does not match the server will not save the message.
-     * @param lastMsgId the expected last message ID in the stream.
-     */
-    public void setExpectedLastMsgId(String lastMsgId) {
-        expectedLastId = lastMsgId;
-    }        
-
-    /**
-     * Sets the expected last sequence of the previously published message.  If the 
-     * sequence does not match the server will not save the message.
-     * @param sequence the expected last sequence number of the stream.
-     */
-    public void setExpectedLastSeqence(long sequence) {
-        expectedLastSeq = sequence;
-    }
-
-    /**
      * Gets the message ID
      * @return the message id;
      */
     public String getMessageId() {
         return this.msgId;
-    }
-
-    /**
-     * Sets the message id. Message IDs are used for de-duplication
-     * and should be unique to each message payload.
-     * @param msgId the unique message id.
-     */
-    public void setMessageId(String msgId) {
-        this.msgId = msgId;
     }
 
     /**
@@ -171,18 +128,17 @@ public class PublishOptions {
      * prefix PROP_ in this class.
      */
     public static class Builder {
-        String stream = PublishOptions.unsetStream;
-        Duration streamTimeout = PublishOptions.defaultTimeout;
-        String expectedStream = null;
-        String expectedLastId = null;
-        long   expectedLastSeq = 0;
+        String stream = UNSET_STREAM;
+        Duration streamTimeout = DEFAULT_TIMEOUT;
+        String expectedStream;
+        String expectedLastId;
+        long expectedLastSeq = UNSET_LAST_SEQUENCE;
+        String msgId;
 
         /**
          * Constructs a new publish options Builder with the default values.
          */
-        public Builder() {
-            // NOOP.
-        }
+        public Builder() {}
         
         /**
          * Constructs a builder from properties
@@ -194,7 +150,7 @@ public class PublishOptions {
                 streamTimeout = Duration.parse(s);
             }
 
-            s = properties.getProperty((PublishOptions.PROP_STREAM_NAME));
+            s = properties.getProperty(PublishOptions.PROP_STREAM_NAME);
             if (s != null) {
                 stream = s;
             }
@@ -206,18 +162,18 @@ public class PublishOptions {
          * @return Builder
          */
         public Builder stream(String stream) {
-            this.stream = stream;
+            this.stream = nullOrEmpty(stream) ? UNSET_STREAM : validateStreamName(stream);
             return this;
         }
 
         /**
-         * Sets the timeout to wait for a publish acknowledgement from a jetstream
+         * Sets the timeout to wait for a publish acknowledgement from a JetStream
          * enabled NATS server.
          * @param timeout the publish timeout.
          * @return Builder
          */
         public Builder streamTimeout(Duration timeout) {
-            this.streamTimeout = timeout;
+            this.streamTimeout = timeout == null ? DEFAULT_TIMEOUT : timeout;
             return this;
         }
 
@@ -251,21 +207,25 @@ public class PublishOptions {
         public Builder expectedLastSeqence(long sequence) {
             expectedLastSeq = sequence;
             return this;
-        } 
+        }
+
+        /**
+         * Sets the message id. Message IDs are used for de-duplication
+         * and should be unique to each message payload.
+         * @param msgId the unique message id.
+         * @return publish options
+         */
+        public Builder messageId(String msgId) {
+            this.msgId = msgId;
+            return this;
+        }
 
         /**
          * Builds the publish options.
          * @return publish options
          */
         public PublishOptions build() {
-            PublishOptions po = new PublishOptions();
-            po.setStream(stream);
-            po.setStreamTimeout(streamTimeout);
-            po.setExpectedLastMsgId(expectedLastId);
-            po.setExpectedLastSeqence(expectedLastSeq);
-            po.setExpectedStream(expectedStream);
-            return po;
+            return new PublishOptions(stream, streamTimeout, expectedStream, expectedLastId, expectedLastSeq, msgId);
         }
     }
 }
-

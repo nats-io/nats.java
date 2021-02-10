@@ -17,47 +17,76 @@ import io.nats.client.ConsumerInfo;
 import io.nats.client.JetStreamSubscription;
 
 import java.io.IOException;
+import java.time.Duration;
+
+import static io.nats.client.support.Validator.validatePullBatchSize;
 
 /**
- * This is a jetstream specfic subscription.
+ * This is a JetStream specific subscription.
  */
-public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription {
-
-    // JSAPI_REQUEST_NEXT is the prefix for the request next message(s) for a
-    // consumer in worker/pull mode.
-    private static final String JSAPI_REQUEST_NEXT = "CONSUMER.MSG.NEXT.%s.%s";
+public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription, NatsJetStreamConstants {
 
     NatsJetStream js;
     String consumer;
     String stream;
     String deliver;
-    long pull;
+    boolean isPullMode;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(sid, subject, queueName, connection, dispatcher);
     }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, long pull) {
+    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, boolean isPullMode) {
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.pull = pull;
+        this.isPullMode = isPullMode;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void poll() {
-        if (deliver == null || pull == 0) {
-            throw new IllegalStateException("Subscription type does not support poll.");
+    public void pull(int batchSize) {
+        _pull(batchSize, false, null); // nulls mean use default
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullNoWait(int batchSize) {
+        _pull(batchSize, true, null); // nulls mean use default
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullExpiresIn(int batchSize, Duration expiresIn) {
+        _pull(batchSize, false, expiresIn); // nulls mean use default
+    }
+
+    private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
+        if (!isPullMode) {
+            throw new IllegalStateException("Subscription type does not support pull.");
         }
 
-        String subj = js.appendPre(String.format(JSAPI_REQUEST_NEXT, stream, consumer));
-        byte[] payload = String.format("{ \"batch\":%d}", pull).getBytes();
+        int batch = validatePullBatchSize(batchSize);
+        String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
+
+        StringBuilder sb = JsonUtils.beginJson();
+        JsonUtils.addFld(sb, "batch", batch);
+        JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
+        if (expiresIn != null) {
+            JsonUtils.addFld(sb, "expires", DateTimeUtils.fromNow(expiresIn));
+        }
+        byte[] payload = JsonUtils.endJson(sb).toString().getBytes();
+
         connection.publish(subj, getSubject(), payload);
+        connection.lenientFlushBuffer();
     }
 
     /**
@@ -65,7 +94,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        return js.getConsumerInfo(stream, consumer);
+        return js.lookupConsumerInfo(stream, consumer);
     }
 
     @Override
@@ -74,7 +103,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 "consumer='" + consumer + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
-                ", pull=" + pull +
+                ", isPullMode='" + isPullMode +
                 '}';
     }
 }

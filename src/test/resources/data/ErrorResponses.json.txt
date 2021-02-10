@@ -1,0 +1,38 @@
+{
+  "type": "code_and_desc_response",
+  "error": {
+    "code": 500,
+    "description": "the description"
+  }
+}
+~
+{
+  "type": "zero_and_desc_response",
+  "error": {
+    "code": 0,
+    "description": "the description"
+  }
+}
+~
+{
+  "type": "non_zero_code_only_response",
+  "error": {
+    "code": 500
+  }
+}
+~
+{
+  "type": "no_code_response",
+  "error": {
+    "description": "no code"
+  }
+}
+~
+{
+  "type": "empty_response",
+  "error": {}
+}
+~
+{
+  "type": "not_error_response"
+}

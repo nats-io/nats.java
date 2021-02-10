@@ -47,7 +47,7 @@ public class ConsumerLister {
         }
 
         this.consumers = new ArrayList<>();
-        List<String> consumersJson = JsonUtils.getJSONArray("consumer", json);
+        List<String> consumersJson = JsonUtils.getJSONArray("consumers", json);
         for (String j : consumersJson) {
             this.consumers.add(new ConsumerInfo(j));
         }

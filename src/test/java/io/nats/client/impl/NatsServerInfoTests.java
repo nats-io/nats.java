@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -29,7 +30,7 @@ public class NatsServerInfoTests {
         byte[] ascii = encoded.getBytes(StandardCharsets.US_ASCII);
         String[] urls = {"url1", "url2"};
 
-        String json = rawJson.replace("<encoded>", encoded);
+        String json = ResourceUtils.dataAsString("ServerInfo-InfoJson.txt").replace("<encoded>", encoded);
 
         NatsServerInfo info = new NatsServerInfo(json);
         _testValid(ascii, urls, info);
@@ -40,7 +41,7 @@ public class NatsServerInfoTests {
         assertThrows(IllegalArgumentException.class, () -> new NatsServerInfo(""));
 
         // just extra pathways, all fields won't be found
-        new NatsServerInfo("{\"foo\":42}");
+        new NatsServerInfo("INFO {\"foo\":42}");
     }
 
     private void _testValid(byte[] ascii, String[] urls, NatsServerInfo info) {
@@ -63,30 +64,9 @@ public class NatsServerInfoTests {
         assertArrayEquals(ascii, info.getNonce());
     }
 
-    static String rawJson = "{" +
-            "\"server_id\": \"serverId\"," +
-            "\"server_name\": \"serverName\"," +
-            "\"version\": \"0.0.0\"," +
-            "\"go\": \"go0.0.0\"," +
-            "\"host\": \"host\"," +
-            "\"port\": 7777," +
-            "\"headersSupported\": true," +
-            "\"auth_required\": false," +
-            "\"tls_required\": true," +
-            "\"max_payload\": 100000000000," +
-            "\"proto\": 1," +
-            "\"ldm\": false," +
-            "\"jetstream\": true," +
-            "\"client_id\": 42," +
-            "\"client_ip\": \"127.0.0.1\"" +
-            "\"cluster\": \"cluster\"" +
-            "\"connect_urls\":[\"url1\", \"url2\"]" +
-            "\"nonce\":\"<encoded>\"" +
-            "}";
-
     @Test
     public void testEmptyURLParsing() {
-        String json = "{" +
+        String json = "INFO {" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"connect_urls\":[\"one\", \"\"]" +
                        "}";
@@ -98,7 +78,7 @@ public class NatsServerInfoTests {
 
     @Test
     public void testIPV6InBrackets() {
-        String json = "{" +
+        String json = "INFO {" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"connect_urls\":[\"one:4222\", \"[a:b:c]:4222\", \"[d:e:f]:4223\"]" + "," +
                         "\"max_payload\":100000000000" +
@@ -111,26 +91,18 @@ public class NatsServerInfoTests {
     
     @Test
     public void testThrowsOnNonJson() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String json = "foo";
-            new NatsServerInfo(json);
-            assertFalse(true);
-        });
+        assertThrows(IllegalArgumentException.class, () -> new NatsServerInfo("invalid"));
     }
        
     
     @Test
     public void testThrowsOnShortString() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String json = "{}";
-            new NatsServerInfo(json);
-            assertFalse(true);
-        });
+        assertThrows(IllegalArgumentException.class, () -> new NatsServerInfo("{}"));
     }
 
     @Test
     public void testNonAsciiValue() {
-        String json = "{" +
+        String json = "INFO {" +
                         "\"server_id\":\"myserver\"" + "," +
                         "\"version\":\"??????\"" +
                        "}";
@@ -141,7 +113,7 @@ public class NatsServerInfoTests {
 
     @Test
     public void testEncodingInString() {
-        String json = "{" +
+        String json = "INFO {" +
                         "\"server_id\":\"\\\\\\b\\f\\n\\r\\t\"" + "," +
                         "\"go\":\"my\\u0021server\"" + "," +
                         "\"host\":\"my\\\\host\"" + "," +
@@ -156,7 +128,7 @@ public class NatsServerInfoTests {
 
     @Test
     public void testInvalidUnicode() {
-        String json = "{\"server_id\":\"\\"+"u33"+"\"}";
+        String json = "INFO {\"server_id\":\"\\"+"u33"+"\"}";
         NatsServerInfo info = new NatsServerInfo(json);
         assertEquals("u33", info.getServerId());
     }

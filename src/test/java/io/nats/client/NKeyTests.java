@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
-import static io.nats.client.utils.ResourceUtils.resourceAsLines;
+import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NKeyTests {
@@ -68,7 +68,7 @@ public class NKeyTests {
 
     @Test
     public void testBase32() {
-        List<String> inputs = resourceAsLines("data/utf8-test-strings.txt");
+        List<String> inputs = dataAsLines("utf8-test-strings.txt");
 
         for (String expected : inputs) {
             byte[] bytes = expected.getBytes(StandardCharsets.UTF_8);

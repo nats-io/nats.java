@@ -23,14 +23,21 @@ import static io.nats.client.support.Validator.validateJetStreamPrefix;
  */
 public class JetStreamOptions {
 
+    public static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
+
     private final String prefix;
     private final Duration requestTimeout;
-    private final boolean direct;
 
-    protected JetStreamOptions(String prefix, Duration requestTimeout, boolean direct) {
-        this.prefix = prefix;
-        this.requestTimeout = requestTimeout;
-        this.direct = direct;
+    public JetStreamOptions(String prefix, Duration requestTimeout) {
+        this.prefix = validateJetStreamPrefix(prefix);
+        this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
+    }
+
+    public static JetStreamOptions createOrCopy(JetStreamOptions options) {
+        if (options == null) {
+            return new JetStreamOptions(null, null);
+        }
+        return new JetStreamOptions(options.prefix, options.requestTimeout);
     }
 
     /**
@@ -51,14 +58,6 @@ public class JetStreamOptions {
     }
 
     /**
-     * Gets direct mode of the client.  Disabled by default. 
-     * @return true if in direct mode, false otherwise.
-     */
-    public boolean isDirectMode() {
-        return direct;
-    }
-
-    /**
      * Creates a builder for the publish options.
      * @return the builder.
      */
@@ -67,22 +66,29 @@ public class JetStreamOptions {
     }
 
     /**
+     * Get an instance of JetStreamOptions with all defaults
+     * @return the configuration
+     */
+    public static JetStreamOptions defaultOptions() {
+        return new JetStreamOptions(null, null);
+    }
+
+    /**
      * JetStreamOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
     public static class Builder {
 
-        private String prefix = null;
-        private Duration requestTimeout = Options.DEFAULT_CONNECTION_TIMEOUT;
-        boolean direct = false;
-        
+        private String prefix;
+        private Duration requestTimeout;
+
         /**
          * Sets the request timeout for JetStream API calls.
-         * @param timeout the duration to wait for responses.
+         * @param requestTimeout the duration to wait for responses.
          * @return the builder
          */
-        public Builder requestTimeout(Duration timeout) {
-            this.requestTimeout = timeout;
+        public Builder requestTimeout(Duration requestTimeout) {
+            this.requestTimeout = requestTimeout;
             return this;
         }
 
@@ -90,31 +96,20 @@ public class JetStreamOptions {
          * Sets the prefix for JetStream subjects. A prefix can be used in conjunction with
          * user permissions to restrict access to certain JetStream instances.  This must
          * match the prefix used in the server.
-         * @param value the JetStream prefix
+         * @param prefix the JetStream prefix
          * @return the builder.
          */
-        public Builder prefix(String value) {
-            this.prefix = validateJetStreamPrefix(value);
+        public Builder prefix(String prefix) {
+            this.prefix = validateJetStreamPrefix(prefix);
             return this;
         }
-
-        /**
-         * Sets direct mode for the client.  It is disabled by default.
-         * @param value true enables direct mode, false disables.
-         * @return the builder.
-         */
-        public Builder direct(boolean value) {
-            this.direct = value;
-            return this;
-        }        
 
         /**
          * Builds the JetStream options.
          * @return JetStream options
          */
         public JetStreamOptions build() {
-            return new JetStreamOptions(prefix, requestTimeout, direct);
+            return new JetStreamOptions(prefix, requestTimeout);
         }
     }
-
 }

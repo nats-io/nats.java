@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
@@ -23,7 +24,7 @@ import java.util.regex.Pattern;
 // TODO Add properties
 
 /**
- * The ConsumerInfo class returns information about a jetstream consumer.
+ * The ConsumerInfo class returns information about a JetStream consumer.
  */
 public class ConsumerInfo {
 
@@ -31,7 +32,7 @@ public class ConsumerInfo {
      * This class holds the sequence numbers for a consumer and 
      * stream.
      */
-    static class SequencePair {
+    public static class SequencePair {
         private long consumerSeq = -1;
         private long streamSeq = -1;
 
@@ -125,7 +126,7 @@ public class ConsumerInfo {
 
         m = createdRE.matcher(json);
         if (m.find()) {
-            this.created = JsonUtils.parseDateTime(m.group(1));
+            this.created = DateTimeUtils.parseDateTime(m.group(1));
         }
 
         String jsonObject = JsonUtils.getJSONObject(configField, json);

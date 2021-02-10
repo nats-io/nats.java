@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
@@ -20,9 +21,8 @@ import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 /**
- * The StreamInfo class contains information about a jetstream stream.
+ * The StreamInfo class contains information about a JetStream stream.
  */
 public class StreamInfo {
 
@@ -30,10 +30,10 @@ public class StreamInfo {
         private long msgs;
         private long bytes;
         private long firstSeq;
-        private ZonedDateTime firstTime;
         private long lastSeq;
-        private ZonedDateTime lastTime;
         private long consumerCount;
+        private ZonedDateTime firstTime;
+        private ZonedDateTime lastTime;
 
         private static final String msgsField = "messages";
         private static final String bytesField = "bytes";
@@ -69,7 +69,7 @@ public class StreamInfo {
 
             m = firstTimeRE.matcher(json);
             if (m.find()) {
-                this.firstTime = JsonUtils.parseDateTime(m.group(1));
+                this.firstTime = DateTimeUtils.parseDateTime(m.group(1));
             }
 
             m = lastSeqRE.matcher(json);
@@ -79,7 +79,7 @@ public class StreamInfo {
 
             m = lastTimeRE.matcher(json);
             if (m.find()) {
-                this.lastTime = JsonUtils.parseDateTime(m.group(1));
+                this.lastTime = DateTimeUtils.parseDateTime(m.group(1));
             }
 
             m = consumersRE.matcher(json);
@@ -150,10 +150,10 @@ public class StreamInfo {
                     "msgs=" + msgs +
                     ", bytes=" + bytes +
                     ", firstSeq=" + firstSeq +
-                    ", firstTime=" + firstTime +
                     ", lastSeq=" + lastSeq +
-                    ", lastTime=" + lastTime +
                     ", consumerCount=" + consumerCount +
+                    ", firstTime=" + firstTime +
+                    ", lastTime=" + lastTime +
                     '}';
         }
     }
@@ -167,24 +167,22 @@ public class StreamInfo {
                 '}';
     }
 
-    private StreamConfiguration config;
-    private ZonedDateTime created;
-    private StreamState state;
+    private final StreamConfiguration config;
+    private final ZonedDateTime created;
+    private final StreamState state;
     
     private static final String createdField =  "created";
     private static final Pattern createdRE = JsonUtils.buildPattern(createdField, FieldType.jsonString);
 
     /**
      * Internal method to generate consumer information.
-     * @param json JSON represeenting the consumer information.
+     * @param json JSON representing the consumer information.
      */
     public StreamInfo(String json) {
         Matcher m = createdRE.matcher(json);
-        if (m.find()) {
-            this.created = JsonUtils.parseDateTime(m.group(1));
-        }
+        this.created = m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;
 
-        this.config = new StreamConfiguration(JsonUtils.getJSONObject("config", json));
+        this.config = StreamConfiguration.fromJson(JsonUtils.getJSONObject("config", json));
         this.state = new StreamState(JsonUtils.getJSONObject("state", json));
     }
     

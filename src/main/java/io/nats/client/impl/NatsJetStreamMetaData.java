@@ -32,6 +32,19 @@ public class NatsJetStreamMetaData implements MessageMetaData {
     private final ZonedDateTime timestamp;
     private long pending = -1;
 
+    @Override
+    public String toString() {
+        return "NatsJetStreamMetaData{" +
+                "stream='" + stream + '\'' +
+                ", consumer='" + consumer + '\'' +
+                ", delivered=" + delivered +
+                ", streamSeq=" + streamSeq +
+                ", consumerSeq=" + consumerSeq +
+                ", timestamp=" + timestamp +
+                ", pending=" + pending +
+                '}';
+    }
+
     NatsJetStreamMetaData(NatsMessage natsMessage) {
         if (!natsMessage.isJetStream()) {
             throwNotAJetStreamMessage(natsMessage.replyTo);
@@ -53,7 +66,7 @@ public class NatsJetStreamMetaData implements MessageMetaData {
         long seconds = tsi / NANO_FACTOR;
         int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
         LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
-        timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault());
+        timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
 
         if (parts.length == 9) {
             pending = Long.parseLong(parts[8]);

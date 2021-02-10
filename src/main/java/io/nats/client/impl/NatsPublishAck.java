@@ -16,12 +16,10 @@ import io.nats.client.PublishAck;
 import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// Internal class to handle jetstream acknowedgements
-class NatsPublishAck implements PublishAck {
+public class NatsPublishAck extends JetStreamApiResponse implements PublishAck {
 
     private String stream = null;
     private long seq = -1;
@@ -31,36 +29,33 @@ class NatsPublishAck implements PublishAck {
     private static final Pattern duplicateRE = JsonUtils.buildPattern("duplicate", FieldType.jsonBoolean);
     private static final Pattern seqnoRE = JsonUtils.buildPattern("seq", FieldType.jsonNumber); 
 
-    // Acks will be received with the following format:
-    // Error = {"code" : "description"}
-    // OK = {"stream" : "mystream", "duplicate" : false, "seq", 42}"
     public NatsPublishAck(byte[] response) throws IOException {
+        super(response);
+
         if (response.length < 5) {
             // throw IOException to mirror other protocol exceptions.
-            throw new IOException("Invalid ack from a jetstream publish");
+            throw new IOException("Invalid ack from a JetStream publish");
         }
 
-        String s = new String(response, StandardCharsets.UTF_8);
-
-        // check for error and then parse for speed.
-        if (JetStreamApiResponse.isError(s)) {
-            JetStreamApiResponse resp = new JetStreamApiResponse(response);
-            if (resp.hasError()) {
-                throw new IllegalStateException(resp.getError());
-            }
+        if (hasError()) {
+            throw new IllegalStateException(getError());
         }
 
-        Matcher m = streamRE.matcher(s);
+        String responseJson = getResponse();
+        Matcher m = streamRE.matcher(responseJson);
         if (m.find()) {
             this.stream = m.group(1);
         }
+        else {
+            throw new IOException("Invalid ack from a JetStream publish");
+        }
         
-        m = seqnoRE.matcher(s);
+        m = seqnoRE.matcher(responseJson);
         if (m.find()) {
             this.seq = Long.parseLong(m.group(1));
         }
 
-        m = duplicateRE.matcher(s);
+        m = duplicateRE.matcher(responseJson);
         if (m.find()) {
             this.duplicate = Boolean.parseBoolean(m.group(1));
         }

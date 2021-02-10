@@ -13,12 +13,11 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,7 +25,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The ConsumerConfiguration class specifies the configuration for creating a jetstream consumer on the client and 
+ * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
  * if necessary the server.
  * Options are created using a {@link PublishOptions.Builder Builder}.
  */
@@ -141,20 +140,20 @@ public class ConsumerConfiguration {
     private long maxWaiting = 0;
     private long maxAckPending = 0;
 
-    private static String durableNameField =  "durable_name";
-    private static String deliverSubjField = "deliver_subject";
-    private static String deliverPolicyField =  "deliver_policy";
-    private static String startSeqField =  "opt_start_seq";
-    private static String startTimeField=  "opt_start_time";
-    private static String ackPolicyField =  "ack_policy";
-    private static String ackWaitField =  "ack_wait";
-    private static String maxDeliverField =  "max_deliver";
-    private static String filterSubjectField =  "filter_subject";
-    private static String replayPolicyField =  "replay_policy";
-    private static String sampleFreqField =  "sample_frequency";
-    private static String rateLimitField =  "rate_limit";    
-    private static String maxWaitingField =  "max_waiting";
-    private static String maxAckPendingField =  "max_ack_pending";
+    private static final String durableNameField =  "durable_name";
+    private static final String deliverSubjField = "deliver_subject";
+    private static final String deliverPolicyField =  "deliver_policy";
+    private static final String startSeqField =  "opt_start_seq";
+    private static final String startTimeField=  "opt_start_time";
+    private static final String ackPolicyField =  "ack_policy";
+    private static final String ackWaitField =  "ack_wait";
+    private static final String maxDeliverField =  "max_deliver";
+    private static final String filterSubjectField =  "filter_subject";
+    private static final String replayPolicyField =  "replay_policy";
+    private static final String sampleFreqField =  "sample_frequency";
+    private static final String rateLimitField =  "rate_limit";
+    private static final String maxWaitingField =  "max_waiting";
+    private static final String maxAckPendingField =  "max_ack_pending";
 
     private static final Pattern durableRE = JsonUtils.buildPattern(durableNameField, FieldType.jsonString);
     private static final Pattern deliverSubjectRE = JsonUtils.buildPattern(deliverSubjField, FieldType.jsonString);
@@ -196,9 +195,7 @@ public class ConsumerConfiguration {
 
         m = startTimeRE.matcher(json);
         if (m.find()) {
-            // Instant can parse rfc 3339... we're making a time zone assumption.
-            Instant inst = Instant.parse(m.group(1));
-            this.startTime = ZonedDateTime.ofInstant(inst, ZoneId.systemDefault());
+            this.startTime = DateTimeUtils.parseDateTime(m.group(1));
         }
 
         m = ackPolicyRE.matcher(json);
@@ -248,14 +245,6 @@ public class ConsumerConfiguration {
             this.maxWaiting = Long.parseLong(m.group(1));
         }                 
 
-    }
-
-    // copy constructor for subscriptions
-    ConsumerConfiguration(ConsumerConfiguration cc) {
-        this(cc.durable, cc.deliverPolicy, cc.startSeq,
-            cc.startTime, cc.ackPolicy, cc.ackWait, cc.maxDeliver, cc.filterSubject,
-            cc.replayPolicy, cc.sampleFrequency, cc.rateLimit, cc.deliverSubject,
-            cc.maxWaiting, cc.maxAckPending);
     }
 
     // For the builder
@@ -316,7 +305,6 @@ public class ConsumerConfiguration {
         return sb.toString();
     }
 
-    
     /**
      * Sets the durable name of the configuration.
      * @param value name of the durable
@@ -375,7 +363,7 @@ public class ConsumerConfiguration {
 
     /**
      * Gets the acknowledgment policy of this consumer configuration.
-     * @return the acknoledgment policy.
+     * @return the acknowledgment policy.
      */    
     public AckPolicy getAckPolicy() {
         return ackPolicy;
@@ -383,7 +371,7 @@ public class ConsumerConfiguration {
 
     /**
      * Gets the acknowledgment wait of this consumer configuration.
-     * @return the acknoledgment wait duration.
+     * @return the acknowledgment wait duration.
      */     
     public Duration getAckWait() {
         return ackWait;
@@ -422,6 +410,47 @@ public class ConsumerConfiguration {
     }
 
     /**
+     * Sets the filter subject of the configuration.
+     * @param subject filter subject.
+     */
+    public void setFilterSubject(String subject) {
+        this.filterSubject = subject;
+    }
+
+    /**
+     * Gets the maximum ack pending configuration.
+     * @return maxumum ack pending.
+     */
+    public long getMaxAckPending() {
+        return maxAckPending;
+    }
+
+    /**
+     * Sets the maximum ack pending.
+     * @param maxAckPending maximum pending acknowledgements.
+     */
+    public void setMaxAckPending(long maxAckPending) {
+        this.maxAckPending = maxAckPending;
+    }
+
+    /**
+     * Gets the maximum waiting acknowledgements.
+     *
+     * @return the max waiting value
+     */
+    public long getMaxWaiting() {
+        return maxWaiting;
+    }
+
+    /**
+     * Get an instance of ConsumerConfiguration with all defaults
+     * @return the configuration
+     */
+    public static ConsumerConfiguration defaultConfiguration() {
+        return new Builder().build();
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return a publish options builder
      */
@@ -433,7 +462,7 @@ public class ConsumerConfiguration {
      * ConsumerConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      * 
-     * <p>{@code new ConsumerConfiguration.Builder().build()} will create a new ConsumerConfiguration.
+     * <p>{@code new ConsumerConfiguration.Builder().build()} will create a default ConsumerConfiguration.
      * 
      */
     public static class Builder {
@@ -616,39 +645,6 @@ public class ConsumerConfiguration {
             );
         }
     }
-
-    /**
-     * Sets the filter subject of the configuration.
-     * @param subject filter subject.
-     */
-	public void setFilterSubject(String subject) {
-        this.filterSubject = subject;
-	}
-
-    /**
-     * Gets the maximum ack pending configuration.
-     * @return maxumum ack pending.
-     */
-	public long getMaxAckPending() {
-	    return maxAckPending;
-	}
-
-    /**
-     * Sets the maximum ack pending.
-     * @param maxAckPending maximum pending acknowledgements.
-     */
-	public void setMaxAckPending(long maxAckPending) {
-        this.maxAckPending = maxAckPending;
-    }
-    
-    /**
-     * Gets the maximum waiting acknowedgements.
-     *
-     * @return the max waiting value
-     */
-	public long getMaxWaiting() {
-        return maxWaiting;
-	}
 
     @Override
     public String toString() {

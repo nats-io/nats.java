@@ -429,5 +429,5 @@ public interface Connection extends AutoCloseable {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      */
-    JetStreamManagement jetStreamManagement(JetStreamManagementOptions options) throws IOException;
+    JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException;
 }

@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Random;
 
 import static io.nats.client.support.RandomUtils.PRAND;
-import static io.nats.client.utils.ResourceUtils.resourceAsLines;
+import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ByteArrayBuilderTests {
@@ -21,7 +21,7 @@ public class ByteArrayBuilderTests {
         String testString = "abcdefghij";
         _test(PRAND, bab, Collections.singletonList(testString), StandardCharsets.US_ASCII);
 
-        List<String> subjects = resourceAsLines("data/utf8-test-strings.txt");
+        List<String> subjects = dataAsLines("utf8-test-strings.txt");
         bab = new ByteArrayBuilder(StandardCharsets.UTF_8);
         _test(PRAND, bab, subjects, StandardCharsets.UTF_8);
     }

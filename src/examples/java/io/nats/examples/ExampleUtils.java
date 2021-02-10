@@ -14,13 +14,26 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.StreamConfiguration.StorageType;
-import io.nats.client.impl.JetStreamApiException;
 
-import java.io.IOException;
 import java.time.Duration;
 
+import static io.nats.client.support.DebugUtil.printable;
+
 public class ExampleUtils {
+    public static Options createExampleOptions(String[] args) throws Exception {
+        String server = ExampleArgs.getServer(args);
+        return createExampleOptions(server, false);
+    }
+
+    public static Options createExampleOptions(String[] args, boolean allowReconnect) throws Exception {
+        String server = ExampleArgs.getServer(args);
+        return createExampleOptions(server, allowReconnect);
+    }
+
+    public static Options createExampleOptions(String server) throws Exception {
+        return createExampleOptions(server, false);
+    }
+
     public static Options createExampleOptions(String server, boolean allowReconnect) throws Exception {
         Options.Builder builder = new Options.Builder()
                 .server(server)
@@ -58,36 +71,17 @@ public class ExampleUtils {
         return builder.build();
     }
 
-    public static void createTestStream(JetStreamManagement jsm, String streamName, String subject)
-            throws IOException, JetStreamApiException {
-        createTestStream(jsm, streamName, subject, StorageType.File);
-    }
-
-    public static void createTestStream(JetStreamManagement jsm, String streamName, String subject, StorageType storageType)
-            throws IOException, JetStreamApiException {
-
-        // Create a stream, here will use a file storage type, and one subject,
-        // the passed subject.
-        StreamConfiguration sc = StreamConfiguration.builder()
-                .name(streamName)
-                .storageType(storageType)
-                .subjects(subject)
-                .build();
-        
-        // Add or use an existing stream.
-        StreamInfo si = jsm.addStream(sc);
-        System.out.printf("Using stream %s on subject %s created at %s.\n",
-           streamName, subject, si.getCreateTime().toLocalTime().toString());
-    }    
-
     // Publish:   [options] <subject> <message>
     // Subscribe: [options] <subject> <msgCount>
 
     // Request:   [options] <subject> <message>
     // Reply:     [options] <subject> <msgCount>
- 
+
+    // JsPublish:  [options] <streamName> <subject> <message>
+    // JsSubscribe:  [options] <streamName> <subject> <msgCount>
+
     public static ExampleArgs readPublishArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, true, usageString);
+        ExampleArgs ea = new ExampleArgs(args, true, false, usageString);
         if (ea.message == null) {
             usage(usageString);
         }
@@ -99,7 +93,7 @@ public class ExampleUtils {
     }
 
     public static ExampleArgs readSubscribeArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, false, usageString);
+        ExampleArgs ea = new ExampleArgs(args, false, false, usageString);
         if (ea.msgCount < 1) {
             usage(usageString);
         }
@@ -110,13 +104,40 @@ public class ExampleUtils {
         return readSubscribeArgs(args, usageString);
     }
 
-    public static ExampleArgs readConsumerArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, false, usageString);
-        if (ea.msgCount < 1 || ea.stream == null || ea.consumer == null) {
-            System.out.println("Stream name and consumer name are required to attach.\nSubject and message count are required.\n");
+    public static ExampleArgs readJsPublishArgs(String[] args, String usageString) {
+        ExampleArgs ea = new ExampleArgs(args, true, true, usageString);
+        if (ea.message == null) {
             usage(usageString);
         }
         return ea;
+    }
+
+    public static ExampleArgs readJsSubscribeArgs(String[] args, String usageString) {
+        ExampleArgs ea = new ExampleArgs(args, false, true, usageString);
+        if (ea.subject == null) {
+            usage(usageString);
+        }
+        return ea;
+    }
+
+    public static ExampleArgs readJsSubscribeCountArgs(String[] args, String usageString) {
+        ExampleArgs ea = new ExampleArgs(args, false, true, usageString);
+        if (ea.msgCount < 1) {
+            usage(usageString);
+        }
+        return ea;
+    }
+
+    public static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            // ignore
+        }
+    }
+
+    public static void formatPrint(Object o) {
+        System.out.println(printable(o.toString()) + "\n");
     }
 
     private static void usage(String usageString) {
