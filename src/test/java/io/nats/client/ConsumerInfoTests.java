@@ -59,4 +59,11 @@ public class ConsumerInfoTests {
         assertEquals(0, ci.getNumAckPending());
         assertEquals(0, ci.getRedelivered());
     }
+
+    @Test
+    public void testToString() {
+        // COVERAGE
+        String json = dataAsString("ConsumerInfo.json");
+        assertNotNull(new ConsumerInfo(json).toString());
+    }
 }

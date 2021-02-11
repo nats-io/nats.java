@@ -3,7 +3,9 @@ package io.nats.client.impl;
 import io.nats.client.*;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.support.Validator.*;
@@ -19,6 +21,9 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     private final String prefix;
     private final Duration requestTimeout;
 
+    // ----------------------------------------------------------------------------------------------------
+    // Create / Init
+    // ----------------------------------------------------------------------------------------------------
     NatsJetStream(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         conn = connection;
         if (jsOptions == null) {
@@ -67,6 +72,10 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         return new ConsumerInfo(extractApiResponseThrowOnError(resp).getResponse());
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Manage
+    // ----------------------------------------------------------------------------------------------------
+
     /**
      * {@inheritDoc}
      */
@@ -85,7 +94,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
     private StreamInfo _addOrUpdate(StreamConfiguration config, String template) throws IOException, JetStreamApiException {
         if (config == null) {
-            throw new IllegalArgumentException("configuration cannot be null.");
+            throw new IllegalArgumentException("Configuration cannot be null.");
         }
         String streamName = config.getName();
         if (nullOrEmpty(streamName)) {
@@ -129,13 +138,12 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public ConsumerInfo addConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         validateStreamNameRequired(streamName);
-        validateNotNull(config, "config");
-        return addConsumer(null, streamName, config);
+        validateNotNull(config, "Config");
+        validateNotNull(config.getDurable(), "Durable");
+        return _addConsumer(null, streamName, config);
     }
 
-    private ConsumerInfo addConsumer(String subject, String stream, ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        validateStreamNameRequired(stream);
-        validateNotNull(config, "config");
+    private ConsumerInfo _addConsumer(String subject, String stream, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         if (!nullOrEmpty(subject)) {
             config.setDeliverSubject(subject);
         }
@@ -155,12 +163,64 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      * {@inheritDoc}
      */
     @Override
-    public ConsumerLister getConsumers(String streamName) throws IOException, JetStreamApiException {
-        String subj = String.format(JSAPI_CONSUMER_LIST, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
-        return new ConsumerLister(extractJsonThrowOnError(resp));
+    public List<String> getConsumerNames(String streamName) throws IOException, JetStreamApiException {
+        return getConsumerNames(streamName, null);
     }
 
+    @Override
+    public List<String> getConsumerNames(String streamName, String filter) throws IOException, JetStreamApiException {
+        String subj = String.format(JSAPI_CONSUMER_NAMES, streamName);
+
+        ConsumerNamesResponse cnr = new ConsumerNamesResponse();
+        while (cnr.hasMore()) {
+            Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter).getBytes(StandardCharsets.US_ASCII), requestTimeout);
+            cnr.update(extractJsonThrowOnError(resp));
+        }
+
+        return cnr.getConsumers();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<ConsumerInfo> getConsumers(String streamName) throws IOException, JetStreamApiException {
+        String subj = String.format(JSAPI_CONSUMER_LIST, streamName);
+
+        ConsumerListResponse cir = new ConsumerListResponse();
+        while (cir.hasMore()) {
+            Message resp = makeRequestResponseRequired(subj, cir.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
+            cir.update(extractJsonThrowOnError(resp));
+        }
+
+        return cir.getConsumers();
+    }
+
+    @Override
+    public List<String> getStreamNames() throws IOException, JetStreamApiException {
+        StreamNamesResponse snr = new StreamNamesResponse();
+        while (snr.hasMore()) {
+            Message resp = makeRequestResponseRequired(JSAPI_STREAMS, snr.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
+            snr.update(extractJsonThrowOnError(resp));
+        }
+
+        return snr.getStreams();
+    }
+
+    @Override
+    public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
+        StreamListResponse sir = new StreamListResponse();
+        while (sir.hasMore()) {
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, sir.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
+            sir.update(extractJsonThrowOnError(resp));
+        }
+
+        return sir.getStreams();
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Publish
+    // ---------------------------------------------------------------------------------------------NatsJsPullSub-------
     static NatsMessage buildMsg(String subject, byte[] payload) {
         return new NatsMessage.Builder().subject(subject).data(payload).build();
     }
@@ -254,7 +314,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     }
 
     private PublishAck publishInternal(Message message, PublishOptions options) throws IOException {
-        validateNotNull(message, "message");
+        validateNotNull(message, "Message");
 
         NatsMessage natsMessage = message instanceof NatsMessage ? (NatsMessage)message : new NatsMessage(message);
 
@@ -307,57 +367,9 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         return ack;
     }
 
-    private boolean isStreamSpecified(String streamName) {
-        return streamName != null;
-    }
-
-    ConsumerInfo lookupConsumerInfo(String stream, String consumer) throws IOException, JetStreamApiException {
-        String ccInfoSubj = String.format(JSAPI_CONSUMER_INFO, stream, consumer);
-        Message resp = makeRequestResponseRequired(ccInfoSubj, null, requestTimeout);
-        JetStreamApiResponse jsApiResp = extractApiResponse(resp);
-        if (jsApiResp.hasError()) {
-            if (jsApiResp.getErrorCode() == 404) {
-                return null;
-            }
-            throw new JetStreamApiException(jsApiResp);
-        }
-        return new ConsumerInfo(extractJsonThrowOnError(resp));
-    }
-
-    private String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
-        if (subject == null) {
-            throw new IllegalArgumentException("subject cannot be null.");
-        }
-        String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
-
-        Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), requestTimeout);
-
-        String[] streams = JsonUtils.parseStringArray("streams", extractJsonThrowOnError(resp));
-        if (streams.length != 1) {
-            throw new IllegalStateException("No matching streams.");
-        }
-        return streams[0];
-    }
-
-    private static class AutoAckMessageHandler implements MessageHandler {
-        MessageHandler userMH;
-
-        // caller must ensure userMH is not null
-        AutoAckMessageHandler(MessageHandler userMH) {
-            this.userMH = userMH;
-        }
-
-        @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            try  {
-                userMH.onMessage(msg);
-                msg.ack();
-            } catch (Exception e) {
-                // TODO ignore??  schedule async error?
-            }
-        }
-    }
-
+    // ----------------------------------------------------------------------------------------------------
+    // Subscribe
+    // ----------------------------------------------------------------------------------------------------
     NatsJetStreamSubscription createSubscription(String subject, String queueName,
                                                  NatsDispatcher dispatcher, MessageHandler handler, boolean autoAck,
                                                  PushSubscribeOptions pushSubscribeOptions,
@@ -505,8 +517,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
-        validateNotNull(dispatcher, "dispatcher");
-        validateNotNull(handler, "handler");
+        validateNotNull(dispatcher, "Dispatcher");
+        validateNotNull(handler, "Handler");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, null, null);
     }
 
@@ -516,8 +528,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public JetStreamSubscription subscribe(String subject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
-        validateNotNull(dispatcher, "dispatcher");
-        validateNotNull(handler, "handler");
+        validateNotNull(dispatcher, "Dispatcher");
+        validateNotNull(handler, "Handler");
         return createSubscription(subject, null, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
     }
 
@@ -528,8 +540,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     public JetStreamSubscription subscribe(String subject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
         String qOrNull = validateQueueNameOrEmptyAsNull(queue);
-        validateNotNull(dispatcher, "dispatcher");
-        validateNotNull(handler, "handler");
+        validateNotNull(dispatcher, "Dispatcher");
+        validateNotNull(handler, "Handler");
         return createSubscription(subject, qOrNull, (NatsDispatcher) dispatcher, handler, autoAck, options, null);
     }
 
@@ -539,11 +551,68 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public JetStreamSubscription subscribe(String subject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
         validateJsSubscribeSubjectRequired(subject);
-        validateNotNull(options, "options");
-        validateNotNull(options.getDurable(), "durable");
+        validateNotNull(options, "Options");
+        validateNotNull(options.getDurable(), "Durable");
         return createSubscription(subject, null, null, null, false, null, options);
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // General Utils
+    // ----------------------------------------------------------------------------------------------------
+    private boolean isStreamSpecified(String streamName) {
+        return streamName != null;
+    }
+
+    ConsumerInfo lookupConsumerInfo(String stream, String consumer) throws IOException, JetStreamApiException {
+        String ccInfoSubj = String.format(JSAPI_CONSUMER_INFO, stream, consumer);
+        Message resp = makeRequestResponseRequired(ccInfoSubj, null, requestTimeout);
+        JetStreamApiResponse jsApiResp = extractApiResponse(resp);
+        if (jsApiResp.hasError()) {
+            if (jsApiResp.getErrorCode() == 404) {
+                return null;
+            }
+            throw new JetStreamApiException(jsApiResp);
+        }
+        return new ConsumerInfo(extractJsonThrowOnError(resp));
+    }
+
+    private String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
+        if (subject == null) {
+            throw new IllegalArgumentException("subject cannot be null.");
+        }
+        String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
+
+        Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), requestTimeout);
+
+        String[] streams = JsonUtils.getStringArray("streams", extractJsonThrowOnError(resp));
+        if (streams.length != 1) {
+            throw new IllegalStateException("No matching streams.");
+        }
+        return streams[0];
+    }
+
+    private static class AutoAckMessageHandler implements MessageHandler {
+        MessageHandler userMH;
+
+        // caller must ensure userMH is not null
+        AutoAckMessageHandler(MessageHandler userMH) {
+            this.userMH = userMH;
+        }
+
+        @Override
+        public void onMessage(Message msg) throws InterruptedException {
+            try  {
+                userMH.onMessage(msg);
+                msg.ack();
+            } catch (Exception e) {
+                // TODO ignore??  schedule async error?
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Request Utils
+    // ----------------------------------------------------------------------------------------------------
     private Message makeRequestResponseRequired(String subject, byte[] bytes, Duration timeout) throws IOException {
         try {
             return responseRequired(conn.request(appendPrefix(subject), bytes, timeout));

@@ -42,6 +42,9 @@ public class PushSubscribeOptionsTests extends TestBase {
         assertNull(so.getStream());
         assertNull(so.getDurable());
         assertNull(so.getDeliverSubject());
+
+
+        assertNotNull(so.toString()); // COVERAGE
     }
 
     @Test

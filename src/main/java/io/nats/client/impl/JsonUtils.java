@@ -94,8 +94,8 @@ public abstract class JsonUtils {
      * @return object json string
      */
     public static String getJSONObject(String objectName, String json) {
-        int[] indexes = getBracketIndexes(objectName, json, "{", "}");
-        return indexes[0] == -1 || indexes[1] == -1 ? EMPTY_JSON : json.substring(indexes[0], indexes[1]+1);
+        int[] indexes = getBracketIndexes(objectName, json, '{', '}');
+        return indexes == null ? EMPTY_JSON : json.substring(indexes[0], indexes[1]+1);
     }
 
     /**
@@ -105,39 +105,52 @@ public abstract class JsonUtils {
      * @param json source json
      * @return object json string
      */
-    public static List<String> getJSONArray(String objectName, String json) {
-        int[] indexes = getBracketIndexes(objectName, json, "[", "]");
+    public static List<String> getObjectArray(String objectName, String json) {
         List<String> items = new ArrayList<>();
-        StringBuilder item = new StringBuilder();
-        int count = 0;
-        for (int x = indexes[0] + 1; x < indexes[1]; x++) {
-            char c = json.charAt(x);
-            if (c == '{') {
-                item.append(c);
-                count++;
-            }
-            else if (c == '}') {
-                item.append(c);
-                if (--count == 0) {
-                    items.add(item.toString());
-                    item.setLength(0);
+        int[] indexes = getBracketIndexes(objectName, json, '[', ']');
+        if (indexes != null) {
+            StringBuilder item = new StringBuilder();
+            int depth = 0;
+            for (int x = indexes[0] + 1; x < indexes[1]; x++) {
+                char c = json.charAt(x);
+                if (c == '{') {
+                    item.append(c);
+                    depth++;
+                } else if (c == '}') {
+                    item.append(c);
+                    if (--depth == 0) {
+                        items.add(item.toString());
+                        item.setLength(0);
+                    }
+                } else if (depth > 0) {
+                    item.append(c);
                 }
-            }
-            else if (count > 0) {
-                item.append(c);
             }
         }
         return items;
     }
 
-    private static int[] getBracketIndexes(String objectName, String json, String start, String end) {
+    private static int[] getBracketIndexes(String objectName, String json, char start, char end) {
         int[] result = new int[] {-1, -1};
         int objStart = json.indexOf(Q + objectName + Q);
         if (objStart != -1) {
-            result[0] = json.indexOf(start, objStart);
-            result[1] = json.indexOf(end, result[0]);
+            int startIx = json.indexOf(start, objStart);
+            int depth = 1;
+            for (int x = startIx + 1; x < json.length(); x++) {
+                char c = json.charAt(x);
+                if (c == start) {
+                    depth++;
+                }
+                else if (c == end) {
+                    if (--depth == 0) {
+                        result[0] = startIx;
+                        result[1] = x;
+                        return result;
+                    }
+                }
+            }
         }
-        return result;
+        return null;
     }
 
     /**
@@ -147,7 +160,7 @@ public abstract class JsonUtils {
      * @param json source json
      * @return a string array, empty if no values are found.
      */
-    public static String[] parseStringArray(String objectName, String json) {
+    public static String[] getStringArray(String objectName, String json) {
         // THIS CODE MAKES SOME ASSUMPTIONS THAT THE JSON IS FORMED IN A CONSISTENT MANNER
         // ..."fieldName": [\n      ],...
         // ..."fieldName": [\n      "value"\n    ],...

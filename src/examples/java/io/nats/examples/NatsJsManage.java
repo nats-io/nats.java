@@ -15,6 +15,8 @@ package io.nats.examples;
 
 import io.nats.client.*;
 
+import java.util.List;
+
 import static io.nats.examples.ExampleUtils.formatPrint;
 import static io.nats.examples.NatsJsUtils.printObject;
 
@@ -114,8 +116,7 @@ public class NatsJsManage {
                 formatPrint(sub);
 
                 action("List Consumers");
-                ConsumerLister lister = jsm.getConsumers(STREAM1);
-                formatPrint(lister);
+                List<ConsumerInfo> list = jsm.getConsumers(STREAM1);
             }
         }
         catch (Exception exp) {

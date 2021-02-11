@@ -15,6 +15,7 @@ package io.nats.client;
 import io.nats.client.impl.JetStreamApiException;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * JetStream Management context for creation and access to streams and consumers in NATS.
@@ -94,12 +95,51 @@ public interface JetStreamManagement {
     void deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
 
     /**
-     * Return pages of ConsumerInfo objects
+     * Return a list of consumers by name
      * @param streamName the name of the consumer.
-     * @return The consumer lister
+     * @return The list of names
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerLister getConsumers(String streamName) throws IOException, JetStreamApiException;
+    List<String> getConsumerNames(String streamName) throws IOException, JetStreamApiException;
+
+    /**
+     * Return a list of consumers by name
+     * @param streamName the name of the consumer.
+     * @param filter match this subject or wildcard
+     * @return The list of names
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<String> getConsumerNames(String streamName, String filter) throws IOException, JetStreamApiException;
+
+    /**
+     * Return a list of ConsumerInfo objects.
+     * @param streamName the name of the consumer.
+     * @return The list of ConsumerInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<ConsumerInfo> getConsumers(String streamName) throws IOException, JetStreamApiException;
+
+    /**
+     * Return a list of streams by name
+     * @return The list of names
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<String> getStreamNames() throws IOException, JetStreamApiException;
+
+    /**
+     * Return a list of StreamInfo objects.
+     * @return The list of StreamInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<StreamInfo> getStreams() throws IOException, JetStreamApiException;
 }

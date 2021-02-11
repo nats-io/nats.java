@@ -9,5 +9,6 @@
   "max_msg_size": -1,
   "storage": "memory",
   "discard": "old",
+  "template": "owner",
   "num_replicas": 1
 }

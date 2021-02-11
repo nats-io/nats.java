@@ -21,8 +21,6 @@ import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// TODO Add properties
-
 /**
  * The ConsumerInfo class returns information about a JetStream consumer.
  */
@@ -205,7 +203,7 @@ public class ConsumerInfo {
                 "stream='" + stream + '\'' +
                 ", name='" + name + '\'' +
                 ", " + configuration +
-                ", created=" + getCreationTime() +
+                ", created=" + created +
                 ", " + delivered +
                 ", " + ackFloor +
                 ", numPending=" + numPending +

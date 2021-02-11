@@ -20,8 +20,8 @@ import aQute.bnd.gradle.Bundle
 def versionMajor = 2
 def versionMinor = 9
 def versionPatch = 0
-def versionModifier = "-BETA1"
-def jarVersion = "2.9.0-BETA1"
+def versionRevision = "" // Empty string when not using, otherwise include the dot, i.e. '.RC1' or '.Beta1' or '.123'
+def jarVersion = "" + versionMajor + "." + versionMinor + "." + versionPatch + versionRevision
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : ""
 def tag = System.getenv("TRAVIS_TAG") != null ? System.getenv("TRAVIS_TAG") : ""
@@ -29,14 +29,9 @@ def useSigning = "true" == secureEnv && ("master" == branch || ("" != tag && tag
 
 def getVersionName = { ->
     if ("" == tag)  {
-        versionModifier = "-SNAPSHOT"
+        return jarVersion + "-SNAPSHOT"
     }
-
-    if (versionModifier != null && versionModifier.length() > 0) {
-        return "" + versionMajor + "." + versionMinor + "." + versionPatch + versionModifier
-    } else {
-        return "" + versionMajor + "." + versionMinor + "." + versionPatch
-    }
+    return jarVersion
 }
 
 version = getVersionName()

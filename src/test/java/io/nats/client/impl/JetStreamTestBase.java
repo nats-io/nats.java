@@ -33,6 +33,9 @@ public class JetStreamTestBase extends TestBase {
         return new NatsMessage.IncomingMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Management
+    // ----------------------------------------------------------------------------------------------------
     public static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects)
             throws IOException, JetStreamApiException {
 
@@ -51,6 +54,21 @@ public class JetStreamTestBase extends TestBase {
         return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
+    public StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
+        try {
+            return jsm.streamInfo(streamName);
+        }
+        catch (JetStreamApiException jsae) {
+            if (jsae.getErrorCode() == 404) {
+                return null;
+            }
+            throw jsae;
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Publish / Read
+    // ----------------------------------------------------------------------------------------------------
     public static void publish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
             Message msg = NatsMessage.builder()
@@ -99,6 +117,9 @@ public class JetStreamTestBase extends TestBase {
         return messages;
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Validate / Assert
+    // ----------------------------------------------------------------------------------------------------
     public static void validateRedAndTotal(int expectedRed, int actualRed, int expectedTotal, int actualTotal) {
         validateRead(expectedRed, actualRed);
         validateTotal(expectedTotal, actualTotal);

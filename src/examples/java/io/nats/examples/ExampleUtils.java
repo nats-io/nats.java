@@ -17,8 +17,6 @@ import io.nats.client.*;
 
 import java.time.Duration;
 
-import static io.nats.client.support.DebugUtil.printable;
-
 public class ExampleUtils {
     public static Options createExampleOptions(String[] args) throws Exception {
         String server = ExampleArgs.getServer(args);
@@ -137,7 +135,8 @@ public class ExampleUtils {
     }
 
     public static void formatPrint(Object o) {
-        System.out.println(printable(o.toString()) + "\n");
+        // TODO
+        System.out.println(o.toString());
     }
 
     private static void usage(String usageString) {

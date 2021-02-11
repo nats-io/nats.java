@@ -362,27 +362,4 @@ class NatsServerInfo implements ServerInfo {
                 ", cluster='" + cluster + '\'' +
                 '}';
     }
-
-    public String toJsonString() {
-        StringBuilder sb = JsonUtils.beginFormattedJson();
-        addFld(sb, SERVER_ID, serverId);
-        addFld(sb, SERVER_NAME, serverName);
-        addFld(sb, VERSION, version);
-        addFld(sb, GO, go);
-        addFld(sb, HOST, host);
-        addFld(sb, PORT,  + port);
-        addFld(sb, HEADERS, headersSupported);
-        addFld(sb, AUTH, authRequired);
-        addFld(sb, TLS, tlsRequired);
-        addFld(sb, MAX_PAYLOAD,  + maxPayload);
-        addFld(sb, CONNECT_URLS, connectURLs);
-        addFld(sb, PROTOCOL_VERSION, protocolVersion);
-        addFld(sb, NONCE, nonce == null ? null : new String(nonce));
-        addFld(sb, LAME_DUCK_MODE, lameDuckMode);
-        addFld(sb, JETSTREAM, jetStream);
-        addFld(sb, CLIENT_ID,  + clientId);
-        addFld(sb, CLIENT_IP, clientIp);
-        addFld(sb, CLUSTER, cluster);
-        return endFormattedJson(sb);
-    }
 }

@@ -87,7 +87,7 @@ public class NatsJsUtils {
         }
 
         if (needToUpdate) {
-            sc = new StreamConfiguration.Builder(sc).subjects(combined).build();
+            sc = StreamConfiguration.builder(sc).subjects(combined).build();
             si = jsm.updateStream(sc);
         }
 

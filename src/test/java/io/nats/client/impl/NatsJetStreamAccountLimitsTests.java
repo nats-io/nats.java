@@ -17,22 +17,25 @@ import org.junit.jupiter.api.Test;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class NatsJetStreamAccountLimitsTests extends JetStreamTestBase {
 
     @Test
     public void testAccountLimitImpl() {
         String json = dataAsString("AccountLimitImpl.json");
-        NatsJetStreamAccountLimits ali = new NatsJetStreamAccountLimits(json);
-        assertEquals(1, ali.getMaxMemory());
-        assertEquals(2, ali.getMaxStorage());
-        assertEquals(3, ali.getMaxStreams());
-        assertEquals(4, ali.getMaxConsumers());
+        NatsJetStreamAccountLimits al = new NatsJetStreamAccountLimits(json);
+        assertEquals(1, al.getMaxMemory());
+        assertEquals(2, al.getMaxStorage());
+        assertEquals(3, al.getMaxStreams());
+        assertEquals(4, al.getMaxConsumers());
 
-        ali = new NatsJetStreamAccountLimits("{}");
-        assertEquals(-1, ali.getMaxMemory());
-        assertEquals(-1, ali.getMaxStorage());
-        assertEquals(-1, ali.getMaxStreams());
-        assertEquals(+1, ali.getMaxConsumers());
+        al = new NatsJetStreamAccountLimits("{}");
+        assertEquals(-1, al.getMaxMemory());
+        assertEquals(-1, al.getMaxStorage());
+        assertEquals(-1, al.getMaxStreams());
+        assertEquals(+1, al.getMaxConsumers());
+
+        assertNotNull(al.toString()); // COVERAGE
     }
 }

@@ -17,14 +17,15 @@ import io.nats.client.ConsumerConfiguration.AckPolicy;
 import io.nats.client.ConsumerConfiguration.DeliverPolicy;
 import io.nats.client.ConsumerConfiguration.ReplayPolicy;
 import io.nats.client.impl.DateTimeUtils;
-import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
+import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class ConsumerConfigurationTests extends TestBase {
     @Test
@@ -79,7 +80,7 @@ public class ConsumerConfigurationTests extends TestBase {
 
     @Test
     public void testJSONParsing() {
-        String configJSON = ResourceUtils.dataAsString("ConsumerConfiguration.json");
+        String configJSON = dataAsString("ConsumerConfiguration.json");
         ConsumerConfiguration c = new ConsumerConfiguration(configJSON);
         assertEquals("foo-durable", c.getDurable());
         assertEquals("bar", c.getDeliverSubject());
@@ -90,5 +91,12 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2020, c.getStartTime().getYear(), 2020);
         assertEquals(21, c.getStartTime().getSecond(), 21);
+    }
+
+    @Test
+    public void testToString() {
+        // COVERAGE
+        String json = dataAsString("ConsumerConfiguration.json");
+        assertNotNull(new ConsumerConfiguration(json).toString());
     }
 }

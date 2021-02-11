@@ -143,14 +143,14 @@ public abstract class Validator {
 
     public static Object validateNotNull(Object o, String fieldName) {
         if (o == null) {
-            throw new IllegalArgumentException(fieldName + "cannot be null");
+            throw new IllegalArgumentException(fieldName + " cannot be null");
         }
         return o;
     }
 
     public static String validateNotNull(String s, String fieldName) {
         if (s == null) {
-            throw new IllegalArgumentException(fieldName + "cannot be null");
+            throw new IllegalArgumentException(fieldName + " cannot be null");
         }
         return s;
     }
