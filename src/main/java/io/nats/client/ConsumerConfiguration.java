@@ -376,7 +376,7 @@ public class ConsumerConfiguration {
         private ZonedDateTime startTime = null;
         private AckPolicy ackPolicy = AckPolicy.Explicit;
         private Duration ackWait = Duration.ofSeconds(30);
-        private long maxDeliver = 0;
+        private long maxDeliver = -1;
         private String filterSubject = null;
         private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
         private String sampleFrequency = null;
