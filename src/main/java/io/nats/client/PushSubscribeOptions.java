@@ -107,7 +107,7 @@ public class PushSubscribeOptions {
          * @return the builder
          */
         public Builder stream(String stream) {
-            this.stream = validateStreamNameOrEmptyAsNull(stream);
+            this.stream = stream;
             return this;
         }
 
@@ -118,7 +118,7 @@ public class PushSubscribeOptions {
          * @return the builder
          */
         public Builder durable(String durable) {
-            this.durable = validateDurableOrEmptyAsNull(durable);
+            this.durable = durable;
             return this;
         }
 
@@ -129,7 +129,7 @@ public class PushSubscribeOptions {
          * @return the builder.
          */
         public Builder deliverSubject(String deliverSubject) {
-            this.deliverSubject = emptyAsNull(deliverSubject);
+            this.deliverSubject = deliverSubject;
             return this;
         }
 
@@ -150,7 +150,9 @@ public class PushSubscribeOptions {
          * @return subscribe options
          */
         public PushSubscribeOptions build() {
-            return new PushSubscribeOptions(stream, durable, deliverSubject, consumerConfig);
+            validateStreamNameOrEmptyAsNull(stream);
+            validateDurableOrEmptyAsNull(durable);
+            return new PushSubscribeOptions(stream, durable, emptyAsNull(deliverSubject), consumerConfig);
         }
     }
 }

@@ -82,7 +82,7 @@ public class PullSubscribeOptions {
          * @return the builder
          */
         public Builder stream(String stream) {
-            this.stream = validateStreamNameOrEmptyAsNull(stream);
+            this.stream = stream;
             return this;
         }
 
@@ -113,6 +113,7 @@ public class PullSubscribeOptions {
          * @return subscribe options
          */
         public PullSubscribeOptions build() {
+            validateStreamNameOrEmptyAsNull(stream);
             durable = validateDurableRequired(durable, consumerConfig);
             ConsumerConfiguration cc = ConsumerConfiguration.builder(consumerConfig).durable(durable).build();
             return new PullSubscribeOptions(stream, cc);
