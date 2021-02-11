@@ -25,7 +25,7 @@ public class PullSubscribeOptions {
     private final String stream;
     private final ConsumerConfiguration consumerConfig;
 
-    public PullSubscribeOptions(String stream, ConsumerConfiguration consumerConfig) {
+    private PullSubscribeOptions(String stream, ConsumerConfiguration consumerConfig) {
         this.stream = stream;
         this.consumerConfig = consumerConfig;
     }
@@ -92,7 +92,7 @@ public class PullSubscribeOptions {
          * @return the builder
          */
         public Builder durable(String durable) {
-            this.durable = validateDurableRequired(durable);
+            this.durable = durable;
             return this;
         }
 
@@ -113,19 +113,9 @@ public class PullSubscribeOptions {
          * @return subscribe options
          */
         public PullSubscribeOptions build() {
-
-            this.consumerConfig = (consumerConfig == null)
-                    ? ConsumerConfiguration.defaultConfiguration()
-                    : consumerConfig;
-
-            if (durable != null) {
-                consumerConfig.setDurable(durable);
-            }
-            else {
-                validateDurableRequired(consumerConfig.getDurable());
-            }
-
-            return new PullSubscribeOptions(stream, consumerConfig);
+            durable = validateDurableRequired(durable, consumerConfig);
+            ConsumerConfiguration cc = ConsumerConfiguration.builder(consumerConfig).durable(durable).build();
+            return new PullSubscribeOptions(stream, cc);
         }
     }
 }

@@ -54,7 +54,6 @@ public class PullSubscribeOptionsTests extends TestBase {
     public void testFieldValidation() {
         PullSubscribeOptions.Builder builder = PullSubscribeOptions.builder();
         assertThrows(IllegalArgumentException.class, () -> builder.stream("foo."));
-        assertThrows(IllegalArgumentException.class, () -> builder.durable(null));
         assertThrows(IllegalArgumentException.class, () -> builder.durable("foo."));
     }
 }

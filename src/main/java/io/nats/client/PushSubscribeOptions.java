@@ -32,17 +32,10 @@ public class PushSubscribeOptions {
                                  ConsumerConfiguration consumerConfig) {
 
         this.stream = stream;
-
-        this.consumerConfig = (consumerConfig == null)
-                ? ConsumerConfiguration.defaultConfiguration()
-                : consumerConfig;
-
-        if (durable != null) {
-            this.consumerConfig.setDurable(durable);
-        }
-        if (deliverSubject != null) {
-            this.consumerConfig.setDeliverSubject(deliverSubject);
-        }
+        this.consumerConfig = ConsumerConfiguration.builder(consumerConfig)
+                .durable(durable)
+                .deliverSubject(deliverSubject)
+                .build();
     }
 
     /**

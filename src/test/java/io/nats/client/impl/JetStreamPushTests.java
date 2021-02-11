@@ -14,12 +14,16 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class JetStreamPushTests extends JetStreamTestBase {
 
@@ -126,6 +130,40 @@ public class JetStreamPushTests extends JetStreamTestBase {
             messages = readMessagesAck(sub);
             total += messages.size();
             validateRedAndTotal(0, messages.size(), 5, total);
+        });
+    }
+
+    @Test
+    public void testCantPullOnPushSub() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // this should exception, can't pull on a push sub
+            assertThrows(IllegalStateException.class, () -> sub.pull(1));
+        });
+    }
+
+    @Test
+    public void testGetConsumerInfo() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            ConsumerInfo ci = sub.getConsumerInfo();
+            assertEquals(STREAM, ci.getStreamName());
         });
     }
 }

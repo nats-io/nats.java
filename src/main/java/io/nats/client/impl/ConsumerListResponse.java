@@ -18,6 +18,8 @@ import io.nats.client.ConsumerInfo;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.nats.client.support.ApiConstants.CONSUMERS;
+
 public class ConsumerListResponse extends ListResponse {
     private final List<ConsumerInfo> consumers;
 
@@ -26,9 +28,9 @@ public class ConsumerListResponse extends ListResponse {
     }
 
     @Override
-    public void update(String json) {
-        super.update(json);
-        List<String> consumersJson = JsonUtils.getObjectArray("consumers", json);
+    public void add(String json) {
+        super.add(json);
+        List<String> consumersJson = JsonUtils.getObjectArray(CONSUMERS, json);
         for (String j : consumersJson) {
             consumers.add(new ConsumerInfo(j));
         }

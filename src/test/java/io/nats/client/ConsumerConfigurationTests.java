@@ -40,7 +40,6 @@ public class ConsumerConfigurationTests extends TestBase {
                 .filterSubject("fs")
                 .maxDeliver(5555)
                 .maxAckPending(6666)
-                .maxWaiting(7777)
                 .rateLimit(4242)
                 .replayPolicy(ReplayPolicy.Original)
                 .sampleFrequency("10s")
@@ -57,7 +56,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals("fs", c.getFilterSubject());
         assertEquals(5555, c.getMaxDeliver());
         assertEquals(6666, c.getMaxAckPending());
-        assertEquals(7777, c.getMaxWaiting());
         assertEquals(4242, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2001, c.getStartSequence());

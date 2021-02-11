@@ -31,10 +31,10 @@ public class NatsJetStreamAccountStatsTests extends JetStreamTestBase {
         assertEquals(4, as.getConsumers());
 
         as = new NatsJetStreamAccountStats("{}");
-        assertEquals(-1, as.getMemory());
-        assertEquals(-1, as.getStorage());
-        assertEquals(-1, as.getStreams());
-        assertEquals(+1, as.getConsumers());
+        assertEquals(0, as.getMemory());
+        assertEquals(0, as.getStorage());
+        assertEquals(0, as.getStreams());
+        assertEquals(0, as.getConsumers());
 
         assertNotNull(as.toString()); // COVERAGE
     }

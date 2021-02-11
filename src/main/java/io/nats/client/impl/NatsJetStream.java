@@ -116,7 +116,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      * {@inheritDoc}
      */
     @Override
-    public StreamInfo streamInfo(String streamName) throws IOException, JetStreamApiException {
+    public StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
         Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
         return new StreamInfo(extractJsonThrowOnError(resp));
@@ -126,10 +126,10 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      * {@inheritDoc}
      */
     @Override
-    public StreamInfo purgeStream(String streamName) throws IOException, JetStreamApiException {
+    public PurgeResponse purgeStream(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
         Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
-        return new StreamInfo(extractJsonThrowOnError(resp));
+        return new PurgeResponse(extractJsonThrowOnError(resp));
     }
 
     /**
@@ -140,14 +140,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         validateStreamNameRequired(streamName);
         validateNotNull(config, "Config");
         validateNotNull(config.getDurable(), "Durable");
-        return _addConsumer(null, streamName, config);
-    }
-
-    private ConsumerInfo _addConsumer(String subject, String stream, ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        if (!nullOrEmpty(subject)) {
-            config.setDeliverSubject(subject);
-        }
-        return createOrUpdateConsumer(stream, config);
+        return createOrUpdateConsumer(streamName, config);
     }
 
     /**
@@ -174,7 +167,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         ConsumerNamesResponse cnr = new ConsumerNamesResponse();
         while (cnr.hasMore()) {
             Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter).getBytes(StandardCharsets.US_ASCII), requestTimeout);
-            cnr.update(extractJsonThrowOnError(resp));
+            cnr.add(extractJsonThrowOnError(resp));
         }
 
         return cnr.getConsumers();
@@ -190,7 +183,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         ConsumerListResponse cir = new ConsumerListResponse();
         while (cir.hasMore()) {
             Message resp = makeRequestResponseRequired(subj, cir.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
-            cir.update(extractJsonThrowOnError(resp));
+            cir.add(extractJsonThrowOnError(resp));
         }
 
         return cir.getConsumers();
@@ -201,7 +194,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         StreamNamesResponse snr = new StreamNamesResponse();
         while (snr.hasMore()) {
             Message resp = makeRequestResponseRequired(JSAPI_STREAMS, snr.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
-            snr.update(extractJsonThrowOnError(resp));
+            snr.add(extractJsonThrowOnError(resp));
         }
 
         return snr.getStreams();
@@ -212,7 +205,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         StreamListResponse sir = new StreamListResponse();
         while (sir.hasMore()) {
             Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, sir.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
-            sir.update(extractJsonThrowOnError(resp));
+            sir.add(extractJsonThrowOnError(resp));
         }
 
         return sir.getStreams();
@@ -382,22 +375,23 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
         // setup the configuration, use a default.
         String stream;
-        ConsumerConfiguration workingCC;
+        ConsumerConfiguration.Builder ccBuilder;
 
         if (isPullMode) {
             stream = pullSubscribeOptions.getStream();
-            workingCC = pullSubscribeOptions.getConsumerConfiguration();
+            ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
         }
         else if (pushSubscribeOptions == null) {
             stream = null;
-            workingCC = ConsumerConfiguration.defaultConfiguration();
+            ccBuilder = ConsumerConfiguration.builder();
         }
         else {
             stream = pushSubscribeOptions.getStream();
-            workingCC = pushSubscribeOptions.getConsumerConfiguration();
+            ccBuilder = ConsumerConfiguration.builder(pushSubscribeOptions.getConsumerConfiguration());
         }
-        String durable = workingCC.getDurable();
-        String inbox = workingCC.getDeliverSubject();
+
+        String durable = ccBuilder.getDurable();
+        String inbox = ccBuilder.getDeliverSubject();
         boolean shouldCreate = true;
 
         // 1. Did they tell me what stream? No? look it up
@@ -421,8 +415,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
                 // since we found a valid config for the durable, it existed.
                 // Make the config the working one.
-                workingCC = cc;
-                inbox = workingCC.getDeliverSubject();
+                ccBuilder = ConsumerConfiguration.builder(cc);
+                inbox = ccBuilder.getDeliverSubject();
                 shouldCreate = false;
             }
         }
@@ -434,14 +428,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
         // 4. Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
         if (isPullMode) {
-            workingCC.setDeliverSubject(null);
+            ccBuilder.deliverSubject(null);
         }
         else {
-            workingCC.setDeliverSubject(inbox);
+            ccBuilder.deliverSubject(inbox);
         }
 
         // 5.
-        workingCC.setFilterSubject(subject);
+        ccBuilder.filterSubject(subject);
 
         // 6.
         NatsJetStreamSubscription sub;
@@ -464,14 +458,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             // if we have acks and the maxAckPending is not set, set it
             // to the internal Max.
             // TODO: too high value?
-            if (workingCC.getMaxAckPending() == 0) {
-                workingCC.setMaxAckPending(sub.getPendingMessageLimit());
+            if (ccBuilder.getMaxAckPending() == 0) {
+                ccBuilder.maxAckPending(sub.getPendingMessageLimit());
             }
 
             // A. createOrUpdateConsumer can fail for security reasons, maybe other reasons?
             ConsumerInfo ci;
             try {
-                ci = createOrUpdateConsumer(stream, workingCC);
+                ci = createOrUpdateConsumer(stream, ccBuilder.build());
             } catch (JetStreamApiException e) {
                 sub.unsubscribe();
                 throw e;

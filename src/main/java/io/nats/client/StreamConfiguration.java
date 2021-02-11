@@ -14,13 +14,12 @@
 package io.nats.client;
 
 import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -136,125 +135,75 @@ public class StreamConfiguration {
     private final DiscardPolicy discardPolicy;
     private final Duration duplicateWindow;
 
-    @Override
-    public String toString() {
-        return "StreamConfiguration{" +
-                "name='" + name + '\'' +
-                ", subjects=" + subjects +
-                ", retentionPolicy=" + retentionPolicy +
-                ", maxConsumers=" + maxConsumers +
-                ", maxMsgs=" + maxMsgs +
-                ", maxBytes=" + maxBytes +
-                ", maxAge=" + maxAge +
-                ", maxMsgSize=" + maxMsgSize +
-                ", storageType=" + storageType +
-                ", replicas=" + replicas +
-                ", noAck=" + noAck +
-                ", template='" + templateOwner + '\'' +
-                ", discardPolicy=" + discardPolicy +
-                ", duplicateWindow=" + duplicateWindow +
-                '}';
-    }
-
-    private static final String nameField = "name";
-    private static final String subjectsField = "subjects";
-    private static final String retentionField = "retention";
-    private static final String maxConsumersField = "max_consumers";
-    private static final String maxMsgsField = "max_msgs";
-    private static final String maxBytesField =  "max_bytes";
-
-    private static final String maxAgeField =  "max_age";
-    private static final String maxMsgSizeField =  "max_msg_size";
-    private static final String storageTypeField =  "storage";
-    private static final String discardPolicyField = "discard";
-    private static final String replicasField =  "num_replicas";
-    private static final String noAckField =  "no_ack";
-    private static final String templateField =  "template";
-    private static final String duplicatesField =  "duplicate_window";
-
-    private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
-    private static final Pattern maxConsumersRE = JsonUtils.buildPattern(maxConsumersField, FieldType.jsonNumber);
-    private static final Pattern retentionRE = JsonUtils.buildPattern(retentionField, FieldType.jsonString);
-    private static final Pattern maxMsgsRE = JsonUtils.buildPattern(maxMsgsField, FieldType.jsonNumber);
-    private static final Pattern maxBytesRE = JsonUtils.buildPattern(maxBytesField, FieldType.jsonNumber);
-    private static final Pattern maxAgeRE = JsonUtils.buildPattern(maxAgeField, FieldType.jsonNumber);
-    private static final Pattern maxMsgSizeRE = JsonUtils.buildPattern(maxMsgSizeField, FieldType.jsonNumber);
-    private static final Pattern storageTypeRE = JsonUtils.buildPattern(storageTypeField, FieldType.jsonString);
-    private static final Pattern discardPolicyRE = JsonUtils.buildPattern(discardPolicyField, FieldType.jsonString);
-    private static final Pattern replicasRE = JsonUtils.buildPattern(replicasField, FieldType.jsonNumber);
-    private static final Pattern noAckRE = JsonUtils.buildPattern(noAckField, FieldType.jsonBoolean);
-    private static final Pattern templateRE = JsonUtils.buildPattern(templateField, FieldType.jsonString);
-    private static final Pattern duplicatesRE = JsonUtils.buildPattern(duplicatesField, FieldType.jsonNumber);
-    
     // for the response from the server
     static StreamConfiguration fromJson(String json) {
         Builder builder = new Builder();
-        Matcher m = nameRE.matcher(json);
+        Matcher m = NAME_RE.matcher(json);
         if (m.find()) {
             builder.name = m.group(1);
         }
 
-        m = maxConsumersRE.matcher(json);
+        m = MAX_CONSUMERS_RE.matcher(json);
         if (m.find()) {
             builder.maxConsumers = Long.parseLong(m.group(1));
         }
         
-        m = retentionRE.matcher(json);
+        m = RETENTION_RE.matcher(json);
         if (m.find()) {
             builder.retentionPolicy = RetentionPolicy.get(m.group(1));
         }
 
-        m = maxMsgsRE.matcher(json);
+        m = MAX_MSGS_RE.matcher(json);
         if (m.find()) {
             builder.maxMsgs = Long.parseLong(m.group(1));
         }
 
-        m = maxBytesRE.matcher(json);
+        m = MAX_BYTES_RE.matcher(json);
         if (m.find()) {
             builder.maxBytes = Long.parseLong(m.group(1));
         }
 
-        m = maxAgeRE.matcher(json);
+        m = MAX_AGE_RE.matcher(json);
         if (m.find()) {
             builder.maxAge = Duration.ofNanos(Long.parseLong(m.group(1)));
         }        
 
-        m = maxMsgSizeRE.matcher(json);
+        m = MAX_MSG_SIZE_RE.matcher(json);
         if (m.find()) {
             builder.maxMsgSize = Long.parseLong(m.group(1));
         } 
 
-        m = storageTypeRE.matcher(json);
+        m = STORAGE_TYPE_RE.matcher(json);
         if (m.find()) {
             builder.storageType = StorageType.get(m.group(1));
         }
 
-        m = discardPolicyRE.matcher(json);
+        m = DISCARD_RE.matcher(json);
         if (m.find()) {
             builder.discardPolicy = DiscardPolicy.get(m.group(1));
         }
 
-        m = replicasRE.matcher(json);
+        m = REPLICAS_RE.matcher(json);
         if (m.find()) {
             builder.replicas = Integer.parseInt(m.group(1));
         }
 
-        m = noAckRE.matcher(json);
+        m = NO_ACK_RE.matcher(json);
         if (m.find()) {
             builder.noAck = Boolean.parseBoolean(m.group(1));
         }
 
-        m = templateRE.matcher(json);
+        m = TEMPLATE_RE.matcher(json);
         if (m.find()) {
             builder.templateOwner = m.group(1);
         }
 
-        m = duplicatesRE.matcher(json);
+        m = DUPLICATE_WINDOW_RE.matcher(json);
         if (m.find()) {
             builder.duplicateWindow = Duration.ofNanos(Long.parseLong(m.group(1)));
         }
         
-        builder.subjects(JsonUtils.getStringArray(subjectsField, json));
+        builder.subjects(JsonUtils.getStringArray(SUBJECTS, json));
 
         return builder.build();
     }
@@ -292,20 +241,20 @@ public class StreamConfiguration {
         
         StringBuilder sb = JsonUtils.beginJson();
         
-        JsonUtils.addFld(sb, nameField, name);
-        JsonUtils.addFld(sb, subjectsField, subjects);
-        JsonUtils.addFld(sb, retentionField, retentionPolicy.toString());
-        JsonUtils.addFld(sb, maxConsumersField, maxConsumers);
-        JsonUtils.addFld(sb, maxMsgsField, maxMsgs);
-        JsonUtils.addFld(sb, maxBytesField, maxBytes);
-        JsonUtils.addFld(sb, maxAgeField, maxAge);
-        JsonUtils.addFld(sb, maxMsgSizeField, maxMsgSize);
-        JsonUtils.addFld(sb, storageTypeField , storageType.toString());
-        JsonUtils.addFld(sb, replicasField, replicas);
-        JsonUtils.addFld(sb, noAckField, noAck);
-        JsonUtils.addFld(sb, templateField, templateOwner);
-        JsonUtils.addFld(sb, discardPolicyField, discardPolicy.toString());
-        JsonUtils.addFld(sb, duplicatesField, duplicateWindow);
+        JsonUtils.addFld(sb, NAME, name);
+        JsonUtils.addFld(sb, SUBJECTS, subjects);
+        JsonUtils.addFld(sb, RETENTION, retentionPolicy.toString());
+        JsonUtils.addFld(sb, MAX_CONSUMERS, maxConsumers);
+        JsonUtils.addFld(sb, MAX_MSGS, maxMsgs);
+        JsonUtils.addFld(sb, MAX_BYTES, maxBytes);
+        JsonUtils.addFld(sb, MAX_AGE, maxAge);
+        JsonUtils.addFld(sb, MAX_MSG_SIZE, maxMsgSize);
+        JsonUtils.addFld(sb, STORAGE, storageType.toString());
+        JsonUtils.addFld(sb, NUM_REPLICAS, replicas);
+        JsonUtils.addFld(sb, NO_ACK, noAck);
+        JsonUtils.addFld(sb, TEMPLATE, templateOwner);
+        JsonUtils.addFld(sb, DISCARD, discardPolicy.toString());
+        JsonUtils.addFld(sb, DUPLICATE_WINDOW, duplicateWindow);
 
         return JsonUtils.endJson(sb).toString();
     }
@@ -423,6 +372,26 @@ public class StreamConfiguration {
         return duplicateWindow;
     }
 
+    @Override
+    public String toString() {
+        return "StreamConfiguration{" +
+                "name='" + name + '\'' +
+                ", subjects=" + subjects +
+                ", retentionPolicy=" + retentionPolicy +
+                ", maxConsumers=" + maxConsumers +
+                ", maxMsgs=" + maxMsgs +
+                ", maxBytes=" + maxBytes +
+                ", maxAge=" + maxAge +
+                ", maxMsgSize=" + maxMsgSize +
+                ", storageType=" + storageType +
+                ", replicas=" + replicas +
+                ", noAck=" + noAck +
+                ", template='" + templateOwner + '\'' +
+                ", discardPolicy=" + discardPolicy +
+                ", duplicateWindow=" + duplicateWindow +
+                '}';
+    }
+
     /**
      * Creates a builder for the stream configuration.
      * @return a stream configuration builder
@@ -433,6 +402,7 @@ public class StreamConfiguration {
 
     /**
      * Creates a builder for the stream configuration.
+     * @param sc an existing StreamConfiguration
      * @return a stream configuration builder
      */
     public static Builder builder(StreamConfiguration sc) {
@@ -449,7 +419,7 @@ public class StreamConfiguration {
     public static class Builder {
 
         private String name = null;
-        private List<String> subjects = new ArrayList<>();
+        private final List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
         private long maxConsumers = -1;
         private long maxMsgs = -1;

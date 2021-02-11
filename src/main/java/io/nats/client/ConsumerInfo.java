@@ -13,13 +13,11 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.time.ZonedDateTime;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import static io.nats.client.support.ApiConstants.*;
 
 /**
  * The ConsumerInfo class returns information about a JetStream consumer.
@@ -31,19 +29,12 @@ public class ConsumerInfo {
      * stream.
      */
     public static class SequencePair {
-        private long consumerSeq = -1;
-        private long streamSeq = -1;
+        private final long consumerSeq;
+        private final long streamSeq;
 
         SequencePair(String json) {
-            Matcher m = consumerSeqRE.matcher(json);
-            if (m.find()) {
-                this.consumerSeq = Long.parseLong(m.group(1));
-            }
-           
-            m = streamSeqRE.matcher(json);
-            if (m.find()) {
-                this.streamSeq = Long.parseLong(m.group(1));
-            }            
+            consumerSeq = JsonUtils.readLong(json, CONSUMER_SEQ_RE, 0);
+            streamSeq = JsonUtils.readLong(json, STREAM_SEQ_RE, 0);
         }
 
         /**
@@ -64,97 +55,43 @@ public class ConsumerInfo {
 
         @Override
         public String toString() {
-            return "SequencePair{" +
-                    "consumerSeq=" + consumerSeq +
-                    ", streamSeq=" + streamSeq +
-                    '}';
+            return "{" + "consumerSeq=" + consumerSeq + ", streamSeq=" + streamSeq + '}';
         }
     }
 
-    private String stream;
-    private String name;
-    private ConsumerConfiguration configuration;
-    private ZonedDateTime created;
-    private SequencePair delivered;
-    private SequencePair ackFloor;
-    private long numPending;
-    private long numWaiting;
-    private long numAckPending;
-    private long numRedelivered;
-    
-    private static final String streamNameField =  "stream_name";
-    private static final String nameField = "name";
-    private static final String createdField =  "created";
-    private static final String configField =  "config";
-    private static final String deliveredField =  "delivered";
-    private static final String ackFloorField =  "ack_floor";
-    private static final String numAckPendingField =  "num_ack_pending";
-    private static final String numRedeliveredField =  "num_redelivered";
-    private static final String numWaitingField =  "num_waiting";
-    private static final String numPendingField =  "num_pending";
-
-    private static final String streamSeqField = "stream_seq";
-    private static final String consumerSeqField = "consumer_seq";
-   
-    private static final Pattern streamNameRE = JsonUtils.buildPattern(streamNameField, FieldType.jsonString);
-    private static final Pattern nameRE = JsonUtils.buildPattern(nameField, FieldType.jsonString);
-    private static final Pattern createdRE = JsonUtils.buildPattern(createdField, FieldType.jsonString);
-    private static final Pattern numPendingRE = JsonUtils.buildPattern(numPendingField, FieldType.jsonNumber);
-    private static final Pattern numAckPendingRE = JsonUtils.buildPattern(numAckPendingField, FieldType.jsonNumber);
-    private static final Pattern numRedeliveredRE = JsonUtils.buildPattern(numRedeliveredField, FieldType.jsonNumber); 
-    private static final Pattern numWaitingRE = JsonUtils.buildPattern(numWaitingField, FieldType.jsonNumber); 
-    private static final Pattern streamSeqRE = JsonUtils.buildPattern(streamSeqField, FieldType.jsonNumber);
-    private static final Pattern consumerSeqRE = JsonUtils.buildPattern(consumerSeqField, FieldType.jsonNumber); 
+    private final String stream;
+    private final String name;
+    private final ConsumerConfiguration configuration;
+    private final ZonedDateTime created;
+    private final SequencePair delivered;
+    private final SequencePair ackFloor;
+    private final long numPending;
+    private final long numWaiting;
+    private final long numAckPending;
+    private final long numRedelivered;
 
     /**
      * Internal method to generate consumer information.
      * @param json JSON representing the consumer information.
      */
     public ConsumerInfo(String json) {
-        Matcher m = streamNameRE.matcher(json);
-        if (m.find()) {
-            this.stream = m.group(1);
-        }
-        
-        m = nameRE.matcher(json);
-        if (m.find()) {
-            // todo - double check
-            this.name = m.group(1);
-        }
+        stream = JsonUtils.readString(json, STREAM_NAME_RE);
+        name = JsonUtils.readString(json, NAME_RE);
+        created = JsonUtils.readDate(json, CREATED_RE);
 
-        m = createdRE.matcher(json);
-        if (m.find()) {
-            this.created = DateTimeUtils.parseDateTime(m.group(1));
-        }
-
-        String jsonObject = JsonUtils.getJSONObject(configField, json);
+        String jsonObject = JsonUtils.getJSONObject(CONFIG, json);
         this.configuration = new ConsumerConfiguration(jsonObject);
 
-        jsonObject = JsonUtils.getJSONObject(deliveredField, json);
+        jsonObject = JsonUtils.getJSONObject(DELIVERED, json);
         this.delivered = new SequencePair(jsonObject);
 
-        jsonObject = JsonUtils.getJSONObject(ackFloorField, json);
+        jsonObject = JsonUtils.getJSONObject(ACK_FLOOR, json);
         this.ackFloor = new SequencePair(jsonObject);
 
-        m = numPendingRE.matcher(json);
-        if (m.find()) {
-            this.numPending = Long.parseLong(m.group(1));
-        }
-
-        m = numWaitingRE.matcher(json);
-        if (m.find()) {
-            this.numWaiting = Long.parseLong(m.group(1));
-        }        
-
-        m = numAckPendingRE.matcher(json);
-        if (m.find()) {
-            this.numAckPending = Long.parseLong(m.group(1));
-        }        
-
-        m = numRedeliveredRE.matcher(json);
-        if (m.find()) {
-            this.numRedelivered = Long.parseLong(m.group(1));
-        }
+        numAckPending = JsonUtils.readLong(json, NUM_ACK_PENDING_RE, 0);
+        numRedelivered = JsonUtils.readLong(json, NUM_REDELIVERED_RE, 0);
+        numPending = JsonUtils.readLong(json, NUM_PENDING_RE, 0);
+        numWaiting = JsonUtils.readLong(json, NUM_WAITING_RE, 0);
     }
     
     public ConsumerConfiguration getConsumerConfiguration() {
@@ -202,14 +139,14 @@ public class ConsumerInfo {
         return "ConsumerInfo{" +
                 "stream='" + stream + '\'' +
                 ", name='" + name + '\'' +
-                ", " + configuration +
-                ", created=" + created +
-                ", " + delivered +
-                ", " + ackFloor +
                 ", numPending=" + numPending +
                 ", numWaiting=" + numWaiting +
                 ", numAckPending=" + numAckPending +
                 ", numRedelivered=" + numRedelivered +
+                ", created=" + created +
+                ", Delivered" + delivered +
+                ", AckFloor" + ackFloor +
+                ", " + configuration +
                 '}';
     }
 }

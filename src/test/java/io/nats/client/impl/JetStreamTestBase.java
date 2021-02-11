@@ -56,7 +56,7 @@ public class JetStreamTestBase extends TestBase {
 
     public StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
         try {
-            return jsm.streamInfo(streamName);
+            return jsm.getStreamInfo(streamName);
         }
         catch (JetStreamApiException jsae) {
             if (jsae.getErrorCode() == 404) {

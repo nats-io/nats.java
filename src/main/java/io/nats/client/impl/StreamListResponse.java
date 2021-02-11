@@ -18,6 +18,8 @@ import io.nats.client.StreamInfo;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.nats.client.support.ApiConstants.STREAMS;
+
 public class StreamListResponse extends ListResponse {
     private final List<StreamInfo> streams;
 
@@ -26,9 +28,9 @@ public class StreamListResponse extends ListResponse {
     }
 
     @Override
-    public void update(String json) {
-        super.update(json);
-        List<String> streamInfoJson = JsonUtils.getObjectArray("streams", json);
+    public void add(String json) {
+        super.add(json);
+        List<String> streamInfoJson = JsonUtils.getObjectArray(STREAMS, json);
         for (String j : streamInfoJson) {
             streams.add(new StreamInfo(j));
         }

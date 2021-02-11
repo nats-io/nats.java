@@ -505,5 +505,4 @@ public class NatsMessage implements Message {
             return true;
         }
     }
-
 }

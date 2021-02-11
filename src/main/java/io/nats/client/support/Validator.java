@@ -13,6 +13,8 @@
 
 package io.nats.client.support;
 
+import io.nats.client.ConsumerConfiguration;
+
 import java.time.Duration;
 import java.util.regex.Pattern;
 
@@ -72,6 +74,16 @@ public abstract class Validator {
             throw new IllegalArgumentException("Durable cannot contain a '.', '*' or '>' [" + s + "]");
         }
         return emptyAsNull(s);
+    }
+
+    public static String validateDurableRequired(String durable, ConsumerConfiguration cc) {
+        if (durable == null) {
+            if (cc == null) {
+                return validateDurableRequired(null);
+            }
+            return validateDurableRequired(cc.getDurable());
+        }
+        return validateDurableRequired(durable);
     }
 
     public static String validateDurableRequired(String s) {

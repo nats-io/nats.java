@@ -53,7 +53,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(Duration.ofSeconds(0), sc.getMaxAge());
             assertEquals(Duration.ofSeconds(120), sc.getDuplicateWindow());
 
-            StreamInfo.StreamState ss = si.getStreamState();
+            StreamState ss = si.getStreamState();
             assertEquals(0, ss.getMsgCount());
             assertEquals(0, ss.getByteCount());
             assertEquals(0, ss.getFirstSequence());
@@ -90,7 +90,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(Duration.ofMinutes(2), sc.getDuplicateWindow());
             assertNull(sc.getTemplateOwner());
 
-            StreamInfo.StreamState state = si.getStreamState();
+            StreamState state = si.getStreamState();
             assertNotNull(state);
             assertEquals(0, state.getMsgCount());
             assertEquals(0, state.getByteCount());
@@ -227,15 +227,16 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(STREAM));
             createMemoryStream(nc, STREAM, SUBJECT);
 
-            StreamInfo si = jsm.streamInfo(STREAM);
+            StreamInfo si = jsm.getStreamInfo(STREAM);
             assertEquals(0, si.getStreamState().getMsgCount());
 
             publish(nc, SUBJECT, 1);
-            si = jsm.streamInfo(STREAM);
+            si = jsm.getStreamInfo(STREAM);
             assertEquals(1, si.getStreamState().getMsgCount());
 
-            si = jsm.purgeStream(STREAM);
-            assertEquals(0, si.getStreamState().getMsgCount());
+            PurgeResponse pr = jsm.purgeStream(STREAM);
+            assertTrue(pr.isSuccess());
+            assertEquals(1, pr.getPurged());
         });
     }
 

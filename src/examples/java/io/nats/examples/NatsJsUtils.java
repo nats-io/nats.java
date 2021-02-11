@@ -13,13 +13,12 @@
 
 package io.nats.examples;
 
-import io.nats.client.Connection;
-import io.nats.client.JetStreamManagement;
-import io.nats.client.StreamConfiguration;
-import io.nats.client.StreamInfo;
+import io.nats.client.*;
 import io.nats.client.impl.JetStreamApiException;
+import io.nats.client.impl.NatsMessage;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class NatsJsUtils {
@@ -99,7 +98,7 @@ public class NatsJsUtils {
 
     public static StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
         try {
-            return jsm.streamInfo(streamName);
+            return jsm.getStreamInfo(streamName);
         }
         catch (JetStreamApiException jsae) {
             if (jsae.getErrorCode() == 404) {
@@ -109,16 +108,48 @@ public class NatsJsUtils {
         }
     }
 
-    public static void printObject(StreamInfo si) {
+    public static void publish(Connection nc, String subject, int count) throws IOException, JetStreamApiException {
+        publish(nc.jetStream(), subject, 1, count);
+    }
+
+    public static void publish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
+        publish(js, subject, 1, count);
+    }
+
+    public static void publish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
+        for (int x = 0; x < count; x++) {
+            Message msg = NatsMessage.builder()
+                    .subject(subject)
+                    .data(("data#" + x + startId).getBytes(StandardCharsets.US_ASCII))
+                    .build();
+            js.publish(msg);
+        }
+    }
+
+    public static void printStreamInfo(StreamInfo si) {
         printObject(si, "StreamConfiguration", "StreamState");
+    }
+
+    public static void printStreamInfoList(List<StreamInfo> list) {
+        printObject(list, "!StreamInfo", "StreamConfiguration", "StreamState");
+    }
+
+    public static void printConsumerInfo(ConsumerInfo ci) {
+        printObject(ci, "ConsumerConfiguration", "Delivered", "AckFloor");
+    }
+
+    public static void printConsumerInfoList(List<ConsumerInfo> list) {
+        printObject(list, "!ConsumerInfo", "ConsumerConfiguration", "Delivered", "AckFloor");
     }
 
     public static void printObject(Object o, String... subObjectNames) {
         String s = o.toString();
         for (String sub : subObjectNames) {
-            String oldRx = ", " + sub + "";
-            String repl = ",\n    " + sub;
-            s = s.replace(oldRx, repl);
+            boolean noIndent = sub.startsWith("!");
+            String sb = noIndent ? sub.substring(1) : sub;
+            String rx1 = ", " + sb;
+            String repl1 = (noIndent ? ",\n": ",\n    ") + sb;
+            s = s.replace(rx1, repl1);
         }
 
         System.out.println(s + "\n");
