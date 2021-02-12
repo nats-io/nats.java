@@ -17,25 +17,31 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static io.nats.client.support.ApiConstants.STREAMS;
+
 public class StreamNamesResponse extends ListResponse {
     private final List<String> streams;
 
-    public StreamNamesResponse() {
+    StreamNamesResponse() {
         streams = new ArrayList<>();
     }
 
     @Override
-    public void update(String json) {
-        super.update(json);
-        List<String> up = Arrays.asList(JsonUtils.getStringArray("streams", json));
+    void add(String json) {
+        super.add(json);
+        List<String> up = Arrays.asList(JsonUtils.getStringArray(STREAMS, json));
         streams.addAll(up);
     }
 
+    /**
+     * Get the list of stream names
+     * @return the list of stream names
+     */
     public List<String> getStreams() {
         return streams;
     }
 
-    public String nextJson() {
+    String nextJson() {
         return internalNextJson();
     }
 }

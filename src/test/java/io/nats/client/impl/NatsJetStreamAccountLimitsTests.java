@@ -34,7 +34,7 @@ public class NatsJetStreamAccountLimitsTests extends JetStreamTestBase {
         assertEquals(-1, al.getMaxMemory());
         assertEquals(-1, al.getMaxStorage());
         assertEquals(-1, al.getMaxStreams());
-        assertEquals(+1, al.getMaxConsumers());
+        assertEquals(-1, al.getMaxConsumers());
 
         assertNotNull(al.toString()); // COVERAGE
     }

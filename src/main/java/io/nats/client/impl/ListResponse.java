@@ -13,13 +13,9 @@
 
 package io.nats.client.impl;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import static io.nats.client.support.ApiConstants.*;
 
-public class ListResponse {
-    private static final Pattern TOTAL_RE = JsonUtils.buildPattern("total", JsonUtils.FieldType.jsonNumber);
-    private static final Pattern OFFSET_RE = JsonUtils.buildPattern("offset", JsonUtils.FieldType.jsonNumber);
-    private static final Pattern LIMIT_RE = JsonUtils.buildPattern("limit", JsonUtils.FieldType.jsonNumber);
+public abstract class ListResponse {
 
     private static final String OFFSET_JSON_START = "{\"offset\":";
 
@@ -27,24 +23,13 @@ public class ListResponse {
     protected int limit = 0;
     protected int lastOffset = 0;
 
-    public void update(String json) {
-        Matcher m = TOTAL_RE.matcher(json);
-        if (m.find()) {
-            this.total = Integer.parseInt(m.group(1));
-        }
-
-        m = OFFSET_RE.matcher(json);
-        if (m.find()) {
-            this.lastOffset = Integer.parseInt(m.group(1));
-        }
-
-        m = LIMIT_RE.matcher(json);
-        if (m.find()) {
-            this.limit = Integer.parseInt(m.group(1));
-        }
+    void add(String json) {
+        total = JsonUtils.readInt(json, TOTAL_RE, 0);
+        limit = JsonUtils.readInt(json, LIMIT_RE, 0);
+        lastOffset = JsonUtils.readInt(json, OFFSET_RE, 0);
     }
 
-    public boolean hasMore() {
+    boolean hasMore() {
         return total > (lastOffset + limit);
     }
 
@@ -52,7 +37,7 @@ public class ListResponse {
         return hasMore() ? noFilterJson() : null;
     }
 
-    private String noFilterJson() {
+    String noFilterJson() {
         return OFFSET_JSON_START + (lastOffset + limit) + "}";
     }
 

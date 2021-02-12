@@ -134,11 +134,6 @@ public class ExampleUtils {
         }
     }
 
-    public static void formatPrint(Object o) {
-        // TODO
-        System.out.println(o.toString());
-    }
-
     private static void usage(String usageString) {
         System.out.println(usageString);
         System.exit(-1);

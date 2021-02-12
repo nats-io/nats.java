@@ -18,6 +18,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -307,5 +308,39 @@ public abstract class JsonUtils {
             sb.append(Q).append(fname).append(QCOLONQ)
                     .append(DateTimeUtils.toRfc3339(zonedDateTime)).append(QCOMMA);
         }
+    }
+
+    public static String readString(String json, Pattern pattern) {
+        return readString(json, pattern, null);
+    }
+
+    public static String readString(String json, Pattern pattern, String dflt) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? m.group(1) : dflt;
+    }
+
+    public static boolean readBoolean(String json, Pattern pattern) {
+        Matcher m = pattern.matcher(json);
+        return m.find() && Boolean.parseBoolean(m.group(1));
+    }
+
+    public static int readInt(String json, Pattern pattern, int dflt) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? Integer.parseInt(m.group(1)) : dflt;
+    }
+
+    public static long readLong(String json, Pattern pattern, long dflt) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? Long.parseLong(m.group(1)) : dflt;
+    }
+
+    public static ZonedDateTime readDate(String json, Pattern pattern) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;
+    }
+
+    public static Duration readDuration(String json, Pattern pattern, Duration dflt) {
+        Matcher m = pattern.matcher(json);
+        return m.find() ? Duration.ofNanos(Long.parseLong(m.group(1))) : dflt;
     }
 }

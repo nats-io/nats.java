@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
     public static final String JS_REPLY_TO = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
 
     public NatsMessage getJsMessage(String replyTo) {
         return new NatsMessage.IncomingMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
@@ -54,9 +55,13 @@ public class JetStreamTestBase extends TestBase {
         return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
+    public StreamInfo createTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+        return createMemoryStream(jsm, STREAM, SUBJECT);
+    }
+
     public StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
         try {
-            return jsm.streamInfo(streamName);
+            return jsm.getStreamInfo(streamName);
         }
         catch (JetStreamApiException jsae) {
             if (jsae.getErrorCode() == 404) {
@@ -71,11 +76,7 @@ public class JetStreamTestBase extends TestBase {
     // ----------------------------------------------------------------------------------------------------
     public static void publish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
-            Message msg = NatsMessage.builder()
-                    .subject(subject)
-                    .data((data(startId++)).getBytes(StandardCharsets.US_ASCII))
-                    .build();
-            js.publish(msg);
+            js.publish(NatsMessage.builder().subject(subject).data((dataBytes(startId++))).build());
         }
     }
 

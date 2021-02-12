@@ -86,7 +86,7 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
 
     @Override
     public boolean isJetStream() {
-        return !isStatusMessage(); // if it's a status message, it's not a JetStreamMessage even if it's wrapped in one.
+        return true; // NatsJetStreamMessage will never be created unless it's actually a JetStream Message
     }
 
     private void ackReply(AckType ackType) {

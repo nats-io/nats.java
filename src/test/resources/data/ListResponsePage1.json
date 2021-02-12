@@ -1,0 +1,6 @@
+{
+  "type": "io.nats.jetstream.api.v1.stream_list_response",
+  "total": 15,
+  "offset": 0,
+  "limit": 10
+}

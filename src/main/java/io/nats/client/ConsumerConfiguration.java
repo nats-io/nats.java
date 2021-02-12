@@ -13,16 +13,15 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.DateTimeUtils;
 import io.nats.client.impl.JsonUtils;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import static io.nats.client.support.ApiConstants.*;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
@@ -125,134 +124,81 @@ public class ConsumerConfiguration {
         }        
     }
 
-    private String durable = null;
-    private DeliverPolicy deliverPolicy = DeliverPolicy.All;
-    private String deliverSubject = null;
-    private long startSeq = 0;
-    private ZonedDateTime startTime = null;
-    private AckPolicy ackPolicy = AckPolicy.Explicit;
-    private Duration ackWait = Duration.ofSeconds(30);
-    private long maxDeliver = 0;
-    private String filterSubject = null;
-    private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
-    private String sampleFrequency = null;
-    private long rateLimit = 0;
-    private long maxWaiting = 0;
-    private long maxAckPending = 0;
+    private final DeliverPolicy deliverPolicy;
+    private final AckPolicy ackPolicy;
+    private final ReplayPolicy replayPolicy;
 
-    private static final String durableNameField =  "durable_name";
-    private static final String deliverSubjField = "deliver_subject";
-    private static final String deliverPolicyField =  "deliver_policy";
-    private static final String startSeqField =  "opt_start_seq";
-    private static final String startTimeField=  "opt_start_time";
-    private static final String ackPolicyField =  "ack_policy";
-    private static final String ackWaitField =  "ack_wait";
-    private static final String maxDeliverField =  "max_deliver";
-    private static final String filterSubjectField =  "filter_subject";
-    private static final String replayPolicyField =  "replay_policy";
-    private static final String sampleFreqField =  "sample_frequency";
-    private static final String rateLimitField =  "rate_limit";
-    private static final String maxWaitingField =  "max_waiting";
-    private static final String maxAckPendingField =  "max_ack_pending";
+    private String durable;
+    private String deliverSubject;
+    private final long startSeq;
+    private final ZonedDateTime startTime;
+    private final Duration ackWait;
+    private final long maxDeliver;
+    private String filterSubject;
+    private final String sampleFrequency;
+    private final long rateLimit;
+    private long maxAckPending;
 
-    private static final Pattern durableRE = JsonUtils.buildPattern(durableNameField, FieldType.jsonString);
-    private static final Pattern deliverSubjectRE = JsonUtils.buildPattern(deliverSubjField, FieldType.jsonString);
-    private static final Pattern deliverPolicyRE = JsonUtils.buildPattern(deliverPolicyField, FieldType.jsonString);
-    private static final Pattern startSeqRE = JsonUtils.buildPattern(startSeqField, FieldType.jsonNumber);
-    private static final Pattern startTimeRE = JsonUtils.buildPattern(startTimeField, FieldType.jsonString);
-    private static final Pattern ackPolicyRE = JsonUtils.buildPattern(ackPolicyField, FieldType.jsonString);
-    private static final Pattern ackWaitRE = JsonUtils.buildPattern(ackWaitField, FieldType.jsonNumber);
-    private static final Pattern maxDeliverRE = JsonUtils.buildPattern(maxDeliverField, FieldType.jsonNumber);
-    private static final Pattern filterSubjectRE = JsonUtils.buildPattern(filterSubjectField, FieldType.jsonString);
-    private static final Pattern replayPolicyRE = JsonUtils.buildPattern(replayPolicyField, FieldType.jsonString);
-    private static final Pattern sampleFreqRE = JsonUtils.buildPattern(sampleFreqField, FieldType.jsonString);
-    private static final Pattern rateLimitRE = JsonUtils.buildPattern(rateLimitField, FieldType.jsonNumber);
-    private static final Pattern maxWaitingRE = JsonUtils.buildPattern(maxWaitingField, FieldType.jsonNumber);
-    private static final Pattern maxAckPendingRE = JsonUtils.buildPattern(maxAckPendingField, FieldType.jsonNumber);
+    /**
+     * Sets the durable name of the configuration.
+     * @param value name of the durable
+     */
+    void setDurable(String value) {
+        durable = value;
+    }
+
+    /**
+     * Package level API to set the deliver subject in the creation API.
+     * @param subject - Subject to deliver messages.
+     */
+    void setDeliverSubject(String subject) {
+        this.deliverSubject = subject;
+    }
+
+    /**
+     * Sets the filter subject of the configuration.
+     * @param subject filter subject.
+     */
+    void setFilterSubject(String subject) {
+        this.filterSubject = subject;
+    }
+
+    /**
+     * Sets the maximum ack pending.
+     * @param maxAckPending maximum pending acknowledgements.
+     */
+    void setMaxAckPending(long maxAckPending) {
+        this.maxAckPending = maxAckPending;
+    }
 
     // for the response from the server
     ConsumerConfiguration(String json) {
-        Matcher m = durableRE.matcher(json);
-        if (m.find()) {
-            this.durable = m.group(1);
-        }
-        
-        m = deliverPolicyRE.matcher(json);
-        if (m.find()) {
-            // todo - double check
-            this.deliverPolicy = DeliverPolicy.get(m.group(1));
-        }
 
-        m = deliverSubjectRE.matcher(json);
-        if (m.find()) {
-            this.deliverSubject = m.group(1);
-        }        
+        Matcher m = DELIVER_POLICY_RE.matcher(json);
+        deliverPolicy = m.find() ? DeliverPolicy.get(m.group(1)) : DeliverPolicy.All;
 
-        m = startSeqRE.matcher(json);
-        if (m.find()) {
-            this.startSeq = Long.parseLong(m.group(1));
-        }
+        m = ACK_POLICY_RE.matcher(json);
+        ackPolicy = m.find() ? AckPolicy.get(m.group(1)) : AckPolicy.Explicit;
 
-        m = startTimeRE.matcher(json);
-        if (m.find()) {
-            this.startTime = DateTimeUtils.parseDateTime(m.group(1));
-        }
+        m = REPLAY_POLICY_RE.matcher(json);
+        replayPolicy = m.find() ? ReplayPolicy.get(m.group(1)) : ReplayPolicy.Instant;
 
-        m = ackPolicyRE.matcher(json);
-        if (m.find()) {
-            // todo - double check
-            this.ackPolicy = AckPolicy.get(m.group(1));
-        }
-
-        m = ackWaitRE.matcher(json);
-        if (m.find()) {
-            this.ackWait = Duration.ofNanos(Long.parseLong(m.group(1)));
-        } 
-
-        m = maxDeliverRE.matcher(json);
-        if (m.find()) {
-            this.maxDeliver = Long.parseLong(m.group(1));
-        }
-        
-        m = filterSubjectRE.matcher(json);
-        if (m.find()) {
-            this.filterSubject = m.group(1);
-        } 
-
-        m = replayPolicyRE.matcher(json);
-        if (m.find()) {
-            // todo - double check
-            this.replayPolicy = ReplayPolicy.get(m.group(1));
-        }        
-
-        m = sampleFreqRE.matcher(json);
-        if (m.find()) {
-            // todo - double check
-            this.sampleFrequency = m.group(1);
-        } 
-        
-        m = rateLimitRE.matcher(json);
-        if (m.find()) {
-            this.rateLimit = Long.parseLong(m.group(1));
-        }
-        
-        m = maxAckPendingRE.matcher(json);
-        if (m.find()) {
-            this.maxAckPending = Long.parseLong(m.group(1));
-        } 
-        m = maxWaitingRE.matcher(json);
-        if (m.find()) {
-            this.maxWaiting = Long.parseLong(m.group(1));
-        }                 
-
+        durable = JsonUtils.readString(json, DURABLE_NAME_RE);
+        deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
+        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
+        startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
+        ackWait = JsonUtils.readDuration(json, ACK_WAIT_RE, Duration.ofSeconds(30));
+        maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE, -1);
+        filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
+        sampleFrequency = JsonUtils.readString(json, SAMPLE_FREQ_RE);
+        rateLimit = JsonUtils.readLong(json, RATE_LIMIT_RE, 0);
+        maxAckPending = JsonUtils.readLong(json, MAX_ACK_PENDING_RE, 0);
     }
 
     // For the builder
     ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
-            ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject,
-            long maxWaiting, long maxAckPending) {
-
+            ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, long maxAckPending) {
                 this.durable = durable;
                 this.deliverPolicy = deliverPolicy;
                 this.startSeq = startSeq;
@@ -266,7 +212,6 @@ public class ConsumerConfiguration {
                 this.rateLimit = rateLimit;
                 this.deliverSubject = deliverSubject;
                 this.maxAckPending = maxAckPending;
-                this.maxWaiting = maxWaiting;
     }
 
     /**
@@ -279,38 +224,29 @@ public class ConsumerConfiguration {
         
         StringBuilder sb = new StringBuilder("{");
         
-        JsonUtils.addFld(sb, "stream_name", streamName);
+        JsonUtils.addFld(sb, STREAM_NAME, streamName);
         
         sb.append("\"config\" : {");
         
-        JsonUtils.addFld(sb, durableNameField, durable);
-        JsonUtils.addFld(sb, deliverSubjField, deliverSubject);
-        JsonUtils.addFld(sb, deliverPolicyField, deliverPolicy.toString());
-        JsonUtils.addFld(sb, startSeqField, startSeq);
-        JsonUtils.addFld(sb, startTimeField, startTime);
-        JsonUtils.addFld(sb, ackPolicyField, ackPolicy.toString());
-        JsonUtils.addFld(sb, ackWaitField, ackWait);
-        JsonUtils.addFld(sb, maxDeliverField, maxDeliver);
-        JsonUtils.addFld(sb, maxWaitingField, maxWaiting);
-        JsonUtils.addFld(sb, maxAckPendingField, maxAckPending);
-        JsonUtils.addFld(sb, filterSubjectField, filterSubject);
-        JsonUtils.addFld(sb, replayPolicyField, replayPolicy.toString());
-        JsonUtils.addFld(sb, sampleFreqField, sampleFrequency);
-        JsonUtils.addFld(sb, rateLimitField, rateLimit);
+        JsonUtils.addFld(sb, DURABLE_NAME, durable);
+        JsonUtils.addFld(sb, DELIVER_SUBJECT, deliverSubject);
+        JsonUtils.addFld(sb, DELIVER_POLICY, deliverPolicy.toString());
+        JsonUtils.addFld(sb, OPT_START_SEQ, startSeq);
+        JsonUtils.addFld(sb, OPT_START_TIME, startTime);
+        JsonUtils.addFld(sb, ACK_POLICY, ackPolicy.toString());
+        JsonUtils.addFld(sb, ACK_WAIT, ackWait);
+        JsonUtils.addFld(sb, MAX_DELIVER, maxDeliver);
+        JsonUtils.addFld(sb, MAX_ACK_PENDING, maxAckPending);
+        JsonUtils.addFld(sb, FILTER_SUBJECT, filterSubject);
+        JsonUtils.addFld(sb, REPLAY_POLICY, replayPolicy.toString());
+        JsonUtils.addFld(sb, SAMPLE_FREQ, sampleFrequency);
+        JsonUtils.addFld(sb, RATE_LIMIT, rateLimit);
 
         // remove the trailing ','
         sb.setLength(sb.length()-1);
         sb.append("}}");
 
         return sb.toString();
-    }
-
-    /**
-     * Sets the durable name of the configuration.
-     * @param value name of the durable
-     */
-	public void setDurable(String value) {
-        durable = value;
     }
 
     /**
@@ -327,14 +263,6 @@ public class ConsumerConfiguration {
      */    
     public String getDeliverSubject() {
         return deliverSubject;
-    }
-
-    /**
-     * Package level API to set the deliver subject in the creation API.
-     * @param subject - Subject to deliver messages.
-     */
-    public void setDeliverSubject(String subject) {
-        this.deliverSubject = subject;
     }
 
     /**
@@ -410,44 +338,11 @@ public class ConsumerConfiguration {
     }
 
     /**
-     * Sets the filter subject of the configuration.
-     * @param subject filter subject.
-     */
-    public void setFilterSubject(String subject) {
-        this.filterSubject = subject;
-    }
-
-    /**
      * Gets the maximum ack pending configuration.
      * @return maxumum ack pending.
      */
     public long getMaxAckPending() {
         return maxAckPending;
-    }
-
-    /**
-     * Sets the maximum ack pending.
-     * @param maxAckPending maximum pending acknowledgements.
-     */
-    public void setMaxAckPending(long maxAckPending) {
-        this.maxAckPending = maxAckPending;
-    }
-
-    /**
-     * Gets the maximum waiting acknowledgements.
-     *
-     * @return the max waiting value
-     */
-    public long getMaxWaiting() {
-        return maxWaiting;
-    }
-
-    /**
-     * Get an instance of ConsumerConfiguration with all defaults
-     * @return the configuration
-     */
-    public static ConsumerConfiguration defaultConfiguration() {
-        return new Builder().build();
     }
 
     /**
@@ -457,7 +352,15 @@ public class ConsumerConfiguration {
     public static Builder builder() {
         return new Builder();
     }
-    
+
+    /**
+     * Creates a builder for the publish options.
+     * @return a publish options builder
+     */
+    public static Builder builder(ConsumerConfiguration cc) {
+        return cc == null ? new Builder() : new Builder(cc);
+    }
+
     /**
      * ConsumerConfiguration is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
@@ -473,15 +376,44 @@ public class ConsumerConfiguration {
         private ZonedDateTime startTime = null;
         private AckPolicy ackPolicy = AckPolicy.Explicit;
         private Duration ackWait = Duration.ofSeconds(30);
-        private long maxDeliver = 0;
+        private long maxDeliver = -1;
         private String filterSubject = null;
         private ReplayPolicy replayPolicy = ReplayPolicy.Instant;
         private String sampleFrequency = null;
         private long rateLimit = 0;
         private String deliverSubject = null;
-        private long maxWaiting = 0;
         private long maxAckPending = 0;
-    
+
+        public String getDurable() {
+            return durable;
+        }
+
+        public String getDeliverSubject() {
+            return deliverSubject;
+        }
+
+        public long getMaxAckPending() {
+            return maxAckPending;
+        }
+
+        public Builder() {}
+
+        public Builder(ConsumerConfiguration cc) {
+            this.durable = cc.durable;
+            this.deliverPolicy = cc.deliverPolicy;
+            this.startSeq = cc.startSeq;
+            this.startTime = cc.startTime;
+            this.ackPolicy = cc.ackPolicy;
+            this.ackWait = cc.ackWait;
+            this.maxDeliver = cc.maxDeliver;
+            this.filterSubject = cc.filterSubject;
+            this.replayPolicy = cc.replayPolicy;
+            this.sampleFrequency = cc.sampleFrequency;
+            this.rateLimit = cc.rateLimit;
+            this.deliverSubject = cc.deliverSubject;
+            this.maxAckPending = cc.maxAckPending;
+        }
+
         /**
          * Sets the name of the durable subscription.
          * @param durable name of the durable subscription.
@@ -611,16 +543,6 @@ public class ConsumerConfiguration {
             this.maxAckPending = maxAckPending;
             return this;
         }
-        
-        /**
-         * Sets the maximum waiting amount.
-         * @param maxWaiting maximum waiting acknowledgements.
-         * @return Builder
-         */
-        public Builder maxWaiting(long maxWaiting) {
-            this.maxWaiting = maxWaiting;
-            return this;
-        }            
 
         /**
          * Builds the ConsumerConfiguration
@@ -640,7 +562,6 @@ public class ConsumerConfiguration {
                 sampleFrequency,
                 rateLimit,
                 deliverSubject,
-                maxWaiting,
                 maxAckPending
             );
         }
@@ -661,7 +582,6 @@ public class ConsumerConfiguration {
                 ", replayPolicy=" + replayPolicy +
                 ", sampleFrequency='" + sampleFrequency + '\'' +
                 ", rateLimit=" + rateLimit +
-                ", maxWaiting=" + maxWaiting +
                 ", maxAckPending=" + maxAckPending +
                 '}';
     }

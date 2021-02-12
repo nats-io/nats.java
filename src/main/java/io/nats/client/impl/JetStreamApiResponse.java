@@ -14,18 +14,16 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
-import io.nats.client.impl.JsonUtils.FieldType;
+import io.nats.client.support.NatsConstants;
 
 import java.nio.charset.StandardCharsets;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import static io.nats.client.impl.JsonUtils.buildPattern;
+import static io.nats.client.support.ApiConstants.*;
 
 public class JetStreamApiResponse {
 
     public static final int NOT_SET = -1;
-    public static final String NOT_TYPED = "io.nats.jetstream.api.v1.no_type";
+    public static final String NO_TYPE = "io.nats.jetstream.api.v1.no_type";
 
     private final String response;
     private final boolean hasError;
@@ -35,10 +33,6 @@ public class JetStreamApiResponse {
     private String type;
     private Integer errorCode;
     private String errorDesc;
-
-    private static final Pattern typeRE = buildPattern("type", FieldType.jsonString);
-    private static final Pattern codeRE = buildPattern("code", FieldType.jsonNumber);
-    private static final Pattern descRE = buildPattern("description", FieldType.jsonString);
 
     public JetStreamApiResponse(Message msg) {
         this(msg.getData());
@@ -62,39 +56,21 @@ public class JetStreamApiResponse {
 
     public String getType() {
         if (type == null) {
-            Matcher m = typeRE.matcher(response);
-            if (m.find()) {
-                type = m.group(1);
-            }
-            else {
-                type = NOT_TYPED;
-            }
+            type = JsonUtils.readString(response, TYPE_RE, NO_TYPE);
         }
         return type;
     }
 
     public long getErrorCode() {
         if (errorCode == null) {
-            Matcher m = codeRE.matcher(ensureErrorJson());
-            if (m.find()) {
-                errorCode = Integer.parseInt(m.group(1));
-            }
-            else {
-                errorCode = NOT_SET;
-            }
+            errorCode = JsonUtils.readInt(response, CODE_RE, NOT_SET);
         }
         return errorCode;
     }
 
     public String getDescription() {
         if (errorDesc == null) {
-            Matcher m = descRE.matcher(ensureErrorJson());
-            if (m.find()) {
-                this.errorDesc = m.group(1);
-            }
-            else {
-                errorDesc = "";
-            }
+            errorDesc = JsonUtils.readString(response, DESCRIPTION_RE, NatsConstants.EMPTY);
         }
         return errorDesc.length() == 0 ? null : errorDesc;
     }

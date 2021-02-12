@@ -13,6 +13,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.JetStreamApiException;
+import io.nats.client.impl.PurgeResponse;
 
 import java.io.IOException;
 import java.util.List;
@@ -61,17 +62,17 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      * @return stream information
      */
-    StreamInfo streamInfo(String streamName) throws IOException, JetStreamApiException;
+    StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Purge stream messages
      * @param streamName the stream name to use.
-     * @return stream information
+     * @return PurgeResponse the purge response
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    StreamInfo purgeStream(String streamName) throws IOException, JetStreamApiException;
+    PurgeResponse purgeStream(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Loads or creates a consumer.

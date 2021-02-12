@@ -75,6 +75,10 @@ public class OptionsTests {
 
         assertNull(o.getErrorListener(), "error handler");
         assertNull(o.getConnectionListener(), "disconnect handler");
+
+        // COVERAGE
+        o.setOldRequestStyle(true);
+        assertTrue(o.isOldRequestStyle(), "default oldstyle");
     }
 
     @Test
@@ -204,6 +208,13 @@ public class OptionsTests {
         assertArrayEquals("hello".toCharArray(), o.getUsernameChars(), "property username");
         assertArrayEquals("world".toCharArray(), o.getPasswordChars(), "property password");
         assertEquals("name", o.getConnectionName(), "property connection name");
+
+        // COVERAGE
+        props.setProperty(Options.PROP_CONNECTION_NAME, "");
+        new Options.Builder(props).build();
+
+        props.remove(Options.PROP_CONNECTION_NAME);
+        new Options.Builder(props).build();
     }
 
     @Test
@@ -258,6 +269,8 @@ public class OptionsTests {
     public void testDefaultPropertyIntOptions() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_RECONNECT_WAIT, "-1");
+        props.setProperty(Options.PROP_RECONNECT_JITTER, "-1");
+        props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "-1");
         props.setProperty(Options.PROP_CONNECTION_TIMEOUT, "-1");
         props.setProperty(Options.PROP_PING_INTERVAL, "-1");
         props.setProperty(Options.PROP_CLEANUP_INTERVAL, "-1");
@@ -282,6 +295,8 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CONNECTION_TIMEOUT, "202");
         props.setProperty(Options.PROP_PING_INTERVAL, "303");
         props.setProperty(Options.PROP_CLEANUP_INTERVAL, "404");
+        props.setProperty(Options.PROP_RECONNECT_JITTER, "505");
+        props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "606");
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
@@ -289,6 +304,8 @@ public class OptionsTests {
         assertEquals(Duration.ofMillis(202), o.getConnectionTimeout(), "property connection timeout");
         assertEquals(Duration.ofMillis(303), o.getPingInterval(), "property ping interval");
         assertEquals(Duration.ofMillis(404), o.getRequestCleanupInterval(), "property cleanup interval");
+        assertEquals(Duration.ofMillis(505), o.getReconnectJitter(), "property reconnect jitter");
+        assertEquals(Duration.ofMillis(606), o.getReconnectJitterTls(), "property reconnect jitter tls");
     }
 
     @Test
@@ -408,6 +425,18 @@ public class OptionsTests {
 
         assertEquals(CloseOnUpgradeAttempt.class.getCanonicalName(), o.buildDataPort().getClass().getCanonicalName(),
                 "property data port class");
+    }
+
+    @Test
+    public void testJetStreamProperties() {
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_INBOX_PREFIX, "custom-inbox-no-dot");
+        Options o = new Options.Builder(props).build();
+        assertEquals("custom-inbox-no-dot.", o.getInboxPrefix());
+
+        props.setProperty(Options.PROP_INBOX_PREFIX, "custom-inbox-ends-dot.");
+        o = new Options.Builder(props).build();
+        assertEquals("custom-inbox-ends-dot.", o.getInboxPrefix());
     }
 
     @Test

@@ -152,22 +152,22 @@ public class NKey {
     private static final int PREFIX_BYTE_SEED = 18 << 3; // Base32-encodes to 'S...'
 
     // PrefixBytePrivate is the prefix byte used for encoded NATS Private keys
-    private static final int PREFIX_BYTE_PRIVATE = 15 << 3; // Base32-encodes to 'P...'
+    static final int PREFIX_BYTE_PRIVATE = 15 << 3; // Base32-encodes to 'P...'
 
     // PrefixByteServer is the prefix byte used for encoded NATS Servers
-    private static final int PREFIX_BYTE_SERVER = 13 << 3; // Base32-encodes to 'N...'
+    static final int PREFIX_BYTE_SERVER = 13 << 3; // Base32-encodes to 'N...'
 
     // PrefixByteCluster is the prefix byte used for encoded NATS Clusters
-    private static final int PREFIX_BYTE_CLUSTER = 2 << 3; // Base32-encodes to 'C...'
+    static final int PREFIX_BYTE_CLUSTER = 2 << 3; // Base32-encodes to 'C...'
 
     // PrefixByteAccount is the prefix byte used for encoded NATS Accounts
-    private static final int PREFIX_BYTE_ACCOUNT = 0; // Base32-encodes to 'A...'
+    static final int PREFIX_BYTE_ACCOUNT = 0; // Base32-encodes to 'A...'
 
     // PrefixByteUser is the prefix byte used for encoded NATS Users
-    private static final int PREFIX_BYTE_USER = 20 << 3; // Base32-encodes to 'U...'
+    static final int PREFIX_BYTE_USER = 20 << 3; // Base32-encodes to 'U...'
 
     // PrefixByteOperator is the prefix byte used for encoded NATS Operators
-    private static final int PREFIX_BYTE_OPERATOR = 14 << 3; // Base32-encodes to 'O...'
+    static final int PREFIX_BYTE_OPERATOR = 14 << 3; // Base32-encodes to 'O...'
 
     private static final int ED25519_PUBLIC_KEYSIZE = 32;
     private static final int ED25519_PRIVATE_KEYSIZE = 64;
@@ -296,20 +296,13 @@ public class NKey {
     }
 
     private static boolean checkValidPublicPrefixByte(int prefix) {
-        if (prefix == PREFIX_BYTE_SERVER) {
-            return true;
-        }
-        if (prefix == PREFIX_BYTE_CLUSTER) {
-            return true;
-        }
-        if (prefix == PREFIX_BYTE_OPERATOR) {
-            return true;
-        }
-        if (prefix == PREFIX_BYTE_ACCOUNT) {
-            return true;
-        }
-        if (prefix == PREFIX_BYTE_USER) {
-            return true;
+        switch (prefix) {
+            case PREFIX_BYTE_SERVER:
+            case PREFIX_BYTE_CLUSTER:
+            case PREFIX_BYTE_OPERATOR:
+            case PREFIX_BYTE_ACCOUNT:
+            case PREFIX_BYTE_USER:
+                return true;
         }
         return false;
     }

@@ -2,43 +2,20 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamAccountStatistics;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import static io.nats.client.impl.JsonUtils.buildNumberPattern;
+import static io.nats.client.support.ApiConstants.*;
 
 public class NatsJetStreamAccountStats implements JetStreamAccountStatistics {
 
-    private static final Pattern STATS_MEMORY_RE = buildNumberPattern("memory");
-    private static final Pattern STATS_STORAGE_RE = buildNumberPattern("storage");
-    private static final Pattern STATS_STREAMS_RE = buildNumberPattern("streams");
-    private static final Pattern STATS_CONSUMERS_RE = buildNumberPattern("consumers");
-
-    private long memory = -1;
-    private long storage = -1;
-    private long streams = -1;
-    private long consumers = 1;
+    private final long memory;
+    private final long storage;
+    private final long streams;
+    private final long consumers;
 
     public NatsJetStreamAccountStats(String json) {
-        Matcher m = STATS_MEMORY_RE.matcher(json);
-        if (m.find()) {
-            this.memory = Long.parseLong(m.group(1));
-        }
-
-        m = STATS_STORAGE_RE.matcher(json);
-        if (m.find()) {
-            this.storage = Long.parseLong(m.group(1));
-        }
-
-        m = STATS_STREAMS_RE.matcher(json);
-        if (m.find()) {
-            this.streams = Long.parseLong(m.group(1));
-        }
-
-        m = STATS_CONSUMERS_RE.matcher(json);
-        if (m.find()) {
-            this.consumers = Long.parseLong(m.group(1));
-        }
+        memory = JsonUtils.readLong(json, MEMORY_RE, 0);
+        storage = JsonUtils.readLong(json, STORAGE_RE, 0);
+        streams = JsonUtils.readLong(json, STREAMS_RE, 0);
+        consumers = JsonUtils.readLong(json, CONSUMERS_RE, 0);
     }
 
     @Override

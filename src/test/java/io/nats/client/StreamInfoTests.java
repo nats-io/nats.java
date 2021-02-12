@@ -51,7 +51,7 @@ public class StreamInfoTests {
         assertEquals(Duration.ofSeconds(100), sc.getMaxAge());
         assertEquals(Duration.ofSeconds(120), sc.getDuplicateWindow());
 
-        StreamInfo.StreamState ss = si.getStreamState();
+        StreamState ss = si.getStreamState();
         assertEquals(11, ss.getMsgCount());
         assertEquals(12, ss.getByteCount());
         assertEquals(13, ss.getFirstSequence());

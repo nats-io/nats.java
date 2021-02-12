@@ -21,15 +21,24 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class ListResponseObjectTests extends JetStreamTestBase {
+public class ResponseTests extends JetStreamTestBase {
+
+    @Test
+    public void testPurgeResponse() {
+        String json = dataAsString("PurgeResponse.json");
+        PurgeResponse pr = new PurgeResponse(json);
+        assertTrue(pr.isSuccess());
+        assertEquals(5, pr.getPurgedCount());
+        assertNotNull(pr.toString()); // COVERAGE
+    }
 
     @Test
     public void testConsumerListResponse() {
         String json = dataAsString("ConsumerListResponse.json");
         ConsumerListResponse clr = new ConsumerListResponse();
-        clr.update(json);
+        clr.add(json);
         assertEquals(2, clr.getConsumers().size());
 
         ConsumerInfo ci = clr.getConsumers().get(0);
@@ -59,7 +68,7 @@ public class ListResponseObjectTests extends JetStreamTestBase {
         assertEquals(4, sp.getStreamSequence());
 
         clr = new ConsumerListResponse();
-        clr.update("{}");
+        clr.add("{}");
         assertEquals(0, clr.getConsumers().size());
     }
 
@@ -67,9 +76,50 @@ public class ListResponseObjectTests extends JetStreamTestBase {
     public void testStreamListResponse() {
         String json = dataAsString("StreamListResponse.json");
         StreamListResponse slr = new StreamListResponse();
-        slr.update(json);
+        slr.add(json);
         assertEquals(2, slr.getStreams().size());
         assertEquals("stream-0", slr.getStreams().get(0).getConfiguration().getName());
         assertEquals("stream-1", slr.getStreams().get(1).getConfiguration().getName());
+    }
+
+    static class TestListResponse extends ListResponse {
+        public int getTotal() { return total; }
+        public int getLimit() { return limit; }
+        public int getLastOffset() { return lastOffset; }
+
+        public int addCalled = 0;
+
+        @Override
+        public void add(String json) {
+            super.add(json);
+            addCalled++;
+        }
+    }
+
+    @Test
+    public void testListResponseCoverage() {
+        TestListResponse tlr = new TestListResponse();
+        assertTrue(tlr.hasMore());
+        assertEquals("{\"offset\":0}", tlr.internalNextJson());
+        assertEquals("{\"offset\":0}", tlr.internalNextJson("name", null));
+        assertEquals("{\"offset\":0,\"name\":\"value\"}", tlr.internalNextJson("name", "value"));
+        tlr.add(dataAsString("ListResponsePage1.json"));
+        assertEquals(1, tlr.addCalled);
+        assertEquals(15, tlr.getTotal());
+        assertEquals(10, tlr.getLimit());
+        assertEquals(0, tlr.getLastOffset());
+
+        assertTrue(tlr.hasMore());
+        assertEquals("{\"offset\":10}", tlr.internalNextJson());
+        assertEquals("{\"offset\":10,\"name\":\"value\"}", tlr.internalNextJson("name", "value"));
+        tlr.add(dataAsString("ListResponsePage2.json"));
+        assertEquals(2, tlr.addCalled);
+        assertEquals(15, tlr.getTotal());
+        assertEquals(10, tlr.getLimit());
+        assertEquals(10, tlr.getLastOffset());
+
+        assertFalse(tlr.hasMore());
+        assertNull(tlr.internalNextJson());
+        assertNull(tlr.internalNextJson("name", "value"));
     }
 }
