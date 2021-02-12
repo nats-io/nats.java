@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -71,29 +72,39 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testJetStreamSubscribe() throws Exception {
         runInJsServer(nc -> {
-            createTestStream(nc);
             JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            createTestStream(jsm);
+
             publish(js);
 
             // default ephemeral subscription.
             Subscription s = js.subscribe(SUBJECT);
-            Message m = s.nextMessage(Duration.ofSeconds(1));
+            Message m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
+            List<String> names = jsm.getConsumerNames(STREAM);
+            assertEquals(1, names.size());
 
             // default subscribe options // ephemeral subscription.
             s = js.subscribe(SUBJECT, PushSubscribeOptions.defaultInstance());
-            m = s.nextMessage(Duration.ofSeconds(1));
+            m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
+            names = jsm.getConsumerNames(STREAM);
+            assertEquals(2, names.size());
 
             // set the stream
-            PushSubscribeOptions so = PushSubscribeOptions.builder().stream(STREAM).build();
-            s = js.subscribe(SUBJECT, so);
-            m = s.nextMessage(Duration.ofSeconds(1));
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().stream(STREAM).build();
+            s = js.subscribe(SUBJECT, pso);
+            m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
+            names = jsm.getConsumerNames(STREAM);
+            assertEquals(3, names.size());
 
+            System.out.println(names);
         });
     }
 
@@ -115,23 +126,23 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             js.publish(msg, po);
 
             Subscription s = js.subscribe(SUBJECT);
-            Message m = s.nextMessage(Duration.ofMillis(500));
+            Message m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(1), new String(m.getData()));
 
-            m = s.nextMessage(Duration.ofMillis(500));
+            m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(2), new String(m.getData()));
 
-            m = s.nextMessage(Duration.ofMillis(500));
+            m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(3), new String(m.getData()));
 
-            m = s.nextMessage(Duration.ofMillis(500));
+            m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(4), new String(m.getData()));
 
-            m = s.nextMessage(Duration.ofMillis(500));
+            m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNull(m);
         });
     }

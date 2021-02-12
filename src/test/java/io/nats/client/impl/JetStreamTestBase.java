@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
     public static final String JS_REPLY_TO = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
 
     public NatsMessage getJsMessage(String replyTo) {
         return new NatsMessage.IncomingMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
@@ -52,6 +53,10 @@ public class JetStreamTestBase extends TestBase {
 
     public StreamInfo createTestStream(Connection nc) throws IOException, JetStreamApiException {
         return createMemoryStream(nc, STREAM, SUBJECT);
+    }
+
+    public StreamInfo createTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+        return createMemoryStream(jsm, STREAM, SUBJECT);
     }
 
     public StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {

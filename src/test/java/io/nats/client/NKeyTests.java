@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
+import static io.nats.client.NKey.removePaddingAndClear;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,32 +34,32 @@ public class NKeyTests {
     public void testCRC16() {
         // Example inputs and outputs from around the web
         byte[][] inputs = {
-            {},
-            "abc".getBytes(StandardCharsets.US_ASCII),
-            "ABC".getBytes(StandardCharsets.US_ASCII),
-            "This is a string".getBytes(StandardCharsets.US_ASCII),
-            "123456789".getBytes(StandardCharsets.US_ASCII),
-            "abcdefghijklmnopqrstuvwxyz0123456789".getBytes(StandardCharsets.US_ASCII),
-            {(byte)0x7F},
-            {(byte)0x80},
-            {(byte)0xFF},
-            {0x0,0x1,0x7D,0x7E,(byte)0x7F, (byte) 0x80, (byte)0xFE, (byte)0xFF}
+                {},
+                "abc".getBytes(StandardCharsets.US_ASCII),
+                "ABC".getBytes(StandardCharsets.US_ASCII),
+                "This is a string".getBytes(StandardCharsets.US_ASCII),
+                "123456789".getBytes(StandardCharsets.US_ASCII),
+                "abcdefghijklmnopqrstuvwxyz0123456789".getBytes(StandardCharsets.US_ASCII),
+                {(byte) 0x7F},
+                {(byte) 0x80},
+                {(byte) 0xFF},
+                {0x0, 0x1, 0x7D, 0x7E, (byte) 0x7F, (byte) 0x80, (byte) 0xFE, (byte) 0xFF}
         };
 
         int[] expected = {
-            0x0, // ""
-            0x9DD6, // "abc"
-            0x3994, // "ABC"
-            0x21E3, // "This is a string"
-            0x31C3, // "123456789"
-            0xCBDE, // "abcdefghijklmnopqrstuvwxyz0123456789"
-            0x8F78, // 0x7F
-            0x9188, // 0x80
-            0x1EF0, // 0xFF
-            0xE26F, // {0x0,0x1,0x7D,0x7E, 0x7F, 0x80, 0xFE, 0xFF}
+                0x0, // ""
+                0x9DD6, // "abc"
+                0x3994, // "ABC"
+                0x21E3, // "This is a string"
+                0x31C3, // "123456789"
+                0xCBDE, // "abcdefghijklmnopqrstuvwxyz0123456789"
+                0x8F78, // 0x7F
+                0x9188, // 0x80
+                0x1EF0, // 0xFF
+                0xE26F, // {0x0,0x1,0x7D,0x7E, 0x7F, 0x80, 0xFE, 0xFF}
         };
 
-        for (int i=0; i<inputs.length ; i++) {
+        for (int i = 0; i < inputs.length; i++) {
             byte[] input = inputs[i];
             int crc = expected[i];
             int actual = NKey.crc16(input);
@@ -77,6 +78,12 @@ public class NKeyTests {
             String test = new String(decoded, StandardCharsets.UTF_8);
             assertEquals(test, expected);
         }
+
+        // bad input for coverage
+        byte[] decoded = NKey.base32Decode("/".toCharArray());
+        assertEquals(0, decoded.length);
+        decoded = NKey.base32Decode(Character.toChars(512));
+        assertEquals(0, decoded.length);
     }
 
     @Test
@@ -145,20 +152,20 @@ public class NKeyTests {
 
     @Test
     public void testBadCRC() throws Exception {
-        for (int i=0;i<10000;i++) {
+        for (int i = 0; i < 10000; i++) {
             try {
                 byte[] bytes = new byte[32];
                 SecureRandom random = new SecureRandom();
                 random.nextBytes(bytes);
-        
+
                 char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
-        
+
                 StringBuilder builder = new StringBuilder();
-        
-                for (int j=0;j<encoded.length;j++) {
-                    if (j==6) {
+
+                for (int j = 0; j < encoded.length; j++) {
+                    if (j == 6) {
                         char c = encoded[j];
-                        if (c == 'x' || c== 'X') {
+                        if (c == 'x' || c == 'X') {
                             builder.append('Z');
                         } else {
                             builder.append('X');
@@ -167,7 +174,7 @@ public class NKeyTests {
                         builder.append(encoded[j]);
                     }
                 }
-        
+
                 NKey.decode(NKey.Type.ACCOUNT, builder.toString().toCharArray(), false);
                 fail();
             } catch (IllegalArgumentException e) {
@@ -204,7 +211,10 @@ public class NKeyTests {
         assertNotEquals(otherKey, theKey);
 
         assertTrue(NKey.isValidPublicAccountKey(publicKey));
+        assertFalse(NKey.isValidPublicClusterKey(publicKey));
+        assertFalse(NKey.isValidPublicOperatorKey(publicKey));
         assertFalse(NKey.isValidPublicUserKey(publicKey));
+        assertFalse(NKey.isValidPublicServerKey(publicKey));
     }
 
     @Test
@@ -236,6 +246,9 @@ public class NKeyTests {
 
         assertTrue(NKey.isValidPublicUserKey(publicKey));
         assertFalse(NKey.isValidPublicAccountKey(publicKey));
+        assertFalse(NKey.isValidPublicClusterKey(publicKey));
+        assertFalse(NKey.isValidPublicOperatorKey(publicKey));
+        assertFalse(NKey.isValidPublicServerKey(publicKey));
     }
 
     @Test
@@ -266,7 +279,10 @@ public class NKeyTests {
         assertNotEquals(otherKey, theKey);
 
         assertTrue(NKey.isValidPublicClusterKey(publicKey));
+        assertFalse(NKey.isValidPublicAccountKey(publicKey));
+        assertFalse(NKey.isValidPublicOperatorKey(publicKey));
         assertFalse(NKey.isValidPublicUserKey(publicKey));
+        assertFalse(NKey.isValidPublicServerKey(publicKey));
     }
 
     @Test
@@ -297,7 +313,10 @@ public class NKeyTests {
         assertNotEquals(otherKey, theKey);
 
         assertTrue(NKey.isValidPublicOperatorKey(publicKey));
+        assertFalse(NKey.isValidPublicAccountKey(publicKey));
+        assertFalse(NKey.isValidPublicClusterKey(publicKey));
         assertFalse(NKey.isValidPublicUserKey(publicKey));
+        assertFalse(NKey.isValidPublicServerKey(publicKey));
     }
 
     @Test
@@ -328,6 +347,9 @@ public class NKeyTests {
         assertNotEquals(otherKey, theKey);
 
         assertTrue(NKey.isValidPublicServerKey(publicKey));
+        assertFalse(NKey.isValidPublicAccountKey(publicKey));
+        assertFalse(NKey.isValidPublicClusterKey(publicKey));
+        assertFalse(NKey.isValidPublicOperatorKey(publicKey));
         assertFalse(NKey.isValidPublicUserKey(publicKey));
     }
 
@@ -348,7 +370,7 @@ public class NKeyTests {
         byte[] data = "Public and Private".getBytes(StandardCharsets.UTF_8);
         byte[] sig = theKey.sign(data);
 
-        assertTrue(pubOnly.verify(data,sig));
+        assertTrue(pubOnly.verify(data, sig));
 
         NKey otherKey = NKey.createServer(null);
         assertFalse(otherKey.verify(data, sig));
@@ -423,7 +445,7 @@ public class NKeyTests {
         byte[] data = "Seeds into trees".getBytes(StandardCharsets.UTF_8);
         byte[] sig = theKey.sign(data);
 
-        assertTrue(fromSeed.verify(data,sig));
+        assertTrue(fromSeed.verify(data, sig));
 
         NKey otherKey = NKey.createServer(null);
         assertFalse(otherKey.verify(data, sig));
@@ -528,5 +550,39 @@ public class NKeyTests {
         DecodedSeed decoded = NKey.decodeSeed(seed);
         char[] encodedSeed = NKey.encodeSeed(NKey.Type.fromPrefix(decoded.prefix), decoded.bytes);
         assertTrue(Arrays.equals(encodedSeed, seed));
+    }
+
+    @Test
+    public void testTypeEnum() {
+        assertEquals(NKey.Type.USER, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_USER));
+        assertEquals(NKey.Type.ACCOUNT, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_ACCOUNT));
+        assertEquals(NKey.Type.SERVER, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_SERVER));
+        assertEquals(NKey.Type.OPERATOR, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_OPERATOR));
+        assertEquals(NKey.Type.CLUSTER, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_CLUSTER));
+        assertEquals(NKey.Type.ACCOUNT, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_PRIVATE));
+        assertThrows(IllegalArgumentException.class, () -> { NKey.Type ignored = NKey.Type.fromPrefix(9999); });
+    }
+
+    @Test
+    public void testRemovePaddingAndClear() {
+        char[] withPad = "!".toCharArray();
+        char[] removed = removePaddingAndClear(withPad);
+        assertEquals(withPad.length, removed.length);
+        assertEquals('!', removed[0]);
+
+        withPad = "a=".toCharArray();
+        removed = removePaddingAndClear(withPad);
+        assertEquals(1, removed.length);
+        assertEquals('a', removed[0]);
+    }
+
+    @Test
+    public void testEquals() throws Exception {
+        NKey key = NKey.createServer(null);
+        assertEquals(key, key);
+        assertEquals(key, NKey.fromSeed(key.getSeed()));
+        assertNotEquals(key, new Object());
+        assertNotEquals(key, NKey.createServer(null));
+        assertNotEquals(key, NKey.createAccount(null));
     }
 }
