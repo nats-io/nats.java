@@ -16,7 +16,6 @@ package io.nats.client.support;
 import io.nats.client.ConsumerConfiguration;
 
 import java.time.Duration;
-import java.util.regex.Pattern;
 
 import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
 
@@ -79,7 +78,7 @@ public abstract class Validator {
     public static String validateDurableRequired(String durable, ConsumerConfiguration cc) {
         if (durable == null) {
             if (cc == null) {
-                return validateDurableRequired(null);
+                throw new IllegalArgumentException("Durable is required and cannot contain a '.', '*' or '>' [null]");
             }
             return validateDurableRequired(cc.getDurable());
         }
@@ -147,12 +146,6 @@ public abstract class Validator {
         return s;
     }
 
-    public static void mustBeNull(String theOther, String message) {
-        if (theOther != null) {
-            throw new IllegalArgumentException(message);
-        }
-    }
-
     public static Object validateNotNull(Object o, String fieldName) {
         if (o == null) {
             throw new IllegalArgumentException(fieldName + " cannot be null");
@@ -168,7 +161,7 @@ public abstract class Validator {
     }
 
     public static long validateGtZeroOrMinus1(long l, String label) {
-        if (gtZeroOrMinus1(l)) {
+        if (zeroOrLtMinus1(l)) {
             throw new IllegalArgumentException(label + " must be greater than zero or -1 for unlimited");
         }
         return l;
@@ -177,14 +170,6 @@ public abstract class Validator {
     // ----------------------------------------------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------------------------------------------
-    public static boolean matches(Pattern pattern, String stream) {
-        return pattern.matcher(stream).matches();
-    }
-
-    public static boolean doesNotMatch(Pattern pattern, String stream) {
-        return !pattern.matcher(stream).matches();
-    }
-
     public static boolean nullOrEmpty(String s) {
         return s == null || s.length() == 0;
     }
@@ -231,15 +216,11 @@ public abstract class Validator {
         return false;
     }
 
-    public static boolean containsDot(String s) {
-        return s != null && s.indexOf('.') > -1;
-    }
-
     public static String emptyAsNull(String s) {
         return nullOrEmpty(s) ? null : s;
     }
 
-    public static boolean gtZeroOrMinus1(long maxMsgSize) {
-        return maxMsgSize == 0 || maxMsgSize < -1;
+    public static boolean zeroOrLtMinus1(long l) {
+        return l == 0 || l < -1;
     }
 }

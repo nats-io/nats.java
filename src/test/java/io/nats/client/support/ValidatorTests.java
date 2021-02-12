@@ -166,10 +166,22 @@ public class ValidatorTests {
 
     @Test
     public void testNotNull() {
-        Object o = null;
-        String s = null;
-        assertThrows(IllegalArgumentException.class, () -> validateNotNull(o, "fieldName"));
-        assertThrows(IllegalArgumentException.class, () -> validateNotNull(s, "fieldName"));
+        final Object o1 = null;
+        final String s1 = null;
+        assertThrows(IllegalArgumentException.class, () -> validateNotNull(o1, "fieldName"));
+        assertThrows(IllegalArgumentException.class, () -> validateNotNull(s1, "fieldName"));
+        final Object o2 = new Object();
+        final String s2 = "";
+        assertEquals(o2, validateNotNull(o2, "fieldName"));
+        assertEquals(s2, validateNotNull(s2, "fieldName"));
+    }
+
+    @Test
+    public void testZeroOrLtMinus1() {
+        assertTrue(zeroOrLtMinus1(0));
+        assertTrue(zeroOrLtMinus1(-2));
+        assertFalse(zeroOrLtMinus1(1));
+        assertFalse(zeroOrLtMinus1(-1));
     }
 
     interface StringTest { String validate(String s); }

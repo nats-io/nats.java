@@ -2,8 +2,11 @@ package io.nats.client.impl;
 
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
+import io.nats.client.support.Token;
+import io.nats.client.support.TokenType;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -457,5 +460,32 @@ public class HeadersTests {
         assertTrue(h2.get(KEY1).contains(VAL1));
         assertTrue(h2.get(KEY2).contains(VAL2));
         assertTrue(h2.get(KEY2).contains(VAL3));
+    }
+
+    @Test
+    public void testToken() {
+        byte[] serialized1 = "notspaceorcrlf".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(IllegalArgumentException.class,
+                () -> new Token(serialized1, serialized1.length, 0, TokenType.WORD));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Token(serialized1, serialized1.length, 0, TokenType.KEY));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Token(serialized1, serialized1.length, 0, TokenType.SPACE));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Token(serialized1, serialized1.length, 0, TokenType.CRLF));
+        byte[] serialized2 = "\r".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(IllegalArgumentException.class,
+                () -> new Token(serialized2, serialized2.length, 0, TokenType.CRLF));
+        byte[] serialized3 = "\rnotlf".getBytes(StandardCharsets.US_ASCII);
+        assertThrows(IllegalArgumentException.class,
+                () -> new Token(serialized3, serialized3.length, 0, TokenType.CRLF));
+        Token t = new Token("k1:v1\r\n\r\n".getBytes(StandardCharsets.US_ASCII), 9, 0, TokenType.KEY);
+        t.mustBe(TokenType.KEY);
+        assertThrows(IllegalArgumentException.class, () -> t.mustBe(TokenType.CRLF));
+    }
+
+    @Test
+    public void testToString() {
+        assertNotNull(new Status(1, "msg").toString()); // COVERAGE
     }
 }

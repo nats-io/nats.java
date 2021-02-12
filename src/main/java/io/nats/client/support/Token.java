@@ -46,7 +46,7 @@ public class Token {
             start = cur;
             end = cur + 1;
         } else if (required == TokenType.CRLF || required == TokenType.SPACE) {
-            mustBe(required);
+            throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
         } else {
             byte ender1 = CR;
             byte ender2 = CR;
@@ -56,7 +56,7 @@ public class Token {
                 ender1 = SP;
                 ender2 = CR;
                 type = TokenType.WORD;
-            } else if (required == TokenType.KEY) {
+            } else { // KEY is all that's left if (required == TokenType.KEY) {
                 ender1 = COLON;
                 ender2 = COLON;
                 type = TokenType.KEY;
@@ -65,6 +65,9 @@ public class Token {
             end = cur;
             while (++cur < len && serialized[cur] != ender1 && serialized[cur] != ender2) {
                 end = cur;
+            }
+            if (cur >= len) {
+                throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
             }
             if (serialized[cur] == CR) {
                 mustBeCrlf(len, cur);

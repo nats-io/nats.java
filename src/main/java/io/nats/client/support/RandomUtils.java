@@ -5,6 +5,8 @@ import java.security.SecureRandom;
 import java.util.Random;
 
 public abstract class RandomUtils {
+    private RandomUtils() {}  /* for Jacoco */
+
     public static final SecureRandom SRAND = new SecureRandom();
     public static final Random PRAND = new Random(bytesToLong(SRAND.generateSeed(8))); // seed with 8 bytes (64 bits)
 
