@@ -71,11 +71,7 @@ public class JetStreamTestBase extends TestBase {
     // ----------------------------------------------------------------------------------------------------
     public static void publish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
-            Message msg = NatsMessage.builder()
-                    .subject(subject)
-                    .data((data(startId++)).getBytes(StandardCharsets.US_ASCII))
-                    .build();
-            js.publish(msg);
+            js.publish(NatsMessage.builder().subject(subject).data((dataBytes(startId++))).build());
         }
     }
 

@@ -9,9 +9,9 @@
     "ack_policy": "all",
     "ack_wait": 30000000000,
     "max_deliver": 10,
-    "max_waiting": 0,
-    "max_ack_pending": 0,
+    "max_ack_pending": 42,
     "replay_policy": "original",
-    "rate_limit": 0
+    "filter_subject": "foo-filter",
+    "rate_limit": 73
   }
 }

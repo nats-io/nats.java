@@ -98,6 +98,45 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testJetStreamPublish() throws Exception {
+        runInJsServer(nc -> {
+            createTestStream(nc);
+            JetStream js = nc.jetStream();
+
+            js.publish(SUBJECT, dataBytes(1));
+
+            PublishOptions po = PublishOptions.builder().build();
+            js.publish(SUBJECT, dataBytes(2), po);
+
+            Message msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(3)).build();
+            js.publish(msg);
+
+            msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
+            js.publish(msg, po);
+
+            Subscription s = js.subscribe(SUBJECT);
+            Message m = s.nextMessage(Duration.ofMillis(500));
+            assertNotNull(m);
+            assertEquals(data(1), new String(m.getData()));
+
+            m = s.nextMessage(Duration.ofMillis(500));
+            assertNotNull(m);
+            assertEquals(data(2), new String(m.getData()));
+
+            m = s.nextMessage(Duration.ofMillis(500));
+            assertNotNull(m);
+            assertEquals(data(3), new String(m.getData()));
+
+            m = s.nextMessage(Duration.ofMillis(500));
+            assertNotNull(m);
+            assertEquals(data(4), new String(m.getData()));
+
+            m = s.nextMessage(Duration.ofMillis(500));
+            assertNull(m);
+        });
+    }
+
+    @Test
     public void testNoMatchingStreams() throws Exception {
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();

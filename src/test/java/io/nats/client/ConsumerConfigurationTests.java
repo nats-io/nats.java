@@ -74,27 +74,36 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
+
+        assertNotNull(c.toString()); // COVERAGE
     }
 
     @Test
-    public void testJSONParsing() {
+    public void testParsingAndSetters() {
         String configJSON = dataAsString("ConsumerConfiguration.json");
         ConsumerConfiguration c = new ConsumerConfiguration(configJSON);
-        assertEquals("foo-durable", c.getDurable());
-        assertEquals("bar", c.getDeliverSubject());
         assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
         assertEquals(AckPolicy.All, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(30), c.getAckWait());
         assertEquals(10, c.getMaxDeliver());
+        assertEquals(73, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2020, c.getStartTime().getYear(), 2020);
         assertEquals(21, c.getStartTime().getSecond(), 21);
-    }
 
-    @Test
-    public void testToString() {
-        // COVERAGE
-        String json = dataAsString("ConsumerConfiguration.json");
-        assertNotNull(new ConsumerConfiguration(json).toString());
+        assertEquals("foo-durable", c.getDurable());
+        assertEquals("bar", c.getDeliverSubject());
+        assertEquals("foo-filter", c.getFilterSubject());
+        assertEquals(42, c.getMaxAckPending());
+
+        c.setDurable("bar-durable");
+        c.setDeliverSubject("baz");
+        c.setFilterSubject("bar-filter");
+        c.setMaxAckPending(43);
+
+        assertEquals("bar-durable", c.getDurable());
+        assertEquals("baz", c.getDeliverSubject());
+        assertEquals("bar-filter", c.getFilterSubject());
+        assertEquals(43, c.getMaxAckPending());
     }
 }

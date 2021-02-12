@@ -14,7 +14,6 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
 
 import java.util.List;
 
@@ -78,20 +77,13 @@ public class NatsJsManageConsumers {
             List<ConsumerInfo> consumers = jsm.getConsumers(STREAM);
             printConsumerInfoList(consumers);
 
-            // 3.1 Delete consumers
-            // 3.2 deleteStream should exception
+            // 3 Delete consumers
+            // Subsequent calls to deleteStream will throw a
+            // JetStreamApiException "consumer not found (404)"
             System.out.println("----------\n3. Delete consumers");
             jsm.deleteConsumer(STREAM, DURABLE1);
             consumerNames = jsm.getConsumerNames(STREAM);
             printObject(consumerNames);
-
-            try {
-                jsm.deleteConsumer(STREAM, DURABLE1);
-            }
-            catch (JetStreamApiException jsae) {
-                System.out.println("Tried to delete consumer: " + jsae.getMessage());
-            }
-
 
             System.out.println("----------\n");
         }

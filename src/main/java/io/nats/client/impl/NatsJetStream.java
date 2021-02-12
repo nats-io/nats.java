@@ -98,7 +98,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
         String streamName = config.getName();
         if (nullOrEmpty(streamName)) {
-            throw new IllegalArgumentException("Configuration must have a valid name");
+            throw new IllegalArgumentException("Configuration must have a valid stream name");
         }
 
         String subj = String.format(template, streamName);

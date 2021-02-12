@@ -30,7 +30,7 @@ public class ResponseTests extends JetStreamTestBase {
         String json = dataAsString("PurgeResponse.json");
         PurgeResponse pr = new PurgeResponse(json);
         assertTrue(pr.isSuccess());
-        assertEquals(5, pr.getPurged());
+        assertEquals(5, pr.getPurgedCount());
         assertNotNull(pr.toString()); // COVERAGE
     }
 

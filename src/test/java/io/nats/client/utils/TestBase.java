@@ -17,6 +17,7 @@ import io.nats.client.*;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -95,6 +96,10 @@ public class TestBase {
 
     public static String data(int seq) {
         return DATA + "-" + seq;
+    }
+
+    public static byte[] dataBytes(int seq) {
+        return data(seq).getBytes(StandardCharsets.US_ASCII);
     }
 
     // ----------------------------------------------------------------------------------------------------

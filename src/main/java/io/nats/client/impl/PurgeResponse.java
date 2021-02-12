@@ -22,16 +22,24 @@ public class PurgeResponse {
     private final boolean success;
     private final int purged;
 
-    public PurgeResponse(String json) {
+    PurgeResponse(String json) {
         success = JsonUtils.readBoolean(json, SUCCESS_RE);
         purged = JsonUtils.readInt(json, PURGED_RE, 0);
     }
 
+    /**
+     * Returns true if the server was able to purge the stream
+     * @return the result flag
+     */
     public boolean isSuccess() {
         return success;
     }
 
-    public int getPurged() {
+    /**
+     * Returns the number of items purged from the stream
+     * @return the count
+     */
+    public int getPurgedCount() {
         return purged;
     }
 

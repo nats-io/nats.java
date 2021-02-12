@@ -23,13 +23,13 @@ public abstract class ListResponse {
     protected int limit = 0;
     protected int lastOffset = 0;
 
-    public void add(String json) {
+    void add(String json) {
         total = JsonUtils.readInt(json, TOTAL_RE, 0);
         limit = JsonUtils.readInt(json, LIMIT_RE, 0);
         lastOffset = JsonUtils.readInt(json, OFFSET_RE, 0);
     }
 
-    public boolean hasMore() {
+    boolean hasMore() {
         return total > (lastOffset + limit);
     }
 
@@ -37,7 +37,7 @@ public abstract class ListResponse {
         return hasMore() ? noFilterJson() : null;
     }
 
-    private String noFilterJson() {
+    String noFilterJson() {
         return OFFSET_JSON_START + (lastOffset + limit) + "}";
     }
 

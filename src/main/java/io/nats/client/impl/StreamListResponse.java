@@ -23,12 +23,12 @@ import static io.nats.client.support.ApiConstants.STREAMS;
 public class StreamListResponse extends ListResponse {
     private final List<StreamInfo> streams;
 
-    public StreamListResponse() {
+    StreamListResponse() {
         this.streams = new ArrayList<>();
     }
 
     @Override
-    public void add(String json) {
+    void add(String json) {
         super.add(json);
         List<String> streamInfoJson = JsonUtils.getObjectArray(STREAMS, json);
         for (String j : streamInfoJson) {
@@ -36,11 +36,15 @@ public class StreamListResponse extends ListResponse {
         }
     }
 
+    /**
+     * Get the list of StreamInfo
+     * @return the list
+     */
     public List<StreamInfo> getStreams() {
         return streams;
     }
 
-    public String nextJson() {
+    String nextJson() {
         return internalNextJson();
     }
 }

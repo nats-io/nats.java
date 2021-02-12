@@ -23,22 +23,26 @@ import static io.nats.client.support.ApiConstants.SUBJECT;
 public class ConsumerNamesResponse extends ListResponse {
     private final List<String> consumers;
 
-    public ConsumerNamesResponse() {
+    ConsumerNamesResponse() {
         consumers = new ArrayList<>();
     }
 
     @Override
-    public void add(String json) {
+    void add(String json) {
         super.add(json);
         List<String> up = Arrays.asList(JsonUtils.getStringArray(CONSUMERS, json));
         consumers.addAll(up);
     }
 
+    /**
+     * Get the list of consumer names
+     * @return the list of consumer names
+     */
     public List<String> getConsumers() {
         return consumers;
     }
 
-    public String nextJson(String filter) {
+    String nextJson(String filter) {
         return internalNextJson(SUBJECT, filter);
     }
 }

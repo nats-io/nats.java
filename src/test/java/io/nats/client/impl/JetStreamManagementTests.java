@@ -137,6 +137,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(sc.getNoAck());
             assertEquals(Duration.ofMinutes(3), sc.getDuplicateWindow());
             assertNull(sc.getTemplateOwner());
+
+            StreamConfiguration scFail = StreamConfiguration.builder().build();
+            assertThrows(IllegalArgumentException.class, () -> jsm.updateStream(scFail));
         });
     }
 
@@ -236,7 +239,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             PurgeResponse pr = jsm.purgeStream(STREAM);
             assertTrue(pr.isSuccess());
-            assertEquals(1, pr.getPurged());
+            assertEquals(1, pr.getPurgedCount());
         });
     }
 
@@ -274,6 +277,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(durable(1), ci.getName());
             assertEquals(durable(1), ci.getConsumerConfiguration().getDurable());
             assertEquals(deliver(1), ci.getConsumerConfiguration().getDeliverSubject());
+
+            List<String> consumers = jsm.getConsumerNames(STREAM);
+            assertEquals(2, consumers.size());
+            jsm.deleteConsumer(STREAM, cc1.getDurable());
+            consumers = jsm.getConsumerNames(STREAM);
+            assertEquals(1, consumers.size());
         });
     }
 

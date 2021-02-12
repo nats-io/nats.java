@@ -14,7 +14,6 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
 import io.nats.client.impl.PurgeResponse;
 
 import java.util.List;
@@ -109,30 +108,11 @@ public class NatsJsManageStreams {
             PurgeResponse purgeResponse = jsm.purgeStream(STREAM1);
             printObject(purgeResponse);
 
-            // 6.1 Delete a stream
-            // 6.2 getStreamInfo should exception
-            // 6.3 deleteStream should exception
-            // 6.4 purgeStream should exception
+            // 6. Delete a stream
+            // Subsequent calls to getStreamInfo, deleteStream or purgeStream
+            // will throw a JetStreamApiException "stream not found (404)"
             System.out.println("----------\n6. Delete stream");
             jsm.deleteStream(STREAM2);
-            try {
-                jsm.getStreamInfo(STREAM2);
-            }
-            catch (JetStreamApiException jsae) {
-                System.out.println("Tried to getStreamInfo: " + jsae.getMessage());
-            }
-            try {
-                jsm.deleteStream(STREAM2);
-            }
-            catch (JetStreamApiException jsae) {
-                System.out.println("Tried to deleteStream: " + jsae.getMessage());
-            }
-            try {
-                jsm.purgeStream(STREAM2);
-            }
-            catch (JetStreamApiException jsae) {
-                System.out.println("Tried to purgeStream: " + jsae.getMessage() );
-            }
 
             System.out.println("----------\n");
         }
