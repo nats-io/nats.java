@@ -1,4 +1,4 @@
-package io.nats.examples;
+package io.nats.examples.benchmark;
 
 import java.io.IOException;
 import java.io.InputStream;

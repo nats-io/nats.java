@@ -13,39 +13,35 @@
 
 package io.nats.examples;
 
+import io.nats.client.AuthHandler;
+import io.nats.client.NKey;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-
-import io.nats.client.AuthHandler;
-import io.nats.client.NKey;
+import java.util.Arrays;
 
 public class ExampleAuthHandler implements AuthHandler {
-    private NKey nkey;
+    private final NKey nkey;
 
     public ExampleAuthHandler(String path) throws Exception {
-        BufferedReader in = null;
-
-        try {
-            in = new BufferedReader((new FileReader(new File(path))));
-            
-            char[] buffer = new char[2048];
-            int len = in.read(buffer);
-            char[] seed = new char[len];
-
-            System.arraycopy(buffer, 0, seed, 0, len);
-
-            this.nkey = NKey.fromSeed(seed);
-
-            for (int i=0;i<buffer.length;i++) {
-                buffer[i] = '\0';
+        File f = new File(path);
+        int numBytes = (int)f.length();
+        try (BufferedReader in = new BufferedReader(new FileReader(f))) {
+            char[] buffer = new char[numBytes];
+            int numChars = in.read(buffer);
+            if (numChars < numBytes) {
+                char[] seed = new char[numChars];
+                System.arraycopy(buffer, 0, seed, 0, numChars);
+                this.nkey = NKey.fromSeed(seed);
+                Arrays.fill(seed, '\0'); // clear memory
             }
-        } finally {
-            if (in != null) {
-                in.close();
+            else {
+                this.nkey = NKey.fromSeed(buffer);
             }
+            Arrays.fill(buffer, '\0'); // clear memory
         }
     }
 

@@ -20,9 +20,12 @@ import io.nats.client.impl.NatsMessage;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-public class NatsPub {
+import static io.nats.examples.ExampleUtils.sleep;
+
+public class NatsPubMany {
+
     static final String usageString =
-            "\nUsage: java NatsPub [-s server] [-h headerKey:headerValue]* <subject> <message>\n"
+            "\nUsage: java NatsPub [-s server] [-sleep ms] [-h headerKey:headerValue]* [-msgCount #] <subject> <message>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
@@ -30,21 +33,26 @@ public class NatsPub {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleUtils.expectSubjectAndMessage(args, usageString);
+        int count = exArgs.msgCount == -1 ? 100_000 : exArgs.msgCount;
+        long sleep = exArgs.sleep == -1 ? 500 : exArgs.sleep;
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 
             String hdrNote = exArgs.hasHeaders() ? " with " + exArgs.headers.size() + " header(s)" : "";
-            System.out.printf("\nPublishing '%s' to '%s'%s, server is %s\n\n", exArgs.message, exArgs.subject, hdrNote, exArgs.server);
+            System.out.printf("\nPublishing %d x '%s' to '%s'%s, server is %s\n\n", count, exArgs.message, exArgs.subject, hdrNote, exArgs.server);
 
-            nc.publish(NatsMessage.builder()
-                    .subject(exArgs.subject)
-                    .headers(exArgs.headers)
-                    .data(exArgs.message, StandardCharsets.UTF_8)
-                    .build());
+            for (int i = 0; i < count; i++) {
+                sleep(sleep);
 
-            nc.flush(Duration.ofSeconds(5));
-        }
-        catch (Exception e) {
+                nc.publish(NatsMessage.builder()
+                        .subject(exArgs.subject)
+                        .headers(exArgs.headers)
+                        .data(exArgs.message + " # " + count, StandardCharsets.UTF_8)
+                        .build());
+
+                nc.flush(Duration.ofSeconds(5));
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
