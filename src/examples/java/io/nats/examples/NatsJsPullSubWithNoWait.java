@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * This example will demonstrate a pull subscription with noWait.
  *
- * Usage: java NatsJsPullSubWithNoWait [server]
+ * Usage: java NatsJsPullSubWithNoWait [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -34,22 +34,24 @@ import java.util.List;
  */
 public class NatsJsPullSubWithNoWait {
 
-    // STREAM, SUBJECT, DURABLE are required.
-    static final String STREAM = "nowait-stream";
-    static final String SUBJECT = "nowait-subject";
-    static final String DURABLE = "nowait-durable";
-
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args))) {
-            NatsJsUtils.createOrUpdateStream(nc, STREAM, SUBJECT);
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultStream("nowait-stream")
+                .defaultSubject("nowait-subject")
+                .defaultDurable("nowait-durable")
+                .build(args);
+        
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+
+            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(DURABLE)      // required
-                    // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
+                    .durable(exArgs.durable) // required
+                    // .configuration(...)   // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 
             // 0.1 Initialize. subscription
@@ -58,7 +60,7 @@ public class NatsJsPullSubWithNoWait {
             //     batch size is exhausted or no waits out.
             // 0.3 Flush outgoing communication with/to the server, useful when app is both publishing and subscribing.
             System.out.println("\n----------\n0. Initialize the subscription and pull.");
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pullOptions);
+            JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
             // 1. Publish 10 messages
@@ -67,7 +69,7 @@ public class NatsJsPullSubWithNoWait {
             // -  Since there are exactly the batch size we get them all
             //    and do NOT get a nowait status message
             System.out.println("----------\n1. Publish 10 which satisfies the batch");
-            publish(js, SUBJECT, "A", 10);
+            publish(js, exArgs.subject, "A", 10);
             sub.pullNoWait(10);
             List<Message> messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
@@ -78,7 +80,7 @@ public class NatsJsPullSubWithNoWait {
             // -  Since there are exact multiple of the batch size we get them all
             //    and do NOT get a nowait status message
             System.out.println("----------\n2. Publish 20 which an exact multiple of the batch size.");
-            publish(js, SUBJECT, "B", 20);
+            publish(js, exArgs.subject, "B", 20);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 20 total messages, we received: " + messages.size());
@@ -88,7 +90,7 @@ public class NatsJsPullSubWithNoWait {
             // -  Read the messages
             // -  Since there are less than batch size the last message we get will be a status 404 message.
             System.out.println("----------\n3. Publish 5 which is less than batch size.");
-            publish(js, SUBJECT, "C", 5);
+            publish(js, exArgs.subject, "C", 5);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             Message lastMessage = messages.get(5);
@@ -101,7 +103,7 @@ public class NatsJsPullSubWithNoWait {
             // -  Since the messages are not an exact multiple of batch size
             //    the last message we get will be a status 404 message.
             System.out.println("----------\n4. Publish 12 which is not an exact multiple of batch size.");
-            publish(js, SUBJECT, "D", 12);
+            publish(js, exArgs.subject, "D", 12);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             lastMessage = messages.get(12);

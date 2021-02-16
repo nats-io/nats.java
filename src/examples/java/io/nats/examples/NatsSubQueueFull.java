@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * This example will demonstrate queue subscribing.
  *
- * Usage: java NatsSubQueueFull [server]
+ * Usage: java NatsSubQueueFull [-s server] [-sub subject] [-q queue] [-mcnt msgCount] [-scnt subCount]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -35,18 +35,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class NatsSubQueueFull {
 
-    // SUBJECT is required.
-    // MSG_COUNT < 1 will just loop until there are no more messages
-    static final String IDENT = "" + System.currentTimeMillis(); // so you can re-run without restarting the server
-    static final String SUBJECT = "q-subject" + IDENT;
-    static final String QUEUE = "q-queue-" + IDENT;
-
-    static final int MSG_COUNT = 100;
-    static final int NO_OF_SUBSCRIBERS = 5;
-    static final Duration TIMEOUT = Duration.ofMillis(500);
-
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args, true))) {
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultSubject("q-subject")
+                .defaultQueue("q-queue")
+                .defaultMsgCount(100)
+                .defaultSubCount(5)
+                .build(args);
+
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
             // Setup the subscribers
             // - use a concurrent integer to track all the messages received
@@ -54,11 +51,11 @@ public class NatsSubQueueFull {
             AtomicInteger allReceived = new AtomicInteger();
             List<QueueSubscriber> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();
-            for (int id = 1; id <= NO_OF_SUBSCRIBERS; id++) {
+            for (int id = 1; id <= exArgs.subCount; id++) {
                 // setup the subscription
-                Subscription sub = nc.subscribe(SUBJECT, QUEUE);
+                Subscription sub = nc.subscribe(exArgs.subject, exArgs.queue);
                 // create and track the runnable
-                QueueSubscriber qs = new QueueSubscriber(id, sub, allReceived);
+                QueueSubscriber qs = new QueueSubscriber(id, exArgs.msgCount, sub, allReceived);
                 subscribers.add(qs);
                 // create, track and start the thread
                 Thread t = new Thread(qs);
@@ -68,7 +65,7 @@ public class NatsSubQueueFull {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // create and start the publishing
-            Thread pubThread = new Thread(new Publisher(nc));
+            Thread pubThread = new Thread(new Publisher(nc, exArgs.subject, exArgs.msgCount));
             pubThread.start();
 
             // wait for all threads to finish
@@ -89,27 +86,33 @@ public class NatsSubQueueFull {
 
     static class Publisher implements Runnable {
         Connection nc;
+        String subject;
+        int msgCount;
 
-        public Publisher(Connection nc) {
+        public Publisher(Connection nc, String subject, int msgCount) {
             this.nc = nc;
+            this.subject = subject;
+            this.msgCount = msgCount;
         }
 
         @Override
         public void run() {
-            for (int x = 1; x <= MSG_COUNT; x++) {
-                nc.publish(SUBJECT, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
+            for (int x = 1; x <= msgCount; x++) {
+                nc.publish(subject, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
             }
         }
     }
 
     static class QueueSubscriber implements Runnable {
         int id;
+        int msgCount;
         Subscription sub;
         AtomicInteger allReceived;
         AtomicInteger thisReceived;
 
-        public QueueSubscriber(int id, Subscription sub, AtomicInteger allReceived) {
+        public QueueSubscriber(int id, int msgCount, Subscription sub, AtomicInteger allReceived) {
             this.id = id;
+            this.msgCount = msgCount;
             this.sub = sub;
             this.allReceived = allReceived;
             this.thisReceived = new AtomicInteger();
@@ -121,15 +124,15 @@ public class NatsSubQueueFull {
 
         @Override
         public void run() {
-            while (allReceived.get() < MSG_COUNT) {
+            while (allReceived.get() < msgCount) {
                 try {
-                    Message msg = sub.nextMessage(TIMEOUT);
+                    Message msg = sub.nextMessage(Duration.ofMillis(500));
                     while (msg != null) {
                         thisReceived.incrementAndGet();
                         allReceived.incrementAndGet();
                         System.out.printf("SUB # %d message # %d %s\n",
                                 id, thisReceived.get(), new String(msg.getData(), StandardCharsets.US_ASCII));
-                        msg = sub.nextMessage(TIMEOUT);
+                        msg = sub.nextMessage(Duration.ofMillis(500));
                     }
                 } catch (InterruptedException e) {
                     // just try again

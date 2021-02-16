@@ -4,7 +4,7 @@ This folder contains a number of examples:
 
 ### Regular Nats Examples
 1. `ConnectTime.java` - how to build a listener that will track connect time.
-1. `NatsPub.java` - publishes a messages
+1. `NatsPub.java` - publishes messages
 1. `NatsPubMany.java` - publishes many messages
 1. `NatsReply.java` - sends a reply when a request is received
 1. `NatsReq.java` - sends a request and prints the reply

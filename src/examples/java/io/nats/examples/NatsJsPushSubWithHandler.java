@@ -25,7 +25,11 @@ import static io.nats.examples.NatsJsUtils.streamExists;
 /**
  * This example will demonstrate JetStream push subscribing with a handler. Run NatsJsPub first to setup message data.
  *
- * Usage: java NatsJsPushSubWithHandler [server]
+ * Run Notes:
+ * - durable is optional, durable behaves differently, try it by running this twice with durable set
+ * - msgCount should be > 0
+ *
+ * Usage: java NatsJsPushSubWithHandler [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -33,31 +37,28 @@ import static io.nats.examples.NatsJsUtils.streamExists;
  */
 public class NatsJsPushSubWithHandler {
 
-    // STREAM and SUBJECT are required.
-    // DURABLE is optional (null), durable behaves differently, try it by running this twice with durable set
-    // MSG_COUNT should be > 0
-    static final String STREAM = "example-stream";
-    static final String SUBJECT = "example-subject";
-    static final String DURABLE = "push-sub-handler-durable";
-    static final int MSG_COUNT = 3;
-
     public static void main(String[] args) {
-        String server = ExampleArgs.getServer(args);
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultStream("example-stream")
+                .defaultSubject("example-subject")
+//                .defaultDurable("push-sub-handler-durable")
+                .defaultMsgCount(3)
+                .build(args);
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args, true))) {
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
-            if (!streamExists(nc, STREAM)) {
-                System.out.println("Stopping program, stream does not exist: " + STREAM);
+            if (!streamExists(nc, exArgs.stream)) {
+                System.out.println("Stopping program, stream does not exist: " + exArgs.stream);
                 return;
             }
 
             // just some reporting
-            System.out.println("\nConnected to server " + server + ". Listening to...");
-            System.out.println("  Subject: " + SUBJECT);
-            if (DURABLE != null) {
-                System.out.println("  Durable: " + DURABLE);
+            System.out.println("\nConnected to server " + exArgs.server + ". Listening to...");
+            System.out.println("  Subject: " + exArgs.subject);
+            if (exArgs.durable != null) {
+                System.out.println("  Durable: " + exArgs.durable);
             }
-            System.out.println("  For " + MSG_COUNT + " messages max");
+            System.out.println("  For " + exArgs.msgCount + " messages max");
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher(null);
@@ -65,7 +66,7 @@ public class NatsJsPushSubWithHandler {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
-            CountDownLatch msgLatch = new CountDownLatch(MSG_COUNT);
+            CountDownLatch msgLatch = new CountDownLatch(exArgs.msgCount);
             AtomicInteger received = new AtomicInteger();
             AtomicInteger ignored = new AtomicInteger();
 
@@ -113,13 +114,13 @@ public class NatsJsPushSubWithHandler {
             // Build our subscription options. We'll create a durable subscription.
             // Durable means the server will remember where we are if we use that name.
             PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-            if (DURABLE != null) {
-                builder.durable(DURABLE);
+            if (exArgs.durable != null) {
+                builder.durable(exArgs.durable);
             }
             PushSubscribeOptions so = builder.build();
 
             // Subscribe using the handler
-            js.subscribe(SUBJECT, dispatcher, handler, false, so);
+            js.subscribe(exArgs.subject, dispatcher, handler, false, so);
 
             // Wait for messages to arrive using the countdown latch. But don't wait forever.
             boolean countReachedZero = msgLatch.await(3, TimeUnit.SECONDS);

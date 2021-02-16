@@ -24,7 +24,7 @@ import java.time.Duration;
 /**
  * This example will demonstrate a pull subscription.
  *
- * Usage: java NatsJsPullSub [server]
+ * Usage: java NatsJsPullSub [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -32,22 +32,22 @@ import java.time.Duration;
  */
 public class NatsJsPullSub {
 
-    // STREAM, SUBJECT, DURABLE are required.
-    static final String STREAM = "pull-stream";
-    static final String SUBJECT = "pull-subject";
-    static final String DURABLE = "pull-durable";
-
     public static void main(String[] args) {
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultStream("pull-stream")
+                .defaultSubject("pull-subject")
+                .defaultDurable("pull-durable")
+                .build(args);
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args))) {
-            NatsJsUtils.createOrUpdateStream(nc, STREAM, SUBJECT);
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(DURABLE)      // required
+                    .durable(exArgs.durable)      // required
                     // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 
@@ -55,7 +55,7 @@ public class NatsJsPullSub {
             // 0.2 Start the pull, you don't have to call this again
             // 0.3 Flush outgoing communication with/to the server, useful when app is both publishing and subscribing.
             System.out.println("\n----------\n0. Initialize the subscription and pull.");
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pullOptions);
+            JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             sub.pull(10);
             nc.flush(Duration.ofSeconds(1));
 
@@ -63,13 +63,13 @@ public class NatsJsPullSub {
             // -  Read what is available.
             // -  When we ack a batch message the server starts preparing or adding to the next batch.
             System.out.println("\n----------\n1. Publish some amount of messages, but not entire batch size.");
-            publish(js, SUBJECT, "A", 4);
+            publish(js, exArgs.subject, "A", 4);
             readMessagesAck(sub);
 
             // 2. Publish some more covering our pull size...
             // -  Read what is available, expect all messages.
             System.out.println("----------\n2. Publish more than the batch size.");
-            publish(js, SUBJECT, "B", 6);
+            publish(js, exArgs.subject, "B", 6);
             readMessagesAck(sub);
 
             // 3. Read when there are no messages available.
@@ -79,7 +79,7 @@ public class NatsJsPullSub {
             // 4. Publish some more...
             // -  Read what is available, expect all messages.
             System.out.println("----------\n4. Publish more then read.");
-            publish(js, SUBJECT, "C", 12);
+            publish(js, exArgs.subject, "C", 12);
             readMessagesAck(sub);
 
             // 5. Read when there are no messages available.

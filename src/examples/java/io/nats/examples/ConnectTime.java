@@ -68,7 +68,7 @@ public class ConnectTime {
     }
 
     public static void main(String[] args) {
-        String server = ExampleArgs.getServer(args);
+        String server = ExampleUtils.getServer(args);
 
         try {
             System.out.println();

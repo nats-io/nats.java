@@ -23,7 +23,12 @@ import static io.nats.examples.NatsJsUtils.streamExists;
 /**
  * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
  *
- * Usage: java NatsJsPushSub [server]
+ * Run Notes:
+ * - durable is optional, durable behaves differently, try it by running this twice with durable set
+ * - deliver is optional
+ * - msg_count < 1 will just loop until there are no more messages
+ *
+ * Usage: java NatsJsPushSub [-s server] [-strm stream] [-sub subject] [-dur durable] [-dlvr deliver] [-mcnt msgCount]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -31,35 +36,32 @@ import static io.nats.examples.NatsJsUtils.streamExists;
  */
 public class NatsJsPushSub {
 
-    // STREAM and SUBJECT are required.
-    // DURABLE is optional (null), durable behaves differently, try it by running this twice with durable set
-    // DELIVER is optional (null)
-    // MSG_COUNT < 1 will just loop until there are no more messages
-    static final String STREAM = "example-stream";
-    static final String SUBJECT = "example-subject";
-    static final String DURABLE = null; // "push-sub-durable";
-    static final String DELIVER = null; // "push-sub-deliver";
-    static final int MSG_COUNT = 0;
-
     public static void main(String[] args) {
-        String server = ExampleArgs.getServer(args);
-        int count = MSG_COUNT < 1 ? Integer.MAX_VALUE : MSG_COUNT;
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultStream("example-stream")
+                .defaultSubject("example-subject")
+//                .defaultDurable("push-sub-durable")
+//                .defaultDeliver("push-sub-deliver")
+                .defaultMsgCount(0)
+                .build(args);
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args, true))) {
+        int count = exArgs.msgCount < 1 ? Integer.MAX_VALUE : exArgs.msgCount;
 
-            if (!streamExists(nc, STREAM)) {
-                System.out.println("Stopping program, stream does not exist: " + STREAM);
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
+
+            if (!streamExists(nc, exArgs.stream)) {
+                System.out.println("Stopping program, stream does not exist: " + exArgs.stream);
                 return;
             }
 
             // just some reporting
-            System.out.println("\nConnected to server " + server + ". Listening to...");
-            System.out.println("  Subject: " + SUBJECT);
-            if (DURABLE != null) {
-                System.out.println("  Durable: " + DURABLE);
+            System.out.println("\nConnected to server " + exArgs.server + ". Listening to...");
+            System.out.println("  Subject: " + exArgs.subject);
+            if (exArgs.durable != null) {
+                System.out.println("  Durable: " + exArgs.durable);
             }
-            if (DELIVER != null) {
-                System.out.println("  Deliver Subject: " + DELIVER);
+            if (exArgs.deliver != null) {
+                System.out.println("  Deliver Subject: " + exArgs.deliver);
             }
             if (count == Integer.MAX_VALUE) {
                 System.out.println("  Until there are no more messages");
@@ -75,16 +77,16 @@ public class NatsJsPushSub {
             // Build our subscription options. We'll create a durable subscription.
             // Durable means the server will remember where we are if we use that name.
             PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-            if (DURABLE != null) {
-                builder.durable(DURABLE);
+            if (exArgs.durable != null) {
+                builder.durable(exArgs.durable);
             }
-            if (DELIVER != null) {
-                builder.deliverSubject(DELIVER);
+            if (exArgs.deliver != null) {
+                builder.deliverSubject(exArgs.deliver);
             }
             PushSubscribeOptions so = builder.build();
 
             // Subscribe synchronously, then just wait for messages.
-            JetStreamSubscription sub = js.subscribe(SUBJECT, so);
+            JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
             nc.flush(Duration.ofSeconds(5));
 
             int red = 0;

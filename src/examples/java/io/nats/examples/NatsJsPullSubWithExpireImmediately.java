@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * This example will demonstrate a pull subscription with expire in the future.
  *
- * Usage: java NatsJsPullSubWithExpireImmediately [server]
+ * Usage: java NatsJsPullSubWithExpireImmediately [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -34,21 +34,22 @@ import java.util.List;
  */
 public class NatsJsPullSubWithExpireImmediately {
 
-    // STREAM, SUBJECT, DURABLE are required.
-    static final String STREAM = "expire-stream";
-    static final String SUBJECT = "expire-subject";
-    static final String DURABLE = "expire-durable";
-
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args))) {
-            NatsJsUtils.createOrUpdateStream(nc, STREAM, SUBJECT);
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultStream("immediate-stream")
+                .defaultSubject("immediate-subject")
+                .defaultDurable("immediate-durable")
+                .build(args);
+
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(DURABLE)      // required
+                    .durable(exArgs.durable)      // required
                     // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 
@@ -58,7 +59,7 @@ public class NatsJsPullSubWithExpireImmediately {
             //     batch size is exhausted or no waits out.
             // 0.3 Flush outgoing communication with/to the server, useful when app is both publishing and subscribing.
             System.out.println("\n----------\n0. Initialize the subscription and pull.");
-            JetStreamSubscription sub = js.subscribe(SUBJECT, pullOptions);
+            JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
             // 1. Publish 10 messages
@@ -66,7 +67,7 @@ public class NatsJsPullSubWithExpireImmediately {
             // -  Read the messages
             // -  Exactly the batch size, we get them all
             System.out.println("----------\n1. Publish 10 which satisfies the batch");
-            publish(js, SUBJECT, "A", 10);
+            publish(js, exArgs.subject, "A", 10);
             sub.pullExpiresIn(10, Duration.ZERO);
             List<Message> messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
@@ -76,7 +77,7 @@ public class NatsJsPullSubWithExpireImmediately {
             // -  Read the messages
             // -  More than the batch size, we get them all
             System.out.println("----------\n2. Publish 15 which an exact multiple of the batch size.");
-            publish(js, SUBJECT, "B", 15);
+            publish(js, exArgs.subject, "B", 15);
             sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 15 total messages, we received: " + messages.size());
@@ -86,7 +87,7 @@ public class NatsJsPullSubWithExpireImmediately {
             // -  Read the messages
             // -  Less than the batch size, we get them all
             System.out.println("----------\n3. Publish 5 which is less than batch size.");
-            publish(js, SUBJECT, "C", 5);
+            publish(js, exArgs.subject, "C", 5);
             sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 5 total messages, we received: " + messages.size());
