@@ -25,7 +25,7 @@ import static io.nats.examples.ExampleUtils.sleep;
 public class NatsPubMany {
 
     static final String usageString =
-            "\nUsage: java NatsPub [-s server] [-sleep ms] [-h headerKey:headerValue]* [-msgCount #] <subject> <message>\n"
+            "\nUsage: java NatsPubMany [-s server] [-sleep ms] [-h headerKey:headerValue]* [-msgCount #] <subject> <message>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"

@@ -106,7 +106,9 @@ public class NatsJsPushSubQueue {
         public void run() {
             for (int x = 1; x <= MSG_COUNT; x++) {
                 try {
-                    js.publish(SUBJECT, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
+                    PublishAck pa = js.publish(SUBJECT, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
+                    System.out.println("PUB " + pa);
+
                 } catch (IOException | JetStreamApiException e) {
                     // something pretty wrong here
                     e.printStackTrace();

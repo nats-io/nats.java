@@ -4,36 +4,37 @@ This folder contains a number of examples:
 
 ### Regular Nats Examples
 1. `ConnectTime.java` - how to build a listener that will track connect time.
-2. `NatsPub.java` - publishes a messages
-3. `NatsPubMany.java` - publishes many messages
-4. `NatsReply.java` - sends a reply when a request is received
-5. `NatsReq.java` - sends a request and prints the reply
-6. `NatsReqFuture.java` - sends a request async using a future 
-7. `NatsSub.java` - reads messages synchronously
-8. `NatsSubDispatch.java` - uses asynchronous dispatching for incoming messages
-9. `NatsSubQueue.java` - subscribes on a queue for message load balancing
-10. `NatsSubQueueFull.java` - fuller publish and queue subscribe example 
+1. `NatsPub.java` - publishes a messages
+1. `NatsPubMany.java` - publishes many messages
+1. `NatsReply.java` - sends a reply when a request is received
+1. `NatsReq.java` - sends a request and prints the reply
+1. `NatsReqFuture.java` - sends a request async using a future 
+1. `NatsSub.java` - reads messages synchronously
+1. `NatsSubDispatch.java` - uses asynchronous dispatching for incoming messages
+1. `NatsSubQueue.java` - subscribes on a queue for message load balancing
+1. `NatsSubQueueFull.java` - fuller publish and queue subscribe example 
    
 ### JetStream Examples
 1. `NatsJsPub.java` - publish JetStream messages
-2. `NatsJsPullSub.java` - demonstrate a JetStream pull subscription
-3. `NatsJsPullSubWithExpireFuture.java` - demonstrate a JetStream pull subscription with a expiration
-4. `NatsJsPullSubWithExpireImmediately.java` - demonstrate a JetStream pull subscription with an immediate expiration
-5. `NatsJsPullSubWithNoWait.java` - demonstrate a JetStream pull subscription with the no wait option
-6. `NatsJsPushSub.java` - demonstrate JetStream push subscribing to read messages synchronously and manually acknowledges messages.
-7. `NatsJsPushSubQueue.java` - demonstrate JetStream push subscribing to read messages in a load balance queue.
-8. `NatsJsPushSubWithHandler.java` - demonstrate JetStream push subscribing to read messages asynchronously and manually acknowledges messages.
-9. `NatsJsUtils.java` - utilities used by examples for reuse such as creating streams and publishing 
+1. `NatsJsPubVsRegularPub.java` - publish JetStream messages versus regular publish to the same stream.
+1. `NatsJsPullSub.java` - demonstrate a JetStream pull subscription
+1. `NatsJsPullSubWithExpireFuture.java` - demonstrate a JetStream pull subscription with a expiration
+1. `NatsJsPullSubWithExpireImmediately.java` - demonstrate a JetStream pull subscription with an immediate expiration
+1. `NatsJsPullSubWithNoWait.java` - demonstrate a JetStream pull subscription with the no wait option
+1. `NatsJsPushSub.java` - demonstrate JetStream push subscribing to read messages synchronously and manually acknowledges messages.
+1. `NatsJsPushSubQueue.java` - demonstrate JetStream push subscribing to read messages in a load balance queue.
+1. `NatsJsPushSubWithHandler.java` - demonstrate JetStream push subscribing to read messages asynchronously and manually acknowledges messages.
+1. `NatsJsUtils.java` - utilities used by examples for reuse such as creating streams and publishing 
 
 ### JetStream Management / Admin Examples
 1. `NatsJsManageConsumers.java` - demonstrate the management of consumers
-2. `NatsJsManageStreams.java` - demonstrate the management of streams
+1. `NatsJsManageStreams.java` - demonstrate the management of streams
 
 ### Other examples
 1. `autobench` - benchmarks the current system/setup in several scenarios
-2. `benchmark` - benchmark that supports multiple threads
-3. `stan` - A larger example that implements a server that can respond on multiple subjects, and several clients that send requests on those various subjects.
-4. `stability` - a small producer and subscriber that run forever printing some status every so often. These are intended for long running tests without burning the CPU.
+1. `benchmark` - benchmark that supports multiple threads
+1. `stan` - A larger example that implements a server that can respond on multiple subjects, and several clients that send requests on those various subjects.
+1. `stability` - a small producer and subscriber that run forever printing some status every so often. These are intended for long running tests without burning the CPU.
 
 All of these examples take the server URL on the command line, which means that you can use the `tls` and `opentls` schemas to test over a secure connection.
 

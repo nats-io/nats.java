@@ -15,35 +15,40 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStream;
 import io.nats.client.Message;
+import io.nats.client.PublishAck;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPub() throws Exception {
-        int COUNT = 10000;
-
         runInJsServer(nc -> {
             JetStream js = nc.jetStream();
+
             // create the stream.
             createMemoryStream(nc, STREAM, SUBJECT);
 
-            long timer = 0;
-            for (int x = 0; x < COUNT; x++) {
-                Message msg = NatsMessage.builder()
-                        .subject(SUBJECT)
-                        .data((data(x)).getBytes(StandardCharsets.US_ASCII))
-                        .build();
-                long now = System.currentTimeMillis();
-                js.publish(msg);
-                timer += (System.currentTimeMillis() - now);
-                int y = x + 1;
-                if (y == 100 || (y % 500 == 0)) {
-                    System.out.println("Time for " + y + " messages: " + timer);
-                }
-            }
+            Message msg = NatsMessage.builder()
+                    .subject(SUBJECT)
+                    .data(DATA.getBytes(StandardCharsets.US_ASCII))
+                    .build();
+
+            PublishAck pa = js.publish(msg);
         });
+    }
+
+    @Test
+    public void testPublishAckJson() throws IOException {
+        String json = "{\"stream\":\"sname\", \"seq\":1, \"duplicate\":false}";
+        PublishAck pa = new NatsPublishAck(json.getBytes(StandardCharsets.US_ASCII));
+        assertEquals("sname", pa.getStream());
+        assertEquals(1, pa.getSeqno());
+        assertFalse(pa.isDuplicate());
+        assertNotNull(pa.toString());
     }
 }
