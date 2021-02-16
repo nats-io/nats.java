@@ -52,8 +52,8 @@ public class PublishAckTests {
                 "  }" +
                 "}";
 
-        IllegalStateException ise = assertThrows(IllegalStateException.class, () -> new NatsPublishAck(json.getBytes()));
-        assertEquals("the description (500)", ise.getMessage());
+        JetStreamApiException jsapi = assertThrows(JetStreamApiException.class, () -> new NatsPublishAck(json.getBytes()));
+        assertEquals(500, jsapi.getErrorCode());
     }
 
     @Test
