@@ -50,7 +50,7 @@ public class NatsJsPubVsRegularPub {
             nc.flush(Duration.ofSeconds(5));
 
             // Regular Nats publish is straightforward
-            nc.publish(server, "regular-message".getBytes(StandardCharsets.UTF_8));
+            nc.publish(SUBJECT, "regular-message".getBytes(StandardCharsets.UTF_8));
 
             // A JetStream publish allows you to set publish options
             // that a regular publish does not.
