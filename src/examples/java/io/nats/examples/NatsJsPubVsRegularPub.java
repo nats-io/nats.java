@@ -28,7 +28,7 @@ import static io.nats.examples.NatsJsUtils.createOrUpdateStream;
  * The difference lies in the whether it's important to your application to receive
  * a publish ack and whether or not you want to set publish expectations.
  *
- * Usage: java NatsJsPubVsRegularPub [server]
+ * Usage: java NatsJsPubVsRegularPub [-s server] [-strm stream] [-sub subject]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -36,28 +36,28 @@ import static io.nats.examples.NatsJsUtils.createOrUpdateStream;
  */
 public class NatsJsPubVsRegularPub {
 
-    static final String STREAM = "regular-stream";
-    static final String SUBJECT = "regular-subject";
-
     public static void main(String[] args) {
-        String server = ExampleArgs.getServer(args);
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultStream("regular-stream")
+                .defaultSubject("regular-subject")
+                .build(args);
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server))) {
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             JetStream js = nc.jetStream();
-            createOrUpdateStream(nc, STREAM, SUBJECT);
+            createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
-            JetStreamSubscription sub = js.subscribe(SUBJECT);
+            JetStreamSubscription sub = js.subscribe(exArgs.subject);
             nc.flush(Duration.ofSeconds(5));
 
             // Regular Nats publish is straightforward
-            nc.publish(SUBJECT, "regular-message".getBytes(StandardCharsets.UTF_8));
+            nc.publish(exArgs.subject, "regular-message".getBytes(StandardCharsets.UTF_8));
 
             // A JetStream publish allows you to set publish options
             // that a regular publish does not.
             // A JetStream publish returns an ack of the publish. There
             // is no ack in a regular message.
             Message msg = NatsMessage.builder()
-                    .subject(SUBJECT)
+                    .subject(exArgs.subject)
                     .data("js-message", StandardCharsets.UTF_8)
                     .build();
 

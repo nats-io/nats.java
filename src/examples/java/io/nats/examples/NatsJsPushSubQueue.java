@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
  *
- * Usage: java NatsJsPushSubQueue [server]
+ * Usage: java NatsJsPushSubQueue [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -34,22 +34,20 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class NatsJsPushSubQueue {
 
-    // STREAM, SUBJECT, QUEUE and DURABLE are required
-    static final String IDENT = "" + System.currentTimeMillis(); // so you can re-run without restarting the server
-    static final String STREAM = "jsq-stream-" + IDENT;
-    static final String SUBJECT = "jsq-subject" + IDENT;
-    static final String QUEUE = "jsq-queue-" + IDENT;
-    static final String DURABLE = "jsq-durable-" + IDENT;
-
-    static final int MSG_COUNT = 100;
-    static final int NO_OF_SUBSCRIBERS = 5;
-    static final Duration TIMEOUT = Duration.ofMillis(500);
-
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args, true))) {
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultStream("jsq-stream")
+                .defaultSubject("jsq-subject")
+                .defaultQueue("jsq-queue")
+                .defaultDurable("jsq-durable")
+                .defaultMsgCount(100)
+                .defaultSubCount(5)
+                .build(args);
+
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
             // Create the stream.
-            NatsJsUtils.createOrUpdateStream(nc, STREAM, SUBJECT);
+            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context
             JetStream js = nc.jetStream();
@@ -58,15 +56,15 @@ public class NatsJsPushSubQueue {
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received
             // - have a list of subscribers and threads so I can track them
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(DURABLE).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(exArgs.durable).build();
             AtomicInteger allReceived = new AtomicInteger();
             List<JsQueueSubscriber> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();
-            for (int id = 1; id <= NO_OF_SUBSCRIBERS; id++) {
+            for (int id = 1; id <= exArgs.subCount; id++) {
                 // setup the subscription
-                JetStreamSubscription sub = js.subscribe(SUBJECT, QUEUE, pso);
+                JetStreamSubscription sub = js.subscribe(exArgs.subject, exArgs.queue, pso);
                 // create and track the runnable
-                JsQueueSubscriber qs = new JsQueueSubscriber(id, js, sub, allReceived);
+                JsQueueSubscriber qs = new JsQueueSubscriber(id, exArgs.msgCount, js, sub, allReceived);
                 subscribers.add(qs);
                 // create, track and start the thread
                 Thread t = new Thread(qs);
@@ -76,7 +74,7 @@ public class NatsJsPushSubQueue {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // create and start the publishing
-            Thread pubThread = new Thread(new JsPublisher(js));
+            Thread pubThread = new Thread(new JsPublisher(js, exArgs.subject, exArgs.msgCount));
             pubThread.start();
 
             // wait for all threads to finish
@@ -97,16 +95,20 @@ public class NatsJsPushSubQueue {
 
     static class JsPublisher implements Runnable {
         JetStream js;
+        String subject;
+        int msgCount;
 
-        public JsPublisher(JetStream js) {
+        public JsPublisher(JetStream js, String subject, int msgCount) {
             this.js = js;
+            this.subject = subject;
+            this.msgCount = msgCount;
         }
 
         @Override
         public void run() {
-            for (int x = 1; x <= MSG_COUNT; x++) {
+            for (int x = 1; x <= msgCount; x++) {
                 try {
-                    PublishAck pa = js.publish(SUBJECT, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
+                    PublishAck pa = js.publish(subject, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
                     System.out.println("PUB " + pa);
 
                 } catch (IOException | JetStreamApiException e) {
@@ -120,13 +122,15 @@ public class NatsJsPushSubQueue {
 
     static class JsQueueSubscriber implements Runnable {
         int id;
+        int msgCount;
         JetStream js;
         JetStreamSubscription sub;
         AtomicInteger allReceived;
         AtomicInteger thisReceived;
 
-        public JsQueueSubscriber(int id, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
+        public JsQueueSubscriber(int id, int msgCount, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
             this.id = id;
+            this.msgCount = msgCount;
             this.js = js;
             this.sub = sub;
             this.allReceived = allReceived;
@@ -139,9 +143,9 @@ public class NatsJsPushSubQueue {
 
         @Override
         public void run() {
-            while (allReceived.get() < MSG_COUNT) {
+            while (allReceived.get() < msgCount) {
                 try {
-                    Message msg = sub.nextMessage(TIMEOUT);
+                    Message msg = sub.nextMessage(Duration.ofMillis(500));
                     while (msg != null) {
                         thisReceived.incrementAndGet();
                         allReceived.incrementAndGet();
@@ -149,7 +153,7 @@ public class NatsJsPushSubQueue {
                                 id, thisReceived.get(), new String(msg.getData(), StandardCharsets.US_ASCII));
                         msg.ack();
 
-                        msg = sub.nextMessage(TIMEOUT);
+                        msg = sub.nextMessage(Duration.ofMillis(500));
                     }
                 } catch (InterruptedException e) {
                     // just try again

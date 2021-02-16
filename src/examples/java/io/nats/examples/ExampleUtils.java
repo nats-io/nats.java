@@ -18,13 +18,23 @@ import io.nats.client.*;
 import java.time.Duration;
 
 public class ExampleUtils {
+
+    public static String getServer(String[] args) {
+        if (args.length == 1) {
+            return args[0];
+        } else if (args.length == 2 && args[0].equals("-s")) {
+            return args[1];
+        }
+        return Options.DEFAULT_URL;
+    }
+
     public static Options createExampleOptions(String[] args) throws Exception {
-        String server = ExampleArgs.getServer(args);
+        String server = getServer(args);
         return createExampleOptions(server, false);
     }
 
     public static Options createExampleOptions(String[] args, boolean allowReconnect) throws Exception {
-        String server = ExampleArgs.getServer(args);
+        String server = getServer(args);
         return createExampleOptions(server, allowReconnect);
     }
 
@@ -76,7 +86,7 @@ public class ExampleUtils {
     // Reply:     [options] <subject> <msgCount>
 
     public static ExampleArgs expectSubjectAndMessage(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Expect.MESSAGE, usageString);
+        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Trail.MESSAGE, usageString);
         if (ea.message == null) {
             usage(usageString);
         }
@@ -84,7 +94,7 @@ public class ExampleUtils {
     }
 
     public static ExampleArgs expectSubjectAndMsgCount(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Expect.COUNT, usageString);
+        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Trail.COUNT, usageString);
         if (ea.msgCount < 1) {
             usage(usageString);
         }
@@ -92,7 +102,7 @@ public class ExampleUtils {
     }
 
     public static ExampleArgs expectSubjectQueueAndMsgCount(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Expect.COUNT, usageString);
+        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Trail.COUNT, usageString);
         if (ea.msgCount < 1) {
             usage(usageString);
         }
