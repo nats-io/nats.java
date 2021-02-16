@@ -13,23 +13,21 @@
 
 package io.nats.examples;
 
+import io.nats.client.*;
+
 import java.time.Duration;
 
-import io.nats.client.AuthHandler;
-import io.nats.client.Connection;
-import io.nats.client.Consumer;
-import io.nats.client.ErrorListener;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-
+/**
+ * This example will demonstrate how to build a listener that will track connect time.
+ *
+ * Usage: java ConnectTime [server]
+ *   Use tls:// or opentls:// to require tls, via the Default SSLContext
+ *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
+ *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
+ *   Use the URL for user/pass/token authentication.
+ */
 public class ConnectTime {
-    static final String usageString =
-            "\nUsage: java ConnectTime server\n"
-            + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-            + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
-            + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
-            + "\nUse the URL for user/pass/token authentication.\n";
-    
+
     public static Options createOptions(String server) throws Exception {
         Options.Builder builder = new Options.Builder().
                         server(server).
@@ -38,7 +36,6 @@ public class ConnectTime {
                         reconnectWait(Duration.ofSeconds(1)).
                         maxReconnects(-1).
                         traceConnection();
-
 
         builder = builder.connectionListener((conn, type) -> System.out.println("Status change "+type));
 
@@ -70,15 +67,8 @@ public class ConnectTime {
         return builder.build();
     }
 
-    public static void main(String args[]) {
-        String server;
-
-        if (args.length == 1) {
-            server = args[0];
-        } else {
-            usage();
-            return;
-        }
+    public static void main(String[] args) {
+        String server = ExampleArgs.getServer(args);
 
         try {
             System.out.println();
@@ -98,10 +88,5 @@ public class ConnectTime {
         } catch (Exception exp) {
             exp.printStackTrace();
         }
-    }
-
-    static void usage() {
-        System.err.println(usageString);
-        System.exit(-1);
     }
 }

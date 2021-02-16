@@ -70,56 +70,29 @@ public class ExampleUtils {
     }
 
     // Publish:   [options] <subject> <message>
-    // Subscribe: [options] <subject> <msgCount>
-
     // Request:   [options] <subject> <message>
+
+    // Subscribe: [options] <subject> <msgCount>
     // Reply:     [options] <subject> <msgCount>
 
-    // JsPublish:  [options] <streamName> <subject> <message>
-    // JsSubscribe:  [options] <streamName> <subject> <msgCount>
-
-    public static ExampleArgs readPublishArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, true, false, usageString);
+    public static ExampleArgs expectSubjectAndMessage(String[] args, String usageString) {
+        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Expect.MESSAGE, usageString);
         if (ea.message == null) {
             usage(usageString);
         }
         return ea;
     }
 
-    public static ExampleArgs readRequestArgs(String[] args, String usageString) {
-        return readPublishArgs(args, usageString);
-    }
-
-    public static ExampleArgs readSubscribeArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, false, false, usageString);
+    public static ExampleArgs expectSubjectAndMsgCount(String[] args, String usageString) {
+        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Expect.COUNT, usageString);
         if (ea.msgCount < 1) {
             usage(usageString);
         }
         return ea;
     }
 
-    public static ExampleArgs readReplyArgs(String[] args, String usageString) {
-        return readSubscribeArgs(args, usageString);
-    }
-
-    public static ExampleArgs readJsPublishArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, true, true, usageString);
-        if (ea.message == null) {
-            usage(usageString);
-        }
-        return ea;
-    }
-
-    public static ExampleArgs readJsSubscribeArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, false, true, usageString);
-        if (ea.subject == null) {
-            usage(usageString);
-        }
-        return ea;
-    }
-
-    public static ExampleArgs readJsSubscribeCountArgs(String[] args, String usageString) {
-        ExampleArgs ea = new ExampleArgs(args, false, true, usageString);
+    public static ExampleArgs expectSubjectQueueAndMsgCount(String[] args, String usageString) {
+        ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Expect.COUNT, usageString);
         if (ea.msgCount < 1) {
             usage(usageString);
         }

@@ -23,7 +23,7 @@ import static io.nats.examples.NatsJsUtils.streamExists;
 /**
  * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
  *
- * Usage: java NatsJsPushSub [-s server]
+ * Usage: java NatsJsPushSub [server]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.

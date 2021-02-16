@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * This example will demonstrate a pull subscription with noWait.
  *
- * Usage: java NatsJsPullSubWithNoWait [-s server]
+ * Usage: java NatsJsPullSubWithNoWait [server]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.

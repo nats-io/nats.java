@@ -75,4 +75,13 @@ public class NatsPublishAck extends JetStreamApiResponse implements PublishAck {
     public boolean isDuplicate() {
         return duplicate;
     }
+
+    @Override
+    public String toString() {
+        return "NatsPublishAck{" +
+                "stream='" + stream + '\'' +
+                ", seq=" + seq +
+                ", duplicate=" + duplicate +
+                "}";
+    }
 }

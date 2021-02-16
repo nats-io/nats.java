@@ -13,16 +13,15 @@
 
 package io.nats.examples;
 
+import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
+import io.nats.client.Nats;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-
-public class NatsDispatch {
+public class NatsSubDispatch {
 
     static final String usageString =
             "\nUsage: java NatsDispatch [server] <subject> <msgCount>\n"
@@ -31,52 +30,29 @@ public class NatsDispatch {
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
             + "\nUse the URL for user/pass/token authentication.\n";
 
-    public static void main(String args[]) {
-        String subject;
-        int msgCount;
-        String server;
+    public static void main(String[] args) {
+        ExampleArgs exArgs = ExampleUtils.expectSubjectAndMsgCount(args, usageString);
 
-        if (args.length == 3) {
-            server = args[0];
-            subject = args[1];
-            msgCount = Integer.parseInt(args[2]);
-        } else if (args.length == 2) {
-            server = Options.DEFAULT_URL;
-            subject = args[0];
-            msgCount = Integer.parseInt(args[1]);
-        } else {
-            usage();
-            return;
-        }
+        System.out.printf("Trying to connect to %s, and listen to %s for %d messages.\n\n", exArgs.server, exArgs.subject, exArgs.msgCount);
 
-        try {
-            System.out.println();
-            System.out.printf("Trying to connect to %s, and listen to %s for %d messages.\n", server, subject, msgCount);
-            System.out.println();
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
-            Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server, true));
-            CountDownLatch latch = new CountDownLatch(msgCount); // dispatcher runs callback in another thread
+            CountDownLatch latch = new CountDownLatch(exArgs.msgCount); // dispatcher runs callback in another thread
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 System.out.printf("Received message \"%s\" on subject \"%s\"\n", 
                                         new String(msg.getData(), StandardCharsets.UTF_8), 
                                         msg.getSubject());
                 latch.countDown();
             });
-            d.subscribe(subject);
+            d.subscribe(exArgs.subject);
 
             nc.flush(Duration.ZERO);
 
             latch.await();
-            nc.close();
-            
-        } catch (Exception exp) {
-            exp.printStackTrace();
         }
-    }
-
-    static void usage() {
-        System.err.println(usageString);
-        System.exit(-1);
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

@@ -25,14 +25,14 @@ import java.util.concurrent.TimeUnit;
 public class NatsReqFuture {
 
     static final String usageString =
-            "\nUsage: java NatsReq [-s server] [-h headerKey:headerValue]* <subject> <text message>\n"
+            "\nUsage: java NatsReq [-s server] [-h headerKey:headerValue]* <subject> <message>\n"
                     + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
                     + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        ExampleArgs exArgs = ExampleUtils.readRequestArgs(args, usageString);
+        ExampleArgs exArgs = ExampleUtils.expectSubjectAndMessage(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 
