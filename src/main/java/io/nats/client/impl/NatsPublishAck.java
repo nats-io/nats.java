@@ -29,7 +29,7 @@ public class NatsPublishAck extends JetStreamApiResponse implements PublishAck {
     private static final Pattern duplicateRE = JsonUtils.buildPattern("duplicate", FieldType.jsonBoolean);
     private static final Pattern seqnoRE = JsonUtils.buildPattern("seq", FieldType.jsonNumber); 
 
-    public NatsPublishAck(byte[] response) throws IOException {
+    public NatsPublishAck(byte[] response) throws IOException, JetStreamApiException {
         super(response);
 
         if (response.length < 5) {
@@ -38,7 +38,7 @@ public class NatsPublishAck extends JetStreamApiResponse implements PublishAck {
         }
 
         if (hasError()) {
-            throw new IllegalStateException(getError());
+            throw new JetStreamApiException(this);
         }
 
         String responseJson = getResponse();

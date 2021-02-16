@@ -30,11 +30,6 @@ public class TestBase {
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
     public static final long LONG_FLUSH_TIMEOUT_MS = 15000;
-    public static final String STREAM = "stream";
-    public static final String SUBJECT = "subject";
-    public static final String DURABLE = "durable";
-    public static final String DATA = "data";
-    public static final String DELIVER = "deliver";
 
     // ----------------------------------------------------------------------------------------------------
     // runners
@@ -78,6 +73,14 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // data makers
     // ----------------------------------------------------------------------------------------------------
+    public static final String STREAM = "stream";
+    public static final String SUBJECT = "subject";
+    public static final String QUEUE = "queue";
+    public static final String DURABLE = "durable";
+    public static final String DELIVER = "deliver";
+    public static final String MESSAGE_ID = "mid";
+    public static final String DATA = "data";
+
     public static String stream(int seq) {
         return STREAM + "-" + seq;
     }
@@ -86,12 +89,20 @@ public class TestBase {
         return SUBJECT + "-" + seq;
     }
 
+    public static String queue(int seq) {
+        return QUEUE + "-" + seq;
+    }
+
     public static String durable(int seq) {
         return DURABLE + "-" + seq;
     }
 
     public static String deliver(int seq) {
         return DELIVER + "-" + seq;
+    }
+
+    public static String messageId(int seq) {
+        return MESSAGE_ID + "-" + seq;
     }
 
     public static String data(int seq) {

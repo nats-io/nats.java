@@ -204,7 +204,7 @@ public class PublishOptions {
          * @param sequence the expected last sequence number
          * @return builder
          */
-        public Builder expectedLastSeqence(long sequence) {
+        public Builder expectedLastSequence(long sequence) {
             expectedLastSeq = sequence;
             return this;
         }
