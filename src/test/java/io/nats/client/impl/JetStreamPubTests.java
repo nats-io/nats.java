@@ -13,41 +13,214 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStream;
-import io.nats.client.Message;
-import io.nats.client.PublishAck;
+import io.nats.client.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
-    public void testPub() throws Exception {
+    public void testPublishVarieties() throws Exception {
         runInJsServer(nc -> {
+            createTestStream(nc);
             JetStream js = nc.jetStream();
 
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
+            PublishAck pa = js.publish(SUBJECT, dataBytes(1));
+            assertPublishAck(pa, 1);
 
-            Message msg = NatsMessage.builder()
-                    .subject(SUBJECT)
-                    .data(DATA.getBytes(StandardCharsets.US_ASCII))
+            Message msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+            pa = js.publish(msg);
+            assertPublishAck(pa, 2);
+
+            PublishOptions po = PublishOptions.builder().build();
+            pa = js.publish(SUBJECT, dataBytes(3), po);
+            assertPublishAck(pa, 3);
+
+            msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
+            pa = js.publish(msg, po);
+            assertPublishAck(pa, 4);
+
+            pa = js.publish(SUBJECT, null);
+            assertPublishAck(pa, 5);
+
+            msg = NatsMessage.builder().subject(SUBJECT).build();
+            pa = js.publish(msg);
+            assertPublishAck(pa, 6);
+
+            pa = js.publish(SUBJECT, null, po);
+            assertPublishAck(pa, 7);
+
+            msg = NatsMessage.builder().subject(SUBJECT).build();
+            pa = js.publish(msg, po);
+            assertPublishAck(pa, 8);
+
+            Subscription s = js.subscribe(SUBJECT);
+            assertNextMessage(s, data(1));
+            assertNextMessage(s, data(2));
+            assertNextMessage(s, data(3));
+            assertNextMessage(s, data(4));
+            assertNextMessage(s, null); // 5
+            assertNextMessage(s, null); // 6
+            assertNextMessage(s, null); // 7
+            assertNextMessage(s, null); // 8
+        });
+    }
+
+    private void assertNextMessage(Subscription s, String data) throws InterruptedException {
+        Message m = s.nextMessage(DEFAULT_TIMEOUT);
+        assertNotNull(m);
+        if (data == null) {
+            assertNotNull(m.getData());
+            assertEquals(0, m.getData().length);
+        }
+        else {
+            assertEquals(data, new String(m.getData()));
+        }
+    }
+
+    private void assertPublishAck(PublishAck pa, int seqno) {
+        assertEquals(STREAM, pa.getStream());
+        if (seqno != -1) {
+            assertEquals(seqno, pa.getSeqno());
+        }
+        assertFalse(pa.isDuplicate());
+    }
+
+    @Test
+    public void testPublishAsyncVarieties() throws Exception {
+        runInJsServer(nc -> {
+            createTestStream(nc);
+            JetStream js = nc.jetStream();
+
+            List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
+
+            futures.add(js.publishAsync(SUBJECT, dataBytes(1)));
+
+            Message msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+            futures.add(js.publishAsync(msg));
+
+            PublishOptions po = PublishOptions.builder().build();
+            futures.add(js.publishAsync(SUBJECT, dataBytes(3), po));
+
+            msg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
+            futures.add(js.publishAsync(msg, po));
+
+            Subscription s = js.subscribe(SUBJECT);
+            List<String> datas = new ArrayList<>(Arrays.asList(data(1), data(2), data(3), data(4)));
+            assertContainsMessage(s, datas);
+            assertContainsMessage(s, datas);
+            assertContainsMessage(s, datas);
+            assertContainsMessage(s, datas);
+            assertEquals(0, datas.size());
+
+            List<Long> seqnos = new ArrayList<>(Arrays.asList(1L, 2L, 3L, 4L));
+            for (CompletableFuture<PublishAck> future : futures) {
+                assertContainsPublishAck(future.get(), seqnos);
+            }
+            assertEquals(0, seqnos.size());
+
+            assertFutureIOException(js.publishAsync(subject(999), null));
+
+            msg = NatsMessage.builder().subject(subject(999)).build();
+            assertFutureIOException(js.publishAsync(msg));
+
+            PublishOptions pox1 = PublishOptions.builder().build();
+
+            assertFutureIOException(js.publishAsync(subject(999), null, pox1));
+
+            msg = NatsMessage.builder().subject(subject(999)).build();
+            assertFutureIOException(js.publishAsync(msg, pox1));
+
+            PublishOptions pox2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
+
+            assertFutureJetStreamApiException(js.publishAsync(SUBJECT, null, pox2));
+
+            msg = NatsMessage.builder().subject(SUBJECT).build();
+            assertFutureJetStreamApiException(js.publishAsync(msg, pox2));
+
+        });
+    }
+
+    private void assertFutureIOException(CompletableFuture<PublishAck> future) {
+        ExecutionException ee = assertThrows(ExecutionException.class, future::get);
+        assertTrue(ee.getCause() instanceof RuntimeException);
+        assertTrue(ee.getCause().getCause() instanceof IOException);
+    }
+
+    private void assertFutureJetStreamApiException(CompletableFuture<PublishAck> future) {
+        ExecutionException ee = assertThrows(ExecutionException.class, future::get);
+        assertTrue(ee.getCause() instanceof RuntimeException);
+        assertTrue(ee.getCause().getCause() instanceof JetStreamApiException);
+    }
+
+    private void assertContainsMessage(Subscription s, List<String> datas) throws InterruptedException {
+        Message m = s.nextMessage(DEFAULT_TIMEOUT);
+        assertNotNull(m);
+        String data = new String(m.getData());
+        assertTrue(datas.contains(data));
+        datas.remove(data);
+    }
+
+    private void assertContainsPublishAck(PublishAck pa, List<Long> seqnos) {
+        assertEquals(STREAM, pa.getStream());
+        assertFalse(pa.isDuplicate());
+        assertTrue(seqnos.contains(pa.getSeqno()));
+        seqnos.remove(pa.getSeqno());
+    }
+
+    @Test
+    public void testPublishExpectations() throws Exception {
+        runInJsServer(nc -> {
+            createTestStream(nc);
+            JetStream js = nc.jetStream();
+
+            PublishOptions po = PublishOptions.builder()
+                    .expectedStream(STREAM)
+                    .messageId(messageId(1))
                     .build();
+            PublishAck pa = js.publish(SUBJECT, dataBytes(1), po);
+            assertPublishAck(pa, 1);
 
-            PublishAck pa = js.publish(msg);
+            po = PublishOptions.builder()
+                    .expectedLastMsgId(messageId(1))
+                    .messageId(messageId(2))
+                    .build();
+            pa = js.publish(SUBJECT, dataBytes(2), po);
+            assertPublishAck(pa, 2);
+
+            po = PublishOptions.builder()
+                    .expectedLastSequence(2)
+                    .messageId(messageId(3))
+                    .build();
+            pa = js.publish(SUBJECT, dataBytes(3), po);
+            assertPublishAck(pa, 3);
+
+            PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
+            assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po1));
+
+            PublishOptions po2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
+            assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po2));
+
+            PublishOptions po3 = PublishOptions.builder().expectedLastSequence(999).build();
+            assertThrows(JetStreamApiException.class, () -> js.publish(SUBJECT, dataBytes(999), po3));
         });
     }
 
     @Test
-    public void testPublishAckJson() throws IOException {
-        String json = "{\"stream\":\"sname\", \"seq\":1, \"duplicate\":false}";
+    public void testPublishAckJson() throws IOException, JetStreamApiException {
+        String json = "{\"stream\":\"sname\", \"seq\":42, \"duplicate\":false}";
         PublishAck pa = new NatsPublishAck(json.getBytes(StandardCharsets.US_ASCII));
         assertEquals("sname", pa.getStream());
-        assertEquals(1, pa.getSeqno());
+        assertEquals(42, pa.getSeqno());
         assertFalse(pa.isDuplicate());
         assertNotNull(pa.toString());
     }

@@ -35,7 +35,7 @@ public class PublishOptionsTests extends TestBase {
                 .streamTimeout(Duration.ofSeconds(99))
                 .expectedLastMsgId("1")
                 .expectedStream("bar")
-                .expectedLastSeqence(42)
+                .expectedLastSequence(42)
                 .messageId("msgId")
                 .build();
 

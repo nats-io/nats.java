@@ -12,11 +12,6 @@ import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStreamConstants {
 
-    private static final String msgIdHdr             = "Nats-Msg-Id";
-    private static final String expectedStreamHdr    = "Nats-Expected-Stream";
-    private static final String expectedLastSeqHdr   = "Nats-Expected-Last-Sequence";
-    private static final String expectedLastMsgIdHdr = "Nats-Expected-Last-Msg-Id";
-
     private final NatsConnection conn;
     private final String prefix;
     private final Duration requestTimeout;
@@ -306,7 +301,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         });
     }
 
-    private PublishAck publishInternal(Message message, PublishOptions options) throws IOException {
+    private PublishAck publishInternal(Message message, PublishOptions options) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
 
         NatsMessage natsMessage = message instanceof NatsMessage ? (NatsMessage)message : new NatsMessage(message);
@@ -326,22 +321,22 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             // we know no headers are set with default options
             long seqno = options.getExpectedLastSequence();
             if (seqno > 0) {
-                headers.add(expectedLastSeqHdr, Long.toString(seqno));
+                headers.add(EXPECTED_LAST_SEQ_HDR, Long.toString(seqno));
             }
 
             String s = options.getExpectedLastMsgId();
             if (s != null) {
-                headers.add(expectedLastMsgIdHdr, s);
+                headers.add(EXPECTED_LAST_MSG_ID_HDR, s);
             }
 
             s = options.getExpectedStream();
             if (s != null) {
-                headers.add(expectedStreamHdr, s);
+                headers.add(EXPECTED_STREAM_HDR, s);
             }
 
             s = options.getMessageId();
             if (s != null) {
-                headers.add(msgIdHdr, s);
+                headers.add(MSG_ID_HDR, s);
             }
         }
 
@@ -369,9 +364,6 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                                                  PullSubscribeOptions pullSubscribeOptions) throws IOException, JetStreamApiException {
         // first things first...
         boolean isPullMode = pullSubscribeOptions != null;
-        if (handler != null && isPullMode) {
-            throw new IllegalStateException("Pull mode is not allowed with dispatcher.");
-        }
 
         // setup the configuration, use a default.
         String stream;
@@ -571,9 +563,6 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     }
 
     private String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
-        if (subject == null) {
-            throw new IllegalArgumentException("subject cannot be null.");
-        }
         String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
 
         Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), requestTimeout);
