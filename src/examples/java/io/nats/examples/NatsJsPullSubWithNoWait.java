@@ -51,6 +51,7 @@ public class NatsJsPullSubWithNoWait {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable) // required
+                    .ackMode(PullSubscribeOptions.AckMode.ACK)
                     // .configuration(...)   // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 
@@ -64,6 +65,7 @@ public class NatsJsPullSubWithNoWait {
             nc.flush(Duration.ofSeconds(1));
 
             // 1. Publish 10 messages
+            // -  Start the pull
             // -  Start the pull
             // -  Read the messages
             // -  Since there are exactly the batch size we get them all
@@ -93,7 +95,7 @@ public class NatsJsPullSubWithNoWait {
             publish(js, exArgs.subject, "C", 5);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
-            Message lastMessage = messages.get(5);
+            Message lastMessage = messages.get(messages.size()-1);
             System.out.println("We should have received 6 total messages, we received: " + messages.size());
             System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
 

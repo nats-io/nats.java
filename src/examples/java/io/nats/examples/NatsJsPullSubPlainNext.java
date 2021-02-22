@@ -22,21 +22,23 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /**
- * This example will demonstrate a pull subscription.
+ * This example will demonstrate a pull subscription with:
+ * - a batch size (plain)
+ * - AckMode.NEXT
  *
- * Usage: java NatsJsPullSub [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsPullSubPlainNext [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSub {
+public class NatsJsPullSubPlainNext {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("pull-stream")
-                .defaultSubject("pull-subject")
-                .defaultDurable("pull-durable")
+                .defaultStream("pull-plain-next-stream")
+                .defaultSubject("pull-plain-next-subject")
+                .defaultDurable("pull-plain-next-durable")
                 .build(args);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
@@ -48,20 +50,22 @@ public class NatsJsPullSub {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable)      // required
+                    .ackMode(PullSubscribeOptions.AckMode.NEXT) // NEXT is NOT the default
                     // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 
             // 0.1 Initialize. subscription
-            // 0.2 Start the pull, you don't have to call this again
-            // 0.3 Flush outgoing communication with/to the server, useful when app is both publishing and subscribing.
+            // 0.2 Flush outgoing communication with/to the server, useful when app is both publishing and subscribing.
+            // 0.3 Start the pull, you don't have to call this again because AckMode.NEXT
+            // -  When we ack a batch message the server starts preparing or adding to the next batch.
             System.out.println("\n----------\n0. Initialize the subscription and pull.");
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
-            sub.pull(10);
             nc.flush(Duration.ofSeconds(1));
 
+            sub.pull(10);
+
             // 1. Publish some that is less than the batch size.
-            // -  Read what is available.
-            // -  When we ack a batch message the server starts preparing or adding to the next batch.
+            // -  Do this first as data will typically be published first.
             System.out.println("\n----------\n1. Publish some amount of messages, but not entire batch size.");
             publish(js, exArgs.subject, "A", 4);
             readMessagesAck(sub);
@@ -69,7 +73,7 @@ public class NatsJsPullSub {
             // 2. Publish some more covering our pull size...
             // -  Read what is available, expect all messages.
             System.out.println("----------\n2. Publish more than the batch size.");
-            publish(js, exArgs.subject, "B", 6);
+            publish(js, exArgs.subject, "B", 10);
             readMessagesAck(sub);
 
             // 3. Read when there are no messages available.
@@ -82,7 +86,7 @@ public class NatsJsPullSub {
             publish(js, exArgs.subject, "C", 12);
             readMessagesAck(sub);
 
-            // 5. Read when there are no messages available.
+            // 6. Read when there are no messages available.
             System.out.println("----------\n5. Read when there are no messages available.");
             readMessagesAck(sub);
 

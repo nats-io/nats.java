@@ -30,7 +30,7 @@ public class ExampleArgs {
     public String consumer = null;
     public String durable = null;
     public String deliver = null;
-    public int pollSize = 0;
+    public int pullSize = 0;
     public Headers headers;
 
     public boolean hasHeaders() {
@@ -118,8 +118,8 @@ public class ExampleArgs {
             case "-strm":
                 stream = value;
                 break;
-            case "-poll":
-                pollSize = Integer.parseInt(value);
+            case "-pull":
+                pullSize = Integer.parseInt(value);
                 break;
             case "-mcnt":
                 msgCount = Integer.parseInt(value);
@@ -157,7 +157,7 @@ public class ExampleArgs {
         private String consumer = null;
         private String durable = null;
         private String deliver = null;
-        private int pollSize = 0;
+        private int pullSize = 0;
 
         public Builder defaultSubject(String subject) {
             this.subject = subject;
@@ -204,8 +204,8 @@ public class ExampleArgs {
             return this;
         }
 
-        public Builder defaultPollSize(int pollSize) {
-            this.pollSize = pollSize;
+        public Builder defaultPullSize(int pullSize) {
+            this.pullSize = pullSize;
             return this;
         }
 
@@ -238,8 +238,8 @@ public class ExampleArgs {
             if (ea.deliver == null) {
                 ea.deliver = deliver;
             }
-            if (ea.pollSize == 0) {
-                ea.pollSize = pollSize;
+            if (ea.pullSize == 0) {
+                ea.pullSize = pullSize;
             }
             return ea;
         }

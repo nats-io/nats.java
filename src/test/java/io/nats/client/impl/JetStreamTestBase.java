@@ -74,6 +74,17 @@ public class JetStreamTestBase extends TestBase {
     // ----------------------------------------------------------------------------------------------------
     // Publish / Read
     // ----------------------------------------------------------------------------------------------------
+    public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
+        for (int x = 1; x <= count; x++) {
+            String data = prefix + x;
+            js.publish(NatsMessage.builder()
+                    .subject(subject)
+                    .data(data.getBytes(StandardCharsets.US_ASCII))
+                    .build()
+            );
+        }
+    }
+
     public static void publish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
             js.publish(NatsMessage.builder().subject(subject).data((dataBytes(startId++))).build());
@@ -101,17 +112,25 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
+        return readMessagesAck(sub, false);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy) throws InterruptedException {
         List<Message> messages = new ArrayList<>();
         Message msg = sub.nextMessage(Duration.ofSeconds(1));
         while (msg != null) {
             messages.add(msg);
             if (msg.isJetStream()) {
-//                System.out.println("ACK " + new String(msg.getData()));
+                if (noisy) {
+                    System.out.println("ACK " + new String(msg.getData()));
+                }
                 msg.ack();
                 msg = sub.nextMessage(Duration.ofSeconds(1));
             }
             else {
-//                System.out.println("NOT");
+                if (noisy) {
+                    System.out.println("STATUS " + msg.getStatus());
+                }
                 msg = null; // so we break the loop
             }
         }

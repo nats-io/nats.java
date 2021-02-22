@@ -15,10 +15,15 @@ package io.nats.client.impl;
 
 import io.nats.client.ConsumerInfo;
 import io.nats.client.JetStreamSubscription;
+import io.nats.client.PullSubscribeOptions;
+import io.nats.client.PullSubscribeOptions.AckMode;
+import io.nats.client.PullSubscribeOptions.ExpireMode;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
+import static io.nats.client.support.NatsConstants.SPACE;
 import static io.nats.client.support.Validator.validatePullBatchSize;
 
 /**
@@ -26,23 +31,35 @@ import static io.nats.client.support.Validator.validatePullBatchSize;
  */
 public class NatsJetStreamSubscription extends NatsSubscription implements JetStreamSubscription, NatsJetStreamConstants {
 
-    NatsJetStream js;
-    String consumer;
-    String stream;
-    String deliver;
-    boolean isPullMode;
+    private NatsJetStream js;
+    private String consumer;
+    private String stream;
+    private String deliver;
+    private PullSubscribeOptions pullSubscribeOptions;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(sid, subject, queueName, connection, dispatcher);
     }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, boolean isPullMode) {
+    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, PullSubscribeOptions pullSubscribeOptions) {
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.isPullMode = isPullMode;
+        this.pullSubscribeOptions = pullSubscribeOptions;
+    }
+
+    boolean isPullMode() {
+        return pullSubscribeOptions != null;
+    }
+
+    AckMode getAckMode() {
+        return pullSubscribeOptions == null ? null : pullSubscribeOptions.getAckMode();
+    }
+
+    ExpireMode getExpireMode() {
+        return pullSubscribeOptions == null ? null : pullSubscribeOptions.getExpireMode();
     }
 
     /**
@@ -69,24 +86,37 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         _pull(batchSize, false, expiresIn); // nulls mean use default
     }
 
+    private Duration currentExpiresIn;
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
-        if (!isPullMode) {
+        if (!isPullMode()) {
             throw new IllegalStateException("Subscription type does not support pull.");
         }
 
         int batch = validatePullBatchSize(batchSize);
-        String subj = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
+        currentExpiresIn = expiresIn;
+        String publishSubject = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
+        connection.publish(publishSubject, getSubject(),
+                getPullJson(null, noWait, expiresIn, batch));
+        connection.lenientFlushBuffer();
+    }
 
-        StringBuilder sb = JsonUtils.beginJson();
+    byte[] getAckJson(AckType ackType) {
+        return currentExpiresIn == null || getExpireMode() != ExpireMode.ADVANCE
+                ? ackType.bytes : getPullJson(ackType.text, false, currentExpiresIn, 1);
+    }
+
+    byte[] getPullJson(String prefix, boolean noWait, Duration expiresIn, int batch) {
+        StringBuilder sb = new StringBuilder();
+        if (prefix != null) {
+            sb.append(prefix).append(SPACE);
+        }
+        sb.append("{");
         JsonUtils.addFld(sb, "batch", batch);
         JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
         if (expiresIn != null) {
             JsonUtils.addFld(sb, "expires", DateTimeUtils.fromNow(expiresIn));
         }
-        byte[] payload = JsonUtils.endJson(sb).toString().getBytes();
-
-        connection.publish(subj, getSubject(), payload);
-        connection.lenientFlushBuffer();
+        return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
     }
 
     /**
@@ -103,7 +133,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 "consumer='" + consumer + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
-                ", isPullMode='" + isPullMode +
+                ", isPullMode='" + isPullMode() +
+                ", ackMode='" + getAckMode() +
+                ", expireMode='" + getExpireMode() +
                 '}';
     }
 }

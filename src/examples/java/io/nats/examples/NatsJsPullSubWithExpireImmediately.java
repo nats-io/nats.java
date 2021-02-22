@@ -76,7 +76,7 @@ public class NatsJsPullSubWithExpireImmediately {
             // -  Start the pull
             // -  Read the messages
             // -  More than the batch size, we get them all
-            System.out.println("----------\n2. Publish 15 which an exact multiple of the batch size.");
+            System.out.println("----------\n2. Publish 15 which is more than batch size.");
             publish(js, exArgs.subject, "B", 15);
             sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
@@ -90,16 +90,18 @@ public class NatsJsPullSubWithExpireImmediately {
             publish(js, exArgs.subject, "C", 5);
             sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
-            System.out.println("We should have received 5 total messages, we received: " + messages.size());
+            Message lastMessage = messages.get(0);
+            System.out.println("We should have received 1 messages, we received: " + messages.size());
+            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
 
             // 4. There are no waiting messages.
             // -  Start the pull
             // -  Read the messages
             // -  Since there are no messages the only message will be a status 408 message.
             System.out.println("----------\n4. There are no waiting messages.");
-            sub.pullNoWait(10);
+            sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
-            Message lastMessage = messages.get(0);
+            lastMessage = messages.get(0);
             System.out.println("We should have received 1 messages, we received: " + messages.size());
             System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
 

@@ -13,21 +13,21 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PullSubscribeOptions;
+import io.nats.client.*;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 
+import static io.nats.examples.NatsJsUtils.printConsumerInfo;
+import static io.nats.examples.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
-    public void testPull() throws Exception {
+    public void plain_AckModeNext_ExpireModeNA() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -36,14 +36,15 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .durable(DURABLE).ackMode(PullSubscribeOptions.AckMode.NEXT).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish some amount of messages, but not entire pull size
-            publish(js, SUBJECT, 1, 4);
+            publish(js, SUBJECT, "A", 4);
 
             // start the pull
             sub.pull(10);
@@ -54,7 +55,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRedAndTotal(4, messages.size(), 4, total);
 
             // publish some more covering our initial pull and more
-            publish(js, SUBJECT, 5, 20);
+            publish(js, SUBJECT, "B", 20);
 
             // read what is available, expect 20 more
             messages = readMessagesAck(sub);
@@ -69,7 +70,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPullNoWait() throws Exception {
+    public void plain_AckModeAck_ExpireModeNA() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -78,7 +79,97 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .durable(DURABLE).ackMode(PullSubscribeOptions.AckMode.ACK).build();
+
+            // Subscribe synchronously.
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // publish some amount of messages, but not entire pull size
+            publish(js, SUBJECT, "A", 4);
+
+            // start the pull
+            sub.pull(10);
+
+            // read what is available, expect 4
+            List<Message> messages = readMessagesAck(sub);
+            int total = messages.size();
+            validateRedAndTotal(4, messages.size(), 4, total);
+
+            // publish some more covering our initial pull and more
+            publish(js, SUBJECT, "B", 10);
+
+            // read what is available, expect 6 more
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(6, messages.size(), 10, total);
+
+            // read what is available, should be zero since we didn't re-pull
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(0, messages.size(), 10, total);
+
+            // re-issue the pull
+            sub.pull(10);
+
+            // read what is available, should be 4 left over
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(4, messages.size(), 14, total);
+
+            // publish some more
+            publish(js, SUBJECT, "C", 10);
+
+            // read what is available, should be 6 since we didn't finish the last batch
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(6, messages.size(), 20, total);
+
+            // re-issue the pull, but a smaller amount
+            sub.pull(2);
+
+            // read what is available, should be 5 since we changed the pull size
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(2, messages.size(),22, total);
+
+            // re-issue the pull, since we got the full batch size
+            sub.pull(2);
+
+            // read what is available, should be zero since we didn't re-pull
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(2, messages.size(), 24, total);
+
+            // re-issue the pull, any amount there are no messages
+            sub.pull(1);
+
+            // read what is available, there are none
+            messages = readMessagesAck(sub);
+            total += messages.size();
+            validateRedAndTotal(0, messages.size(), 24, total);
+        });
+    }
+
+    private void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
+        System.out.println("\n" + n + ". -------------------------------");
+        printStreamInfo(jsm.getStreamInfo(STREAM));
+        printConsumerInfo(jsm.getConsumerInfo(STREAM, DURABLE));
+    }
+
+    @Test
+    public void testPullNoWaitAckModeNext() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .durable(DURABLE).ackMode(PullSubscribeOptions.AckMode.NEXT).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -112,7 +203,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPullExpireFuture() throws Exception {
+    public void testPullExpireFutureAckModeNext() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -121,7 +212,8 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .durable(DURABLE).ackMode(PullSubscribeOptions.AckMode.NEXT).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -163,7 +255,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPullExpireImmediately() throws Exception {
+    public void expireImmediately_AckModeNext_ExpireModeLeave() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -172,7 +264,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .expireMode(PullSubscribeOptions.ExpireMode.LEAVE)
+                    .durable(DURABLE).ackMode(PullSubscribeOptions.AckMode.NEXT).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -180,14 +274,14 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 10 messages
             // expire, batch size 10, there are 10 messages, we will read them all
-            publish(js, SUBJECT, 100, 10);
+            publish(js, SUBJECT, 101, 10);
             sub.pullExpiresIn(10, Duration.ZERO);
             List<Message> messages = readMessagesAck(sub);
             assertEquals(10, messages.size());
             assertAllJetStream(messages);
 
             // publish 15 messages
-            publish(js, SUBJECT, 200, 15);
+            publish(js, SUBJECT, 201, 15);
             // expire, batch size 10, there are 15 messages, we will read them all
             // and for expire, since we got more than batch size we do not trip expire
             sub.pullExpiresIn(10, Duration.ZERO);
@@ -196,7 +290,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertAllJetStream(messages);
 
             // publish 5 messages
-            publish(js, SUBJECT, 300, 5);
+            publish(js, SUBJECT, 301, 5);
             // expire, batch size 10, there are 5 messages
             sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);

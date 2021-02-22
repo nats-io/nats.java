@@ -116,26 +116,4 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         });
     }
 
-    @Test
-    public void testConsumerInPullModeRequiresExplicitAckPolicy() throws Exception {
-        runInJsServer(nc -> {
-            createTestStream(nc);
-            JetStream js = nc.jetStream();
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .ackPolicy(ConsumerConfiguration.AckPolicy.All).build();
-            PullSubscribeOptions pullOptsAll = PullSubscribeOptions.builder()
-                    .durable(DURABLE)
-                    .configuration(cc).build();
-            assertThrows(JetStreamApiException.class, () -> js.subscribe(SUBJECT, pullOptsAll));
-
-            cc = ConsumerConfiguration.builder()
-                    .ackPolicy(ConsumerConfiguration.AckPolicy.None).build();
-            PullSubscribeOptions pullOptsNone = PullSubscribeOptions.builder()
-                    .durable(DURABLE)
-                    .configuration(cc).build();
-            assertThrows(JetStreamApiException.class, () -> js.subscribe(SUBJECT, pullOptsNone));
-        });
-    }
-
 }

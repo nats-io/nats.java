@@ -440,6 +440,7 @@ public class StreamConfiguration {
 
         /**
          * Update Builder, useful if you need to update a configuration
+         * @param sc the configuration to copy
          */
         public Builder(StreamConfiguration sc) {
             this.name = sc.name;

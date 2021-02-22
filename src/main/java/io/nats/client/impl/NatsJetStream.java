@@ -147,6 +147,13 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         extractApiResponseThrowOnError( makeRequestResponseRequired(subj, null, requestTimeout) );
     }
 
+    @Override
+    public ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
+        String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumer);
+        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
+        return new ConsumerInfo(extractJsonThrowOnError(resp));
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -383,7 +390,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
 
         String durable = ccBuilder.getDurable();
-        String inbox = ccBuilder.getDeliverSubject();
+        String inbox = isPullMode ? null : ccBuilder.getDeliverSubject();
         boolean shouldCreate = true;
 
         // 1. Did they tell me what stream? No? look it up
@@ -462,11 +469,11 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                 sub.unsubscribe();
                 throw e;
             }
-            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, isPullMode);
+            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, pullSubscribeOptions);
         }
         // 7-Exists.
         else {
-            sub.setupJetStream(this, durable, stream, inbox, isPullMode);
+            sub.setupJetStream(this, durable, stream, inbox, pullSubscribeOptions);
         }
 
         return sub;
@@ -550,16 +557,15 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     }
 
     ConsumerInfo lookupConsumerInfo(String stream, String consumer) throws IOException, JetStreamApiException {
-        String ccInfoSubj = String.format(JSAPI_CONSUMER_INFO, stream, consumer);
-        Message resp = makeRequestResponseRequired(ccInfoSubj, null, requestTimeout);
-        JetStreamApiResponse jsApiResp = extractApiResponse(resp);
-        if (jsApiResp.hasError()) {
-            if (jsApiResp.getErrorCode() == 404) {
+        try {
+            return getConsumerInfo(stream, consumer);
+        }
+        catch (JetStreamApiException e) {
+            if (e.getErrorCode() == 404) {
                 return null;
             }
-            throw new JetStreamApiException(jsApiResp);
+            throw e;
         }
-        return new ConsumerInfo(extractJsonThrowOnError(resp));
     }
 
     private String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {

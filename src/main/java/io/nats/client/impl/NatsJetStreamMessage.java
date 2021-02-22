@@ -15,33 +15,16 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.MessageMetaData;
+import io.nats.client.PullSubscribeOptions.AckMode;
 import io.nats.client.impl.NatsMessage.SelfCalculatingMessage;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.impl.NatsJetStreamMessage.AckType.*;
+import static io.nats.client.impl.AckType.*;
 import static io.nats.client.support.Validator.validateDurationRequired;
 
 class NatsJetStreamMessage extends SelfCalculatingMessage {
-
-    enum AckType {
-        // Acknowledgement protocol messages
-        AckAck("+ACK"),
-        AckNak("-NAK"),
-        AckProgress("+WPI"),
-
-        // special case
-        AckNext("+NXT"),
-        AckTerm("+TERM"),
-        AckNextOne("+NXT {\"batch\":1}");
-
-        final byte[] body;
-
-        AckType(String body) {
-            this.body = body.getBytes();
-        }
-    }
 
     private NatsJetStreamMetaData jsMetaData = null;
 
@@ -111,12 +94,19 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
         if (isPullMode()) {
             switch (ackType) {
                 case AckAck:
-                    nc.publish(replyTo, subscription.getSubject(), AckNext.body);
+                    if (getAckMode() == AckMode.NEXT) {
+                        nc.publish(replyTo, subscription.getSubject(),
+                                ((NatsJetStreamSubscription) subscription).getAckJson(AckNext));
+                    }
+                    else {
+                        nc.publish(replyTo, AckAck.bytes);
+                    }
                     break;
 
                 case AckNak:
                 case AckTerm:
-                    nc.publish(replyTo, subscription.getSubject(), ackType.body);
+                case AckProgress:
+                    nc.publish(replyTo, subscription.getSubject(), ackType.bytes);
                     break;
             }
             if (isSync && nc.request(replyTo, null, dur) == null) {
@@ -124,22 +114,35 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
             }
         }
         else if (isSync) {
-            if (nc.request(replyTo, ackType.body, dur) == null) {
+            if (nc.request(replyTo, ackType.bytes, dur) == null) {
                 throw new TimeoutException("Ack response timed out.");
             }
         }
         else {
-            nc.publish(replyTo, ackType.body);
+            nc.publish(replyTo, ackType.bytes);
         }
     }
 
+    private Boolean pullMode = null; // lazy init
     private boolean isPullMode() {
-        return subscription instanceof NatsJetStreamSubscription
-                && ((NatsJetStreamSubscription) subscription).isPullMode;
+        if (pullMode == null) {
+            pullMode = subscription instanceof NatsJetStreamSubscription
+                    && ((NatsJetStreamSubscription) subscription).isPullMode();
+        }
+        return pullMode;
+    }
+
+    private AckMode ackMode = null; // lazy init
+    private AckMode getAckMode() {
+        if (ackMode == null) {
+            ackMode = isPullMode()
+                    ? ((NatsJetStreamSubscription) subscription).getAckMode()
+                    : AckMode.ACK;
+        }
+        return ackMode;
     }
 
     private Connection getJetStreamValidatedConnection() {
-
         if (getSubscription() == null) {
             throw new IllegalStateException("Message is not bound to a subscription.");
         }

@@ -16,6 +16,7 @@ package io.nats.examples;
 import io.nats.client.*;
 
 import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ExampleUtils {
 
@@ -111,7 +112,17 @@ public class ExampleUtils {
 
     public static void sleep(long millis) {
         try {
-            Thread.sleep(millis);
+            if (millis > 0) {
+                Thread.sleep(millis);
+            }
+        } catch (InterruptedException e) {
+            // ignore
+        }
+    }
+
+    public static void sleepRandom(long millis) {
+        try {
+            Thread.sleep(ThreadLocalRandom.current().nextLong(millis));
         } catch (InterruptedException e) {
             // ignore
         }
