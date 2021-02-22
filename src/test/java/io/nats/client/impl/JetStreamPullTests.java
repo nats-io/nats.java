@@ -13,15 +13,15 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamSubscription;
+import io.nats.client.Message;
+import io.nats.client.PullSubscribeOptions;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 
-import static io.nats.examples.NatsJsUtils.printConsumerInfo;
-import static io.nats.examples.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JetStreamPullTests extends JetStreamTestBase {
@@ -152,14 +152,8 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    private void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
-        System.out.println("\n" + n + ". -------------------------------");
-        printStreamInfo(jsm.getStreamInfo(STREAM));
-        printConsumerInfo(jsm.getConsumerInfo(STREAM, DURABLE));
-    }
-
     @Test
-    public void testPullNoWaitAckModeNext() throws Exception {
+    public void noWait_AckModeNext_ExpireModeNA() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -169,7 +163,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                    .durable(DURABLE).ackMode(PullSubscribeOptions.AckMode.NEXT).build();
+                    .durable(DURABLE)
+                    .ackMode(PullSubscribeOptions.AckMode.NEXT)
+                    .build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
@@ -177,27 +173,105 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 10 messages
             // no wait, batch size 10, there are 10 messages, we will read them all and not trip nowait
-            publish(js, SUBJECT, 101, 10);
+            publish(js, SUBJECT, "A", 10);
             sub.pullNoWait(10);
             List<Message> messages = readMessagesAck(sub);
             assertEquals(10, messages.size());
             assertAllJetStream(messages);
 
-            // publish 15 messages
-            // no wait, batch size 10, there are 15 messages, we will read them all
-            // but since we are in the second block of 10 and there are less than 10, we DO trip the nowait
-            publish(js, SUBJECT, 201, 15);
+            // publish 20 messages exact
+            // no wait, batch size 10, there are 20 messages, we will read them all
+            // but since we are an exact multiple of batch size we do not get a 404
+            publish(js, SUBJECT, "B", 20);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
-            assertEquals(16, messages.size());
-            assertLastIsStatus(messages, 404);
+            assertEquals(20, messages.size());
 
             // publish 5 messages
             // no wait, batch size 10, there are 5 messages, we WILL trip nowait
-            publish(js, SUBJECT, 301, 5);
+            publish(js, SUBJECT, "C", 5);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             assertEquals(6, messages.size());
+            assertLastIsStatus(messages, 404);
+
+            // publish 12 messages
+            // no wait, batch size 10, there are more but not exact multiple of batch, we WILL trip nowait
+            publish(js, SUBJECT, "D", 12);
+            sub.pullNoWait(10);
+            messages = readMessagesAck(sub);
+            assertEquals(13, messages.size());
+            assertLastIsStatus(messages, 404);
+
+            // publish 0 messages
+            // no wait, we WILL trip nowait
+            sub.pullNoWait(10);
+            messages = readMessagesAck(sub);
+            assertEquals(1, messages.size());
+            assertLastIsStatus(messages, 404);
+        });
+    }
+
+    @Test
+    public void noWait_AckModeAck_ExpireModeNA() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .durable(DURABLE)
+                    .ackMode(PullSubscribeOptions.AckMode.ACK)
+                    .build();
+
+            // Subscribe synchronously.
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // publish 10 messages
+            // no wait, batch size 10, there are 10 messages, we will read them all and not trip nowait
+            publish(js, SUBJECT, "A", 10);
+            sub.pullNoWait(10);
+            List<Message> messages = readMessagesAck(sub);
+            assertEquals(10, messages.size());
+            assertAllJetStream(messages);
+
+            // publish 20 messages
+            // no wait, batch size 10, there are 20 messages, we will read 10
+            publish(js, SUBJECT, "B", 20);
+            sub.pullNoWait(10);
+            messages = readMessagesAck(sub);
+            assertEquals(10, messages.size());
+
+            // there are still ten messages
+            // no wait, batch size 10, there are 20 messages, we will read 10
+            sub.pullNoWait(10);
+            messages = readMessagesAck(sub);
+            assertEquals(10, messages.size());
+
+            // publish 5 messages
+            // no wait, batch size 10, there are 5 messages, we WILL trip nowait
+            publish(js, SUBJECT, "C", 5);
+            sub.pullNoWait(10);
+            messages = readMessagesAck(sub);
+            assertEquals(6, messages.size());
+            assertLastIsStatus(messages, 404);
+
+            // publish 12 messages
+            // no wait, batch size 10, there are more than batch messages we will read 10
+            publish(js, SUBJECT, "D", 12);
+            sub.pullNoWait(10);
+            messages = readMessagesAck(sub);
+            assertEquals(10, messages.size());
+
+            // 2 messages left
+            // no wait, less than batch ssize will WILL trip nowait
+            sub.pullNoWait(10);
+            messages = readMessagesAck(sub);
+            assertEquals(3, messages.size());
             assertLastIsStatus(messages, 404);
         });
     }

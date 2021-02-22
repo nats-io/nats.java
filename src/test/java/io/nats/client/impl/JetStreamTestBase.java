@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static io.nats.examples.NatsJsUtils.printConsumerInfo;
+import static io.nats.examples.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
@@ -69,6 +71,12 @@ public class JetStreamTestBase extends TestBase {
             }
             throw jsae;
         }
+    }
+
+    public void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
+        System.out.println("\n" + n + ". -------------------------------");
+        printStreamInfo(jsm.getStreamInfo(STREAM));
+        printConsumerInfo(jsm.getConsumerInfo(STREAM, DURABLE));
     }
 
     // ----------------------------------------------------------------------------------------------------

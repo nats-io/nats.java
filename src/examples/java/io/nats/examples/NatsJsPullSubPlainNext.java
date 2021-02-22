@@ -20,10 +20,12 @@ import io.nats.client.impl.NatsMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This example will demonstrate a pull subscription with:
- * - a batch size (plain)
+ * - a batch size (plain) i.e. subscription.pull(10)
  * - AckMode.NEXT
  *
  * Usage: java NatsJsPullSubPlainNext [-s server] [-strm stream] [-sub subject] [-dur durable]
@@ -36,9 +38,9 @@ public class NatsJsPullSubPlainNext {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("pull-plain-next-stream")
-                .defaultSubject("pull-plain-next-subject")
-                .defaultDurable("pull-plain-next-durable")
+                .defaultStream("plain-next-stream")
+                .defaultSubject("plain-next-subject")
+                .defaultDurable("plain-next-durable")
                 .build(args);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
@@ -68,27 +70,32 @@ public class NatsJsPullSubPlainNext {
             // -  Do this first as data will typically be published first.
             System.out.println("\n----------\n1. Publish some amount of messages, but not entire batch size.");
             publish(js, exArgs.subject, "A", 4);
-            readMessagesAck(sub);
+            List<Message> messages = readMessagesAck(sub);
+            System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 2. Publish some more covering our pull size...
             // -  Read what is available, expect all messages.
             System.out.println("----------\n2. Publish more than the batch size.");
             publish(js, exArgs.subject, "B", 10);
-            readMessagesAck(sub);
+            messages = readMessagesAck(sub);
+            System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 3. Read when there are no messages available.
             System.out.println("----------\n3. Read when there are no messages available.");
-            readMessagesAck(sub);
+            messages = readMessagesAck(sub);
+            System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
             // 4. Publish some more...
             // -  Read what is available, expect all messages.
             System.out.println("----------\n4. Publish more then read.");
             publish(js, exArgs.subject, "C", 12);
-            readMessagesAck(sub);
+            messages = readMessagesAck(sub);
+            System.out.println("We should have received 12 total messages, we received: " + messages.size());
 
             // 6. Read when there are no messages available.
             System.out.println("----------\n5. Read when there are no messages available.");
-            readMessagesAck(sub);
+            messages = readMessagesAck(sub);
+            System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
             System.out.println("----------\n");
         }
@@ -100,7 +107,7 @@ public class NatsJsPullSubPlainNext {
     public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
         System.out.print("Publish ->");
         for (int x = 1; x <= count; x++) {
-            String data = "#" + prefix + "." + x;
+            String data = "#" + prefix + x;
             System.out.print(" " + data);
             Message msg = NatsMessage.builder()
                     .subject(subject)
@@ -111,7 +118,8 @@ public class NatsJsPullSubPlainNext {
         System.out.println(" <-");
     }
 
-    public static void readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
+    public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
+        List<Message> messages = new ArrayList<>();
         Message msg = sub.nextMessage(Duration.ofSeconds(1));
         boolean first = true;
         while (msg != null) {
@@ -119,6 +127,7 @@ public class NatsJsPullSubPlainNext {
                 first = false;
                 System.out.print("Read/Ack ->");
             }
+            messages.add(msg);
             if (msg.isJetStream()) {
                 msg.ack();
                 System.out.print(" " + new String(msg.getData()));
@@ -135,5 +144,6 @@ public class NatsJsPullSubPlainNext {
         else {
             System.out.println(" <- ");
         }
+        return messages;
     }
 }
