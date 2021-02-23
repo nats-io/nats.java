@@ -29,7 +29,7 @@ import static io.nats.examples.ExampleUtils.sleep;
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubExpireFutureAck extends NatsJsPullSubBase {
+public class NatsJsPullSubExpire extends NatsJsPullSubBase {
 
     /*
         THIS EXAMPLE IS DRAFT - DO NOT USE
@@ -50,8 +50,6 @@ public class NatsJsPullSubExpireFutureAck extends NatsJsPullSubBase {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable)      // required
-                    .ackMode(PullSubscribeOptions.AckMode.ACK) // ACK is default so not actually required
-                    // .expireMode(..) // N/A for AckMode.ACK
                     // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 

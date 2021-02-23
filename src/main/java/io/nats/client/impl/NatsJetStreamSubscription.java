@@ -16,14 +16,11 @@ package io.nats.client.impl;
 import io.nats.client.ConsumerInfo;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.PullSubscribeOptions;
-import io.nats.client.PullSubscribeOptions.AckMode;
-import io.nats.client.PullSubscribeOptions.ExpireMode;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
-import static io.nats.client.support.NatsConstants.SPACE;
 import static io.nats.client.support.Validator.validatePullBatchSize;
 
 /**
@@ -54,14 +51,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return pullSubscribeOptions != null;
     }
 
-    AckMode getAckMode() {
-        return pullSubscribeOptions == null ? null : pullSubscribeOptions.getAckMode();
-    }
-
-    ExpireMode getExpireMode() {
-        return pullSubscribeOptions == null ? null : pullSubscribeOptions.getExpireMode();
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -86,36 +75,19 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         _pull(batchSize, false, expiresIn); // nulls mean use default
     }
 
-    private Duration currentExpiresIn;
-    private boolean currentNoWait;
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
         if (!isPullMode()) {
             throw new IllegalStateException("Subscription type does not support pull.");
         }
 
         int batch = validatePullBatchSize(batchSize);
-        currentExpiresIn = expiresIn;
-        currentNoWait = noWait;
         String publishSubject = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
-        connection.publish(publishSubject, getSubject(),
-                getPullJson(null, noWait, expiresIn, batch));
+        connection.publish(publishSubject, getSubject(), getPullJson(noWait, expiresIn, batch));
         connection.lenientFlushBuffer();
     }
 
-    byte[] getAckJson(AckType ackType) {
-        if (currentNoWait) {
-            return getPullJson(ackType.text, true, null, 1);
-        }
-        return currentExpiresIn == null || getExpireMode() != ExpireMode.ADVANCE
-                ? ackType.bytes : getPullJson(ackType.text, false, currentExpiresIn, 1);
-    }
-
-    byte[] getPullJson(String prefix, boolean noWait, Duration expiresIn, int batch) {
-        StringBuilder sb = new StringBuilder();
-        if (prefix != null) {
-            sb.append(prefix).append(SPACE);
-        }
-        sb.append("{");
+    byte[] getPullJson(boolean noWait, Duration expiresIn, int batch) {
+        StringBuilder sb = JsonUtils.beginJson();
         JsonUtils.addFld(sb, "batch", batch);
         JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
         if (expiresIn != null) {
@@ -139,8 +111,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
                 ", isPullMode='" + isPullMode() +
-                ", ackMode='" + getAckMode() +
-                ", expireMode='" + getExpireMode() +
                 '}';
     }
 }

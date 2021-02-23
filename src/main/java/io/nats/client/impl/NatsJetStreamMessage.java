@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.MessageMetaData;
-import io.nats.client.PullSubscribeOptions.AckMode;
 import io.nats.client.impl.NatsMessage.SelfCalculatingMessage;
 
 import java.time.Duration;
@@ -94,13 +93,7 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
         if (isPullMode()) {
             switch (ackType) {
                 case AckAck:
-                    if (getAckMode() == AckMode.NEXT) {
-                        nc.publish(replyTo, subscription.getSubject(),
-                                ((NatsJetStreamSubscription) subscription).getAckJson(AckNext));
-                    }
-                    else {
-                        nc.publish(replyTo, AckAck.bytes);
-                    }
+                    nc.publish(replyTo, AckAck.bytes);
                     break;
 
                 case AckNak:
@@ -130,16 +123,6 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
                     && ((NatsJetStreamSubscription) subscription).isPullMode();
         }
         return pullMode;
-    }
-
-    private AckMode ackMode = null; // lazy init
-    private AckMode getAckMode() {
-        if (ackMode == null) {
-            ackMode = isPullMode()
-                    ? ((NatsJetStreamSubscription) subscription).getAckMode()
-                    : AckMode.ACK;
-        }
-        return ackMode;
     }
 
     private Connection getJetStreamValidatedConnection() {
