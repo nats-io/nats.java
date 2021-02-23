@@ -40,7 +40,7 @@ public class NatsJsPullSubNoWaitAck extends NatsJsPullSubBase {
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
 
-            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+            createStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -61,67 +61,77 @@ public class NatsJsPullSubNoWaitAck extends NatsJsPullSubBase {
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
-            // 1. Publish 10 messages
-            // -  Start the pull
+            // 1. Start the pull, but there are no messages yet.
+            // -  Read the messages
+            // -  Since there are exactly the batch size we get them all
+            //    and do NOT get a nowait status message
+            System.out.println("----------\n1. There are no messages yet");
+            sub.pullNoWait(10);
+            List<Message> messages = readMessagesAck(sub);
+            Message lastMessage = messages.get(messages.size()-1);
+            System.out.println("We should have received 1 total messages, we received: " + messages.size());
+            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+
+            // 2. Publish 10 messages
             // -  Start the pull
             // -  Read the messages
             // -  Since there are exactly the batch size we get them all
             //    and do NOT get a nowait status message
-            System.out.println("----------\n1. Publish 10 which satisfies the batch");
+            System.out.println("----------\n2. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
             sub.pullNoWait(10);
-            List<Message> messages = readMessagesAck(sub);
+            messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
-            // 2. Publish 20 messages
+            // 3. Publish 20 messages
             // -  Start the pull
             // -  Read the messages
             // -  we do NOT get a nowait status message if there are more or equals messages than the batch
-            System.out.println("----------\n2. Publish 20 which is larger than the batch size.");
+            System.out.println("----------\n3. Publish 20 which is larger than the batch size.");
             publish(js, exArgs.subject, "B", 20);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
-            // 3. There are still messages left from the last
+            // 4. There are still messages left from the last
             // -  Start the pull
             // -  Read the messages
             // -  we do NOT get a nowait status message if there are more or equals messages than the batch
-            System.out.println("----------\n3. Get the rest of the publish.");
+            System.out.println("----------\n4. Get the rest of the publish.");
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
-            // 4. Publish 5 messages
+            // 5. Publish 5 messages
             // -  Start the pull
             // -  Read the messages
             // -  Since there are less than batch size the last message we get will be a status 404 message.
-            System.out.println("----------\n4. Publish 5 which is less than batch size.");
+            System.out.println("----------\n5. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
-            Message lastMessage = messages.get(messages.size()-1);
+            lastMessage = messages.get(messages.size()-1);
             System.out.println("We should have received 6 total messages, we received: " + messages.size());
             System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
 
-            // 5. Publish 14 messages
+            // 6. Publish 14 messages
             // -  Start the pull
             // -  Read the messages
             // -  we do NOT get a nowait status message if there are more or equals messages than the batch
-            System.out.println("----------\n5. Publish 14 which is more than the batch size.");
+            System.out.println("----------\n6. Publish 14 which is more than the batch size.");
             publish(js, exArgs.subject, "D", 14);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
-            // 6. There are 4 messages left
+            // 7. There are 4 messages left
             // -  Start the pull
             // -  Read the messages
             // -  Since there are less than batch size the last message we get will be a status 404 message.
-            System.out.println("----------\n6. There are 4 messages left, which is less than the batch size.");
+            System.out.println("----------\n7. There are 4 messages left, which is less than the batch size.");
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
-            lastMessage = messages.get(2);
+            lastMessage = messages.get(messages.size()-1);
             System.out.println("We should have received 5 messages, we received: " + messages.size());
             System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
 

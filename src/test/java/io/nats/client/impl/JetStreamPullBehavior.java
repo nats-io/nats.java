@@ -39,19 +39,19 @@ public class JetStreamPullBehavior extends JetStreamTestBase {
     public static void main(String[] args) throws Exception {
         try (FileOutputStream _csv = new FileOutputStream("C:\\nats\\pull-behavior.csv")) {
             csv = _csv;
-            runGroup("Plain + Next", AckMode.NEXT, null, sub -> sub.pull(SIZE));
-            runGroup("Plain + Ack", AckMode.ACK, null, sub -> sub.pull(SIZE));
+//            runGroup("Plain + Next", AckMode.NEXT, null, sub -> sub.pull(SIZE));
+//            runGroup("Plain + Ack", AckMode.ACK, null, sub -> sub.pull(SIZE));
             runGroup("No Wait + Next", AckMode.NEXT, null, sub -> sub.pullNoWait(SIZE));
-            runGroup("No Wait + Ack", AckMode.ACK, null, sub -> sub.pullNoWait(SIZE));
-            runGroup("Expire + Next + Advance", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Next + Advance + Sleep", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
-            runGroup("Expire + Next + Leave", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Next + Leave + Sleep", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
-            runGroup("Expire + Ack", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Ack + Sleep", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
-            runGroup("Expire + Past + Next + Advance", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Past + Next + Leave", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Past + Ack", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+//            runGroup("No Wait + Ack", AckMode.ACK, null, sub -> sub.pullNoWait(SIZE));
+//            runGroup("Expire + Next + Advance", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+//            runGroup("Expire + Next + Advance + Sleep", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
+//            runGroup("Expire + Next + Leave", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+//            runGroup("Expire + Next + Leave + Sleep", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
+//            runGroup("Expire + Ack", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+//            runGroup("Expire + Ack + Sleep", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
+//            runGroup("Expire + Past + Next + Advance", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+//            runGroup("Expire + Past + Next + Leave", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+//            runGroup("Expire + Past + Ack", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
         }
     }
 

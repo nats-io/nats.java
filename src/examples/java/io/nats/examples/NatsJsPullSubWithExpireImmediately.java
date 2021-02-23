@@ -90,7 +90,7 @@ public class NatsJsPullSubWithExpireImmediately {
             publish(js, exArgs.subject, "C", 5);
             sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
-            Message lastMessage = messages.get(0);
+            Message lastMessage = messages.get(messages.size()-1);
             System.out.println("We should have received 1 messages, we received: " + messages.size());
             System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
 
@@ -101,7 +101,7 @@ public class NatsJsPullSubWithExpireImmediately {
             System.out.println("----------\n4. There are no waiting messages.");
             sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
-            lastMessage = messages.get(0);
+            lastMessage = messages.get(messages.size()-1);
             System.out.println("We should have received 1 messages, we received: " + messages.size());
             System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
 

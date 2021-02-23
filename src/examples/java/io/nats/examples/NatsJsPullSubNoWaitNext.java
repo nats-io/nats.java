@@ -17,6 +17,7 @@ import io.nats.client.*;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * This example will demonstrate a pull subscription with:
@@ -31,19 +32,19 @@ import java.util.List;
  */
 public class NatsJsPullSubNoWaitNext extends NatsJsPullSubBase {
 
-    /*
-        THIS EXAMPLE IS DRAFT - DO NOT USE
-     */
     public static void main(String[] args) {
+
+        long uniqueEnough = System.currentTimeMillis();
+
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("nowait-next-stream")
-                .defaultSubject("nowait-next-subject")
-                .defaultDurable("nowait-next-durable")
+                .defaultStream("nowait-next-stream" + uniqueEnough)
+                .defaultSubject("nowait-next-subject" + uniqueEnough)
+                .defaultDurable("nowait-next-durable" + uniqueEnough)
                 .build(args);
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
 
-            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+            createStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -60,64 +61,46 @@ public class NatsJsPullSubNoWaitNext extends NatsJsPullSubBase {
             //     With no wait, we have to start the pull the first time and every time the
             //     batch size is exhausted or no waits out.
             // 0.3 Flush outgoing communication with/to the server, useful when app is both publishing and subscribing.
-            System.out.println("\n----------\n0. Initialize the subscription and pull.");
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
-            // 1. Publish 10 messages
-            // -  Start the pull
-            // -  Start the pull
-            // -  Read the messages
-            // -  Since there are exactly the batch size we get them all
-            //    and do NOT get a nowait status message
-            System.out.println("----------\n1. Publish 10 which satisfies the batch.");
-            publish(js, exArgs.subject, "A", 10);
-            sub.pullNoWait(10);
-            List<Message> messages = readMessagesAck(sub);
-            System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            System.out.println("\n----------");
 
-            // 2. Publish 20 messages
-            // -  Start the pull
-            // -  Read the messages
-            // -  Since there are exact multiple of the batch size we get them all
-            //    and do NOT get a nowait status message
-            System.out.println("----------\n2. Publish 20 which an exact multiple of the batch size.");
-            publish(js, exArgs.subject, "B", 20);
-            messages = readMessagesAck(sub);
-            System.out.println("We should have received 20 total messages, we received: " + messages.size());
+            int PULL_SIZE = 5;
 
-            // 3. Publish 5 messages
-            // -  Start the pull
-            // -  Read the messages
-            // -  Since there are less than batch size the last message we get will be a status 404 message.
-            System.out.println("----------\n3. Publish 5 which is less than batch size.");
-            publish(js, exArgs.subject, "C", 5);
-            messages = readMessagesAck(sub);
-            Message lastMessage = messages.get(messages.size()-1);
-            System.out.println("We should have received 6 total messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+            int pulls = 0;
+            int round = 0;
+            int twoCauses = 2;
+            while (pulls < 3 && round++ < 10) {
+                int publish = ThreadLocalRandom.current().nextInt(PULL_SIZE * 2); // 0 to 2x-1
+                System.out.print("" + pad(round) + ". Pub: " + pad(publish) + " msgs | Pull: " + yn(twoCauses > 1) + " |");
+                if (publish > 0) {
+                    String prefix = "" + (char)((round-1) % 26 + 65);
+                    publish(js, exArgs.subject, prefix, publish, false);
+                }
+                if (twoCauses > 1) {
+                    sub.pullNoWait(10);
+                    twoCauses = 0;
+                    pulls++;
+                }
+                List<Message> messages = readMessagesAck(sub, false);
+                System.out.print(" Red: " + pad(messages.size()) + " msgs |");
 
-            // 4. Publish 12 messages
-            // -  Start the pull
-            // -  Read the messages
-            // -  Since the messages are not an exact multiple of batch size
-            //    the last message we get will be a status 404 message.
-            System.out.println("----------\n4. Publish 12 which is not an exact multiple of batch size.");
-            publish(js, exArgs.subject, "D", 12);
-            messages = readMessagesAck(sub);
-            lastMessage = messages.get(12);
-            System.out.println("We should have received 13 total messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+                if (messages.size() == 0) {
+                    twoCauses++;
+                }
+                for (Message m : messages) {
+                    if (m.isStatusMessage()) {
+                        System.out.print(" !" + m.getStatus().getCode());
+                        twoCauses++;
+                    }
+                    else {
+                        System.out.print(" " + new String(m.getData()));
+                    }
+                }
 
-            // 5. There are no waiting messages.
-            // -  Start the pull
-            // -  Read the messages
-            // -  Since there are no messages the only message will be a status 404 message.
-            System.out.println("----------\n5. There are no waiting messages.");
-            messages = readMessagesAck(sub);
-            lastMessage = messages.get(0);
-            System.out.println("We should have received 1 messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+                System.out.println();
+            }
 
             System.out.println("----------\n");
         }

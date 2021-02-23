@@ -39,7 +39,7 @@ public class NatsJsPullSubPlainAck extends NatsJsPullSubBase {
                 .build(args);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
-            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+            createStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
