@@ -14,31 +14,31 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
-import io.nats.client.impl.NatsMessage;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
+
+import static io.nats.examples.ExampleUtils.sleep;
 
 /**
  * This example will demonstrate a pull subscription with expire in the future.
  *
- * Usage: java NatsJsPullSubWithExpireFuture [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsPullSubExpireFutureNextLeave [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubWithExpireFuture {
+public class NatsJsPullSubExpireFutureNextLeave extends NatsJsPullSubBase {
 
+    /*
+        THIS EXAMPLE IS DRAFT - DO NOT USE
+     */
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("expire-stream")
-                .defaultSubject("expire-subject")
-                .defaultDurable("expire-durable")
+                .defaultStream("expire-future-next-leave-stream")
+                .defaultSubject("expire-future-next-leave-subject")
+                .defaultDurable("expire-future-next-leave-durable")
                 .build(args);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
@@ -50,6 +50,8 @@ public class NatsJsPullSubWithExpireFuture {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable)      // required
+                    .ackMode(PullSubscribeOptions.AckMode.NEXT) // NEXT is NOT the default
+                    .expireMode(PullSubscribeOptions.ExpireMode.LEAVE) // LEAVE is NOT the default
                     // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 
@@ -68,7 +70,7 @@ public class NatsJsPullSubWithExpireFuture {
             // -  Exactly the batch size, we get them all
             System.out.println("----------\n1. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
-            sub.pullExpiresIn(10, Duration.ofSeconds(0));
+            sub.pullExpiresIn(10, Duration.ofSeconds(2));
             List<Message> messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
@@ -78,7 +80,6 @@ public class NatsJsPullSubWithExpireFuture {
             // -  More than the batch size, we get them all
             System.out.println("----------\n2. Publish 15 which an exact multiple of the batch size.");
             publish(js, exArgs.subject, "B", 15);
-            sub.pullExpiresIn(10, Duration.ofSeconds(0));
             messages = readMessagesAck(sub);
             System.out.println("We should have received 15 total messages, we received: " + messages.size());
 
@@ -88,7 +89,7 @@ public class NatsJsPullSubWithExpireFuture {
             // -  Less than the batch size, we get them all
             System.out.println("----------\n3. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
-            sub.pullExpiresIn(10, Duration.ofMillis(0));
+            sleep(3000);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 5 total messages, we received: " + messages.size());
 
@@ -97,57 +98,24 @@ public class NatsJsPullSubWithExpireFuture {
             // -  Read the messages
             // -  Since there are no messages we get nothing.
             System.out.println("----------\n4. There are no waiting messages.");
-            sub.pullExpiresIn(10, Duration.ofSeconds(0));
+            sleep(3000);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 0 total messages, we received: " + messages.size());
+
+            // 5. Publish 10 messages, but not in time
+            // -  Start the pull
+            // -  Read the messages
+            // -  Exactly the batch size, we get them all
+            System.out.println("----------\n5. Publish 10 which satisfies the batch");
+            publish(js, exArgs.subject, "D", 5);
+            sleep(3000);
+            messages = readMessagesAck(sub);
+            System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             System.out.println("----------\n");
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        System.out.print("Publish ->");
-        for (int x = 1; x <= count; x++) {
-            String data = "#" + prefix + "." + x;
-            System.out.print(" " + data);
-            Message msg = NatsMessage.builder()
-                    .subject(subject)
-                    .data(data.getBytes(StandardCharsets.US_ASCII))
-                    .build();
-            js.publish(msg);
-        }
-        System.out.println(" <-");
-    }
-
-    public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        List<Message> messages = new ArrayList<>();
-        Message msg = sub.nextMessage(Duration.ofSeconds(1));
-        boolean first = true;
-        while (msg != null) {
-            if (first) {
-                first = false;
-                System.out.print("Read/Ack ->");
-            }
-            messages.add(msg);
-            if (msg.isJetStream()) {
-                msg.ack();
-                System.out.print(" " + new String(msg.getData()));
-                msg = sub.nextMessage(Duration.ofSeconds(1));
-            }
-            else {
-                msg = null; // so we break the loop
-                System.out.print(" !Status! ");
-            }
-        }
-        if (first) {
-            System.out.println("No messages available.");
-        }
-        else {
-            System.out.println(" <- ");
-        }
-        return messages;
     }
 }

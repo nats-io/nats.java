@@ -277,7 +277,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPullExpireFutureAckModeNext() throws Exception {
+    public void expireFuture_AckModeNext_ExpireModeLeave() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -328,7 +328,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    @Test
+//    @Test
     public void expireImmediately_AckModeNext_ExpireModeLeave() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.

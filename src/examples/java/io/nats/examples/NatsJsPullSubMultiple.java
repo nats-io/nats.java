@@ -26,9 +26,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.nats.examples.ExampleUtils.sleepRandom;
 
 /**
- * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
+ * This example will demonstrate JetStream multiple pull subscribers with the same durable names.
+ * Messages are balanced like a push queue.
  *
- * Usage: java NatsJsPushSubQueue [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount] [-pull pullSize]
+ * Usage: java NatsJsPullSubMultiple [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount] [-pull pullSize]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
@@ -49,7 +50,7 @@ public class NatsJsPullSubMultiple {
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
             // Create the stream.
-            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+            NatsJsUtils.createStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context
             JetStream js = nc.jetStream();
@@ -60,6 +61,7 @@ public class NatsJsPullSubMultiple {
             // - have a list of subscribers and threads so I can track them
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable)      // required
+                    .ackMode(PullSubscribeOptions.AckMode.NEXT)
                     // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
             AtomicInteger allReceived = new AtomicInteger();
@@ -155,7 +157,9 @@ public class NatsJsPullSubMultiple {
                         allReceived.incrementAndGet();
                         System.out.printf("PULL # %d message # %d %s\n",
                                 id, thisReceived.get(), new String(msg.getData(), StandardCharsets.US_ASCII));
-                        msg.ack();
+                        if (msg.isJetStream()) {
+                            msg.ack();
+                        }
 
                         msg = sub.nextMessage(Duration.ofMillis(500));
                     }

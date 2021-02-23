@@ -14,13 +14,8 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
-import io.nats.client.impl.NatsMessage;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,7 +29,7 @@ import java.util.List;
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubPlainNext {
+public class NatsJsPullSubPlainNext extends NatsJsPullSubBase {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -71,7 +66,7 @@ public class NatsJsPullSubPlainNext {
             System.out.println("\n----------\n1. Publish some amount of messages, but not entire batch size.");
             publish(js, exArgs.subject, "A", 4);
             List<Message> messages = readMessagesAck(sub);
-            System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            System.out.println("We should have received 4 total messages, we received: " + messages.size());
 
             // 2. Publish some more covering our pull size...
             // -  Read what is available, expect all messages.
@@ -102,48 +97,5 @@ public class NatsJsPullSubPlainNext {
         catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        System.out.print("Publish ->");
-        for (int x = 1; x <= count; x++) {
-            String data = "#" + prefix + x;
-            System.out.print(" " + data);
-            Message msg = NatsMessage.builder()
-                    .subject(subject)
-                    .data(data.getBytes(StandardCharsets.US_ASCII))
-                    .build();
-            js.publish(msg);
-        }
-        System.out.println(" <-");
-    }
-
-    public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        List<Message> messages = new ArrayList<>();
-        Message msg = sub.nextMessage(Duration.ofSeconds(1));
-        boolean first = true;
-        while (msg != null) {
-            if (first) {
-                first = false;
-                System.out.print("Read/Ack ->");
-            }
-            messages.add(msg);
-            if (msg.isJetStream()) {
-                msg.ack();
-                System.out.print(" " + new String(msg.getData()));
-                msg = sub.nextMessage(Duration.ofSeconds(1));
-            }
-            else {
-                msg = null; // so we break the loop
-                System.out.print(" !Status! ");
-            }
-        }
-        if (first) {
-            System.out.println("No messages available.");
-        }
-        else {
-            System.out.println(" <- ");
-        }
-        return messages;
     }
 }

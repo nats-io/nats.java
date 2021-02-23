@@ -14,13 +14,8 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
-import io.nats.client.impl.NatsMessage;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,8 +29,11 @@ import java.util.List;
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubNoWaitNext {
+public class NatsJsPullSubNoWaitNext extends NatsJsPullSubBase {
 
+    /*
+        THIS EXAMPLE IS DRAFT - DO NOT USE
+     */
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
                 .defaultStream("nowait-next-stream")
@@ -85,7 +83,6 @@ public class NatsJsPullSubNoWaitNext {
             //    and do NOT get a nowait status message
             System.out.println("----------\n2. Publish 20 which an exact multiple of the batch size.");
             publish(js, exArgs.subject, "B", 20);
-            sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 20 total messages, we received: " + messages.size());
 
@@ -95,7 +92,6 @@ public class NatsJsPullSubNoWaitNext {
             // -  Since there are less than batch size the last message we get will be a status 404 message.
             System.out.println("----------\n3. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
-            sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             Message lastMessage = messages.get(messages.size()-1);
             System.out.println("We should have received 6 total messages, we received: " + messages.size());
@@ -108,7 +104,6 @@ public class NatsJsPullSubNoWaitNext {
             //    the last message we get will be a status 404 message.
             System.out.println("----------\n4. Publish 12 which is not an exact multiple of batch size.");
             publish(js, exArgs.subject, "D", 12);
-            sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             lastMessage = messages.get(12);
             System.out.println("We should have received 13 total messages, we received: " + messages.size());
@@ -119,7 +114,6 @@ public class NatsJsPullSubNoWaitNext {
             // -  Read the messages
             // -  Since there are no messages the only message will be a status 404 message.
             System.out.println("----------\n5. There are no waiting messages.");
-            sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             lastMessage = messages.get(0);
             System.out.println("We should have received 1 messages, we received: " + messages.size());
@@ -130,48 +124,5 @@ public class NatsJsPullSubNoWaitNext {
         catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        System.out.print("Publish ->");
-        for (int x = 1; x <= count; x++) {
-            String data = "#" + prefix + x;
-            System.out.print(" " + data);
-            Message msg = NatsMessage.builder()
-                    .subject(subject)
-                    .data(data.getBytes(StandardCharsets.US_ASCII))
-                    .build();
-            js.publish(msg);
-        }
-        System.out.println(" <-");
-    }
-
-    public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        List<Message> messages = new ArrayList<>();
-        Message msg = sub.nextMessage(Duration.ofSeconds(1));
-        boolean first = true;
-        while (msg != null) {
-            if (first) {
-                first = false;
-                System.out.print("Read/Ack ->");
-            }
-            messages.add(msg);
-            if (msg.isJetStream()) {
-                msg.ack();
-                System.out.print(" " + new String(msg.getData()));
-                msg = sub.nextMessage(Duration.ofSeconds(1));
-            }
-            else {
-                msg = null; // so we break the loop
-                System.out.print(" !Status! ");
-            }
-        }
-        if (first) {
-            System.out.println("No messages available.");
-        }
-        else {
-            System.out.println(" <- ");
-        }
-        return messages;
     }
 }

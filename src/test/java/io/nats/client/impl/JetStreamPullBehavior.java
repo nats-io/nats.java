@@ -175,7 +175,6 @@ public class JetStreamPullBehavior extends JetStreamTestBase {
                 sb.append("!").append(m.getStatus().getCode());
             }
             else if (m.isJetStream()){
-                meta = m.metaData();
                 sb.append(new String(m.getData()));
             }
             else {

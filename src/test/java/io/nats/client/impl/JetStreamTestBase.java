@@ -133,14 +133,16 @@ public class JetStreamTestBase extends TestBase {
                     System.out.println("ACK " + new String(msg.getData()));
                 }
                 msg.ack();
-                msg = sub.nextMessage(Duration.ofSeconds(1));
             }
-            else {
+            else if (msg.isStatusMessage()) {
                 if (noisy) {
                     System.out.println("STATUS " + msg.getStatus());
                 }
-                msg = null; // so we break the loop
             }
+            else if (noisy) {
+                System.out.println("? " + new String(msg.getData()) + "?");
+            }
+            msg = sub.nextMessage(Duration.ofSeconds(1));
         }
         return messages;
     }

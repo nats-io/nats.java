@@ -18,24 +18,27 @@ import io.nats.client.*;
 import java.time.Duration;
 import java.util.List;
 
+import static io.nats.examples.ExampleUtils.sleep;
+
 /**
- * This example will demonstrate a pull subscription with:
- * - a batch size (plain) i.e. subscription.pull(10)
- * - AckMode.ACK
+ * This example will demonstrate a pull subscription with expire in the future.
  *
- * Usage: java NatsJsPullSubPlainAck [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsPullSubExpireFutureAck [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubPlainAck extends NatsJsPullSubBase {
+public class NatsJsPullSubExpireFutureAck extends NatsJsPullSubBase {
 
+    /*
+        THIS EXAMPLE IS DRAFT - DO NOT USE
+     */
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("plain-ack-stream")
-                .defaultSubject("plain-ack-subject")
-                .defaultDurable("plain-ack-durable")
+                .defaultStream("expire-future-ack-stream")
+                .defaultSubject("expire-future-ack-subject")
+                .defaultDurable("expire-future-ack-durable")
                 .build(args);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
@@ -48,6 +51,7 @@ public class NatsJsPullSubPlainAck extends NatsJsPullSubBase {
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable)      // required
                     .ackMode(PullSubscribeOptions.AckMode.ACK) // ACK is default so not actually required
+                    // .expireMode(..) // N/A for AckMode.ACK
                     // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 
@@ -59,31 +63,38 @@ public class NatsJsPullSubPlainAck extends NatsJsPullSubBase {
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
-            sub.pull(10);
+            sub.pullExpiresIn(10, Duration.ofSeconds(2));
 
             // 1. Publish some that is less than the batch size.
             // -  Do this first as data will typically be published first.
             System.out.println("\n----------\n1. Publish some amount of messages, but not entire batch size.");
             publish(js, exArgs.subject, "A", 4);
+            sleep(2500);
             List<Message> messages = readMessagesAck(sub);
             System.out.println("We should have received 4 total messages, we received: " + messages.size());
 
             // 2. Publish some more covering our pull size...
             // -  Read what is available, expect only 6 b/c 4 + 6 = 10
             System.out.println("----------\n2. Publish more than the batch size.");
-            publish(js, exArgs.subject, "B", 10);
+            sub.pullExpiresIn(10, Duration.ofSeconds(2));
+//            publish(js, exArgs.subject, "B", 10);
+//            sleep(2500);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 6 total messages, we received: " + messages.size());
+
+            if (true) return;
 
             // 3. There are still 4 messages from B, but the batch was finished
             // -  won't get any messages until a pull is issued.
             System.out.println("----------\n3. Read without re-issue.");
+            sleep(2500);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
             // 4. re-issue the pull to get the last 4
             System.out.println("----------\n4. Re-issue to get the last 4.");
-            sub.pull(10);
+            sub.pullExpiresIn(10, Duration.ofSeconds(2));
+            sleep(2500);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 4 total messages, we received: " + messages.size());
 
