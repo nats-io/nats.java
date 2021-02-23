@@ -205,9 +205,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     public void testGetStreamInfo() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
-            assertNull(getStreamInfo(jsm, STREAM));
+            assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(STREAM));
             createMemoryStream(nc, STREAM, SUBJECT);
-            assertNotNull(getStreamInfo(jsm, STREAM));
+            StreamInfo si = jsm.getStreamInfo(STREAM);
+            assertEquals(STREAM, si.getConfiguration().getName());
         });
     }
 
@@ -283,6 +284,22 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             jsm.deleteConsumer(STREAM, cc1.getDurable());
             consumers = jsm.getConsumerNames(STREAM);
             assertEquals(1, consumers.size());
+        });
+    }
+
+    @Test
+    public void testGetConsumerInfo() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            createMemoryStream(nc, STREAM, SUBJECT);
+            assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(STREAM, DURABLE));
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
+            ConsumerInfo ci = jsm.addConsumer(STREAM, cc);
+            assertEquals(STREAM, ci.getStreamName());
+            assertEquals(DURABLE, ci.getName());
+            ci = jsm.getConsumerInfo(STREAM, DURABLE);
+            assertEquals(STREAM, ci.getStreamName());
+            assertEquals(DURABLE, ci.getName());
         });
     }
 

@@ -355,6 +355,7 @@ public class ConsumerConfiguration {
 
     /**
      * Creates a builder for the publish options.
+     * @param cc the consumer configuration
      * @return a publish options builder
      */
     public static Builder builder(ConsumerConfiguration cc) {

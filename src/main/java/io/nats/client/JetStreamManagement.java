@@ -96,6 +96,17 @@ public interface JetStreamManagement {
     void deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
 
     /**
+     * Gets the info for an existing consumer.
+     * @param streamName name of the stream
+     * @param consumer the consumer name to use.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return consumer information
+     */
+    ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException;
+
+    /**
      * Return a list of consumers by name
      * @param streamName the name of the consumer.
      * @return The list of names

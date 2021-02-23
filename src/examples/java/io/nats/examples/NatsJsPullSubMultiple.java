@@ -23,31 +23,34 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.examples.ExampleUtils.sleepRandom;
+
 /**
- * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
+ * This example will demonstrate JetStream multiple pull subscribers with the same durable names.
+ * Messages are balanced like a push queue.
  *
- * Usage: java NatsJsPushSubQueue [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]
+ * Usage: java NatsJsPullSubMultiple [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount] [-pull pullSize]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPushSubQueue {
+public class NatsJsPullSubMultiple {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("jsq-stream")
-                .defaultSubject("jsq-subject")
-                .defaultQueue("jsq-queue")
-                .defaultDurable("jsq-durable")
-                .defaultMsgCount(100)
-                .defaultSubCount(5)
+                .defaultStream("pull-multi-stream")
+                .defaultSubject("pull-multi-subject")
+                .defaultDurable("pull-multi-durable")
+                .defaultMsgCount(300)
+                .defaultSubCount(3)
+                .defaultPullSize(5)
                 .build(args);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
             // Create the stream.
-            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+            NatsJsUtils.createStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context
             JetStream js = nc.jetStream();
@@ -56,15 +59,19 @@ public class NatsJsPushSubQueue {
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received
             // - have a list of subscribers and threads so I can track them
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(exArgs.durable).build();
+            PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+                    .durable(exArgs.durable)      // required
+                    .ackMode(PullSubscribeOptions.AckMode.NEXT)
+                    // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
+                    .build();
             AtomicInteger allReceived = new AtomicInteger();
-            List<JsQueueSubscriber> subscribers = new ArrayList<>();
+            List<JsPullSubscriber> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();
             for (int id = 1; id <= exArgs.subCount; id++) {
                 // setup the subscription
-                JetStreamSubscription sub = js.subscribe(exArgs.subject, exArgs.queue, pso);
+                JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
                 // create and track the runnable
-                JsQueueSubscriber qs = new JsQueueSubscriber(id, exArgs, js, sub, allReceived);
+                JsPullSubscriber qs = new JsPullSubscriber(id, exArgs, js, sub, allReceived);
                 subscribers.add(qs);
                 // create, track and start the thread
                 Thread t = new Thread(qs);
@@ -84,7 +91,7 @@ public class NatsJsPushSubQueue {
             }
 
             // report
-            for (JsQueueSubscriber qs : subscribers) {
+            for (JsPullSubscriber qs : subscribers) {
                 qs.report();
             }
         }
@@ -117,7 +124,7 @@ public class NatsJsPushSubQueue {
         }
     }
 
-    static class JsQueueSubscriber implements Runnable {
+    static class JsPullSubscriber implements Runnable {
         int id;
         ExampleArgs exArgs;
         JetStream js;
@@ -125,7 +132,7 @@ public class NatsJsPushSubQueue {
         AtomicInteger allReceived;
         AtomicInteger thisReceived;
 
-        public JsQueueSubscriber(int id, ExampleArgs exArgs, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
+        public JsPullSubscriber(int id, ExampleArgs exArgs, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
             this.id = id;
             this.exArgs = exArgs;
             this.js = js;
@@ -135,20 +142,24 @@ public class NatsJsPushSubQueue {
         }
 
         public void report() {
-            System.out.printf("QS # %d handled %d messages.\n", id, thisReceived.get());
+            System.out.printf("PULL # %d handled %d messages.\n", id, thisReceived.get());
         }
 
         @Override
         public void run() {
+            sub.pull(10);
             while (allReceived.get() < exArgs.msgCount) {
+                sleepRandom(500);
                 try {
                     Message msg = sub.nextMessage(Duration.ofMillis(500));
                     while (msg != null) {
                         thisReceived.incrementAndGet();
                         allReceived.incrementAndGet();
-                        System.out.printf("QS # %d message # %d %s\n",
+                        System.out.printf("PULL # %d message # %d %s\n",
                                 id, thisReceived.get(), new String(msg.getData(), StandardCharsets.US_ASCII));
-                        msg.ack();
+                        if (msg.isJetStream()) {
+                            msg.ack();
+                        }
 
                         msg = sub.nextMessage(Duration.ofMillis(500));
                     }

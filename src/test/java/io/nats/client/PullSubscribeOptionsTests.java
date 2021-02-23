@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.PullSubscribeOptions.AckMode;
+import io.nats.client.PullSubscribeOptions.ExpireMode;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -22,12 +24,27 @@ public class PullSubscribeOptionsTests extends TestBase {
 
     @Test
     public void testAffirmative() {
-        PullSubscribeOptions so = PullSubscribeOptions.builder()
+        PullSubscribeOptions.Builder builder = PullSubscribeOptions.builder()
                 .stream(STREAM)
-                .durable(DURABLE)
-                .build();
+                .durable(DURABLE);
+
+        PullSubscribeOptions so = builder.build();
         assertEquals(STREAM, so.getStream());
         assertEquals(DURABLE, so.getDurable());
+        assertEquals(AckMode.ACK, so.getAckMode());
+        assertEquals(ExpireMode.ADVANCE, so.getExpireMode());
+
+        builder.ackMode(AckMode.NEXT);
+        assertEquals(AckMode.NEXT, builder.build().getAckMode());
+
+        builder.ackMode(AckMode.ACK);
+        assertEquals(AckMode.ACK, builder.build().getAckMode());
+
+        builder.expireMode(ExpireMode.LEAVE);
+        assertEquals(ExpireMode.LEAVE, builder.build().getExpireMode());
+
+        builder.expireMode(ExpireMode.ADVANCE);
+        assertEquals(ExpireMode.ADVANCE, builder.build().getExpireMode());
 
         assertNotNull(so.toString()); // COVERAGE
     }

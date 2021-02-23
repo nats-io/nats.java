@@ -13,22 +13,14 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.*;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.Nats;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsStatisticsTests {
     @Test
@@ -39,7 +31,7 @@ public class NatsStatisticsTests {
                                                 .server(ts.getURI())
                                                 .turnOnAdvancedStats()
                                                 .build())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), new byte[16]);
@@ -68,7 +60,7 @@ public class NatsStatisticsTests {
             NatsStatistics stats = ((NatsConnection) nc).getNatsStatistics();
 
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
                 Dispatcher d = nc.createDispatcher((msg) -> {
                     nc.publish(msg.getReplyTo(), new byte[16]);

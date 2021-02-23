@@ -38,7 +38,7 @@ public class NatsJsPub {
                 .defaultStream("example-stream")
                 .defaultSubject("example-subject")
                 .defaultMessage("hello")
-                .defaultMsgCount(5)
+                .defaultMsgCount(10)
                 .build(args);
 
         String hdrNote = exArgs.hasHeaders() ? ", with " + exArgs.headers.size() + " header(s)" : "";

@@ -22,12 +22,19 @@ import static io.nats.client.support.Validator.validateStreamNameOrEmptyAsNull;
  */
 public class PullSubscribeOptions {
 
+    public enum AckMode {ACK, NEXT}
+    public enum ExpireMode {ADVANCE, LEAVE}
+
     private final String stream;
     private final ConsumerConfiguration consumerConfig;
+    private final AckMode ackMode;
+    private final ExpireMode expireMode;
 
-    private PullSubscribeOptions(String stream, ConsumerConfiguration consumerConfig) {
+    private PullSubscribeOptions(String stream, ConsumerConfiguration consumerConfig, AckMode ackMode, ExpireMode expireMode) {
         this.stream = stream;
         this.consumerConfig = consumerConfig;
+        this.ackMode = ackMode;
+        this.expireMode = expireMode;
     }
 
     /**
@@ -36,6 +43,14 @@ public class PullSubscribeOptions {
      */
     public String getStream() {
         return stream;
+    }
+
+    public AckMode getAckMode() {
+        return ackMode;
+    }
+
+    public ExpireMode getExpireMode() {
+        return expireMode;
     }
 
     /**
@@ -73,6 +88,8 @@ public class PullSubscribeOptions {
     public static class Builder {
         private String stream;
         private String durable;
+        private AckMode ackMode;
+        private ExpireMode expireMode;
         private ConsumerConfiguration consumerConfig;
 
         /**
@@ -96,6 +113,16 @@ public class PullSubscribeOptions {
             return this;
         }
 
+        public Builder ackMode(AckMode ackMode) {
+            this.ackMode = ackMode;
+            return this;
+        }
+
+        public Builder expireMode(ExpireMode expireMode) {
+            this.expireMode = expireMode;
+            return this;
+        }
+
         /**
          * The consumer configuration. The configuration durable name will be replaced
          * if you supply a consumer name in the builder. The configuration deliver subject
@@ -116,7 +143,9 @@ public class PullSubscribeOptions {
             validateStreamNameOrEmptyAsNull(stream);
             durable = validateDurableRequired(durable, consumerConfig);
             ConsumerConfiguration cc = ConsumerConfiguration.builder(consumerConfig).durable(durable).build();
-            return new PullSubscribeOptions(stream, cc);
+            return new PullSubscribeOptions(stream, cc,
+                    ackMode == null ? AckMode.ACK : ackMode,
+                    expireMode == null ? ExpireMode.ADVANCE : expireMode);
         }
     }
 }

@@ -14,34 +14,35 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
-import io.nats.client.impl.NatsMessage;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * This example will demonstrate a pull subscription with expire in the future.
+ * This example will demonstrate a pull subscription with:
+ * - a batch size  + nowait i.e. subscription.pullNoWait(10)
+ * - AckMode.NEXT
  *
- * Usage: java NatsJsPullSubWithExpireImmediately [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsPullSubNoWaitNext [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubWithExpireImmediately {
+public class NatsJsPullSubNoWaitNext extends NatsJsPullSubBase {
 
+    /*
+        THIS EXAMPLE IS DRAFT - DO NOT USE
+     */
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("immediate-stream")
-                .defaultSubject("immediate-subject")
-                .defaultDurable("immediate-durable")
+                .defaultStream("nowait-next-stream")
+                .defaultSubject("nowait-next-subject")
+                .defaultDurable("nowait-next-durable")
                 .build(args);
-
+        
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+
             NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
@@ -49,8 +50,9 @@ public class NatsJsPullSubWithExpireImmediately {
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-                    .durable(exArgs.durable)      // required
-                    // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
+                    .durable(exArgs.durable) // required
+                    .ackMode(PullSubscribeOptions.AckMode.NEXT) // NEXT is NOT the default
+                    // .configuration(...)   // if you want a custom io.nats.client.ConsumerConfiguration
                     .build();
 
             // 0.1 Initialize. subscription
@@ -64,42 +66,54 @@ public class NatsJsPullSubWithExpireImmediately {
 
             // 1. Publish 10 messages
             // -  Start the pull
+            // -  Start the pull
             // -  Read the messages
-            // -  Exactly the batch size, we get them all
-            System.out.println("----------\n1. Publish 10 which satisfies the batch");
+            // -  Since there are exactly the batch size we get them all
+            //    and do NOT get a nowait status message
+            System.out.println("----------\n1. Publish 10 which satisfies the batch.");
             publish(js, exArgs.subject, "A", 10);
-            sub.pullExpiresIn(10, Duration.ZERO);
+            sub.pullNoWait(10);
             List<Message> messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
-            // 2. Publish 15 messages
+            // 2. Publish 20 messages
             // -  Start the pull
             // -  Read the messages
-            // -  More than the batch size, we get them all
-            System.out.println("----------\n2. Publish 15 which is more than batch size.");
-            publish(js, exArgs.subject, "B", 15);
-            sub.pullExpiresIn(10, Duration.ZERO);
+            // -  Since there are exact multiple of the batch size we get them all
+            //    and do NOT get a nowait status message
+            System.out.println("----------\n2. Publish 20 which an exact multiple of the batch size.");
+            publish(js, exArgs.subject, "B", 20);
             messages = readMessagesAck(sub);
-            System.out.println("We should have received 15 total messages, we received: " + messages.size());
+            System.out.println("We should have received 20 total messages, we received: " + messages.size());
 
             // 3. Publish 5 messages
             // -  Start the pull
             // -  Read the messages
-            // -  Less than the batch size, we get them all
+            // -  Since there are less than batch size the last message we get will be a status 404 message.
             System.out.println("----------\n3. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
-            sub.pullExpiresIn(10, Duration.ZERO);
             messages = readMessagesAck(sub);
-            Message lastMessage = messages.get(0);
-            System.out.println("We should have received 1 messages, we received: " + messages.size());
+            Message lastMessage = messages.get(messages.size()-1);
+            System.out.println("We should have received 6 total messages, we received: " + messages.size());
             System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
 
-            // 4. There are no waiting messages.
+            // 4. Publish 12 messages
             // -  Start the pull
             // -  Read the messages
-            // -  Since there are no messages the only message will be a status 408 message.
-            System.out.println("----------\n4. There are no waiting messages.");
-            sub.pullExpiresIn(10, Duration.ZERO);
+            // -  Since the messages are not an exact multiple of batch size
+            //    the last message we get will be a status 404 message.
+            System.out.println("----------\n4. Publish 12 which is not an exact multiple of batch size.");
+            publish(js, exArgs.subject, "D", 12);
+            messages = readMessagesAck(sub);
+            lastMessage = messages.get(12);
+            System.out.println("We should have received 13 total messages, we received: " + messages.size());
+            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+
+            // 5. There are no waiting messages.
+            // -  Start the pull
+            // -  Read the messages
+            // -  Since there are no messages the only message will be a status 404 message.
+            System.out.println("----------\n5. There are no waiting messages.");
             messages = readMessagesAck(sub);
             lastMessage = messages.get(0);
             System.out.println("We should have received 1 messages, we received: " + messages.size());
@@ -110,48 +124,5 @@ public class NatsJsPullSubWithExpireImmediately {
         catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
-        System.out.print("Publish ->");
-        for (int x = 1; x <= count; x++) {
-            String data = "#" + prefix + "." + x;
-            System.out.print(" " + data);
-            Message msg = NatsMessage.builder()
-                    .subject(subject)
-                    .data(data.getBytes(StandardCharsets.US_ASCII))
-                    .build();
-            js.publish(msg);
-        }
-        System.out.println(" <-");
-    }
-
-    public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        List<Message> messages = new ArrayList<>();
-        Message msg = sub.nextMessage(Duration.ofSeconds(1));
-        boolean first = true;
-        while (msg != null) {
-            if (first) {
-                first = false;
-                System.out.print("Read/Ack ->");
-            }
-            messages.add(msg);
-            if (msg.isJetStream()) {
-                msg.ack();
-                System.out.print(" " + new String(msg.getData()));
-                msg = sub.nextMessage(Duration.ofSeconds(1));
-            }
-            else {
-                msg = null; // so we break the loop
-                System.out.print(" !Status! ");
-            }
-        }
-        if (first) {
-            System.out.println("No messages available.");
-        }
-        else {
-            System.out.println(" <- ");
-        }
-        return messages;
     }
 }

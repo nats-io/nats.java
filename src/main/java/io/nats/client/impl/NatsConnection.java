@@ -1173,7 +1173,7 @@ class NatsConnection implements Connection {
 
             this.statistics.incrementFlushCounter();
         } catch (ExecutionException | CancellationException e) {
-            throw new TimeoutException(e.getMessage());
+            throw new TimeoutException(e.toString());
         }
     }
 
