@@ -13,16 +13,13 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PullSubscribeOptions;
+import io.nats.client.*;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPullTests extends JetStreamTestBase {
 
@@ -40,6 +37,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish some amount of messages, but not entire pull size
@@ -122,6 +120,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish 10 messages
@@ -169,7 +168,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-//    @Test
+    @Test
     public void expireFuture() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
@@ -183,6 +182,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish 10 messages
@@ -196,20 +196,20 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 15 messages
             publish(js, SUBJECT, 201, 15);
-            // expire, batch size 10, there are 15 messages, we will read them all
+            // expire, batch size 10, there are 15 messages, we only read 10
             // and for expire, since we got more than batch size we do not trip expire
             sub.pullExpiresIn(10, Duration.ofSeconds(2));
             messages = readMessagesAck(sub);
-            assertEquals(15, messages.size());
+            assertEquals(10, messages.size());
             assertAllJetStream(messages);
             sleep(2); // make sure we are passed the expiration
 
             // publish 5 messages
             publish(js, SUBJECT, 301, 5);
-            // expire, batch size 10, there are 5 messages
+            // expire, batch size 10, there are 5 new messages plus 5 left over
             sub.pullExpiresIn(10, Duration.ofSeconds(2));
             messages = readMessagesAck(sub);
-            assertEquals(5, messages.size());
+            assertEquals(10, messages.size());
             assertAllJetStream(messages);
             sleep(2); // make sure we are passed the expiration
 
@@ -217,6 +217,192 @@ public class JetStreamPullTests extends JetStreamTestBase {
             sub.pullExpiresIn(10, Duration.ofSeconds(2));
             messages = readMessagesAck(sub);
             assertEquals(0, messages.size());
+        });
+    }
+
+    @Test
+    public void testAckNak() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // NAK
+            publish(js, SUBJECT, "NAK", 1);
+
+            sub.pull(1);
+
+            Message message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            String data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.nak();
+
+            // not 100 % sure what this message is
+//            message = sub.nextMessage(Duration.ofSeconds(1));
+//            assertNotNull(message);
+//            assertEquals(0, message.getData().length);
+
+            sub.pull(1);
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.ack();
+
+            sub.pull(1);
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+        });
+    }
+
+    @Test
+    public void testAckTerm() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // TERM
+            publish(js, SUBJECT, "TERM", 1);
+
+            sub.pull(1);
+            Message message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            String data = new String(message.getData());
+            assertEquals("TERM1", data);
+            message.term();
+
+            // is this an ack of the term
+//            message = sub.nextMessage(Duration.ofSeconds(1));
+//            assertNotNull(message);
+//            assertEquals(0, message.getData().length);
+
+            sub.pull(1);
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+        });
+    }
+
+    @Test
+    public void testAckWaitTimeout() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(1500)).build();
+            PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).configuration(cc).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // Ack Wait timeout
+            publish(js, SUBJECT, "WAIT", 1);
+
+            sub.pull(1);
+            Message message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            String data = new String(message.getData());
+            assertEquals("WAIT1", data);
+            sleep(2000);
+
+            sub.pull(1);
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("WAIT1", data);
+
+            sub.pull(1);
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+        });
+    }
+
+//    @Test
+    public void testInProgress() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+
+            // In Progress
+            publish(js, SUBJECT, "PRO", 1);
+
+            sub.pull(1);
+            Message message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            String data = new String(message.getData());
+            assertEquals("PRO1", data);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.ack();
+
+            // TODO FIGURE THIS OUT
+            publish(js, SUBJECT, "PRO", 2);
+
+            // not 100 % sure what this message is
+//            message = sub.nextMessage(Duration.ofSeconds(1));
+//            assertNotNull(message);
+//            assertEquals(0, message.getData().length);
+
+            sub.pull(1);
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("PRO2", data);
+
+            sub.pull(1);
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+        });
+    }
+
+//    @Test
+    public void testAckSync() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(DURABLE).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // ACK Sync
+            publish(js, SUBJECT, "ACKSYNC", 1);
+
+            sub.pull(1);
+            Message message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            String data = new String(message.getData());
+            assertEquals("ACKSYNC1", data);
+            message.ackSync(Duration.ofSeconds(1));
+
+            sub.pull(1);
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
         });
     }
 }

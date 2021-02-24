@@ -216,8 +216,13 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     // ----------------------------------------------------------------------------------------------------
     // Publish
     // ---------------------------------------------------------------------------------------------NatsJsPullSub-------
-    static NatsMessage buildMsg(String subject, byte[] payload) {
+    static NatsMessage buildNatsMessage(String subject, byte[] payload) {
         return new NatsMessage.Builder().subject(subject).data(payload).build();
+    }
+
+    static NatsMessage toNatsMessage(Message message) {
+        validateNotNull(message, "Message");
+        return message instanceof NatsMessage ? (NatsMessage) message : new NatsMessage(message);
     }
 
     /**
@@ -225,7 +230,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException {
-        return publishInternal(buildMsg(subject, body), null);
+        return publishInternal(buildNatsMessage(subject, body), null);
     }
 
     /**
@@ -233,7 +238,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishInternal(buildMsg(subject, body), options);
+        return publishInternal(buildNatsMessage(subject, body), options);
     }
 
     /**
@@ -241,7 +246,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(Message message) throws IOException, JetStreamApiException {
-        return publishInternal(message, null);
+        return publish(toNatsMessage(message), null);
     }
 
     /**
@@ -249,7 +254,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishInternal(message, options);
+        return publishInternal(toNatsMessage(message), options);
     }
 
     /**
@@ -308,10 +313,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         });
     }
 
-    private PublishAck publishInternal(Message message, PublishOptions options) throws IOException, JetStreamApiException {
-        validateNotNull(message, "Message");
-
-        NatsMessage natsMessage = message instanceof NatsMessage ? (NatsMessage)message : new NatsMessage(message);
+    private PublishAck publishInternal(NatsMessage natsMessage, PublishOptions options) throws IOException, JetStreamApiException {
 
         Duration timeout;
         String pubStream = null;

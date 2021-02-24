@@ -163,6 +163,18 @@ public class JetStreamTestBase extends TestBase {
         assertEquals(expectedRed, actualRed, "Read does not match");
     }
 
+    public static void assertSubscription(JetStreamSubscription sub, String stream, String consumer, String deliver, boolean isPullMode) {
+        String s = sub.toString();
+        assertTrue(s.contains("stream='" + stream));
+        if (consumer != null) {
+            assertTrue(s.contains("consumer='" + consumer));
+        }
+        if (deliver != null) {
+            assertTrue(s.contains("deliver='" + deliver));
+        }
+        assertTrue(s.contains("isPullMode='" + isPullMode));
+    }
+
     public static void assertSameMessages(List<Message> l1, List<Message> l2) {
         assertEquals(l1.size(), l2.size());
         List<String> data1 = l1.stream()

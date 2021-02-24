@@ -56,7 +56,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pull(int batchSize) {
-        _pull(batchSize, false, null); // nulls mean use default
+        _pull(batchSize, false, null);
     }
 
     /**
@@ -64,7 +64,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullNoWait(int batchSize) {
-        _pull(batchSize, true, null); // nulls mean use default
+        _pull(batchSize, true, null);
     }
 
     /**
@@ -72,7 +72,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
-        _pull(batchSize, false, expiresIn); // nulls mean use default
+        _pull(batchSize, false, expiresIn);
     }
 
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {

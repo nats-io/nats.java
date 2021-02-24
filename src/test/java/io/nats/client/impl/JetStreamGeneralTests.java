@@ -76,7 +76,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createTestStream(jsm);
-
             publish(js);
 
             // default ephemeral subscription.

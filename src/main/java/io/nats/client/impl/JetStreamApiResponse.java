@@ -43,13 +43,6 @@ public class JetStreamApiResponse {
         hasError = response.contains("\"error\"");
     }
 
-    protected String ensureErrorJson() {
-        if (errorJson == null) {
-            errorJson = JsonUtils.getJSONObject("error", response);
-        }
-        return errorJson;
-    }
-
     public boolean hasError() {
         return hasError;
     }

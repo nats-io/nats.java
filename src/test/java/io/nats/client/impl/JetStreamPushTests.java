@@ -53,6 +53,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             // Subscription 1
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, null, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available
@@ -110,6 +111,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             // Subscribe.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available
@@ -146,10 +148,102 @@ public class JetStreamPushTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             JetStreamSubscription sub = js.subscribe(SUBJECT);
+            assertSubscription(sub, STREAM, null, null, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // this should exception, can't pull on a push sub
             assertThrows(IllegalStateException.class, () -> sub.pull(1));
+            assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
+            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+        });
+    }
+
+    @Test
+    public void testAcks() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(1500)).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // NAK
+            publish(js, SUBJECT, "NAK", 1);
+
+            Message message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            String data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.nak();
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+
+            // TERM
+            publish(js, SUBJECT, "TERM", 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("TERM1", data);
+            message.term();
+
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+
+            // Ack Wait timeout
+            publish(js, SUBJECT, "WAIT", 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("WAIT1", data);
+            sleep(2000);
+            message.ack(); // this ack came too late so will be ignored
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("WAIT1", data);
+
+            // In Progress
+            publish(js, SUBJECT, "PRO", 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("PRO1", data);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+
+            // ACK Sync
+            publish(js, SUBJECT, "ACKSYNC", 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("ACKSYNC1", data);
+            message.ackSync(Duration.ofSeconds(1));
+
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
         });
     }
 

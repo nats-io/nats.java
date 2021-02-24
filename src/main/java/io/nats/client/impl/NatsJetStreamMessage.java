@@ -91,20 +91,21 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
         Connection nc = getJetStreamValidatedConnection();
 
         if (isPullMode()) {
-            switch (ackType) {
-                case AckAck:
-                    nc.publish(replyTo, AckAck.bytes);
-                    break;
-
-                case AckNak:
-                case AckTerm:
-                case AckProgress:
-                    nc.publish(replyTo, subscription.getSubject(), ackType.bytes);
-                    break;
-            }
-            if (isSync && nc.request(replyTo, null, dur) == null) {
-                throw new TimeoutException("Ack request next timed out.");
-            }
+            nc.publish(replyTo, ackType.bytes);
+//            switch (ackType) {
+//                case AckAck:
+//                    nc.publish(replyTo, AckAck.bytes);
+//                    break;
+//
+//                case AckNak:
+//                case AckTerm:
+//                case AckProgress:
+//                    nc.publish(replyTo, subscription.getSubject(), ackType.bytes);
+//                    break;
+//            }
+//            if (isSync && nc.request(replyTo, null, dur) == null) {
+//                throw new TimeoutException("Ack request next timed out.");
+//            }
         }
         else if (isSync) {
             if (nc.request(replyTo, ackType.bytes, dur) == null) {
