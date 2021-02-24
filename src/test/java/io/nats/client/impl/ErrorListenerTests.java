@@ -53,7 +53,13 @@ public class ErrorListenerTests {
             handler.prepForStatusChange(Events.DISCONNECTED);
 
             ts.close();
-            nc.flush(Duration.ofSeconds(1));
+
+            try {
+                nc.flush(Duration.ofSeconds(1));
+            }
+            catch (Exception exp) {
+                // this usually fails
+            }
 
             handler.waitForStatusChange(5, TimeUnit.SECONDS);
 
