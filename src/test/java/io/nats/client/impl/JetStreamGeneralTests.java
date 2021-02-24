@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 
+import static io.nats.examples.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamGeneralTests extends JetStreamTestBase {
@@ -115,4 +116,35 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         });
     }
 
+    public static final String ABC1 = "A.B.C.1";
+    public static final String ABC2 = "A.B.C.2";
+    public static final String ABC3 = "A.B.C.3";
+    public static final String ABX1 = "A.B.X.1";
+    public static final String ABX2 = "A.B.X.2";
+    public static final String ABX3 = "A.B.X.3";
+
+    // @Test
+    public void filters() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            StreamInfo si = createMemoryStream(nc, STREAM, ABC1, ABC2, ABC3, ABX1, ABX2, ABX3);
+            printStreamInfo(si);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(DURABLE)
+                    .filterSubject("A.B.C.>").build();
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            jsm.addConsumer(STREAM, cc);
+
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(DURABLE).build();
+            JetStreamSubscription sub = js.subscribe(ABC1, pso);
+            assertSubscription(sub, STREAM, null, null, false);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+        });
+    }
 }
