@@ -151,7 +151,11 @@ public class PushSubscribeOptions {
          */
         public PushSubscribeOptions build() {
             validateStreamNameOrEmptyAsNull(stream);
-            validateDurableOrEmptyAsNull(durable);
+            durable = validateDurableOrEmptyAsNull(durable);
+            if (durable == null && consumerConfig != null) {
+                durable = validateDurableOrEmptyAsNull(consumerConfig.getDurable());
+            }
+
             return new PushSubscribeOptions(stream, durable, emptyAsNull(deliverSubject), consumerConfig);
         }
     }

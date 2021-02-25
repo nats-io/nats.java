@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 
-import static io.nats.examples.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamGeneralTests extends JetStreamTestBase {
@@ -116,35 +115,33 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         });
     }
 
-    public static final String ABC1 = "A.B.C.1";
-    public static final String ABC2 = "A.B.C.2";
-    public static final String ABC3 = "A.B.C.3";
-    public static final String ABX1 = "A.B.X.1";
-    public static final String ABX2 = "A.B.X.2";
-    public static final String ABX3 = "A.B.X.3";
-
-    //  @Test
-    public void filters() throws Exception {
+    @Test
+    public void testFiltersSubscribing() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
             // create the stream.
-            StreamInfo si = createMemoryStream(nc, STREAM, ABC1, ABC2, ABC3, ABX1, ABX2, ABX3);
-            printStreamInfo(si);
+            createMemoryStream(nc, STREAM, SUBJECT, subject(9));
 
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(DURABLE)
-                    .filterSubject("A.B.C.>").build();
+            // first pass creates the consumer
+            ConsumerConfiguration cc1 = ConsumerConfiguration.builder().filterSubject(SUBJECT).durable(DURABLE).build();
+            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().configuration(cc1).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso1);
+            assertSubscription(sub, STREAM, DURABLE, null, false);
 
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            jsm.addConsumer(STREAM, cc);
+            // another subscription with valid filter subject
+            sub = js.subscribe(SUBJECT, pso1);
+            assertSubscription(sub, STREAM, DURABLE, null, false);
 
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(DURABLE).build();
-            JetStreamSubscription sub = js.subscribe(ABC1, pso);
-            assertSubscription(sub, STREAM, null, null, false);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+            // filtering on a subject that the durable does not already filter
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject(9), pso1));
 
+            // filter subject ignored when consumer already exists
+            ConsumerConfiguration cc2 = ConsumerConfiguration.builder().filterSubject("ignored-bc-not-creating").durable(DURABLE).build();
+            PushSubscribeOptions pso2 = PushSubscribeOptions.builder().configuration(cc2).build();
+            sub = js.subscribe(SUBJECT, pso2);
+            assertSubscription(sub, STREAM, DURABLE, null, false);
         });
     }
 }

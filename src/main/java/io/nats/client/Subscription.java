@@ -41,12 +41,12 @@ public interface Subscription extends Consumer {
     /**
      * @return the subject associated with this subscription, will be non-null
      */
-    public String getSubject();
+    String getSubject();
 
     /**
      * @return the queue associated with this subscription, may be null.
      */
-    public String getQueueName();
+    String getQueueName();
 
     /**
      * @return the Dispatcher that owns this subscription, or null
@@ -70,7 +70,7 @@ public interface Subscription extends Consumer {
      * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      * @throws InterruptedException if one occurs while waiting for the message
      */
-    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
+    Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException;
 
     /**
      * Unsubscribe this subscription and stop listening for messages.
@@ -79,7 +79,7 @@ public interface Subscription extends Consumer {
      * 
      * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
-    public void unsubscribe();
+    void unsubscribe();
 
     /**
      * Unsubscribe this subscription and stop listening for messages, after the
@@ -100,5 +100,5 @@ public interface Subscription extends Consumer {
      * @return the subscription so that calls can be chained
      * @throws IllegalStateException if the subscription belongs to a dispatcher, or is not active
      */
-    public Subscription unsubscribe(int after);
+    Subscription unsubscribe(int after);
 }

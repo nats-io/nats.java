@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.support.NatsConstants;
+
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -184,6 +186,11 @@ public abstract class JsonUtils {
 
     public static StringBuilder beginJson() {
         return new StringBuilder("{");
+    }
+
+    public static StringBuilder beginJsonPrefixed(String prefix) {
+        return prefix == null ? beginJson()
+                : new StringBuilder(prefix).append(NatsConstants.SP).append('{');
     }
 
     public static StringBuilder endJson(StringBuilder sb) {

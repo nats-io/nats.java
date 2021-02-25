@@ -15,6 +15,7 @@ package io.nats.client;
 import io.nats.client.impl.JetStreamApiException;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -235,7 +236,7 @@ public interface JetStream {
    /**
     * Create a synchronous subscription to the specified subject with default options.
     *
-    * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+    * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration)}
     * method to read messages for this subscription.
     *
     * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for
@@ -252,7 +253,7 @@ public interface JetStream {
     /**
      * Create a synchronous subscription to the specified subject.
      *
-     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration) nextMessage}
+     * <p>Use the {@link io.nats.client.Subscription#nextMessage(Duration)}
      * method to read messages for this subscription.
      *
      * <p>See {@link io.nats.client.Connection#createDispatcher(MessageHandler) createDispatcher} for

@@ -75,19 +75,28 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         _pull(batchSize, false, expiresIn);
     }
 
+    private boolean lastNotWait = false;
+    private Duration lastExpiresIn = null;
+
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
         if (!isPullMode()) {
             throw new IllegalStateException("Subscription type does not support pull.");
         }
 
         int batch = validatePullBatchSize(batchSize);
+        lastNotWait = noWait;
+        lastExpiresIn = expiresIn;
         String publishSubject = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
-        connection.publish(publishSubject, getSubject(), getPullJson(noWait, expiresIn, batch));
+        connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn, null));
         connection.lenientFlushBuffer();
     }
 
-    byte[] getPullJson(boolean noWait, Duration expiresIn, int batch) {
-        StringBuilder sb = JsonUtils.beginJson();
+    byte[] getPrefixedPullJson(String prefix) {
+        return getPullJson(1, lastNotWait, lastExpiresIn, prefix);
+    }
+
+    byte[] getPullJson(int batch, boolean noWait, Duration expiresIn, String prefix) {
+        StringBuilder sb = JsonUtils.beginJsonPrefixed(prefix);
         JsonUtils.addFld(sb, "batch", batch);
         JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
         if (expiresIn != null) {

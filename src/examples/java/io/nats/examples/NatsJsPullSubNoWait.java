@@ -82,6 +82,8 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
+            messages = readMessagesAck(sub);
+
             // 3. Publish 20 messages
             // -  Start the pull
             // -  Read the messages

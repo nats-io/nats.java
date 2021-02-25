@@ -62,7 +62,6 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         } else {
             subj = String.format(JSAPI_DURABLE_CREATE, streamName, durable);
         }
-
         Message resp = makeRequestResponseRequired(subj, requestJSON.getBytes(), conn.getOptions().getConnectionTimeout());
         return new ConsumerInfo(extractApiResponseThrowOnError(resp).getResponse());
     }
@@ -381,19 +380,21 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         if (isPullMode) {
             stream = pullSubscribeOptions.getStream();
             ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
+            ccBuilder.deliverSubject(null); // pull mode can't have a deliver subject
         }
         else if (pushSubscribeOptions == null) {
             stream = null;
             ccBuilder = ConsumerConfiguration.builder();
         }
         else {
-            stream = pushSubscribeOptions.getStream();
+            stream = pushSubscribeOptions.getStream(); // might be null, that's ok
             ccBuilder = ConsumerConfiguration.builder(pushSubscribeOptions.getConsumerConfiguration());
         }
 
         String durable = ccBuilder.getDurable();
-        String inbox = isPullMode ? null : ccBuilder.getDeliverSubject();
-        boolean shouldCreate = true;
+        String inbox = ccBuilder.getDeliverSubject();
+
+        boolean createConsumer = true;
 
         // 1. Did they tell me what stream? No? look it up
         if (stream == null) {
@@ -405,8 +406,10 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             ConsumerInfo consumerInfo =
                     lookupConsumerInfo(stream, durable);
 
-            if (consumerInfo != null) {
+            if (consumerInfo != null) { // consumer for that durable already exists
+                createConsumer = false;
                 ConsumerConfiguration cc = consumerInfo.getConsumerConfiguration();
+
                 // Make sure the subject matches or is a subset...
                 String filterSub = cc.getFilterSubject();
                 if (filterSub != null && !filterSub.equals(subject)) {
@@ -414,31 +417,17 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                             String.format("Subject %s mismatches consumer configuration %s.", subject, filterSub));
                 }
 
-                // since we found a valid config for the durable, it existed.
-                // Make the config the working one.
-                ccBuilder = ConsumerConfiguration.builder(cc);
-                inbox = ccBuilder.getDeliverSubject();
-                shouldCreate = false;
+                // use the deliver subject as the inbox. It may be null, that's ok
+                inbox = cc.getDeliverSubject();
             }
         }
 
-        // 3. No deliver subject (inbox) provided or found in existing config? Make an inbox
+        // 3. If no deliver subject (inbox) provided or found, make an inbox.
         if (inbox == null) {
             inbox = conn.createInbox();
         }
 
-        // 4. Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
-        if (isPullMode) {
-            ccBuilder.deliverSubject(null);
-        }
-        else {
-            ccBuilder.deliverSubject(inbox);
-        }
-
-        // 5.
-        ccBuilder.filterSubject(subject);
-
-        // 6.
+        // 4. create the subscription
         NatsJetStreamSubscription sub;
         if (dispatcher == null) {
             sub = (NatsJetStreamSubscription) conn.createSubscription(inbox, queueName, null, true);
@@ -453,8 +442,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             sub = (NatsJetStreamSubscription) dispatcher.subscribeImpl(inbox, queueName, mh, true);
         }
 
-        // 7-Create. Creating the consumer. It either isn't durable or a duable that didn't already exist.
-        if (shouldCreate) {
+        // 5-Consumer didn't exist. It's either ephemeral or a durable that didn't already exist.
+        if (createConsumer) {
             // Defaults should set the right ack pending.
             // if we have acks and the maxAckPending is not set, set it
             // to the internal Max.
@@ -463,7 +452,15 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                 ccBuilder.maxAckPending(sub.getPendingMessageLimit());
             }
 
-            // A. createOrUpdateConsumer can fail for security reasons, maybe other reasons?
+            // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
+            if (!isPullMode) {
+                ccBuilder.deliverSubject(inbox);
+            }
+
+            // being discussed if this is correct, but leave it for now.
+            ccBuilder.filterSubject(subject);
+
+            // createOrUpdateConsumer can fail for security reasons, maybe other reasons?
             ConsumerInfo ci;
             try {
                 ci = createOrUpdateConsumer(stream, ccBuilder.build());
@@ -473,7 +470,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             }
             sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, pullSubscribeOptions);
         }
-        // 7-Exists.
+        // 5-Consumer did exist.
         else {
             sub.setupJetStream(this, durable, stream, inbox, pullSubscribeOptions);
         }
