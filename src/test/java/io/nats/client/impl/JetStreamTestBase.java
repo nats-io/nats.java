@@ -33,7 +33,7 @@ public class JetStreamTestBase extends TestBase {
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
 
     public NatsMessage getJsMessage(String replyTo) {
-        return new NatsMessage.IncomingMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
+        return new NatsMessage.InternalMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
     }
 
     // ----------------------------------------------------------------------------------------------------

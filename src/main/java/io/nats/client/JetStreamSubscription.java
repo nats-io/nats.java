@@ -17,6 +17,7 @@ import io.nats.client.impl.JetStreamApiException;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Subscription on a JetStream context.
@@ -53,6 +54,13 @@ public interface JetStreamSubscription extends Subscription {
      * @param expiresIn how long from now this request should be expired from the server wait list
      */
     void pullExpiresIn(int batchSize, Duration expiresIn);
+
+    /**
+     *
+     * @param batchSize the size of the batch
+     * @param timeout the timeout
+     */
+    List<Message> fetch(int batchSize, Duration timeout);
 
     /**
      * Gets information about the consumer behind this subscription.

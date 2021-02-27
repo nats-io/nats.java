@@ -376,19 +376,20 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         // setup the configuration, use a default.
         String stream;
         ConsumerConfiguration.Builder ccBuilder;
+        SubscribeOptions so;
 
         if (isPullMode) {
+            so = pullSubscribeOptions;
             stream = pullSubscribeOptions.getStream();
             ccBuilder = ConsumerConfiguration.builder(pullSubscribeOptions.getConsumerConfiguration());
             ccBuilder.deliverSubject(null); // pull mode can't have a deliver subject
         }
-        else if (pushSubscribeOptions == null) {
-            stream = null;
-            ccBuilder = ConsumerConfiguration.builder();
-        }
         else {
-            stream = pushSubscribeOptions.getStream(); // might be null, that's ok
-            ccBuilder = ConsumerConfiguration.builder(pushSubscribeOptions.getConsumerConfiguration());
+            so = pushSubscribeOptions == null
+                    ? PushSubscribeOptions.builder().build()
+                    : pushSubscribeOptions;
+            stream = so.getStream(); // might be null, that's ok
+            ccBuilder = ConsumerConfiguration.builder(so.getConsumerConfiguration());
         }
 
         String durable = ccBuilder.getDurable();
@@ -468,11 +469,11 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                 sub.unsubscribe();
                 throw e;
             }
-            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, pullSubscribeOptions);
+            sub.setupJetStream(this, ci.getName(), ci.getStreamName(), inbox, so);
         }
         // 5-Consumer did exist.
         else {
-            sub.setupJetStream(this, durable, stream, inbox, pullSubscribeOptions);
+            sub.setupJetStream(this, durable, stream, inbox, so);
         }
 
         return sub;
@@ -645,5 +646,9 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             return JSAPI_DEFAULT_PREFIX + subject;
         }
         return prefix + subject;
+    }
+
+    Duration getRequestTimeout() {
+        return requestTimeout;
     }
 }

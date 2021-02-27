@@ -15,7 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.MessageMetaData;
-import io.nats.client.impl.NatsMessage.SelfCalculatingMessage;
+import io.nats.client.impl.NatsMessage.InternalMessage;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
@@ -23,13 +23,9 @@ import java.util.concurrent.TimeoutException;
 import static io.nats.client.impl.AckType.*;
 import static io.nats.client.support.Validator.validateDurationRequired;
 
-class NatsJetStreamMessage extends SelfCalculatingMessage {
+class NatsJetStreamMessage extends InternalMessage {
 
     private NatsJetStreamMetaData jsMetaData = null;
-
-    public static boolean isJetStream(String replyTo) {
-        return replyTo != null && replyTo.startsWith("$JS");
-    }
 
     NatsJetStreamMessage() {}
 

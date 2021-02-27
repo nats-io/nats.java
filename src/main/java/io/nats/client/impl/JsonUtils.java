@@ -20,6 +20,9 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -255,17 +258,17 @@ public abstract class JsonUtils {
             sb.append(Q).append(fname).append(QCOLON).append(value).append(COMMA);
         }      
     }
-    
+
     /**
      * Appends a json field to a string builder.
      * @param sb string builder
      * @param fname fieldname
      * @param value field value
      */
-    public static void addFld(StringBuilder sb, String fname, Duration value) {
-        if (value != Duration.ZERO) {
+    public static void addNanoFld(StringBuilder sb, String fname, Duration value) {
+        if (value != null && value != Duration.ZERO) {
             sb.append(Q).append(fname).append(QCOLON).append(value.toNanos()).append(COMMA);
-        }       
+        }
     }
 
     /**
@@ -336,9 +339,23 @@ public abstract class JsonUtils {
         return m.find() ? Integer.parseInt(m.group(1)) : dflt;
     }
 
+    public static void readInt(String json, Pattern pattern, IntConsumer c) {
+        Matcher m = pattern.matcher(json);
+        if (m.find()) {
+            c.accept(Integer.parseInt(m.group(1)));
+        }
+    }
+
     public static long readLong(String json, Pattern pattern, long dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Long.parseLong(m.group(1)) : dflt;
+    }
+
+    public static void readLong(String json, Pattern pattern, LongConsumer c) {
+        Matcher m = pattern.matcher(json);
+        if (m.find()) {
+            c.accept(Long.parseLong(m.group(1)));
+        }
     }
 
     public static ZonedDateTime readDate(String json, Pattern pattern) {
@@ -346,8 +363,15 @@ public abstract class JsonUtils {
         return m.find() ? DateTimeUtils.parseDateTime(m.group(1)) : null;
     }
 
-    public static Duration readDuration(String json, Pattern pattern, Duration dflt) {
+    public static Duration readNanos(String json, Pattern pattern, Duration dflt) {
         Matcher m = pattern.matcher(json);
         return m.find() ? Duration.ofNanos(Long.parseLong(m.group(1))) : dflt;
+    }
+
+    public static void readNanos(String json, Pattern pattern, Consumer<Duration> c) {
+        Matcher m = pattern.matcher(json);
+        if (m.find()) {
+            c.accept(Duration.ofNanos(Long.parseLong(m.group(1))));
+        }
     }
 }

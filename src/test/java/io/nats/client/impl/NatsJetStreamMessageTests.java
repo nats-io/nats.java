@@ -42,7 +42,7 @@ public class NatsJetStreamMessageTests extends JetStreamTestBase {
 
     @Test
     public void testInvalid() {
-        Message m = new NatsMessage.IncomingMessageFactory("sid", "subj", "replyTo", 0, false).getMessage();
+        Message m = new NatsMessage.InternalMessageFactory("sid", "subj", "replyTo", 0, false).getMessage();
         assertFalse(m.isJetStream());
         assertThrows(IllegalStateException.class, m::ack);
         assertThrows(IllegalStateException.class, m::nak);

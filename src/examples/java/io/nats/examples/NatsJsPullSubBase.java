@@ -23,9 +23,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.examples.NatsJsUtils.printConsumerInfo;
-import static io.nats.examples.NatsJsUtils.printStreamInfo;
-
 abstract class NatsJsPullSubBase {
 
     public static void createStream(Connection nc, String streamName, String subject) throws IOException, JetStreamApiException {
@@ -43,18 +40,15 @@ abstract class NatsJsPullSubBase {
         publish(js, subject, prefix, count, true);
     }
 
-    public static void publish(JetStream js, String subject, String prefix, int count, boolean noisy) throws IOException, JetStreamApiException {
-        if (noisy) {
+    public static void publish(JetStream js, String subject, String prefix, int count, boolean verbose) throws IOException, JetStreamApiException {
+        if (verbose) {
             System.out.print("Publish ->");
         }
         for (int x = 1; x <= count; x++) {
             String data;
-            if (noisy) {
-                data = "#" + prefix + x;
+            data = prefix + x;
+            if (verbose) {
                 System.out.print(" " + data);
-            }
-            else {
-                data = prefix + x;
             }
             Message msg = NatsMessage.builder()
                     .subject(subject)
@@ -62,7 +56,7 @@ abstract class NatsJsPullSubBase {
                     .build();
             js.publish(msg);
         }
-        if (noisy) {
+        if (verbose) {
             System.out.println(" <-");
         }
     }
@@ -71,36 +65,36 @@ abstract class NatsJsPullSubBase {
         return readMessagesAck(sub, true);
     }
 
-    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean noisy) throws InterruptedException {
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean verbose) throws InterruptedException {
         List<Message> messages = new ArrayList<>();
         Message msg = sub.nextMessage(Duration.ofSeconds(1));
         boolean first = true;
         while (msg != null) {
             if (first) {
                 first = false;
-                if (noisy) {
+                if (verbose) {
                     System.out.print("Read/Ack ->");
                 }
             }
             messages.add(msg);
             if (msg.isJetStream()) {
                 msg.ack();
-                if (noisy) {
+                if (verbose) {
                     System.out.print(" " + new String(msg.getData()));
                 }
             }
             else if (msg.isStatusMessage()) {
-                if (noisy) {
+                if (verbose) {
                     System.out.print(" !" + msg.getStatus().getCode() + "!");
                 }
             }
-            else if (noisy) {
+            else if (verbose) {
                 System.out.print(" ?" + new String(msg.getData()) + "?");
             }
             msg = sub.nextMessage(Duration.ofSeconds(1));
         }
 
-        if (noisy) {
+        if (verbose) {
             if (first) {
                 System.out.println("No messages available.");
             }
@@ -110,32 +104,5 @@ abstract class NatsJsPullSubBase {
         }
 
         return messages;
-    }
-
-    public static String pad(int size) {
-        return size < 10 ? " " + size : "" + size;
-    }
-
-    public static String yn(boolean b) {
-        return b ? "Yes" : "No ";
-    }
-
-    public static void debug(Connection nc, String stream, String durable) throws IOException, JetStreamApiException {
-        debug(nc.jetStreamManagement(), stream, durable);
-    }
-
-    public static void debug(JetStreamManagement jsm, String stream, String durable) throws IOException, JetStreamApiException {
-        printStreamInfo(jsm.getStreamInfo(stream));
-        printConsumerInfo(jsm.getConsumerInfo(stream, durable));
-    }
-
-    public static void debugConsumer(Connection nc, String stream, String durable) throws IOException, JetStreamApiException {
-        debugConsumer(nc.jetStreamManagement(), stream, durable);
-    }
-
-    public static void debugConsumer(JetStreamManagement jsm, String stream, String durable) throws IOException, JetStreamApiException {
-        ConsumerInfo ci = jsm.getConsumerInfo(stream, durable);
-        // numPending=0, numWaiting=2, numAckPending=0
-        System.out.println("Consumer numPending=" + ci.getNumPending() + " numWaiting=" + ci.getNumWaiting() + " numAckPending=" + ci.getNumAckPending());
     }
 }

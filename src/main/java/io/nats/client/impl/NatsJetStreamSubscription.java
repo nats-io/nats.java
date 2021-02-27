@@ -13,13 +13,13 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumerInfo;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.PullSubscribeOptions;
+import io.nats.client.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.nats.client.support.Validator.validatePullBatchSize;
 
@@ -32,23 +32,26 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     private String consumer;
     private String stream;
     private String deliver;
-    private PullSubscribeOptions pullSubscribeOptions;
+    private SubscribeOptions subscribeOptions;
+    private boolean isPullMode;
+    private boolean isPullSmart;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(sid, subject, queueName, connection, dispatcher);
     }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, PullSubscribeOptions pullSubscribeOptions) {
+    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, SubscribeOptions subscribeOptions) {
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.pullSubscribeOptions = pullSubscribeOptions;
+        this.subscribeOptions = subscribeOptions;
+        isPullMode = subscribeOptions instanceof PullSubscribeOptions;
     }
 
     boolean isPullMode() {
-        return pullSubscribeOptions != null;
+        return isPullMode;
     }
 
     /**
@@ -99,11 +102,24 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         StringBuilder sb = JsonUtils.beginJsonPrefixed(prefix);
         JsonUtils.addFld(sb, "batch", batch);
         JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
-        if (expiresIn != null) {
-            JsonUtils.addFld(sb, "expires", DateTimeUtils.fromNow(expiresIn));
-        }
+        JsonUtils.addNanoFld(sb, "expires", expiresIn);
         return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
     }
+
+// SFF 2021-02-26 possible behavior
+//    @Override
+//    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
+//        Message msg = super.nextMessage(timeout);
+//        return msg == null && isPullSmart ? get404Message() : msg;
+//    }
+//
+//    Message message404; // lazy init
+//    private Message get404Message() {
+//        if (message404 == null) {
+//            message404 = new NatsMessage.StatusMessage(404, "No Messages");
+//        }
+//        return message404;
+//    }
 
     /**
      * {@inheritDoc}
@@ -111,6 +127,37 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         return js.lookupConsumerInfo(stream, consumer);
+    }
+
+    @Override
+    public List<Message> fetch(int batchSize, Duration timeout) {
+        List<Message> messages = new ArrayList<>();
+        Message msg;
+        try {
+            pullNoWait(batchSize);
+            msg = nextMessage(timeout); // full timeout used for first message
+            if (msg.isJetStream()) {
+                messages.add(msg);
+            }
+        } catch (InterruptedException e) {
+            msg = null;
+        }
+
+        while (msg != null && messages.size() < batchSize) {
+            try {
+                msg = nextMessage(js.getRequestTimeout());
+                if (msg != null && msg.isJetStream()) {
+                    messages.add(msg);
+                }
+                else {
+                    break;
+                }
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
+
+        return messages;
     }
 
     @Override

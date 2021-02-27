@@ -87,7 +87,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertEquals(1, names.size());
 
             // default subscribe options // ephemeral subscription.
-            s = js.subscribe(SUBJECT, PushSubscribeOptions.defaultInstance());
+            s = js.subscribe(SUBJECT, PushSubscribeOptions.builder().build());
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
@@ -130,9 +130,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso1);
             assertSubscription(sub, STREAM, DURABLE, null, false);
 
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            debug(jsm, 1);
+
             // another subscription with valid filter subject
             sub = js.subscribe(SUBJECT, pso1);
             assertSubscription(sub, STREAM, DURABLE, null, false);
+            debug(jsm, 2);
 
             // filtering on a subject that the durable does not already filter
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject(9), pso1));
@@ -142,6 +146,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             PushSubscribeOptions pso2 = PushSubscribeOptions.builder().configuration(cc2).build();
             sub = js.subscribe(SUBJECT, pso2);
             assertSubscription(sub, STREAM, DURABLE, null, false);
+            debug(jsm, 3);
         });
     }
 }

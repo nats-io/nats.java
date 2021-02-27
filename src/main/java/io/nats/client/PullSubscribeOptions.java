@@ -17,49 +17,13 @@ import static io.nats.client.support.Validator.validateDurableRequired;
 import static io.nats.client.support.Validator.validateStreamNameOrEmptyAsNull;
 
 /**
- * The SubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
+ * The PullSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are created using the constructors or a {@link Builder}.
  */
-public class PullSubscribeOptions {
-
-    private final String stream;
-    private final ConsumerConfiguration consumerConfig;
+public class PullSubscribeOptions extends SubscribeOptions {
 
     private PullSubscribeOptions(String stream, ConsumerConfiguration consumerConfig) {
-        this.stream = stream;
-        this.consumerConfig = consumerConfig;
-    }
-
-    /**
-     * Gets the name of the stream.
-     * @return the name of the stream.
-     */
-    public String getStream() {
-        return stream;
-    }
-
-    /**
-     * Gets the durable consumer name held in the consumer configuration.
-     * @return the durable consumer name
-     */
-    public String getDurable() {
-        return consumerConfig.getDurable();
-    }
-
-    /**
-     * Gets the consumer configuration.
-     * @return the consumer configuration.
-     */
-    public ConsumerConfiguration getConsumerConfiguration() {
-        return consumerConfig;
-    }
-
-    @Override
-    public String toString() {
-        return "PullSubscribeOptions{" +
-                "stream='" + stream + '\'' +
-                ", " + consumerConfig +
-                '}';
+        super(stream, consumerConfig);
     }
 
     public static Builder builder() {
@@ -67,44 +31,14 @@ public class PullSubscribeOptions {
     }
 
     /**
-     * SubscribeOptions can be created using a Builder. The builder supports chaining and will
+     * PullSubscribeOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
-    public static class Builder {
-        private String stream;
-        private String durable;
-        private ConsumerConfiguration consumerConfig;
+    public static class Builder
+            extends SubscribeOptions.Builder<Builder, PullSubscribeOptions> {
 
-        /**
-         * Specify the stream to attach to. If not supplied the stream will be looked up by subject.
-         * Null or empty clears the field.
-         * @param stream the name of the stream
-         * @return the builder
-         */
-        public Builder stream(String stream) {
-            this.stream = stream;
-            return this;
-        }
-
-        /**
-         * Sets the durable consumer name for the subscriber.
-         * @param durable the durable name
-         * @return the builder
-         */
-        public Builder durable(String durable) {
-            this.durable = durable;
-            return this;
-        }
-
-        /**
-         * The consumer configuration. The configuration durable name will be replaced
-         * if you supply a consumer name in the builder. The configuration deliver subject
-         * will be replaced if you supply a name in the builder.
-         * @param configuration the consumer configuration.
-         * @return the builder
-         */
-        public Builder configuration(ConsumerConfiguration configuration) {
-            this.consumerConfig = configuration;
+        @Override
+        protected Builder getThis() {
             return this;
         }
 
@@ -112,10 +46,16 @@ public class PullSubscribeOptions {
          * Builds the subscribe options.
          * @return subscribe options
          */
+        @Override
         public PullSubscribeOptions build() {
             validateStreamNameOrEmptyAsNull(stream);
+
             durable = validateDurableRequired(durable, consumerConfig);
-            ConsumerConfiguration cc = ConsumerConfiguration.builder(consumerConfig).durable(durable).build();
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder(consumerConfig)
+                    .durable(durable)
+                    .build();
+
             return new PullSubscribeOptions(stream, cc);
         }
     }

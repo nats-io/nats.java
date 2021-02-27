@@ -155,7 +155,7 @@ public class NatsMessageTests {
         assertNotNull(pm.protocolBytes);
         assertEquals(0, pm.protocolBytes.length);
 
-        NatsMessage.SelfCalculatingMessage scm = new NatsMessage.SelfCalculatingMessage() {};
+        NatsMessage.InternalMessage scm = new NatsMessage.InternalMessage() {};
         assertNull(scm.protocolBytes);
         assertEquals(-1, scm.getControlLineLength());
     }

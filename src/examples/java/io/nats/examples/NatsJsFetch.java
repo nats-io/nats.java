@@ -20,22 +20,21 @@ import java.util.List;
 
 /**
  * This example will demonstrate a pull subscription with:
- * - a batch size  + nowait i.e. subscription.pullNoWait(10)
- * - AckMode.NEXT
+ * - a batch size  + fetch i.e. subscription.fetch(10, Duration.ofSeconds(10))
  *
- * Usage: java NatsJsPullSubNoWaitNext [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsFetch [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
+public class NatsJsFetch extends NatsJsPullSubBase {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("nowait-ack-stream")
-                .defaultSubject("nowait-ack-subject")
-                .defaultDurable("nowait-ack-durable")
+                .defaultStream("fetch-ack-stream")
+                .defaultSubject("fetch-ack-subject")
+                .defaultDurable("fetch-ack-durable")
                 .build(args);
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
@@ -65,11 +64,8 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             // -  Since there are exactly the batch size we get them all
             //    and do NOT get a nowait status message
             System.out.println("----------\n1. There are no messages yet");
-            sub.pullNoWait(10);
-            List<Message> messages = readMessagesAck(sub);
-            Message lastMessage = messages.get(messages.size()-1);
-            System.out.println("We should have received 1 total messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+            List<Message> messages = sub.fetch(10, Duration.ofSeconds(3));
+            System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
             // 2. Publish 10 messages
             // -  Start the pull
@@ -78,8 +74,7 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             //    and do NOT get a nowait status message
             System.out.println("----------\n2. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             messages = readMessagesAck(sub);
@@ -90,8 +85,7 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             // -  we do NOT get a nowait status message if there are more or equals messages than the batch
             System.out.println("----------\n3. Publish 20 which is larger than the batch size.");
             publish(js, exArgs.subject, "B", 20);
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 4. There are still messages left from the last
@@ -99,8 +93,7 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             // -  Read the messages
             // -  we do NOT get a nowait status message if there are more or equals messages than the batch
             System.out.println("----------\n4. Get the rest of the publish.");
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 5. Publish 5 messages
@@ -110,10 +103,8 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             System.out.println("----------\n5. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
             sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
-            lastMessage = messages.get(messages.size()-1);
-            System.out.println("We should have received 6 total messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+            messages = sub.fetch(10, Duration.ofSeconds(3));
+            System.out.println("We should have received 5 total messages, we received: " + messages.size());
 
             // 6. Publish 14 messages
             // -  Start the pull
@@ -121,8 +112,7 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             // -  we do NOT get a nowait status message if there are more or equals messages than the batch
             System.out.println("----------\n6. Publish 14 which is more than the batch size.");
             publish(js, exArgs.subject, "D", 14);
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 7. There are 4 messages left
@@ -130,11 +120,8 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             // -  Read the messages
             // -  Since there are less than batch size the last message we get will be a status 404 message.
             System.out.println("----------\n7. There are 4 messages left, which is less than the batch size.");
-            sub.pullNoWait(10);
-            messages = readMessagesAck(sub, false);
-            lastMessage = messages.get(messages.size()-1);
-            System.out.println("We should have received 5 messages, we received: " + messages.size());
-            System.out.println("Should be a status message? " + lastMessage.isStatusMessage() + " " + lastMessage.getStatus());
+            messages = sub.fetch(10, Duration.ofSeconds(3));
+            System.out.println("We should have received 4 messages, we received: " + messages.size());
 
             System.out.println("----------\n");
         }

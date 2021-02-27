@@ -138,40 +138,11 @@ public class StreamConfiguration {
     // for the response from the server
     static StreamConfiguration fromJson(String json) {
         Builder builder = new Builder();
-        Matcher m = NAME_RE.matcher(json);
-        if (m.find()) {
-            builder.name = m.group(1);
-        }
 
-        m = MAX_CONSUMERS_RE.matcher(json);
-        if (m.find()) {
-            builder.maxConsumers = Long.parseLong(m.group(1));
-        }
-        
-        m = RETENTION_RE.matcher(json);
+        Matcher m = RETENTION_RE.matcher(json);
         if (m.find()) {
             builder.retentionPolicy = RetentionPolicy.get(m.group(1));
         }
-
-        m = MAX_MSGS_RE.matcher(json);
-        if (m.find()) {
-            builder.maxMsgs = Long.parseLong(m.group(1));
-        }
-
-        m = MAX_BYTES_RE.matcher(json);
-        if (m.find()) {
-            builder.maxBytes = Long.parseLong(m.group(1));
-        }
-
-        m = MAX_AGE_RE.matcher(json);
-        if (m.find()) {
-            builder.maxAge = Duration.ofNanos(Long.parseLong(m.group(1)));
-        }        
-
-        m = MAX_MSG_SIZE_RE.matcher(json);
-        if (m.find()) {
-            builder.maxMsgSize = Long.parseLong(m.group(1));
-        } 
 
         m = STORAGE_TYPE_RE.matcher(json);
         if (m.find()) {
@@ -183,26 +154,17 @@ public class StreamConfiguration {
             builder.discardPolicy = DiscardPolicy.get(m.group(1));
         }
 
-        m = REPLICAS_RE.matcher(json);
-        if (m.find()) {
-            builder.replicas = Integer.parseInt(m.group(1));
-        }
+        builder.name = JsonUtils.readString(json, NAME_RE);
+        JsonUtils.readLong(json, MAX_CONSUMERS_RE, l -> builder.maxConsumers = l);
+        JsonUtils.readLong(json, MAX_MSGS_RE, l -> builder.maxMsgs = l);
+        JsonUtils.readLong(json, MAX_BYTES_RE, l -> builder.maxBytes = l);
+        JsonUtils.readNanos(json, MAX_AGE_RE, dur -> builder.maxAge = dur);
+        JsonUtils.readLong(json, MAX_MSG_SIZE_RE, l -> builder.maxMsgSize = l);
+        JsonUtils.readInt(json, REPLICAS_RE, i -> builder.replicas = i);
+        builder.noAck = JsonUtils.readBoolean(json, NO_ACK_RE);
+        builder.templateOwner = JsonUtils.readString(json, TEMPLATE_RE);
+        JsonUtils.readNanos(json, DUPLICATE_WINDOW_RE, dur -> builder.duplicateWindow = dur);
 
-        m = NO_ACK_RE.matcher(json);
-        if (m.find()) {
-            builder.noAck = Boolean.parseBoolean(m.group(1));
-        }
-
-        m = TEMPLATE_RE.matcher(json);
-        if (m.find()) {
-            builder.templateOwner = m.group(1);
-        }
-
-        m = DUPLICATE_WINDOW_RE.matcher(json);
-        if (m.find()) {
-            builder.duplicateWindow = Duration.ofNanos(Long.parseLong(m.group(1)));
-        }
-        
         builder.subjects(JsonUtils.getStringArray(SUBJECTS, json));
 
         return builder.build();
@@ -247,14 +209,14 @@ public class StreamConfiguration {
         JsonUtils.addFld(sb, MAX_CONSUMERS, maxConsumers);
         JsonUtils.addFld(sb, MAX_MSGS, maxMsgs);
         JsonUtils.addFld(sb, MAX_BYTES, maxBytes);
-        JsonUtils.addFld(sb, MAX_AGE, maxAge);
+        JsonUtils.addNanoFld(sb, MAX_AGE, maxAge);
         JsonUtils.addFld(sb, MAX_MSG_SIZE, maxMsgSize);
         JsonUtils.addFld(sb, STORAGE, storageType.toString());
         JsonUtils.addFld(sb, NUM_REPLICAS, replicas);
         JsonUtils.addFld(sb, NO_ACK, noAck);
         JsonUtils.addFld(sb, TEMPLATE, templateOwner);
         JsonUtils.addFld(sb, DISCARD, discardPolicy.toString());
-        JsonUtils.addFld(sb, DUPLICATE_WINDOW, duplicateWindow);
+        JsonUtils.addNanoFld(sb, DUPLICATE_WINDOW, duplicateWindow);
 
         return JsonUtils.endJson(sb).toString();
     }

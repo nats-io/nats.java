@@ -18,27 +18,27 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PushPullSubscribeOptionsTests extends TestBase {
+public class SubscribeOptionsTests extends TestBase {
 
     @Test
     public void testPushAffirmative() {
-        PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
-
-        PushSubscribeOptions so = builder.build();
+        PushSubscribeOptions so = PushSubscribeOptions.builder().build();
 
         // starts out all null which is fine
         assertNull(so.getStream());
         assertNull(so.getDurable());
         assertNull(so.getDeliverSubject());
 
-        so = builder.stream(STREAM).durable(DURABLE).deliverSubject(DELIVER).build();
+        so = PushSubscribeOptions.builder()
+                .stream(STREAM).durable(DURABLE).deliverSubject(DELIVER).build();
 
         assertEquals(STREAM, so.getStream());
         assertEquals(DURABLE, so.getDurable());
         assertEquals(DELIVER, so.getDeliverSubject());
 
         // demonstrate that you can clear the builder
-        so = builder.stream(null).deliverSubject(null).durable(null).build();
+        so = PushSubscribeOptions.builder()
+                .stream(null).deliverSubject(null).durable(null).build();
         assertNull(so.getStream());
         assertNull(so.getDurable());
         assertNull(so.getDeliverSubject());
