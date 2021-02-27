@@ -106,7 +106,7 @@ public class NatsJsFetch extends NatsJsPullSubBase {
             messages = sub.fetch(10, Duration.ofSeconds(3));
             System.out.println("We should have received 5 total messages, we received: " + messages.size());
 
-            // 6. Publish 14 messages
+            // 6. Publish 15 messages
             // -  Start the pull
             // -  Read the messages
             // -  we do NOT get a nowait status message if there are more or equals messages than the batch
@@ -115,13 +115,13 @@ public class NatsJsFetch extends NatsJsPullSubBase {
             messages = sub.fetch(10, Duration.ofSeconds(3));
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
-            // 7. There are 4 messages left
+            // 7. There are 5 messages left
             // -  Start the pull
             // -  Read the messages
             // -  Since there are less than batch size the last message we get will be a status 404 message.
             System.out.println("----------\n7. There are 4 messages left, which is less than the batch size.");
             messages = sub.fetch(10, Duration.ofSeconds(3));
-            System.out.println("We should have received 4 messages, we received: " + messages.size());
+            System.out.println("We should have received 5 messages, we received: " + messages.size());
 
             System.out.println("----------\n");
         }
