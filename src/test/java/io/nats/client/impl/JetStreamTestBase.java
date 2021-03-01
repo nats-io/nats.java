@@ -53,15 +53,15 @@ public class JetStreamTestBase extends TestBase {
         return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
     }
 
-    public StreamInfo createTestStream(Connection nc) throws IOException, JetStreamApiException {
+    public static StreamInfo createTestStream(Connection nc) throws IOException, JetStreamApiException {
         return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
-    public StreamInfo createTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+    public static StreamInfo createTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
         return createMemoryStream(jsm, STREAM, SUBJECT);
     }
 
-    public StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
+    public static StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
         try {
             return jsm.getStreamInfo(streamName);
         }
@@ -73,7 +73,7 @@ public class JetStreamTestBase extends TestBase {
         }
     }
 
-    public void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
+    public static void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
         System.out.println("\n" + n + ". -------------------------------");
         printStreamInfo(jsm.getStreamInfo(STREAM));
         printConsumerInfo(jsm.getConsumerInfo(STREAM, DURABLE));

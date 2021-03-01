@@ -298,6 +298,11 @@ public class NatsMessage implements Message {
     @Override
     public String toString() {
         calculateIfDirty();
+        return "NatsMessage |" + subject + "|" + (replyTo == null ? "<no reply>" : replyTo) + "|" + (data.length == 0 ? "<no data>" : new String(data)) + "|";
+    }
+
+    public String toDetailString() {
+        calculateIfDirty();
         String hdrString = hasHeaders() ? new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+") : "";
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +

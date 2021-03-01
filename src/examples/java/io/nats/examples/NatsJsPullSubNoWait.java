@@ -62,8 +62,7 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
 
             // 1. Start the pull, but there are no messages yet.
             // -  Read the messages
-            // -  Since there are exactly the batch size we get them all
-            //    and do NOT get a nowait status message
+            // -  Since there are less than the batch size, we get tham all (0) plus a 4040 status message
             System.out.println("----------\n1. There are no messages yet");
             sub.pullNoWait(10);
             List<Message> messages = readMessagesAck(sub);
@@ -81,8 +80,6 @@ public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
-
-            messages = readMessagesAck(sub);
 
             // 3. Publish 20 messages
             // -  Start the pull

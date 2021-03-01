@@ -18,9 +18,11 @@ import io.nats.client.*;
 import java.time.Duration;
 import java.util.List;
 
+import static io.nats.examples.ExampleUtils.sleep;
+
 /**
  * This example will demonstrate a pull subscription with:
- * - a batch size  + fetch i.e. subscription.fetch(10, Duration.ofSeconds(10))
+ * - a batch size + fetch i.e. subscription.fetch(10, Duration.ofSeconds(10))
  *
  * Usage: java NatsJsFetch [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
@@ -44,10 +46,16 @@ public class NatsJsFetch extends NatsJsPullSubBase {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
+            // Build our consumer configuration and subscription options.
+            // make sure the ack wait is sufficient to handle the reading and processing of the batch.
+            // Durable is REQUIRED for pull based subscriptions
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .ackWait(Duration.ofMillis(2500))
+                    .build();
+
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable) // required
-                    // .configuration(...)   // if you want a custom io.nats.client.ConsumerConfiguration
+                    .configuration(cc)
                     .build();
 
             // 0.1 Initialize. subscription
@@ -59,69 +67,75 @@ public class NatsJsFetch extends NatsJsPullSubBase {
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
-            // 1. Start the pull, but there are no messages yet.
-            // -  Read the messages
-            // -  Since there are exactly the batch size we get them all
-            //    and do NOT get a nowait status message
+            // 1. Fetch, but there are no messages yet.
+            // -  Read the messages, get them all (0)
             System.out.println("----------\n1. There are no messages yet");
             List<Message> messages = sub.fetch(10, Duration.ofSeconds(3));
+            ackAll(messages);
             System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
             // 2. Publish 10 messages
-            // -  Start the pull
-            // -  Read the messages
-            // -  Since there are exactly the batch size we get them all
-            //    and do NOT get a nowait status message
+            // -  Fetch messages, get 10
             System.out.println("----------\n2. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
             messages = sub.fetch(10, Duration.ofSeconds(3));
+            ackAll(messages);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
-            messages = readMessagesAck(sub);
-
             // 3. Publish 20 messages
-            // -  Start the pull
-            // -  Read the messages
-            // -  we do NOT get a nowait status message if there are more or equals messages than the batch
+            // -  Fetch messages, only get 10
             System.out.println("----------\n3. Publish 20 which is larger than the batch size.");
             publish(js, exArgs.subject, "B", 20);
             messages = sub.fetch(10, Duration.ofSeconds(3));
+            ackAll(messages);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 4. There are still messages left from the last
-            // -  Start the pull
-            // -  Read the messages
-            // -  we do NOT get a nowait status message if there are more or equals messages than the batch
+            // -  Fetch messages, get 10
             System.out.println("----------\n4. Get the rest of the publish.");
             messages = sub.fetch(10, Duration.ofSeconds(3));
+            ackAll(messages);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 5. Publish 5 messages
-            // -  Start the pull
-            // -  Read the messages
-            // -  Since there are less than batch size the last message we get will be a status 404 message.
+            // -  Fetch messages, get 5
+            // -  Since there are less than batch size we only get what the server has.
             System.out.println("----------\n5. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
-            sub.pullNoWait(10);
             messages = sub.fetch(10, Duration.ofSeconds(3));
+            ackAll(messages);
             System.out.println("We should have received 5 total messages, we received: " + messages.size());
 
             // 6. Publish 15 messages
-            // -  Start the pull
-            // -  Read the messages
-            // -  we do NOT get a nowait status message if there are more or equals messages than the batch
-            System.out.println("----------\n6. Publish 14 which is more than the batch size.");
-            publish(js, exArgs.subject, "D", 14);
+            // -  Fetch messages, only get 10
+            System.out.println("----------\n6. Publish 15 which is more than the batch size.");
+            publish(js, exArgs.subject, "D", 15);
             messages = sub.fetch(10, Duration.ofSeconds(3));
+            ackAll(messages);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 7. There are 5 messages left
-            // -  Start the pull
-            // -  Read the messages
-            // -  Since there are less than batch size the last message we get will be a status 404 message.
-            System.out.println("----------\n7. There are 4 messages left, which is less than the batch size.");
+            // -  Fetch messages, only get 5
+            System.out.println("----------\n7. There are 5 messages left.");
             messages = sub.fetch(10, Duration.ofSeconds(3));
+            ackAll(messages);
             System.out.println("We should have received 5 messages, we received: " + messages.size());
+
+            // 8. Read but don't ack.
+            // -  Fetch messages, get 10, but either take too long to ack them or don't ack them
+            System.out.println("----------\n8. Fetch but don't ack.");
+            publish(js, exArgs.subject, "E", 10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
+            dontAck(messages);
+            System.out.println("We should have received 10 message, we received: " + messages.size());
+            sleep(3000); // longer than the ackWait
+
+            // 9. Fetch messages,
+            // -  get the 10 messages we didn't ack
+            System.out.println("----------\n9. Fetch, get the messages we did not ack.");
+            messages = sub.fetch(10, Duration.ofSeconds(3));
+            ackAll(messages);
+            System.out.println("We should have received 10 message, we received: " + messages.size());
 
             System.out.println("----------\n");
         }

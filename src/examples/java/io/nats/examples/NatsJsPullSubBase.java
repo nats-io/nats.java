@@ -105,4 +105,36 @@ abstract class NatsJsPullSubBase {
 
         return messages;
     }
+
+    public static void ackAll(List<Message> list) {
+        System.out.print("Fetch/Ack ->");
+        for (Message m : list) {
+            m.ack();
+            System.out.print(" " + new String(m.getData()));
+        }
+        System.out.println(" <- ");
+    }
+
+    public static void dontAck(List<Message> list) {
+        System.out.print("Fetch/Don't Ack ->");
+        for (Message m : list) {
+            System.out.print(" " + new String(m.getData()));
+        }
+        System.out.println(" <- ");
+    }
+
+    public static String uniqueEnough() {
+        String hex = Long.toHexString(System.currentTimeMillis()).substring(6);
+        StringBuilder sb = new StringBuilder();
+        for (int x = 0; x < hex.length(); x++) {
+            char c = hex.charAt(x);
+            if (c < 58) {
+                sb.append((char)(c+55));
+            }
+            else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
 }
