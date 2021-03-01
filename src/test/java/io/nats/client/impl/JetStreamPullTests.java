@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
-    public void fetch() throws Exception {
+    public void testFetch() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -89,7 +89,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void plain() throws Exception {
+    public void testPlain() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -172,7 +172,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void noWait() throws Exception {
+    public void testNoWait() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -234,7 +234,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     @Test
-    public void expireFuture() throws Exception {
+    public void testExpireFuture() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -309,11 +309,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertEquals("NAK1", data);
             message.nak();
 
-            // not 100 % sure what this message is
-//            message = sub.nextMessage(Duration.ofSeconds(1));
-//            assertNotNull(message);
-//            assertEquals(0, message.getData().length);
-
             sub.pull(1);
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -348,11 +343,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             String data = new String(message.getData());
             assertEquals("TERM1", data);
             message.term();
-
-            // is this an ack of the term
-//            message = sub.nextMessage(Duration.ofSeconds(1));
-//            assertNotNull(message);
-//            assertEquals(0, message.getData().length);
 
             sub.pull(1);
             assertNull(sub.nextMessage(Duration.ofSeconds(1)));
@@ -394,7 +384,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-//    @Test
+    // @Test
     public void testInProgress() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
@@ -415,22 +405,16 @@ public class JetStreamPullTests extends JetStreamTestBase {
             String data = new String(message.getData());
             assertEquals("PRO1", data);
             message.inProgress();
-            sleep(750);
-            message.inProgress();
-            sleep(750);
-            message.inProgress();
-            sleep(750);
-            message.inProgress();
-            sleep(750);
+            sleep(500);
+//            message.inProgress();
+//            sleep(500);
+//            message.inProgress();
+//            sleep(500);
+//            message.inProgress();
+//            sleep(500);
             message.ack();
 
-            // TODO FIGURE THIS OUT
             publish(js, SUBJECT, "PRO", 2);
-
-            // not 100 % sure what this message is
-//            message = sub.nextMessage(Duration.ofSeconds(1));
-//            assertNotNull(message);
-//            assertEquals(0, message.getData().length);
 
             sub.pull(1);
             message = sub.nextMessage(Duration.ofSeconds(1));
