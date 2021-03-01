@@ -14,8 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.PullSubscribeOptions.AckMode;
-import io.nats.client.PullSubscribeOptions.ExpireMode;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -39,39 +37,29 @@ public class JetStreamPullBehavior extends JetStreamTestBase {
     public static void main(String[] args) throws Exception {
         try (FileOutputStream _csv = new FileOutputStream("C:\\nats\\pull-behavior.csv")) {
             csv = _csv;
-            runGroup("Plain + Next", AckMode.NEXT, null, sub -> sub.pull(SIZE));
-            runGroup("Plain + Ack", AckMode.ACK, null, sub -> sub.pull(SIZE));
-            runGroup("No Wait + Next", AckMode.NEXT, null, sub -> sub.pullNoWait(SIZE));
-            runGroup("No Wait + Ack", AckMode.ACK, null, sub -> sub.pullNoWait(SIZE));
-            runGroup("Expire + Next + Advance", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Next + Advance + Sleep", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
-            runGroup("Expire + Next + Leave", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Next + Leave + Sleep", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
-            runGroup("Expire + Ack", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Ack + Sleep", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
-            runGroup("Expire + Past + Next + Advance", AckMode.NEXT, ExpireMode.ADVANCE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Past + Next + Leave", AckMode.NEXT, ExpireMode.LEAVE, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Past + Ack", AckMode.ACK, null, sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+            runGroup("Plain + Ack", sub -> sub.pull(SIZE));
+            runGroup("No Wait + Ack", sub -> sub.pullNoWait(SIZE));
+            runGroup("Expire + Ack", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+            runGroup("Expire + Ack + Sleep", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
+            runGroup("Expire + Past + Ack", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
         }
     }
 
-    private static void runGroup(String label, AckMode ackMode, ExpireMode expireMode, Pull pull) throws Exception {
-        runGroup(label, ackMode, expireMode, pull, 0);
+    private static void runGroup(String label, Pull pull) throws Exception {
+        runGroup(label, pull, 0);
     }
 
-    private static void runGroup(String label, AckMode ackMode, ExpireMode expireMode, Pull pull, long sleep) throws Exception {
+    private static void runGroup(String label, Pull pull, long sleep) throws Exception {
         runInJsServer(_nc -> {
             nc = _nc;
             jsm = _nc.jetStreamManagement();
             js = _nc.jetStream();
             write(label + HEADER_SLEEP);
-            boolean first = true;
             for (int pub : PUBs) {
                 int[] REPUBs = pub == 2 ? new int[]{4, 6} : new int[]{4};
                 for (int repub : REPUBs) {
                     for (boolean repull : BOOLs) {
-                        runOne(first, ackMode, expireMode, pub, repub, repull, pull, sleep);
-                        first = false;
+                        runOne(pub, repub, repull, pull, sleep);
                     }
                 }
             }
@@ -81,25 +69,17 @@ public class JetStreamPullBehavior extends JetStreamTestBase {
 
     static final String HEADER_SLEEP = ",Ack,Expire,Pub,RePull,Msgs 1,Msgs 2";
 
-    public static void runOne(boolean first, AckMode ackMode, ExpireMode expireMode, int pub, int repub, boolean repull, Pull pull, long sleep) throws Exception {
+    public static void runOne(int pub, int repub, boolean repull, Pull pull, long sleep) throws Exception {
         long unique = System.currentTimeMillis();
         String stream = STREAM + unique;
         String subject = SUBJECT + unique;
         String durable = DURABLE + unique;
         createMemoryStream(jsm, stream, subject);
-        PullSubscribeOptions options = PullSubscribeOptions.builder()
-                .durable(durable).ackMode(ackMode).expireMode(expireMode).build();
+        PullSubscribeOptions options = PullSubscribeOptions.builder().durable(durable).build();
         JetStreamSubscription sub = js.subscribe(subject, options);
         nc.flush(Duration.ofSeconds(10));
 
         StringBuilder sb = new StringBuilder();
-        if (first) {
-            append(sb, ackMode);
-            append(sb, expireMode);
-        }
-        else {
-            sb.append(",,");
-        }
         append(sb, "" + pub + "," + repub);
         append(sb, repull);
 

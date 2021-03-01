@@ -127,7 +127,9 @@ public class NatsMessageTests {
         NatsMessage m = testMessage();
         String ms = m.toString();
         assertNotNull(ms);
-        assertTrue(ms.contains("subject='test'"));
+        assertTrue(ms.contains("test"));
+        assertTrue(ms.contains("reply"));
+        assertTrue(ms.contains("data"));
 
         assertTrue(m.hasHeaders());
         assertNotNull(m.getHeaders());
@@ -137,7 +139,7 @@ public class NatsMessageTests {
         assertNull(m.getNatsSubscription());
         assertNull(m.getConnection());
         assertEquals(23, m.getControlLineLength());
-        assertNotNull(m.toString()); // COVERAGE
+        assertNotNull(m.toDetailString()); // COVERAGE
         assertNotNull(m.getOrCreateHeaders());
 
         m.getHeaders().remove("key");
@@ -155,7 +157,7 @@ public class NatsMessageTests {
         assertNotNull(pm.protocolBytes);
         assertEquals(0, pm.protocolBytes.length);
 
-        NatsMessage.SelfCalculatingMessage scm = new NatsMessage.SelfCalculatingMessage() {};
+        NatsMessage.InternalMessage scm = new NatsMessage.InternalMessage() {};
         assertNull(scm.protocolBytes);
         assertEquals(-1, scm.getControlLineLength());
     }

@@ -22,19 +22,19 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * This example will demonstrate JetStream publishing.
+ * This example will demonstrate JetStream async / future publishing.
  *
  * Run Notes:
  * - msg_count < 1 is the same as 1
  * - headers are optional
  *
- * Usage: java NatsJsPub [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-h headerKey:headerValue]*
+ * Usage: java NatsJsPubAsync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-h headerKey:headerValue]*
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPubFuture {
+public class NatsJsPubAsync {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()

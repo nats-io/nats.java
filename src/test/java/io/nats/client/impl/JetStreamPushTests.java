@@ -19,12 +19,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,6 +49,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             // Subscription 1
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, null, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available
@@ -110,6 +107,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
             // Subscribe.
             JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, deliverSubject, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // read what is available
@@ -146,10 +144,102 @@ public class JetStreamPushTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             JetStreamSubscription sub = js.subscribe(SUBJECT);
+            assertSubscription(sub, STREAM, null, null, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // this should exception, can't pull on a push sub
             assertThrows(IllegalStateException.class, () -> sub.pull(1));
+            assertThrows(IllegalStateException.class, () -> sub.pullNoWait(1));
+            assertThrows(IllegalStateException.class, () -> sub.pullExpiresIn(1, Duration.ofSeconds(1)));
+        });
+    }
+
+    @Test
+    public void testAcks() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(1500)).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
+            JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            // NAK
+            publish(js, SUBJECT, "NAK", 1);
+
+            Message message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            String data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.nak();
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("NAK1", data);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+
+            // TERM
+            publish(js, SUBJECT, "TERM", 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("TERM1", data);
+            message.term();
+
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+
+            // Ack Wait timeout
+            publish(js, SUBJECT, "WAIT", 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("WAIT1", data);
+            sleep(2000);
+            message.ack(); // this ack came too late so will be ignored
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("WAIT1", data);
+
+            // In Progress
+            publish(js, SUBJECT, "PRO", 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("PRO1", data);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.inProgress();
+            sleep(750);
+            message.ack();
+
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
+
+            // ACK Sync
+            publish(js, SUBJECT, "ACKSYNC", 1);
+
+            message = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(message);
+            data = new String(message.getData());
+            assertEquals("ACKSYNC1", data);
+            message.ackSync(Duration.ofSeconds(1));
+
+            assertNull(sub.nextMessage(Duration.ofSeconds(1)));
         });
     }
 
@@ -168,111 +258,5 @@ public class JetStreamPushTests extends JetStreamTestBase {
             ConsumerInfo ci = sub.getConsumerInfo();
             assertEquals(STREAM, ci.getStreamName());
         });
-    }
-
-    @Test
-    public void testQueueSub() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            // Setup the subscribers
-            // - the PushSubscribeOptions can be re-used since all the subscribers are the same
-            // - use a concurrent integer to track all the messages received
-            // - have a list of subscribers and threads so I can track them
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(DURABLE).build();
-            AtomicInteger allReceived = new AtomicInteger();
-            List<JsQueueSubscriber> subscribers = new ArrayList<>();
-            List<Thread> subThreads = new ArrayList<>();
-            for (int id = 1; id <= 3; id++) {
-                // setup the subscription
-                JetStreamSubscription sub = js.subscribe(SUBJECT, QUEUE, pso);
-                // create and track the runnable
-                JsQueueSubscriber qs = new JsQueueSubscriber(100, js, sub, allReceived);
-                subscribers.add(qs);
-                // create, track and start the thread
-                Thread t = new Thread(qs);
-                subThreads.add(t);
-                t.start();
-            }
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            // create and start the publishing
-            Thread pubThread = new Thread(new JsPublisher(js, 100));
-            pubThread.start();
-
-            // wait for all threads to finish
-            pubThread.join();
-            for (Thread t : subThreads) {
-                t.join();
-            }
-
-            // count
-            int count = 0;
-            for (JsQueueSubscriber qs : subscribers) {
-                int c = qs.thisReceived.get();
-                assertTrue(c > 0);
-                count += c;
-            }
-
-            assertEquals(100, count);
-        });
-    }
-
-    static class JsPublisher implements Runnable {
-        JetStream js;
-        int msgCount;
-
-        public JsPublisher(JetStream js, int msgCount) {
-            this.js = js;
-            this.msgCount = msgCount;
-        }
-
-        @Override
-        public void run() {
-            for (int x = 1; x <= msgCount; x++) {
-                try {
-                    js.publish(SUBJECT, ("Data # " + x).getBytes(StandardCharsets.US_ASCII));
-                } catch (IOException | JetStreamApiException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-    }
-
-    static class JsQueueSubscriber implements Runnable {
-        int msgCount;
-        JetStream js;
-        JetStreamSubscription sub;
-        AtomicInteger allReceived;
-        AtomicInteger thisReceived;
-
-        public JsQueueSubscriber(int msgCount, JetStream js, JetStreamSubscription sub, AtomicInteger allReceived) {
-            this.msgCount = msgCount;
-            this.js = js;
-            this.sub = sub;
-            this.allReceived = allReceived;
-            this.thisReceived = new AtomicInteger();
-        }
-
-        @Override
-        public void run() {
-            while (allReceived.get() < msgCount) {
-                try {
-                    Message msg = sub.nextMessage(Duration.ofMillis(500));
-                    while (msg != null) {
-                        thisReceived.incrementAndGet();
-                        allReceived.incrementAndGet();
-                        msg.ack();
-                        msg = sub.nextMessage(Duration.ofMillis(500));
-                    }
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
     }
 }

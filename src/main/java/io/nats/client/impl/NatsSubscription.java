@@ -13,12 +13,12 @@
 
 package io.nats.client.impl;
 
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicLong;
-
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
+
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicLong;
 
 class NatsSubscription extends NatsConsumer implements Subscription {
 
@@ -75,22 +75,42 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return this.dispatcher;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     MessageQueue getMessageQueue() {
         return this.incoming;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Dispatcher getDispatcher() {
         return this.dispatcher;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String getSubject() {
         return this.subject;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public String getQueueName() {
         return this.queueName;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
         if (this.dispatcher != null) {
             throw new IllegalStateException(
@@ -115,10 +135,9 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     }
 
     /**
-     * Unsubscribe this subscription and stop listening for messages.
-     * 
-     * <p>Messages are stopped locally and the server is notified.</p>
+     * {@inheritDoc}
      */
+    @Override
     public void unsubscribe() {
         if (this.dispatcher != null) {
             throw new IllegalStateException(
@@ -135,23 +154,9 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     }
 
     /**
-     * Unsubscribe this subscription and stop listening for messages, after the
-     * specified number of messages.
-     * 
-     * <p>If the subscription has already received <code>after</code> messages, it will not receive
-     * more. The provided limit is a lifetime total for the subscription, with the caveat
-     * that if the subscription already received more than <code>after</code> when unsubscribe is called
-     * the client will not travel back in time to stop them.</p>
-     * 
-     * <p>For example, to get a single asynchronous message, you might do:
-     * <blockquote><pre>
-     * nc = Nats.connect()
-     * m = nc.subscribe("hello").unsubscribe(1).nextMessage(Duration.ZERO);
-     * </pre></blockquote></p>
-     * 
-     * @param after The number of messages to accept before unsubscribing
-     * @return The subscription so that calls can be chained
+     * {@inheritDoc}
      */
+    @Override
     public Subscription unsubscribe(int after) {
         if (this.dispatcher != null) {
             throw new IllegalStateException(
@@ -168,10 +173,18 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     void sendUnsubForDrain() {
         this.connection.sendUnsub(this, -1);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     void cleanUpAfterDrain() {
         this.connection.invalidate(this);
     }

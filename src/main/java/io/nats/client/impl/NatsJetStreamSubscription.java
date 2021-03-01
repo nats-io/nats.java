@@ -13,17 +13,14 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumerInfo;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.PullSubscribeOptions;
-import io.nats.client.PullSubscribeOptions.AckMode;
-import io.nats.client.PullSubscribeOptions.ExpireMode;
+import io.nats.client.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
-import static io.nats.client.support.NatsConstants.SPACE;
 import static io.nats.client.support.Validator.validatePullBatchSize;
 
 /**
@@ -35,31 +32,26 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     private String consumer;
     private String stream;
     private String deliver;
-    private PullSubscribeOptions pullSubscribeOptions;
+    private SubscribeOptions subscribeOptions;
+    private boolean isPullMode;
+    private boolean isPullSmart;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
         super(sid, subject, queueName, connection, dispatcher);
     }
 
-    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, PullSubscribeOptions pullSubscribeOptions) {
+    void setupJetStream(NatsJetStream js, String consumer, String stream, String deliver, SubscribeOptions subscribeOptions) {
         this.js = js;
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.pullSubscribeOptions = pullSubscribeOptions;
+        this.subscribeOptions = subscribeOptions;
+        isPullMode = subscribeOptions instanceof PullSubscribeOptions;
     }
 
     boolean isPullMode() {
-        return pullSubscribeOptions != null;
-    }
-
-    AckMode getAckMode() {
-        return pullSubscribeOptions == null ? null : pullSubscribeOptions.getAckMode();
-    }
-
-    ExpireMode getExpireMode() {
-        return pullSubscribeOptions == null ? null : pullSubscribeOptions.getExpireMode();
+        return isPullMode;
     }
 
     /**
@@ -67,7 +59,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pull(int batchSize) {
-        _pull(batchSize, false, null); // nulls mean use default
+        _pull(batchSize, false, null);
     }
 
     /**
@@ -75,7 +67,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullNoWait(int batchSize) {
-        _pull(batchSize, true, null); // nulls mean use default
+        _pull(batchSize, true, null);
     }
 
     /**
@@ -83,41 +75,51 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
      */
     @Override
     public void pullExpiresIn(int batchSize, Duration expiresIn) {
-        _pull(batchSize, false, expiresIn); // nulls mean use default
+        _pull(batchSize, false, expiresIn);
     }
 
-    private Duration currentExpiresIn;
+    private boolean lastNotWait = false;
+    private Duration lastExpiresIn = null;
+
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
         if (!isPullMode()) {
             throw new IllegalStateException("Subscription type does not support pull.");
         }
 
         int batch = validatePullBatchSize(batchSize);
-        currentExpiresIn = expiresIn;
+        lastNotWait = noWait;
+        lastExpiresIn = expiresIn;
         String publishSubject = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
-        connection.publish(publishSubject, getSubject(),
-                getPullJson(null, noWait, expiresIn, batch));
+        connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn, null));
         connection.lenientFlushBuffer();
     }
 
-    byte[] getAckJson(AckType ackType) {
-        return currentExpiresIn == null || getExpireMode() != ExpireMode.ADVANCE
-                ? ackType.bytes : getPullJson(ackType.text, false, currentExpiresIn, 1);
+    byte[] getPrefixedPullJson(String prefix) {
+        return getPullJson(1, lastNotWait, lastExpiresIn, prefix);
     }
 
-    byte[] getPullJson(String prefix, boolean noWait, Duration expiresIn, int batch) {
-        StringBuilder sb = new StringBuilder();
-        if (prefix != null) {
-            sb.append(prefix).append(SPACE);
-        }
-        sb.append("{");
+    byte[] getPullJson(int batch, boolean noWait, Duration expiresIn, String prefix) {
+        StringBuilder sb = JsonUtils.beginJsonPrefixed(prefix);
         JsonUtils.addFld(sb, "batch", batch);
         JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
-        if (expiresIn != null) {
-            JsonUtils.addFld(sb, "expires", DateTimeUtils.fromNow(expiresIn));
-        }
+        JsonUtils.addNanoFld(sb, "expires", expiresIn);
         return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
     }
+
+// SFF 2021-02-26 possible behavior
+//    @Override
+//    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
+//        Message msg = super.nextMessage(timeout);
+//        return msg == null && isPullSmart ? get404Message() : msg;
+//    }
+//
+//    Message message404; // lazy init
+//    private Message get404Message() {
+//        if (message404 == null) {
+//            message404 = new NatsMessage.StatusMessage(404, "No Messages");
+//        }
+//        return message404;
+//    }
 
     /**
      * {@inheritDoc}
@@ -128,14 +130,43 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     }
 
     @Override
+    public List<Message> fetch(int batchSize, Duration timeout) {
+        List<Message> messages = new ArrayList<>();
+        Message msg;
+        try {
+            pullNoWait(batchSize);
+            msg = nextMessage(timeout); // full timeout used for first message
+            if (msg.isJetStream()) {
+                messages.add(msg);
+            }
+        } catch (InterruptedException e) {
+            msg = null;
+        }
+
+        while (msg != null && messages.size() < batchSize) {
+            try {
+                msg = nextMessage(js.getRequestTimeout());
+                if (msg != null && msg.isJetStream()) {
+                    messages.add(msg);
+                }
+                else {
+                    break;
+                }
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
+
+        return messages;
+    }
+
+    @Override
     public String toString() {
         return "NatsJetStreamSubscription{" +
                 "consumer='" + consumer + '\'' +
                 ", stream='" + stream + '\'' +
                 ", deliver='" + deliver + '\'' +
                 ", isPullMode='" + isPullMode() +
-                ", ackMode='" + getAckMode() +
-                ", expireMode='" + getExpireMode() +
                 '}';
     }
 }

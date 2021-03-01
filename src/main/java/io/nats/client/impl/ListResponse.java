@@ -24,9 +24,9 @@ public abstract class ListResponse {
     protected int lastOffset = 0;
 
     void add(String json) {
-        total = JsonUtils.readInt(json, TOTAL_RE, 0);
-        limit = JsonUtils.readInt(json, LIMIT_RE, 0);
-        lastOffset = JsonUtils.readInt(json, OFFSET_RE, 0);
+        JsonUtils.readInt(json, TOTAL_RE, i -> total = i);
+        JsonUtils.readInt(json, LIMIT_RE, i -> limit = i);
+        JsonUtils.readInt(json, OFFSET_RE, i -> lastOffset = i);
     }
 
     boolean hasMore() {

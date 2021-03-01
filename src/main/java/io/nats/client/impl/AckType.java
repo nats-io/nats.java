@@ -9,7 +9,6 @@ public enum AckType {
 
     // pull only option
     AckNext("+NXT");
-//        AckNextOne("+NXT {\"batch\":1}");
 
     public final String text;
     public final byte[] bytes;

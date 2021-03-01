@@ -33,7 +33,7 @@ public class JetStreamTestBase extends TestBase {
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(500);
 
     public NatsMessage getJsMessage(String replyTo) {
-        return new NatsMessage.IncomingMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
+        return new NatsMessage.InternalMessageFactory("sid", "subj", replyTo, 0, false).getMessage();
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -53,15 +53,15 @@ public class JetStreamTestBase extends TestBase {
         return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
     }
 
-    public StreamInfo createTestStream(Connection nc) throws IOException, JetStreamApiException {
+    public static StreamInfo createTestStream(Connection nc) throws IOException, JetStreamApiException {
         return createMemoryStream(nc, STREAM, SUBJECT);
     }
 
-    public StreamInfo createTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+    public static StreamInfo createTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
         return createMemoryStream(jsm, STREAM, SUBJECT);
     }
 
-    public StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
+    public static StreamInfo getStreamInfo(JetStreamManagement jsm, String streamName) throws IOException, JetStreamApiException {
         try {
             return jsm.getStreamInfo(streamName);
         }
@@ -73,7 +73,7 @@ public class JetStreamTestBase extends TestBase {
         }
     }
 
-    public void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
+    public static void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
         System.out.println("\n" + n + ". -------------------------------");
         printStreamInfo(jsm.getStreamInfo(STREAM));
         printConsumerInfo(jsm.getConsumerInfo(STREAM, DURABLE));
@@ -161,6 +161,18 @@ public class JetStreamTestBase extends TestBase {
 
     public static void validateRead(int expectedRed, int actualRed) {
         assertEquals(expectedRed, actualRed, "Read does not match");
+    }
+
+    public static void assertSubscription(JetStreamSubscription sub, String stream, String consumer, String deliver, boolean isPullMode) {
+        String s = sub.toString();
+        assertTrue(s.contains("stream='" + stream));
+        if (consumer != null) {
+            assertTrue(s.contains("consumer='" + consumer));
+        }
+        if (deliver != null) {
+            assertTrue(s.contains("deliver='" + deliver));
+        }
+        assertTrue(s.contains("isPullMode='" + isPullMode));
     }
 
     public static void assertSameMessages(List<Message> l1, List<Message> l2) {

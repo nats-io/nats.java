@@ -21,16 +21,10 @@ import java.time.Duration;
 import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.Validator.*;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ValidatorTests {
-
-    private static final String PLAIN     = "plain";
-    private static final String HAS_SPACE = "has space";
-    private static final String HAS_DASH  = "has-dash";
-    private static final String HAS_DOT   = "has.dot";
-    private static final String HAS_STAR  = "has*star";
-    private static final String HAS_GT    = "has>gt";
 
     @Test
     public void testValidateMessageSubjectRequired() {

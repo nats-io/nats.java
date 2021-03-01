@@ -187,7 +187,7 @@ public class ConsumerConfiguration {
         deliverSubject = JsonUtils.readString(json, DELIVER_SUBJECT_RE);
         startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
-        ackWait = JsonUtils.readDuration(json, ACK_WAIT_RE, Duration.ofSeconds(30));
+        ackWait = JsonUtils.readNanos(json, ACK_WAIT_RE, Duration.ofSeconds(30));
         maxDeliver = JsonUtils.readLong(json, MAX_DELIVER_RE, -1);
         filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
         sampleFrequency = JsonUtils.readString(json, SAMPLE_FREQ_RE);
@@ -234,7 +234,7 @@ public class ConsumerConfiguration {
         JsonUtils.addFld(sb, OPT_START_SEQ, startSeq);
         JsonUtils.addFld(sb, OPT_START_TIME, startTime);
         JsonUtils.addFld(sb, ACK_POLICY, ackPolicy.toString());
-        JsonUtils.addFld(sb, ACK_WAIT, ackWait);
+        JsonUtils.addNanoFld(sb, ACK_WAIT, ackWait);
         JsonUtils.addFld(sb, MAX_DELIVER, maxDeliver);
         JsonUtils.addFld(sb, MAX_ACK_PENDING, maxAckPending);
         JsonUtils.addFld(sb, FILTER_SUBJECT, filterSubject);

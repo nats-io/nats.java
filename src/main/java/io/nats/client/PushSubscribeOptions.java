@@ -16,42 +16,13 @@ package io.nats.client;
 import static io.nats.client.support.Validator.*;
 
 /**
- * The SubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
+ * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are created using the constructors or a {@link Builder}.
  */
-public class PushSubscribeOptions {
+public class PushSubscribeOptions extends SubscribeOptions {
 
-    private final String stream;
-    private final ConsumerConfiguration consumerConfig;
-
-    private PushSubscribeOptions() {
-        this(null, null, null, null);
-    }
-
-    private PushSubscribeOptions(String stream, String durable, String deliverSubject,
-                                 ConsumerConfiguration consumerConfig) {
-
-        this.stream = stream;
-        this.consumerConfig = ConsumerConfiguration.builder(consumerConfig)
-                .durable(durable)
-                .deliverSubject(deliverSubject)
-                .build();
-    }
-
-    /**
-     * Gets the name of the stream.
-     * @return the name of the stream.
-     */
-    public String getStream() {
-        return stream;
-    }
-
-    /**
-     * Gets the durable consumer name held in the consumer configuration.
-     * @return the durable consumer name
-     */
-    public String getDurable() {
-        return consumerConfig.getDurable();
+    private PushSubscribeOptions(String stream, ConsumerConfiguration consumerConfig) {
+        super(stream, consumerConfig);
     }
 
     /**
@@ -62,63 +33,20 @@ public class PushSubscribeOptions {
         return consumerConfig.getDeliverSubject();
     }
 
-    /**
-     * Gets the consumer configuration.
-     * @return the consumer configuration.
-     */
-    public ConsumerConfiguration getConsumerConfiguration() {
-        return consumerConfig;
-    }
-
-    @Override
-    public String toString() {
-        return "PushSubscribeOptions{" +
-                "stream='" + stream + '\'' +
-                ", " + consumerConfig +
-                '}';
-    }
-
-    /**
-     * Get a default instance of SubscribeOptions
-     * @return the instance
-     */
-    public static PushSubscribeOptions defaultInstance() {
-        return new PushSubscribeOptions();
-    }
-
     public static Builder builder() {
         return new Builder();
     }
 
     /**
-     * SubscribeOptions can be created using a Builder. The builder supports chaining and will
+     * PushSubscribeOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
      */
-    public static class Builder {
-        private String stream;
-        private String durable;
+    public static class Builder
+            extends SubscribeOptions.Builder<Builder, PushSubscribeOptions> {
         private String deliverSubject;
-        private ConsumerConfiguration consumerConfig;
 
-        /**
-         * Specify the stream to attach to. If not supplied the stream will be looked up by subject.
-         * Null or empty clears the field.
-         * @param stream the name of the stream
-         * @return the builder
-         */
-        public Builder stream(String stream) {
-            this.stream = stream;
-            return this;
-        }
-
-        /**
-         * Sets the durable consumer name for the subscriber.
-         * Null or empty clears the field.
-         * @param durable the durable name
-         * @return the builder
-         */
-        public Builder durable(String durable) {
-            this.durable = durable;
+        @Override
+        protected Builder getThis() {
             return this;
         }
 
@@ -134,25 +62,24 @@ public class PushSubscribeOptions {
         }
 
         /**
-         * The consumer configuration. The configuration durable name will be replaced
-         * if you supply a consumer name in the builder. The configuration deliver subject
-         * will be replaced if you supply a name in the builder.
-         * @param configuration the consumer configuration.
-         * @return the builder
-         */
-        public Builder configuration(ConsumerConfiguration configuration) {
-            this.consumerConfig = configuration;
-            return this;
-        }
-
-        /**
          * Builds the subscribe options.
          * @return subscribe options
          */
+        @Override
         public PushSubscribeOptions build() {
             validateStreamNameOrEmptyAsNull(stream);
-            validateDurableOrEmptyAsNull(durable);
-            return new PushSubscribeOptions(stream, durable, emptyAsNull(deliverSubject), consumerConfig);
+
+            durable = validateDurableOrEmptyAsNull(durable);
+            if (durable == null && consumerConfig != null) {
+                durable = validateDurableOrEmptyAsNull(consumerConfig.getDurable());
+            }
+
+            this.consumerConfig = ConsumerConfiguration.builder(consumerConfig)
+                    .durable(durable)
+                    .deliverSubject(emptyAsNull(deliverSubject))
+                    .build();
+
+            return new PushSubscribeOptions(stream, consumerConfig);
         }
     }
 }

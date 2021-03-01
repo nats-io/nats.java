@@ -298,6 +298,11 @@ public class NatsMessage implements Message {
     @Override
     public String toString() {
         calculateIfDirty();
+        return "NatsMessage |" + subject + "|" + (replyTo == null ? "<no reply>" : replyTo) + "|" + (data.length == 0 ? "<no data>" : new String(data)) + "|";
+    }
+
+    public String toDetailString() {
+        calculateIfDirty();
         String hdrString = hasHeaders() ? new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+") : "";
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +
@@ -418,7 +423,7 @@ public class NatsMessage implements Message {
     // ----------------------------------------------------------------------------------------------------
     // Incoming Message Factory - internal use only
     // ----------------------------------------------------------------------------------------------------
-    static class IncomingMessageFactory {
+    static class InternalMessageFactory {
         private final String sid;
         private final String subject;
         private final String replyTo;
@@ -434,7 +439,7 @@ public class NatsMessage implements Message {
 
         // Create an incoming message for a subscriber
         // Doesn't check control line size, since the server sent us the message
-        IncomingMessageFactory(String sid, String subject, String replyTo, int protocolLength, boolean utf8mode) {
+        InternalMessageFactory(String sid, String subject, String replyTo, int protocolLength, boolean utf8mode) {
             this.sid = sid;
             this.subject = subject;
             this.replyTo = replyTo;
@@ -458,11 +463,14 @@ public class NatsMessage implements Message {
 
         NatsMessage getMessage() {
             NatsMessage message;
-            if (NatsJetStreamMessage.isJetStream(replyTo)) {
+            if (replyTo != null && replyTo.startsWith("$JS")) {
                 message = new NatsJetStreamMessage();
             }
+            else if (status != null) {
+                message = new StatusMessage();
+            }
             else {
-                message = new SelfCalculatingMessage();
+                message = new InternalMessage();
             }
             message.sid = this.sid;
             message.subject = this.subject;
@@ -480,14 +488,14 @@ public class NatsMessage implements Message {
         }
     }
 
-    static class SelfCalculatingMessage extends NatsMessage {
+    static class InternalMessage extends NatsMessage {
         @Override
         protected boolean calculateIfDirty() {
             return false;
         }
     }
 
-    static class ProtocolMessage extends SelfCalculatingMessage {
+    static class ProtocolMessage extends InternalMessage {
         ProtocolMessage(byte[] protocol) {
             this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
         }
@@ -503,6 +511,24 @@ public class NatsMessage implements Message {
         @Override
         boolean isProtocol() {
             return true;
+        }
+    }
+
+    static class StatusMessage extends InternalMessage {
+        StatusMessage() {}
+
+        StatusMessage(int code, String message) {
+            status = new Status(code, message);
+        }
+
+        @Override
+        public boolean isStatusMessage() {
+            return true;
+        }
+
+        @Override
+        public Status getStatus() {
+            return status;
         }
     }
 }

@@ -288,6 +288,40 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testCreateConsumersWithFilters() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder().durable(DURABLE);
+
+            // plain subject
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            jsm.addConsumer(STREAM, builder.filterSubject(SUBJECT).build());
+
+            assertThrows(JetStreamApiException.class,
+                    () -> jsm.addConsumer(STREAM, builder.filterSubject(subject("not-match")).build()));
+
+            // wildcard subject
+            jsm.deleteStream(STREAM);
+            createMemoryStream(nc, STREAM, SUBJECT_STAR);
+
+            jsm.addConsumer(STREAM, builder.filterSubject(subject("A")).build());
+
+            assertThrows(JetStreamApiException.class,
+                    () -> jsm.addConsumer(STREAM, builder.filterSubject(subject("not-match")).build()));
+
+            // gt subject
+            jsm.deleteStream(STREAM);
+            createMemoryStream(nc, STREAM, SUBJECT_GT);
+
+            jsm.addConsumer(STREAM, builder.filterSubject(subject("A")).build());
+
+            assertThrows(JetStreamApiException.class,
+                    () -> jsm.addConsumer(STREAM, builder.filterSubject(subject("not-match")).build()));
+        });
+    }
+    @Test
     public void testGetConsumerInfo() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();

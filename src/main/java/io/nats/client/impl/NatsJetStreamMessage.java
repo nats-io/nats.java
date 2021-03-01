@@ -15,8 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.MessageMetaData;
-import io.nats.client.PullSubscribeOptions.AckMode;
-import io.nats.client.impl.NatsMessage.SelfCalculatingMessage;
+import io.nats.client.impl.NatsMessage.InternalMessage;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
@@ -24,13 +23,9 @@ import java.util.concurrent.TimeoutException;
 import static io.nats.client.impl.AckType.*;
 import static io.nats.client.support.Validator.validateDurationRequired;
 
-class NatsJetStreamMessage extends SelfCalculatingMessage {
+class NatsJetStreamMessage extends InternalMessage {
 
     private NatsJetStreamMetaData jsMetaData = null;
-
-    public static boolean isJetStream(String replyTo) {
-        return replyTo != null && replyTo.startsWith("$JS");
-    }
 
     NatsJetStreamMessage() {}
 
@@ -41,7 +36,7 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
 
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
-        ackReply(AckAck, validateDurationRequired(d));
+        ackReplySync(AckAck, validateDurationRequired(d));
     }
 
     @Override
@@ -73,74 +68,30 @@ class NatsJetStreamMessage extends SelfCalculatingMessage {
     }
 
     private void ackReply(AckType ackType) {
-        try {
-            ackReply(ackType, null);
-        } catch (InterruptedException e) {
-            // we should never get here, but satisfy the linters.
-            Thread.currentThread().interrupt();
-        } catch (TimeoutException e) {
-            // NOOP
-        }
-    }
-
-    private void ackReply(AckType ackType, Duration dur) throws InterruptedException, TimeoutException {
-
-        // all calls to this must pre-validate the duration
-        // this is internal only code and makes this assumption
-        boolean isSync = (dur != null);
-
         Connection nc = getJetStreamValidatedConnection();
+// SFF 2021-02-25 Future ackNext() behavior
+//        if (ackType == AckNext) {
+//            byte[] bytes = ((NatsJetStreamSubscription) subscription).getPrefixedPullJson(AckNext.text);
+//            nc.publish(replyTo, bytes);
+//        }
+//        else {
+//            nc.publish(replyTo, ackType.bytes);
+//        }
+        nc.publish(replyTo, ackType.bytes);
+    }
 
-        if (isPullMode()) {
-            switch (ackType) {
-                case AckAck:
-                    if (getAckMode() == AckMode.NEXT) {
-                        nc.publish(replyTo, subscription.getSubject(),
-                                ((NatsJetStreamSubscription) subscription).getAckJson(AckNext));
-                    }
-                    else {
-                        nc.publish(replyTo, AckAck.bytes);
-                    }
-                    break;
-
-                case AckNak:
-                case AckTerm:
-                case AckProgress:
-                    nc.publish(replyTo, subscription.getSubject(), ackType.bytes);
-                    break;
-            }
-            if (isSync && nc.request(replyTo, null, dur) == null) {
-                throw new TimeoutException("Ack request next timed out.");
-            }
-        }
-        else if (isSync) {
-            if (nc.request(replyTo, ackType.bytes, dur) == null) {
-                throw new TimeoutException("Ack response timed out.");
-            }
-        }
-        else {
-            nc.publish(replyTo, ackType.bytes);
+    private void ackReplySync(AckType ackType, Duration dur) throws InterruptedException, TimeoutException {
+        Connection nc = getJetStreamValidatedConnection();
+        if (nc.request(replyTo, ackType.bytes, dur) == null) {
+            throw new TimeoutException("Ack response timed out.");
         }
     }
 
-    private Boolean pullMode = null; // lazy init
-    private boolean isPullMode() {
-        if (pullMode == null) {
-            pullMode = subscription instanceof NatsJetStreamSubscription
-                    && ((NatsJetStreamSubscription) subscription).isPullMode();
-        }
-        return pullMode;
-    }
-
-    private AckMode ackMode = null; // lazy init
-    private AckMode getAckMode() {
-        if (ackMode == null) {
-            ackMode = isPullMode()
-                    ? ((NatsJetStreamSubscription) subscription).getAckMode()
-                    : AckMode.ACK;
-        }
-        return ackMode;
-    }
+// SFF 2021-02-25 Future ackNext() behavior
+//    private boolean isPullMode() {
+//        return subscription instanceof NatsJetStreamSubscription
+//                && ((NatsJetStreamSubscription) subscription).isPullMode();
+//    }
 
     private Connection getJetStreamValidatedConnection() {
         if (getSubscription() == null) {
