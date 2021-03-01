@@ -24,6 +24,71 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
+    public void fetch() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .ackWait(Duration.ofMillis(2500))
+                    .build();
+
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .durable(DURABLE) // required
+                    .configuration(cc)
+                    .build();
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, null, true);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            List<Message> messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(0, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "A", 10);
+            messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "B", 20);
+            messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+
+            messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "C", 5);
+            messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(5, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "D", 15);
+            messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+
+            messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(5, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "E", 10);
+            messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(10, messages.size());
+            sleep(3000);
+
+            messages = sub.fetch(10, Duration.ofSeconds(2));
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+        });
+    }
+
+    @Test
     public void plain() throws Exception {
         runInJsServer(nc -> {
             // Create our JetStream context to receive JetStream messages.
