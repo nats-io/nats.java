@@ -136,7 +136,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         try {
             pullNoWait(batchSize);
             msg = nextMessage(timeout); // full timeout used for first message
-            if (msg.isJetStream()) {
+            if (msg != null && msg.isJetStream()) {
                 messages.add(msg);
             }
         } catch (InterruptedException e) {
