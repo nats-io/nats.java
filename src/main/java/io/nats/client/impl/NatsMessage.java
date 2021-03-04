@@ -465,7 +465,7 @@ public class NatsMessage implements Message {
             if (status != null) {
                 message = new StatusMessage();
             }
-            else if (JsPrefixManager.isJsMessage(replyTo)) {
+            else if (JsPrefixManager.hasPrefix(replyTo)) {
                 message = new NatsJetStreamMessage();
             }
             if (message == null) {

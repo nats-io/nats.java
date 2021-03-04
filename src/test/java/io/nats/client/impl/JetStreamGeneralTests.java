@@ -231,10 +231,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         JsPrefixManager.addPrefix("foo");
         JsPrefixManager.addPrefix("bar.");
 
-        assertTrue(JsPrefixManager.isJsMessage(NatsJetStreamConstants.JS_PREFIX));
-        assertTrue(JsPrefixManager.isJsMessage(NatsJetStreamConstants.JSAPI_PREFIX));
-        assertTrue(JsPrefixManager.isJsMessage("foo.blah"));
-        assertTrue(JsPrefixManager.isJsMessage("bar.blah"));
-        assertFalse(JsPrefixManager.isJsMessage("not"));
+        assertTrue(JsPrefixManager.hasPrefix(NatsJetStreamConstants.JS_PREFIX));
+        assertTrue(JsPrefixManager.hasPrefix(NatsJetStreamConstants.JSAPI_PREFIX));
+        assertTrue(JsPrefixManager.hasPrefix("foo.blah"));
+        assertTrue(JsPrefixManager.hasPrefix("bar.blah"));
+        assertFalse(JsPrefixManager.hasPrefix("not"));
     }
 }
