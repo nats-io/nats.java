@@ -89,7 +89,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         int batch = validatePullBatchSize(batchSize);
         lastNotWait = noWait;
         lastExpiresIn = expiresIn;
-        String publishSubject = js.appendPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
+        String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
         connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn, null));
         connection.lenientFlushBuffer();
     }
@@ -131,7 +131,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     @Override
     public List<Message> fetch(int batchSize, Duration timeout) {
-        List<Message> messages = new ArrayList<>();
+        List<Message> messages = new ArrayList<>(batchSize);
         Message msg;
         try {
             pullNoWait(batchSize);

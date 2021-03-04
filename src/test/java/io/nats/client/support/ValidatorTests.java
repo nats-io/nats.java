@@ -159,6 +159,13 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateJetStreamPrefix() {
+        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_STAR));
+        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_GT));
+        assertThrows(IllegalArgumentException.class, () -> validateJetStreamPrefix(HAS_DOLLAR));
+    }
+
+    @Test
     public void testNotNull() {
         final Object o1 = null;
         final String s1 = null;

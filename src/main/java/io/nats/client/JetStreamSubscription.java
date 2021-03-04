@@ -56,9 +56,12 @@ public interface JetStreamSubscription extends Subscription {
     void pullExpiresIn(int batchSize, Duration expiresIn);
 
     /**
+     * Fetch (pull) the list
      *
      * @param batchSize the size of the batch
      * @param timeout the timeout
+     *
+     * @return the list of messages
      */
     List<Message> fetch(int batchSize, Duration timeout);
 

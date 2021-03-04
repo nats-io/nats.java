@@ -34,6 +34,9 @@ import java.util.List;
  */
 public class NatsJsPullSubWithExpireImmediately {
 
+    /*
+        THIS EXAMPLE IS DRAFT - DO NOT USE
+     */
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
                 .defaultStream("immediate-stream")
@@ -54,9 +57,8 @@ public class NatsJsPullSubWithExpireImmediately {
                     .build();
 
             // 0.1 Initialize. subscription
-            // 0.2 DO NOT start the pull, no wait works differently than regular pull.
-            //     With no wait, we have to start the pull the first time and every time the
-            //     batch size is exhausted or no waits out.
+            // 0.2 DO NOT start the pull, expire works differently than regular pull.
+
             // 0.3 Flush outgoing communication with/to the server, useful when app is both publishing and subscribing.
             System.out.println("\n----------\n0. Initialize the subscription and pull.");
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);

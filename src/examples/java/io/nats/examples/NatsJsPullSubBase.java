@@ -23,10 +23,13 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class NatsJsPullSubBase {
+public abstract class NatsJsPullSubBase {
 
     public static void createStream(Connection nc, String streamName, String subject) throws IOException, JetStreamApiException {
-        JetStreamManagement jsm = nc.jetStreamManagement();
+        createStream(nc.jetStreamManagement(), streamName, subject);
+    }
+
+    public static void createStream(JetStreamManagement jsm, String streamName, String subject) throws IOException, JetStreamApiException {
         StreamInfo si = NatsJsUtils.getStreamInfo(jsm, streamName);
         if (si == null) {
             NatsJsUtils.createStream(jsm, streamName, StreamConfiguration.StorageType.Memory, new String[] {subject});
@@ -106,17 +109,8 @@ abstract class NatsJsPullSubBase {
         return messages;
     }
 
-    public static void ackAll(List<Message> list) {
-        System.out.print("Fetch/Ack ->");
-        for (Message m : list) {
-            m.ack();
-            System.out.print(" " + new String(m.getData()));
-        }
-        System.out.println(" <- ");
-    }
-
-    public static void dontAck(List<Message> list) {
-        System.out.print("Fetch/Don't Ack ->");
+    public static void report(List<Message> list) {
+        System.out.print("Fetch ->");
         for (Message m : list) {
             System.out.print(" " + new String(m.getData()));
         }

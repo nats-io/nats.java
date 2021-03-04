@@ -140,8 +140,8 @@ public abstract class Validator {
     }
 
     public static String validateJetStreamPrefix(String s) {
-        if (containsWildGt(s)) {
-            throw new IllegalArgumentException("Prefix cannot contain a wildcard [" + s + "]");
+        if (containsWildGtDollar(s)) {
+            throw new IllegalArgumentException("Prefix cannot contain a wildcard or dollar sign [" + s + "]");
         }
         return s;
     }
@@ -203,12 +203,13 @@ public abstract class Validator {
         return false;
     }
 
-    public static boolean containsWildGt(String s) {
+    public static boolean containsWildGtDollar(String s) {
         if (s != null) {
             for (int i = 0; i < s.length(); i++) {
                 switch (s.charAt(i)) {
                     case '*':
                     case '>':
+                    case '$':
                         return true;
                 }
             }

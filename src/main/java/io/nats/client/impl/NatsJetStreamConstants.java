@@ -2,7 +2,9 @@ package io.nats.client.impl;
 
 public interface NatsJetStreamConstants {
 
-    String JSAPI_DEFAULT_PREFIX = "$JS.API.";
+    String JS_PREFIX = "$JS.";
+
+    String JSAPI_PREFIX = JS_PREFIX + "API.";
 
     // JSAPI_ACCOUNT_INFO is for obtaining general information about JetStream.
     String JSAPI_ACCOUNT_INFO = "INFO";

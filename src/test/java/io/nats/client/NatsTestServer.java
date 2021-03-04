@@ -20,6 +20,7 @@ import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -128,6 +129,14 @@ public class NatsTestServer implements AutoCloseable {
         start();
     }
 
+    public NatsTestServer(String configFilePath, boolean debug, boolean jetstream) throws IOException {
+        this.configFilePath = configFilePath;
+        this.debug = debug;
+        this.jetstream = jetstream;
+        this.port = nextPort();
+        start();
+    }
+
     public NatsTestServer(String configFilePath, String[] inserts, int port, boolean debug) {
         this.configFilePath = configFilePath;
         this.configInserts = inserts;
@@ -158,7 +167,7 @@ public class NatsTestServer implements AutoCloseable {
     }
 
     public void start() {
-        ArrayList<String> cmd = new ArrayList<String>();
+        List<String> cmd = new ArrayList<>();
 
         String server_path = System.getenv("nats_server_path");
 
@@ -170,8 +179,8 @@ public class NatsTestServer implements AutoCloseable {
 
         // Rewrite the port to a new one, so we don't reuse the same one over and over
         if (this.configFilePath != null) {
-            Pattern pattern = Pattern.compile("port: (\\d+)");
-            Matcher matcher = pattern.matcher("");
+            Pattern portPattern = Pattern.compile("port: (\\d+)");
+            Matcher portMatcher = portPattern.matcher("");
             BufferedReader read = null;
             File tmp = null;
             BufferedWriter write = null;
@@ -183,10 +192,12 @@ public class NatsTestServer implements AutoCloseable {
                 read = new BufferedReader(new FileReader(this.configFilePath));
 
                 while ((line = read.readLine()) != null) {
-                    matcher.reset(line);
+                    portMatcher.reset(line);
 
-                    if (matcher.find()) {
-                        line = line.replace(matcher.group(1), String.valueOf(this.port));
+                    if (portMatcher.find()) {
+                        line = line.replace(portMatcher.group(1), String.valueOf(this.port));
+                        cmd.add("--port");
+                        cmd.add(String.valueOf(port));
                     }
 
                     write.write(line);

@@ -32,6 +32,8 @@ public class ExampleArgs {
     public String deliver = null;
     public int pullSize = 0;
     public Headers headers;
+    public String user = null;
+    public String pass = null;
 
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
@@ -133,6 +135,12 @@ public class ExampleArgs {
             case "-dlvr":
                 deliver = value;
                 break;
+            case "-user":
+                user = value;
+                break;
+            case "-pass":
+                pass = value;
+                break;
             case "-h":
                 if (headers == null) {
                     headers = new Headers();
@@ -158,6 +166,8 @@ public class ExampleArgs {
         private String durable = null;
         private String deliver = null;
         private int pullSize = 0;
+        private String user = null;
+        private String pass = null;
 
         public Builder defaultSubject(String subject) {
             this.subject = subject;
@@ -204,6 +214,16 @@ public class ExampleArgs {
             return this;
         }
 
+        public Builder defaultUser(String user) {
+            this.user = user;
+            return this;
+        }
+
+        public Builder defaultPass(String pass) {
+            this.pass = pass;
+            return this;
+        }
+
         public Builder defaultPullSize(int pullSize) {
             this.pullSize = pullSize;
             return this;
@@ -237,6 +257,12 @@ public class ExampleArgs {
             }
             if (ea.deliver == null) {
                 ea.deliver = deliver;
+            }
+            if (ea.user == null) {
+                ea.user = user;
+            }
+            if (ea.pass == null) {
+                ea.pass = pass;
             }
             if (ea.pullSize == 0) {
                 ea.pullSize = pullSize;

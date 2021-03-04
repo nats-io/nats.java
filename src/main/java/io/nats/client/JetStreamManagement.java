@@ -83,7 +83,7 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      * @return consumer information.
      */
-    ConsumerInfo addConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
+    ConsumerInfo addOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a consumer.

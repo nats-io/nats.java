@@ -30,6 +30,7 @@ public interface NatsConstants {
     String SPACE = " ";
     String EMPTY = "";
     String CRLF = "\r\n";
+    String DOT = ".";
 
     byte TAB = '\t';
     byte SP = ' ';
@@ -78,6 +79,4 @@ public interface NatsConstants {
     String INVALID_HEADER_COMPOSITION = "Invalid header composition";
     String INVALID_HEADER_STATUS_CODE = "Invalid header status code";
     String SERIALIZED_HEADER_CANNOT_BE_NULL_OR_EMPTY = "Serialized header cannot be null or empty.";
-
-    int STATUS_NO_RESPONDER = 503;
 }
