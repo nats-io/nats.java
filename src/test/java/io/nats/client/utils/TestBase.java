@@ -33,6 +33,7 @@ public class TestBase {
     public static final String HAS_STAR   = "has*star";
     public static final String HAS_GT     = "has>gt";
     public static final String HAS_DOLLAR = "has$dollar";
+    public static final String HAS_TAB    = "has\tgt";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
