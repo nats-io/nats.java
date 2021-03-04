@@ -297,7 +297,6 @@ public class NatsMessage implements Message {
 
     @Override
     public String toString() {
-        calculateIfDirty();
         return "NatsMessage |" + subject + "|" + (replyTo == null ? "<no reply>" : replyTo) + "|" + (data.length == 0 ? "<no data>" : new String(data)) + "|";
     }
 
@@ -462,14 +461,14 @@ public class NatsMessage implements Message {
         }
 
         NatsMessage getMessage() {
-            NatsMessage message;
-            if (replyTo != null && replyTo.startsWith("$JS")) {
-                message = new NatsJetStreamMessage();
-            }
-            else if (status != null) {
+            NatsMessage message = null;
+            if (status != null) {
                 message = new StatusMessage();
             }
-            else {
+            else if (JsPrefixManager.hasPrefix(replyTo)) {
+                message = new NatsJetStreamMessage();
+            }
+            if (message == null) {
                 message = new InternalMessage();
             }
             message.sid = this.sid;
@@ -515,9 +514,9 @@ public class NatsMessage implements Message {
     }
 
     static class StatusMessage extends InternalMessage {
-        StatusMessage() {}
+        private StatusMessage() {}
 
-        StatusMessage(int code, String message) {
+        private StatusMessage(int code, String message) {
             status = new Status(code, message);
         }
 
@@ -529,6 +528,14 @@ public class NatsMessage implements Message {
         @Override
         public Status getStatus() {
             return status;
+        }
+
+        @Override
+        public String toString() {
+            return "StatusMessage{" +
+                    "code=" + status.getCode() +
+                    ", message='" + status.getMessage() + '\'' +
+                    '}';
         }
     }
 }

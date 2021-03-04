@@ -764,7 +764,6 @@ class NatsConnection implements Connection {
     }
 
     private void _publish(NatsMessage msg) {
-
         checkIfNeedsHeaderSupport(msg);
         checkPayloadSize(msg);
 
@@ -996,10 +995,8 @@ class NatsConnection implements Connection {
         CompletableFuture<Message> incoming = _request(message);
         try {
             reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (TimeoutException | ExecutionException | CancellationException e) {
+        } catch (TimeoutException | ExecutionException | CancellationException | InterruptedException e) {
             incoming.cancel(true);
-        } catch (Throwable e) {
-            throw new AssertionError(e);
         }
         return reply;
     }   

@@ -20,9 +20,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public final class JsonUtilsTests {
 
@@ -80,6 +80,12 @@ public final class JsonUtilsTests {
         JsonUtils.addFld(sb, "name", "value");
         JsonUtils.endFormattedJson(sb);
         assertEquals("{\n    \"name\":\"value\"\n}", sb.toString());
+
+        sb = JsonUtils.beginJsonPrefixed(null);
+        assertEquals("{", sb.toString());
+
+        sb = JsonUtils.beginJsonPrefixed("pre");
+        assertEquals("pre {", sb.toString());
     }
 
     @Test
@@ -120,5 +126,17 @@ public final class JsonUtilsTests {
         assertEquals(1611186068, DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z").toEpochSecond());
         assertEquals(1612293508, DateTimeUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00").toEpochSecond());
         assertEquals(-62135596800L, DateTimeUtils.parseDateTime("anything-not-valid").toEpochSecond());
+    }
+
+    @Test
+    public void testReads() {
+        String json = "\"yes\": true, \"no\": false";
+        Pattern YES_RE = JsonUtils.buildPattern("yes", JsonUtils.FieldType.jsonBoolean);
+        Pattern NO_RE = JsonUtils.buildPattern("no", JsonUtils.FieldType.jsonBoolean);
+        Pattern MISSING_RE = JsonUtils.buildPattern("x", JsonUtils.FieldType.jsonBoolean);
+
+        assertTrue(JsonUtils.readBoolean(json, YES_RE));
+        assertFalse(JsonUtils.readBoolean(json, NO_RE));
+        assertFalse((JsonUtils.readBoolean(json, MISSING_RE)));
     }
 }

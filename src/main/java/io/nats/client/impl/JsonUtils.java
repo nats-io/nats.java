@@ -193,7 +193,7 @@ public abstract class JsonUtils {
 
     public static StringBuilder beginJsonPrefixed(String prefix) {
         return prefix == null ? beginJson()
-                : new StringBuilder(prefix).append(NatsConstants.SP).append('{');
+                : new StringBuilder(prefix).append(NatsConstants.SPACE).append('{');
     }
 
     public static StringBuilder endJson(StringBuilder sb) {

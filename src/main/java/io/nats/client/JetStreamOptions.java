@@ -13,9 +13,9 @@
 
 package io.nats.client;
 
-import java.time.Duration;
+import io.nats.client.impl.JsPrefixManager;
 
-import static io.nats.client.support.Validator.validateJetStreamPrefix;
+import java.time.Duration;
 
 /**
  * The JetStreamOptions class specifies the general options for JetStream.
@@ -24,13 +24,14 @@ import static io.nats.client.support.Validator.validateJetStreamPrefix;
 public class JetStreamOptions {
 
     public static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
+    public static final JetStreamOptions DEFAULT_JS_OPTIONS = new Builder().build();
 
     private final String prefix;
     private final Duration requestTimeout;
 
-    public JetStreamOptions(String prefix, Duration requestTimeout) {
-        this.prefix = validateJetStreamPrefix(prefix);
-        this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
+    private JetStreamOptions(String prefix, Duration requestTimeout) {
+        this.prefix = prefix;
+        this.requestTimeout = requestTimeout;
     }
 
     /**
@@ -63,7 +64,7 @@ public class JetStreamOptions {
      * @return the configuration
      */
     public static JetStreamOptions defaultOptions() {
-        return new JetStreamOptions(null, null);
+        return DEFAULT_JS_OPTIONS;
     }
 
     /**
@@ -93,7 +94,7 @@ public class JetStreamOptions {
          * @return the builder.
          */
         public Builder prefix(String prefix) {
-            this.prefix = validateJetStreamPrefix(prefix);
+            this.prefix = prefix; // validated in prefix manager
             return this;
         }
 
@@ -102,6 +103,8 @@ public class JetStreamOptions {
          * @return JetStream options
          */
         public JetStreamOptions build() {
+            prefix = JsPrefixManager.addPrefix(prefix);
+            this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
             return new JetStreamOptions(prefix, requestTimeout);
         }
     }

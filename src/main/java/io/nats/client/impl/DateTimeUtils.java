@@ -24,6 +24,8 @@ import java.time.format.DateTimeParseException;
  * Internal json parsing helpers.
  */
 public abstract class DateTimeUtils {
+    private DateTimeUtils() {}  /* for Jacoco */
+
     public static final ZoneId ZONE_ID_GMT = ZoneId.of("GMT");
     public static final ZonedDateTime DEFAULT_TIME = ZonedDateTime.of(1, 1, 1, 0, 0, 0, 0, ZONE_ID_GMT);
     public static final DateTimeFormatter RFC3339_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.nnnnnnnnn'Z'");

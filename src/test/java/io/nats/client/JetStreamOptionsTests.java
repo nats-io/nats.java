@@ -13,34 +13,41 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.NatsJetStreamConstants;
 import io.nats.client.utils.TestBase;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class JetStreamOptionsTests extends TestBase {
 
     @Test
     public void testAffirmative() {
         JetStreamOptions jso = JetStreamOptions.defaultOptions();
-        assertNull(jso.getPrefix());
-        Assertions.assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
+        assertEquals(NatsJetStreamConstants.JSAPI_PREFIX, jso.getPrefix());
+        assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, jso.getRequestTimeout());
 
         jso = JetStreamOptions.builder()
                 .prefix("pre")
                 .requestTimeout(Duration.ofSeconds(42))
                 .build();
-        assertEquals("pre", jso.getPrefix());
+        assertEquals("pre.", jso.getPrefix());
         assertEquals(Duration.ofSeconds(42), jso.getRequestTimeout());
+
+        jso = JetStreamOptions.builder()
+                .prefix("pre.")
+                .build();
+        assertEquals("pre.", jso.getPrefix());
     }
 
 
     @Test
     public void testInvalidPrefix() {
-        assertThrows(IllegalArgumentException.class, () -> JetStreamOptions.builder().prefix(">").build());
-        assertThrows(IllegalArgumentException.class, () -> JetStreamOptions.builder().prefix("*").build());
+        assertThrows(IllegalArgumentException.class, () -> JetStreamOptions.builder().prefix(HAS_STAR).build());
+        assertThrows(IllegalArgumentException.class, () -> JetStreamOptions.builder().prefix(HAS_GT).build());
+        assertThrows(IllegalArgumentException.class, () -> JetStreamOptions.builder().prefix(HAS_DOLLAR).build());
     }
 }

@@ -57,13 +57,13 @@ public class NatsJsManageConsumers {
                     .durable(DURABLE1) // durable name is required when creating consumers
                     .deliverSubject(DELIVER)
                     .build();
-            ConsumerInfo ci = jsm.addConsumer(STREAM, cc);
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
             printObject(ci);
 
             cc = ConsumerConfiguration.builder()
                     .durable(DURABLE2)
                     .build();
-            ci = jsm.addConsumer(STREAM, cc);
+            ci = jsm.addOrUpdateConsumer(STREAM, cc);
             printObject(ci);
 
             // 2. Get information on consumers
