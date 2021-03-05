@@ -36,3 +36,10 @@
 {
   "type": "not_error_response"
 }
+~
+{
+  "error": {
+    "code": 500,
+    "description": "didnt have type"
+  }
+}

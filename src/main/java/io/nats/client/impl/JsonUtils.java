@@ -45,7 +45,7 @@ public abstract class JsonUtils {
     private static final String QCOMMA = "\",";
     private static final String COMMA = ",";
 
-    private JsonUtils() {} /* for Jacoco */
+    private JsonUtils() {} /* ensures cannot be constructed */
 
     public enum FieldType {
         jsonString(STRING_RE),

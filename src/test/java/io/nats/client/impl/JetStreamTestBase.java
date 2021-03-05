@@ -189,6 +189,8 @@ public class JetStreamTestBase extends TestBase {
     public static void assertAllJetStream(List<Message> messages) {
         for (Message m : messages) {
             assertTrue(m.isJetStream());
+            assertFalse(m.isStatusMessage());
+            assertNull(m.getStatus());
         }
     }
 
@@ -207,6 +209,7 @@ public class JetStreamTestBase extends TestBase {
         assertEquals(index + 1, messages.size());
         Message statusMsg = messages.get(index);
         assertFalse(statusMsg.isJetStream());
+        assertTrue(statusMsg.isStatusMessage());
         assertNotNull(statusMsg.getStatus());
         assertEquals(code, statusMsg.getStatus().getCode());
     }

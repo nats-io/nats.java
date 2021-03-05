@@ -37,6 +37,7 @@ public class ByteArrayBuilderTests {
                 .append(CharBuffer.wrap("bar"))
                 .append(4273)
                 .append(new byte[0])
+                .append(new byte[0], 0)
                 .append("baz".getBytes())
                 .append(new byte[0], 0)
                 .append("baz".getBytes(), 3)

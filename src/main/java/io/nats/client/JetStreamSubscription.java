@@ -59,11 +59,19 @@ public interface JetStreamSubscription extends Subscription {
      * Fetch (pull) the list
      *
      * @param batchSize the size of the batch
-     * @param timeout the timeout
+     * @param timeout the timeout before the first message arrives
      *
      * @return the list of messages
      */
     List<Message> fetch(int batchSize, Duration timeout);
+
+    /**
+     * Receive messages in the handler
+     *
+     * @param batchSize the size of the batch
+     * @param timeout the timeout before the first message arrives
+     */
+    void receive(int batchSize, Duration timeout, MessageHandler handler);
 
     /**
      * Gets information about the consumer behind this subscription.

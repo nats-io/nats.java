@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.support.IncomingHeadersProcessor;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -130,7 +131,19 @@ public class NatsMessageTests {
         assertTrue(ms.contains("test"));
         assertTrue(ms.contains("reply"));
         assertTrue(ms.contains("data"));
+        ms = m.toDetailString();
+        assertNotNull(ms);
 
+        m = NatsMessage.builder().subject("test").build();
+        ms = m.toString();
+        assertNotNull(ms);
+        assertTrue(ms.contains("test"));
+        assertTrue(ms.contains("<no reply>"));
+        assertTrue(ms.contains("<no data>"));
+        ms = m.toDetailString();
+        assertNotNull(ms);
+
+        m = testMessage();
         assertTrue(m.hasHeaders());
         assertNotNull(m.getHeaders());
         assertTrue(m.isUtf8mode());
@@ -172,6 +185,24 @@ public class NatsMessageTests {
         assertEquals(m.getData(), copy.getData());
         assertEquals(m.getSubject(), copy.getSubject());
         assertEquals(m.getSubject(), copy.getSubject());
+    }
+
+    @Test
+    public void testFactoryProducesStatusMessage() {
+        IncomingHeadersProcessor incomingHeadersProcessor =
+                new IncomingHeadersProcessor("NATS/1.0 503 No Responders\r\n".getBytes());
+        NatsMessage.InternalMessageFactory factory =
+                new NatsMessage.InternalMessageFactory("sid", "subj", "replyTo", 0, false);
+        factory.setHeaders(incomingHeadersProcessor);
+        factory.setData(null); // coverage
+
+        Message m = factory.getMessage();
+        assertTrue(m.isStatusMessage());
+        assertNotNull(m.getStatus());
+        assertEquals(503, m.getStatus().getCode());
+        assertNotNull(m.getStatus().toString());
+        NatsMessage.StatusMessage sm = (NatsMessage.StatusMessage)m;
+        assertNotNull(sm.toString());
     }
 
     private NatsMessage testMessage() {

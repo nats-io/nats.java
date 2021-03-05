@@ -24,13 +24,13 @@ import static io.nats.examples.ExampleUtils.sleep;
  * This example will demonstrate a pull subscription with:
  * - a batch size + fetch i.e. subscription.fetch(10, Duration.ofSeconds(10))
  *
- * Usage: java NatsJsFetch [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsPullFetch [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsFetch extends NatsJsPullSubBase {
+public class NatsJsPullFetch extends NatsJsPullSubBase {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
