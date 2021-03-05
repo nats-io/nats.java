@@ -336,7 +336,7 @@ public class Headers {
 		Checker(String key, Collection<String> values) {
 			checkKey(key);
 			length += key.length() + 1; // for colon
-			if (values != null && !values.isEmpty()) {
+			if (!values.isEmpty()) {
 				for (String val : values) {
 					if (val != null) {
 						if (val.isEmpty()) {

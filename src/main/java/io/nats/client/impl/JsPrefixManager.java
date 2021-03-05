@@ -23,7 +23,8 @@ import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.Validator.nullOrEmpty;
 import static io.nats.client.support.Validator.validateJetStreamPrefix;
 
-public class JsPrefixManager {
+public abstract class JsPrefixManager {
+    private JsPrefixManager() {}  /* ensures cannot be constructed */
 
     private static final Set<String> JS_PREFIXES = Collections.synchronizedSet(new HashSet<>());
 

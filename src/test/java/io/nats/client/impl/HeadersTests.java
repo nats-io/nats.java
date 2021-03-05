@@ -443,6 +443,8 @@ public class HeadersTests {
         h1.add(KEY2, VAL2);
         assertNotEquals(h1, h2);
         assertNotEquals(h1.hashCode(), h2.hashCode());
+
+        assertNotEquals(h1, new Object());
     }
 
     @Test

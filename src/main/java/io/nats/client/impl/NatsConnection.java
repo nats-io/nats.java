@@ -1923,4 +1923,8 @@ class NatsConnection implements Connection {
         }
         return new NatsJetStream(this, options);
     }
+
+    void executorSubmit(Runnable task) {
+        options.getExecutor().submit(task);
+    }
 }

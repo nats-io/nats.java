@@ -94,9 +94,10 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         connection.lenientFlushBuffer();
     }
 
-    byte[] getPrefixedPullJson(String prefix) {
-        return getPullJson(1, lastNotWait, lastExpiresIn, prefix);
-    }
+// SFF possible behavior
+//    byte[] getPrefixedPullJson(String prefix) {
+//        return getPullJson(1, lastNotWait, lastExpiresIn, prefix);
+//    }
 
     byte[] getPullJson(int batch, boolean noWait, Duration expiresIn, String prefix) {
         StringBuilder sb = JsonUtils.beginJsonPrefixed(prefix);
@@ -106,7 +107,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
     }
 
-// SFF 2021-02-26 possible behavior
+// SFF possible behavior
 //    @Override
 //    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
 //        Message msg = super.nextMessage(timeout);
@@ -129,35 +130,51 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return js.lookupConsumerInfo(stream, consumer);
     }
 
+    private interface InternalBatchHandler {
+        boolean onMessage(Message message) throws InterruptedException;
+    }
+
+    private void batchInternal(int batchSize, Duration timeout, InternalBatchHandler handler) {
+        boolean keepGoing;
+        try {
+            pullNoWait(batchSize);
+            keepGoing = handler.onMessage(nextMessage(timeout));
+        } catch (InterruptedException e) {
+            keepGoing = false;
+        }
+
+        while (keepGoing) {
+            try {
+                keepGoing = handler.onMessage(nextMessage(js.getRequestTimeout()));
+            } catch (InterruptedException e) {
+                keepGoing = false;
+            }
+        }
+    }
+
     @Override
     public List<Message> fetch(int batchSize, Duration timeout) {
         List<Message> messages = new ArrayList<>(batchSize);
-        Message msg;
-        try {
-            pullNoWait(batchSize);
-            msg = nextMessage(timeout); // full timeout used for first message
+
+        batchInternal(batchSize, timeout, msg -> {
             if (msg != null && msg.isJetStream()) {
                 messages.add(msg);
             }
-        } catch (InterruptedException e) {
-            msg = null;
-        }
-
-        while (msg != null && messages.size() < batchSize) {
-            try {
-                msg = nextMessage(js.getRequestTimeout());
-                if (msg != null && msg.isJetStream()) {
-                    messages.add(msg);
-                }
-                else {
-                    break;
-                }
-            } catch (InterruptedException e) {
-                break;
-            }
-        }
+            return msg != null && messages.size() < batchSize;
+        });
 
         return messages;
+    }
+
+    @Override
+    public void receive(int batchSize, Duration timeout, MessageHandler handler) {
+        connection.executorSubmit(() ->
+            batchInternal(batchSize, timeout, msg -> {
+                if (msg == null || msg.isJetStream()) {
+                    handler.onMessage(msg);
+                }
+                return msg != null;
+            }));
     }
 
     @Override

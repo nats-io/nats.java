@@ -297,7 +297,7 @@ public class NatsMessage implements Message {
 
     @Override
     public String toString() {
-        return "NatsMessage |" + subject + "|" + (replyTo == null ? "<no reply>" : replyTo) + "|" + (data.length == 0 ? "<no data>" : new String(data)) + "|";
+        return "NatsMessage |" + subject + "|" + (replyTo == null ? "<no reply>" : replyTo) + "|" + (data == null || data.length == 0 ? "<no data>" : new String(data)) + "|";
     }
 
     public String toDetailString() {
@@ -456,7 +456,7 @@ public class NatsMessage implements Message {
 
         void setData(byte[] data) {
             this.data = data;
-            dataLen = data.length;
+            dataLen = data == null ? 0 : data.length;
             totLen = hdrLen + dataLen;
         }
 
@@ -515,10 +515,6 @@ public class NatsMessage implements Message {
 
     static class StatusMessage extends InternalMessage {
         private StatusMessage() {}
-
-        private StatusMessage(int code, String message) {
-            status = new Status(code, message);
-        }
 
         @Override
         public boolean isStatusMessage() {

@@ -15,9 +15,12 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -85,6 +88,107 @@ public class JetStreamPullTests extends JetStreamTestBase {
             messages = sub.fetch(10, Duration.ofSeconds(2));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
+        });
+    }
+
+    static class ReceiveMessageHandler implements MessageHandler {
+        boolean ack;
+        AtomicInteger received;
+        CountDownLatch latch;
+
+        public ReceiveMessageHandler(boolean ack) {
+            this.ack = ack;
+            received = new AtomicInteger();
+            latch = new CountDownLatch(1);
+        }
+
+        @Override
+        public void onMessage(Message msg) throws InterruptedException {
+            if (msg == null) {
+                latch.countDown();
+            }
+            else {
+                received.incrementAndGet();
+                if (ack) {
+                    msg.ack();
+                }
+            }
+        }
+    }
+
+    @Test
+    @Timeout(120)
+    public void testReceive() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
+
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .ackWait(Duration.ofMillis(2500))
+                    .build();
+
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .durable(DURABLE) // required
+                    .configuration(cc)
+                    .build();
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, null, true);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            ReceiveMessageHandler handler = new ReceiveMessageHandler(true);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(0, handler.received.get());
+
+            publish(js, SUBJECT, "A", 10);
+            handler = new ReceiveMessageHandler(true);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(10, handler.received.get());
+
+            publish(js, SUBJECT, "B", 20);
+            handler = new ReceiveMessageHandler(true);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(10, handler.received.get());
+
+            handler = new ReceiveMessageHandler(true);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(10, handler.received.get());
+
+            publish(js, SUBJECT, "C", 5);
+            handler = new ReceiveMessageHandler(true);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(5, handler.received.get());
+
+            publish(js, SUBJECT, "D", 15);
+            handler = new ReceiveMessageHandler(true);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(10, handler.received.get());
+
+            handler = new ReceiveMessageHandler(true);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(5, handler.received.get());
+
+            publish(js, SUBJECT, "E", 10);
+            handler = new ReceiveMessageHandler(false);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(10, handler.received.get());
+            sleep(3000);
+
+            handler = new ReceiveMessageHandler(true);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
+            assertEquals(10, handler.received.get());
         });
     }
 

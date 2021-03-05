@@ -58,5 +58,8 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
 
         assertThrows(IllegalArgumentException.class,
                 () -> new NatsJetStreamMetaData(getJsMessage("$JS.ZZZ.enough.parts.though.need.three.more")));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new NatsJetStreamMetaData(new NatsMessage("sub", null, new byte[0], false)));
     }
 }

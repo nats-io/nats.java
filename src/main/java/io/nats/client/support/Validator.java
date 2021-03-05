@@ -20,7 +20,7 @@ import java.time.Duration;
 import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
 
 public abstract class Validator {
-    private Validator() {} /* for Jacoco */
+    private Validator() {} /* ensures cannot be constructed */
 
     public static String validateMessageSubjectRequired(String s) {
         if (nullOrEmpty(s)) {

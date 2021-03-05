@@ -28,8 +28,6 @@ public class JetStreamApiResponse {
     private final String response;
     private final boolean hasError;
 
-    private String errorJson;
-
     private String type;
     private Integer errorCode;
     private String errorDesc;
@@ -72,8 +70,8 @@ public class JetStreamApiResponse {
         if (hasError()) {
             if (getDescription() == null) {
                 return getErrorCode() == NOT_SET
-                        ? "Unknown Jetstream Error: " + response
-                        : "Unknown Jetstream Error (" + errorCode + ")";
+                        ? "Unknown JetStream Error: " + response
+                        : "Unknown JetStream Error (" + errorCode + ")";
             }
 
             return errorDesc + " (" + getErrorCode() + ")";
