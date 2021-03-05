@@ -16,7 +16,8 @@ package io.nats.examples;
 import io.nats.client.*;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.examples.ExampleUtils.sleep;
 
@@ -24,19 +25,49 @@ import static io.nats.examples.ExampleUtils.sleep;
  * This example will demonstrate a pull subscription with:
  * - a batch size + fetch i.e. subscription.fetch(10, Duration.ofSeconds(10))
  *
- * Usage: java NatsJsFetch [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsPullReceive [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsFetch extends NatsJsPullSubBase {
+public class NatsJsPullReceive extends NatsJsPullSubBase {
+    static class ReceiveMessageHandler implements MessageHandler {
+        boolean ack;
+        int expected;
+        AtomicInteger received;
+        CountDownLatch latch;
+
+        public ReceiveMessageHandler(boolean ack, int expected) {
+            this.ack = ack;
+            this.expected = expected;
+            received = new AtomicInteger();
+            latch = new CountDownLatch(1);
+            System.out.print("Receive ->");
+        }
+
+        @Override
+        public void onMessage(Message msg) throws InterruptedException {
+            if (msg == null) {
+                System.out.println(" <- ");
+                System.out.println("We should have received " + expected + " total messages, we received: " + received);
+                latch.countDown();
+            }
+            else {
+                received.incrementAndGet();
+                System.out.print(" " + new String(msg.getData()));
+                if (ack) {
+                    msg.ack();
+                }
+            }
+        }
+    }
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("fetch-ack-stream")
-                .defaultSubject("fetch-ack-subject")
-                .defaultDurable("fetch-ack-durable")
+                .defaultStream("receive-ack-stream")
+                .defaultSubject("receive-ack-subject")
+                .defaultDurable("receive-ack-durable")
                 .build(args);
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
@@ -67,80 +98,73 @@ public class NatsJsFetch extends NatsJsPullSubBase {
             // 1. Fetch, but there are no messages yet.
             // -  Read the messages, get them all (0)
             System.out.println("----------\n1. There are no messages yet");
-            List<Message> messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            messages.forEach(Message::ack);
-            System.out.println("We should have received 0 total messages, we received: " + messages.size());
+
+            ReceiveMessageHandler handler = new ReceiveMessageHandler(true, 0);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
 
             // 2. Publish 10 messages
             // -  Fetch messages, get 10
             System.out.println("----------\n2. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            messages.forEach(Message::ack);
-            System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            handler = new ReceiveMessageHandler(true, 10);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
 
             // 3. Publish 20 messages
             // -  Fetch messages, only get 10
             System.out.println("----------\n3. Publish 20 which is larger than the batch size.");
             publish(js, exArgs.subject, "B", 20);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            messages.forEach(Message::ack);
-            System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            handler = new ReceiveMessageHandler(true, 10);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
 
             // 4. There are still messages left from the last
             // -  Fetch messages, get 10
             System.out.println("----------\n4. Get the rest of the publish.");
-            messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            messages.forEach(Message::ack);
-            System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            handler = new ReceiveMessageHandler(true, 10);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
 
             // 5. Publish 5 messages
             // -  Fetch messages, get 5
             // -  Since there are less than batch size we only get what the server has.
             System.out.println("----------\n5. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            messages.forEach(Message::ack);
-            System.out.println("We should have received 5 total messages, we received: " + messages.size());
+            handler = new ReceiveMessageHandler(true, 5);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
 
             // 6. Publish 15 messages
             // -  Fetch messages, only get 10
             System.out.println("----------\n6. Publish 15 which is more than the batch size.");
             publish(js, exArgs.subject, "D", 15);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            messages.forEach(Message::ack);
-            System.out.println("We should have received 10 total messages, we received: " + messages.size());
+            handler = new ReceiveMessageHandler(true, 10);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
 
             // 7. There are 5 messages left
             // -  Fetch messages, only get 5
             System.out.println("----------\n7. There are 5 messages left.");
-            messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            messages.forEach(Message::ack);
-            System.out.println("We should have received 5 messages, we received: " + messages.size());
+            handler = new ReceiveMessageHandler(true, 5);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
 
             // 8. Read but don't ack.
             // -  Fetch messages, get 10, but either take too long to ack them or don't ack them
             System.out.println("----------\n8. Fetch but don't ack.");
             publish(js, exArgs.subject, "E", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            System.out.println("We should have received 10 message, we received: " + messages.size());
+            handler = new ReceiveMessageHandler(false, 10);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
             sleep(3000); // longer than the ackWait
 
             // 9. Fetch messages,
             // -  get the 10 messages we didn't ack
             System.out.println("----------\n9. Fetch, get the messages we did not ack.");
-            messages = sub.fetch(10, Duration.ofSeconds(3));
-            report(messages);
-            messages.forEach(Message::ack);
-            System.out.println("We should have received 10 message, we received: " + messages.size());
+            handler = new ReceiveMessageHandler(true, 10);
+            sub.receive(10, Duration.ofSeconds(3), handler);
+            handler.latch.await();
 
             System.out.println("----------\n");
         }
