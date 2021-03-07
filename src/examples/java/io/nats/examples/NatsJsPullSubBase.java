@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 public abstract class NatsJsPullSubBase {
 
@@ -128,6 +129,14 @@ public abstract class NatsJsPullSubBase {
             else {
                 sb.append(c);
             }
+        }
+        return sb.toString();
+    }
+
+    public static String randomString(int length) {
+        StringBuilder sb = new StringBuilder();
+        while (sb.length() < length) {
+            sb.append(Long.toHexString(ThreadLocalRandom.current().nextLong()));
         }
         return sb.toString();
     }

@@ -219,8 +219,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
             createMemoryStream(nc, STREAM, SUBJECT);
             assertNotNull(getStreamInfo(jsm, STREAM));
-            jsm.deleteStream(STREAM);
+            assertTrue(jsm.deleteStream(STREAM));
             assertNull(getStreamInfo(jsm, STREAM));
+            assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(STREAM));
         });
     }
 
@@ -281,9 +282,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             List<String> consumers = jsm.getConsumerNames(STREAM);
             assertEquals(2, consumers.size());
-            jsm.deleteConsumer(STREAM, cc1.getDurable());
+            assertTrue(jsm.deleteConsumer(STREAM, cc1.getDurable()));
             consumers = jsm.getConsumerNames(STREAM);
             assertEquals(1, consumers.size());
+            assertThrows(JetStreamApiException.class, () -> jsm.deleteConsumer(STREAM, cc1.getDurable()));
         });
     }
 
@@ -334,6 +336,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             ci = jsm.getConsumerInfo(STREAM, DURABLE);
             assertEquals(STREAM, ci.getStreamName());
             assertEquals(DURABLE, ci.getName());
+            assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(STREAM, durable(999)));
         });
     }
 
@@ -388,5 +391,31 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         for (int x = 0; x < count; x++) {
             createMemoryStream(nc, stream(x + adj), subject(x + adj));
         }
+    }
+
+    @Test
+    public void testGetAndDeleteMessage() throws Exception {
+        runInJsServer(nc -> {
+            createMemoryStream(nc, STREAM, SUBJECT);
+            JetStream js = nc.jetStream();
+
+            Headers h = new Headers();
+            h.add("foo", "bar");
+
+            js.publish(NatsMessage.builder().subject(SUBJECT).headers(h).data(dataBytes(1)).build());
+            js.publish(NatsMessage.builder().subject(SUBJECT).headers(h).data(dataBytes(2)).build());
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            MessageInfo mi = jsm.getMessage(STREAM, 1);
+            assertNotNull(mi.toString());
+            assertEquals(data(1), new String(mi.getData()));
+            assertNotNull(mi.getHeaders());
+            assertEquals("bar", mi.getHeaders().get("foo").get(0));
+            assertTrue(jsm.deleteMessage(STREAM, 1));
+            assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(STREAM, 1));
+            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 1));
+            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 3));
+        });
     }
 }

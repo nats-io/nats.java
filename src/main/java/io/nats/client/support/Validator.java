@@ -36,8 +36,8 @@ public abstract class Validator {
         return s;
     }
 
-    public static String validateQueueNameOrEmptyAsNull(String s) {
-        if (containsWhitespace(s)) {
+    public static String validateQueueNameRequired(String s) {
+        if (nullOrEmpty(s) ||containsWhitespace(s)) {
             throw new IllegalArgumentException("Queue have whitespace [" + s + "]");
         }
         return emptyAsNull(s);

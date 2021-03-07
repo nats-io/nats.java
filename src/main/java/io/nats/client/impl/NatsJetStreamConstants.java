@@ -55,6 +55,9 @@ public interface NatsJetStreamConstants {
     String JSAPI_STREAM_LIST = "STREAM.LIST";
 
     // JSAPI_MSG_DELETE is the endpoint to remove a message.
+    String JSAPI_MSG_GET = "STREAM.MSG.GET.%s";
+
+    // JSAPI_MSG_DELETE is the endpoint to remove a message.
     String JSAPI_MSG_DELETE = "STREAM.MSG.DELETE.%s";
 
     String MSG_ID_HDR = "Nats-Msg-Id";
