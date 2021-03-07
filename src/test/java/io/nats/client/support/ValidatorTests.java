@@ -39,10 +39,9 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateQueueNameOrEmptyAsNull() {
-        allowed(Validator::validateQueueNameOrEmptyAsNull, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
-        allowedEmptyAsNull(Validator::validateQueueNameOrEmptyAsNull, null, EMPTY);
-        notAllowed(Validator::validateQueueNameOrEmptyAsNull, HAS_SPACE);
+    public void testValidateQueueNameRequired() {
+        allowed(Validator::validateQueueNameRequired, PLAIN, HAS_DASH, HAS_DOT, HAS_STAR, HAS_GT);
+        notAllowed(Validator::validateQueueNameRequired, null, EMPTY, HAS_SPACE);
     }
 
     @Test
@@ -66,7 +65,7 @@ public class ValidatorTests {
     @Test
     public void testValidateStreamNameOrEmptyAsNull() {
         allowed(Validator::validateStreamNameOrEmptyAsNull, PLAIN, HAS_SPACE, HAS_DASH);
-        allowedEmptyAsNull(Validator::validateQueueNameOrEmptyAsNull, null, EMPTY);
+        allowedEmptyAsNull(Validator::validateStreamNameOrEmptyAsNull, null, EMPTY);
         notAllowed(Validator::validateStreamNameOrEmptyAsNull, HAS_DOT, HAS_STAR, HAS_GT);
     }
 

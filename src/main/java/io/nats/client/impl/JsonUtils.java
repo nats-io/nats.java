@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -328,6 +329,12 @@ public abstract class JsonUtils {
         Matcher m = pattern.matcher(json);
         return m.find() ? m.group(1) : dflt;
     }
+
+    public static byte[] readBase64(String json, Pattern pattern) {
+        String b64 = readString(json, pattern, null);
+        return b64 == null ? null : Base64.getDecoder().decode(b64);
+    }
+
 
     public static boolean readBoolean(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);

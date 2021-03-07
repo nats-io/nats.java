@@ -96,15 +96,68 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertEquals(2, names.size());
 
             // set the stream
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().stream(STREAM).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().stream(STREAM).durable(DURABLE).build();
             s = js.subscribe(SUBJECT, pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
             names = jsm.getConsumerNames(STREAM);
             assertEquals(3, names.size());
+        });
+    }
 
-            System.out.println(names);
+    @Test
+    public void testJetStreamSubscribeErrors() throws Exception {
+        runInJsServer(nc -> {
+            JetStream js = nc.jetStream();
+
+            // stream not found
+            PushSubscribeOptions psoInvalidStream = PushSubscribeOptions.builder().stream(STREAM).build();
+            assertThrows(JetStreamApiException.class, () -> js.subscribe(SUBJECT, psoInvalidStream));
+
+            // subject
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(null));
+            assertTrue(iae.getMessage().startsWith("Subject"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(HAS_SPACE));
+            assertTrue(iae.getMessage().startsWith("Subject"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PushSubscribeOptions)null));
+            assertTrue(iae.getMessage().startsWith("Subject"));
+
+            // queue
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null));
+            assertTrue(iae.getMessage().startsWith("Queue"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, HAS_SPACE, null));
+            assertTrue(iae.getMessage().startsWith("Queue"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null, null, false, null));
+            assertTrue(iae.getMessage().startsWith("Queue"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, HAS_SPACE, null, null, false, null));
+            assertTrue(iae.getMessage().startsWith("Queue"));
+
+            // dispatcher
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null, false));
+            assertTrue(iae.getMessage().startsWith("Dispatcher"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, null, null, false, null));
+            assertTrue(iae.getMessage().startsWith("Dispatcher"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, QUEUE, null, null, false, null));
+            assertTrue(iae.getMessage().startsWith("Dispatcher"));
+
+            // handler
+            Dispatcher dispatcher = nc.createDispatcher(null);
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, dispatcher, null, false));
+            assertTrue(iae.getMessage().startsWith("Handler"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, dispatcher, null, false, null));
+            assertTrue(iae.getMessage().startsWith("Handler"));
+            iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, QUEUE, dispatcher, null, false, null));
+            assertTrue(iae.getMessage().startsWith("Handler"));
+
+            // valid
+            createMemoryStream(nc, STREAM, SUBJECT);
+            js.subscribe(SUBJECT);
+            js.subscribe(SUBJECT, (PushSubscribeOptions)null);
+            js.subscribe(SUBJECT, QUEUE, null);
+            js.subscribe(SUBJECT, dispatcher, m -> {}, false);
+            js.subscribe(SUBJECT, dispatcher, m -> {}, false, null);
+            js.subscribe(SUBJECT, QUEUE, dispatcher, m -> {}, false, null);
         });
     }
 
@@ -132,12 +185,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, DURABLE, null, false);
 
             JetStreamManagement jsm = nc.jetStreamManagement();
-            debug(jsm, 1);
 
             // another subscription with valid filter subject
             sub = js.subscribe(SUBJECT, pso1);
             assertSubscription(sub, STREAM, DURABLE, null, false);
-            debug(jsm, 2);
 
             // filtering on a subject that the durable does not already filter
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(subject(9), pso1));
@@ -147,7 +198,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             PushSubscribeOptions pso2 = PushSubscribeOptions.builder().configuration(cc2).build();
             sub = js.subscribe(SUBJECT, pso2);
             assertSubscription(sub, STREAM, DURABLE, null, false);
-            debug(jsm, 3);
         });
     }
 

@@ -59,6 +59,10 @@ public class JetStreamApiResponse {
         return errorCode;
     }
 
+    public boolean getSuccess() {
+        return JsonUtils.readBoolean(response, SUCCESS_RE);
+    }
+
     public String getDescription() {
         if (errorDesc == null) {
             errorDesc = JsonUtils.readString(response, DESCRIPTION_RE, NatsConstants.EMPTY);

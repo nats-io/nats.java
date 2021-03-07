@@ -52,7 +52,7 @@ public interface JetStreamManagement {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    void deleteStream(String streamName) throws IOException, JetStreamApiException;
+    boolean deleteStream(String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing stream.
@@ -93,7 +93,7 @@ public interface JetStreamManagement {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    void deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
+    boolean deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing consumer.
@@ -108,7 +108,7 @@ public interface JetStreamManagement {
 
     /**
      * Return a list of consumers by name
-     * @param streamName the name of the consumer.
+     * @param streamName the name of the stream.
      * @return The list of names
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -118,7 +118,7 @@ public interface JetStreamManagement {
 
     /**
      * Return a list of consumers by name
-     * @param streamName the name of the consumer.
+     * @param streamName the name of the stream.
      * @param filter match this subject or wildcard
      * @return The list of names
      * @throws IOException covers various communication issues with the NATS
@@ -129,7 +129,7 @@ public interface JetStreamManagement {
 
     /**
      * Return a list of ConsumerInfo objects.
-     * @param streamName the name of the consumer.
+     * @param streamName the name of the stream.
      * @return The list of ConsumerInfo
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
@@ -154,4 +154,25 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      */
     List<StreamInfo> getStreams() throws IOException, JetStreamApiException;
+
+    /**
+     * Return an info object about a message
+     * @param streamName the name of the stream.
+     * @param seq the sequence number of the message
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException;
+
+    /**
+     * Deletes a message.
+     * @param streamName name of the stream
+     * @param seq the sequence number of the message
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException;
 }

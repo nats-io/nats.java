@@ -70,6 +70,7 @@ public interface JetStreamSubscription extends Subscription {
      *
      * @param batchSize the size of the batch
      * @param timeout the timeout before the first message arrives
+     * @param handler the message handler to receive the messages
      */
     void receive(int batchSize, Duration timeout, MessageHandler handler);
 

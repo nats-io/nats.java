@@ -1083,7 +1083,7 @@ class NatsConnection implements Connection {
             }
             statistics.incrementRepliesReceived();
         } else if (!oldStyle && !subject.startsWith(mainInbox)) {
-            System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection");
+            System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection " + subject + " " + token);
         }
     }
 
