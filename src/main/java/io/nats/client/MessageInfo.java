@@ -42,12 +42,7 @@ public class MessageInfo {
         seq = JsonUtils.readLong(json, SEQ_RE, 0);
         time = JsonUtils.readDate(json, TIME_RE);
         byte[] hdrBytes = JsonUtils.readBase64(json, HDRS_RE);
-        if (hdrBytes == null) {
-            headers = null;
-        }
-        else {
-            headers = new IncomingHeadersProcessor(hdrBytes).getHeaders();
-        }
+        headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
     }
 
     /**
