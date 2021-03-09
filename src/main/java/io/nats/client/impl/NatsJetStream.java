@@ -291,6 +291,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message) {
+        validateNotNull(message, "Message");
         return publishAsync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
     }
 
@@ -299,6 +300,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options) {
+        validateNotNull(message, "Message");
         return publishAsync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
     }
 

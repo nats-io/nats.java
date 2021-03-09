@@ -977,6 +977,7 @@ class NatsConnection implements Connection {
 
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
+        validateNotNull(message, "Message");
         return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout);
     }
 
@@ -996,6 +997,7 @@ class NatsConnection implements Connection {
 
     @Override
     public CompletableFuture<Message> request(Message message) {
+        validateNotNull(message, "Message");
         return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode());
     }
 
