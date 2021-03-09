@@ -206,7 +206,7 @@ class MessageQueue {
     // Only works in single reader mode, because we want to maintain order.
     // accumulate reads off the concurrent queue one at a time, so if multiple
     // readers are present, you could get out of order message delivery.
-    NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
+    NatsMessageQueueNode accumulate(long maxSize, long maxMessages, Duration timeout)
             throws InterruptedException {
 
         if (!this.singleThreadedReader) {
@@ -218,22 +218,23 @@ class MessageQueue {
         }
 
         NatsMessage msg = this.poll(timeout);
-
         if (msg == null) {
             return null;
         }
+
+        NatsMessageQueueNode head = new NatsMessageQueueNode(msg);
 
         long size = msg.getSizeInBytes();
 
         if (maxMessages <= 1 || size >= maxSize) {
             this.sizeInBytes.addAndGet(-size);
             this.length.decrementAndGet();
-            return msg;
+            return head;
         }
 
         long count = 1;
-        NatsMessage cursor = msg;
-        
+        NatsMessageQueueNode cursor = head;
+
         while (cursor != null) {
             NatsMessage next = this.queue.peek();
             if (next != null && next != this.poisonPill) {
@@ -243,8 +244,7 @@ class MessageQueue {
                     size += s;
                     count++;
                     
-                    cursor.next = this.queue.poll();
-                    cursor = cursor.next;
+                    cursor = cursor.setNext(this.queue.poll());
 
                     if (count == maxMessages) {
                         break;
@@ -260,7 +260,7 @@ class MessageQueue {
         this.sizeInBytes.addAndGet(-size);
         this.length.addAndGet(-count);
 
-        return msg;
+        return head;
     }
 
     // Returns a message or null

@@ -51,6 +51,7 @@ public interface JetStreamManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
+     * @return true if the delete succeeded
      */
     boolean deleteStream(String streamName) throws IOException, JetStreamApiException;
 
@@ -92,6 +93,7 @@ public interface JetStreamManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
+     * @return true if the delete succeeded
      */
     boolean deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException;
 
@@ -173,6 +175,7 @@ public interface JetStreamManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
+     * @return true if the delete succeeded
      */
     boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException;
 }

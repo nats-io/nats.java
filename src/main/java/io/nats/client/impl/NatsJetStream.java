@@ -3,11 +3,12 @@ package io.nats.client.impl;
 import io.nats.client.*;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static io.nats.client.impl.JsonUtils.simpleMessageBody;
+import static io.nats.client.support.ApiConstants.SEQ;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStreamConstants {
@@ -172,7 +173,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
         ConsumerNamesResponse cnr = new ConsumerNamesResponse();
         while (cnr.hasMore()) {
-            Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter).getBytes(StandardCharsets.US_ASCII), requestTimeout);
+            Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter), requestTimeout);
             cnr.add(extractJsonThrowOnError(resp));
         }
 
@@ -188,7 +189,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
         ConsumerListResponse cir = new ConsumerListResponse();
         while (cir.hasMore()) {
-            Message resp = makeRequestResponseRequired(subj, cir.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
+            Message resp = makeRequestResponseRequired(subj, cir.nextJson(), requestTimeout);
             cir.add(extractJsonThrowOnError(resp));
         }
 
@@ -199,7 +200,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     public List<String> getStreamNames() throws IOException, JetStreamApiException {
         StreamNamesResponse snr = new StreamNamesResponse();
         while (snr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAMS, snr.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
+            Message resp = makeRequestResponseRequired(JSAPI_STREAMS, snr.nextJson(), requestTimeout);
             snr.add(extractJsonThrowOnError(resp));
         }
 
@@ -210,7 +211,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
         StreamListResponse sir = new StreamListResponse();
         while (sir.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, sir.nextJson().getBytes(StandardCharsets.US_ASCII), requestTimeout);
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, sir.nextJson(), requestTimeout);
             sir.add(extractJsonThrowOnError(resp));
         }
 
@@ -220,39 +221,26 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_MSG_GET, streamName);
-        Message resp = makeRequestResponseRequired(subj, msgBody(seq), requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), requestTimeout);
         return new MessageInfo(extractJsonThrowOnError(resp));
     }
 
     @Override
     public boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_MSG_DELETE, streamName);
-        Message resp = makeRequestResponseRequired(subj, msgBody(seq), requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), requestTimeout);
         return extractApiResponseThrowOnError(resp).getSuccess();
-    }
-
-    private byte[] msgBody(long seq) {
-        return ("{\"seq\":" + seq + "}").getBytes();
     }
 
     // ----------------------------------------------------------------------------------------------------
     // Publish
     // ---------------------------------------------------------------------------------------------NatsJsPullSub-------
-    static NatsMessage buildNatsMessage(String subject, byte[] payload) {
-        return new NatsMessage.Builder().subject(subject).data(payload).build();
-    }
-
-    static NatsMessage toNatsMessage(Message message) {
-        validateNotNull(message, "Message");
-        return message instanceof NatsMessage ? (NatsMessage) message : new NatsMessage(message);
-    }
-
     /**
      * {@inheritDoc}
      */
     @Override
     public PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException {
-        return publishInternal(buildNatsMessage(subject, body), null);
+        return publishSync(subject, null, null, body, conn.getOptions().supportUTF8Subjects(), null);
     }
 
     /**
@@ -260,7 +248,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishInternal(buildNatsMessage(subject, body), options);
+        return publishSync(subject, null, null, body, conn.getOptions().supportUTF8Subjects(), options);
     }
 
     /**
@@ -268,7 +256,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(Message message) throws IOException, JetStreamApiException {
-        return publish(toNatsMessage(message), null);
+        validateNotNull(message, "Message");
+        return publishSync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
     }
 
     /**
@@ -276,7 +265,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishInternal(toNatsMessage(message), options);
+        validateNotNull(message, "Message");
+        return publishSync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
     }
 
     /**
@@ -284,13 +274,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return publish(subject, body);
-            } catch (IOException | JetStreamApiException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        return publishAsync(subject, null, null, body, conn.getOptions().supportUTF8Subjects(), null);
     }
 
     /**
@@ -298,13 +282,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return publish(subject, body, options);
-            } catch (IOException | JetStreamApiException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        return publishAsync(subject, null, null, body, conn.getOptions().supportUTF8Subjects(), options);
     }
 
     /**
@@ -312,13 +290,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return publish(message);
-            } catch (IOException | JetStreamApiException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        return publishAsync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
     }
 
     /**
@@ -326,52 +298,29 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options) {
-        return CompletableFuture.supplyAsync(() -> {
+        return publishAsync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
+    }
+
+    private CompletableFuture<PublishAck> publishAsync(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) {
+        Headers merged = mergePublishOptions(headers, options);
+        CompletableFuture<Message> future = conn.request(subject, replyTo, merged, data, utf8mode);
+        return future.thenCompose(resp -> {
             try {
-                return publish(message, options);
+                return CompletableFuture.completedFuture(processAck(resp, options));
             } catch (IOException | JetStreamApiException e) {
                 throw new RuntimeException(e);
             }
         });
     }
 
-    private PublishAck publishInternal(NatsMessage natsMessage, PublishOptions options) throws IOException, JetStreamApiException {
+    private PublishAck publishSync(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) throws IOException, JetStreamApiException {
+        Duration timeout = options == null ? requestTimeout : options.getStreamTimeout();
+        Headers merged = mergePublishOptions(headers, options);
+        Message resp = makeRequestResponseRequired(subject, replyTo, merged, data, utf8mode, timeout);
+        return processAck(resp, options);
+    }
 
-        Duration timeout;
-        String pubStream = null;
-
-        if (options == null) {
-            timeout = requestTimeout;
-        }
-        else {
-            timeout = options.getStreamTimeout();
-            pubStream = options.getStream();
-
-            Headers headers = natsMessage.getOrCreateHeaders();
-
-            // we know no headers are set with default options
-            long seqno = options.getExpectedLastSequence();
-            if (seqno > 0) {
-                headers.add(EXPECTED_LAST_SEQ_HDR, Long.toString(seqno));
-            }
-
-            String s = options.getExpectedLastMsgId();
-            if (s != null) {
-                headers.add(EXPECTED_LAST_MSG_ID_HDR, s);
-            }
-
-            s = options.getExpectedStream();
-            if (s != null) {
-                headers.add(EXPECTED_STREAM_HDR, s);
-            }
-
-            s = options.getMessageId();
-            if (s != null) {
-                headers.add(MSG_ID_HDR, s);
-            }
-        }
-
-        Message resp = makeRequestResponseRequired(natsMessage, timeout);
+    private NatsPublishAck processAck(Message resp, PublishOptions options) throws IOException, JetStreamApiException {
         NatsPublishAck ack = new NatsPublishAck(resp.getData());
 
         String ackStream = ack.getStream();
@@ -379,11 +328,45 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             throw new IOException("Invalid JetStream ack.");
         }
 
+        String pubStream = options == null ? null : options.getStream();
         if (isStreamSpecified(pubStream) && !pubStream.equals(ackStream)) {
             throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
         }
 
         return ack;
+    }
+
+    private Headers mergePublishOptions(Headers headers, PublishOptions options) {
+        Headers piHeaders;
+
+        if (options == null) {
+            piHeaders = headers == null ? null : new Headers(headers);
+        }
+        else {
+            piHeaders = new Headers(headers);
+
+            // we know no headers are set with default options
+            long seqno = options.getExpectedLastSequence();
+            if (seqno > 0) {
+                piHeaders.add(EXPECTED_LAST_SEQ_HDR, Long.toString(seqno));
+            }
+
+            String s = options.getExpectedLastMsgId();
+            if (s != null) {
+                piHeaders.add(EXPECTED_LAST_MSG_ID_HDR, s);
+            }
+
+            s = options.getExpectedStream();
+            if (s != null) {
+                piHeaders.add(EXPECTED_STREAM_HDR, s);
+            }
+
+            s = options.getMessageId();
+            if (s != null) {
+                piHeaders.add(MSG_ID_HDR, s);
+            }
+        }
+        return piHeaders;
     }
 
     private boolean isStreamSpecified(String streamName) {
@@ -637,9 +620,9 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
     }
 
-    private Message makeRequestResponseRequired(NatsMessage natsMessage, Duration timeout) throws IOException {
+    private Message makeRequestResponseRequired(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws IOException {
         try {
-            return responseRequired(conn.request(natsMessage, timeout));
+            return responseRequired(conn.request(subject, replyTo, headers, data, utf8mode, timeout));
         } catch (InterruptedException e) {
             throw new IOException(e);
         }

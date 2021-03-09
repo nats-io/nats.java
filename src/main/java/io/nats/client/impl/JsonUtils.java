@@ -45,6 +45,8 @@ public abstract class JsonUtils {
     private static final String QCOLON = "\":";
     private static final String QCOMMA = "\",";
     private static final String COMMA = ",";
+    public static final String OPENQ = "{\"";
+    public static final String CLOSE = "}";
 
     private JsonUtils() {} /* ensures cannot be constructed */
 
@@ -186,6 +188,10 @@ public abstract class JsonUtils {
         }
 
         return new String[0];
+    }
+
+    public static byte[] simpleMessageBody(String name, Object value) {
+        return (OPENQ + name + QCOLON + value + CLOSE).getBytes();
     }
 
     public static StringBuilder beginJson() {

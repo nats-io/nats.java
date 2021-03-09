@@ -38,6 +38,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.Validator.validateNotNull;
 
 class NatsConnection implements Connection {
 
@@ -737,35 +738,23 @@ class NatsConnection implements Connection {
 
     @Override
     public void publish(String subject, byte[] body) {
-        _publish(NatsMessage.builder()
-                .subject(subject)
-                .data(body)
-                .utf8mode(options.supportUTF8Subjects())
-                .build());
+        publishInternal(subject, null, null, body, options.supportUTF8Subjects());
     }
 
     @Override
     public void publish(String subject, String replyTo, byte[] body) {
-        _publish(NatsMessage.builder()
-                .subject(subject)
-                .replyTo(replyTo)
-                .data(body)
-                .utf8mode(options.supportUTF8Subjects())
-                .build());
-    }
-
-    private NatsMessage asNatsMessage(Message message) {
-        return message instanceof NatsMessage ? (NatsMessage) message : new NatsMessage(message);
+        publishInternal(subject, replyTo, null, body, options.supportUTF8Subjects());
     }
 
     @Override
-    public void publish(Message msg) {
-        _publish(asNatsMessage(msg));
+    public void publish(Message message) {
+        validateNotNull(message, "Message");
+        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode());
     }
 
-    private void _publish(NatsMessage msg) {
-        checkIfNeedsHeaderSupport(msg);
-        checkPayloadSize(msg);
+    private void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+        checkIfNeedsHeaderSupport(headers);
+        checkPayloadSize(data);
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -773,23 +762,24 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
         }
 
+        NatsMessage nm = new NatsMessage(subject, replyTo, new Headers(headers), data, utf8mode);
+
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
-                && !this.writer.canQueue(msg, options.getReconnectBufferSize())) {
+                && !this.writer.canQueue(nm, options.getReconnectBufferSize())) {
             throw new IllegalStateException(
                     "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());
         }
-        queueOutgoing(msg);
+        queueOutgoing(nm);
     }
 
-    private void checkIfNeedsHeaderSupport(NatsMessage msg) {
-        if (msg.hasHeaders() && !serverInfo.get().isHeadersSupported()) {
+    private void checkIfNeedsHeaderSupport(Headers headers) {
+        if (headers != null && !headers.isEmpty() && !serverInfo.get().isHeadersSupported()) {
             throw new IllegalArgumentException(
                     "Headers are not supported by the server, version: " + serverInfo.get().getVersion());
         }
     }
 
-    private void checkPayloadSize(NatsMessage natsMsg) {
-        byte[] body = natsMsg.getData(); // data will never be null, it might be empty
+    private void checkPayloadSize(byte[] body) {
         if (body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
             throw new IllegalArgumentException(
                     "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
@@ -982,37 +972,37 @@ class NatsConnection implements Connection {
 
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return _request(NatsMessage.builder().subject(subject).data(body).build(), timeout);
+        return request(subject, null, null, body, options.supportUTF8Subjects(), timeout);
     }
 
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
-        return _request(asNatsMessage(message), timeout);
+        return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout);
     }
 
-    private Message _request(NatsMessage message, Duration timeout) {
-        Message reply = null;
-        CompletableFuture<Message> incoming = _request(message);
+    @Override
+    public Message request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws InterruptedException {
+        CompletableFuture<Message> incoming = request(subject, replyTo, headers, data, utf8mode);
         try {
-            reply = incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (TimeoutException | ExecutionException | CancellationException | InterruptedException e) {
-            incoming.cancel(true);
+            return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        } catch (TimeoutException | ExecutionException | CancellationException e) {
+            return null;
         }
-        return reply;
-    }   
+    }
 
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return _request(NatsMessage.builder().subject(subject).data(body).build());
+        return request(subject, null, null, body, options.supportUTF8Subjects());
     }
 
     @Override
     public CompletableFuture<Message> request(Message message) {
-        return _request(asNatsMessage(message));
+        return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode());
     }
 
-    private CompletableFuture<Message> _request(NatsMessage natsMsg) {
-        checkPayloadSize(natsMsg);
+    @Override
+    public CompletableFuture<Message> request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+        checkPayloadSize(data);
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -1054,6 +1044,7 @@ class NatsConnection implements Connection {
             responses.put(sub.getSID(), future);
         }
 
+        NatsMessage natsMsg = new NatsMessage(subject, replyTo, headers, data, utf8mode);
         natsMsg.updateReplyTo(responseInbox);
         publish(natsMsg);
         writer.flushBuffer();

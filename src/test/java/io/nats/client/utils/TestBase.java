@@ -112,6 +112,10 @@ public class TestBase {
         return DURABLE + "-" + seq;
     }
 
+    public static String durable(String vary, int seq) {
+        return DURABLE + "-" + vary + "-" + seq;
+    }
+
     public static String deliver(int seq) {
         return DELIVER + "-" + seq;
     }

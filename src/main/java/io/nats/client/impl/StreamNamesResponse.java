@@ -41,7 +41,7 @@ public class StreamNamesResponse extends ListResponse {
         return streams;
     }
 
-    String nextJson() {
+    byte[] nextJson() {
         return internalNextJson();
     }
 }

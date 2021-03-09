@@ -100,9 +100,9 @@ public class ResponseTests extends JetStreamTestBase {
     public void testListResponseCoverage() {
         TestListResponse tlr = new TestListResponse();
         assertTrue(tlr.hasMore());
-        assertEquals("{\"offset\":0}", tlr.internalNextJson());
-        assertEquals("{\"offset\":0}", tlr.internalNextJson("name", null));
-        assertEquals("{\"offset\":0,\"name\":\"value\"}", tlr.internalNextJson("name", "value"));
+        assertEquals("{\"offset\":0}", new String(tlr.internalNextJson()));
+        assertEquals("{\"offset\":0}", new String(tlr.internalNextJson("name", null)));
+        assertEquals("{\"offset\":0,\"name\":\"value\"}", new String(tlr.internalNextJson("name", "value")));
         tlr.add(dataAsString("ListResponsePage1.json"));
         assertEquals(1, tlr.addCalled);
         assertEquals(15, tlr.getTotal());
@@ -110,8 +110,8 @@ public class ResponseTests extends JetStreamTestBase {
         assertEquals(0, tlr.getLastOffset());
 
         assertTrue(tlr.hasMore());
-        assertEquals("{\"offset\":10}", tlr.internalNextJson());
-        assertEquals("{\"offset\":10,\"name\":\"value\"}", tlr.internalNextJson("name", "value"));
+        assertEquals("{\"offset\":10}", new String(tlr.internalNextJson()));
+        assertEquals("{\"offset\":10,\"name\":\"value\"}", new String(tlr.internalNextJson("name", "value")));
         tlr.add(dataAsString("ListResponsePage2.json"));
         assertEquals(2, tlr.addCalled);
         assertEquals(15, tlr.getTotal());

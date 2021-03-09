@@ -62,9 +62,6 @@ public class MessageQueueBenchmark {
                 NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
         MessageQueue accumulateQueue = new MessageQueue(true);
-        for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
-        }
         for (int i = 0; i < msgCount; i++) {
             accumulateQueue.push(msgs[i]);
         }
@@ -81,9 +78,6 @@ public class MessageQueueBenchmark {
             System.out.printf("\tor %s op/s\n",
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
         
-        for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
-        }
         final MessageQueue pushPopThreadQueue = new MessageQueue(false);
         final Duration timeout = Duration.ofMillis(10);
         final CompletableFuture<Void> go = new CompletableFuture<>();
@@ -125,9 +119,6 @@ public class MessageQueueBenchmark {
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
         
         final CompletableFuture<Void> go2 = new CompletableFuture<>();
-        for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
-        }
         final MessageQueue pushPopNowThreadQueue = new MessageQueue(false);
         pusher = new Thread(() -> {
             try {
@@ -167,9 +158,6 @@ public class MessageQueueBenchmark {
                     NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
             
         final CompletableFuture<Void> go3 = new CompletableFuture<>();
-        for (int j = 0; j < msgCount; j++) {
-            msgs[j].next = null;
-        }        
 
         final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true);
         pusher = new Thread(() -> {
@@ -189,7 +177,7 @@ public class MessageQueueBenchmark {
                 go3.get();
                 int remaining = msgCount;
                 while (remaining > 0) {
-                    NatsMessage cursor = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
+                    NatsMessageQueueNode cursor = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
                     while (cursor != null) {
                         remaining--;
                         cursor = cursor.next;
