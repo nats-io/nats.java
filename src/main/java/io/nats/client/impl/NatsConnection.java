@@ -980,8 +980,7 @@ class NatsConnection implements Connection {
         return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout);
     }
 
-    @Override
-    public Message request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws InterruptedException {
+    Message request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws InterruptedException {
         CompletableFuture<Message> incoming = request(subject, replyTo, headers, data, utf8mode);
         try {
             return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
@@ -1000,8 +999,7 @@ class NatsConnection implements Connection {
         return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode());
     }
 
-    @Override
-    public CompletableFuture<Message> request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+    CompletableFuture<Message> request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
         checkPayloadSize(data);
 
         if (isClosed()) {

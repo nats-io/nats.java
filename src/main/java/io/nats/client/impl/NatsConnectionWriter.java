@@ -109,13 +109,13 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    synchronized void sendMessageBatch(NatsMessageQueueNode node, DataPort dataPort, NatsStatistics stats)
+    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, NatsStatistics stats)
             throws IOException {
 
         int sendPosition = 0;
 
-        while (node != null) {
-            long size = node.message.getSizeInBytes();
+        while (msg != null) {
+            long size = msg.getSizeInBytes();
 
             if (sendPosition + size > sendBuffer.length) {
                 if (sendPosition == 0) { // have to resize
@@ -124,29 +124,29 @@ class NatsConnectionWriter implements Runnable {
                     dataPort.write(sendBuffer, sendPosition);
                     connection.getNatsStatistics().registerWrite(sendPosition);
                     sendPosition = 0;
-                    node = node.next;
+                    msg = msg.next;
 
-                    if (node == null) {
+                    if (msg == null) {
                         break;
                     }
                 }
             }
 
-            byte[] bytes = node.message.getProtocolBytes();
+            byte[] bytes = msg.getProtocolBytes();
             System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
             sendPosition += bytes.length;
 
             sendBuffer[sendPosition++] = '\r';
             sendBuffer[sendPosition++] = '\n';
 
-            if (!node.message.isProtocol()) {
-                bytes = node.message.getSerializedHeader();
+            if (!msg.isProtocol()) {
+                bytes = msg.getSerializedHeader();
                 if (bytes != null && bytes.length > 0) {
                     System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
                     sendPosition += bytes.length;
                 }
 
-                bytes = node.message.getData();
+                bytes = msg.getData();
                 if (bytes != null && bytes.length > 0) {
                     System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
                     sendPosition += bytes.length;
@@ -159,7 +159,7 @@ class NatsConnectionWriter implements Runnable {
             stats.incrementOutMsgs();
             stats.incrementOutBytes(size);
 
-            node = node.next;
+            msg = msg.next;
         }
         
         dataPort.write(sendBuffer, sendPosition);
@@ -177,19 +177,19 @@ class NatsConnectionWriter implements Runnable {
             int maxAccumulate = Options.MAX_MESSAGES_IN_NETWORK_BUFFER;
 
             while (this.running.get()) {
-                NatsMessageQueueNode head = null;
+                NatsMessage msg = null;
                 
                 if (this.reconnectMode.get()) {
-                    head = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxAccumulate, reconnectWait);
+                    msg = this.reconnectOutgoing.accumulate(this.sendBuffer.length, maxAccumulate, reconnectWait);
                 } else {
-                    head = this.outgoing.accumulate(this.sendBuffer.length, maxAccumulate, waitForMessage);
+                    msg = this.outgoing.accumulate(this.sendBuffer.length, maxAccumulate, waitForMessage);
                 }
 
-                if (head == null) { // Make sure we are still running
+                if (msg == null) { // Make sure we are still running
                     continue;
                 }
 
-                sendMessageBatch(head, dataPort, stats);
+                sendMessageBatch(msg, dataPort, stats);
             }
         } catch (IOException | BufferOverflowException io) {
             this.connection.handleCommunicationIssue(io);

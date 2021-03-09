@@ -57,6 +57,8 @@ public class NatsMessage implements Message {
 
     protected NatsSubscription subscription;
 
+    NatsMessage next; // for linked list
+
     // ----------------------------------------------------------------------------------------------------
     // Constructors - Prefer to use Builder
     // ----------------------------------------------------------------------------------------------------
@@ -317,7 +319,9 @@ public class NatsMessage implements Message {
                 "\n  hdrLen=" + hdrLen +
                 "\n  dataLen=" + dataLen +
                 "\n  totLen=" + totLen +
-                "\n  subscription=" + subscription;
+                "\n  subscription=" + subscription +
+                "\n  next=" + (next == null ? "No" : "Yes");
+
     }
 
     private IllegalStateException notAJetStreamMessage() {

@@ -119,17 +119,6 @@ public interface JetStreamManagement {
     List<String> getConsumerNames(String streamName) throws IOException, JetStreamApiException;
 
     /**
-     * Return a list of consumers by name
-     * @param streamName the name of the stream.
-     * @param filter match this subject or wildcard
-     * @return The list of names
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */
-    List<String> getConsumerNames(String streamName, String filter) throws IOException, JetStreamApiException;
-
-    /**
      * Return a list of ConsumerInfo objects.
      * @param streamName the name of the stream.
      * @return The list of ConsumerInfo

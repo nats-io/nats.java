@@ -167,8 +167,9 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         return getConsumerNames(streamName, null);
     }
 
-    @Override
-    public List<String> getConsumerNames(String streamName, String filter) throws IOException, JetStreamApiException {
+    // TODO FUTURE resurface this api publicly when server supports
+    // @Override
+    private List<String> getConsumerNames(String streamName, String filter) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_NAMES, streamName);
 
         ConsumerNamesResponse cnr = new ConsumerNamesResponse();
@@ -303,9 +304,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
     private CompletableFuture<PublishAck> publishAsync(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) {
         Headers merged = mergePublishOptions(headers, options);
-        CompletableFuture<Message> future = conn.request(subject, replyTo, merged, data, utf8mode);
+        CompletableFuture<Message> future = conn.request(subject, replyTo, merged, data, utf8mode)
+                .exceptionally(e -> null);
+
         return future.thenCompose(resp -> {
             try {
+                if (resp == null) {
+                    throw new IOException("Invalid publish or timeout / no response waiting for NATS JetStream server");
+                }
                 return CompletableFuture.completedFuture(processAck(resp, options));
             } catch (IOException | JetStreamApiException e) {
                 throw new RuntimeException(e);

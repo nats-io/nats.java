@@ -248,7 +248,7 @@ public class MessageQueueTests {
     @Test
     public void testEmptyAccumulate() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
-        NatsMessageQueueNode msg = q.accumulate(1,1,null);
+        NatsMessage msg = q.accumulate(1,1,null);
         assertNull(msg);
         assertTrue(q.isSingleReaderMode());
     }
@@ -257,7 +257,7 @@ public class MessageQueueTests {
     public void testSingleAccumulate() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
         q.push(new ProtocolMessage(PING));
-        NatsMessageQueueNode msg = q.accumulate(100,1,null);
+        NatsMessage msg = q.accumulate(100,1,null);
         assertNotNull(msg);
     }
 
@@ -267,11 +267,11 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessageQueueNode msg = q.accumulate(100,3,null);
+        NatsMessage msg = q.accumulate(100,3,null);
         assertNotNull(msg);
     }
 
-    private void checkCount(NatsMessageQueueNode first, int expected) {
+    private void checkCount(NatsMessage first, int expected) {
         while (expected > 0) {
             assertNotNull(first);
             first = first.next;
@@ -288,7 +288,7 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessageQueueNode msg = q.accumulate(100,3,null);
+        NatsMessage msg = q.accumulate(100,3,null);
         checkCount(msg, 3);
 
         msg = q.accumulate(100, 3, null); // should only get the last one
@@ -304,7 +304,7 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessageQueueNode msg = q.accumulate(100,2,null);
+        NatsMessage msg = q.accumulate(100,2,null);
         checkCount(msg, 2);
 
         msg = q.accumulate(100, 2, null);
@@ -322,7 +322,7 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessageQueueNode msg = q.accumulate(20,100,null); // each one is 6 so 20 should be 3 messages
+        NatsMessage msg = q.accumulate(20,100,null); // each one is 6 so 20 should be 3 messages
         checkCount(msg, 3);
 
         msg = q.accumulate(20,100, null); // should only get the last one
@@ -338,7 +338,7 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessageQueueNode msg = q.accumulate(14,100,null); // each one is 6 so 14 should be 2 messages
+        NatsMessage msg = q.accumulate(14,100,null); // each one is 6 so 14 should be 2 messages
         checkCount(msg, 2);
 
         msg = q.accumulate(14,100, null);
@@ -355,10 +355,10 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessageQueueNode msg = q.accumulate(100,3,null);
+        NatsMessage msg = q.accumulate(100,3,null);
         checkCount(msg, 3);
 
-        msg = new NatsMessageQueueNode(q.popNow());
+        msg = q.popNow();
         checkCount(msg, 1);
 
         msg = q.accumulate(100, 3, null); // should be empty
@@ -388,7 +388,7 @@ public class MessageQueueTests {
 
 
         while (count.get() < msgCount && (tries > 0 || sent.get() < msgCount)) {
-            NatsMessageQueueNode msg = q.accumulate(5000, 10, Duration.ofMillis(5000));
+            NatsMessage msg = q.accumulate(5000, 10, Duration.ofMillis(5000));
 
             while (msg != null) {
                 count.incrementAndGet();
@@ -411,7 +411,7 @@ public class MessageQueueTests {
         MessageQueue q = new MessageQueue(true);
         Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){} q.pause();});
         t.start();
-        NatsMessageQueueNode msg = q.accumulate(100,100, Duration.ZERO);
+        NatsMessage msg = q.accumulate(100,100, Duration.ZERO);
         assertNull(msg);
     }
     
@@ -530,7 +530,7 @@ public class MessageQueueTests {
     public void testPausedAccumulate() throws InterruptedException {
         MessageQueue q = new MessageQueue(true);
         q.pause();
-        NatsMessageQueueNode msg = q.accumulate(1,1,null);
+        NatsMessage msg = q.accumulate(1,1,null);
         assertNull(msg);
     }
 
