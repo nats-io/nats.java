@@ -241,7 +241,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException {
-        return publishSync(subject, null, null, body, conn.getOptions().supportUTF8Subjects(), null);
+        return publishSync(subject, null, body, conn.getOptions().supportUTF8Subjects(), null);
     }
 
     /**
@@ -249,7 +249,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishSync(subject, null, null, body, conn.getOptions().supportUTF8Subjects(), options);
+        return publishSync(subject, null, body, conn.getOptions().supportUTF8Subjects(), options);
     }
 
     /**
@@ -258,7 +258,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public PublishAck publish(Message message) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
-        return publishSync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
+        return publishSync(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
     }
 
     /**
@@ -267,7 +267,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
-        return publishSync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
+        return publishSync(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
     }
 
     /**
@@ -275,7 +275,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body) {
-        return publishAsync(subject, null, null, body, conn.getOptions().supportUTF8Subjects(), null);
+        return publishAsync(subject, null, body, conn.getOptions().supportUTF8Subjects(), null);
     }
 
     /**
@@ -283,7 +283,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options) {
-        return publishAsync(subject, null, null, body, conn.getOptions().supportUTF8Subjects(), options);
+        return publishAsync(subject, null, body, conn.getOptions().supportUTF8Subjects(), options);
     }
 
     /**
@@ -292,7 +292,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message) {
         validateNotNull(message, "Message");
-        return publishAsync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
+        return publishAsync(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
     }
 
     /**
@@ -301,12 +301,12 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options) {
         validateNotNull(message, "Message");
-        return publishAsync(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
+        return publishAsync(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
     }
 
-    private CompletableFuture<PublishAck> publishAsync(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) {
+    private CompletableFuture<PublishAck> publishAsync(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) {
         Headers merged = mergePublishOptions(headers, options);
-        CompletableFuture<Message> future = conn.request(subject, replyTo, merged, data, utf8mode, false);
+        CompletableFuture<Message> future = conn.request(subject, merged, data, utf8mode, false);
 
         return future.thenCompose(resp -> {
             try {
@@ -328,10 +328,10 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         });
     }
 
-    private PublishAck publishSync(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) throws IOException, JetStreamApiException {
+    private PublishAck publishSync(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) throws IOException, JetStreamApiException {
         Duration timeout = options == null ? requestTimeout : options.getStreamTimeout();
         Headers merged = mergePublishOptions(headers, options);
-        Message resp = makeRequestResponseRequired(subject, replyTo, merged, data, utf8mode, timeout);
+        Message resp = makeRequestResponseRequired(subject, merged, data, utf8mode, timeout);
         return processAck(resp, options);
     }
 
@@ -635,9 +635,9 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
     }
 
-    private Message makeRequestResponseRequired(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws IOException {
+    private Message makeRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws IOException {
         try {
-            return responseRequired(conn.request(subject, replyTo, headers, data, utf8mode, timeout));
+            return responseRequired(conn.request(subject, headers, data, utf8mode, timeout));
         } catch (InterruptedException e) {
             throw new IOException(e);
         }

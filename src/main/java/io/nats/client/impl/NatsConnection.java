@@ -972,17 +972,17 @@ class NatsConnection implements Connection {
 
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return request(subject, null, null, body, options.supportUTF8Subjects(), timeout);
+        return request(subject, null, body, options.supportUTF8Subjects(), timeout);
     }
 
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
         validateNotNull(message, "Message");
-        return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout);
+        return request(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout);
     }
 
-    Message request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws InterruptedException {
-        CompletableFuture<Message> incoming = request(subject, replyTo, headers, data, utf8mode, true);
+    Message request(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws InterruptedException {
+        CompletableFuture<Message> incoming = request(subject, headers, data, utf8mode, true);
         try {
             return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException | CancellationException e) {
@@ -992,16 +992,16 @@ class NatsConnection implements Connection {
 
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return request(subject, null, null, body, options.supportUTF8Subjects(), true);
+        return request(subject, null, body, options.supportUTF8Subjects(), true);
     }
 
     @Override
     public CompletableFuture<Message> request(Message message) {
         validateNotNull(message, "Message");
-        return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), true);
+        return request(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), true);
     }
 
-    CompletableFuture<Message> request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, boolean regular) {
+    CompletableFuture<Message> request(String subject, Headers headers, byte[] data, boolean utf8mode, boolean regular) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1044,9 +1044,7 @@ class NatsConnection implements Connection {
             responses.put(sub.getSID(), future);
         }
 
-        NatsMessage natsMsg = new NatsMessage(subject, replyTo, headers, data, utf8mode);
-        natsMsg.updateReplyTo(responseInbox);
-        publish(natsMsg);
+        publishInternal(subject, responseInbox, headers, data, utf8mode);
         writer.flushBuffer();
         statistics.incrementRequestsSent();
 
@@ -1055,7 +1053,6 @@ class NatsConnection implements Connection {
 
     static class ExtendedCompletableFuture extends CompletableFuture<Message> {
         boolean regular;
-
         public ExtendedCompletableFuture(boolean regular) {
             this.regular = regular;
         }
@@ -1065,17 +1062,11 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String subject = msg.getSubject();
         String token = getResponseToken(subject);
-        CompletableFuture<Message> f = null;
-
-        if (oldStyle) {
-            f = responses.remove(msg.getSID());
-        } else {
-            f = responses.remove(token);
-        }
+        ExtendedCompletableFuture f = (ExtendedCompletableFuture)
+                (oldStyle ? responses.remove(msg.getSID()) : responses.remove(token));
         if (f != null) {
             statistics.decrementOutstandingRequests();
-            ExtendedCompletableFuture jscf = (ExtendedCompletableFuture)f;
-            if (jscf.regular && msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
+            if (f.regular && msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
                 f.cancel(true);
             }
             else {
