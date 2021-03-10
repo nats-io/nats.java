@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -346,28 +347,32 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             createMemoryStream(nc, STREAM, subject(0), subject(1));
 
-            addConsumers(jsm, 600, 0); // getConsumers pages at 256
+            addConsumers(jsm, STREAM, 600, "A", null); // getConsumers pages at 256
 
             List<ConsumerInfo> list = jsm.getConsumers(STREAM);
             assertEquals(600, list.size());
 
-            addConsumers(jsm, 500, 600); // getConsumerNames pages at 1024
+            addConsumers(jsm, STREAM, 500, "B", null); // getConsumerNames pages at 1024
             List<String> names = jsm.getConsumerNames(STREAM);
             assertEquals(1100, names.size());
         });
     }
 
-    private void addConsumers(JetStreamManagement jsm, int count, int adj) throws IOException, JetStreamApiException {
-        for (int x = 0; x < count; x++) {
-            String dur = durable(x + adj);
-            ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder();
-            builder.durable(dur);
-            ConsumerConfiguration cc = builder.build();
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+    private List<ConsumerInfo> addConsumers(JetStreamManagement jsm, String stream, int count, String durableVary, String filterSubject) throws IOException, JetStreamApiException {
+        List<ConsumerInfo> consumers = new ArrayList<>();
+        for (int x = 1; x <= count; x++) {
+            String dur = durable(durableVary, x);
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .durable(dur)
+                    .filterSubject(filterSubject)
+                    .build();
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(stream, cc);
+            consumers.add(ci);
             assertEquals(dur, ci.getName());
             assertEquals(dur, ci.getConsumerConfiguration().getDurable());
             assertNull(ci.getConsumerConfiguration().getDeliverSubject());
         }
+        return consumers;
     }
 
     @Test
@@ -416,6 +421,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(STREAM, 1));
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 1));
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 3));
+            assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(stream(999), 1));
+            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
         });
     }
 }

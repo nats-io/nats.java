@@ -42,7 +42,7 @@ public class ConsumerNamesResponse extends ListResponse {
         return consumers;
     }
 
-    String nextJson(String filter) {
+    byte[] nextJson(String filter) {
         return internalNextJson(SUBJECT, filter);
     }
 }

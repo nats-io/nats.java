@@ -233,7 +233,7 @@ class MessageQueue {
 
         long count = 1;
         NatsMessage cursor = msg;
-        
+
         while (cursor != null) {
             NatsMessage next = this.queue.peek();
             if (next != null && next != this.poisonPill) {

@@ -297,6 +297,9 @@ public class NatsMessage implements Message {
 
     @Override
     public String toString() {
+        if (subject == null) {
+            return "NatsMessage | " + new String(protocolBytes);
+        }
         return "NatsMessage |" + subject + "|" + (replyTo == null ? "<no reply>" : replyTo) + "|" + (data == null || data.length == 0 ? "<no data>" : new String(data)) + "|";
     }
 
@@ -317,7 +320,8 @@ public class NatsMessage implements Message {
                 "\n  dataLen=" + dataLen +
                 "\n  totLen=" + totLen +
                 "\n  subscription=" + subscription +
-                "\n  next=" + next;
+                "\n  next=" + (next == null ? "No" : "Yes");
+
     }
 
     private IllegalStateException notAJetStreamMessage() {

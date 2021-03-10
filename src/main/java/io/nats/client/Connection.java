@@ -196,7 +196,7 @@ public interface Connection extends AutoCloseable {
      * @param body the content of the message
      * @param timeout the time to wait for a response
      * @return the reply message or null if the timeout is reached
-     * @throws InterruptedException if one is thrown while waiting, in order to propogate it up
+     * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
     Message request(String subject, byte[] body, Duration timeout) throws InterruptedException;
 
@@ -208,7 +208,7 @@ public interface Connection extends AutoCloseable {
      * @param message the message
      * @param timeout the time to wait for a response
      * @return the reply message or null if the timeout is reached
-     * @throws InterruptedException if one is thrown while waiting, in order to propogate it up
+     * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
     Message request(Message message, Duration timeout) throws InterruptedException;
 

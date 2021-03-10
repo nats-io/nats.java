@@ -44,7 +44,7 @@ public class ConsumerListResponse extends ListResponse {
         return consumers;
     }
 
-    String nextJson() {
+    byte[] nextJson() {
         return internalNextJson();
     }
 }

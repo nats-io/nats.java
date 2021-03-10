@@ -169,7 +169,7 @@ public class MessageQueueBenchmark {
         final CompletableFuture<Void> go3 = new CompletableFuture<>();
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
-        }        
+        }
 
         final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true);
         pusher = new Thread(() -> {

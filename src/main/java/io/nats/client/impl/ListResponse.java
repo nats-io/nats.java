@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import java.nio.charset.StandardCharsets;
+
 import static io.nats.client.support.ApiConstants.*;
 
 public abstract class ListResponse {
@@ -33,21 +35,21 @@ public abstract class ListResponse {
         return total > (lastOffset + limit);
     }
 
-    String internalNextJson() {
+    byte[] internalNextJson() {
         return hasMore() ? noFilterJson() : null;
     }
 
-    String noFilterJson() {
-        return OFFSET_JSON_START + (lastOffset + limit) + "}";
+    byte[] noFilterJson() {
+        return (OFFSET_JSON_START + (lastOffset + limit) + "}").getBytes(StandardCharsets.US_ASCII);
     }
 
-    String internalNextJson(String fieldName, String filter) {
+    byte[] internalNextJson(String fieldName, String filter) {
         if (hasMore()) {
             if (filter == null) {
                 return noFilterJson();
             }
-            return OFFSET_JSON_START + (lastOffset + limit)
-                    + ",\"" + fieldName + "\":\"" + filter + "\"}";
+            return (OFFSET_JSON_START + (lastOffset + limit)
+                    + ",\"" + fieldName + "\":\"" + filter + "\"}").getBytes(StandardCharsets.US_ASCII);
         }
         return null;
     }
