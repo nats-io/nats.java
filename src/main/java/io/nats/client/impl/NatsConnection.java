@@ -982,7 +982,7 @@ class NatsConnection implements Connection {
     }
 
     Message request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws InterruptedException {
-        CompletableFuture<Message> incoming = request(subject, replyTo, headers, data, utf8mode);
+        CompletableFuture<Message> incoming = request(subject, replyTo, headers, data, utf8mode, true);
         try {
             return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException | CancellationException e) {
@@ -992,16 +992,16 @@ class NatsConnection implements Connection {
 
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return request(subject, null, null, body, options.supportUTF8Subjects());
+        return request(subject, null, null, body, options.supportUTF8Subjects(), true);
     }
 
     @Override
     public CompletableFuture<Message> request(Message message) {
         validateNotNull(message, "Message");
-        return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode());
+        return request(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode(), true);
     }
 
-    CompletableFuture<Message> request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+    CompletableFuture<Message> request(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, boolean regular) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1024,7 +1024,7 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
-        CompletableFuture<Message> future = new CompletableFuture<>();
+        CompletableFuture<Message> future = new ExtendedCompletableFuture(regular);
 
         if (!oldStyle) {
             responses.put(responseToken, future);
@@ -1053,6 +1053,14 @@ class NatsConnection implements Connection {
         return future;
     }
 
+    static class ExtendedCompletableFuture extends CompletableFuture<Message> {
+        boolean regular;
+
+        public ExtendedCompletableFuture(boolean regular) {
+            this.regular = regular;
+        }
+    }
+
     void deliverReply(Message msg) {
         boolean oldStyle = options.isOldRequestStyle();
         String subject = msg.getSubject();
@@ -1066,7 +1074,8 @@ class NatsConnection implements Connection {
         }
         if (f != null) {
             statistics.decrementOutstandingRequests();
-            if (msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
+            ExtendedCompletableFuture jscf = (ExtendedCompletableFuture)f;
+            if (jscf.regular && msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
                 f.cancel(true);
             }
             else {

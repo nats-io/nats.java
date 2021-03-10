@@ -306,13 +306,20 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
     private CompletableFuture<PublishAck> publishAsync(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) {
         Headers merged = mergePublishOptions(headers, options);
-        CompletableFuture<Message> future = conn.request(subject, replyTo, merged, data, utf8mode)
-                .exceptionally(e -> null);
+        CompletableFuture<Message> future = conn.request(subject, replyTo, merged, data, utf8mode, false);
 
         return future.thenCompose(resp -> {
             try {
                 if (resp == null) {
-                    throw new IOException("Invalid publish or timeout / no response waiting for NATS JetStream server");
+                    throw new IOException("Error Publishing");
+                }
+                else if (resp.isStatusMessage()) {
+                    if (resp.getStatus().getCode() == 503) {
+                        throw new IOException("Error Publishing: No stream available.");
+                    }
+                    else {
+                        throw new IOException("Error Publishing: " + resp.getStatus().getMessage());
+                    }
                 }
                 return CompletableFuture.completedFuture(processAck(resp, options));
             } catch (IOException | JetStreamApiException e) {
