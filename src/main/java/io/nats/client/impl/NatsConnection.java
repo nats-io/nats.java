@@ -41,6 +41,7 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.Options.isWebsocket;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.Validator.validateNotNull;
 
@@ -403,7 +404,7 @@ class NatsConnection implements Connection {
                 readInitialInfo();
                 checkVersionRequirements();
                 long start = System.nanoTime();
-                upgradeToSecureIfNeeded();
+                upgradeToSecureIfNeeded(serverURI);
                 if (trace && options.isTLSRequired()) {
                     // If the time appears too long it might be related to
                     // https://github.com/nats-io/nats.java#linux-platform-note
@@ -511,17 +512,23 @@ class NatsConnection implements Connection {
         }
     }
 
-    void upgradeToSecureIfNeeded() throws IOException {
+    void upgradeToSecureIfNeeded(String serverURI) throws IOException {
         Options opts = getOptions();
         ServerInfo info = getInfo();
 
-        if (opts.isTLSRequired() && !info.isTLSRequired()) {
+        boolean isTLSRequired = opts.isTLSRequired();
+        if (isTLSRequired && isWebsocket(serverURI)) {
+            // We are already communicating over "https" websocket, so
+            // do NOT try to upgrade to secure.
+            isTLSRequired = false;
+        }
+        if (isTLSRequired && !info.isTLSRequired()) {
             throw new IOException("SSL connection wanted by client.");
-        } else if (!opts.isTLSRequired() && info.isTLSRequired()) {
+        } else if (!isTLSRequired && info.isTLSRequired()) {
             throw new IOException("SSL required by server.");
         }
 
-        if (opts.isTLSRequired()) {
+        if (isTLSRequired) {
             this.dataPort.upgradeToSecure();
         }
     }
@@ -1556,7 +1563,7 @@ class NatsConnection implements Connection {
             for (String uri : info.getConnectURLs()) {
                 try {
                     // call to createURIForServer is to parse (normalize)
-                    addNoDupes(servers, options.createURIForServer(uri).toString());
+                    addNoDupes(servers, options.createURIForServer(uri, isWebsocket(this.currentServer)).toString());
                 }
                 catch (URISyntaxException e) {
                     // this should never happen since this list comes from the server

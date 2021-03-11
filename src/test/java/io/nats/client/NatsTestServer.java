@@ -71,7 +71,11 @@ public class NatsTestServer extends NatsServerRunner {
         return NatsRunnerUtils.nextPort();
     }
 
-    public static String getURIForPort(int port) {
-        return NatsRunnerUtils.getURIForPort(port);
+    public String getURI(String schema) {
+        return getURIForPort(schema, getPort());
+    }
+
+    public static String getURIForPort(String schema, int port) {
+        return schema + "://localhost:" + port;
     }
 }
