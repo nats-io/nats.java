@@ -33,6 +33,10 @@ public interface DataPort {
 
     int read(byte[] dst, int off, int len) throws IOException;
 
+    /**
+     * NOTE: the buffer will be modified if communicating over websockets and
+     * the toWrite is greater than 1432.
+     */
     void write(byte[] src, int toWrite) throws IOException;
 
     void shutdownInput() throws IOException;

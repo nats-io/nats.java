@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import static io.nats.client.support.NatsConstants.*;
 
@@ -507,6 +508,7 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
+    private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
 
     static class DefaultThreadFactory implements ThreadFactory {
         String name;
@@ -579,6 +581,7 @@ public class Options {
         private ConnectionListener connectionListener = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
+        private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
 
         /**
          * Constructs a new Builder with the default values.
@@ -808,7 +811,7 @@ public class Options {
             for (String s : servers) {
                 if (s != null && !s.isEmpty()) {
                     try {
-                        this.servers.add(Options.parseURIForServer(s.trim()));
+                        this.servers.add(Options.parseURIForServer(s.trim(), false));
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad server URL: " + s, e);
                     }
@@ -1283,6 +1286,31 @@ public class Options {
         }
 
         /**
+         * Add an HttpRequest interceptor which can be used to modify the HTTP request when using websockets
+         * 
+         * @param interceptor The interceptor
+         * @return the Builder for chaining
+         */
+        public Builder httpRequestInterceptor(java.util.function.Consumer<HttpRequest> interceptor) {
+            if (null == this.httpRequestInterceptors) {
+                this.httpRequestInterceptors = new ArrayList<>();
+            }
+            this.httpRequestInterceptors.add(interceptor);
+            return this;
+        }
+
+        /**
+         * Overwrite the list of HttpRequest interceptors which can be used to modify the HTTP request when using websockets
+         * 
+         * @param interceptors The list of interceptors
+         * @return the Builder for chaining
+         */
+        public Builder httpRequestInterceptors(Collection<? extends java.util.function.Consumer<HttpRequest>> interceptors) {
+            this.httpRequestInterceptors = new ArrayList<>(interceptors);
+            return this;
+        }
+
+        /**
          * The class to use for this connections data port. This is an advanced setting
          * and primarily useful for testing.
          * 
@@ -1344,7 +1372,8 @@ public class Options {
             }
             else if (sslContext == null) {
                 for (URI serverURI : servers) {
-                    if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
+                    if (serverURI.getScheme() == null) {
+                    } else if (Stream.of(TLS_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL).anyMatch(serverURI.getScheme()::equals)) {
                         try {
                             this.sslContext = SSLContext.getDefault();
                         } catch (NoSuchAlgorithmException e) {
@@ -1409,6 +1438,7 @@ public class Options {
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
+        this.httpRequestInterceptors = b.httpRequestInterceptors;
     }
 
     /**
@@ -1416,6 +1446,15 @@ public class Options {
      */
     public ExecutorService getExecutor() {
         return this.executor;
+    }
+
+    /**
+     * @return the list of HttpRequest interceptors.
+     */
+    public List<java.util.function.Consumer<HttpRequest>> getHttpRequestInterceptors() {
+        return null == this.httpRequestInterceptors
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(this.httpRequestInterceptors);
     }
 
     /**
@@ -1711,21 +1750,33 @@ public class Options {
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {
-        return Options.parseURIForServer(serverURI);
+        return createURIForServer(serverURI, false);
     }
 
-    static URI parseURIForServer(String serverURI) throws URISyntaxException {
+    public URI createURIForServer(String serverURI, boolean isWebsocket) throws URISyntaxException {
+        return Options.parseURIForServer(serverURI, isWebsocket);
+    }
+
+    static URI parseURIForServer(String serverURI, boolean isWebsocket) throws URISyntaxException {
         URI uri;
 
         try {
             uri = new URI(serverURI);
             if (uri.getHost() == null || uri.getHost().length() == 0 || uri.getScheme() == null || uri.getScheme().length() == 0) {
                 // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
-                uri = new URI(NATS_PROTOCOL_SLASH_SLASH + serverURI);
+                if (isWebsocket) {
+                    uri = new URI("wss://" + serverURI);
+                } else {
+                    uri = new URI(NATS_PROTOCOL_SLASH_SLASH + serverURI);
+                }
             }
         } catch (URISyntaxException e) {
             // try nats:// - we don't allow bare URIs in options, only from info and then we don't use the protocol
-            uri = new URI(NATS_PROTOCOL_SLASH_SLASH + serverURI);
+            if (isWebsocket) {
+                uri = new URI("wss://" + serverURI);
+            } else {
+                uri = new URI(NATS_PROTOCOL_SLASH_SLASH + serverURI);
+            }
         }
 
         if (!KNOWN_PROTOCOLS.contains(uri.getScheme())) {

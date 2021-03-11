@@ -23,8 +23,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,6 +43,7 @@ public class OptionsTests {
         assertEquals(1, o.getServers().size(), "default one server");
         assertEquals(Options.DEFAULT_URL, o.getServers().toArray()[0].toString(), "default url");
 
+        assertEquals(Collections.emptyList(), o.getHttpRequestInterceptors(), "default http request interceptors");
         assertEquals(Options.DEFAULT_DATA_PORT_TYPE, o.getDataPortType(), "default data port type");
 
         assertFalse(o.isVerbose(), "default verbose");
@@ -153,6 +156,26 @@ public class OptionsTests {
         assertEquals(Duration.ofMillis(404), o.getRequestCleanupInterval(), "chained cleanup interval");
         assertEquals(Duration.ofMillis(505), o.getReconnectJitter(), "chained reconnect jitter");
         assertEquals(Duration.ofMillis(606), o.getReconnectJitterTls(), "chained cleanup jitter tls");
+    }
+
+    @Test
+    public void testHttpRequestInterceptors() {
+        java.util.function.Consumer<HttpRequest> interceptor1 = req -> {
+            req.getHeaders().add("Test1", "Header");
+        };
+        java.util.function.Consumer<HttpRequest> interceptor2 = req -> {
+            req.getHeaders().add("Test2", "Header");
+        };
+        Options o = new Options.Builder()
+            .httpRequestInterceptor(interceptor1)
+            .httpRequestInterceptor(interceptor2)
+            .build();
+        assertEquals(o.getHttpRequestInterceptors(), Arrays.asList(interceptor1, interceptor2));
+
+        o = new Options.Builder()
+            .httpRequestInterceptors(Arrays.asList(interceptor2, interceptor1))
+            .build();
+        assertEquals(o.getHttpRequestInterceptors(), Arrays.asList(interceptor2, interceptor1));
     }
 
     @Test
@@ -630,11 +653,14 @@ public class OptionsTests {
         };
 
         for (String[] strings : test) {
-            URI actual = Options.parseURIForServer(strings[0]);
+            URI actual = Options.parseURIForServer(strings[0], false);
             URI expected = new URI(strings[1]);
             assertEquals(expected.toASCIIString(), actual.toASCIIString());
         }
-    }
+        URI actual = Options.parseURIForServer("connect.nats.io", true);
+        URI expected = new URI("wss://connect.nats.io:4222");
+        assertEquals(expected.toASCIIString(), actual.toASCIIString());
+}
 
     @Test
     public void testParseBadURIForServer() {
@@ -646,7 +672,7 @@ public class OptionsTests {
         };
 
         for (String string : strings) {
-            assertThrows(URISyntaxException.class, () -> Options.parseURIForServer(string));
+            assertThrows(URISyntaxException.class, () -> Options.parseURIForServer(string, false));
         }
     }
 
