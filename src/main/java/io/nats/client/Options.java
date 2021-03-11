@@ -17,6 +17,7 @@ import io.nats.client.impl.AdaptDataPortToNatsChannelFactory;
 import io.nats.client.impl.DataPort;
 import io.nats.client.impl.DefaultNatsChannelFactory;
 import io.nats.client.channels.NatsChannelFactory;
+import io.nats.client.http.HttpInterceptor;
 import io.nats.client.impl.SocketDataPort;
 import io.nats.client.support.SSLUtils;
 
@@ -528,6 +529,9 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
+    private final List<HttpInterceptor> httpInterceptors;
+    private final URI proxyURI;
+    private final List<HttpInterceptor> proxyInterceptors;
 
     static class DefaultThreadFactory implements ThreadFactory {
         String name;
@@ -600,6 +604,9 @@ public class Options {
         private ConnectionListener connectionListener = null;
         private Function<Options, NatsChannelFactory.Chain> natsChannelFactory = DefaultNatsChannelFactory::create;
         private ExecutorService executor;
+        private List<HttpInterceptor> httpInterceptors;
+        private List<HttpInterceptor> proxyInterceptors;
+        private URI proxyURI;
 
         /**
          * Constructs a new Builder with the default values.
@@ -1314,6 +1321,69 @@ public class Options {
         }
 
         /**
+         * Add an http interceptor which is used when connecting over websockets
+         *
+         * @param interceptor The interceptor
+         * @return the Builder for chaining
+         */
+        public Builder httpInterceptor(HttpInterceptor interceptor) {
+            if (null == this.httpInterceptors) {
+                this.httpInterceptors = new ArrayList<>();
+            }
+            this.httpInterceptors.add(interceptor);
+            return this;
+        }
+
+        /**
+         * Overwrite the list of http interceptors
+         * 
+         * @param interceptors The list of interceptors
+         * @return the Builder for chaining
+         */
+        public Builder httpInterceptors(Collection<? extends HttpInterceptor> interceptors) {
+            this.httpInterceptors = new ArrayList<>(interceptors);
+            return this;
+        }
+
+        /**
+         * Add an http interceptor which is used when connecting over proxy
+         *
+         * @param interceptor The interceptor
+         * @return the Builder for chaining
+         */
+        public Builder proxyInterceptor(HttpInterceptor interceptor) {
+            if (null == this.proxyInterceptors) {
+                this.proxyInterceptors = new ArrayList<>();
+            }
+            this.proxyInterceptors.add(interceptor);
+            return this;
+        }
+
+        /**
+         * Overwrite the list of proxy interceptors
+         * 
+         * @param interceptors The list of interceptors
+         * @return the Builder for chaining
+         */
+        public Builder proxyInterceptors(Collection<? extends HttpInterceptor> interceptors) {
+            this.proxyInterceptors = new ArrayList<>(interceptors);
+            return this;
+        }
+
+        /**
+         * Connect over an HTTP proxy using the CONNECT method. See
+         * https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/CONNECT
+         * 
+         * @param proxyURI is a fully qualified URI such as http://proxy:80 note that
+         *    an SSLContext MUST be set if using https.
+         * @return the Builder for chaining
+         */
+        public Builder proxyURI(URI proxyURI) {
+            this.proxyURI = proxyURI;
+            return this;
+        }
+
+        /**
          * The class to use for this connections data port. This is an advanced setting
          * and primarily useful for testing.
          * 
@@ -1437,6 +1507,9 @@ public class Options {
         this.connectionListener = b.connectionListener;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
+        this.httpInterceptors = b.httpInterceptors;
+        this.proxyInterceptors = b.proxyInterceptors;
+        this.proxyURI = b.proxyURI;
         SSLContext sslContext = b.sslContext;
         if (sslContext == null) {
             for (URI serverURI : servers) {
@@ -1462,6 +1535,31 @@ public class Options {
      */
     public ExecutorService getExecutor() {
         return this.executor;
+    }
+
+    /**
+     * @return the list of http interceptors.
+     */
+    public List<HttpInterceptor> getHttpInterceptors() {
+        return null == this.httpInterceptors
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(this.httpInterceptors);
+    }
+
+    /**
+     * @return the list of proxy interceptors.
+     */
+    public List<HttpInterceptor> getProxyInterceptors() {
+        return null == this.proxyInterceptors
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(this.proxyInterceptors);
+    }
+
+    /**
+     * @return the proxy URI
+     */
+    public URI getProxyURI() {
+        return this.proxyURI;
     }
 
     /**

@@ -19,6 +19,7 @@ import io.nats.client.impl.DefaultNatsChannelFactory;
 import io.nats.client.channels.NatsChannel;
 import io.nats.client.channels.NatsChannelFactory;
 import io.nats.client.channels.NatsChannelFactory.Chain;
+import io.nats.client.http.HttpInterceptor;
 import io.nats.client.impl.SocketDataPort;
 
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,8 @@ public class OptionsTests {
 
         assertEquals(1, o.getServers().size(), "default one server");
         assertEquals(Options.DEFAULT_URL, o.getServers().toArray()[0].toString(), "default url");
+
+        assertEquals(Collections.emptyList(), o.getHttpInterceptors(), "default http request interceptors");
 
         assertFalse(o.isVerbose(), "default verbose");
         assertFalse(o.isPedantic(), "default pedantic");
@@ -163,6 +166,28 @@ public class OptionsTests {
         assertEquals(Duration.ofMillis(404), o.getRequestCleanupInterval(), "chained cleanup interval");
         assertEquals(Duration.ofMillis(505), o.getReconnectJitter(), "chained reconnect jitter");
         assertEquals(Duration.ofMillis(606), o.getReconnectJitterTls(), "chained cleanup jitter tls");
+    }
+
+    @Test
+    public void testHttpInterceptors() {
+        HttpInterceptor interceptor1 = (req, next) -> {
+            req.getHeaders().add("Test1", "Header");
+            return next.proceed(req);
+        };
+        HttpInterceptor interceptor2 = (req, next) -> {
+            req.getHeaders().add("Test2", "Header");
+            return next.proceed(req);
+        };
+        Options o = new Options.Builder()
+            .httpInterceptor(interceptor1)
+            .httpInterceptor(interceptor2)
+            .build();
+        assertEquals(o.getHttpInterceptors(), Arrays.asList(interceptor1, interceptor2));
+
+        o = new Options.Builder()
+            .httpInterceptors(Arrays.asList(interceptor2, interceptor1))
+            .build();
+        assertEquals(o.getHttpInterceptors(), Arrays.asList(interceptor2, interceptor1));
     }
 
     @Test

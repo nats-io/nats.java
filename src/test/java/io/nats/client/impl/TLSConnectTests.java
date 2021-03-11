@@ -64,6 +64,7 @@ public class TLSConnectTests {
                     .maxReconnects(0)
                     .sslContext(ctx)
                     .dataPortType(Options.DEFAULT_DATA_PORT_TYPE)
+                    .connectionTimeout(Duration.ofMinutes(5))
                     .build();
             assertCanConnectAndPubSub(options);
         }
@@ -228,7 +229,7 @@ public class TLSConnectTests {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
             Options options = new Options.Builder().
                     server(ts.getURI()).
-                    server(NatsTestServer.getURIForPort(newPort)).
+                    server(NatsTestServer.getURIForPort("nats", newPort)).
                     maxReconnects(-1).
                     sslContext(ctx).
                     connectionListener(handler).

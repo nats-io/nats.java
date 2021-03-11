@@ -1417,6 +1417,7 @@ class NatsConnection implements Connection {
     }
 
     void processException(Exception exp) {
+        exp.printStackTrace();
         ErrorListener handler = this.options.getErrorListener();
 
         this.statistics.incrementExceptionCount();
