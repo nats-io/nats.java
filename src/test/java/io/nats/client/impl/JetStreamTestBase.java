@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -143,6 +144,14 @@ public class JetStreamTestBase extends TestBase {
                 System.out.println("? " + new String(msg.getData()) + "?");
             }
             msg = sub.nextMessage(Duration.ofSeconds(1));
+        }
+        return messages;
+    }
+
+    public static List<Message> readMessages(Iterator<Message> list) {
+        List<Message> messages = new ArrayList<>();
+        while (list.hasNext()) {
+            messages.add(list.next());
         }
         return messages;
     }

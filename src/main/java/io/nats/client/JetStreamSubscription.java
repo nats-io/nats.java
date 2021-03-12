@@ -60,6 +60,8 @@ public interface JetStreamSubscription extends Subscription {
      * Receive messages in an iterator
      *
      * @param batchSize the size of the batch
+     *
+     * @return the message iterator
      */
     Iterator<Message> iterate(final int batchSize);
 
