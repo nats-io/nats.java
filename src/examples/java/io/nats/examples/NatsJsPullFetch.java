@@ -14,6 +14,7 @@
 package io.nats.examples;
 
 import io.nats.client.*;
+import io.nats.client.impl.ConsumerConfiguration;
 
 import java.time.Duration;
 import java.util.List;
@@ -67,7 +68,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // 1. Fetch, but there are no messages yet.
             // -  Read the messages, get them all (0)
             System.out.println("----------\n1. There are no messages yet");
-            List<Message> messages = sub.fetch(10, Duration.ofSeconds(3));
+            List<Message> messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             messages.forEach(Message::ack);
             System.out.println("We should have received 0 total messages, we received: " + messages.size());
@@ -76,7 +77,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // -  Fetch messages, get 10
             System.out.println("----------\n2. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
@@ -85,7 +86,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // -  Fetch messages, only get 10
             System.out.println("----------\n3. Publish 20 which is larger than the batch size.");
             publish(js, exArgs.subject, "B", 20);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
@@ -93,7 +94,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // 4. There are still messages left from the last
             // -  Fetch messages, get 10
             System.out.println("----------\n4. Get the rest of the publish.");
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
@@ -103,7 +104,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // -  Since there are less than batch size we only get what the server has.
             System.out.println("----------\n5. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             messages.forEach(Message::ack);
             System.out.println("We should have received 5 total messages, we received: " + messages.size());
@@ -112,7 +113,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // -  Fetch messages, only get 10
             System.out.println("----------\n6. Publish 15 which is more than the batch size.");
             publish(js, exArgs.subject, "D", 15);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
@@ -120,7 +121,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // 7. There are 5 messages left
             // -  Fetch messages, only get 5
             System.out.println("----------\n7. There are 5 messages left.");
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             messages.forEach(Message::ack);
             System.out.println("We should have received 5 messages, we received: " + messages.size());
@@ -129,7 +130,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // -  Fetch messages, get 10, but either take too long to ack them or don't ack them
             System.out.println("----------\n8. Fetch but don't ack.");
             publish(js, exArgs.subject, "E", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             System.out.println("We should have received 10 message, we received: " + messages.size());
             sleep(3000); // longer than the ackWait
@@ -137,7 +138,7 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             // 9. Fetch messages,
             // -  get the 10 messages we didn't ack
             System.out.println("----------\n9. Fetch, get the messages we did not ack.");
-            messages = sub.fetch(10, Duration.ofSeconds(3));
+            messages = sub.fetch(10); //, Duration.ofSeconds(3));
             report(messages);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 message, we received: " + messages.size());

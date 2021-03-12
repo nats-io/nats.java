@@ -15,28 +15,17 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 
-import java.util.List;
+import static io.nats.client.support.ApiConstants.SUCCESS_RE;
 
-import static io.nats.client.support.ApiConstants.STREAMS;
+class SuccessApiResponse extends JetStreamApiResponse<SuccessApiResponse> {
+    boolean success;
 
-public class StreamListResponse extends ListResponse<StreamListResponse> {
-
-    StreamListResponse() {
-        super();
-    }
-
-    StreamListResponse(Message msg) {
+    public SuccessApiResponse(Message msg) {
         super(msg);
+        success = JsonUtils.readBoolean(json, SUCCESS_RE);
     }
 
-    void addTo(List<StreamInfo> streams) {
-        List<String> streamsJson = JsonUtils.getObjectArray(STREAMS, json);
-        for (String j : streamsJson) {
-            streams.add(new StreamInfo(j));
-        }
-    }
-
-    byte[] nextJson() {
-        return internalNextJson();
+    public boolean getSuccess() {
+        return success;
     }
 }

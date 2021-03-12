@@ -25,20 +25,21 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.impl.Validator.validateMessageSubjectRequired;
+import static io.nats.client.impl.Validator.validateReplyToNullButNotEmpty;
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.support.Validator.validateMessageSubjectRequired;
-import static io.nats.client.support.Validator.validateReplyToNullButNotEmpty;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class NatsMessage implements Message {
+
+    protected static final String NOT_A_JET_STREAM_MESSAGE = "Message is not a JetStream message";
 
     protected String subject;
     protected String replyTo;
     protected byte[] data;
     protected boolean utf8mode;
     protected Headers headers;
-    protected Status status;
 
     // incoming specific : subject, replyTo, data and these fields
     protected String sid;
@@ -62,7 +63,13 @@ public class NatsMessage implements Message {
     // ----------------------------------------------------------------------------------------------------
     // Constructors - Prefer to use Builder
     // ----------------------------------------------------------------------------------------------------
-    NatsMessage() {} // for subclasses
+    private NatsMessage() {
+        this.data = EMPTY_BODY;
+    }
+
+    private NatsMessage(byte[] data) {
+        this.data = data == null ? EMPTY_BODY : data;
+    }
 
     public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data, utf8mode);
@@ -78,14 +85,13 @@ public class NatsMessage implements Message {
 
     // Create a message to publish
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
-
+        this(data);
         validateMessageSubjectRequired(subject);
         validateReplyToNullButNotEmpty(replyTo);
 
         this.subject = subject;
         this.replyTo = replyTo;
         this.headers = headers;
-        this.data = data;
         this.utf8mode = utf8mode;
 
         dirty = true;
@@ -97,7 +103,7 @@ public class NatsMessage implements Message {
     protected boolean calculateIfDirty() {
         if (dirty || (hasHeaders() && headers.isDirty())) {
             int replyToLen = replyTo == null ? 0 : replyTo.length();
-            dataLen = data == null ? 0 : data.length;
+            dataLen = data.length;
 
             if (headers != null && !headers.isEmpty()) {
                 hdrLen = headers.serializedLength();
@@ -155,7 +161,7 @@ public class NatsMessage implements Message {
             if (hdrLen > 0) {
                 sizeInBytes += hdrLen + 2; // CRLF
             }
-            if (data == null) {
+            if (data.length == 0) {
                 sizeInBytes += 2; // CRLF
             } else {
                 sizeInBytes += dataLen + 4; // CRLF
@@ -176,11 +182,6 @@ public class NatsMessage implements Message {
     int getControlLineLength() {
         calculateIfDirty();
         return (protocolBytes != null) ? protocolBytes.length + 2 : -1;
-    }
-
-    void updateReplyTo(String replyTo) {
-        this.replyTo = replyTo;
-        dirty = true;
     }
 
     Headers getOrCreateHeaders() {
@@ -237,12 +238,12 @@ public class NatsMessage implements Message {
 
     @Override
     public boolean isStatusMessage() {
-        return status != null;
+        return false;
     }
 
     @Override
     public Status getStatus() {
-        return status;
+        return null;
     }
 
     @Override
@@ -262,32 +263,32 @@ public class NatsMessage implements Message {
 
     @Override
     public void ack() {
-        throw notAJetStreamMessage();
+        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
     }
 
     @Override
     public void ackSync(Duration d) throws InterruptedException, TimeoutException {
-        throw notAJetStreamMessage();
+        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
     }
 
     @Override
     public void nak() {
-        throw notAJetStreamMessage();
+        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
     }
 
     @Override
     public void inProgress() {
-        throw notAJetStreamMessage();
+        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
     }
 
     @Override
     public void term() {
-        throw notAJetStreamMessage();
+        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
     }
 
     @Override
     public MessageMetaData metaData() {
-        throw notAJetStreamMessage();
+        throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
     }
 
     @Override
@@ -300,16 +301,16 @@ public class NatsMessage implements Message {
         if (subject == null) {
             return "NatsMessage | " + new String(protocolBytes);
         }
-        return "NatsMessage |" + subject + "|" + (replyTo == null ? "<no reply>" : replyTo) + "|" + (data == null || data.length == 0 ? "<no data>" : new String(data)) + "|";
+        return "NatsMessage |" + subject + "|" + replyToString() + "|" + dataToString() + "|";
     }
 
-    public String toDetailString() {
+    String toDetailString() {
         calculateIfDirty();
         String hdrString = hasHeaders() ? new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+") : "";
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +
-                "\n  replyTo='" + replyTo + '\'' +
-                "\n  data=" + (data == null ? null : new String(data, UTF_8)) +
+                "\n  replyTo='" + replyToString() + '\'' +
+                "\n  data=" + dataToString() +
                 "\n  utf8mode=" + utf8mode +
                 "\n  headers=" + hdrString +
                 "\n  sid='" + sid + '\'' +
@@ -324,8 +325,12 @@ public class NatsMessage implements Message {
 
     }
 
-    private IllegalStateException notAJetStreamMessage() {
-        throw new IllegalStateException("Message is not a JetStream message");
+    private String dataToString() {
+        return data.length == 0 ? "<no data>" : new String(data, UTF_8);
+    }
+
+    private String replyToString() {
+        return replyTo == null ? "<no reply>" : replyTo;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -398,7 +403,7 @@ public class NatsMessage implements Message {
          * @return the builder
          */
         public Builder data(final byte[] data) {
-            this.data = data == null ? EMPTY_BODY : data;
+            this.data = data;
             return this;
         }
 
@@ -467,7 +472,7 @@ public class NatsMessage implements Message {
         NatsMessage getMessage() {
             NatsMessage message = null;
             if (status != null) {
-                message = new StatusMessage();
+                message = new StatusMessage(status);
             }
             else if (JsPrefixManager.hasPrefix(replyTo)) {
                 message = new NatsJetStreamMessage();
@@ -480,8 +485,7 @@ public class NatsMessage implements Message {
             message.replyTo = this.replyTo;
             message.protocolLineLength = this.protocolLineLength;
             message.headers = this.headers;
-            message.status = this.status;
-            message.data = this.data;
+            message.data = this.data == null ? EMPTY_BODY : this.data;
             message.utf8mode = this.utf8mode;
             message.hdrLen = this.hdrLen;
             message.dataLen = this.dataLen;
@@ -518,7 +522,11 @@ public class NatsMessage implements Message {
     }
 
     static class StatusMessage extends InternalMessage {
-        private StatusMessage() {}
+        private final Status status;
+
+        public StatusMessage(Status status) {
+            this.status = status;
+        }
 
         @Override
         public boolean isStatusMessage() {

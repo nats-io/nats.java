@@ -13,35 +13,27 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumerInfo;
+import io.nats.client.Message;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.CONSUMERS;
 
-public class ConsumerListResponse extends ListResponse {
-    private final List<ConsumerInfo> consumers;
+public class ConsumerListResponse extends ListResponse<ConsumerListResponse> {
 
     ConsumerListResponse() {
-        this.consumers = new ArrayList<>();
+        super();
     }
 
-    @Override
-    void add(String json) {
-        super.add(json);
+    ConsumerListResponse(Message msg) {
+        super(msg);
+    }
+
+    void addTo(List<ConsumerInfo> consumers) {
         List<String> consumersJson = JsonUtils.getObjectArray(CONSUMERS, json);
         for (String j : consumersJson) {
             consumers.add(new ConsumerInfo(j));
         }
-    }
-
-    /**
-     * Get the list of ConsumerInfo
-     * @return the list
-     */
-    public List<ConsumerInfo> getConsumers() {
-        return consumers;
     }
 
     byte[] nextJson() {

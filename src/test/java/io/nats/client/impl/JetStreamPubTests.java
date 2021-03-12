@@ -17,7 +17,6 @@ import io.nats.client.*;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -218,7 +217,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishAckJson() throws IOException, JetStreamApiException {
         String json = "{\"stream\":\"sname\", \"seq\":42, \"duplicate\":false}";
-        PublishAck pa = new NatsPublishAck(json.getBytes(StandardCharsets.US_ASCII));
+        PublishAck pa = new NatsPublishAck(getDataMessage(json));
         assertEquals("sname", pa.getStream());
         assertEquals(42, pa.getSeqno());
         assertFalse(pa.isDuplicate());

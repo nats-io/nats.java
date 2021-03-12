@@ -16,6 +16,8 @@ package io.nats.examples;
 import io.nats.client.*;
 import io.nats.client.impl.JetStreamApiException;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.impl.StreamConfiguration;
+import io.nats.client.impl.StreamInfo;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

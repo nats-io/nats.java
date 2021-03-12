@@ -67,15 +67,15 @@ import java.io.IOException;
  * <p>Regardless of the method used a {@link Connection Connection} object is created, and provides the methods for
  * sending, receiving and dispatching messages.
  */
-public class Nats {
+public abstract class Nats {
 
     /**
-     * Current version of the library - {@value #CLIENT_VERSION}
+     * Current version of the library - {@value}
      */
     public static final String CLIENT_VERSION = "2.9.0.Beta1";
 
     /**
-     * Current language of the library - {@value #CLIENT_LANGUAGE}
+     * Current language of the library - {@value}
      */
     public static final String CLIENT_LANGUAGE = "java";
 
@@ -271,7 +271,5 @@ public class Nats {
         return NatsImpl.createConnection(options, reconnectOnConnect);
     }
 
-    private Nats() {
-        throw new UnsupportedOperationException("Nats is a static class");
-    }
+    private Nats() {} /* ensures cannot be constructed */
 }

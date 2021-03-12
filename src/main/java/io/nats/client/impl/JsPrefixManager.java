@@ -19,9 +19,9 @@ import java.util.Set;
 
 import static io.nats.client.impl.NatsJetStreamConstants.JSAPI_PREFIX;
 import static io.nats.client.impl.NatsJetStreamConstants.JS_PREFIX;
+import static io.nats.client.impl.Validator.nullOrEmpty;
+import static io.nats.client.impl.Validator.validateJetStreamPrefix;
 import static io.nats.client.support.NatsConstants.DOT;
-import static io.nats.client.support.Validator.nullOrEmpty;
-import static io.nats.client.support.Validator.validateJetStreamPrefix;
 
 public abstract class JsPrefixManager {
     private JsPrefixManager() {}  /* ensures cannot be constructed */

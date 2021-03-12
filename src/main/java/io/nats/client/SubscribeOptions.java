@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.ConsumerConfiguration;
+
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.
  * Options are created using the constructors or a {@link Builder}.
@@ -44,14 +46,6 @@ public abstract class SubscribeOptions {
     }
 
     /**
-     * Gets the deliver subject held in the consumer configuration.
-     * @return the Deliver subject
-     */
-    public String getDeliverSubject() {
-        return consumerConfig.getDeliverSubject();
-    }
-
-    /**
      * Gets the consumer configuration.
      * @return the consumer configuration.
      */
@@ -74,7 +68,6 @@ public abstract class SubscribeOptions {
     protected static abstract class Builder<B, SO> {
         protected String stream;
         protected String durable;
-        protected String deliverSubject;
         protected ConsumerConfiguration consumerConfig;
 
         protected abstract B getThis();
@@ -98,17 +91,6 @@ public abstract class SubscribeOptions {
          */
         public B durable(String durable) {
             this.durable = durable;
-            return getThis();
-        }
-
-        /**
-         * Setting this specifies the push model to a delivery subject.
-         * Null or empty clears the field.
-         * @param deliverSubject the subject to deliver on.
-         * @return the builder.
-         */
-        public B deliverSubject(String deliverSubject) {
-            this.deliverSubject = deliverSubject;
             return getThis();
         }
 

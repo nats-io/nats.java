@@ -13,16 +13,19 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
+
 import java.util.regex.Pattern;
 
-public class PurgeResponse {
+public class PurgeResponse extends JetStreamApiResponse<PurgeResponse> {
     private static final Pattern SUCCESS_RE = JsonUtils.buildPattern("success", JsonUtils.FieldType.jsonBoolean);
     private static final Pattern PURGED_RE = JsonUtils.buildPattern("purged", JsonUtils.FieldType.jsonNumber);
 
     private final boolean success;
     private final int purged;
 
-    PurgeResponse(String json) {
+    PurgeResponse(Message msg) {
+        super(msg);
         success = JsonUtils.readBoolean(json, SUCCESS_RE);
         purged = JsonUtils.readInt(json, PURGED_RE, 0);
     }

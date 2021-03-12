@@ -13,15 +13,20 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.JetStreamSubscription;
+import io.nats.client.Message;
+import io.nats.client.PullSubscribeOptions;
+import io.nats.client.SubscribeOptions;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.client.support.Validator.validatePullBatchSize;
+import static io.nats.client.impl.Validator.validatePullBatchSize;
 
 /**
  * This is a JetStream specific subscription.
@@ -32,9 +37,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     private String consumer;
     private String stream;
     private String deliver;
-    private SubscribeOptions subscribeOptions;
     private boolean isPullMode;
-    private boolean isPullSmart;
 
     NatsJetStreamSubscription(String sid, String subject, String queueName, NatsConnection connection,
             NatsDispatcher dispatcher) {
@@ -46,7 +49,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         this.consumer = consumer;
         this.stream = stream;
         this.deliver = deliver;
-        this.subscribeOptions = subscribeOptions;
         isPullMode = subscribeOptions instanceof PullSubscribeOptions;
     }
 
@@ -70,34 +72,16 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         _pull(batchSize, true, null);
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void pullExpiresIn(int batchSize, Duration expiresIn) {
-        _pull(batchSize, false, expiresIn);
-    }
-
-    private boolean lastNotWait = false;
-    private Duration lastExpiresIn = null;
-
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
         if (!isPullMode()) {
             throw new IllegalStateException("Subscription type does not support pull.");
         }
 
         int batch = validatePullBatchSize(batchSize);
-        lastNotWait = noWait;
-        lastExpiresIn = expiresIn;
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumer));
         connection.publish(publishSubject, getSubject(), getPullJson(batch, noWait, expiresIn, null));
         connection.lenientFlushBuffer();
     }
-
-// SFF possible behavior
-//    byte[] getPrefixedPullJson(String prefix) {
-//        return getPullJson(1, lastNotWait, lastExpiresIn, prefix);
-//    }
 
     byte[] getPullJson(int batch, boolean noWait, Duration expiresIn, String prefix) {
         StringBuilder sb = JsonUtils.beginJsonPrefixed(prefix);
@@ -106,21 +90,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         JsonUtils.addNanoFld(sb, "expires", expiresIn);
         return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
     }
-
-// SFF possible behavior
-//    @Override
-//    public Message nextMessage(Duration timeout) throws InterruptedException, IllegalStateException {
-//        Message msg = super.nextMessage(timeout);
-//        return msg == null && isPullSmart ? get404Message() : msg;
-//    }
-//
-//    Message message404; // lazy init
-//    private Message get404Message() {
-//        if (message404 == null) {
-//            message404 = new NatsMessage.StatusMessage(404, "No Messages");
-//        }
-//        return message404;
-//    }
 
     /**
      * {@inheritDoc}
@@ -134,11 +103,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         boolean onMessage(Message message) throws InterruptedException;
     }
 
-    private void batchInternal(int batchSize, Duration timeout, InternalBatchHandler handler) {
+    private void batchInternal(int batchSize, InternalBatchHandler handler) {
         boolean keepGoing;
         try {
             pullNoWait(batchSize);
-            keepGoing = handler.onMessage(nextMessage(timeout));
+            keepGoing = handler.onMessage(nextMessage(js.getRequestTimeout()));
         } catch (InterruptedException e) {
             keepGoing = false;
         }
@@ -153,10 +122,10 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     }
 
     @Override
-    public List<Message> fetch(int batchSize, Duration timeout) {
+    public List<Message> fetch(int batchSize) {
         List<Message> messages = new ArrayList<>(batchSize);
 
-        batchInternal(batchSize, timeout, msg -> {
+        batchInternal(batchSize, msg -> {
             if (msg != null && msg.isJetStream()) {
                 messages.add(msg);
             }
@@ -167,14 +136,39 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     }
 
     @Override
-    public void receive(int batchSize, Duration timeout, MessageHandler handler) {
-        connection.executorSubmit(() ->
-            batchInternal(batchSize, timeout, msg -> {
-                if (msg == null || msg.isJetStream()) {
-                    handler.onMessage(msg);
+    public Iterator<Message> iterate(final int batchSize) {
+        pullNoWait(batchSize);
+        return new Iterator<Message>() {
+            final AtomicInteger received = new AtomicInteger();
+            Message msg;
+
+            @Override
+            public boolean hasNext() {
+                try {
+                    if (received.get() < batchSize) {
+                        while (true) {
+                            msg = nextMessage(js.getRequestTimeout());
+                            if (msg == null) {
+                                return false;
+                            }
+                            if (msg.isJetStream()) {
+                                received.incrementAndGet();
+                                return true;
+                            }
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    // fall through
                 }
-                return msg != null;
-            }));
+                msg = null;
+                return false;
+            }
+
+            @Override
+            public Message next() {
+                return msg;
+            }
+        };
     }
 
     @Override

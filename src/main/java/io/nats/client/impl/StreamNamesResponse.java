@@ -13,32 +13,29 @@
 
 package io.nats.client.impl;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import io.nats.client.Message;
+
+import java.util.Collections;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.STREAMS;
 
-public class StreamNamesResponse extends ListResponse {
-    private final List<String> streams;
+public class StreamNamesResponse extends ListResponse<StreamNamesResponse> {
 
     StreamNamesResponse() {
-        streams = new ArrayList<>();
+        super();
     }
 
-    @Override
-    void add(String json) {
-        super.add(json);
-        List<String> up = Arrays.asList(JsonUtils.getStringArray(STREAMS, json));
-        streams.addAll(up);
+    StreamNamesResponse(Message msg) {
+        super(msg);
     }
 
-    /**
-     * Get the list of stream names
-     * @return the list of stream names
-     */
-    public List<String> getStreams() {
-        return streams;
+    void addTo(List<String> streams) {
+        Collections.addAll(streams, JsonUtils.getStringArray(STREAMS, json));
+    }
+
+    String[] getArray() {
+        return JsonUtils.getStringArray(STREAMS, json);
     }
 
     byte[] nextJson() {

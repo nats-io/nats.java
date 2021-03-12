@@ -155,6 +155,18 @@ public class ByteArrayBuilder {
     }
 
     /**
+     * Append a byte as is
+     *
+     * @param  b the byte
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder append(byte b) {
+        ensureCapacity(1);
+        buffer.put(b);
+        return this;
+    }
+
+    /**
      * Append a byte array
      *
      * @param  src

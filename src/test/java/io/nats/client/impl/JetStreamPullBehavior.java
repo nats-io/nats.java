@@ -39,9 +39,10 @@ public class JetStreamPullBehavior extends JetStreamTestBase {
             csv = _csv;
             runGroup("Plain + Ack", sub -> sub.pull(SIZE));
             runGroup("No Wait + Ack", sub -> sub.pullNoWait(SIZE));
-            runGroup("Expire + Ack", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
-            runGroup("Expire + Ack + Sleep", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
-            runGroup("Expire + Past + Ack", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+            // TODO pullExpiresIn
+//            runGroup("Expire + Ack", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
+//            runGroup("Expire + Ack + Sleep", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)), 2000);
+//            runGroup("Expire + Past + Ack", sub -> sub.pullExpiresIn(SIZE, Duration.ofSeconds(2)));
         }
     }
 

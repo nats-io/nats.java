@@ -38,6 +38,7 @@ public interface ApiConstants {
     String DELIVERED = "delivered";
     String DESCRIPTION = "description";
     String DISCARD = "discard";
+    String DUPLICATE = "duplicate";
     String DUPLICATE_WINDOW = "duplicate_window";
     String DURABLE_NAME = "durable_name";
     String FILTER_SUBJECT = "filter_subject";
@@ -77,6 +78,7 @@ public interface ApiConstants {
     String STORAGE = "storage";
     String STREAM_NAME = "stream_name";
     String STREAM_SEQ = "stream_seq";
+    String STREAM = "stream";
     String STREAMS = "streams";
     String SUBJECT = "subject";
     String SUBJECTS = "subjects";
@@ -99,6 +101,7 @@ public interface ApiConstants {
     Pattern DELIVER_SUBJECT_RE = buildPattern(DELIVER_SUBJECT, FieldType.jsonString);
     Pattern DESCRIPTION_RE = buildPattern(DESCRIPTION, FieldType.jsonString);
     Pattern DISCARD_RE = buildPattern(DISCARD, FieldType.jsonString);
+    Pattern DUPLICATE_RE = JsonUtils.buildPattern(DUPLICATE, FieldType.jsonBoolean);
     Pattern DUPLICATE_WINDOW_RE = buildPattern(DUPLICATE_WINDOW, FieldType.jsonNumber);
     Pattern DURABLE_NAME_RE = buildPattern(DURABLE_NAME, FieldType.jsonString);
     Pattern FILTER_SUBJECT_RE = buildPattern(FILTER_SUBJECT, FieldType.jsonString);
@@ -139,6 +142,7 @@ public interface ApiConstants {
     Pattern STORAGE_TYPE_RE = buildPattern(STORAGE, FieldType.jsonString);
     Pattern STREAM_NAME_RE = buildPattern(STREAM_NAME, FieldType.jsonString);
     Pattern STREAM_SEQ_RE = buildPattern(STREAM_SEQ, FieldType.jsonNumber);
+    Pattern STREAM_RE = buildStringPattern(STREAM);
     Pattern STREAMS_RE = buildNumberPattern(STREAMS);
     Pattern SUBJECT_RE = buildStringPattern(SUBJECT);
     Pattern SUCCESS_RE = buildBooleanPattern(SUCCESS);

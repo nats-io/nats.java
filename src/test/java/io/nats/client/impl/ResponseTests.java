@@ -13,12 +13,13 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.ConsumerConfiguration;
-import io.nats.client.ConsumerInfo;
+import io.nats.client.Message;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,7 +29,7 @@ public class ResponseTests extends JetStreamTestBase {
     @Test
     public void testPurgeResponse() {
         String json = dataAsString("PurgeResponse.json");
-        PurgeResponse pr = new PurgeResponse(json);
+        PurgeResponse pr = new PurgeResponse(getDataMessage(json));
         assertTrue(pr.isSuccess());
         assertEquals(5, pr.getPurgedCount());
         assertNotNull(pr.toString()); // COVERAGE
@@ -37,11 +38,12 @@ public class ResponseTests extends JetStreamTestBase {
     @Test
     public void testConsumerListResponse() {
         String json = dataAsString("ConsumerListResponse.json");
-        ConsumerListResponse clr = new ConsumerListResponse();
-        clr.add(json);
-        assertEquals(2, clr.getConsumers().size());
+        ConsumerListResponse clr = new ConsumerListResponse(getDataMessage(json));
+        List<ConsumerInfo> list = new ArrayList<>();
+        clr.addTo(list);
+        assertEquals(2, list.size());
 
-        ConsumerInfo ci = clr.getConsumers().get(0);
+        ConsumerInfo ci = list.get(0);
         assertEquals("stream-1", ci.getStreamName());
         assertEquals("cname1", ci.getName());
         Assertions.assertEquals(DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z"), ci.getCreationTime());
@@ -67,32 +69,32 @@ public class ResponseTests extends JetStreamTestBase {
         assertEquals(3, sp.getConsumerSequence());
         assertEquals(4, sp.getStreamSequence());
 
-        clr = new ConsumerListResponse();
-        clr.add("{}");
-        assertEquals(0, clr.getConsumers().size());
+        clr = new ConsumerListResponse(getDataMessage("{}"));
+        list.clear();
+        clr.addTo(list);
+        assertEquals(0, list.size());
     }
 
     @Test
     public void testStreamListResponse() {
         String json = dataAsString("StreamListResponse.json");
-        StreamListResponse slr = new StreamListResponse();
-        slr.add(json);
-        assertEquals(2, slr.getStreams().size());
-        assertEquals("stream-0", slr.getStreams().get(0).getConfiguration().getName());
-        assertEquals("stream-1", slr.getStreams().get(1).getConfiguration().getName());
+        StreamListResponse slr = new StreamListResponse(getDataMessage(json));
+        List<StreamInfo> list = new ArrayList<>();
+        slr.addTo(list);
+        assertEquals(2, list.size());
+        assertEquals("stream-0", list.get(0).getConfiguration().getName());
+        assertEquals("stream-1", list.get(1).getConfiguration().getName());
     }
 
-    static class TestListResponse extends ListResponse {
+    static class TestListResponse extends ListResponse<TestListResponse> {
         public int getTotal() { return total; }
         public int getLimit() { return limit; }
         public int getLastOffset() { return lastOffset; }
 
-        public int addCalled = 0;
+        public TestListResponse() {}
 
-        @Override
-        public void add(String json) {
-            super.add(json);
-            addCalled++;
+        public TestListResponse(Message msg) {
+            super(msg);
         }
     }
 
@@ -103,8 +105,7 @@ public class ResponseTests extends JetStreamTestBase {
         assertEquals("{\"offset\":0}", new String(tlr.internalNextJson()));
         assertEquals("{\"offset\":0}", new String(tlr.internalNextJson("name", null)));
         assertEquals("{\"offset\":0,\"name\":\"value\"}", new String(tlr.internalNextJson("name", "value")));
-        tlr.add(dataAsString("ListResponsePage1.json"));
-        assertEquals(1, tlr.addCalled);
+        tlr = new TestListResponse(getDataMessage(dataAsString("ListResponsePage1.json")));
         assertEquals(15, tlr.getTotal());
         assertEquals(10, tlr.getLimit());
         assertEquals(0, tlr.getLastOffset());
@@ -112,8 +113,7 @@ public class ResponseTests extends JetStreamTestBase {
         assertTrue(tlr.hasMore());
         assertEquals("{\"offset\":10}", new String(tlr.internalNextJson()));
         assertEquals("{\"offset\":10,\"name\":\"value\"}", new String(tlr.internalNextJson("name", "value")));
-        tlr.add(dataAsString("ListResponsePage2.json"));
-        assertEquals(2, tlr.addCalled);
+        tlr = new TestListResponse(getDataMessage(dataAsString("ListResponsePage2.json")));
         assertEquals(15, tlr.getTotal());
         assertEquals(10, tlr.getLimit());
         assertEquals(10, tlr.getLastOffset());

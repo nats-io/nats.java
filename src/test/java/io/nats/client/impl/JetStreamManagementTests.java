@@ -13,10 +13,13 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
-import io.nats.client.StreamConfiguration.DiscardPolicy;
-import io.nats.client.StreamConfiguration.RetentionPolicy;
-import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.Connection;
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamManagement;
+import io.nats.client.MessageInfo;
+import io.nats.client.impl.StreamConfiguration.DiscardPolicy;
+import io.nats.client.impl.StreamConfiguration.RetentionPolicy;
+import io.nats.client.impl.StreamConfiguration.StorageType;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -407,16 +410,29 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             Headers h = new Headers();
             h.add("foo", "bar");
 
+            ZonedDateTime beforeCreated = ZonedDateTime.now();
             js.publish(NatsMessage.builder().subject(SUBJECT).headers(h).data(dataBytes(1)).build());
-            js.publish(NatsMessage.builder().subject(SUBJECT).headers(h).data(dataBytes(2)).build());
+            js.publish(NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build());
 
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             MessageInfo mi = jsm.getMessage(STREAM, 1);
             assertNotNull(mi.toString());
+            assertEquals(SUBJECT, mi.getSubject());
             assertEquals(data(1), new String(mi.getData()));
+            assertEquals(1, mi.getSeq());
+            assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
             assertNotNull(mi.getHeaders());
             assertEquals("bar", mi.getHeaders().get("foo").get(0));
+
+            mi = jsm.getMessage(STREAM, 2);
+            assertNotNull(mi.toString());
+            assertEquals(SUBJECT, mi.getSubject());
+            assertEquals(data(2), new String(mi.getData()));
+            assertEquals(2, mi.getSeq());
+            assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
+            assertNull(mi.getHeaders());
+
             assertTrue(jsm.deleteMessage(STREAM, 1));
             assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(STREAM, 1));
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 1));

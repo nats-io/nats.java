@@ -13,8 +13,12 @@
 
 package io.nats.examples;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.JetStreamManagement;
+import io.nats.client.Nats;
 import io.nats.client.impl.PurgeResponse;
+import io.nats.client.impl.StreamConfiguration;
+import io.nats.client.impl.StreamInfo;
 
 import java.util.List;
 

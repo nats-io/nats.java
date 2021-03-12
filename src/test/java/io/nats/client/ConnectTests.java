@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -146,6 +147,9 @@ public class ConnectTests {
                     } else {
                         two++;
                     }
+                    Collection<String> servers = nc.getServers();
+                    assertTrue(servers.contains(ts1.getURI()));
+                    assertTrue(servers.contains(ts2.getURI()));
                     standardCloseConnection(nc);
                 }
 

@@ -37,8 +37,8 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.impl.Validator.validateNotNull;
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.support.Validator.validateNotNull;
 
 class NatsConnection implements Connection {
 
@@ -115,16 +115,8 @@ class NatsConnection implements Connection {
         this.serverAuthErrors = new HashMap<>();
 
         this.nextSid = new AtomicLong(1);
-        long start = System.nanoTime();
+        timeTrace(trace, "creating NUID");
         this.nuid = new NUID();
-        if (trace) {
-            long seconds = TimeUnit.SECONDS.convert(System.nanoTime() - start, TimeUnit.NANOSECONDS);
-            if (seconds > 1L) {
-                // If you see this trace check:
-                // https://github.com/nats-io/nats.java#linux-platform-note
-                timeTrace(trace, "NUID initialization took long: %d (s)", seconds);
-            }
-        }
         this.mainInbox = createInbox() + ".*";
 
         this.lastError = new AtomicReference<>();
@@ -1078,6 +1070,10 @@ class NatsConnection implements Connection {
         }
     }
 
+    public Dispatcher createDispatcher() {
+        return createDispatcher(null);
+    }
+
     public Dispatcher createDispatcher(MessageHandler handler) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -1242,10 +1238,9 @@ class NatsConnection implements Connection {
         ByteBuffer protocolBuffer = ByteBuffer.allocate(options.getBufferSize());
         boolean gotCRLF = false;
         boolean gotCR = false;
-        int read = 0;
 
         while (!gotCRLF) {
-            read = this.dataPort.read(readBuffer, 0, readBuffer.length);
+            int read = this.dataPort.read(readBuffer, 0, readBuffer.length);
 
             if (read < 0) {
                 break;
@@ -1275,10 +1270,6 @@ class NatsConnection implements Connection {
                     protocolBuffer.put(b);
                 }
             }
-
-            if (gotCRLF) {
-                break;
-            }
         }
 
         if (!gotCRLF) {
@@ -1289,7 +1280,7 @@ class NatsConnection implements Connection {
 
         String infoJson = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
         infoJson = infoJson.trim();
-        String msg[] = infoJson.split("\\s");
+        String[] msg = infoJson.split("\\s");
         String op = msg[0].toUpperCase();
 
         if (!OP_INFO.equals(op)) {

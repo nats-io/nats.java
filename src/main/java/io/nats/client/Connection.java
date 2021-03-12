@@ -249,19 +249,27 @@ public interface Connection extends AutoCloseable {
      * Create a {@code Dispatcher} for this connection. The dispatcher can group one
      * or more subscriptions into a single callback thread. All messages go to the
      * same {@code MessageHandler}.
-     * 
+     *
      * <p>Use the Dispatcher's {@link Dispatcher#subscribe(String)} and
      * {@link Dispatcher#subscribe(String, String)} methods to add subscriptions.
-     * 
+     *
      * <pre>
      * nc = Nats.connect()
      * d = nc.createDispatcher((m) -&gt; System.out.println(m)).subscribe("hello");
      * </pre>
-     * 
+     *
      * @param handler The target for the messages
      * @return a new Dispatcher
      */
     Dispatcher createDispatcher(MessageHandler handler);
+
+    /**
+     * Convenience method to create a dispatcher with no default handler. Only used
+     * with JetStream push subscriptions that require specific handlers per subscription.
+     *
+     * @return a new Dispatcher
+     */
+    Dispatcher createDispatcher();
 
     /**
      * Close a dispatcher. This will unsubscribe any subscriptions and stop the delivery thread.

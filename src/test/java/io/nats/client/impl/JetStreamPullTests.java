@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.List;
@@ -48,44 +47,44 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            List<Message> messages = sub.fetch(10, Duration.ofSeconds(2));
+            List<Message> messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "A", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(2));
+            messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "B", 20);
-            messages = sub.fetch(10, Duration.ofSeconds(2));
+            messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10, Duration.ofSeconds(2));
+            messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "C", 5);
-            messages = sub.fetch(10, Duration.ofSeconds(2));
+            messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "D", 15);
-            messages = sub.fetch(10, Duration.ofSeconds(2));
+            messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10, Duration.ofSeconds(2));
+            messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "E", 10);
-            messages = sub.fetch(10, Duration.ofSeconds(2));
+            messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(10, messages.size());
             sleep(3000);
 
-            messages = sub.fetch(10, Duration.ofSeconds(2));
+            messages = sub.fetch(10); //, Duration.ofSeconds(2));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
         });
@@ -114,82 +113,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
                 }
             }
         }
-    }
-
-    @Test
-    @Timeout(120)
-    public void testReceive() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .ackWait(Duration.ofMillis(2500))
-                    .build();
-
-            PullSubscribeOptions options = PullSubscribeOptions.builder()
-                    .durable(DURABLE) // required
-                    .configuration(cc)
-                    .build();
-
-            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
-            assertSubscription(sub, STREAM, DURABLE, null, true);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            ReceiveMessageHandler handler = new ReceiveMessageHandler(true);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(0, handler.received.get());
-
-            publish(js, SUBJECT, "A", 10);
-            handler = new ReceiveMessageHandler(true);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(10, handler.received.get());
-
-            publish(js, SUBJECT, "B", 20);
-            handler = new ReceiveMessageHandler(true);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(10, handler.received.get());
-
-            handler = new ReceiveMessageHandler(true);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(10, handler.received.get());
-
-            publish(js, SUBJECT, "C", 5);
-            handler = new ReceiveMessageHandler(true);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(5, handler.received.get());
-
-            publish(js, SUBJECT, "D", 15);
-            handler = new ReceiveMessageHandler(true);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(10, handler.received.get());
-
-            handler = new ReceiveMessageHandler(true);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(5, handler.received.get());
-
-            publish(js, SUBJECT, "E", 10);
-            handler = new ReceiveMessageHandler(false);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(10, handler.received.get());
-            sleep(3000);
-
-            handler = new ReceiveMessageHandler(true);
-            sub.receive(10, Duration.ofSeconds(3), handler);
-            handler.latch.await();
-            assertEquals(10, handler.received.get());
-        });
     }
 
     @Test
@@ -334,58 +257,6 @@ public class JetStreamPullTests extends JetStreamTestBase {
             messages = readMessagesAck(sub);
             assertEquals(3, messages.size());
             assertLastIsStatus(messages, 404);
-        });
-    }
-
-    @Test
-    public void testExpireFuture() throws Exception {
-        runInJsServer(nc -> {
-            // Create our JetStream context to receive JetStream messages.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            createMemoryStream(nc, STREAM, SUBJECT);
-
-            // Build our subscription options. Durable is REQUIRED for pull based subscriptions
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(DURABLE).build();
-
-            // Subscribe synchronously.
-            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
-            assertSubscription(sub, STREAM, DURABLE, null, true);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-
-            // publish 10 messages
-            // expire, batch size 10, there are 10 messages, we will read them all
-            publish(js, SUBJECT, 101, 10);
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
-            List<Message> messages = readMessagesAck(sub);
-            assertEquals(10, messages.size());
-            assertAllJetStream(messages);
-            sleep(2); // make sure we are passed the expiration
-
-            // publish 15 messages
-            publish(js, SUBJECT, 201, 15);
-            // expire, batch size 10, there are 15 messages, we only read 10
-            // and for expire, since we got more than batch size we do not trip expire
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
-            messages = readMessagesAck(sub);
-            assertEquals(10, messages.size());
-            assertAllJetStream(messages);
-            sleep(2); // make sure we are passed the expiration
-
-            // publish 5 messages
-            publish(js, SUBJECT, 301, 5);
-            // expire, batch size 10, there are 5 new messages plus 5 left over
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
-            messages = readMessagesAck(sub);
-            assertEquals(10, messages.size());
-            assertAllJetStream(messages);
-            sleep(2); // make sure we are passed the expiration
-
-            // expire, batch size 10, there are 0 messages
-            sub.pullExpiresIn(10, Duration.ofSeconds(2));
-            messages = readMessagesAck(sub);
-            assertEquals(0, messages.size());
         });
     }
 

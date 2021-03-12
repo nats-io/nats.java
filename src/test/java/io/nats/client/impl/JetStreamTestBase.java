@@ -14,7 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.StreamConfiguration.StorageType;
+import io.nats.client.impl.StreamConfiguration.StorageType;
 import io.nats.client.utils.TestBase;
 
 import java.io.IOException;

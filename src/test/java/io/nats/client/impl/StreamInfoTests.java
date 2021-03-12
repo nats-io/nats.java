@@ -11,14 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
-import io.nats.client.impl.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static io.nats.client.utils.ResourceUtils.dataAsString;
+import static io.nats.client.utils.TestBase.getDataMessage;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamInfoTests {
@@ -26,15 +26,16 @@ public class StreamInfoTests {
     @Test
     public void testStreamInfo() {
         String json = dataAsString("StreamInfo.json");
-        StreamInfo si = new StreamInfo(json);
+        StreamInfo si = new StreamInfo(getDataMessage(json));
         long expected = DateTimeUtils.parseDateTime("2021-01-25T20:09:10.6225191Z").toEpochSecond();
         assertEquals(expected, si.getCreateTime().toEpochSecond());
 
         StreamConfiguration sc = si.getConfiguration();
         assertEquals("streamName", sc.getName());
-        assertEquals(2, sc.getSubjects().size());
+        assertEquals(3, sc.getSubjects().size());
         assertEquals("sub0", sc.getSubjects().get(0));
         assertEquals("sub1", sc.getSubjects().get(1));
+        assertEquals("x.>", sc.getSubjects().get(2));
 
         assertEquals(StreamConfiguration.RetentionPolicy.Limits, sc.getRetentionPolicy());
         assertEquals(StreamConfiguration.DiscardPolicy.Old, sc.getDiscardPolicy());

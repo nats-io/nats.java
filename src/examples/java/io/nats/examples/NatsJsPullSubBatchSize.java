@@ -47,7 +47,7 @@ public class NatsJsPullSubBatchSize extends NatsJsPullSubBase {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable)      // required
-                    // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
+                    // .configuration(...) // if you want a custom io.nats.client.impl.ConsumerConfiguration
                     .build();
 
             // 0.1 Initialize. subscription

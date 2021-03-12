@@ -21,7 +21,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.impl.AckType.*;
-import static io.nats.client.support.Validator.validateDurationRequired;
+import static io.nats.client.impl.Validator.validateDurationRequired;
 
 class NatsJetStreamMessage extends InternalMessage {
 
