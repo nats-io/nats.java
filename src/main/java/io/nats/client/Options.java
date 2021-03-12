@@ -155,7 +155,7 @@ public class Options {
      * 
      * <p>This value is configurable on the server, and should be set here to match.</p>
      */
-    public static final int DEFAULT_MAX_CONTROL_LINE = 1024;
+    public static final int DEFAULT_MAX_CONTROL_LINE = 4096;
 
     /**
      * Default dataport class, which will use a TCP socket, {@link #getDataPortType() getDataPortType()}.

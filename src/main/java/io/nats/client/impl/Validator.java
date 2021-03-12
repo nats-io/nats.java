@@ -11,9 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.support;
-
-import io.nats.client.ConsumerConfiguration;
+package io.nats.client.impl;
 
 import java.time.Duration;
 

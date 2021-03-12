@@ -24,13 +24,13 @@ public class NatsJetStreamAccountStatsTests extends JetStreamTestBase {
     @Test
     public void testAccountStatsImpl() {
         String json = dataAsString("AccountStatsImpl.json");
-        NatsJetStreamAccountStats as = new NatsJetStreamAccountStats(json);
+        NatsJetStreamAccountStats as = new NatsJetStreamAccountStats(getDataMessage(json));
         assertEquals(1, as.getMemory());
         assertEquals(2, as.getStorage());
         assertEquals(3, as.getStreams());
         assertEquals(4, as.getConsumers());
 
-        as = new NatsJetStreamAccountStats("{}");
+        as = new NatsJetStreamAccountStats(getDataMessage("{}"));
         assertEquals(0, as.getMemory());
         assertEquals(0, as.getStorage());
         assertEquals(0, as.getStreams());

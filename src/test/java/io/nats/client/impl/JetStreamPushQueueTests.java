@@ -66,9 +66,9 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             pubThread.start();
 
             // wait for all threads to finish
-            pubThread.join();
+            pubThread.join(1000, 0);
             for (Thread t : subThreads) {
-                t.join();
+                t.join(1000, 0);
             }
 
             // count

@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static io.nats.client.utils.TestBase.getDataMessage;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishAckTests {
@@ -25,7 +26,7 @@ public class PublishAckTests {
         String json = "{\"stream\":\"test\",\"seq\":42, \"duplicate\" : true }";
 
         try {
-            NatsPublishAck ack = new NatsPublishAck(json.getBytes());
+            NatsPublishAck ack = new NatsPublishAck(getDataMessage(json));
             assertEquals("test", ack.getStream());
             assertEquals(42, ack.getSeqno());
             assertTrue(ack.isDuplicate());
@@ -38,7 +39,7 @@ public class PublishAckTests {
     @Test
     public void testThrowsOnGarbage() {
         assertThrows(IOException.class, () -> {
-            new NatsPublishAck("notjson".getBytes());
+            new NatsPublishAck(getDataMessage("notjson"));
        });
     }
       
@@ -52,7 +53,8 @@ public class PublishAckTests {
                 "  }" +
                 "}";
 
-        JetStreamApiException jsapi = assertThrows(JetStreamApiException.class, () -> new NatsPublishAck(json.getBytes()));
+        JetStreamApiException jsapi = assertThrows(JetStreamApiException.class,
+                () -> new NatsPublishAck(getDataMessage(json)).throwOnHasError());
         assertEquals(500, jsapi.getErrorCode());
     }
 
@@ -63,7 +65,7 @@ public class PublishAckTests {
                         "\"missing_seq\":\"0\"" +
                        "}";
 
-        IOException ioe = assertThrows(IOException.class, () -> new NatsPublishAck(json.getBytes()));
-        assertEquals("Invalid ack from a JetStream publish", ioe.getMessage());
+        IOException ioe = assertThrows(IOException.class, () -> new NatsPublishAck(getDataMessage(json)));
+        assertEquals("Invalid JetStream ack.", ioe.getMessage());
     }
 }

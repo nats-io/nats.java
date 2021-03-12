@@ -61,7 +61,7 @@ public class NatsJsPullSubMultiple {
             // - have a list of subscribers and threads so I can track them
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable)      // required
-                    // .configuration(...) // if you want a custom io.nats.client.ConsumerConfiguration
+                    // .configuration(...) // if you want a custom io.nats.client.impl.ConsumerConfiguration
                     .build();
             AtomicInteger allReceived = new AtomicInteger();
             List<JsPullSubscriber> subscribers = new ArrayList<>();

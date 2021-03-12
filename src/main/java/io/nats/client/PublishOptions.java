@@ -16,8 +16,8 @@ package io.nats.client;
 import java.time.Duration;
 import java.util.Properties;
 
-import static io.nats.client.support.Validator.nullOrEmpty;
-import static io.nats.client.support.Validator.validateStreamName;
+import static io.nats.client.impl.Validator.nullOrEmpty;
+import static io.nats.client.impl.Validator.validateStreamName;
 
 /**
  * The PublishOptions class specifies the options for publishing with JetStream enabled servers.

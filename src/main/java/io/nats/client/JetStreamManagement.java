@@ -12,8 +12,7 @@
 // limitations under the License.
 package io.nats.client;
 
-import io.nats.client.impl.JetStreamApiException;
-import io.nats.client.impl.PurgeResponse;
+import io.nats.client.impl.*;
 
 import java.io.IOException;
 import java.util.List;

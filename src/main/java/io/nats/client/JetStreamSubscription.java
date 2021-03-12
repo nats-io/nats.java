@@ -13,10 +13,11 @@
 
 package io.nats.client;
 
+import io.nats.client.impl.ConsumerInfo;
 import io.nats.client.impl.JetStreamApiException;
 
 import java.io.IOException;
-import java.time.Duration;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -47,32 +48,20 @@ public interface JetStreamSubscription extends Subscription {
     void pullNoWait(int batchSize);
 
     /**
-     * Polls for new messages, sets an expire time for this pull only.
-     * This should only be used when the subscription is pull based.
-     *
-     * @param batchSize the size of the batch
-     * @param expiresIn how long from now this request should be expired from the server wait list
-     */
-    void pullExpiresIn(int batchSize, Duration expiresIn);
-
-    /**
      * Fetch (pull) the list
      *
      * @param batchSize the size of the batch
-     * @param timeout the timeout before the first message arrives
      *
      * @return the list of messages
      */
-    List<Message> fetch(int batchSize, Duration timeout);
+    List<Message> fetch(int batchSize);
 
     /**
-     * Receive messages in the handler
+     * Receive messages in an iterator
      *
      * @param batchSize the size of the batch
-     * @param timeout the timeout before the first message arrives
-     * @param handler the message handler to receive the messages
      */
-    void receive(int batchSize, Duration timeout, MessageHandler handler);
+    Iterator<Message> iterate(final int batchSize);
 
     /**
      * Gets information about the consumer behind this subscription.

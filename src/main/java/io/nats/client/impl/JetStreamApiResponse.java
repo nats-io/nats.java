@@ -16,29 +16,40 @@ package io.nats.client.impl;
 import io.nats.client.Message;
 import io.nats.client.support.NatsConstants;
 
-import java.nio.charset.StandardCharsets;
-
 import static io.nats.client.support.ApiConstants.*;
 
-public class JetStreamApiResponse {
+public abstract class JetStreamApiResponse<T> {
 
     public static final int NOT_SET = -1;
     public static final String NO_TYPE = "io.nats.jetstream.api.v1.no_type";
 
-    private final String response;
-    private final boolean hasError;
+    protected final String json;
 
+    private final boolean hasError;
     private String type;
     private Integer errorCode;
     private String errorDesc;
 
     public JetStreamApiResponse(Message msg) {
-        this(msg.getData());
+        this(JsonUtils.decode(msg.getData()));
     }
 
-    public JetStreamApiResponse(byte[] rawResponse) {
-        response = new String(rawResponse, StandardCharsets.UTF_8);
-        hasError = response.contains("\"error\"");
+    JetStreamApiResponse(String json) {
+        this.json = json;
+        hasError = json.contains("\"error\"");
+    }
+
+    JetStreamApiResponse() {
+        json = null;
+        hasError = false;
+    }
+
+    @SuppressWarnings("unchecked")
+    public T throwOnHasError() throws JetStreamApiException {
+        if (hasError()) {
+            throw new JetStreamApiException(this);
+        }
+        return (T)this;
     }
 
     public boolean hasError() {
@@ -47,25 +58,21 @@ public class JetStreamApiResponse {
 
     public String getType() {
         if (type == null) {
-            type = JsonUtils.readString(response, TYPE_RE, NO_TYPE);
+            type = JsonUtils.readString(json, TYPE_RE, NO_TYPE);
         }
         return type;
     }
 
     public long getErrorCode() {
         if (errorCode == null) {
-            errorCode = JsonUtils.readInt(response, CODE_RE, NOT_SET);
+            errorCode = JsonUtils.readInt(json, CODE_RE, NOT_SET);
         }
         return errorCode;
     }
 
-    public boolean getSuccess() {
-        return JsonUtils.readBoolean(response, SUCCESS_RE);
-    }
-
     public String getDescription() {
         if (errorDesc == null) {
-            errorDesc = JsonUtils.readString(response, DESCRIPTION_RE, NatsConstants.EMPTY);
+            errorDesc = JsonUtils.readString(json, DESCRIPTION_RE, NatsConstants.EMPTY);
         }
         return errorDesc.length() == 0 ? null : errorDesc;
     }
@@ -74,16 +81,12 @@ public class JetStreamApiResponse {
         if (hasError()) {
             if (getDescription() == null) {
                 return getErrorCode() == NOT_SET
-                        ? "Unknown JetStream Error: " + response
+                        ? "Unknown JetStream Error: " + json
                         : "Unknown JetStream Error (" + errorCode + ")";
             }
 
             return errorDesc + " (" + getErrorCode() + ")";
         }
         return null;
-    }
-
-    public String getResponse() {
-        return response;
     }
 }

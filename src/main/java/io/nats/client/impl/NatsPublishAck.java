@@ -12,53 +12,31 @@
 // limitations under the License.
 package io.nats.client.impl;
 
+import io.nats.client.Message;
 import io.nats.client.PublishAck;
-import io.nats.client.impl.JsonUtils.FieldType;
 
 import java.io.IOException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-public class NatsPublishAck extends JetStreamApiResponse implements PublishAck {
+import static io.nats.client.support.ApiConstants.*;
 
-    private String stream = null;
-    private long seq = -1;
-    private boolean duplicate = false;
+public class NatsPublishAck extends JetStreamApiResponse<NatsPublishAck> implements PublishAck {
 
-    private static final Pattern streamRE = JsonUtils.buildPattern("stream", FieldType.jsonString);
-    private static final Pattern duplicateRE = JsonUtils.buildPattern("duplicate", FieldType.jsonBoolean);
-    private static final Pattern seqnoRE = JsonUtils.buildPattern("seq", FieldType.jsonNumber); 
+    private final String stream;
+    private final long seq;
+    private final boolean duplicate;
 
-    public NatsPublishAck(byte[] response) throws IOException, JetStreamApiException {
-        super(response);
-
-        if (response.length < 5) {
-            // throw IOException to mirror other protocol exceptions.
-            throw new IOException("Invalid ack from a JetStream publish");
+    public NatsPublishAck(Message msg) throws IOException, JetStreamApiException {
+        super(msg);
+        throwOnHasError();
+        stream = JsonUtils.readString(json, STREAM_RE, null);
+        if (stream == null || stream.length() == 0) {
+            throw new IOException("Invalid JetStream ack.");
         }
-
-        if (hasError()) {
-            throw new JetStreamApiException(this);
+        seq = JsonUtils.readLong(json, SEQ_RE, 0);
+        if (seq == 0) {
+            throw new IOException("Invalid JetStream ack.");
         }
-
-        String responseJson = getResponse();
-        Matcher m = streamRE.matcher(responseJson);
-        if (m.find()) {
-            this.stream = m.group(1);
-        }
-        else {
-            throw new IOException("Invalid ack from a JetStream publish");
-        }
-        
-        m = seqnoRE.matcher(responseJson);
-        if (m.find()) {
-            this.seq = Long.parseLong(m.group(1));
-        }
-
-        m = duplicateRE.matcher(responseJson);
-        if (m.find()) {
-            this.duplicate = Boolean.parseBoolean(m.group(1));
-        }
+        duplicate = JsonUtils.readBoolean(json, DUPLICATE_RE);
     }
 
     @Override

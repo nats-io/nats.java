@@ -14,6 +14,7 @@
 package io.nats.client.utils;
 
 import io.nats.client.*;
+import io.nats.client.impl.NatsMessage;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
@@ -130,6 +131,10 @@ public class TestBase {
 
     public static byte[] dataBytes(int seq) {
         return data(seq).getBytes(StandardCharsets.US_ASCII);
+    }
+
+    public static NatsMessage getDataMessage(String data) {
+        return new NatsMessage(SUBJECT, null, data.getBytes(StandardCharsets.US_ASCII), false);
     }
 
     // ----------------------------------------------------------------------------------------------------

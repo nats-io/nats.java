@@ -15,6 +15,7 @@ package io.nats.examples;
 
 import io.nats.client.*;
 import io.nats.client.impl.JetStreamApiException;
+import io.nats.client.impl.StreamConfiguration;
 
 import java.io.IOException;
 import java.time.Duration;

@@ -319,7 +319,6 @@ public class HeadersTests {
         assertValidHeader("NATS/1.0\r\nks1: v1\r\n\r\n", "ks1", "v1");
         assertValidHeader("NATS/1.0\r\nk1:\r\n\r\n", "k1", EMPTY);
         assertValidHeader("NATS/1.0\r\nks1: \r\n\r\n", "ks1", EMPTY);
-        System.out.println(new String(new Headers().getSerialized()).replaceAll("\n","+").replaceAll("\r","+"));
     }
 
     private void assertValidHeader(String test, String key, String val) {
@@ -341,13 +340,16 @@ public class HeadersTests {
     }
 
     private void assertValidStatus(String test, int code, String msg) {
-        IncomingHeadersProcessor incomingHeadersProcessor = new IncomingHeadersProcessor(test.getBytes());
-        Status status = incomingHeadersProcessor.getStatus();
+        IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(test.getBytes());
+        Status status = ihp.getStatus();
         assertNotNull(status);
         assertEquals(code, status.getCode());
         if (msg != null) {
             assertEquals(msg, status.getMessage());
         }
+        NatsMessage.InternalMessageFactory imf = new NatsMessage.InternalMessageFactory("sid", "sub", "rt", 0, false);
+        imf.setHeaders(ihp);
+        assertTrue(imf.getMessage().isStatusMessage());
     }
 
     static class IteratorTestHelper {

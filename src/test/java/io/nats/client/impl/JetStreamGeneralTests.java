@@ -142,7 +142,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertTrue(iae.getMessage().startsWith("Dispatcher"));
 
             // handler
-            Dispatcher dispatcher = nc.createDispatcher(null);
+            Dispatcher dispatcher = nc.createDispatcher();
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, dispatcher, null, false));
             assertTrue(iae.getMessage().startsWith("Handler"));
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(SUBJECT, dispatcher, null, false, null));

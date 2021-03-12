@@ -28,9 +28,9 @@ public class NatsMessageTests {
     @Test
     public void testSizeOnProtocolMessage() {
         NatsMessage msg = new NatsMessage.ProtocolMessage("PING");
-
         assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
+        assertTrue(msg.toString().contains("PING")); // toString COVERAGE
     }
 
     @Test
@@ -125,23 +125,30 @@ public class NatsMessageTests {
 
     @Test
     public void miscCoverage() {
-        NatsMessage m = testMessage();
-        String ms = m.toString();
-        assertNotNull(ms);
-        assertTrue(ms.contains("test"));
-        assertTrue(ms.contains("reply"));
-        assertTrue(ms.contains("data"));
-        ms = m.toDetailString();
-        assertNotNull(ms);
+        NatsMessage m = NatsMessage.builder()
+                .subject("test").replyTo("reply").utf8mode(true)
+                .data("data", StandardCharsets.US_ASCII)
+                .build();
+        assertFalse(m.hasHeaders());
+        assertFalse(m.isJetStream());
+        assertFalse(m.isStatusMessage());
+        assertNotNull(m.toString());
+        assertNotNull(m.toDetailString());
 
+        // no reply to, no data
         m = NatsMessage.builder().subject("test").build();
-        ms = m.toString();
-        assertNotNull(ms);
-        assertTrue(ms.contains("test"));
-        assertTrue(ms.contains("<no reply>"));
-        assertTrue(ms.contains("<no data>"));
-        ms = m.toDetailString();
-        assertNotNull(ms);
+        assertNotNull(m.toString());
+        assertNotNull(m.toDetailString());
+
+        // no reply to, no empty data
+        m = NatsMessage.builder().subject("test").data(new byte[0]).build();
+        assertNotNull(m.toString());
+        assertNotNull(m.toDetailString());
+
+        // no reply to, no empty data
+        m = NatsMessage.builder().subject("test").data(null).build();
+        assertNotNull(m.toString());
+        assertNotNull(m.toDetailString());
 
         m = testMessage();
         assertTrue(m.hasHeaders());

@@ -61,7 +61,7 @@ public class NatsJsPushSubWithHandler {
             System.out.println("  For " + exArgs.msgCount + " messages max");
 
             // create a dispatcher without a default handler.
-            Dispatcher dispatcher = nc.createDispatcher(null);
+            Dispatcher dispatcher = nc.createDispatcher();
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();

@@ -13,11 +13,13 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
+
 import java.nio.charset.StandardCharsets;
 
 import static io.nats.client.support.ApiConstants.*;
 
-public abstract class ListResponse {
+public abstract class ListResponse<T> extends JetStreamApiResponse<T> {
 
     private static final String OFFSET_JSON_START = "{\"offset\":";
 
@@ -25,10 +27,15 @@ public abstract class ListResponse {
     protected int limit = 0;
     protected int lastOffset = 0;
 
-    void add(String json) {
-        JsonUtils.readInt(json, TOTAL_RE, i -> total = i);
-        JsonUtils.readInt(json, LIMIT_RE, i -> limit = i);
-        JsonUtils.readInt(json, OFFSET_RE, i -> lastOffset = i);
+    ListResponse() {
+        super();
+    }
+
+    ListResponse(Message msg) {
+        super(msg);
+        total = JsonUtils.readInt(json, TOTAL_RE, Integer.MAX_VALUE);
+        limit = JsonUtils.readInt(json, LIMIT_RE, 0);
+        lastOffset = JsonUtils.readInt(json, OFFSET_RE, 0);
     }
 
     boolean hasMore() {

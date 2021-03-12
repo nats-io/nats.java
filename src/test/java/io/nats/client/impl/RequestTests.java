@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -24,7 +25,7 @@ import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class RequestTests {
+public class RequestTests extends TestBase {
     @Test
     public void testSimpleRequest() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
@@ -45,6 +46,35 @@ public class RequestTests {
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
         }
+    }
+
+    @Test
+    public void testRequestVarieties() throws Exception {
+        runInServer(nc -> {
+            Dispatcher d = nc.createDispatcher((msg) -> {
+                nc.publish(msg.getReplyTo(), msg.getData());
+            });
+            d.subscribe(SUBJECT);
+
+            Future<Message> f = nc.request(SUBJECT, dataBytes(1));
+            Message msg = f.get(500, TimeUnit.MILLISECONDS);
+            assertEquals(data(1), new String(msg.getData()));
+
+            NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+            f = nc.request(nm);
+            msg = f.get(500, TimeUnit.MILLISECONDS);
+            assertEquals(data(2), new String(msg.getData()));
+
+            msg = nc.request(SUBJECT, dataBytes(3), Duration.ofSeconds(1));
+            assertEquals(data(3), new String(msg.getData()));
+
+            nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
+            msg = nc.request(nm, Duration.ofSeconds(1));
+            assertEquals(data(4), new String(msg.getData()));
+
+            assertThrows(IllegalArgumentException.class, () -> nc.request(null));
+            assertThrows(IllegalArgumentException.class, () -> nc.request(null, Duration.ofSeconds(1)));
+        });
     }
 
     @Test

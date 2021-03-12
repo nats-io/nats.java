@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.Headers;
+import io.nats.client.impl.JetStreamApiResponse;
 import io.nats.client.impl.JsonUtils;
 import io.nats.client.support.IncomingHeadersProcessor;
 
@@ -24,7 +25,7 @@ import static io.nats.client.support.ApiConstants.*;
 /**
  * The MessageInfo class contains information about a JetStream message.
  */
-public class MessageInfo {
+public class MessageInfo extends JetStreamApiResponse<MessageInfo> {
 
     private final String subject;
     private final long seq;
@@ -32,11 +33,8 @@ public class MessageInfo {
     private final ZonedDateTime time;
     private final Headers headers;
 
-    /**
-     * Internal method to generate consumer information.
-     * @param json JSON representing the consumer information.
-     */
-    public MessageInfo(String json) {
+    public MessageInfo(Message msg) {
+        super(msg);
         subject = JsonUtils.readString(json, SUBJECT_RE);
         data = JsonUtils.readBase64(json, DATA_RE);
         seq = JsonUtils.readLong(json, SEQ_RE, 0);

@@ -37,7 +37,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
             publish(js, SUBJECT, 10);
 
             // create a dispatcher without a default handler.
-            Dispatcher dispatcher = nc.createDispatcher(null);
+            Dispatcher dispatcher = nc.createDispatcher();
 
             CountDownLatch msgLatch = new CountDownLatch(10);
             AtomicInteger received = new AtomicInteger();
@@ -76,7 +76,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
             publish(js, SUBJECT, 10);
 
             // create a dispatcher without a default handler.
-            Dispatcher dispatcher = nc.createDispatcher(null);
+            Dispatcher dispatcher = nc.createDispatcher();
 
             // auto ack true
             CountDownLatch msgLatch1 = new CountDownLatch(10);

@@ -11,9 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
-
-import io.nats.client.impl.JsonUtils;
+package io.nats.client.impl;
 
 import java.time.ZonedDateTime;
 
@@ -28,7 +26,7 @@ public class StreamState {
     private final ZonedDateTime firstTime;
     private final ZonedDateTime lastTime;
 
-    public StreamState(String json) {
+    StreamState(String json) {
         msgs = JsonUtils.readLong(json, MESSAGES_RE, 0);
         bytes = JsonUtils.readLong(json, BYTES_RE, 0);
         firstSeq = JsonUtils.readLong(json, FIRST_SEQ_RE, 0);

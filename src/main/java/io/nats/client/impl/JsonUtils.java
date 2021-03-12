@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.support.NatsConstants;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -386,5 +387,25 @@ public abstract class JsonUtils {
         if (m.find()) {
             c.accept(Duration.ofNanos(Long.parseLong(m.group(1))));
         }
+    }
+
+    public static String decode(byte[] raw) {
+        int len = raw.length;
+        ByteArrayBuilder bab = new ByteArrayBuilder(len, StandardCharsets.UTF_8);
+        for (int x = 0; x < len; x++) {
+            if (raw[x] == '\\') {
+                if (raw[x+1] == 'u') {
+                    if (raw[x+2] == '0') {
+                        if (raw[x+3] == '0') {
+                            bab.append(Byte.parseByte(("" + (char) raw[x + 4] + (char) raw[x + 5]), 16));
+                            x += 5;
+                            continue;
+                        }
+                    }
+                }
+            }
+            bab.append(raw[x]);
+        }
+        return bab.toString();
     }
 }

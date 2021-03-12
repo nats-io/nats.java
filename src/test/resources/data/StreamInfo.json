@@ -4,7 +4,8 @@
     "name": "streamName",
     "subjects": [
       "sub0",
-      "sub1"
+      "sub1",
+      "x.\u003e"
     ],
     "retention": "limits",
     "max_consumers": 1,

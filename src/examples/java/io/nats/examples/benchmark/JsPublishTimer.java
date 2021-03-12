@@ -2,6 +2,7 @@ package io.nats.examples.benchmark;
 
 import io.nats.client.*;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.impl.StreamConfiguration;
 
 import java.nio.charset.StandardCharsets;
 

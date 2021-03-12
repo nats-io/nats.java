@@ -17,7 +17,6 @@ import io.nats.client.Options;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CancellationException;
@@ -27,8 +26,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.nats.client.support.NatsConstants.OP_PING;
-import static io.nats.client.support.NatsConstants.OP_PONG;
+import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
+import static io.nats.client.support.NatsConstants.OP_PONG_BYTES;
 
 class NatsConnectionWriter implements Runnable {
 
@@ -95,12 +94,9 @@ class NatsConnectionWriter implements Runnable {
                 this.outgoing.pause();
                 this.reconnectOutgoing.pause();
                 // Clear old ping/pong requests
-                byte[] pingRequest = OP_PING.getBytes(StandardCharsets.UTF_8);
-                byte[] pongRequest = OP_PONG.getBytes(StandardCharsets.UTF_8);
-
-                this.outgoing.filter((msg) -> {
-                    return Arrays.equals(pingRequest, msg.getProtocolBytes()) || Arrays.equals(pongRequest, msg.getProtocolBytes());
-                });
+                this.outgoing.filter((msg) ->
+                        Arrays.equals(OP_PING_BYTES, msg.getProtocolBytes())
+                        || Arrays.equals(OP_PONG_BYTES, msg.getProtocolBytes()));
 
         } finally {
                 this.startStopLock.unlock();
@@ -146,8 +142,8 @@ class NatsConnectionWriter implements Runnable {
                     sendPosition += bytes.length;
                 }
 
-                bytes = msg.getData();
-                if (bytes != null && bytes.length > 0) {
+                bytes = msg.getData(); // guaranteed to not be null
+                if (bytes.length > 0) {
                     System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
                     sendPosition += bytes.length;
                 }
