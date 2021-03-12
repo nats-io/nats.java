@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -118,6 +119,18 @@ public abstract class NatsJsPullSubBase {
             System.out.print(" " + new String(m.getData()));
         }
         System.out.println(" <- ");
+    }
+
+    public static List<Message> report(Iterator<Message> list) {
+        List<Message> messages = new ArrayList<>();
+        System.out.print("Fetch ->");
+        while (list.hasNext()) {
+            Message m = list.next();
+            messages.add(m);
+            System.out.print(" " + new String(m.getData()));
+        }
+        System.out.println(" <- ");
+        return messages;
     }
 
     public static String uniqueEnough() {

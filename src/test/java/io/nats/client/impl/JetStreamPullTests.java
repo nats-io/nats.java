@@ -13,13 +13,15 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamSubscription;
+import io.nats.client.Message;
+import io.nats.client.PullSubscribeOptions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -47,72 +49,121 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            List<Message> messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            List<Message> messages = sub.fetch(10);
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "A", 10);
-            messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            messages = sub.fetch(10);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "B", 20);
-            messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            messages = sub.fetch(10);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            messages = sub.fetch(10);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "C", 5);
-            messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            messages = sub.fetch(10);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "D", 15);
-            messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            messages = sub.fetch(10);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            messages = sub.fetch(10);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "E", 10);
-            messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            messages = sub.fetch(10);
             validateRead(10, messages.size());
             sleep(3000);
 
-            messages = sub.fetch(10); //, Duration.ofSeconds(2));
+            messages = sub.fetch(10);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
         });
     }
 
-    static class ReceiveMessageHandler implements MessageHandler {
-        boolean ack;
-        AtomicInteger received;
-        CountDownLatch latch;
+    @Test
+    public void testIterate() throws Exception {
+        runInJsServer(nc -> {
+            // Create our JetStream context to receive JetStream messages.
+            JetStream js = nc.jetStream();
 
-        public ReceiveMessageHandler(boolean ack) {
-            this.ack = ack;
-            received = new AtomicInteger();
-            latch = new CountDownLatch(1);
-        }
+            // create the stream.
+            createMemoryStream(nc, STREAM, SUBJECT);
 
-        @Override
-        public void onMessage(Message msg) throws InterruptedException {
-            if (msg == null) {
-                latch.countDown();
-            }
-            else {
-                received.incrementAndGet();
-                if (ack) {
-                    msg.ack();
-                }
-            }
-        }
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                    .ackWait(Duration.ofMillis(2500))
+                    .build();
+
+            PullSubscribeOptions options = PullSubscribeOptions.builder()
+                    .durable(DURABLE) // required
+                    .configuration(cc)
+                    .build();
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT, options);
+            assertSubscription(sub, STREAM, DURABLE, null, true);
+            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+
+            Iterator<Message> iterator = sub.iterate(10);
+            List<Message> messages = readMessages(iterator);
+            validateRead(0, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "A", 10);
+            iterator = sub.iterate(10);
+            messages = readMessages(iterator);
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "B", 20);
+            iterator = sub.iterate(10);
+            messages = readMessages(iterator);
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+
+            iterator = sub.iterate(10);
+            messages = readMessages(iterator);
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "C", 5);
+            iterator = sub.iterate(10);
+            messages = readMessages(iterator);
+            validateRead(5, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "D", 15);
+            iterator = sub.iterate(10);
+            messages = readMessages(iterator);
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+
+            iterator = sub.iterate(10);
+            messages = readMessages(iterator);
+            validateRead(5, messages.size());
+            messages.forEach(Message::ack);
+
+            publish(js, SUBJECT, "E", 10);
+            iterator = sub.iterate(10);
+            messages = readMessages(iterator);
+            validateRead(10, messages.size());
+            sleep(3000);
+
+            iterator = sub.iterate(10);
+            messages = readMessages(iterator);
+            validateRead(10, messages.size());
+            messages.forEach(Message::ack);
+        });
     }
 
     @Test

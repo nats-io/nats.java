@@ -168,6 +168,7 @@ public class ExampleArgs {
         private int pullSize = 0;
         private String user = null;
         private String pass = null;
+        private boolean uniqueify = false;
 
         public Builder defaultSubject(String subject) {
             this.subject = subject;
@@ -229,6 +230,11 @@ public class ExampleArgs {
             return this;
         }
 
+        public Builder uniqueify() {
+            uniqueify = true;
+            return this;
+        }
+
         public ExampleArgs build(String[] args) {
             ExampleArgs ea = new ExampleArgs(args, null, null);
             if (ea.subject == null) {
@@ -266,6 +272,30 @@ public class ExampleArgs {
             }
             if (ea.pullSize == 0) {
                 ea.pullSize = pullSize;
+            }
+            if (uniqueify) {
+                String u = NatsJsPullSubBase.uniqueEnough();
+                if (ea.stream != null) {
+                    ea.stream += u;
+                }
+                if (ea.subject != null) {
+                    ea.subject += u;
+                }
+                if (ea.queue != null) {
+                    ea.queue += u;
+                }
+                if (ea.subject != null) {
+                    ea.subject += u;
+                }
+                if (ea.consumer != null) {
+                    ea.consumer += u;
+                }
+                if (ea.durable != null) {
+                    ea.durable += u;
+                }
+                if (ea.deliver != null) {
+                    ea.deliver += u;
+                }
             }
             return ea;
         }

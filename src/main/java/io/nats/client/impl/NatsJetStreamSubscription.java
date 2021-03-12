@@ -128,8 +128,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         batchInternal(batchSize, msg -> {
             if (msg != null && msg.isJetStream()) {
                 messages.add(msg);
+                return messages.size() < batchSize;
             }
-            return msg != null && messages.size() < batchSize;
+            return false;
         });
 
         return messages;
@@ -141,26 +142,23 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return new Iterator<Message>() {
             final AtomicInteger received = new AtomicInteger();
             Message msg;
+            boolean finished;
 
             @Override
             public boolean hasNext() {
                 try {
-                    if (received.get() < batchSize) {
-                        while (true) {
-                            msg = nextMessage(js.getRequestTimeout());
-                            if (msg == null) {
-                                return false;
-                            }
-                            if (msg.isJetStream()) {
-                                received.incrementAndGet();
-                                return true;
-                            }
+                    if (!finished && received.get() < batchSize) {
+                        msg = nextMessage(js.getRequestTimeout());
+                        if (msg != null && msg.isJetStream()) {
+                            received.incrementAndGet();
+                            return true;
                         }
                     }
                 } catch (InterruptedException e) {
                     // fall through
                 }
                 msg = null;
+                finished = true;
                 return false;
             }
 
