@@ -13,6 +13,11 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Options;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -22,12 +27,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
-
-import io.nats.client.Options;
 
 /**
  * This class is not theadsafe.  Caller must ensure thread safety.
@@ -106,6 +105,14 @@ public class SocketDataPort implements DataPort {
 
     public void write(byte[] src, int toWrite) throws IOException {
         out.write(src, 0, toWrite);
+    }
+
+    public void shutdownInput() throws IOException {
+        if (sslSocket != null) {
+            sslSocket.shutdownInput();
+        } else {
+            socket.shutdownInput();
+        }
     }
 
     public void close() throws IOException {
