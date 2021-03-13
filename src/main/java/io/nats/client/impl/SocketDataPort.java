@@ -108,9 +108,8 @@ public class SocketDataPort implements DataPort {
     }
 
     public void shutdownInput() throws IOException {
-        if (sslSocket != null) {
-            sslSocket.shutdownInput();
-        } else {
+        // cannot call shutdownInput on sslSocket
+        if (sslSocket == null) {
             socket.shutdownInput();
         }
     }
