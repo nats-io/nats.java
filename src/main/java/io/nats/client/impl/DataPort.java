@@ -21,21 +21,23 @@ import java.io.IOException;
  * the core communication code.
  */
 public interface DataPort {
-    public void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException;
+    void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException;
 
     /**
      * Upgrade the port to SSL. If it is already secured, this is a no-op.
      * If the data port type doesn't support SSL it should throw an exception.
-     * 
+     *
      * @throws IOException if the data port is unable to upgrade.
      */
-    public void upgradeToSecure() throws IOException;
+    void upgradeToSecure() throws IOException;
 
-    public int read(byte[] dst, int off, int len) throws IOException;
+    int read(byte[] dst, int off, int len) throws IOException;
 
-    public void write(byte[] src, int toWrite) throws IOException;
+    void write(byte[] src, int toWrite) throws IOException;
 
-    public void close() throws IOException;
+    void shutdownInput() throws IOException;
 
-    public void flush() throws IOException;
+    void close() throws IOException;
+
+    void flush() throws IOException;
 }
