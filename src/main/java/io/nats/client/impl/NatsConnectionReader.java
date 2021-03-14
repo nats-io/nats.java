@@ -65,6 +65,7 @@ class NatsConnectionReader implements Runnable {
 
     private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
+    private DataPort dataPort;
     private final AtomicBoolean running;
 
     private final boolean utf8Mode;
@@ -99,13 +100,20 @@ class NatsConnectionReader implements Runnable {
     // method does.
     Future<Boolean> stop() {
         this.running.set(false);
+        if (dataPort != null) {
+            try {
+                dataPort.shutdownInput();
+            } catch (IOException e) {
+                // we don't care, we are shutting down anyway
+            }
+        }
         return stopped;
     }
 
     @Override
     public void run() {
         try {
-            DataPort dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
+            dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             this.mode = Mode.GATHER_OP;
             this.gotCR = false;
             this.opPos = 0;
