@@ -17,27 +17,30 @@ import io.nats.client.*;
 import io.nats.client.impl.ConsumerConfiguration;
 
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.List;
 
 import static io.nats.examples.ExampleUtils.sleep;
 
 /**
- * This example will demonstrate a pull subscription with:
- * - a batch size + fetch i.e. subscription.fetch(10)
+ * This example will demonstrate miscellaneous uses cases of a pull subscription of:
+ * iterate pull: <code>iterate(int batchSize, Duration maxWait)</code>,
+ * no manual handling of null or status.
  *
- * Usage: java NatsJsPullFetch [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsPullSubIterateUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullFetch extends NatsJsPullSubBase {
+public class NatsJsPullSubIterateUseCases extends NatsJsPullSubBase {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("fetch-ack-stream")
-                .defaultSubject("fetch-ack-subject")
-                .defaultDurable("fetch-ack-durable")
+                .defaultStream("iterate-uc-ack-stream")
+                .defaultSubject("iterate-uc-ack-subject")
+                .defaultDurable("iterate-uc-ack-durable")
+                .uniqueify() // uncomment to be able to re-run without re-starting server
                 .build(args);
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
@@ -65,81 +68,81 @@ public class NatsJsPullFetch extends NatsJsPullSubBase {
             JetStreamSubscription sub = js.subscribe(exArgs.subject, pullOptions);
             nc.flush(Duration.ofSeconds(1));
 
-            // 1. Fetch, but there are no messages yet.
+            // 1. iterate, but there are no messages yet.
             // -  Read the messages, get them all (0)
             System.out.println("----------\n1. There are no messages yet");
-            List<Message> messages = sub.fetch(10);
-            report(messages);
+            Iterator<Message> iterator = sub.iterate(10, Duration.ofSeconds(3));
+            List<Message> messages = report(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
             // 2. Publish 10 messages
-            // -  Fetch messages, get 10
+            // -  iterate messages, get 10
             System.out.println("----------\n2. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
-            messages = sub.fetch(10);
-            report(messages);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            messages = report(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 3. Publish 20 messages
-            // -  Fetch messages, only get 10
+            // -  iterate messages, only get 10
             System.out.println("----------\n3. Publish 20 which is larger than the batch size.");
             publish(js, exArgs.subject, "B", 20);
-            messages = sub.fetch(10);
-            report(messages);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            messages = report(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 4. There are still messages left from the last
-            // -  Fetch messages, get 10
+            // -  iterate messages, get 10
             System.out.println("----------\n4. Get the rest of the publish.");
-            messages = sub.fetch(10);
-            report(messages);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            messages = report(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 5. Publish 5 messages
-            // -  Fetch messages, get 5
+            // -  iterate messages, get 5
             // -  Since there are less than batch size we only get what the server has.
             System.out.println("----------\n5. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
-            messages = sub.fetch(10);
-            report(messages);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            messages = report(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 5 total messages, we received: " + messages.size());
 
             // 6. Publish 15 messages
-            // -  Fetch messages, only get 10
+            // -  iterate messages, only get 10
             System.out.println("----------\n6. Publish 15 which is more than the batch size.");
             publish(js, exArgs.subject, "D", 15);
-            messages = sub.fetch(10);
-            report(messages);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            messages = report(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
             // 7. There are 5 messages left
-            // -  Fetch messages, only get 5
+            // -  iterate messages, only get 5
             System.out.println("----------\n7. There are 5 messages left.");
-            messages = sub.fetch(10);
-            report(messages);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            messages = report(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 5 messages, we received: " + messages.size());
 
             // 8. Read but don't ack.
-            // -  Fetch messages, get 10, but either take too long to ack them or don't ack them
-            System.out.println("----------\n8. Fetch but don't ack.");
+            // -  iterate messages, get 10, but either take too long to ack them or don't ack them
+            System.out.println("----------\n8. iterate but don't ack.");
             publish(js, exArgs.subject, "E", 10);
-            messages = sub.fetch(10);
-            report(messages);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            messages = report(iterator);
             System.out.println("We should have received 10 message, we received: " + messages.size());
             sleep(3000); // longer than the ackWait
 
-            // 9. Fetch messages,
+            // 9. iterate messages,
             // -  get the 10 messages we didn't ack
-            System.out.println("----------\n9. Fetch, get the messages we did not ack.");
-            messages = sub.fetch(10);
-            report(messages);
+            System.out.println("----------\n9. iterate, get the messages we did not ack.");
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
+            messages = report(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 message, we received: " + messages.size());
 

@@ -49,44 +49,44 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            List<Message> messages = sub.fetch(10);
+            List<Message> messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "A", 10);
-            messages = sub.fetch(10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "B", 20);
-            messages = sub.fetch(10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "C", 5);
-            messages = sub.fetch(10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "D", 15);
-            messages = sub.fetch(10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            messages = sub.fetch(10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "E", 10);
-            messages = sub.fetch(10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             sleep(3000);
 
-            messages = sub.fetch(10);
+            messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
         });
@@ -114,52 +114,52 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertSubscription(sub, STREAM, DURABLE, null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
-            Iterator<Message> iterator = sub.iterate(10);
+            Iterator<Message> iterator = sub.iterate(10, Duration.ofSeconds(3));
             List<Message> messages = readMessages(iterator);
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "A", 10);
-            iterator = sub.iterate(10);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "B", 20);
-            iterator = sub.iterate(10);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            iterator = sub.iterate(10);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "C", 5);
-            iterator = sub.iterate(10);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "D", 15);
-            iterator = sub.iterate(10);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            iterator = sub.iterate(10);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
             publish(js, SUBJECT, "E", 10);
-            iterator = sub.iterate(10);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             sleep(3000);
 
-            iterator = sub.iterate(10);
+            iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);

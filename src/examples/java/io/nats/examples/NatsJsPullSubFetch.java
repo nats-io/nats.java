@@ -16,25 +16,25 @@ package io.nats.examples;
 import io.nats.client.*;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * This example will basic use of a pull subscription of:
- * batch size only pull: <code>pull(int batchSize)</code>,
- * requiring manual handling of null.
+ * fetch pull: <code>fetch(int batchSize, Duration maxWait)</code>,
  *
- * Usage: java NatsJsPullSubBatchSize [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]
+ * Usage: java NatsJsPullSubFetch [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubBatchSize extends NatsJsPullSubBase {
+public class NatsJsPullSubFetch extends NatsJsPullSubBase {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("pull-stream")
-                .defaultSubject("pull-subject")
-                .defaultDurable("pull-durable")
+                .defaultStream("fetch-stream")
+                .defaultSubject("fetch-subject")
+                .defaultDurable("fetch-durable")
                 .defaultMsgCount(99)
                 //.uniqueify() // uncomment to be able to re-run without re-starting server
                 .build(args);
@@ -46,7 +46,7 @@ public class NatsJsPullSubBatchSize extends NatsJsPullSubBase {
             JetStream js = nc.jetStream();
 
             // start publishing the messages, don't wait for them to finish, simulating an outside producer
-            publishDontWait(js, exArgs.subject, "pull-message", exArgs.msgCount);
+            publishDontWait(js, exArgs.subject, "fetch-message", exArgs.msgCount);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
@@ -59,16 +59,12 @@ public class NatsJsPullSubBatchSize extends NatsJsPullSubBase {
 
             int red = 0;
             while (red < exArgs.msgCount) {
-                sub.pull(10);
-                Message m = sub.nextMessage(Duration.ofSeconds(1));
-                while (m != null) {
-                    if (m.isJetStream()) {
-                        // process message
-                        red++;
-                        System.out.println("" + red + ". " + m);
-                        m.ack();
-                    }
-                    m = sub.nextMessage(Duration.ofSeconds(1));
+                List<Message> message = sub.fetch(10, Duration.ofSeconds(1));
+                for (Message m : message) {
+                    // process message
+                    red++;
+                    System.out.println("" + red + ". " + m);
+                    m.ack();
                 }
             }
         }
