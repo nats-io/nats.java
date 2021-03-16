@@ -117,16 +117,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         List<Message> messages = new ArrayList<>(batchSize);
 
         try {
-            pullExpiresIn(batchSize, maxWait.minusMillis(10));
-            Message msg = nextMessage(maxWait);
-            while (msg != null) {
-                if (msg.isJetStream()) {
-                    messages.add(msg);
-                    if (messages.size() == batchSize) {
-                        break;
-                    }
-                }
-                msg = nextMessage(SUBSEQUENT_WAITS);
+            pullNoWait(batchSize);
+            read(batchSize, maxWait, messages);
+            if (messages.size() == 0) {
+                pullExpiresIn(batchSize, maxWait.minusMillis(10));
+                read(batchSize, maxWait, messages);
             }
         } catch (InterruptedException e) {
             // ignore
@@ -135,15 +130,29 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return messages;
     }
 
+    private void read(int batchSize, Duration maxWait, List<Message> messages) throws InterruptedException {
+        Message msg = nextMessage(maxWait);
+        while (msg != null) {
+            if (msg.isJetStream()) {
+                messages.add(msg);
+                if (messages.size() == batchSize) {
+                    break;
+                }
+            }
+            msg = nextMessage(SUBSEQUENT_WAITS);
+        }
+    }
+
     @Override
     public Iterator<Message> iterate(final int batchSize, Duration maxWait) {
-        pullExpiresIn(batchSize, maxWait.minusMillis(10));
+        pullNoWait(batchSize);
 
         return new Iterator<Message>() {
             int received = 0;
             boolean finished = false;
+            boolean stepDown = true;
             Duration wait = maxWait;
-            Message msg;
+            Message msg = null;
 
             @Override
             public boolean hasNext() {
@@ -152,12 +161,16 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                         msg = nextMessage(wait);
                         wait = SUBSEQUENT_WAITS;
                         if (msg == null) {
-                            finished = true;
-                            break;
+                            if (received == 0 && stepDown) {
+                                stepDown = false;
+                                pullExpiresIn(batchSize, maxWait.minusMillis(10));
+                            }
+                            else {
+                                finished = true;
+                            }
                         }
-                        if (msg.isJetStream()) {
+                        else if (msg.isJetStream()) {
                             finished = ++received == batchSize;
-                            break;
                         }
                         else {
                             msg = null;
