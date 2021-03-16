@@ -19,7 +19,7 @@ import java.time.Duration;
 import java.util.Iterator;
 
 /**
- * This example will basic use of a pull subscription of:
+ * This example will demonstrate basic use of a pull subscription of:
  * iterate pull: <code>iterate(int batchSize, Duration maxWait)</code>,
  *
  * Usage: java NatsJsPulliterate [-s server] [-strm stream] [-sub subject] [-dur durable]

@@ -19,7 +19,7 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * This example will basic use of a pull subscription of:
+ * This example will demonstrate basic use of a pull subscription of:
  * fetch pull: <code>fetch(int batchSize, Duration maxWait)</code>,
  *
  * Usage: java NatsJsPullSubFetch [-s server] [-strm stream] [-sub subject] [-dur durable]

@@ -18,7 +18,7 @@ import io.nats.client.*;
 import java.time.Duration;
 
 /**
- * This example will basic use of a pull subscription of:
+ * This example will demonstrate basic use of a pull subscription of:
  * batch size only pull: <code>pull(int batchSize)</code>,
  * requiring manual handling of null.
  *
