@@ -274,7 +274,7 @@ public class ExampleArgs {
                 ea.pullSize = pullSize;
             }
             if (uniqueify) {
-                String u = NatsJsPullSubBase.uniqueEnough();
+                String u = "-" + NatsJsPullSubBase.uniqueEnough();
                 if (ea.stream != null) {
                     ea.stream += u;
                 }
@@ -283,9 +283,6 @@ public class ExampleArgs {
                 }
                 if (ea.queue != null) {
                     ea.queue += u;
-                }
-                if (ea.subject != null) {
-                    ea.subject += u;
                 }
                 if (ea.consumer != null) {
                     ea.consumer += u;

@@ -24,7 +24,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.impl.Validator.validatePullBatchSize;
 
@@ -72,6 +71,14 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         _pull(batchSize, true, null);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void pullExpiresIn(int batchSize, Duration expiresIn) {
+        _pull(batchSize, false, expiresIn);
+    }
+
     private void _pull(int batchSize, boolean noWait, Duration expiresIn) {
         if (!isPullMode()) {
             throw new IllegalStateException("Subscription type does not support pull.");
@@ -103,68 +110,84 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         boolean onMessage(Message message) throws InterruptedException;
     }
 
-    private void batchInternal(int batchSize, InternalBatchHandler handler) {
-        boolean keepGoing;
-        try {
-            pullNoWait(batchSize);
-            keepGoing = handler.onMessage(nextMessage(js.getRequestTimeout()));
-        } catch (InterruptedException e) {
-            keepGoing = false;
-        }
-
-        while (keepGoing) {
-            try {
-                keepGoing = handler.onMessage(nextMessage(js.getRequestTimeout()));
-            } catch (InterruptedException e) {
-                keepGoing = false;
-            }
-        }
-    }
+    private static final Duration SUBSEQUENT_WAITS = Duration.ofMillis(500);
 
     @Override
-    public List<Message> fetch(int batchSize) {
+    public List<Message> fetch(int batchSize, Duration maxWait) {
         List<Message> messages = new ArrayList<>(batchSize);
 
-        batchInternal(batchSize, msg -> {
-            if (msg != null && msg.isJetStream()) {
-                messages.add(msg);
-                return messages.size() < batchSize;
+        try {
+            pullNoWait(batchSize);
+            read(batchSize, maxWait, messages);
+            if (messages.size() == 0) {
+                pullExpiresIn(batchSize, maxWait.minusMillis(10));
+                read(batchSize, maxWait, messages);
             }
-            return false;
-        });
+        } catch (InterruptedException e) {
+            // ignore
+        }
 
         return messages;
     }
 
+    private void read(int batchSize, Duration maxWait, List<Message> messages) throws InterruptedException {
+        Message msg = nextMessage(maxWait);
+        while (msg != null) {
+            if (msg.isJetStream()) {
+                messages.add(msg);
+                if (messages.size() == batchSize) {
+                    break;
+                }
+            }
+            msg = nextMessage(SUBSEQUENT_WAITS);
+        }
+    }
+
     @Override
-    public Iterator<Message> iterate(final int batchSize) {
+    public Iterator<Message> iterate(final int batchSize, Duration maxWait) {
         pullNoWait(batchSize);
+
         return new Iterator<Message>() {
-            final AtomicInteger received = new AtomicInteger();
-            Message msg;
-            boolean finished;
+            int received = 0;
+            boolean finished = false;
+            boolean stepDown = true;
+            Duration wait = maxWait;
+            Message msg = null;
 
             @Override
             public boolean hasNext() {
-                try {
-                    if (!finished && received.get() < batchSize) {
-                        msg = nextMessage(js.getRequestTimeout());
-                        if (msg != null && msg.isJetStream()) {
-                            received.incrementAndGet();
-                            return true;
+                while (!finished && msg == null) {
+                    try {
+                        msg = nextMessage(wait);
+                        wait = SUBSEQUENT_WAITS;
+                        if (msg == null) {
+                            if (received == 0 && stepDown) {
+                                stepDown = false;
+                                pullExpiresIn(batchSize, maxWait.minusMillis(10));
+                            }
+                            else {
+                                finished = true;
+                            }
                         }
+                        else if (msg.isJetStream()) {
+                            finished = ++received == batchSize;
+                        }
+                        else {
+                            msg = null;
+                        }
+                    } catch (InterruptedException e) {
+                        msg = null;
+                        finished = true;
                     }
-                } catch (InterruptedException e) {
-                    // fall through
                 }
-                msg = null;
-                finished = true;
-                return false;
+                return msg != null;
             }
 
             @Override
             public Message next() {
-                return msg;
+                Message next = msg;
+                msg = null;
+                return next;
             }
         };
     }

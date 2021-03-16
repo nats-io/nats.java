@@ -68,13 +68,39 @@ public abstract class NatsJsPullSubBase {
         }
     }
 
+    public static void publishDontWait(JetStream js, String subject, String prefix, int count) {
+        new Thread(() -> {
+            try {
+                for (int x = 1; x <= count; x++) {
+                    String data = prefix + "-" + x;
+                    Message msg = NatsMessage.builder()
+                            .subject(subject)
+                            .data(data.getBytes(StandardCharsets.US_ASCII))
+                            .build();
+                    js.publishAsync(msg);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(-1);
+            }
+        }).start();
+    }
+
     public static List<Message> readMessagesAck(JetStreamSubscription sub) throws InterruptedException {
-        return readMessagesAck(sub, true);
+        return readMessagesAck(sub, true, Duration.ofSeconds(1));
     }
 
     public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean verbose) throws InterruptedException {
+        return readMessagesAck(sub, verbose, Duration.ofSeconds(1));
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, Duration nextMessageTimeout) throws InterruptedException {
+        return readMessagesAck(sub, true, nextMessageTimeout);
+    }
+
+    public static List<Message> readMessagesAck(JetStreamSubscription sub, boolean verbose, Duration nextMessageTimeout) throws InterruptedException {
         List<Message> messages = new ArrayList<>();
-        Message msg = sub.nextMessage(Duration.ofSeconds(1));
+        Message msg = sub.nextMessage(nextMessageTimeout);
         boolean first = true;
         while (msg != null) {
             if (first) {
@@ -98,7 +124,7 @@ public abstract class NatsJsPullSubBase {
             else if (verbose) {
                 System.out.print(" ?" + new String(msg.getData()) + "?");
             }
-            msg = sub.nextMessage(Duration.ofSeconds(1));
+            msg = sub.nextMessage(nextMessageTimeout);
         }
 
         if (verbose) {
@@ -154,5 +180,25 @@ public abstract class NatsJsPullSubBase {
             sb.append(Long.toHexString(ThreadLocalRandom.current().nextLong()));
         }
         return sb.toString();
+    }
+
+    public static int countJs(List<Message> messages) {
+        int count = 0;
+        for (Message m : messages) {
+            if (m.isJetStream()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    public static int count408s(List<Message> messages) {
+        int count = 0;
+        for (Message m : messages) {
+            if (m.isStatusMessage() && m.getStatus().getCode() == 408) {
+                count++;
+            }
+        }
+        return count;
     }
 }

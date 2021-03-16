@@ -19,23 +19,24 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * This example will demonstrate a pull subscription with:
- * - a batch size  + nowait i.e. subscription.pullNoWait(10)
- * - AckMode.NEXT
+ * This example will demonstrate miscellaneous uses cases of a pull subscription of:
+ * batch size and no wait pull: <code>pullNoWait(int batchSize)</code>,
+ * requiring manual handling of null and 404 status.
  *
- * Usage: java NatsJsPullSubNoWaitNext [-s server] [-strm stream] [-sub subject] [-dur durable]
+ * Usage: java NatsJsPullSubNoWaitUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubNoWait extends NatsJsPullSubBase {
+public class NatsJsPullSubNoWaitUseCases extends NatsJsPullSubBase {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("nowait-ack-stream")
-                .defaultSubject("nowait-ack-subject")
-                .defaultDurable("nowait-ack-durable")
+                .defaultStream("nowait-uc-ack-stream")
+                .defaultSubject("nowait-uc-ack-subject")
+                .defaultDurable("nowait-uc-ack-durable")
+                .uniqueify() // uncomment to be able to re-run without re-starting server
                 .build(args);
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {

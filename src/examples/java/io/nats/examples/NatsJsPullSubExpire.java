@@ -28,13 +28,13 @@ import java.time.Duration;
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubBatchSize extends NatsJsPullSubBase {
+public class NatsJsPullSubExpire extends NatsJsPullSubBase {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
-                .defaultStream("pull-stream")
-                .defaultSubject("pull-subject")
-                .defaultDurable("pull-durable")
+                .defaultStream("expire-stream")
+                .defaultSubject("expire-subject")
+                .defaultDurable("expire-durable")
                 .defaultMsgCount(99)
                 //.uniqueify() // uncomment to be able to re-run without re-starting server
                 .build(args);
@@ -46,7 +46,7 @@ public class NatsJsPullSubBatchSize extends NatsJsPullSubBase {
             JetStream js = nc.jetStream();
 
             // start publishing the messages, don't wait for them to finish, simulating an outside producer
-            publishDontWait(js, exArgs.subject, "pull-message", exArgs.msgCount);
+            publishDontWait(js, exArgs.subject, "expire-message", exArgs.msgCount);
 
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
@@ -59,8 +59,8 @@ public class NatsJsPullSubBatchSize extends NatsJsPullSubBase {
 
             int red = 0;
             while (red < exArgs.msgCount) {
-                sub.pull(10);
-                Message m = sub.nextMessage(Duration.ofSeconds(1)); // first message
+                sub.pullExpiresIn(10, Duration.ofSeconds(3));
+                Message m = sub.nextMessage(Duration.ofSeconds(3)); // first message
                 while (m != null) {
                     if (m.isJetStream()) {
                         // process message
@@ -68,7 +68,7 @@ public class NatsJsPullSubBatchSize extends NatsJsPullSubBase {
                         System.out.println("" + red + ". " + m);
                         m.ack();
                     }
-                    m = sub.nextMessage(Duration.ofMillis(100)); // other messages should already be on the client
+                    m = sub.nextMessage(Duration.ofMillis(300)); // other messages should already be on the client
                 }
             }
         }
