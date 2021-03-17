@@ -59,8 +59,8 @@ public class NatsJsPullSubFetch extends NatsJsPullSubBase {
 
             int red = 0;
             while (red < exArgs.msgCount) {
-                List<Message> message = sub.fetch(10, Duration.ofSeconds(1));
-                for (Message m : message) {
+                List<Message> messages = sub.fetch(10, Duration.ofSeconds(1));
+                for (Message m : messages) {
                     // process message
                     red++;
                     System.out.println("" + red + ". " + m);

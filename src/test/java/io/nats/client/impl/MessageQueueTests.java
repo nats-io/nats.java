@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -468,7 +467,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter(msg -> msg.getProtocolBytes().equals(expected));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -492,7 +491,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter(msg -> msg.getProtocolBytes().equals(expected));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -516,7 +515,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter(msg -> msg.getProtocolBytes().equals(expected));
         q.resume();
         long after = q.sizeInBytes();
 

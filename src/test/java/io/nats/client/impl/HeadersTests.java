@@ -272,10 +272,10 @@ public class HeadersTests {
         headers1.add(KEY3, EMPTY);
         assertTrue(headers1.isDirty());
 
-        byte[] serialized = headers1.getSerialized();
-        assertEquals(serialized.length, headers1.serializedLength());
+        ByteArrayBuilder serialized = headers1.getSerializedBuilder();
+        assertEquals(serialized.length(), headers1.serializedLength());
 
-        IncomingHeadersProcessor incomingHeadersProcessor = new IncomingHeadersProcessor(serialized);
+        IncomingHeadersProcessor incomingHeadersProcessor = new IncomingHeadersProcessor(serialized.toByteArray());
         Headers headers2 = incomingHeadersProcessor.getHeaders();
         assertNotNull(headers2);
 

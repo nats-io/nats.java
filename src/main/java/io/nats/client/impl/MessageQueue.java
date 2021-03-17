@@ -13,9 +13,10 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.support.NatsLinkedBlockingQueue;
+
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -34,7 +35,7 @@ class MessageQueue {
     private final AtomicLong sizeInBytes;
     private final AtomicInteger running;
     private final boolean singleThreadedReader;
-    private final LinkedBlockingQueue<NatsMessage> queue;
+    private final NatsLinkedBlockingQueue<NatsMessage> queue;
     private final Lock filterLock;
     private final boolean discardWhenFull;
 
@@ -53,7 +54,7 @@ class MessageQueue {
      * @param discardWhenFull allows to discard messages when the underlying queue is full
      */
     MessageQueue(boolean singleReaderMode, int publishHighwaterMark, boolean discardWhenFull) {
-        this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<NatsMessage>(publishHighwaterMark) : new LinkedBlockingQueue<NatsMessage>();
+        this.queue = publishHighwaterMark > 0 ? new NatsLinkedBlockingQueue<>(publishHighwaterMark) : new NatsLinkedBlockingQueue<>();
         this.discardWhenFull = discardWhenFull;
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
@@ -79,7 +80,7 @@ class MessageQueue {
         return singleThreadedReader;
     }
 
-    boolean isRunning() {
+    boolean isNotStopped() {
         return this.running.get() != STOPPED;
     }
 
@@ -117,8 +118,7 @@ class MessageQueue {
             // If we aren't running, then we need to obey the filter lock
             // to avoid ordering problems
             if (!internal && this.discardWhenFull) {
-                boolean myOffer = this.queue.offer(msg);
-                return myOffer;
+                return this.queue.offer(msg);
             }
             if (!this.offer(msg)) {
                 throw new IllegalStateException("Output queue is full " + queue.size());
@@ -165,7 +165,7 @@ class MessageQueue {
                 // A value of 0 means wait forever
                 // We will loop and wait for a LONG time
                 // if told to suspend/drain the poison pill will break this loop
-                while (this.isRunning()) {
+                while (this.isNotStopped()) {
                     msg = this.queue.poll(100, TimeUnit.DAYS);
                     if (msg != null) break;
                 }
@@ -180,7 +180,7 @@ class MessageQueue {
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
-        if (!this.isRunning()) {
+        if (!this.isNotStopped()) {
             return null;
         }
 
@@ -213,7 +213,7 @@ class MessageQueue {
             throw new IllegalStateException("Accumulate is only supported in single reader mode.");
         }
 
-        if (!this.isRunning()) {
+        if (!this.isNotStopped()) {
             return null;
         }
 
@@ -224,6 +224,7 @@ class MessageQueue {
         }
 
         long size = msg.getSizeInBytes();
+        final AtomicLong atomicSize = new AtomicLong(size);
 
         if (maxMessages <= 1 || size >= maxSize) {
             this.sizeInBytes.addAndGet(-size);
@@ -235,29 +236,27 @@ class MessageQueue {
         NatsMessage cursor = msg;
 
         while (cursor != null) {
-            NatsMessage next = this.queue.peek();
-            if (next != null && next != this.poisonPill) {
-                long s = next.getSizeInBytes();
+            NatsMessage nextM = this.queue.pollIf(m ->
+                    (m != null && m != this.poisonPill) &&
+                            (maxSize<0 || (atomicSize.get() + m.getSizeInBytes()) < maxSize)
+            );
 
-                if (maxSize<0 || (size + s) < maxSize) { // keep going
-                    size += s;
-                    count++;
-                    
-                    cursor.next = this.queue.poll();
-                    cursor = cursor.next;
-
-                    if (count == maxMessages) {
-                        break;
-                    }
-                } else { // One more is too far
-                    break;
+            if (nextM == null) {
+                cursor = null;
+            }
+            else {
+                atomicSize.addAndGet(nextM.getSizeInBytes());
+                cursor.next = nextM;
+                if (++count == maxMessages) {
+                    cursor = null;
                 }
-            } else { // Didn't meet max condition
-                break;
+                else {
+                    cursor = cursor.next;
+                }
             }
         }
 
-        this.sizeInBytes.addAndGet(-size);
+        this.sizeInBytes.addAndGet(-atomicSize.get());
         this.length.addAndGet(-count);
 
         return msg;
@@ -280,7 +279,7 @@ class MessageQueue {
     void filter(Predicate<NatsMessage> p) {
         this.filterLock.lock();
         try {
-            if (this.isRunning()) {
+            if (this.isNotStopped()) {
                 throw new IllegalStateException("Filter is only supported when the queue is paused");
             }
             ArrayList<NatsMessage> newQueue = new ArrayList<>();

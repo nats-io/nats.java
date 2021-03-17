@@ -754,7 +754,7 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
         }
 
-        NatsMessage nm = new NatsMessage(subject, replyTo, new Headers(headers), data, utf8mode);
+        NatsMessage nm = new NatsMessage(subject, replyTo, headers, data, utf8mode);
 
         if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(nm, options.getReconnectBufferSize())) {
@@ -1181,6 +1181,9 @@ class NatsConnection implements Connection {
         return this.sendPing(false);
     }
 
+    static final NatsMessage PING_MSG = new ProtocolMessage(OP_PING_BYTES);
+    static final NatsMessage PONG_MSG = new ProtocolMessage(OP_PONG_BYTES);
+
     // Send a ping request and push a pong future on the queue.
     // futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns the wait will not return
@@ -1207,13 +1210,12 @@ class NatsConnection implements Connection {
         }
 
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
-        NatsMessage msg = new ProtocolMessage(OP_PING_BYTES);
         pongQueue.add(pongFuture);
 
         if (treatAsInternal) {
-            queueInternalOutgoing(msg);
+            queueInternalOutgoing(PING_MSG);
         } else {
-            queueOutgoing(msg);
+            queueOutgoing(PING_MSG);
         }
 
         this.needPing.set(true);
@@ -1222,7 +1224,7 @@ class NatsConnection implements Connection {
     }
 
     void sendPong() {
-        queueInternalOutgoing( new ProtocolMessage(OP_PONG_BYTES) );
+        queueInternalOutgoing(PONG_MSG);
     }
 
     // Called by the reader
