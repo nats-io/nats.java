@@ -124,7 +124,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 read(batchSize, maxWait, messages);
             }
         } catch (InterruptedException e) {
-            // ignore
+            Thread.currentThread().interrupt();
         }
 
         return messages;
@@ -178,6 +178,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                     } catch (InterruptedException e) {
                         msg = null;
                         finished = true;
+                        Thread.currentThread().interrupt();
                     }
                 }
                 return msg != null;
