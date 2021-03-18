@@ -23,14 +23,13 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 public class ByteArrayBuilder {
     public static final int DEFAULT_ASCII_ALLOCATION = 32;
     public static final int DEFAULT_OTHER_ALLOCATION = 64;
-    private static final byte[] NULL = "null".getBytes(US_ASCII);
-    private static final byte[] SPACE = " ".getBytes(US_ASCII);
-    private static final byte[] CRLF = "\r\n".getBytes(US_ASCII);
+    public static final byte[] NULL = "null".getBytes(US_ASCII);
+    public static final byte[] SPACE = " ".getBytes(US_ASCII);
+    public static final byte[] CRLF = "\r\n".getBytes(US_ASCII);
 
-    private final int allocationSize;
     private final Charset defaultCharset;
     private ByteBuffer buffer;
-
+    private int allocationSize;
 
     public ByteArrayBuilder() {
         this(DEFAULT_ASCII_ALLOCATION, US_ASCII);
@@ -44,7 +43,7 @@ public class ByteArrayBuilder {
         allocationSize = bytes.length;
         this.buffer = ByteBuffer.allocate(allocationSize);
         this.defaultCharset = US_ASCII;
-        buffer.put(bytes, 0, allocationSize);
+        buffer.put(bytes, 0, bytes.length);
     }
 
     public ByteArrayBuilder(Charset defaultCharset) {
@@ -52,9 +51,17 @@ public class ByteArrayBuilder {
     }
 
     public ByteArrayBuilder(int initialSize, Charset defaultCharset) {
-        allocationSize = defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
-        this.buffer = ByteBuffer.allocate(computeNewAllocationSize(0, initialSize));
+        this(initialSize, defaultCharset, (defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION));
+    }
+
+    public ByteArrayBuilder(int initialSize, Charset defaultCharset, int allocationSize) {
+        this.allocationSize = defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
+        this.buffer = ByteBuffer.allocate(computeAmountToAllocate(0, initialSize));
         this.defaultCharset = defaultCharset;
+    }
+
+    public void clear() {
+        buffer.clear();
     }
 
     public int length() {
@@ -85,16 +92,20 @@ public class ByteArrayBuilder {
         return Arrays.copyOf(buffer.array(), buffer.position());
     }
 
-    protected int computeNewAllocationSize(int currentPosition, int bytesNeeded) {
+    public byte[] internalArray() {
+        return buffer.array();
+    }
+
+    protected int computeAmountToAllocate(int currentPosition, int bytesNeeded) {
         return ((currentPosition + bytesNeeded + allocationSize) / allocationSize) * allocationSize;
     }
 
-    private void ensureCapacity(int bytesNeeded) {
+    public void ensureCapacity(int bytesNeeded) {
         int bytesAvailable = buffer.capacity() - buffer.position();
         if (bytesAvailable < bytesNeeded) {
             ByteBuffer newBuffer
                     = ByteBuffer.allocate(
-                            computeNewAllocationSize(buffer.position(), bytesNeeded));
+                            computeAmountToAllocate(buffer.position(), bytesNeeded));
             newBuffer.put(buffer.array(), 0, buffer.position());
             buffer = newBuffer;
         }
@@ -249,6 +260,13 @@ public class ByteArrayBuilder {
         if (len > 0) {
             ensureCapacity(len);
             buffer.put(src, offset, len);
+        }
+        return this;
+    }
+
+    public ByteArrayBuilder append(ByteArrayBuilder bab) {
+        if (bab != null && bab.length() > 0) {
+            append(bab.buffer.array(), 0, bab.length());
         }
         return this;
     }
