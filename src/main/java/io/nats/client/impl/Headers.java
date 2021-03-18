@@ -44,7 +44,7 @@ public class Headers {
 		if (headers != null) {
 			headerMap.putAll(headers.headerMap);
 			projectedLength = headers.projectedLength;
-			serializedBuilder = null;
+			serializedBuilder = headers.getSerialized();
 		}
 	}
 
