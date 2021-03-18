@@ -40,6 +40,13 @@ public class ByteArrayBuilder {
         this(initialSize, US_ASCII);
     }
 
+    public ByteArrayBuilder(byte[] bytes) {
+        allocationSize = bytes.length;
+        this.buffer = ByteBuffer.allocate(allocationSize);
+        this.defaultCharset = US_ASCII;
+        buffer.put(bytes, 0, allocationSize);
+    }
+
     public ByteArrayBuilder(Charset defaultCharset) {
         this(0, defaultCharset);
     }
@@ -48,6 +55,30 @@ public class ByteArrayBuilder {
         allocationSize = defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
         this.buffer = ByteBuffer.allocate(computeNewAllocationSize(0, initialSize));
         this.defaultCharset = defaultCharset;
+    }
+
+    public int length() {
+        return buffer.position();
+    }
+
+    public boolean equals(byte[] bytes) {
+        if (bytes == null || buffer.position() != bytes.length) {
+            return false;
+        }
+        byte[] hb = buffer.array();
+        for (int x = 0; x < bytes.length; x++) {
+            if (hb[x] != bytes[x]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public int copyTo(byte[] dest, int destPos) {
+        int len = length();
+        byte[] hb = buffer.array();
+        System.arraycopy(hb, 0, dest, destPos, len);
+        return len;
     }
 
     public byte[] toByteArray() {
@@ -224,6 +255,6 @@ public class ByteArrayBuilder {
 
     @Override
     public String toString() {
-        return new String(toByteArray(), defaultCharset);
+        return new String(buffer.array(), 0, buffer.position(), defaultCharset);
     }
 }

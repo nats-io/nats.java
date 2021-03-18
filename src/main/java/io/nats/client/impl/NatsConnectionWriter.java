@@ -18,7 +18,6 @@ import io.nats.client.Options;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -94,9 +93,8 @@ class NatsConnectionWriter implements Runnable {
                 this.outgoing.pause();
                 this.reconnectOutgoing.pause();
                 // Clear old ping/pong requests
-                this.outgoing.filter((msg) ->
-                        Arrays.equals(OP_PING_BYTES, msg.getProtocolBytes())
-                        || Arrays.equals(OP_PONG_BYTES, msg.getProtocolBytes()));
+                this.outgoing.filter(msg ->
+                        msg.getProtocolBytes().equals(OP_PING_BYTES) || msg.getProtocolBytes().equals(OP_PONG_BYTES));
 
         } finally {
                 this.startStopLock.unlock();
@@ -115,7 +113,7 @@ class NatsConnectionWriter implements Runnable {
 
             if (sendPosition + size > sendBuffer.length) {
                 if (sendPosition == 0) { // have to resize
-                    this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2)];
+                    this.sendBuffer = new byte[(int)Math.max(sendBuffer.length + size, sendBuffer.length * 2L)];
                 } else { // else send and go to next message
                     dataPort.write(sendBuffer, sendPosition);
                     connection.getNatsStatistics().registerWrite(sendPosition);
@@ -128,21 +126,18 @@ class NatsConnectionWriter implements Runnable {
                 }
             }
 
-            byte[] bytes = msg.getProtocolBytes();
-            System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-            sendPosition += bytes.length;
+            sendPosition += msg.getProtocolBytes().copyTo(sendBuffer, sendPosition);
 
             sendBuffer[sendPosition++] = '\r';
             sendBuffer[sendPosition++] = '\n';
 
             if (!msg.isProtocol()) {
-                bytes = msg.getSerializedHeader();
-                if (bytes != null && bytes.length > 0) {
-                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                    sendPosition += bytes.length;
+                ByteArrayBuilder bab = msg.getSerializedHeader();
+                if (bab != null && bab.length() > 0) {
+                    sendPosition += bab.copyTo(sendBuffer, sendPosition);
                 }
 
-                bytes = msg.getData(); // guaranteed to not be null
+                byte[] bytes = msg.getData(); // guaranteed to not be null
                 if (bytes.length > 0) {
                     System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
                     sendPosition += bytes.length;

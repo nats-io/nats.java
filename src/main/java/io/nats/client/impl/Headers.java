@@ -32,7 +32,7 @@ public class Headers {
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
 
 	private final Map<String, List<String>> headerMap;
-	private byte[] serialized;
+	private ByteArrayBuilder serializedBuilder;
 	private int projectedLength;
 
 	public Headers() {
@@ -44,7 +44,7 @@ public class Headers {
 		if (headers != null) {
 			headerMap.putAll(headers.headerMap);
 			projectedLength = headers.projectedLength;
-			serialized = null;
+			serializedBuilder = null;
 		}
 	}
 
@@ -90,7 +90,7 @@ public class Headers {
 				} else {
 					currentSet.addAll(checked.list);
 				}
-				serialized = null; // since the data changed, clear this so it's rebuilt
+				serializedBuilder = null; // since the data changed, clear this so it's rebuilt
 				projectedLength += key.length() + checked.length;
 			}
 		}
@@ -134,7 +134,7 @@ public class Headers {
 			Checker checked = new Checker(key, values);
 			if (checked.hasValues()) {
 				headerMap.put(key, checked.list);
-				serialized = null; // since the data changed, clear this so it's rebuilt
+				serializedBuilder = null; // since the data changed, clear this so it's rebuilt
 				projectedLength += key.length() + checked.length;
 			}
 		}
@@ -152,7 +152,7 @@ public class Headers {
 			// than the actual bytes we are fine
 			projectedLength -= key.length() + 1;
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
+		serializedBuilder = null; // since the data changed, clear this so it's rebuilt
 	}
 
 	/**
@@ -167,7 +167,7 @@ public class Headers {
 			// than the actual bytes we are fine
 			projectedLength -= key.length() + 1;
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
+		serializedBuilder = null; // since the data changed, clear this so it's rebuilt
 	}
 
 	/**
@@ -193,7 +193,7 @@ public class Headers {
 	 */
 	public void clear() {
 		headerMap.clear();
-		serialized = null;
+		serializedBuilder = null;
 		projectedLength = 0;
 	}
 
@@ -258,7 +258,7 @@ public class Headers {
 	 * @return true if dirty
 	 */
 	public boolean isDirty() {
-		return serialized == null;
+		return serializedBuilder == null;
 	}
 
 	/**
@@ -267,7 +267,7 @@ public class Headers {
 	 * @return the number of bytes
 	 */
 	public int serializedLength() {
-		return getSerialized().length;
+		return getSerialized().length();
 	}
 
 	/**
@@ -275,8 +275,8 @@ public class Headers {
 	 *
 	 * @return the bytes
 	 */
-	public byte[] getSerialized() {
-		if (serialized == null) {
+	public ByteArrayBuilder getSerialized() {
+		if (serializedBuilder == null) {
 			ByteArrayBuilder bab = new ByteArrayBuilder(projectedLength + VERSION_BYTES_PLUS_CRLF_LEN)
 					.append(VERSION_BYTES_PLUS_CRLF);
 			for (String key : headerMap.keySet()) {
@@ -288,9 +288,9 @@ public class Headers {
 				}
 			}
 			bab.append(CRLF_BYTES);
-			serialized = bab.toByteArray();
+			serializedBuilder = bab;
 		}
-		return serialized;
+		return serializedBuilder;
 	}
 
 	/**

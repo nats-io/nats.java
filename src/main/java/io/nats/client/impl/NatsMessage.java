@@ -21,7 +21,6 @@ import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
@@ -46,7 +45,7 @@ public class NatsMessage implements Message {
     protected int protocolLineLength;
 
     // protocol specific : just this field
-    protected byte[] protocolBytes;
+    protected ByteArrayBuilder protocolBytes;
 
     // housekeeping
     protected int sizeInBytes = -1;
@@ -142,7 +141,7 @@ public class NatsMessage implements Message {
             // payload length
             bab.append(Integer.toString(totLen));
 
-            protocolBytes = bab.toByteArray();
+            protocolBytes = bab;
             dirty = false;
             return true;
         }
@@ -156,7 +155,7 @@ public class NatsMessage implements Message {
         if (calculateIfDirty() || sizeInBytes == -1) {
             sizeInBytes = protocolLineLength;
             if (protocolBytes != null) {
-                sizeInBytes += protocolBytes.length;
+                sizeInBytes += protocolBytes.length();
             }
             if (hdrLen > 0) {
                 sizeInBytes += hdrLen + 2; // CRLF
@@ -174,14 +173,14 @@ public class NatsMessage implements Message {
         return false; // overridden in NatsMessage.ProtocolMessage
     }
 
-    byte[] getProtocolBytes() {
+    ByteArrayBuilder getProtocolBytes() {
         calculateIfDirty();
         return protocolBytes;
     }
 
     int getControlLineLength() {
         calculateIfDirty();
-        return (protocolBytes != null) ? protocolBytes.length + 2 : -1;
+        return (protocolBytes != null) ? protocolBytes.length() + 2 : -1;
     }
 
     Headers getOrCreateHeaders() {
@@ -222,7 +221,7 @@ public class NatsMessage implements Message {
         return replyTo;
     }
 
-    byte[] getSerializedHeader() {
+    ByteArrayBuilder getSerializedHeader() {
         return hasHeaders() ? headers.getSerialized() : null;
     }
 
@@ -298,15 +297,15 @@ public class NatsMessage implements Message {
 
     @Override
     public String toString() {
-        if (subject == null) {
-            return "NatsMessage | " + new String(protocolBytes);
+        if (subject == null && protocolBytes != null) {
+            return "NatsMessage | " + protocolBytes.toString();
         }
         return "NatsMessage |" + subject + "|" + replyToString() + "|" + dataToString() + "|";
     }
 
     String toDetailString() {
         calculateIfDirty();
-        String hdrString = hasHeaders() ? new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+") : "";
+        String hdrString = hasHeaders() ? headers.getSerialized().toString().replace("\r", "+").replace("\n", "+") : "";
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +
                 "\n  replyTo='" + replyToString() + '\'' +
@@ -315,7 +314,7 @@ public class NatsMessage implements Message {
                 "\n  headers=" + hdrString +
                 "\n  sid='" + sid + '\'' +
                 "\n  protocolLineLength=" + protocolLineLength +
-                "\n  protocolBytes=" + (protocolBytes == null ? null : new String(protocolBytes, UTF_8)) +
+                "\n  protocolBytes=" + (protocolBytes == null ? null : protocolBytes.toString()) +
                 "\n  sizeInBytes=" + sizeInBytes +
                 "\n  hdrLen=" + hdrLen +
                 "\n  dataLen=" + dataLen +
@@ -504,15 +503,15 @@ public class NatsMessage implements Message {
 
     static class ProtocolMessage extends InternalMessage {
         ProtocolMessage(byte[] protocol) {
-            this.protocolBytes = protocol == null ? EMPTY_BODY : protocol;
+            this.protocolBytes = protocol == null ? new ByteArrayBuilder(0) : new ByteArrayBuilder(protocol);
         }
 
         ProtocolMessage(ByteArrayBuilder babProtocol) {
-            this(babProtocol.toByteArray());
+            this.protocolBytes = babProtocol;
         }
 
         ProtocolMessage(String asciiProtocol) {
-            this(asciiProtocol.getBytes(StandardCharsets.US_ASCII));
+            this.protocolBytes = new ByteArrayBuilder(asciiProtocol.length()).append(asciiProtocol);
         }
 
         @Override

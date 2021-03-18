@@ -28,7 +28,7 @@ public class NatsMessageTests {
     @Test
     public void testSizeOnProtocolMessage() {
         NatsMessage msg = new NatsMessage.ProtocolMessage("PING");
-        assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(msg.getProtocolBytes().length() + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
         assertTrue(msg.toString().contains("PING")); // toString COVERAGE
     }
@@ -42,12 +42,12 @@ public class NatsMessageTests {
 
         NatsMessage msg = new NatsMessage(subject, replyTo, body, false);
 
-        assertEquals(msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(msg.getProtocolBytes().length() + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals(protocol.getBytes(StandardCharsets.US_ASCII).length + body.length + 4, msg.getSizeInBytes(), "Size is correct");
 
         msg = new NatsMessage(subject, replyTo, body, true);
 
-        assertEquals(msg.getProtocolBytes().length + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
+        assertEquals(msg.getProtocolBytes().length() + body.length + 4, msg.getSizeInBytes(), "Size is set, with CRLF");
         assertEquals(protocol.getBytes(StandardCharsets.UTF_8).length + body.length + 4, msg.getSizeInBytes(), "Size is correct");
     }
 
@@ -175,7 +175,7 @@ public class NatsMessageTests {
 
         NatsMessage.ProtocolMessage pm = new NatsMessage.ProtocolMessage((byte[])null);
         assertNotNull(pm.protocolBytes);
-        assertEquals(0, pm.protocolBytes.length);
+        assertEquals(0, pm.protocolBytes.length());
 
         NatsMessage.InternalMessage scm = new NatsMessage.InternalMessage() {};
         assertNull(scm.protocolBytes);

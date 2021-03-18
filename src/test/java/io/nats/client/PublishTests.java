@@ -213,7 +213,7 @@ public class PublishTests {
                 }
                 assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
                 assertEquals(bodyString, body.get(), "Body matches");
-                assertEquals(new String(headers.getSerialized()), hdrProto.get());
+                assertEquals(headers.getSerialized().toString(), hdrProto.get());
             }
         }
     }
