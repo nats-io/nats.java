@@ -61,7 +61,7 @@ public class MessageQueueBenchmark {
         System.out.printf("\tor %s op/s\n",
                 NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
-        MessageQueue accumulateQueue = new MessageQueue(true);
+        WriteMessageQueue accumulateQueue = new WriteMessageQueue(true);
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
@@ -171,7 +171,7 @@ public class MessageQueueBenchmark {
             msgs[j].next = null;
         }
 
-        final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true);
+        final WriteMessageQueue pushAccumulateThreadQueue = new WriteMessageQueue(true);
         pusher = new Thread(() -> {
             try {
                 go3.get();
@@ -189,7 +189,8 @@ public class MessageQueueBenchmark {
                 go3.get();
                 int remaining = msgCount;
                 while (remaining > 0) {
-                    NatsMessage cursor = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
+                    MessageQueue.AccumulateResult result = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
+                    NatsMessage cursor = result == null ? null : result.head;
                     while (cursor != null) {
                         remaining--;
                         cursor = cursor.next;

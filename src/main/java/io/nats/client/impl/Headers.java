@@ -267,7 +267,16 @@ public class Headers {
 	 * @return the number of bytes
 	 */
 	public int serializedLength() {
-		return getSerialized().length();
+		if (serializedBuilder == null) {
+			int count = VERSION_BYTES_PLUS_CRLF.length + 2; // 2 is ending crlf
+			for (String key : headerMap.keySet()) {
+				for (String value : headerMap.get(key)) {
+					count += key.length() + value.length() + 3;
+				}
+			}
+			return count;
+		}
+		return serializedBuilder.length();
 	}
 
 	/**
@@ -277,20 +286,23 @@ public class Headers {
 	 */
 	public ByteArrayBuilder getSerialized() {
 		if (serializedBuilder == null) {
-			ByteArrayBuilder bab = new ByteArrayBuilder(projectedLength + VERSION_BYTES_PLUS_CRLF_LEN)
-					.append(VERSION_BYTES_PLUS_CRLF);
-			for (String key : headerMap.keySet()) {
-				for (String value : headerMap.get(key)) {
-					bab.append(key);
-					bab.append(COLON_BYTES);
-					bab.append(value);
-					bab.append(CRLF_BYTES);
-				}
-			}
-			bab.append(CRLF_BYTES);
-			serializedBuilder = bab;
+			serializedBuilder = new ByteArrayBuilder(projectedLength + VERSION_BYTES_PLUS_CRLF_LEN);
+			appendTo(serializedBuilder);
 		}
 		return serializedBuilder;
+	}
+
+	public void appendTo(ByteArrayBuilder bab) {
+		bab.append(VERSION_BYTES_PLUS_CRLF);
+		for (String key : headerMap.keySet()) {
+			for (String value : headerMap.get(key)) {
+				bab.append(key);
+				bab.append(COLON_BYTES);
+				bab.append(value);
+				bab.append(CRLF_BYTES);
+			}
+		}
+		bab.append(CRLF_BYTES);
 	}
 
 	/**

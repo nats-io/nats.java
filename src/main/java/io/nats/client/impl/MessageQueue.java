@@ -30,18 +30,18 @@ class MessageQueue {
     private final static int RUNNING = 1;
     private final static int DRAINING = 2;
 
-    private final AtomicLong length;
-    private final AtomicLong sizeInBytes;
+    protected final AtomicLong length;
+    protected final AtomicLong sizeInBytes;
     private final AtomicInteger running;
-    private final boolean singleThreadedReader;
-    private final LinkedBlockingQueue<NatsMessage> queue;
+    protected final boolean singleThreadedReader;
+    protected final LinkedBlockingQueue<NatsMessage> queue;
     private final Lock filterLock;
     private final boolean discardWhenFull;
 
     // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poisonPill is used to break out of timed waits on the blocking queue.
     // A simple == is used to check if any message in the queue is this message.
-    private final NatsMessage poisonPill;
+    protected final NatsMessage poisonPill;
 
     /**
      * If publishHighwaterMark is set to 0 the underlying queue can grow forever (or until the max size of a linked blocking queue that is).
@@ -155,18 +155,18 @@ class MessageQueue {
         NatsMessage msg = null;
         
         if (timeout == null || this.isDraining()) { // try immediately
-            msg = this.queue.poll();
+            msg = internalPoll();
         } else {
             long nanos = timeout.toNanos();
 
             if (nanos != 0) {
-                msg = this.queue.poll(nanos, TimeUnit.NANOSECONDS);
+                msg = internalPoll(nanos, TimeUnit.NANOSECONDS);
             } else {
                 // A value of 0 means wait forever
                 // We will loop and wait for a LONG time
                 // if told to suspend/drain the poison pill will break this loop
                 while (this.isRunning()) {
-                    msg = this.queue.poll(100, TimeUnit.DAYS);
+                    msg = internalPoll(100, TimeUnit.DAYS);
                     if (msg != null) break;
                 }
             }
@@ -195,72 +195,31 @@ class MessageQueue {
 
         return msg;
     }
-    
-    // Waits up to the timeout to try to accumulate multiple messages
-    // Use the next field to read the entire set accumulated.
-    // maxSize and maxMessages are both checked and if either is exceeded
-    // the method returns.
-    //
-    // A timeout of 0 will wait forever (or until the queue is stopped/drained)
-    //
-    // Only works in single reader mode, because we want to maintain order.
-    // accumulate reads off the concurrent queue one at a time, so if multiple
-    // readers are present, you could get out of order message delivery.
-    NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
-            throws InterruptedException {
 
-        if (!this.singleThreadedReader) {
-            throw new IllegalStateException("Accumulate is only supported in single reader mode.");
+    static class AccumulateResult {
+        NatsMessage head;
+        int count = 0;
+        int size = 0;
+
+        public AccumulateResult(NatsMessage head) {
+            this.head = head;
         }
+    }
 
-        if (!this.isRunning()) {
-            return null;
-        }
+    protected NatsMessage internalPeek() {
+        return queue.peek();
+    }
 
-        NatsMessage msg = this.poll(timeout);
+    protected NatsMessage internalPoll() {
+        return queue.poll();
+    }
 
-        if (msg == null) {
-            return null;
-        }
+    protected NatsMessage internalPoll(long timeout, TimeUnit unit) throws InterruptedException {
+        return queue.poll(timeout, unit);
+    }
 
-        long size = msg.getSizeInBytes();
-
-        if (maxMessages <= 1 || size >= maxSize) {
-            this.sizeInBytes.addAndGet(-size);
-            this.length.decrementAndGet();
-            return msg;
-        }
-
-        long count = 1;
-        NatsMessage cursor = msg;
-
-        while (cursor != null) {
-            NatsMessage next = this.queue.peek();
-            if (next != null && next != this.poisonPill) {
-                long s = next.getSizeInBytes();
-
-                if (maxSize<0 || (size + s) < maxSize) { // keep going
-                    size += s;
-                    count++;
-                    
-                    cursor.next = this.queue.poll();
-                    cursor = cursor.next;
-
-                    if (count == maxMessages) {
-                        break;
-                    }
-                } else { // One more is too far
-                    break;
-                }
-            } else { // Didn't meet max condition
-                break;
-            }
-        }
-
-        this.sizeInBytes.addAndGet(-size);
-        this.length.addAndGet(-count);
-
-        return msg;
+    protected NatsMessage getPeekAsPoll() {
+        return queue.poll();
     }
 
     // Returns a message or null
@@ -284,7 +243,7 @@ class MessageQueue {
                 throw new IllegalStateException("Filter is only supported when the queue is paused");
             }
             ArrayList<NatsMessage> newQueue = new ArrayList<>();
-            NatsMessage cursor = this.queue.poll();
+            NatsMessage cursor = internalPoll();
             while (cursor != null) {
                 if (!p.test(cursor)) {
                     newQueue.add(cursor);
@@ -292,7 +251,7 @@ class MessageQueue {
                     this.sizeInBytes.addAndGet(-cursor.getSizeInBytes());
                     this.length.decrementAndGet();
                 }
-                cursor = this.queue.poll();
+                cursor = internalPoll();
             }
             this.queue.addAll(newQueue);
         } finally {    

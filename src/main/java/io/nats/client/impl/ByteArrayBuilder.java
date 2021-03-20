@@ -55,13 +55,9 @@ public class ByteArrayBuilder {
     }
 
     public ByteArrayBuilder(int initialSize, Charset defaultCharset, int allocationSize) {
-        this.allocationSize = defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
+        this.allocationSize = allocationSize;
         this.buffer = ByteBuffer.allocate(computeAmountToAllocate(0, initialSize));
         this.defaultCharset = defaultCharset;
-    }
-
-    public void clear() {
-        buffer.clear();
     }
 
     public int length() {
@@ -100,7 +96,7 @@ public class ByteArrayBuilder {
         return ((currentPosition + bytesNeeded + allocationSize) / allocationSize) * allocationSize;
     }
 
-    public void ensureCapacity(int bytesNeeded) {
+    public ByteArrayBuilder ensureCapacity(int bytesNeeded) {
         int bytesAvailable = buffer.capacity() - buffer.position();
         if (bytesAvailable < bytesNeeded) {
             ByteBuffer newBuffer
@@ -109,6 +105,17 @@ public class ByteArrayBuilder {
             newBuffer.put(buffer.array(), 0, buffer.position());
             buffer = newBuffer;
         }
+        return this;
+    }
+
+    public ByteArrayBuilder clear() {
+        buffer.clear();
+        return this;
+    }
+
+    public ByteArrayBuilder setAllocationSize(int allocationSize) {
+        this.allocationSize = allocationSize;
+        return this;
     }
 
     /**

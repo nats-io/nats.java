@@ -42,7 +42,7 @@ public class MessageQueueTests {
     @Test
     public void testAccumulateThrowsOnNonSingleReader() {
         assertThrows(IllegalStateException.class, () -> {
-            MessageQueue q = new MessageQueue(false);
+            WriteMessageQueue q = new WriteMessageQueue(false);
             q.push(new ProtocolMessage(PING));
             q.accumulate(100,1,null);
         });
@@ -246,28 +246,28 @@ public class MessageQueueTests {
 
     @Test
     public void testEmptyAccumulate() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
-        NatsMessage msg = q.accumulate(1,1,null);
-        assertNull(msg);
+        WriteMessageQueue q = new WriteMessageQueue(true);
+        MessageQueue.AccumulateResult result = q.accumulate(1,1,null);
+        assertNull(result);
         assertTrue(q.isSingleReaderMode());
     }
 
     @Test
     public void testSingleAccumulate() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         q.push(new ProtocolMessage(PING));
-        NatsMessage msg = q.accumulate(100,1,null);
-        assertNotNull(msg);
+        MessageQueue.AccumulateResult result = q.accumulate(100,1,null);
+        assertNotNull(result);
     }
 
     @Test
     public void testMultiAccumulate() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessage msg = q.accumulate(100,3,null);
-        assertNotNull(msg);
+        MessageQueue.AccumulateResult result = q.accumulate(100,3,null);
+        assertNotNull(result);
     }
 
     private void checkCount(NatsMessage first, int expected) {
@@ -282,92 +282,92 @@ public class MessageQueueTests {
 
     @Test
     public void testPartialAccumulateOnCount() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessage msg = q.accumulate(100,3,null);
-        checkCount(msg, 3);
+        MessageQueue.AccumulateResult result = q.accumulate(100,3,null);
+        checkCount(result.head, 3);
 
-        msg = q.accumulate(100, 3, null); // should only get the last one
-        checkCount(msg, 1);
+        result = q.accumulate(100, 3, null); // should only get the last one
+        checkCount(result.head, 1);
     }
 
     @Test
     public void testMultipleAccumulateOnCount() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessage msg = q.accumulate(100,2,null);
-        checkCount(msg, 2);
+        MessageQueue.AccumulateResult result = q.accumulate(100,2,null);
+        checkCount(result.head, 2);
 
-        msg = q.accumulate(100, 2, null);
-        checkCount(msg, 2);
+        result = q.accumulate(100, 2, null);
+        checkCount(result.head, 2);
 
-        msg = q.accumulate(100, 2, null);
-        checkCount(msg, 2);
+        result = q.accumulate(100, 2, null);
+        checkCount(result.head, 2);
     }
     
 
     @Test
     public void testPartialAccumulateOnSize() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessage msg = q.accumulate(20,100,null); // each one is 6 so 20 should be 3 messages
-        checkCount(msg, 3);
+        MessageQueue.AccumulateResult result = q.accumulate(20,100,null); // each one is 6 so 20 should be 3 messages
+        checkCount(result.head, 3);
 
-        msg = q.accumulate(20,100, null); // should only get the last one
-        checkCount(msg, 1);
+        result = q.accumulate(20,100, null); // should only get the last one
+        checkCount(result.head, 1);
     }
 
     @Test
     public void testMultipleAccumulateOnSize() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessage msg = q.accumulate(14,100,null); // each one is 6 so 14 should be 2 messages
-        checkCount(msg, 2);
+        MessageQueue.AccumulateResult result = q.accumulate(14,100,null); // each one is 6 so 14 should be 2 messages
+        checkCount(result.head, 2);
 
-        msg = q.accumulate(14,100, null);
-        checkCount(msg, 2);
+        result = q.accumulate(14,100, null);
+        checkCount(result.head, 2);
 
-        msg = q.accumulate(14,100, null);
-        checkCount(msg, 2);
+        result = q.accumulate(14,100, null);
+        checkCount(result.head, 2);
     }
     
     @Test
     public void testAccumulateAndPop() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsMessage msg = q.accumulate(100,3,null);
-        checkCount(msg, 3);
+        MessageQueue.AccumulateResult result = q.accumulate(100,3,null);
+        checkCount(result.head, 3);
 
-        msg = q.popNow();
+        NatsMessage msg = q.popNow();
         checkCount(msg, 1);
 
-        msg = q.accumulate(100, 3, null); // should be empty
-        checkCount(msg, 0);
+        result = q.accumulate(100, 3, null); // should be empty
+        assertNull(result);
     }
 
     @Test
     public void testMultipleWritersOneAccumulator() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         int threads = 4;
         int msgPerThread = 77;
         int msgCount = threads * msgPerThread;
@@ -387,8 +387,8 @@ public class MessageQueueTests {
 
 
         while (count.get() < msgCount && (tries > 0 || sent.get() < msgCount)) {
-            NatsMessage msg = q.accumulate(5000, 10, Duration.ofMillis(5000));
-
+            MessageQueue.AccumulateResult result = q.accumulate(5000, 10, Duration.ofMillis(5000));
+            NatsMessage msg = result.head;
             while (msg != null) {
                 count.incrementAndGet();
                 msg = msg.next;
@@ -407,16 +407,16 @@ public class MessageQueueTests {
     @Test
     public void testInteruptAccumulate() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){} q.pause();});
         t.start();
-        NatsMessage msg = q.accumulate(100,100, Duration.ZERO);
-        assertNull(msg);
+        MessageQueue.AccumulateResult result = q.accumulate(100,100, Duration.ZERO);
+        assertNull(result);
     }
     
     @Test
     public void testLength() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         NatsMessage msg1 = new ProtocolMessage(PING);
         NatsMessage msg2 = new ProtocolMessage(PING);
         NatsMessage msg3 = new ProtocolMessage(PING);
@@ -435,7 +435,7 @@ public class MessageQueueTests {
     
     @Test
     public void testSizeInBytes() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -455,7 +455,7 @@ public class MessageQueueTests {
 
     @Test
     public void testFilterTail() throws InterruptedException, UnsupportedEncodingException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -479,7 +479,7 @@ public class MessageQueueTests {
 
     @Test
     public void testFilterHead() throws InterruptedException, UnsupportedEncodingException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -503,7 +503,7 @@ public class MessageQueueTests {
 
     @Test
     public void testFilterMiddle() throws InterruptedException, UnsupportedEncodingException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -527,16 +527,16 @@ public class MessageQueueTests {
 
     @Test
     public void testPausedAccumulate() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        WriteMessageQueue q = new WriteMessageQueue(true);
         q.pause();
-        NatsMessage msg = q.accumulate(1,1,null);
-        assertNull(msg);
+        MessageQueue.AccumulateResult result = q.accumulate(1,1,null);
+        assertNull(result);
     }
 
     @Test
     public void testThrowOnFilterIfRunning() {
         assertThrows(IllegalStateException.class, () -> {
-            MessageQueue q = new MessageQueue(true);
+            WriteMessageQueue q = new WriteMessageQueue(true);
             q.filter(msg -> true);
         });
     }

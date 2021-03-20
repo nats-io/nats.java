@@ -104,11 +104,15 @@ class NatsStatistics implements Statistics {
         this.outMsgs.incrementAndGet();
     }
 
-    void incrementInBytes(long bytes) {
+    void addOutMsgs(long delta) {
+        this.outMsgs.addAndGet(delta);
+    }
+
+    void addInBytes(long bytes) {
         this.inBytes.addAndGet(bytes);
     }
 
-    void incrementOutBytes(long bytes) {
+    void addOutBytes(long bytes) {
         this.outBytes.addAndGet(bytes);
     }
 
