@@ -129,7 +129,6 @@ class NatsConnectionWriter implements Runnable {
                         sendBuilder.append(bytes);
                     }
                     sendBuilder.append(CRLF_BYTES);
-System.out.println(sendBuilder.toString().replace("\r\n", "++"));
                 }
 
                 len = sendBuilder.length();
