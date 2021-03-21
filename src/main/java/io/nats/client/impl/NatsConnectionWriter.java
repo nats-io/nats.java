@@ -103,34 +103,34 @@ class NatsConnectionWriter implements Runnable {
     }
 
     synchronized void sendMessageBatch(AccumulateResult result, DataPort dataPort, NatsStatistics stats) throws IOException {
-
         sendBuilder.clear();
 
         NatsMessage msg = result.head;
         sendBuilder.ensureCapacity(result.size);
 
         while (msg != null) {
-            int len = sendBuilder.length();
-            if (len >= maxWriteSize) {
-                write(dataPort, stats, len);
-                sendBuilder.clear();
-            }
-            else {
-                msg.appendProtocolTo(sendBuilder);
-                sendBuilder.append(CRLF_BYTES);
+            msg.appendProtocolTo(sendBuilder);
+            sendBuilder.append(CRLF_BYTES);
 
-                if (msg.isRegular()) {
-                    if (msg.hasHeaders()) {
-                        msg.getHeaders().appendTo(sendBuilder);
-                    }
-
-                    byte[] bytes = msg.getData(); // guaranteed to not be null
-                    if (bytes != null && bytes.length > 0) {
-                        sendBuilder.append(bytes);
-                    }
-                    sendBuilder.append(CRLF_BYTES);
+            if (msg.isRegular()) {
+                if (msg.hasHeaders()) {
+                    msg.getHeaders().appendTo(sendBuilder);
                 }
-                msg = msg.next;
+
+                byte[] bytes = msg.getData(); // guaranteed to not be null
+                if (bytes != null && bytes.length > 0) {
+                    sendBuilder.append(bytes);
+                }
+                sendBuilder.append(CRLF_BYTES);
+            }
+
+            msg = msg.next;
+            if (msg != null) {
+                int len = sendBuilder.length();
+                if (len >= maxWriteSize) {
+                    write(dataPort, stats, len);
+                    sendBuilder.clear();
+                }
             }
         }
         write(dataPort, stats, sendBuilder.length());
