@@ -105,12 +105,12 @@ class NatsConnectionWriter implements Runnable {
     synchronized void sendMessageBatch(AccumulateResult result, DataPort dataPort, NatsStatistics stats) throws IOException {
 
         sendBuilder.clear();
-        int len = 0;
 
         NatsMessage msg = result.head;
         sendBuilder.ensureCapacity(result.size);
 
         while (msg != null) {
+            int len = sendBuilder.length();
             if (len >= maxWriteSize) {
                 write(dataPort, stats, len);
                 sendBuilder.clear();
@@ -130,21 +130,19 @@ class NatsConnectionWriter implements Runnable {
                     }
                     sendBuilder.append(CRLF_BYTES);
                 }
-
-                len = sendBuilder.length();
+                msg = msg.next;
             }
-            msg = msg.next;
         }
-
+        write(dataPort, stats, sendBuilder.length());
         stats.addOutMsgs(result.count);
-
-        write(dataPort, stats, len);
     }
 
     private void write(DataPort dataPort, NatsStatistics stats, int len) throws IOException {
-        dataPort.write(sendBuilder.internalArray(), len);
-        connection.getNatsStatistics().registerWrite(len);
-        stats.addOutBytes(len);
+        if (len > 0) {
+            dataPort.write(sendBuilder.internalArray(), len);
+            connection.getNatsStatistics().registerWrite(len);
+            stats.addOutBytes(len);
+        }
     }
 
     @Override
