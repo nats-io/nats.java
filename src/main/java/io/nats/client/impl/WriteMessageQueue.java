@@ -60,7 +60,7 @@ class WriteMessageQueue extends MessageQueue {
         }
 
         AccumulateResult result = new AccumulateResult(msg);
-        result.size = msg.estimateSizeInBytes();
+        result.size = msg.getSizeInBytes();
 
         if (maxMessages <= 1 || result.size >= maxSize) {
             this.sizeInBytes.addAndGet(-result.size);
@@ -74,7 +74,7 @@ class WriteMessageQueue extends MessageQueue {
         while (cursor != null) {
             NatsMessage next = internalPeek();
             if (next != null && next != this.poisonPill) {
-                long s = next.estimateSizeInBytes();
+                long s = next.getSizeInBytes();
 
                 if (maxSize<0 || (result.size + s) < maxSize) { // keep going
                     result.size += s;
@@ -98,6 +98,26 @@ class WriteMessageQueue extends MessageQueue {
         this.length.addAndGet(-result.count);
 
         return result;
+    }
+
+    boolean push(NatsMessage msg, boolean internal) {
+
+        this.filterLock.lock();
+        try {
+            // If we aren't running, then we need to obey the filter lock
+            // to avoid ordering problems
+            if (!internal && this.discardWhenFull) {
+                return this.queue.offer(msg);
+            }
+            if (!this.offer(msg)) {
+                throw new IllegalStateException("Output queue is full " + queue.size());
+            }
+            this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
+            this.length.incrementAndGet();
+            return true;
+        } finally {
+            this.filterLock.unlock();
+        }
     }
 
     @Override

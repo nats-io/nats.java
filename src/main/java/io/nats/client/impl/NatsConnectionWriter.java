@@ -184,16 +184,16 @@ class NatsConnectionWriter implements Runnable {
     }
 
     boolean canQueue(NatsMessage msg, long maxSize) {
-        return (maxSize < 0 || (outgoing.sizeInBytes() + msg.estimateSizeInBytes()) < maxSize);
+        return (maxSize < 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < maxSize);
     }
 
     boolean queue(NatsMessage msg) {
-        return this.outgoing.push(msg);
+        return this.outgoing.push(msg, false);
     }
 
     void queueInternalMessage(NatsMessage msg) {
         if (this.reconnectMode.get()) {
-            this.reconnectOutgoing.push(msg);
+            this.reconnectOutgoing.push(msg, false);
         } else {
             this.outgoing.push(msg, true);
         }

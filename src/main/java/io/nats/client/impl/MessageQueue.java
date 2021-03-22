@@ -26,17 +26,17 @@ import java.util.function.Predicate;
 import static io.nats.client.support.NatsConstants.EMPTY_BODY;
 
 class MessageQueue {
-    private final static int STOPPED = 0;
-    private final static int RUNNING = 1;
-    private final static int DRAINING = 2;
+    protected final static int STOPPED = 0;
+    protected final static int RUNNING = 1;
+    protected final static int DRAINING = 2;
 
     protected final AtomicLong length;
     protected final AtomicLong sizeInBytes;
-    private final AtomicInteger running;
+    protected final AtomicInteger running;
     protected final boolean singleThreadedReader;
     protected final LinkedBlockingQueue<NatsMessage> queue;
-    private final Lock filterLock;
-    private final boolean discardWhenFull;
+    protected final Lock filterLock;
+    protected final boolean discardWhenFull;
 
     // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poisonPill is used to break out of timed waits on the blocking queue.
@@ -117,8 +117,7 @@ class MessageQueue {
             // If we aren't running, then we need to obey the filter lock
             // to avoid ordering problems
             if (!internal && this.discardWhenFull) {
-                boolean myOffer = this.queue.offer(msg);
-                return myOffer;
+                return this.queue.offer(msg);
             }
             if (!this.offer(msg)) {
                 throw new IllegalStateException("Output queue is full " + queue.size());

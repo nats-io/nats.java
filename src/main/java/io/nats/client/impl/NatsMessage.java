@@ -42,7 +42,7 @@ public class NatsMessage implements Message {
 
     // incoming specific : subject, replyTo, data and these fields
     protected String sid;
-    protected int protocolLineLength;
+    protected int protocolLineLength = -1;
 
     // protocol specific : just this field
     protected ByteArrayBuilder protocolBytes;
@@ -53,8 +53,6 @@ public class NatsMessage implements Message {
     protected int dataLen = 0;
     protected int totLen = 0;
     protected int replyToLen = 0;
-
-    protected boolean dirty = false;
 
     protected NatsSubscription subscription;
 
@@ -93,30 +91,13 @@ public class NatsMessage implements Message {
         this.replyTo = replyTo;
         this.headers = headers;
         this.utf8mode = utf8mode;
-
-        dirty = true;
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // Only for implementors. The user facing message is the only current one that calculates.
-    // ----------------------------------------------------------------------------------------------------
-    protected boolean calculateIfDirty() {
-        if (dirty || (hasHeaders() && headers.isDirty())) {
-            // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
-            // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (hdrLen + dataLen)
-            protocolBytes = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + totLen);
-            appendProtocolTo(protocolBytes);
-            dirty = false;
-            return true;
-        }
-        return false;
     }
 
     // ----------------------------------------------------------------------------------------------------
     // Client and Message Internal Methods
     // ----------------------------------------------------------------------------------------------------
     void appendProtocolTo(ByteArrayBuilder bab) {
-        estimateSizeInBytes(); // prepares replyToLen dataLen hdrLen totLen
+        _lengths(); // prepares replyToLen dataLen hdrLen
 
         // protocol come first
         if (hdrLen > 0) {
@@ -145,36 +126,62 @@ public class NatsMessage implements Message {
         bab.append(Integer.toString(totLen));
     }
 
+    private boolean headersDirty() {
+        return headers != null && headers.isDirty();
+    }
+
     int getSizeInBytes() {
-        if (calculateIfDirty() || sizeInBytes == -1) {
-            sizeInBytes = protocolLineLength;
-            if (protocolBytes != null) {
-                sizeInBytes += protocolBytes.length();
+        if (sizeInBytes == -1 || headersDirty()) {
+            _lengths();
+
+            if (protocolLineLength == -1) {
+                if (hdrLen > 0) {
+                    sizeInBytes = HPUB_SP_BYTES_LEN + hdrLen;
+                } else {
+                    sizeInBytes = PUB_SP_BYTES_LEN;
+                }
+                sizeInBytes += subject.getBytes(utf8mode ? UTF_8 : US_ASCII).length + 1;
+
+                // reply to if it's there
+                if (replyToLen > 0) {
+                    sizeInBytes += replyToLen + 1; // space
+                }
+
+                sizeInBytes += numberStringLength(totLen);
             }
-            if (hdrLen > 0) {
-                sizeInBytes += hdrLen + 2; // CRLF
+            else {
+                sizeInBytes = protocolLineLength; // pll set manually on incoming messages
             }
+
             if (data.length == 0) {
                 sizeInBytes += 2; // CRLF
             } else {
                 sizeInBytes += dataLen + 4; // CRLF
             }
         }
+
         return sizeInBytes;
     }
 
-    int estimateSizeInBytes() {
+    private int numberStringLength(int n) {
+        if (n < 10) return 1;
+        if (n < 100) return 2;
+        if (n < 1_000) return 3;
+        if (n < 10_000) return 4; // probably never happen
+        if (n < 100_000) return 5; // probably never happen
+        if (n < 1_000_000) return 6; // probably never happen
+        return 7; // this will never happen
+    }
+
+    private void _lengths() {
         replyToLen = replyTo == null ? 0 : replyTo.length();
         dataLen = data.length;
-
         if (headers != null && !headers.isEmpty()) {
             hdrLen = headers.serializedLength();
         } else {
             hdrLen = 0;
         }
         totLen = hdrLen + dataLen;
-
-        return protocolLineLength + replyToLen + totLen + 16; // 16 enough for protocol and CRLFS
     }
 
     boolean isRegular() {
@@ -186,13 +193,15 @@ public class NatsMessage implements Message {
     }
 
     ByteArrayBuilder getProtocolBytes() {
-        calculateIfDirty();
+        if (protocolBytes == null || headersDirty()) {
+            protocolBytes = new ByteArrayBuilder(getSizeInBytes());
+            appendProtocolTo(protocolBytes);
+        }
         return protocolBytes;
     }
 
     int getControlLineLength() {
-        calculateIfDirty();
-        return (protocolBytes != null) ? protocolBytes.length() + 2 : -1;
+        return (getProtocolBytes() == null) ? -1 : protocolBytes.length() + 2;
     }
 
     Headers getOrCreateHeaders() {
@@ -313,7 +322,7 @@ public class NatsMessage implements Message {
     }
 
     String toDetailString() {
-        calculateIfDirty();
+        getProtocolBytes(); // ensures prepared
         String hdrString = hasHeaders() ? headers.getSerialized().toString().replace("\r", "+").replace("\n", "+") : "";
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +
@@ -504,9 +513,8 @@ public class NatsMessage implements Message {
     }
 
     static class InternalMessage extends NatsMessage {
-        @Override
-        protected boolean calculateIfDirty() {
-            return false;
+        int getControlLineLength() {
+            return protocolLineLength;
         }
     }
 
@@ -524,8 +532,8 @@ public class NatsMessage implements Message {
         }
 
         @Override
-        int estimateSizeInBytes() {
-            return protocolBytes.length() + 2;
+        int getSizeInBytes() {
+            return protocolBytes.length() + 2; // CRLF
         }
 
         @Override
@@ -541,6 +549,11 @@ public class NatsMessage implements Message {
         @Override
         void appendProtocolTo(ByteArrayBuilder bab) {
             bab.append(protocolBytes);
+        }
+
+        @Override
+        ByteArrayBuilder getProtocolBytes() {
+            return protocolBytes;
         }
 
         @Override

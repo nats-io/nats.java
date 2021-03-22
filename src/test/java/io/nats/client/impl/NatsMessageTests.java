@@ -167,7 +167,6 @@ public class NatsMessageTests {
         assertNotNull(m.getHeaders());
 
         m.headers = null; // we can do this because we have package access
-        m.dirty = true; // for later tests, also is true b/c we nerfed the headers
         assertFalse(m.hasHeaders());
         assertNull(m.getHeaders());
         assertNotNull(m.toString()); // COVERAGE
