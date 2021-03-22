@@ -242,10 +242,6 @@ public class NatsMessage implements Message {
         return replyTo;
     }
 
-    ByteArrayBuilder getSerializedHeader() {
-        return hasHeaders() ? headers.getSerialized() : null;
-    }
-
     @Override
     public boolean hasHeaders() {
         return headers != null && !headers.isEmpty();
@@ -513,6 +509,7 @@ public class NatsMessage implements Message {
     }
 
     static class InternalMessage extends NatsMessage {
+        @Override
         int getControlLineLength() {
             return protocolLineLength;
         }
@@ -534,6 +531,11 @@ public class NatsMessage implements Message {
         @Override
         int getSizeInBytes() {
             return protocolBytes.length() + 2; // CRLF
+        }
+
+        @Override
+        int getControlLineLength() {
+            return protocolBytes.length();
         }
 
         @Override
