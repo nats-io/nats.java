@@ -109,12 +109,28 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     public void updateStream() throws Exception {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
-            addTestStream(jsm);
+            StreamInfo si = addTestStream(jsm);
+            StreamConfiguration sc = si.getConfiguration();
+            assertNotNull(sc);
+            assertEquals(STREAM, sc.getName());
+            assertNotNull(sc.getSubjects());
+            assertEquals(2, sc.getSubjects().size());
+            assertEquals(subject(0), sc.getSubjects().get(0));
+            assertEquals(subject(1), sc.getSubjects().get(1));
+            assertEquals(-1, sc.getMaxBytes());
+            assertEquals(-1, sc.getMaxMsgSize());
+            assertEquals(Duration.ZERO, sc.getMaxAge());
+            assertEquals(StorageType.Memory, sc.getStorageType());
+            assertEquals(DiscardPolicy.Old, sc.getDiscardPolicy());
+            assertEquals(1, sc.getReplicas());
+            assertFalse(sc.getNoAck());
+            assertEquals(Duration.ofMinutes(2), sc.getDuplicateWindow());
+            assertNull(sc.getTemplateOwner());
 
-            StreamConfiguration sc = StreamConfiguration.builder()
+            sc = StreamConfiguration.builder()
                     .name(STREAM)
                     .storageType(StorageType.Memory)
-                    .subjects(subject(0), subject(1))
+                    .subjects(subject(0), subject(1), subject(2))
                     .maxBytes(43)
                     .maxMsgSize(44)
                     .maxAge(Duration.ofDays(100))
@@ -122,16 +138,17 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .noAck(true)
                     .duplicateWindow(Duration.ofMinutes(3))
                     .build();
-            StreamInfo si = jsm.updateStream(sc);
+            si = jsm.updateStream(sc);
             assertNotNull(si);
 
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(STREAM, sc.getName());
             assertNotNull(sc.getSubjects());
-            assertEquals(2, sc.getSubjects().size());
+            assertEquals(3, sc.getSubjects().size());
             assertEquals(subject(0), sc.getSubjects().get(0));
             assertEquals(subject(1), sc.getSubjects().get(1));
+            assertEquals(subject(2), sc.getSubjects().get(2));
             assertEquals(43, sc.getMaxBytes());
             assertEquals(44, sc.getMaxMsgSize());
             assertEquals(Duration.ofDays(100), sc.getMaxAge());
