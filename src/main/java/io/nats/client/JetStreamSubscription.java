@@ -13,8 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.ConsumerInfo;
-import io.nats.client.impl.JetStreamApiException;
+import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.time.Duration;

@@ -1,8 +1,9 @@
 package io.nats.examples.benchmark;
 
 import io.nats.client.*;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.NatsMessage;
-import io.nats.client.impl.StreamConfiguration;
 
 import java.nio.charset.StandardCharsets;
 
@@ -19,7 +20,7 @@ public class JsPublishTimer {
             StreamConfiguration sc = StreamConfiguration.builder()
                     .name(STREAM)
                     .subjects(SUBJECT)
-                    .storageType(StreamConfiguration.StorageType.Memory)
+                    .storageType(StorageType.Memory)
                     .build();
 
             JetStreamManagement jsm = nc.jetStreamManagement();

@@ -12,19 +12,26 @@ This folder contains a number of examples:
 1. `NatsSub.java` - reads messages synchronously
 1. `NatsSubDispatch.java` - uses asynchronous dispatching for incoming messages
 1. `NatsSubQueue.java` - subscribes on a queue for message load balancing
-1. `NatsSubQueueFull.java` - fuller publish and queue subscribe example 
+1. `NatsSubQueueFull.java` - fuller publish and queue subscribe example
    
 ### JetStream Examples
 1. `NatsJsPub.java` - publish JetStream messages
+1. `NatsJsPubAsync.java` - publish JetStream messages asynchronously
 1. `NatsJsPubVsRegularPub.java` - publish JetStream messages versus regular publish to the same stream.
-1. `NatsJsPullSub.java` - demonstrate a JetStream pull subscription
-1. `NatsJsPullSubWithExpireFuture.java` - demonstrate a JetStream pull subscription with a expiration
-1. `NatsJsPullSubWithExpireImmediately.java` - demonstrate a JetStream pull subscription with an immediate expiration
-1. `NatsJsPullSubWithNoWait.java` - demonstrate a JetStream pull subscription with the no wait option
-1. `NatsJsPushSub.java` - demonstrate JetStream push subscribing to read messages synchronously and manually acknowledges messages.
-1. `NatsJsPushSubQueue.java` - demonstrate JetStream push subscribing to read messages in a load balance queue.
-1. `NatsJsPushSubWithHandler.java` - demonstrate JetStream push subscribing to read messages asynchronously and manually acknowledges messages.
-1. `NatsJsUtils.java` - utilities used by examples for reuse such as creating streams and publishing 
+1. `NatsJsPullSubBatchSize.java` - pull subscription example specifying batch size and manual handling
+1. `NatsJsPullSubBatchSizeUseCases.java` - pull subscription example specifying batch size with examples of manual handling various cases of available messages  
+1. `NatsJsPullSubExpire.java` - pull subscription example specifying expiration and manual handling
+1. `NatsJsPullSubExpireUseCases.java` - pull subscription example specifying expiration with examples of manual handling various cases of available messages
+1. `NatsJsPullSubFetch.java` - pull subscription example using fetch list macro function
+1. `NatsJsPullSubFetchUseCases.java` - pull subscription example using fetch list macro function with examples of various cases of available messages
+1. `NatsJsPullSubIterate.java` - pull subscription example using iterate macro function
+1. `NatsJsPullSubIterateUseCases.java` - pull subscription example using iterate macro function with examples of various cases of available messages
+1. `NatsJsPullSubMultiple.java` - multiple pull subscriptions using the same durable consumer work like a sharing queue
+1. `NatsJsPullSubNoWaitUseCases.java` - pull subscription example specifying no wait with examples of manual handling various cases of available messages
+1. `NatsJsPushSub.java` - push subscribing to read messages synchronously and manually acknowledges messages.
+1. `NatsJsPushSubDeliverSubject.java` - push subscribing with a deliver subject and how the subject can be read as a regular Nats Message  
+1. `NatsJsPushSubQueue.java` - push subscribing to read messages in a load balance queue.
+1. `NatsJsPushSubWithHandler.java` - push subscribing to read messages asynchronously and manually acknowledge messages.
 
 ### JetStream Management / Admin Examples
 1. `NatsJsManageConsumers.java` - demonstrate the management of consumers
@@ -35,6 +42,12 @@ This folder contains a number of examples:
 1. `benchmark` - benchmark that supports multiple threads
 1. `stan` - A larger example that implements a server that can respond on multiple subjects, and several clients that send requests on those various subjects.
 1. `stability` - a small producer and subscriber that run forever printing some status every so often. These are intended for long running tests without burning the CPU.
+
+### Example Support
+1. `ExampleArgs.java` - Helper to manage command line arguments.
+1. `ExampleAuthHandler.java` - Example of an auth handler.
+1. `ExampleUtils.java` - Miscellaneous utils used to start or in running examples.
+1. `NatsJsUtils.java` - Miscellaneous utils specific to JetStream examples.
 
 All of these examples take the server URL on the command line, which means that you can use the `tls` and `opentls` schemas to test over a secure connection.
 

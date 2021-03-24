@@ -14,8 +14,8 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
-import io.nats.client.impl.StreamConfiguration;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -93,7 +93,7 @@ public class NatsJsPrefix {
             System.out.println("\n----------\n1S. Add stream from source account.");
             StreamConfiguration scSrc = StreamConfiguration.builder()
                     .name(streamMadeBySrc)
-                    .storageType(StreamConfiguration.StorageType.Memory)
+                    .storageType(StorageType.Memory)
                     .subjects(subjectMadeBySrc)
                     .build();
             printStreamInfo(jsmSrc.addStream(scSrc));
@@ -101,7 +101,7 @@ public class NatsJsPrefix {
             System.out.println("----------\n1T. Add stream from target account.");
             StreamConfiguration scTar = StreamConfiguration.builder()
                     .name(streamMadeByTar)
-                    .storageType(StreamConfiguration.StorageType.Memory)
+                    .storageType(StorageType.Memory)
                     .subjects(subjectMadeByTar)
                     .build();
             printStreamInfo(jsmTar.addStream(scTar));

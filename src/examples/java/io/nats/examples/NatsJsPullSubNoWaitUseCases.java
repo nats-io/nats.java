@@ -18,6 +18,8 @@ import io.nats.client.*;
 import java.time.Duration;
 import java.util.List;
 
+import static io.nats.examples.NatsJsUtils.*;
+
 /**
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
  * batch size and no wait pull: <code>pullNoWait(int batchSize)</code>,
@@ -29,7 +31,7 @@ import java.util.List;
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubNoWaitUseCases extends NatsJsPullSubBase {
+public class NatsJsPullSubNoWaitUseCases {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -41,7 +43,7 @@ public class NatsJsPullSubNoWaitUseCases extends NatsJsPullSubBase {
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
 
-            createStream(nc, exArgs.stream, exArgs.subject);
+            createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -49,7 +51,7 @@ public class NatsJsPullSubNoWaitUseCases extends NatsJsPullSubBase {
             // Build our subscription options. Durable is REQUIRED for pull based subscriptions
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable) // required
-                    // .configuration(...)   // if you want a custom io.nats.client.impl.ConsumerConfiguration
+                    // .configuration(...)   // if you want a custom io.nats.client.api.ConsumerConfiguration
                     .build();
 
             // 0.1 Initialize. subscription

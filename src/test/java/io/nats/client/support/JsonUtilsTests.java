@@ -13,8 +13,6 @@
 
 package io.nats.client.support;
 
-import io.nats.client.impl.DateTimeUtils;
-import io.nats.client.impl.JsonUtils;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
@@ -48,36 +46,36 @@ public final class JsonUtilsTests {
     public void testGetJSONObject() {
         // object is there
         String json = "{\"object\": {\"field\": \"val\"}, \"other\":{}}";
-        String object = JsonUtils.getJSONObject("object", json);
+        String object = JsonUtils.getJsonObject("object", json);
         assertEquals("{\"field\": \"val\"}", object);
 
         // object isn't
         json = "{\"other\":{}}";
-        object = JsonUtils.getJSONObject("object", json);
+        object = JsonUtils.getJsonObject("object", json);
         assertEquals(JsonUtils.EMPTY_JSON, object);
 
         // object there but incomplete
         json = "{\"object\": {\"field\": \"val\"";
-        object = JsonUtils.getJSONObject("object", json);
+        object = JsonUtils.getJsonObject("object", json);
         assertEquals(JsonUtils.EMPTY_JSON, object);
     }
 
     @Test
     public void testGetObjectArray() {
         String json = ResourceUtils.dataAsString("ConsumerListResponse.json");
-        List<String> list = JsonUtils.getObjectArray("consumers", json);
+        List<String> list = JsonUtils.getObjectList("consumers", json);
         assertEquals(2, list.size());
     }
 
     @Test
     public void testBeginEnd() {
         StringBuilder sb = JsonUtils.beginJson();
-        JsonUtils.addFld(sb, "name", "value");
+        JsonUtils.addField(sb, "name", "value");
         JsonUtils.endJson(sb);
         assertEquals("{\"name\":\"value\"}", sb.toString());
 
         sb = JsonUtils.beginFormattedJson();
-        JsonUtils.addFld(sb, "name", "value");
+        JsonUtils.addField(sb, "name", "value");
         JsonUtils.endFormattedJson(sb);
         assertEquals("{\n    \"name\":\"value\"\n}", sb.toString());
 
@@ -92,22 +90,22 @@ public final class JsonUtilsTests {
     public void testAddFlds() {
         StringBuilder sb = new StringBuilder();
 
-        JsonUtils.addFld(sb, "n/a", (String)null);
+        JsonUtils.addField(sb, "n/a", (String)null);
         assertEquals(0, sb.length());
 
-        JsonUtils.addFld(sb, "n/a", "");
+        JsonUtils.addField(sb, "n/a", "");
         assertEquals(0, sb.length());
 
-        JsonUtils.addFld(sb, "n/a", (String[])null);
+        JsonUtils.addField(sb, "n/a", (String[])null);
         assertEquals(0, sb.length());
 
-        JsonUtils.addFld(sb, "n/a", new String[0]);
+        JsonUtils.addField(sb, "n/a", new String[0]);
         assertEquals(0, sb.length());
 
-        JsonUtils.addFld(sb, "n/a", (List<String>)null);
+        JsonUtils.addField(sb, "n/a", (List<String>)null);
         assertEquals(0, sb.length());
 
-        JsonUtils.addFld(sb, "n/a", new ArrayList<>());
+        JsonUtils.addField(sb, "n/a", new ArrayList<>());
         assertEquals(0, sb.length());
 
         JsonUtils.addFldWhenTrue(sb, "n/a", null);
@@ -117,7 +115,7 @@ public final class JsonUtilsTests {
         assertEquals(0, sb.length());
 
         sb = new StringBuilder();
-        JsonUtils.addFld(sb, "foo", new String[]{"bar"});
+        JsonUtils.addField(sb, "foo", new String[]{"bar"});
         assertEquals(14, sb.length());
     }
 

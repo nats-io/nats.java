@@ -13,7 +13,11 @@
 
 package io.nats.examples;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.JetStream;
+import io.nats.client.Message;
+import io.nats.client.Nats;
+import io.nats.client.api.PublishAck;
 import io.nats.client.impl.NatsMessage;
 
 import java.nio.charset.StandardCharsets;

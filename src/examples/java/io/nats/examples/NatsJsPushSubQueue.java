@@ -14,7 +14,7 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
+import io.nats.client.api.PublishAck;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

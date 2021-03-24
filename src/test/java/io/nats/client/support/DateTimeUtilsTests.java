@@ -13,7 +13,6 @@
 
 package io.nats.client.support;
 
-import io.nats.client.impl.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;

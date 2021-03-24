@@ -16,9 +16,10 @@ package io.nats.examples;
 import io.nats.client.Connection;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
-import io.nats.client.impl.ConsumerConfiguration;
-import io.nats.client.impl.ConsumerInfo;
-import io.nats.client.impl.StreamConfiguration;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.ConsumerInfo;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 
 import java.util.List;
 
@@ -52,7 +53,7 @@ public class NatsJsManageConsumers {
             StreamConfiguration streamConfig = StreamConfiguration.builder()
                     .name(STREAM)
                     .subjects(SUBJECT)
-                    .storageType(StreamConfiguration.StorageType.Memory)
+                    .storageType(StorageType.Memory)
                     .build();
             jsm.addStream(streamConfig);
 

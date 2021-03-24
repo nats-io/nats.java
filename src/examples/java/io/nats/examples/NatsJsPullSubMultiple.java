@@ -14,7 +14,7 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.JetStreamApiException;
+import io.nats.client.api.PublishAck;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -61,7 +61,7 @@ public class NatsJsPullSubMultiple {
             // - have a list of subscribers and threads so I can track them
             PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
                     .durable(exArgs.durable)      // required
-                    // .configuration(...) // if you want a custom io.nats.client.impl.ConsumerConfiguration
+                    // .configuration(...) // if you want a custom io.nats.client.api.ConsumerConfiguration
                     .build();
             AtomicInteger allReceived = new AtomicInteger();
             List<JsPullSubscriber> subscribers = new ArrayList<>();

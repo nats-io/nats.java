@@ -12,7 +12,7 @@
 // limitations under the License.
 package io.nats.client;
 
-import io.nats.client.impl.*;
+import io.nats.client.api.*;
 
 import java.io.IOException;
 import java.util.List;

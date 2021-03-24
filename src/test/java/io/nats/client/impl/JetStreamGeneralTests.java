@@ -14,6 +14,12 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.PublishAck;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
+import io.nats.client.support.JsPrefixManager;
+import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -38,7 +44,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             createTestStream(nc);
             JetStream js = nc.jetStream();
-            PublishAck ack = publish(js);
+            PublishAck ack = jsPublish(js);
             assertEquals(1, ack.getSeqno());
         });
     }
@@ -77,7 +83,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             createTestStream(jsm);
-            publish(js);
+            jsPublish(js);
 
             // default ephemeral subscription.
             Subscription s = js.subscribe(SUBJECT);
@@ -230,14 +236,14 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 // add streams with both account
                 StreamConfiguration scSrc = StreamConfiguration.builder()
                         .name(streamMadeBySrc)
-                        .storageType(StreamConfiguration.StorageType.Memory)
+                        .storageType(StorageType.Memory)
                         .subjects(subjectMadeBySrc)
                         .build();
                 jsmSrc.addStream(scSrc);
 
                 StreamConfiguration scTar = StreamConfiguration.builder()
                         .name(streamMadeByTar)
-                        .storageType(StreamConfiguration.StorageType.Memory)
+                        .storageType(StorageType.Memory)
                         .subjects(subjectMadeByTar)
                         .build();
                 jsmTar.addStream(scTar);

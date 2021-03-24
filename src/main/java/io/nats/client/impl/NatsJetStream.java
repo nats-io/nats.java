@@ -1,6 +1,8 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.*;
+import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -8,9 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static io.nats.client.impl.JsonUtils.simpleMessageBody;
-import static io.nats.client.impl.Validator.*;
-import static io.nats.client.support.ApiConstants.SEQ;
+import static io.nats.client.support.JsonUtils.simpleMessageBody;
+import static io.nats.client.support.SchemaConstants.SEQ;
+import static io.nats.client.support.Validator.*;
 
 public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStreamConstants {
 
@@ -42,7 +44,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
                 throw new IllegalStateException("JetStream is not enabled.");
             }
 
-            NatsJetStreamAccountStats stats = new NatsJetStreamAccountStats(respMessage);
+            AccountStatistics stats = new AccountStatistics(respMessage);
             if (stats.getErrorCode() == 503) {
                 throw new IllegalStateException(stats.getDescription());
             }
@@ -81,7 +83,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
 
         String subj = String.format(template, streamName);
-        Message resp = makeRequestResponseRequired(subj, config.toJSON().getBytes(), requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(), requestTimeout);
         return new StreamInfo(resp).throwOnHasError();
     }
 
@@ -125,7 +127,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
     private ConsumerInfo addOrUpdateConsumerInternal(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         String durable = config.getDurable();
-        String requestJSON = config.toJSON(streamName);
+        String requestJSON = new ConsumerCreateRequest(streamName, config).toJson();
 
         String subj;
         if (durable == null) {
@@ -339,8 +341,8 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         return processAck(resp, options);
     }
 
-    private NatsPublishAck processAck(Message resp, PublishOptions options) throws IOException, JetStreamApiException {
-        NatsPublishAck ack = new NatsPublishAck(resp);
+    private PublishAck processAck(Message resp, PublishOptions options) throws IOException, JetStreamApiException {
+        PublishAck ack = new PublishAck(resp);
         String ackStream = ack.getStream();
         String pubStream = options == null ? null : options.getStream();
         if (isStreamSpecified(pubStream) && !pubStream.equals(ackStream)) {
@@ -474,7 +476,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
             // to the internal Max.
             // TODO: too high value?
             if (ccBuilder.getMaxAckPending() == 0
-                    && ccBuilder.getAckPolicy() != ConsumerConfiguration.AckPolicy.None) {
+                    && ccBuilder.getAckPolicy() != AckPolicy.None) {
                 ccBuilder.maxAckPending(sub.getPendingMessageLimit());
             }
 

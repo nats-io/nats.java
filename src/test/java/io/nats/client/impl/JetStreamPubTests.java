@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.PublishAck;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -217,7 +218,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishAckJson() throws IOException, JetStreamApiException {
         String json = "{\"stream\":\"sname\", \"seq\":42, \"duplicate\":false}";
-        PublishAck pa = new NatsPublishAck(getDataMessage(json));
+        PublishAck pa = new PublishAck(getDataMessage(json));
         assertEquals("sname", pa.getStream());
         assertEquals(42, pa.getSeqno());
         assertFalse(pa.isDuplicate());

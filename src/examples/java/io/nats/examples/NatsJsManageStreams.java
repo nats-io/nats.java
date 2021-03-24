@@ -16,9 +16,10 @@ package io.nats.examples;
 import io.nats.client.Connection;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
-import io.nats.client.impl.PurgeResponse;
-import io.nats.client.impl.StreamConfiguration;
-import io.nats.client.impl.StreamInfo;
+import io.nats.client.api.PurgeResponse;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
+import io.nats.client.api.StreamInfo;
 
 import java.util.List;
 
@@ -60,7 +61,7 @@ public class NatsJsManageStreams {
                     // .maxBytes(...)
                     // .maxAge(...)
                     // .maxMsgSize(...)
-                    .storageType(StreamConfiguration.StorageType.Memory)
+                    .storageType(StorageType.Memory)
                     // .replicas(...)
                     // .noAck(...)
                     // .template(...)
@@ -82,7 +83,7 @@ public class NatsJsManageStreams {
             System.out.println("----------\n3. Configure And Add Stream 2");
             streamConfig = StreamConfiguration.builder()
                     .name(STREAM2)
-                    .storageType(StreamConfiguration.StorageType.Memory)
+                    .storageType(StorageType.Memory)
                     .subjects(SUBJECT3, SUBJECT4)
                     .build();
             streamInfo = jsm.addStream(streamConfig);

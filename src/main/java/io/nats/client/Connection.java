@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.api.ServerInfo;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;

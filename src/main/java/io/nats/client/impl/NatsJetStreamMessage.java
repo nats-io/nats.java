@@ -14,14 +14,13 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
-import io.nats.client.MessageMetaData;
 import io.nats.client.impl.NatsMessage.InternalMessage;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.impl.AckType.*;
-import static io.nats.client.impl.Validator.validateDurationRequired;
+import static io.nats.client.support.Validator.validateDurationRequired;
 
 class NatsJetStreamMessage extends InternalMessage {
 
@@ -55,7 +54,7 @@ class NatsJetStreamMessage extends InternalMessage {
     }
 
     @Override
-    public MessageMetaData metaData() {
+    public NatsJetStreamMetaData metaData() {
         if (this.jsMetaData == null) {
             this.jsMetaData = new NatsJetStreamMetaData(this);
         }

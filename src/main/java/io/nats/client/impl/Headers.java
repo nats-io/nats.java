@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.support.ByteArrayBuilder;
+
 import java.util.*;
 import java.util.function.BiConsumer;
 

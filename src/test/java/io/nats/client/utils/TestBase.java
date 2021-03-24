@@ -84,6 +84,7 @@ public class TestBase {
     // data makers
     // ----------------------------------------------------------------------------------------------------
     public static final String STREAM = "stream";
+    public static final String MIRROR = "mirror";
     public static final String SUBJECT = "subject";
     public static final String SUBJECT_STAR = SUBJECT + ".*";
     public static final String SUBJECT_GT = SUBJECT + ".>";
@@ -95,6 +96,10 @@ public class TestBase {
 
     public static String stream(int seq) {
         return STREAM + "-" + seq;
+    }
+
+    public static String mirror(int seq) {
+        return MIRROR + "-" + seq;
     }
 
     public static String subject(int seq) {

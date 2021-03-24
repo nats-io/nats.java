@@ -18,10 +18,11 @@ import io.nats.client.*;
 import java.time.Duration;
 import java.util.List;
 
+import static io.nats.examples.NatsJsUtils.*;
+
 /**
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
- * batch size only pull: <code>pull(int batchSize)</code>,
- * requiring manual handling of null.
+ * batch size only pull: <code>pull(int batchSize)</code>, requiring manual handling of null.
  *
  * Usage: java NatsJsPullSubBatchSizeUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
@@ -29,7 +30,7 @@ import java.util.List;
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubBatchSizeUseCases extends NatsJsPullSubBase {
+public class NatsJsPullSubBatchSizeUseCases {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -40,7 +41,7 @@ public class NatsJsPullSubBatchSizeUseCases extends NatsJsPullSubBase {
                 .build(args);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
-            createStream(nc, exArgs.stream, exArgs.subject);
+            createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
@@ -69,7 +70,7 @@ public class NatsJsPullSubBatchSizeUseCases extends NatsJsPullSubBase {
 
             // 2. Publish some more covering our pull size...
             // -  Read what is available, expect only 6 b/c 4 + 6 = 10
-            System.out.println("----------\n2. Publish more than the batch size.");
+            System.out.println("----------\n2. Publish more than the remaining batch size.");
             publish(js, exArgs.subject, "B", 10);
             messages = readMessagesAck(sub);
             System.out.println("We should have received 6 total messages, we received: " + messages.size());

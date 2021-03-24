@@ -14,12 +14,13 @@
 package io.nats.examples;
 
 import io.nats.client.*;
-import io.nats.client.impl.ConsumerConfiguration;
+import io.nats.client.api.ConsumerConfiguration;
 
 import java.time.Duration;
 import java.util.List;
 
 import static io.nats.examples.ExampleUtils.sleep;
+import static io.nats.examples.NatsJsUtils.*;
 
 /**
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
@@ -32,7 +33,7 @@ import static io.nats.examples.ExampleUtils.sleep;
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubFetchUseCases extends NatsJsPullSubBase {
+public class NatsJsPullSubFetchUseCases {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -44,7 +45,7 @@ public class NatsJsPullSubFetchUseCases extends NatsJsPullSubBase {
         
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
 
-            createStream(nc, exArgs.stream, exArgs.subject);
+            createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
 
             // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();

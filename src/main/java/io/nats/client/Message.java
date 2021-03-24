@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.Headers;
+import io.nats.client.impl.NatsJetStreamMetaData;
 import io.nats.client.support.Status;
 
 import java.time.Duration;
@@ -89,7 +90,7 @@ public interface Message {
 	 * Gets the metadata associated with a JetStream message.
 	 * @return metadata or null if the message is not a JetStream message.
 	 */
-	MessageMetaData metaData();
+	NatsJetStreamMetaData metaData();
 
 	/**
 	 * ack acknowledges a JetStream messages received from a Consumer, indicating the message

@@ -13,7 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.ConsumerConfiguration;
+import io.nats.client.api.ConsumerConfiguration;
 
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.

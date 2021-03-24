@@ -13,15 +13,14 @@
 
 package io.nats.client.support;
 
-import io.nats.client.impl.ConsumerConfiguration;
-import io.nats.client.impl.Validator;
+import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
-import static io.nats.client.impl.Validator.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.support.Validator.*;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 

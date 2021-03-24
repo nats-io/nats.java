@@ -14,6 +14,8 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
+import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -55,13 +57,13 @@ public class ResponseTests extends JetStreamTestBase {
         ConsumerConfiguration cc = ci.getConsumerConfiguration();
         assertEquals("cname1", cc.getDurable());
         assertEquals("strm1-deliver", cc.getDeliverSubject());
-        assertEquals(ConsumerConfiguration.DeliverPolicy.All, cc.getDeliverPolicy());
-        assertEquals(ConsumerConfiguration.AckPolicy.Explicit, cc.getAckPolicy());
+        assertEquals(DeliverPolicy.All, cc.getDeliverPolicy());
+        assertEquals(AckPolicy.Explicit, cc.getAckPolicy());
         assertEquals(Duration.ofSeconds(30), cc.getAckWait());
         assertEquals(99, cc.getMaxDeliver());
-        assertEquals(ConsumerConfiguration.ReplayPolicy.Instant, cc.getReplayPolicy());
+        assertEquals(ReplayPolicy.Instant, cc.getReplayPolicy());
 
-        ConsumerInfo.SequencePair sp = ci.getDelivered();
+        SequencePair sp = ci.getDelivered();
         assertEquals(1, sp.getConsumerSequence());
         assertEquals(2, sp.getStreamSequence());
 

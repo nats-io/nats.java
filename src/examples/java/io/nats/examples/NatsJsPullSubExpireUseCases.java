@@ -18,6 +18,8 @@ import io.nats.client.*;
 import java.time.Duration;
 import java.util.List;
 
+import static io.nats.examples.NatsJsUtils.*;
+
 /**
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
  * batch size and expires pull: <code>pullExpiresIn(int batchSize, Duration expiresIn)</code>,
@@ -29,7 +31,7 @@ import java.util.List;
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
-public class NatsJsPullSubExpireUseCases extends NatsJsPullSubBase {
+public class NatsJsPullSubExpireUseCases {
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()

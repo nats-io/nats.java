@@ -16,7 +16,14 @@
     "max_msg_size": 4,
     "storage": "memory",
     "num_replicas": 5,
-    "duplicate_window": 120000000000
+    "duplicate_window": 120000000000,
+    "placement": {
+      "cluster": "clstr",
+      "tags": [
+        "tag1",
+        "tag2"
+      ]
+    }
   },
   "created": "2021-01-25T20:09:10.6225191Z",
   "state": {

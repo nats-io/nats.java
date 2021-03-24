@@ -14,6 +14,7 @@
 package io.nats.examples;
 
 import io.nats.client.*;
+import io.nats.client.api.PublishAck;
 import io.nats.client.impl.NatsMessage;
 
 import java.nio.charset.StandardCharsets;

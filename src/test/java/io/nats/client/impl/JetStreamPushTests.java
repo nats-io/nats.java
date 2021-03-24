@@ -17,6 +17,8 @@ import io.nats.client.JetStream;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
 import io.nats.client.PushSubscribeOptions;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.ConsumerInfo;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
@@ -41,7 +43,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // publish some messages
-            publish(js, SUBJECT, 1, 5);
+            jsPublish(js, SUBJECT, 1, 5);
 
             // Build our subscription options.
             PushSubscribeOptions.Builder builder = PushSubscribeOptions.builder();
@@ -95,7 +97,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // publish some messages
-            publish(js, SUBJECT, 1, 5);
+            jsPublish(js, SUBJECT, 1, 5);
 
             // use ackWait so I don't have to wait forever before re-subscribing
             ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofSeconds(3)).build();
@@ -173,7 +175,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // NAK
-            publish(js, SUBJECT, "NAK", 1);
+            jsPublish(js, SUBJECT, "NAK", 1);
 
             Message message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -190,7 +192,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(Duration.ofSeconds(1)));
 
             // TERM
-            publish(js, SUBJECT, "TERM", 1);
+            jsPublish(js, SUBJECT, "TERM", 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -201,7 +203,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(Duration.ofSeconds(1)));
 
             // Ack Wait timeout
-            publish(js, SUBJECT, "WAIT", 1);
+            jsPublish(js, SUBJECT, "WAIT", 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -216,7 +218,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertEquals("WAIT1", data);
 
             // In Progress
-            publish(js, SUBJECT, "PRO", 1);
+            jsPublish(js, SUBJECT, "PRO", 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);
@@ -235,7 +237,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             assertNull(sub.nextMessage(Duration.ofSeconds(1)));
 
             // ACK Sync
-            publish(js, SUBJECT, "ACKSYNC", 1);
+            jsPublish(js, SUBJECT, "ACKSYNC", 1);
 
             message = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(message);

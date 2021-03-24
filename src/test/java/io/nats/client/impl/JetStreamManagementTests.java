@@ -15,11 +15,10 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.JetStream;
+import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamManagement;
-import io.nats.client.MessageInfo;
-import io.nats.client.impl.StreamConfiguration.DiscardPolicy;
-import io.nats.client.impl.StreamConfiguration.RetentionPolicy;
-import io.nats.client.impl.StreamConfiguration.StorageType;
+import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -42,9 +41,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(subject(0), sc.getSubjects().get(0));
             assertEquals(subject(1), sc.getSubjects().get(1));
 
-            assertEquals(StreamConfiguration.RetentionPolicy.Limits, sc.getRetentionPolicy());
-            assertEquals(StreamConfiguration.DiscardPolicy.Old, sc.getDiscardPolicy());
-            assertEquals(StreamConfiguration.StorageType.Memory, sc.getStorageType());
+            assertEquals(RetentionPolicy.Limits, sc.getRetentionPolicy());
+            assertEquals(DiscardPolicy.Old, sc.getDiscardPolicy());
+            assertEquals(StorageType.Memory, sc.getStorageType());
 
             assertNotNull(si.getConfiguration());
             assertNotNull(si.getStreamState());
@@ -256,7 +255,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.getStreamInfo(STREAM);
             assertEquals(0, si.getStreamState().getMsgCount());
 
-            publish(nc, SUBJECT, 1);
+            jsPublish(nc, SUBJECT, 1);
             si = jsm.getStreamInfo(STREAM);
             assertEquals(1, si.getStreamState().getMsgCount());
 
@@ -456,6 +455,124 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 3));
             assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(stream(999), 1));
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
+        });
+    }
+
+    @Test
+    public void testMirrorBasics() throws Exception {
+        runInJsServer(nc -> {
+            String S1 = stream(1);
+            String U1 = subject(1);
+            String U2 = subject(2);
+            String U3 = subject(3);
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            Mirror mirror = Mirror.builder().name(S1).build();
+
+            // Create source stream
+            StreamConfiguration sc = StreamConfiguration.builder()
+                    .name(S1)
+                    .storageType(StorageType.Memory)
+                    .subjects(U1, U2, U3)
+                    .build();
+            StreamInfo si = jsm.addStream(sc);
+            sc = si.getConfiguration();
+            assertNotNull(sc);
+            assertEquals(S1, sc.getName());
+
+            // Now create our mirror stream.
+            sc = StreamConfiguration.builder()
+                    .name(mirror(1))
+                    .storageType(StorageType.Memory)
+                    .mirror(mirror)
+                    .build();
+            jsm.addStream(sc);
+            assertMirror(jsm, mirror(1), S1, null, null);
+
+            // Send 100 messages.
+            jsPublish(js, U2, 100);
+
+            // Check the state
+            assertMirror(jsm, mirror(1), S1, 100, null);
+
+            // Purge the source stream.
+            jsm.purgeStream(S1);
+
+            jsPublish(js, U2, 50);
+
+            // Create second mirror
+            sc = StreamConfiguration.builder()
+                    .name(mirror(2))
+                    .storageType(StorageType.Memory)
+                    .mirror(mirror)
+                    .build();
+            jsm.addStream(sc);
+
+            // Check the state
+            assertMirror(jsm, mirror(2), S1, 50, 101);
+
+            jsPublish(js, U3, 100);
+
+            // third mirror checks start seq
+            sc = StreamConfiguration.builder()
+                    .name(mirror(3))
+                    .storageType(StorageType.Memory)
+                    .mirror(Mirror.builder().name(S1).startSeq(150).build())
+                    .build();
+            jsm.addStream(sc);
+
+            // Check the state
+            assertMirror(jsm, mirror(3), S1, 101, 150);
+
+            // third mirror checks start seq
+            ZonedDateTime zdt = DateTimeUtils.fromNow(Duration.ofHours(-2));
+            sc = StreamConfiguration.builder()
+                    .name(mirror(4))
+                    .storageType(StorageType.Memory)
+                    .mirror(Mirror.builder().name(S1).startTime(zdt).build())
+                    .build();
+            jsm.addStream(sc);
+
+            // Check the state
+            assertMirror(jsm, mirror(4), S1, 150, 101);
+        });
+    }
+
+    private void assertMirror(JetStreamManagement jsm, String stream, String mirroring, Number msgCount, Number firstSeq)
+            throws IOException, JetStreamApiException {
+        sleep(1000);
+        StreamInfo si = jsm.getStreamInfo(stream);
+        StreamConfiguration sc = si.getConfiguration();
+        assertNotNull(sc);
+        assertEquals(stream, sc.getName());
+
+        MirrorSourceInfo msi = si.getMirror();
+        assertNotNull(msi);
+        assertEquals(mirroring, msi.getName());
+
+        StreamState ss = si.getStreamState();
+        if (msgCount != null) {
+            assertEquals(msgCount.longValue(), ss.getMsgCount());
+        }
+        if (firstSeq != null) {
+            assertEquals(firstSeq.longValue(), ss.getFirstSequence());
+        }
+    }
+    @Test
+    public void testMirrorExceptions() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            Mirror mirror = new Mirror(STREAM, 0, null, null, null);
+
+            StreamConfiguration scEx = StreamConfiguration.builder()
+                    .name(mirror(99))
+                    .subjects(subject(1))
+                    .mirror(mirror)
+                    .build();
+            assertThrows(JetStreamApiException.class, () -> jsm.addStream(scEx));
         });
     }
 }

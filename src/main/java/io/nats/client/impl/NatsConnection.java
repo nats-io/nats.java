@@ -15,7 +15,9 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.NatsMessage.ProtocolMessage;
+import io.nats.client.support.ByteArrayBuilder;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -37,8 +39,8 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static io.nats.client.impl.Validator.validateNotNull;
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.Validator.validateNotNull;
 
 class NatsConnection implements Connection {
 
@@ -65,7 +67,7 @@ class NatsConnection implements Connection {
     private NatsConnectionReader reader;
     private NatsConnectionWriter writer;
 
-    private AtomicReference<NatsServerInfo> serverInfo;
+    private AtomicReference<ServerInfo> serverInfo;
 
     private Map<String, NatsSubscription> subscribers;
     private Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
@@ -492,7 +494,7 @@ class NatsConnection implements Connection {
 
     void checkVersionRequirements() throws IOException {
         Options opts = getOptions();
-        NatsServerInfo info = getInfo();
+        ServerInfo info = getInfo();
 
         if (opts.isNoEcho() && info.getProtocolVersion() < 1) {
             throw new IOException("Server does not support no echo.");
@@ -501,7 +503,7 @@ class NatsConnection implements Connection {
 
     void upgradeToSecureIfNeeded() throws IOException {
         Options opts = getOptions();
-        NatsServerInfo info = getInfo();
+        ServerInfo info = getInfo();
 
         if (opts.isTLSRequired() && !info.isTLSRequired()) {
             throw new IOException("SSL connection wanted by client.");
@@ -1163,7 +1165,7 @@ class NatsConnection implements Connection {
 
     void sendConnect(String serverURI) throws IOException {
         try {
-            NatsServerInfo info = this.serverInfo.get();
+            ServerInfo info = this.serverInfo.get();
             CharBuffer connectOptions = this.options.buildProtocolConnectOptionsString(serverURI, info.isAuthRequired(), info.getNonce());
             ByteArrayBuilder bab = new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit())
                     .append(CONNECT_SP_BYTES).append(connectOptions);
@@ -1291,7 +1293,7 @@ class NatsConnection implements Connection {
     }
 
     void handleInfo(String infoJson) {
-        NatsServerInfo serverInfo = new NatsServerInfo(infoJson);
+        ServerInfo serverInfo = new ServerInfo(infoJson);
         this.serverInfo.set(serverInfo);
 
         String[] urls = this.serverInfo.get().getConnectURLs();
@@ -1452,7 +1454,7 @@ class NatsConnection implements Connection {
         return getInfo();
     }
 
-    NatsServerInfo getInfo() {
+    ServerInfo getInfo() {
         return this.serverInfo.get();
     }
 
@@ -1480,7 +1482,7 @@ class NatsConnection implements Connection {
     }
 
     public long getMaxPayload() {
-        NatsServerInfo info = this.serverInfo.get();
+        ServerInfo info = this.serverInfo.get();
 
         if (info == null) {
             return -1;
@@ -1523,7 +1525,7 @@ class NatsConnection implements Connection {
     }
 
     private void addDiscoveredServers(List<String> servers) {
-        NatsServerInfo info = this.serverInfo.get();
+        ServerInfo info = this.serverInfo.get();
         if (info != null && info.getConnectURLs() != null) {
             for (String uri : info.getConnectURLs()) {
                 try {
