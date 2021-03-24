@@ -18,8 +18,8 @@ import io.nats.client.support.JsonUtils;
 
 import java.util.List;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.SchemaConstants.*;
 
 /**
  * Placement directives to consider when placing replicas of a stream

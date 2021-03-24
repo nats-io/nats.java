@@ -3,7 +3,7 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.SchemaConstants.*;
+import static io.nats.client.support.ApiConstants.*;
 
 /**
  * The JetStream Account Statistics

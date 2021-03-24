@@ -19,7 +19,7 @@ import io.nats.client.support.JsonUtils;
 import java.util.Collections;
 import java.util.List;
 
-import static io.nats.client.support.SchemaConstants.STREAMS;
+import static io.nats.client.support.ApiConstants.STREAMS;
 
 public class StreamNamesResponse extends ListResponse<StreamNamesResponse> {
 

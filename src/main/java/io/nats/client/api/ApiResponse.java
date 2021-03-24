@@ -20,7 +20,7 @@ import io.nats.client.support.JsonUtils;
 import java.nio.charset.StandardCharsets;
 
 import static io.nats.client.api.Error.NOT_SET;
-import static io.nats.client.support.SchemaConstants.TYPE_RE;
+import static io.nats.client.support.ApiConstants.TYPE_RE;
 
 public abstract class ApiResponse<T> {
 

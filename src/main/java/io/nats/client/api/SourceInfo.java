@@ -17,8 +17,8 @@ import io.nats.client.support.JsonUtils;
 
 import java.time.Duration;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.SchemaConstants.*;
 
 public class SourceInfo {
     private final String name;

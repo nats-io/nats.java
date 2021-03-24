@@ -15,8 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.SchemaConstants.CODE_RE;
-import static io.nats.client.support.SchemaConstants.DESCRIPTION_RE;
+import static io.nats.client.support.ApiConstants.CODE_RE;
+import static io.nats.client.support.ApiConstants.DESCRIPTION_RE;
 
 public class Error {
 

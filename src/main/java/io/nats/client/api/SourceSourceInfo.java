@@ -16,9 +16,9 @@ package io.nats.client.api;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.nats.client.support.ApiConstants.SOURCE;
+import static io.nats.client.support.ApiConstants.SOURCES;
 import static io.nats.client.support.JsonUtils.getObjectList;
-import static io.nats.client.support.SchemaConstants.SOURCE;
-import static io.nats.client.support.SchemaConstants.SOURCES;
 
 public class SourceSourceInfo extends SourceInfo {
 

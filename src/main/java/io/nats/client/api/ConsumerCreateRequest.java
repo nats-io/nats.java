@@ -16,9 +16,9 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
+import static io.nats.client.support.ApiConstants.CONFIG;
+import static io.nats.client.support.ApiConstants.STREAM_NAME;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.SchemaConstants.CONFIG;
-import static io.nats.client.support.SchemaConstants.STREAM_NAME;
 
 public class ConsumerCreateRequest implements JsonSerializable {
     private final String streamName;

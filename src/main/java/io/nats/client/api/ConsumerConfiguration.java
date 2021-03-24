@@ -21,9 +21,9 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.SchemaConstants.*;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and

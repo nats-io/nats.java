@@ -18,8 +18,8 @@ import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.SchemaConstants.*;
 
 /**
  * Mirror Information

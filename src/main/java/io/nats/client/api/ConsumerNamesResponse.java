@@ -19,8 +19,8 @@ import io.nats.client.support.JsonUtils;
 import java.util.Collections;
 import java.util.List;
 
-import static io.nats.client.support.SchemaConstants.CONSUMERS;
-import static io.nats.client.support.SchemaConstants.SUBJECT;
+import static io.nats.client.support.ApiConstants.CONSUMERS;
+import static io.nats.client.support.ApiConstants.SUBJECT;
 
 public class ConsumerNamesResponse extends ListResponse<ConsumerNamesResponse> {
     public ConsumerNamesResponse() {

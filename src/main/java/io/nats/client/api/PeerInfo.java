@@ -19,7 +19,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.client.support.SchemaConstants.*;
+import static io.nats.client.support.ApiConstants.*;
 
 public class PeerInfo {
     private final String name;

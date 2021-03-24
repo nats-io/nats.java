@@ -20,8 +20,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.objectString;
-import static io.nats.client.support.SchemaConstants.*;
 
 /**
  * The StreamInfo class contains information about a JetStream stream.

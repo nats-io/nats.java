@@ -57,23 +57,23 @@ public abstract class JsonUtils {
         }
     }
 
-    public static Pattern buildCustomPattern(String re) {
+    public static Pattern custom_pattern(String re) {
         return Pattern.compile(re, Pattern.CASE_INSENSITIVE);
     }
 
-    public static Pattern buildStringPattern(String field) {
+    public static Pattern string_pattern(String field) {
         return buildPattern(field, STRING_RE);
     }
 
-    public static Pattern buildNumberPattern(String field) {
+    public static Pattern number_pattern(String field) {
         return buildPattern(field, NUMBER_RE);
     }
 
-    public static Pattern buildBooleanPattern(String field) {
+    public static Pattern boolean_pattern(String field) {
         return buildPattern(field, BOOLEAN_RE);
     }
 
-    public static Pattern buildStringArrayPattern(String field) {
+    public static Pattern string_array_pattern(String field) {
         return buildPattern(field, STRING_ARRAY_RE);
     }
 

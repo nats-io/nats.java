@@ -20,7 +20,7 @@ import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.SchemaConstants.*;
+import static io.nats.client.support.ApiConstants.*;
 
 /**
  * The MessageInfo class contains information about a JetStream message.

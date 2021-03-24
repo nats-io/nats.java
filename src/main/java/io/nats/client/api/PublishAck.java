@@ -18,7 +18,7 @@ import io.nats.client.support.JsonUtils;
 
 import java.io.IOException;
 
-import static io.nats.client.support.SchemaConstants.*;
+import static io.nats.client.support.ApiConstants.*;
 
 /**
  * PublishAck objects represent a JetStream enabled server acknowledgment from a publish call.
@@ -33,7 +33,7 @@ public class PublishAck extends ApiResponse<PublishAck> {
         super(msg);
         throwOnHasError();
         stream = JsonUtils.readString(json, STREAM_RE, null);
-        if (stream == null || stream.length() == 0) {
+        if (stream == null) {
             throw new IOException("Invalid JetStream ack.");
         }
         seq = JsonUtils.readLong(json, SEQ_RE, 0);

@@ -17,7 +17,7 @@ import io.nats.client.support.JsonUtils;
 
 import java.util.List;
 
-import static io.nats.client.support.SchemaConstants.*;
+import static io.nats.client.support.ApiConstants.*;
 
 public class ClusterInfo {
     private final String name;

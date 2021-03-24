@@ -19,8 +19,8 @@ import io.nats.client.support.JsonUtils;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.objectString;
-import static io.nats.client.support.SchemaConstants.*;
 
 /**
  * The ConsumerInfo class returns information about a JetStream consumer.

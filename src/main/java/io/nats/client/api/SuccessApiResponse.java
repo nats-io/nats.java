@@ -16,7 +16,7 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.SchemaConstants.SUCCESS_RE;
+import static io.nats.client.support.ApiConstants.SUCCESS_RE;
 
 public class SuccessApiResponse extends ApiResponse<SuccessApiResponse> {
     boolean success;

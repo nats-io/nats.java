@@ -18,7 +18,7 @@ import io.nats.client.support.JsonUtils;
 
 import java.nio.charset.StandardCharsets;
 
-import static io.nats.client.support.SchemaConstants.*;
+import static io.nats.client.support.ApiConstants.*;
 
 public abstract class ListResponse<T> extends ApiResponse<T> {
 

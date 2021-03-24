@@ -2,7 +2,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.SchemaConstants.*;
+import static io.nats.client.support.ApiConstants.*;
 
 /**
  * Represents the JetStream Account Limits

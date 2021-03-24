@@ -15,8 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.SchemaConstants.CONSUMER_SEQ_RE;
-import static io.nats.client.support.SchemaConstants.STREAM_SEQ_RE;
+import static io.nats.client.support.ApiConstants.CONSUMER_SEQ_RE;
+import static io.nats.client.support.ApiConstants.STREAM_SEQ_RE;
 
 /**
  * This class holds the sequence numbers for a consumer and

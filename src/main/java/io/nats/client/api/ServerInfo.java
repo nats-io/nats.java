@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.SchemaConstants.*;
 
 public class ServerInfo {
 
@@ -125,25 +125,25 @@ public class ServerInfo {
         return rawInfoJson;
     }
 
-    private static final Pattern lameDuckModeRE = buildBooleanPattern(LAME_DUCK_MODE);
-    private static final Pattern jetStreamRE = buildBooleanPattern(JETSTREAM);
-    private static final Pattern serverIdRE = buildStringPattern(SERVER_ID);
-    private static final Pattern serverNameRE = buildStringPattern(SERVER_NAME);
-    private static final Pattern versionRE = buildStringPattern(VERSION);
-    private static final Pattern goRE = buildStringPattern(GO);
-    private static final Pattern hostRE = buildStringPattern(HOST);
-    private static final Pattern nonceRE = buildStringPattern(NONCE);
-    private static final Pattern headersRE = buildBooleanPattern(HEADERS);
-    private static final Pattern authRE = buildBooleanPattern(AUTH);
-    private static final Pattern tlsRE = buildBooleanPattern(TLS);
-    private static final Pattern portRE = buildNumberPattern(PORT);
-    private static final Pattern maxRE = buildNumberPattern(MAX_PAYLOAD);
-    private static final Pattern protoRE = buildNumberPattern(PROTOCOL_VERSION);
-    private static final Pattern connectRE = buildStringArrayPattern(CONNECT_URLS);
-    private static final Pattern clientIdRE = buildNumberPattern(CLIENT_ID);
-    private static final Pattern clientIpRE = buildStringPattern(CLIENT_IP);
-    private static final Pattern clusterRE = buildStringPattern(CLUSTER);
-    private static final Pattern infoObject = buildCustomPattern("\\{(.+?)\\}");
+    private static final Pattern lameDuckModeRE = boolean_pattern(LAME_DUCK_MODE);
+    private static final Pattern jetStreamRE = boolean_pattern(JETSTREAM);
+    private static final Pattern serverIdRE = string_pattern(SERVER_ID);
+    private static final Pattern serverNameRE = string_pattern(SERVER_NAME);
+    private static final Pattern versionRE = string_pattern(VERSION);
+    private static final Pattern goRE = string_pattern(GO);
+    private static final Pattern hostRE = string_pattern(HOST);
+    private static final Pattern nonceRE = string_pattern(NONCE);
+    private static final Pattern headersRE = boolean_pattern(HEADERS);
+    private static final Pattern authRE = boolean_pattern(AUTH);
+    private static final Pattern tlsRE = boolean_pattern(TLS);
+    private static final Pattern portRE = number_pattern(PORT);
+    private static final Pattern maxRE = number_pattern(MAX_PAYLOAD);
+    private static final Pattern protoRE = number_pattern(PROTOCOL_VERSION);
+    private static final Pattern connectRE = string_array_pattern(CONNECT_URLS);
+    private static final Pattern clientIdRE = number_pattern(CLIENT_ID);
+    private static final Pattern clientIpRE = string_pattern(CLIENT_IP);
+    private static final Pattern clusterRE = string_pattern(CLUSTER);
+    private static final Pattern infoObject = custom_pattern("\\{(.+?)\\}");
 
     void parseInfo(String jsonString) {
 

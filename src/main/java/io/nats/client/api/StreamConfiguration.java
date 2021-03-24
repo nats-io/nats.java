@@ -22,8 +22,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.SchemaConstants.*;
 import static io.nats.client.support.Validator.*;
 
 /**
