@@ -301,12 +301,12 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param strArray field value
      */
-    public static void addField(StringBuilder sb, String fname, String[] strArray) {
+    public static void addStrings(StringBuilder sb, String fname, String[] strArray) {
         if (strArray == null || strArray.length == 0) {
             return;
         }
 
-        addField(sb, fname, Arrays.asList(strArray));
+        addStrings(sb, fname, Arrays.asList(strArray));
     }
 
     /**
@@ -315,7 +315,7 @@ public abstract class JsonUtils {
      * @param fname fieldname
      * @param strings field value
      */
-    public static void addField(StringBuilder sb, String fname, List<String> strings) {
+    public static void addStrings(StringBuilder sb, String fname, List<String> strings) {
         if (strings == null || strings.size() == 0) {
             return;
         }
@@ -325,6 +325,28 @@ public abstract class JsonUtils {
             String s = strings.get(i);
             sb.append(Q).append(s).append(Q);
             if (i < strings.size()-1) {
+                sb.append(COMMA);
+            }
+        }
+        sb.append("],");
+    }
+
+    /**
+     * Appends a json field to a string builder.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param jsons field value
+     */
+    public static void addJsons(StringBuilder sb, String fname, List<? extends JsonSerializable> jsons) {
+        if (jsons == null || jsons.size() == 0) {
+            return;
+        }
+
+        sb.append(Q).append(fname).append("\":[");
+        for (int i = 0; i < jsons.size(); i++) {
+            JsonSerializable s = jsons.get(i);
+            sb.append(s.toJson());
+            if (i < jsons.size()-1) {
                 sb.append(COMMA);
             }
         }

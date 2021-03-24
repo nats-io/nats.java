@@ -96,16 +96,16 @@ public final class JsonUtilsTests {
         JsonUtils.addField(sb, "n/a", "");
         assertEquals(0, sb.length());
 
-        JsonUtils.addField(sb, "n/a", (String[])null);
+        JsonUtils.addStrings(sb, "n/a", (String[])null);
         assertEquals(0, sb.length());
 
-        JsonUtils.addField(sb, "n/a", new String[0]);
+        JsonUtils.addStrings(sb, "n/a", new String[0]);
         assertEquals(0, sb.length());
 
-        JsonUtils.addField(sb, "n/a", (List<String>)null);
+        JsonUtils.addStrings(sb, "n/a", (List<String>)null);
         assertEquals(0, sb.length());
 
-        JsonUtils.addField(sb, "n/a", new ArrayList<>());
+        JsonUtils.addJsons(sb, "n/a", new ArrayList<>());
         assertEquals(0, sb.length());
 
         JsonUtils.addFldWhenTrue(sb, "n/a", null);
@@ -115,7 +115,7 @@ public final class JsonUtilsTests {
         assertEquals(0, sb.length());
 
         sb = new StringBuilder();
-        JsonUtils.addField(sb, "foo", new String[]{"bar"});
+        JsonUtils.addStrings(sb, "foo", new String[]{"bar"});
         assertEquals(14, sb.length());
     }
 

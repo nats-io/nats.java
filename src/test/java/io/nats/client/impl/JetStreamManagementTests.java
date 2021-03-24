@@ -343,6 +343,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subject("not-match")).build()));
         });
     }
+
     @Test
     public void testGetConsumerInfo() throws Exception {
         runInJsServer(nc -> {
@@ -544,13 +545,18 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             throws IOException, JetStreamApiException {
         sleep(1000);
         StreamInfo si = jsm.getStreamInfo(stream);
-        StreamConfiguration sc = si.getConfiguration();
-        assertNotNull(sc);
-        assertEquals(stream, sc.getName());
 
         MirrorSourceInfo msi = si.getMirror();
         assertNotNull(msi);
         assertEquals(mirroring, msi.getName());
+
+        assertConfig(stream, msgCount, firstSeq, si);
+    }
+
+    private void assertConfig(String stream, Number msgCount, Number firstSeq, StreamInfo si) {
+        StreamConfiguration sc = si.getConfiguration();
+        assertNotNull(sc);
+        assertEquals(stream, sc.getName());
 
         StreamState ss = si.getStreamState();
         if (msgCount != null) {
@@ -560,6 +566,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(firstSeq.longValue(), ss.getFirstSequence());
         }
     }
+
     @Test
     public void testMirrorExceptions() throws Exception {
         runInJsServer(nc -> {
@@ -574,5 +581,113 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .build();
             assertThrows(JetStreamApiException.class, () -> jsm.addStream(scEx));
         });
+    }
+
+    @Test
+    public void testSourceBasics() throws Exception {
+        runInJsServer(nc -> {
+            String S1 = stream(1);
+            String S2 = stream(2);
+            String S3 = stream(3);
+            String S4 = stream(4);
+            String S5 = stream(5);
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            // Create streams
+            StreamInfo si = jsm.addStream(StreamConfiguration.builder()
+                    .name(S1).storageType(StorageType.Memory).build());
+            StreamConfiguration sc = si.getConfiguration();
+            assertNotNull(sc);
+            assertEquals(S1, sc.getName());
+
+            si = jsm.addStream(StreamConfiguration.builder()
+                    .name(S2).storageType(StorageType.Memory).build());
+            sc = si.getConfiguration();
+            assertNotNull(sc);
+            assertEquals(S2, sc.getName());
+
+            si = jsm.addStream(StreamConfiguration.builder()
+                    .name(S3).storageType(StorageType.Memory).build());
+            sc = si.getConfiguration();
+            assertNotNull(sc);
+            assertEquals(S3, sc.getName());
+
+            // Populate each one.
+            jsPublish(js, S1, 10);
+            jsPublish(js, S2, 15);
+            jsPublish(js, S3, 25);
+
+            sc = StreamConfiguration.builder()
+                    .name(source(1))
+                    .storageType(StorageType.Memory)
+                    .sources(Source.builder().name(S1).build(),
+                            Source.builder().name(S2).build(),
+                            Source.builder().name(S3).build())
+                    .build();
+
+            jsm.addStream(sc);
+
+            assertSource(jsm, source(1), 50, null);
+
+            sc = StreamConfiguration.builder()
+                    .name(source(1))
+                    .storageType(StorageType.Memory)
+                    .sources(Source.builder().name(S1).build(),
+                            Source.builder().name(S2).build(),
+                            Source.builder().name(S4).build())
+                    .build();
+
+            jsm.updateStream(sc);
+
+            sc = StreamConfiguration.builder()
+                    .name(stream(99))
+                    .storageType(StorageType.Memory)
+                    .subjects(S4, S5)
+                    .build();
+            jsm.addStream(sc);
+
+            jsPublish(js, S4, 20);
+            jsPublish(js, S5, 20);
+            jsPublish(js, S4, 10);
+
+            sc = StreamConfiguration.builder()
+                    .name(source(2))
+                    .storageType(StorageType.Memory)
+                    .sources(Source.builder().name(stream(99)).startSeq(26).build())
+                    .build();
+            jsm.addStream(sc);
+            assertSource(jsm, source(2), 25, null);
+
+            MessageInfo info = jsm.getMessage(source(2), 1);
+            String hval = info.getHeaders().get("Nats-Stream-Source").get(0);
+            // $JS.ACK.stream-99.sS0mKw3k.1.26.1.1616619886415151100.24
+            String[] parts = hval.split("\\.");
+            assertEquals(stream(99), parts[2]);
+            assertEquals("26", parts[5]);
+
+            sc = StreamConfiguration.builder()
+                    .name(source(3))
+                    .storageType(StorageType.Memory)
+                    .sources(Source.builder().name(stream(99)).startSeq(11).filterSubject(S4).build())
+                    .build();
+            jsm.addStream(sc);
+            assertSource(jsm, source(3), 20, null);
+
+            info = jsm.getMessage(source(3), 1);
+            hval = info.getHeaders().get("Nats-Stream-Source").get(0);
+            parts = hval.split("\\.");
+            assertEquals(stream(99), parts[2]);
+            assertEquals("11", parts[5]);
+        });
+    }
+
+    private void assertSource(JetStreamManagement jsm, String stream, Number msgCount, Number firstSeq)
+            throws IOException, JetStreamApiException {
+        sleep(1000);
+        StreamInfo si = jsm.getStreamInfo(stream);
+
+        assertConfig(stream, msgCount, firstSeq, si);
     }
 }

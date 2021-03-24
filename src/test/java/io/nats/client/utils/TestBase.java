@@ -85,6 +85,7 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     public static final String STREAM = "stream";
     public static final String MIRROR = "mirror";
+    public static final String SOURCE = "source";
     public static final String SUBJECT = "subject";
     public static final String SUBJECT_STAR = SUBJECT + ".*";
     public static final String SUBJECT_GT = SUBJECT + ".>";
@@ -100,6 +101,10 @@ public class TestBase {
 
     public static String mirror(int seq) {
         return MIRROR + "-" + seq;
+    }
+
+    public static String source(int seq) {
+        return SOURCE + "-" + seq;
     }
 
     public static String subject(int seq) {

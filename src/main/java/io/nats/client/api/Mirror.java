@@ -13,23 +13,16 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.ApiConstants.MIRROR;
 
 /**
  * Mirror Information
  */
-public class Mirror implements JsonSerializable {
-    private final String name;
-    private final long startSeq;
-    private final ZonedDateTime startTime;
-    private final String filterSubject;
-    private final External external;
+public class Mirror extends SourceBase {
 
     public static Mirror optionalInstance(String fullJson) {
         String objJson = JsonUtils.getJsonObject(MIRROR, fullJson, null);
@@ -37,99 +30,20 @@ public class Mirror implements JsonSerializable {
     }
 
     public Mirror(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
-        startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
-        filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
-        external = External.optionalInstance(json);
+        super(MIRROR, json);
     }
 
     public Mirror(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
-        this.name = name;
-        this.startSeq = startSeq;
-        this.startTime = startTime;
-        this.filterSubject = filterSubject;
-        this.external = external;
-    }
-
-    /**
-     * Returns a JSON representation of this mirror
-     *
-     * @return json mirror json string
-     */
-    public String toJson() {
-        StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
-        JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
-        JsonUtils.addField(sb, OPT_START_TIME, startTime);
-        JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
-        return endJson(sb).toString();
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public long getStartSeq() {
-        return startSeq;
-    }
-
-    public ZonedDateTime getStartTime() {
-        return startTime;
-    }
-
-    public String getFilterSubject() {
-        return filterSubject;
-    }
-
-    public External getExternal() {
-        return external;
-    }
-
-    @Override
-    public String toString() {
-        return "Mirror{" +
-                "name='" + name + '\'' +
-                ", startSeq=" + startSeq +
-                ", startTime=" + startTime +
-                ", filterSubject='" + filterSubject + '\'' +
-                ", " + objectString("external", external) +
-                '}';
+        super(MIRROR, name, startSeq, startTime, filterSubject, external);
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static class Builder {
-        private String name;
-        private long startSeq;
-        private ZonedDateTime startTime;
-        private String filterSubject;
-        private External external;
-
-        public Builder name(String name) {
-            this.name = name;
-            return this;
-        }
-
-        public Builder startSeq(long startSeq) {
-            this.startSeq = startSeq;
-            return this;
-        }
-
-        public Builder startTime(ZonedDateTime startTime) {
-            this.startTime = startTime;
-            return this;
-        }
-
-        public Builder filterSubject(String filterSubject) {
-            this.filterSubject = filterSubject;
-            return this;
-        }
-
-        public Builder external(External external) {
-            this.external = external;
+    public static class Builder extends SourceBaseBuilder<Builder, Mirror> {
+        @Override
+        Builder getThis() {
             return this;
         }
 

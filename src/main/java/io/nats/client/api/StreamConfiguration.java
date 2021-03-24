@@ -49,6 +49,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final Duration duplicateWindow;
     private final Placement placement;
     private final Mirror mirror;
+    private final List<Source> sources;
 
     // for the response from the server
     public static StreamConfiguration instance(String json) {
@@ -82,6 +83,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.subjects(getStringArray(SUBJECTS, json));
         builder.placement(Placement.optionalInstance(json));
         builder.mirror(Mirror.optionalInstance(json));
+        builder.sources(Source.optionalListOf(json));
 
         return builder.build();
     }
@@ -93,7 +95,7 @@ public class StreamConfiguration implements JsonSerializable {
             Duration maxAge, long maxMsgSize, StorageType storageType,
             int replicas, boolean noAck, String templateOwner,
             DiscardPolicy discardPolicy, Duration duplicateWindow,
-            Placement placement, Mirror mirror)
+            Placement placement, Mirror mirror, List<Source> sources)
     {
         this.name = name;
         this.subjects = subjects;
@@ -111,6 +113,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.duplicateWindow = duplicateWindow;
         this.placement = placement;
         this.mirror = mirror;
+        this.sources = sources;
     }
 
     /**
@@ -123,7 +126,7 @@ public class StreamConfiguration implements JsonSerializable {
         StringBuilder sb = beginJson();
 
         addField(sb, NAME, name);
-        addField(sb, SUBJECTS, subjects);
+        addStrings(sb, SUBJECTS, subjects);
         addField(sb, RETENTION, retentionPolicy.toString());
         addField(sb, MAX_CONSUMERS, maxConsumers);
         addField(sb, MAX_MSGS, maxMsgs);
@@ -142,6 +145,7 @@ public class StreamConfiguration implements JsonSerializable {
         if (mirror != null) {
             addField(sb, MIRROR, mirror);
         }
+        addJsons(sb, SOURCES, sources);
 
         return endJson(sb).toString();
     }
@@ -276,6 +280,14 @@ public class StreamConfiguration implements JsonSerializable {
         return mirror;
     }
 
+    /**
+     * The sources for this stream
+     * @return the sources
+     */
+    public List<Source> getSources() {
+        return sources;
+    }
+
     @Override
     public String toString() {
         return "StreamConfiguration{" +
@@ -295,6 +307,7 @@ public class StreamConfiguration implements JsonSerializable {
                 ", duplicateWindow=" + duplicateWindow +
                 ", " + objectString("mirror", mirror) +
                 ", " + objectString("placement", placement) +
+                ", sources=" + sources +
                 '}';
     }
 
@@ -340,6 +353,7 @@ public class StreamConfiguration implements JsonSerializable {
         private Duration duplicateWindow = Duration.ZERO;
         private Placement placement = null;
         private Mirror mirror = null;
+        private final List<Source> sources = new ArrayList<>();
 
         /**
          * Default Builder
@@ -367,6 +381,7 @@ public class StreamConfiguration implements JsonSerializable {
             this.duplicateWindow = sc.duplicateWindow;
             this.placement = sc.placement;
             this.mirror = sc.mirror;
+            sources(sc.sources);
         }
 
         /**
@@ -570,6 +585,54 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
+         * Sets the sources in the StreamConfiguration.
+         * @param sources the stream's sources
+         * @return Builder
+         */
+        public Builder sources(Source... sources) {
+            this.sources.clear();
+            return addSources(sources);
+        }
+
+        /**
+         * Sets the sources in the StreamConfiguration.
+         * @param sources the stream's sources
+         * @return Builder
+         */
+        public Builder sources(Collection<Source> sources) {
+            this.sources.clear();
+            return addSources(sources);
+        }
+
+        /**
+         * Sets the sources in the StreamConfiguration.
+         * @param sources the stream's sources
+         * @return Builder
+         */
+        public Builder addSources(Source... sources) {
+            if (sources != null) {
+                return addSources(Arrays.asList(sources));
+            }
+            return this;
+        }
+
+        /**
+         * Sets the sources in the StreamConfiguration.
+         * @param sources the stream's sources
+         * @return Builder
+         */
+        public Builder addSources(Collection<Source> sources) {
+            if (sources != null) {
+                for (Source source : sources) {
+                    if (source != null && !this.sources.contains(source)) {
+                        this.sources.add(source);
+                    }
+                }
+            }
+            return this;
+        }
+
+        /**
          * Builds the ConsumerConfiguration
          * @return a consumer configuration.
          */
@@ -590,7 +653,8 @@ public class StreamConfiguration implements JsonSerializable {
                     discardPolicy,
                     duplicateWindow,
                     placement,
-                    mirror
+                    mirror,
+                    sources
             );
         }
 

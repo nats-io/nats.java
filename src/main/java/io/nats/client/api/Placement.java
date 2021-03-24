@@ -65,7 +65,7 @@ public class Placement implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, CLUSTER, cluster);
-        addField(sb, TAGS, tags);
+        addStrings(sb, TAGS, tags);
         return endJson(sb).toString();
     }
 }
