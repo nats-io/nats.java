@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.impl.JetStreamTestBase;
 import org.junit.jupiter.api.Test;
 
+import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,7 +32,7 @@ public class AccountStatisticsTests extends JetStreamTestBase {
         assertEquals(3, as.getStreams());
         assertEquals(4, as.getConsumers());
 
-        as = new AccountStatistics(getDataMessage("{}"));
+        as = new AccountStatistics(getDataMessage(EMPTY_JSON));
         assertEquals(0, as.getMemory());
         assertEquals(0, as.getStorage());
         assertEquals(0, as.getStreams());

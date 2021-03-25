@@ -41,7 +41,7 @@ public class Mirror extends SourceBase {
         return new Builder();
     }
 
-    public static class Builder extends SourceBaseBuilder<Builder, Mirror> {
+    public static class Builder extends SourceBaseBuilder<Builder> {
         @Override
         Builder getThis() {
             return this;

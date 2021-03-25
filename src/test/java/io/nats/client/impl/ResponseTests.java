@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -71,7 +72,7 @@ public class ResponseTests extends JetStreamTestBase {
         assertEquals(3, sp.getConsumerSequence());
         assertEquals(4, sp.getStreamSequence());
 
-        clr = new ConsumerListResponse(getDataMessage("{}"));
+        clr = new ConsumerListResponse(getDataMessage(EMPTY_JSON));
         list.clear();
         clr.addTo(list);
         assertEquals(0, list.size());

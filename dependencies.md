@@ -9,7 +9,7 @@ This file lists the dependencies used in this repository.
 | net.i2p.crypto:eddsa:0.3.0           | CC 1.0 Universal                        |
 
 
-#### Test or Build Dependencies
+#### Test Dependencies
 
 | Dependency                            | License                                 |
 |---------------------------------------|-----------------------------------------|
@@ -29,6 +29,8 @@ This file lists the dependencies used in this repository.
 | org.jacoco:org.jacoco.agent:0.8.4     | Eclipse Public License Version 2.0      |
 | org.junit.jupiter:junit-jupiter:5.7.0 | Eclipse Public License 1.0              |
 | org.hamcrest:hamcrest-core:1.3        | BSD 3-Clause "New" or "Revised" License |
+    testCompile 'nl.jqno.equalsverifier:equalsverifier:3.5.5'
+
 | gradle                                | Apache 2.0 License                      |
 
 

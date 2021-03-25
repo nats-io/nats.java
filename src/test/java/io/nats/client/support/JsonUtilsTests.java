@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public final class JsonUtilsTests {
@@ -58,6 +59,14 @@ public final class JsonUtilsTests {
         json = "{\"object\": {\"field\": \"val\"";
         object = JsonUtils.getJsonObject("object", json);
         assertEquals(JsonUtils.EMPTY_JSON, object);
+
+        json = dataAsString("StreamInfo.json");
+        object = JsonUtils.getJsonObject("cluster", json);
+        assertFalse(object.contains("placementclstr"));
+        assertFalse(object.contains("tags"));
+        assertFalse(object.contains("messages"));
+        assertTrue(object.contains("clustername"));
+        assertTrue(object.contains("replicas"));
     }
 
     @Test
@@ -105,7 +114,13 @@ public final class JsonUtilsTests {
         JsonUtils.addStrings(sb, "n/a", (List<String>)null);
         assertEquals(0, sb.length());
 
+        JsonUtils.addField(sb, "n/a", (JsonSerializable)null);
+        assertEquals(0, sb.length());
+
         JsonUtils.addJsons(sb, "n/a", new ArrayList<>());
+        assertEquals(0, sb.length());
+
+        JsonUtils.addJsons(sb, "n/a", null);
         assertEquals(0, sb.length());
 
         JsonUtils.addFldWhenTrue(sb, "n/a", null);
@@ -136,5 +151,13 @@ public final class JsonUtilsTests {
         assertTrue(JsonUtils.readBoolean(json, YES_RE));
         assertFalse(JsonUtils.readBoolean(json, NO_RE));
         assertFalse((JsonUtils.readBoolean(json, MISSING_RE)));
+    }
+
+    @Test
+    public void testDecode() {
+        assertEquals("x.>", JsonUtils.decode("x.\\u003e"));
+        assertEquals("x.\\x003e", JsonUtils.decode("x.\\x003e"));
+        assertEquals("x.\\ux03e", JsonUtils.decode("x.\\ux03e"));
+        assertEquals("x.\\u0x3e", JsonUtils.decode("x.\\u0x3e"));
     }
 }

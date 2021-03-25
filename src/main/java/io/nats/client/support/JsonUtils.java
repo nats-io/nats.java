@@ -22,6 +22,8 @@ import java.util.function.LongConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static io.nats.client.support.NatsConstants.COLON;
+
 /**
  * Internal json parsing helpers.
  */
@@ -102,7 +104,7 @@ public abstract class JsonUtils {
     }
 
     public static String getJsonObject(String objectName, String json, String dflt) {
-        int[] indexes = getBracketIndexes(objectName, json, '{', '}');
+        int[] indexes = getBracketIndexes(objectName, json, '{', '}', 0);
         return indexes == null ? dflt : json.substring(indexes[0], indexes[1] + 1);
     }
 
@@ -115,7 +117,7 @@ public abstract class JsonUtils {
      */
     public static List<String> getObjectList(String objectName, String json) {
         List<String> items = new ArrayList<>();
-        int[] indexes = getBracketIndexes(objectName, json, '[', ']');
+        int[] indexes = getBracketIndexes(objectName, json, '[', ']', -1);
         if (indexes != null) {
             StringBuilder item = new StringBuilder();
             int depth = 0;
@@ -138,11 +140,24 @@ public abstract class JsonUtils {
         return items;
     }
 
-    private static int[] getBracketIndexes(String objectName, String json, char start, char end) {
+    private static int[] getBracketIndexes(String objectName, String json, char start, char end, int fromIndex) {
         int[] result = new int[] {-1, -1};
-        int objStart = json.indexOf(Q + objectName + Q);
+        int objStart = json.indexOf(Q + objectName + Q, fromIndex);
         if (objStart != -1) {
-            int startIx = json.indexOf(start, objStart);
+            int startIx;
+            if (fromIndex != -1) {
+                int colonMark = json.indexOf(COLON, objStart) + 1;
+                startIx = json.indexOf(start, colonMark);
+                for (int x = colonMark; x < startIx; x++) {
+                    char c = json.charAt(x);
+                    if (!Character.isWhitespace(c)) {
+                        return getBracketIndexes(objectName, json, start, end, colonMark);
+                    }
+                }
+            }
+            else {
+                startIx = json.indexOf(start, objStart);
+            }
             int depth = 1;
             for (int x = startIx + 1; x < json.length(); x++) {
                 char c = json.charAt(x);

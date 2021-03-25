@@ -46,6 +46,7 @@ public interface ApiConstants {
     String DUPLICATE        = "duplicate";
     String DUPLICATE_WINDOW = "duplicate_window";
     String DURABLE_NAME     = "durable_name";
+    String ERROR            = "error";
     String EXTERNAL         = "external";
     String FILTER_SUBJECT   = "filter_subject";
     String FIRST_SEQ        = "first_seq";
@@ -92,6 +93,7 @@ public interface ApiConstants {
     String PROTOCOL_VERSION = "proto";
     String RATE_LIMIT       = "rate_limit";
     String REPLAY_POLICY    = "replay_policy";
+    String REPLICA          = "replica";
     String REPLICAS         = "replicas";
     String RETENTION        = "retention";
     String SAMPLE_FREQ      = "sample_freq";
@@ -111,6 +113,7 @@ public interface ApiConstants {
     String SUCCESS          = "success";
     String TAGS             = "tags";
     String TEMPLATE         = "template";
+    String TEMPLATE_OWNER   = "template_owner";
     String TIME             = "time";
     String TLS              = "tls_required";
     String TOTAL            = "total";
@@ -164,6 +167,7 @@ public interface ApiConstants {
     Pattern NUM_ACK_PENDING_RE  = number_pattern(NUM_ACK_PENDING);
     Pattern NUM_PENDING_RE      = number_pattern(NUM_PENDING);
     Pattern NUM_REDELIVERED_RE  = number_pattern(NUM_REDELIVERED);
+    Pattern NUM_REPLICAS_RE     = number_pattern(NUM_REPLICAS);
     Pattern NUM_WAITING_RE      = number_pattern(NUM_WAITING);
     Pattern OFFLINE_RE          = boolean_pattern(OFFLINE);
     Pattern OFFSET_RE           = number_pattern(OFFSET);
@@ -171,7 +175,6 @@ public interface ApiConstants {
     Pattern OPT_START_TIME_RE   = string_pattern(OPT_START_TIME);
     Pattern RATE_LIMIT_RE       = number_pattern(RATE_LIMIT);
     Pattern REPLAY_POLICY_RE    = string_pattern(REPLAY_POLICY);
-    Pattern REPLICAS_RE         = number_pattern(NUM_REPLICAS);
     Pattern RETENTION_RE        = string_pattern(RETENTION);
     Pattern SAMPLE_FREQ_RE      = string_pattern(SAMPLE_FREQ);
     Pattern SEQ_RE              = number_pattern(SEQ);
@@ -184,6 +187,7 @@ public interface ApiConstants {
     Pattern SUBJECT_RE          = string_pattern(SUBJECT);
     Pattern SUCCESS_RE          = boolean_pattern(SUCCESS);
     Pattern TEMPLATE_RE         = string_pattern(TEMPLATE);
+    Pattern TEMPLATE_OWNER_RE   = string_pattern(TEMPLATE_OWNER);
     Pattern TIME_RE             = string_pattern(TIME);
     Pattern TOTAL_RE            = number_pattern(TOTAL);
     Pattern TYPE_RE             = string_pattern(TYPE);

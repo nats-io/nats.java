@@ -76,9 +76,9 @@ public class StreamConfiguration implements JsonSerializable {
         readLong(json, MAX_BYTES_RE, builder::maxBytes);
         readNanos(json, MAX_AGE_RE, builder::maxAge);
         readLong(json, MAX_MSG_SIZE_RE, builder::maxMsgSize);
-        readInt(json, REPLICAS_RE, builder::replicas);
+        readInt(json, NUM_REPLICAS_RE, builder::replicas);
         builder.noAck(readBoolean(json, NO_ACK_RE));
-        builder.template(readString(json, TEMPLATE_RE));
+        builder.templateOwner(readString(json, TEMPLATE_OWNER_RE));
         readNanos(json, DUPLICATE_WINDOW_RE, builder::duplicateWindow);
         builder.subjects(getStringArray(SUBJECTS, json));
         builder.placement(Placement.optionalInstance(json));
@@ -136,7 +136,7 @@ public class StreamConfiguration implements JsonSerializable {
         addField(sb, STORAGE, storageType.toString());
         addField(sb, NUM_REPLICAS, replicas);
         addField(sb, NO_ACK, noAck);
-        addField(sb, TEMPLATE, templateOwner);
+        addField(sb, TEMPLATE_OWNER, templateOwner);
         addField(sb, DISCARD, discardPolicy.toString());
         addFieldAsNanos(sb, DUPLICATE_WINDOW, duplicateWindow);
         if (placement != null) {
@@ -234,7 +234,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the number of replicas for this stream configuration.
      * @return the number of replicas
      */    
-    public long getReplicas() {
+    public int getReplicas() {
         return replicas;
     }
 
@@ -535,11 +535,11 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Sets the template a stream in the form of raw JSON.
-         * @param template the stream template of the stream.
+         * @param templateOwner the stream template of the stream.
          * @return the builder
          */
-        public Builder template(String template) {
-            this.templateOwner = emptyAsNull(template);
+        public Builder templateOwner(String templateOwner) {
+            this.templateOwner = emptyAsNull(templateOwner);
             return this;
         }
 
@@ -610,10 +610,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder addSources(Source... sources) {
-            if (sources != null) {
-                return addSources(Arrays.asList(sources));
-            }
-            return this;
+            return addSources(Arrays.asList(sources));
         }
 
         /**

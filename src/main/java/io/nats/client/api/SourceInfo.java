@@ -13,51 +13,25 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
+import java.util.ArrayList;
+import java.util.List;
 
-import java.time.Duration;
+import static io.nats.client.support.ApiConstants.SOURCE;
+import static io.nats.client.support.ApiConstants.SOURCES;
+import static io.nats.client.support.JsonUtils.getObjectList;
 
-import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
+public class SourceInfo extends SourceInfoBase {
 
-public class SourceInfo {
-    private final String name;
-    private final long lag;
-    private final Duration active;
-    private final Error error;
-    private final String objectName;
-
-    public SourceInfo(String json, String objectName) {
-        name = readString(json, NAME_RE);
-        lag = JsonUtils.readLong(json, LAG_RE, 0);
-        active = JsonUtils.readNanos(json, ACTIVE_RE, Duration.ZERO);
-        error = Error.getInstance(json);
-        this.objectName = normalize(objectName);
+    public static List<SourceInfo> optionalListOf(String json) {
+        List<String> strObjects = getObjectList(SOURCES, json);
+        List<SourceInfo> list = new ArrayList<>();
+        for (String j : strObjects) {
+            list.add(new SourceInfo(j));
+        }
+        return list.isEmpty() ? null : list;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public long getLag() {
-        return lag;
-    }
-
-    public Duration getActive() {
-        return active;
-    }
-
-    public Error getError() {
-        return error;
-    }
-
-    @Override
-    public String toString() {
-        return objectName + "{" +
-                "name='" + name + '\'' +
-                ", lag=" + lag +
-                ", active=" + active +
-                ", " + objectString("error", error) +
-                '}';
+    public SourceInfo(String json) {
+        super(json, SOURCE);
     }
 }

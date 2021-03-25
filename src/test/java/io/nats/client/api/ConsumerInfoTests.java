@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
+import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -47,7 +48,7 @@ public class ConsumerInfoTests {
         assertEquals(10, c.getMaxDeliver());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
 
-        ci = new ConsumerInfo("{}");
+        ci = new ConsumerInfo(EMPTY_JSON);
         assertNull(ci.getStreamName());
         assertNull(ci.getName());
         assertNull(ci.getCreationTime());

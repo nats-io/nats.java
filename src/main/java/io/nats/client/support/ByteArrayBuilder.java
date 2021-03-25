@@ -23,50 +23,196 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 public class ByteArrayBuilder {
     public static final int DEFAULT_ASCII_ALLOCATION = 32;
     public static final int DEFAULT_OTHER_ALLOCATION = 64;
-    private static final byte[] NULL = "null".getBytes(US_ASCII);
-    private static final byte[] SPACE = " ".getBytes(US_ASCII);
-    private static final byte[] CRLF = "\r\n".getBytes(US_ASCII);
+    public static final byte[] NULL = "null".getBytes(US_ASCII);
+    public static final byte[] SPACE = " ".getBytes(US_ASCII);
+    public static final byte[] CRLF = "\r\n".getBytes(US_ASCII);
 
-    private final int allocationSize;
     private final Charset defaultCharset;
     private ByteBuffer buffer;
+    private int allocationSize;
 
-
+    /**
+     * Construct the ByteArrayBuilder with
+     * the initial size and allocation size of {@value #DEFAULT_ASCII_ALLOCATION}
+     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     */
     public ByteArrayBuilder() {
-        this(DEFAULT_ASCII_ALLOCATION, US_ASCII);
+        this(DEFAULT_ASCII_ALLOCATION, DEFAULT_ASCII_ALLOCATION, US_ASCII);
     }
 
+    /**
+     * Construct the ByteArrayBuilder with the supplied initial size,
+     * allocation size of {@value #DEFAULT_ASCII_ALLOCATION}
+     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     *
+     * @param initialSize the initial size
+     */
     public ByteArrayBuilder(int initialSize) {
-        this(initialSize, US_ASCII);
+        this(initialSize, DEFAULT_ASCII_ALLOCATION, US_ASCII);
     }
 
+    /**
+     * Construct the ByteArrayBuilder with an existing byte array using it's
+     * length as the initial length, the allocation size the larger of
+     * the length and {@value #DEFAULT_ASCII_ALLOCATION},
+     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     *
+     * Then initializes the buffer with the supplied bytes
+     *
+     * @param bytes the bytes
+     */
+    public ByteArrayBuilder(byte[] bytes) {
+        allocationSize = Math.max(DEFAULT_ASCII_ALLOCATION, bytes.length);
+        this.buffer = ByteBuffer.allocate(bytes.length);
+        this.defaultCharset = US_ASCII;
+        buffer.put(bytes, 0, bytes.length);
+    }
+
+    /**
+     * Construct the ByteArrayBuilder with the supplied character set
+     * with the default initial size and allocation size determined by that character set
+     *
+     * @param defaultCharset the default character set
+     */
     public ByteArrayBuilder(Charset defaultCharset) {
-        this(0, defaultCharset);
+        this(-1, -1, defaultCharset);
     }
 
+    /**
+     * Construct the ByteArrayBuilder with the supplied initial size and character set
+     * with the allocation size determined by that character set.
+     *
+     * @param initialSize the initial size
+     * @param defaultCharset the default character set
+     */
     public ByteArrayBuilder(int initialSize, Charset defaultCharset) {
-        allocationSize = defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
-        this.buffer = ByteBuffer.allocate(computeNewAllocationSize(0, initialSize));
+        this(initialSize, -1, defaultCharset);
+    }
+
+
+    /**
+     * Construct the ByteArrayBuilder with the supplied initial size,
+     * allocation size and character set
+     *
+     * @param initialSize the initial size
+     * @param allocationSize the allocationSize size
+     * @param defaultCharset the default character set
+     */
+    public ByteArrayBuilder(int initialSize, int allocationSize, Charset defaultCharset) {
+        this.allocationSize = allocationSize > 0 ? allocationSize : (defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION);
+        int bytesNeeeded = initialSize > 0 ? initialSize : (defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION);
+        this.buffer = ByteBuffer.allocate(bytesNeeeded);
         this.defaultCharset = defaultCharset;
     }
 
+    /**
+     * Get the length of the data in the buffer
+     *
+     * @return the length of the data
+     */
+    public int length() {
+        return buffer.position();
+    }
+
+    /**
+     * Determine if a byte array contains the same bytes as this buffer
+     *
+     * @param bytes the bytes
+     * @return true if the supplied value equals what is in the buffer
+     */
+    public boolean equals(byte[] bytes) {
+        if (bytes == null || buffer.position() != bytes.length) {
+            return false;
+        }
+        byte[] hb = buffer.array();
+        for (int x = 0; x < bytes.length; x++) {
+            if (hb[x] != bytes[x]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Copy the contents of the buffer to the byte array starting at the destination
+     * positions supplied. Assumes that the {@link #length} method has been called
+     * and the destination byte array has enough space allocated
+     *
+     * @param dest the destination byte array
+     * @param destPos the starting position in the destination byte array
+     * @return the number of bytes copied
+     */
+    public int copyTo(byte[] dest, int destPos) {
+        int len = length();
+        byte[] hb = buffer.array();
+        System.arraycopy(hb, 0, dest, destPos, len);
+        return len;
+    }
+
+    /**
+     * Copy the value in the buffer to a new byte array
+     *
+     * @return the copy of the bytes
+     */
     public byte[] toByteArray() {
         return Arrays.copyOf(buffer.array(), buffer.position());
     }
 
-    protected int computeNewAllocationSize(int currentPosition, int bytesNeeded) {
+    /**
+     * Access the internal byte array of this buffer. Intended for read only
+     * with knowledge of {@link #length}
+     *
+     * @return a direct handle to the internal byte array
+     */
+    public byte[] internalArray() {
+        return buffer.array();
+    }
+
+    protected int computeAmountToAllocate(int currentPosition, int bytesNeeded) {
         return ((currentPosition + bytesNeeded + allocationSize) / allocationSize) * allocationSize;
     }
 
-    private void ensureCapacity(int bytesNeeded) {
+    /**
+     * Ensures that the buffer can accept the number of bytes needed
+     * Useful if the size of multiple append operations is known ahead of time
+     * therefore reducing the number of possible allocations during those appends
+     *
+     * @param bytesNeeded the number of bytes needed
+     *
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder ensureCapacity(int bytesNeeded) {
         int bytesAvailable = buffer.capacity() - buffer.position();
         if (bytesAvailable < bytesNeeded) {
             ByteBuffer newBuffer
                     = ByteBuffer.allocate(
-                            computeNewAllocationSize(buffer.position(), bytesNeeded));
+                    computeAmountToAllocate(buffer.position(), bytesNeeded));
             newBuffer.put(buffer.array(), 0, buffer.position());
             buffer = newBuffer;
         }
+        return this;
+    }
+
+    /**
+     * Clear the buffer, resetting it's length
+     *
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder clear() {
+        buffer.clear();
+        return this;
+    }
+
+    /**
+     * Change the allocation size
+     *
+     * @param allocationSize the new allocation size
+     *
+     * @return this (fluent)
+     */
+    public ByteArrayBuilder setAllocationSize(int allocationSize) {
+        this.allocationSize = allocationSize;
+        return this;
     }
 
     /**
@@ -222,8 +368,15 @@ public class ByteArrayBuilder {
         return this;
     }
 
+    public ByteArrayBuilder append(ByteArrayBuilder bab) {
+        if (bab != null && bab.length() > 0) {
+            append(bab.buffer.array(), 0, bab.length());
+        }
+        return this;
+    }
+
     @Override
     public String toString() {
-        return new String(toByteArray(), defaultCharset);
+        return new String(buffer.array(), 0, buffer.position(), defaultCharset);
     }
 }

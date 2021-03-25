@@ -16,10 +16,9 @@ package io.nats.client.api;
 import io.nats.client.support.JsonUtils;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.normalize;
 
 public class PeerInfo {
     private final String name;
@@ -27,22 +26,15 @@ public class PeerInfo {
     private final boolean offline;
     private final Duration active;
     private final long lag;
+    private final String objectName;
 
-    public static List<PeerInfo> listOf(String objectName, String json) {
-        List<String> strObjects = JsonUtils.getObjectList(objectName, json);
-        List<PeerInfo> list = new ArrayList<>();
-        for (String j : strObjects) {
-            list.add(new PeerInfo(j));
-        }
-        return list;
-    }
-
-    public PeerInfo(String json) {
+    protected PeerInfo(String objectName, String json) {
         name = JsonUtils.readString(json, NAME_RE);
         current = JsonUtils.readBoolean(json, CURRENT_RE);
         offline = JsonUtils.readBoolean(json, OFFLINE_RE);
         active = JsonUtils.readNanos(json, ACTIVE_RE, Duration.ZERO);
         lag = JsonUtils.readLong(json, LAG_RE, 0);
+        this.objectName = normalize(objectName);
     }
 
     public String getName() {
@@ -67,7 +59,7 @@ public class PeerInfo {
 
     @Override
     public String toString() {
-        return "PeerInfo{" +
+        return objectName + "{" +
                 "name='" + name + '\'' +
                 ", current=" + current +
                 ", offline=" + offline +

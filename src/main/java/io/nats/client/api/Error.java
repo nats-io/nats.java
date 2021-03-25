@@ -15,24 +15,23 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
 
-import static io.nats.client.support.ApiConstants.CODE_RE;
-import static io.nats.client.support.ApiConstants.DESCRIPTION_RE;
+import static io.nats.client.support.ApiConstants.*;
 
 public class Error {
 
     public static final int NOT_SET = -1;
 
+    private final String json;
     private final Integer code;
     private final String desc;
 
-    static Error getInstance(String json) {
-        if ( json.contains("\"error\"") ) {
-            return new Error(json);
-        }
-        return null;
+    static Error optionalInstance(String json) {
+        String errorJson = JsonUtils.getJsonObject(ERROR, json, null);
+        return errorJson == null ? null : new Error(errorJson);
     }
 
     Error(String json) {
+        this.json = json;
         code = JsonUtils.readInt(json, CODE_RE, NOT_SET);
         desc = JsonUtils.readString(json, DESCRIPTION_RE, null);
     }
@@ -47,9 +46,12 @@ public class Error {
 
     @Override
     public String toString() {
-        return "Error{" +
-                "code=" + code +
-                ", desc='" + desc + '\'' +
-                '}';
+        if (desc == null) {
+            return code == NOT_SET
+                    ? "Unknown JetStream Error: " + json
+                    : "Unknown JetStream Error (" + code + ")";
+        }
+
+        return desc+ " (" + code + ")";
     }
 }

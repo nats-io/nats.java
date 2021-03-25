@@ -14,59 +14,148 @@
 package io.nats.client.api;
 
 import io.nats.client.impl.JetStreamTestBase;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
+import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
 
-    @Test
-    public void testBuilder() {
-        // manual construction
-        StreamConfiguration sc = StreamConfiguration.builder()
-                .discardPolicy(DiscardPolicy.Old)
-                .duplicateWindow(Duration.ofSeconds(99))
-                .maxAge(Duration.ofDays(42))
-                .maxBytes(1024*1024*420)
-                .maxConsumers(512)
-                .maxMessages(64)
-                .maxMsgSize(1024*1024)
-                .name("stream-name")
-                .noAck(true)
-                .replicas(5)
-                .storageType(StorageType.Memory)
-                .retentionPolicy(RetentionPolicy.Interest)
-                .subjects("foo", "bar")
-                .template("tpl").build();
-        validateBuilder(sc);
-
-        // copy construction
-        validateBuilder(StreamConfiguration.builder(sc).build());
+    private StreamConfiguration getTestConfiguration() {
+        String json = ResourceUtils.dataAsString("StreamConfiguration.json");
+        return StreamConfiguration.instance(json);
     }
 
-    private void validateBuilder(StreamConfiguration c) {
-        assertEquals(DiscardPolicy.Old, c.getDiscardPolicy());
-        assertEquals(Duration.ofSeconds(99), c.getDuplicateWindow());
-        assertEquals(Duration.ofDays(42), c.getMaxAge());
-        assertEquals(1024 * 1024 * 420, c.getMaxBytes());
-        assertEquals(512, c.getMaxConsumers());
-        assertEquals(64, c.getMaxMsgs());
-        assertEquals(1024 * 1024, c.getMaxMsgSize());
-        assertEquals("stream-name", c.getName());
-        assertTrue(c.getNoAck());
-        assertEquals(5, c.getReplicas());
-        assertEquals(StorageType.Memory, c.getStorageType());
-        assertEquals(RetentionPolicy.Interest, c.getRetentionPolicy());
-        assertNotNull(c.getSubjects());
-        assertEquals(2, c.getSubjects().size());
-        assertEquals("foo", c.getSubjects().get(0));
-        assertEquals("bar", c.getSubjects().get(1));
-        assertEquals("tpl", c.getTemplateOwner());
+    @Test
+    public void testConstruction() {
+        StreamConfiguration testSc = getTestConfiguration();
+        // from json
+        validate(testSc);
+
+        // test toJson
+        validate(StreamConfiguration.instance(testSc.toJson()));
+
+        // copy constructor
+        validate(StreamConfiguration.builder(testSc).build());
+
+        // builder
+        StreamConfiguration.Builder builder = StreamConfiguration.builder()
+                .name(testSc.getName())
+                .subjects(testSc.getSubjects())
+                .retentionPolicy(testSc.getRetentionPolicy())
+                .maxConsumers(testSc.getMaxConsumers())
+                .maxMessages(testSc.getMaxMsgs())
+                .maxBytes(testSc.getMaxBytes())
+                .maxAge(testSc.getMaxAge())
+                .maxMsgSize(testSc.getMaxMsgSize())
+                .storageType(testSc.getStorageType())
+                .replicas(testSc.getReplicas())
+                .noAck(testSc.getNoAck())
+                .templateOwner(testSc.getTemplateOwner())
+                .discardPolicy(testSc.getDiscardPolicy())
+                .duplicateWindow(testSc.getDuplicateWindow())
+                .placement(testSc.getPlacement())
+                .mirror(testSc.getMirror())
+                .sources(testSc.getSources())
+                ;
+        validate(builder.build());
+        validate(builder.addSources((Source)null).build());
+
+        List<Source> sources = new ArrayList<>(testSc.getSources());
+        sources.add(null);
+        Source copy = new Source(sources.get(0).toJson());
+        sources.add(copy);
+        validate(builder.addSources(sources).build());
+
+        // equals and hashcode coverage
+        External external = copy.getExternal();
+
+        assertEquals(sources.get(0), copy);
+        assertEquals(sources.get(0).hashCode(), copy.hashCode());
+        assertEquals(sources.get(0).getExternal(), external);
+        assertEquals(sources.get(0).getExternal().hashCode(), external.hashCode());
+
+        external = testSc.getMirror().getExternal();
+        assertEquals(external, external);
+        assertNotEquals(external, null);
+        assertNotEquals(external, new Object());
+        assertNotEquals(external, new External("{ \"api\": \"not\", \"deliver\": \"dlvrsub\" }"));
+        assertNotEquals(external, new External("{ \"api\": \"apithing\", \"deliver\": \"not\" }"));
+        assertNotEquals(external, new External("{ \"deliver\": \"dlvrsub\" }"));
+        assertNotEquals(new External("{ \"deliver\": \"dlvrsub\" }"), external);
+        assertEquals(new External("{ \"deliver\": \"dlvrsub\" }"), new External("{ \"deliver\": \"dlvrsub\" }"));
+        assertNotEquals(external, new External("{ \"api\": \"apithing\""));
+        assertNotEquals(new External("{ \"api\": \"apithing\""), external);
+        assertEquals(new External("{ \"api\": \"apithing\""), new External("{ \"api\": \"apithing\""));
+    }
+
+    @Test
+    public void testSourceBase() {
+        StreamConfiguration sc = getTestConfiguration();
+        Mirror m = sc.getMirror();
+
+        String json = m.toJson();
+        Source s1 = new Source(json);
+        Source s2 = new Source(json);
+        assertEquals(s1, s2);
+        assertNotEquals(s1, null);
+        assertNotEquals(s1, new Object());
+        Mirror m1 = new Mirror(json);
+        Mirror m2 = new Mirror(json);
+        assertEquals(m1, m2);
+        assertNotEquals(m1, null);
+        assertNotEquals(m1, new Object());
+
+        Source.Builder sb = Source.builder();
+        Mirror.Builder mb = Mirror.builder();
+
+        // STEPPED like this so the equals returns false on different portion of the object
+        // by the end I've built an equal object
+        assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(999), mb.startSeq(999));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(m.getStartSeq()), mb.startSeq(m.getStartSeq()));
+
+        assertNotEqualsEqualsHashcode(s1, m1, sb.name(null), mb.name(null));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.name("not"), mb.name("not"));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.name(m.getName()), mb.name(m.getName()));
+
+        assertNotEqualsEqualsHashcode(s1, m1, sb.startTime(null), mb.startTime(null));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.startTime(ZonedDateTime.now()), mb.startTime(ZonedDateTime.now()));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.startTime(m.getStartTime()), mb.startTime(m.getStartTime()));
+
+        assertNotEqualsEqualsHashcode(s1, m1, sb.filterSubject(null), mb.filterSubject(null));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.filterSubject("not"), mb.filterSubject("not"));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.filterSubject(m.getFilterSubject()), mb.filterSubject(m.getFilterSubject()));
+
+        assertNotEqualsEqualsHashcode(s1, m1, sb.external(null), mb.external(null));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.external(new External(EMPTY_JSON)), mb.external(new External(EMPTY_JSON)));
+
+        sb.external(m.getExternal());
+        mb.external(m.getExternal());
+
+        assertEquals(s1, sb.build());
+        assertEquals(m1, mb.build());
+        assertEquals(s1.hashCode(), sb.build().hashCode());
+        assertEquals(m1.hashCode(), mb.build().hashCode());
+    }
+
+    private void assertNotEqualsEqualsHashcode(Source s, Mirror m, Source.Builder sb, Mirror.Builder mb) {
+        assertNotEquals(s, sb.build());
+        assertNotEquals(m, mb.build());
+        assertNotEquals(s.hashCode(), sb.build().hashCode());
+        assertNotEquals(m.hashCode(), mb.build().hashCode());
+        assertNotEquals(sb.build(), s);
+        assertNotEquals(mb.build(), m);
+        assertNotEquals(sb.build().hashCode(), s.hashCode());
+        assertNotEquals(mb.build().hashCode(), m.hashCode());
     }
 
     @Test
@@ -165,21 +254,62 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
     }
 
-    @Test
-    public void testJSONParsing() {
-        String configJSON = ResourceUtils.dataAsString("StreamConfiguration.json");
-        // spot check a configuration with spaces, \n, etc.
-        StreamConfiguration c = StreamConfiguration.instance(configJSON);
-        assertEquals("sname", c.getName());
-        assertEquals(2, c.getSubjects().size());
-        assertEquals("foo", c.getSubjects().get(0));
-        assertEquals("bar", c.getSubjects().get(1));
-        assertEquals("owner", c.getTemplateOwner());
-        assertEquals(StorageType.Memory, c.getStorageType());
+    private void validate(StreamConfiguration sc) {
+        assertEquals("sname", sc.getName());
+        assertEquals(2, sc.getSubjects().size());
+        assertEquals("foo", sc.getSubjects().get(0));
+        assertEquals("bar", sc.getSubjects().get(1));
+
+        assertSame(RetentionPolicy.Interest, sc.getRetentionPolicy());
+        assertEquals(730, sc.getMaxConsumers());
+        assertEquals(731, sc.getMaxMsgs());
+        assertEquals(732, sc.getMaxBytes());
+        assertEquals(Duration.ofNanos(42000000000L), sc.getMaxAge());
+        assertEquals(734, sc.getMaxMsgSize());
+        assertEquals(StorageType.Memory, sc.getStorageType());
+        assertEquals(5, sc.getReplicas());
+        assertFalse(sc.getNoAck());
+        assertEquals("twnr", sc.getTemplateOwner());
+        assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
+        assertEquals(Duration.ofNanos(73000000000L), sc.getDuplicateWindow());
+
+        assertNotNull(sc.getPlacement());
+        assertEquals("clstr", sc.getPlacement().getCluster());
+        assertEquals(2, sc.getPlacement().getTags().size());
+        assertEquals("tag1", sc.getPlacement().getTags().get(0));
+        assertEquals("tag2", sc.getPlacement().getTags().get(1));
+
+        ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
+
+        assertNotNull(sc.getMirror());
+        assertEquals("eman", sc.getMirror().getName());
+        assertEquals(736, sc.getMirror().getStartSeq());
+        assertEquals(zdt, sc.getMirror().getStartTime());
+        assertEquals("mfsub", sc.getMirror().getFilterSubject());
+
+        assertNotNull(sc.getMirror().getExternal());
+        assertEquals("apithing", sc.getMirror().getExternal().getApi());
+        assertEquals("dlvrsub", sc.getMirror().getExternal().getDeliver());
+
+        assertEquals(2, sc.getSources().size());
+
+        validateSource(sc.getSources().get(0), "s0", 737, "s0sub", "s0api", "s0dlvrsub", zdt);
+        validateSource(sc.getSources().get(1), "s1", 738, "s1sub", "s1api", "s1dlvrsub", zdt);
+    }
+
+    private void validateSource(Source source, String name, int seq, String filter, String api, String deliver, ZonedDateTime zdt) {
+        assertEquals(name, source.getName());
+        assertEquals(seq, source.getStartSeq());
+        assertEquals(zdt, source.getStartTime());
+        assertEquals(filter, source.getFilterSubject());
+
+        assertNotNull(source.getExternal());
+        assertEquals(api, source.getExternal().getApi());
+        assertEquals(deliver, source.getExternal().getDeliver());
     }
 
     @Test
-    public void testToString() {
+    public void miscCoverage() {
         // COVERAGE
         String json = ResourceUtils.dataAsString("StreamConfiguration.json");
         assertNotNull(StreamConfiguration.instance(json).toString());

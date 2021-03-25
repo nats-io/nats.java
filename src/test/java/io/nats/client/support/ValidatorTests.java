@@ -186,6 +186,23 @@ public class ValidatorTests {
         assertFalse(zeroOrLtMinus1(-1));
     }
 
+    @Test
+    public void testContainsWhitespace() {
+        assertTrue(containsWhitespace(HAS_SPACE));
+        assertFalse(containsWhitespace(PLAIN));
+        assertFalse(containsWhitespace(null));
+    }
+
+    @Test
+    public void testContainsWildGtDollarSpaceTab() {
+        assertTrue(containsWildGtDollarSpaceTab(HAS_STAR));
+        assertTrue(containsWildGtDollarSpaceTab(HAS_GT));
+        assertTrue(containsWildGtDollarSpaceTab(HAS_DOLLAR));
+        assertTrue(containsWildGtDollarSpaceTab(HAS_TAB));
+        assertFalse(containsWildGtDollarSpaceTab(PLAIN));
+        assertFalse(containsWildGtDollarSpaceTab(null));
+    }
+
     interface StringTest { String validate(String s); }
 
     private void allowed(StringTest test, String... strings) {

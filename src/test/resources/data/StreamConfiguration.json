@@ -1,14 +1,52 @@
 {
   "name": "sname",
   "subjects": ["foo", "bar"],
-  "retention": "limits",
-  "max_consumers": -1,
-  "max_msgs": -1,
-  "max_bytes": -1,
-  "max_age": 0,
-  "max_msg_size": -1,
+  "retention": "interest",
+  "max_consumers": 730,
+  "max_msgs": 731,
+  "max_bytes": 732,
+  "max_age": 42000000000,
+  "max_msg_size": 734,
   "storage": "memory",
-  "discard": "old",
-  "template": "owner",
-  "num_replicas": 1
+  "num_replicas": 5,
+  "no_ack": false,
+  "template_owner": "twnr",
+  "discard": "new",
+  "duplicate_window": 73000000000,
+  "placement": {
+    "cluster": "clstr",
+    "tags": ["tag1", "tag2"]
+  },
+  "mirror": {
+    "name": "eman",
+    "opt_start_seq": 736,
+    "opt_start_time": "2020-11-05T19:33:21.163377Z",
+    "filter_subject": "mfsub",
+    "external": {
+      "api": "apithing",
+      "deliver": "dlvrsub"
+    }
+  },
+  "sources": [
+    {
+      "name": "s0",
+      "opt_start_seq": 737,
+      "opt_start_time": "2020-11-05T19:33:21.163377Z",
+      "filter_subject": "s0sub",
+      "external": {
+        "api": "s0api",
+        "deliver": "s0dlvrsub"
+      }
+    },
+    {
+      "name": "s1",
+      "opt_start_seq": 738,
+      "opt_start_time": "2020-11-05T19:33:21.163377Z",
+      "filter_subject": "s1sub",
+      "external": {
+        "api": "s1api",
+        "deliver": "s1dlvrsub"
+      }
+    }
+  ]
 }

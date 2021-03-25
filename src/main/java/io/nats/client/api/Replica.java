@@ -16,22 +16,22 @@ package io.nats.client.api;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.nats.client.support.ApiConstants.SOURCE;
-import static io.nats.client.support.ApiConstants.SOURCES;
+import static io.nats.client.support.ApiConstants.REPLICA;
+import static io.nats.client.support.ApiConstants.REPLICAS;
 import static io.nats.client.support.JsonUtils.getObjectList;
 
-public class SourceSourceInfo extends SourceInfo {
+public class Replica extends PeerInfo {
 
-    public static List<SourceSourceInfo> optionalListOf(String json) {
-        List<String> strObjects = getObjectList(SOURCES, json);
-        List<SourceSourceInfo> list = new ArrayList<>();
+    public static List<Replica> optionalListOf(String json) {
+        List<String> strObjects = getObjectList(REPLICAS, json);
+        List<Replica> list = new ArrayList<>();
         for (String j : strObjects) {
-            list.add(new SourceSourceInfo(j));
+            list.add(new Replica(j));
         }
         return list.isEmpty() ? null : list;
     }
 
-    public SourceSourceInfo(String json) {
-        super(json, SOURCE);
+    public Replica(String json) {
+        super(REPLICA, json);
     }
 }

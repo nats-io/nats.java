@@ -17,7 +17,10 @@ import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.List;
 
+import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static io.nats.client.utils.TestBase.getDataMessage;
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,8 +31,12 @@ public class StreamInfoTests {
     public void testStreamInfo() {
         String json = dataAsString("StreamInfo.json");
         StreamInfo si = new StreamInfo(getDataMessage(json));
-        long expected = DateTimeUtils.parseDateTime("2021-01-25T20:09:10.6225191Z").toEpochSecond();
-        assertEquals(expected, si.getCreateTime().toEpochSecond());
+        validateStreamInfo(si);
+    }
+
+    private void validateStreamInfo(StreamInfo si) {
+        ZonedDateTime zdt = DateTimeUtils.parseDateTime("2021-01-25T20:09:10.6225191Z");
+        assertEquals(zdt, si.getCreateTime());
 
         StreamConfiguration sc = si.getConfiguration();
         assertEquals("streamName", sc.getName());
@@ -65,16 +72,54 @@ public class StreamInfoTests {
 
         Placement pl = si.getConfiguration().getPlacement();
         assertNotNull(pl);
-        assertEquals("clstr", pl.getCluster());
+        assertEquals("placementclstr", pl.getCluster());
         assertEquals(2, pl.getTags().size());
-        assertEquals("tag1", pl.getTags().get(0));
-        assertEquals("tag2", pl.getTags().get(1));
+        assertEquals("ptag1", pl.getTags().get(0));
+        assertEquals("ptag2", pl.getTags().get(1));
 
-        si = new StreamInfo("{}");
+        ClusterInfo cli = si.getClusterInfo();
+        assertNotNull(cli);
+        assertEquals("clustername", cli.getName());
+        assertEquals("clusterleader", cli.getLeader());
+
+        assertEquals(2, cli.getReplicas().size());
+        assertEquals("name0", cli.getReplicas().get(0).getName());
+        assertTrue(cli.getReplicas().get(0).isCurrent());
+        assertTrue(cli.getReplicas().get(0).isOffline());
+        assertEquals(Duration.ofNanos(230000000000L), cli.getReplicas().get(0).getActive());
+        assertEquals(3, cli.getReplicas().get(0).getLag());
+
+        assertEquals("name1", cli.getReplicas().get(1).getName());
+        assertFalse(cli.getReplicas().get(1).isCurrent());
+        assertFalse(cli.getReplicas().get(1).isOffline());
+        assertEquals(Duration.ofNanos(240000000000L), cli.getReplicas().get(1).getActive());
+        assertEquals(4, cli.getReplicas().get(1).getLag());
+
+        MirrorInfo mi = si.getMirrorInfo();
+        assertNotNull(mi);
+        assertEquals("mname", mi.getName());
+        assertEquals(16, mi.getLag());
+        assertEquals(Duration.ofNanos(160000000000L), mi.getActive());
+
+        assertEquals(2, si.getSourceInfos().size());
+        assertEquals("sname17", si.getSourceInfos().get(0).getName());
+        assertEquals(17, si.getSourceInfos().get(0).getLag());
+        assertEquals(Duration.ofNanos(170000000000L), si.getSourceInfos().get(0).getActive());
+        assertEquals("sname18", si.getSourceInfos().get(1).getName());
+        assertEquals(18, si.getSourceInfos().get(1).getLag());
+        assertEquals(Duration.ofNanos(180000000000L), si.getSourceInfos().get(1).getActive());
+
+        si = new StreamInfo(EMPTY_JSON);
         assertNull(si.getCreateTime());
         assertNotNull(si.getStreamState());
         assertNotNull(si.getConfiguration());
         assertNull(si.getConfiguration().getPlacement());
+        assertNull(si.getClusterInfo());
+        assertNull(si.getMirrorInfo());
+        assertNull(si.getSourceInfos());
+
+        List<Replica> replicas = Replica.optionalListOf(EMPTY_JSON);
+        assertNull(replicas);
     }
 
     @Test

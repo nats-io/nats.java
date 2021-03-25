@@ -36,11 +36,6 @@ public class External implements JsonSerializable {
         deliver = JsonUtils.readString(json, DELIVER_RE);
     }
 
-    public External(String api, String deliver) {
-        this.api = api;
-        this.deliver = deliver;
-    }
-
     /**
      * Returns a JSON representation of this mirror
      *
@@ -67,5 +62,23 @@ public class External implements JsonSerializable {
                 "api='" + api + '\'' +
                 ", deliver='" + deliver + '\'' +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        External external = (External) o;
+
+        if (api != null ? !api.equals(external.api) : external.api != null) return false;
+        return deliver != null ? deliver.equals(external.deliver) : external.deliver == null;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = api != null ? api.hashCode() : 0;
+        result = 31 * result + (deliver != null ? deliver.hashCode() : 0);
+        return result;
     }
 }

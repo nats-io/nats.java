@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 
+import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServerInfoTests {
@@ -97,7 +98,7 @@ public class ServerInfoTests {
     
     @Test
     public void testThrowsOnShortString() {
-        assertThrows(IllegalArgumentException.class, () -> new ServerInfo("{}"));
+        assertThrows(IllegalArgumentException.class, () -> new ServerInfo(EMPTY_JSON));
     }
 
     @Test

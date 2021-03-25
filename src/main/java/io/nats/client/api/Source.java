@@ -13,8 +13,6 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonUtils;
-
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,11 +35,6 @@ public class Source extends SourceBase {
         return list.isEmpty() ? null : list;
     }
 
-    public static Source optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(SOURCE, fullJson, null);
-        return objJson == null ? null : new Source(objJson);
-    }
-
     public Source(String json) {
         super(SOURCE, json);
     }
@@ -54,7 +47,7 @@ public class Source extends SourceBase {
         return new Builder();
     }
 
-    public static class Builder extends SourceBaseBuilder<Builder, Source> {
+    public static class Builder extends SourceBaseBuilder<Builder> {
         @Override
         Builder getThis() {
             return this;

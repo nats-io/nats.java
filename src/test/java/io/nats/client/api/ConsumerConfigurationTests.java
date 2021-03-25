@@ -58,7 +58,11 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt, c.getStartTime());
 
-        String json = new ConsumerCreateRequest(SUBJECT, c).toJson();
+        ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
+        assertEquals(STREAM, ccr.getStreamName());
+        assertNotNull(ccr.getConfig());
+
+        String json = ccr.toJson();
         c = new ConsumerConfiguration(json);
         assertEquals(AckPolicy.Explicit, c.getAckPolicy());
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
@@ -72,6 +76,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt.toEpochSecond(), c.getStartTime().toEpochSecond());
 
+        assertNotNull(ccr.toString()); // COVERAGE
         assertNotNull(c.toString()); // COVERAGE
     }
 

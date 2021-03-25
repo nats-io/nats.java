@@ -60,6 +60,7 @@ public abstract class SourceBase implements JsonSerializable {
         }
         JsonUtils.addField(sb, OPT_START_TIME, startTime);
         JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
+        JsonUtils.addField(sb, EXTERNAL, external);
         return endJson(sb).toString();
     }
 
@@ -94,40 +95,65 @@ public abstract class SourceBase implements JsonSerializable {
                 '}';
     }
 
-    public abstract static class SourceBaseBuilder<T,S> {
+    public abstract static class SourceBaseBuilder<T> {
         protected String name;
         protected long startSeq;
         protected ZonedDateTime startTime;
         protected String filterSubject;
         protected External external;
 
-        abstract SourceBaseBuilder<T,S> getThis();
+        abstract T getThis();
 
-        public SourceBaseBuilder<T,S> name(String name) {
+        public T name(String name) {
             this.name = name;
             return getThis();
         }
 
-        public SourceBaseBuilder<T,S> startSeq(long startSeq) {
+        public T startSeq(long startSeq) {
             this.startSeq = startSeq;
             return getThis();
         }
 
-        public SourceBaseBuilder<T,S> startTime(ZonedDateTime startTime) {
+        public T startTime(ZonedDateTime startTime) {
             this.startTime = startTime;
             return getThis();
         }
 
-        public SourceBaseBuilder<T,S> filterSubject(String filterSubject) {
+        public T filterSubject(String filterSubject) {
             this.filterSubject = filterSubject;
             return getThis();
         }
 
-        public SourceBaseBuilder<T,S> external(External external) {
+        public T external(External external) {
             this.external = external;
             return getThis();
         }
+    }
 
-        public abstract S build();
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SourceBase that = (SourceBase) o;
+
+        if (startSeq != that.startSeq) return false;
+        if (name != null ? !name.equals(that.name) : that.name != null) return false;
+        if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
+        if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
+            return false;
+        if (external != null ? !external.equals(that.external) : that.external != null) return false;
+        return objectName.equals(that.objectName);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name != null ? name.hashCode() : 0;
+        result = 31 * result + (int) (startSeq ^ (startSeq >>> 32));
+        result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
+        result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
+        result = 31 * result + (external != null ? external.hashCode() : 0);
+        result = 31 * result + objectName.hashCode();
+        return result;
     }
 }

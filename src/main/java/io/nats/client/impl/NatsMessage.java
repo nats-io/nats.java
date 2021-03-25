@@ -307,23 +307,26 @@ public class NatsMessage implements Message {
 
     String toDetailString() {
         calculateIfDirty();
-        String hdrString = hasHeaders() ? new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+") : "";
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +
                 "\n  replyTo='" + replyToString() + '\'' +
                 "\n  data=" + dataToString() +
                 "\n  utf8mode=" + utf8mode +
-                "\n  headers=" + hdrString +
+                "\n  headers=" + headersToString() +
                 "\n  sid='" + sid + '\'' +
                 "\n  protocolLineLength=" + protocolLineLength +
-                "\n  protocolBytes=" + (protocolBytes == null ? null : new String(protocolBytes, UTF_8)) +
+                "\n  protocolBytes=" + protocolBytesToString() +
                 "\n  sizeInBytes=" + sizeInBytes +
                 "\n  hdrLen=" + hdrLen +
                 "\n  dataLen=" + dataLen +
                 "\n  totLen=" + totLen +
                 "\n  subscription=" + subscription +
-                "\n  next=" + (next == null ? "No" : "Yes");
+                "\n  next=" + nextToString();
 
+    }
+
+    private String headersToString() {
+        return hasHeaders() ? new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+") : "";
     }
 
     private String dataToString() {
@@ -332,6 +335,14 @@ public class NatsMessage implements Message {
 
     private String replyToString() {
         return replyTo == null ? "<no reply>" : replyTo;
+    }
+
+    private String protocolBytesToString() {
+        return protocolBytes == null ? null : new String(protocolBytes, UTF_8);
+    }
+
+    private String nextToString() {
+        return next == null ? "No" : "Yes";
     }
 
     // ----------------------------------------------------------------------------------------------------

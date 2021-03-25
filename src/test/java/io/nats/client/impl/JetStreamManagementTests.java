@@ -13,10 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.Connection;
-import io.nats.client.JetStream;
-import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamManagement;
+import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
@@ -546,7 +543,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         sleep(1000);
         StreamInfo si = jsm.getStreamInfo(stream);
 
-        MirrorSourceInfo msi = si.getMirror();
+        MirrorInfo msi = si.getMirrorInfo();
         assertNotNull(msi);
         assertEquals(mirroring, msi.getName());
 
@@ -689,5 +686,32 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         StreamInfo si = jsm.getStreamInfo(stream);
 
         assertConfig(stream, msgCount, firstSeq, si);
+    }
+
+    @Test
+    public void testAuthCreateUpdateStream() throws Exception {
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/authorization.conf", false)) {
+            Options optionsSrc = new Options.Builder().server(ts.getURI())
+                    .userInfo("src".toCharArray(), "spass".toCharArray()).build();
+
+            try (Connection nc = Nats.connect(optionsSrc)) {
+                JetStreamManagement jsm = nc.jetStreamManagement();
+
+                // add streams with both account
+                StreamConfiguration sc = StreamConfiguration.builder()
+                        .name(STREAM)
+                        .storageType(StorageType.Memory)
+                        .subjects(subject(1))
+                        .build();
+                StreamInfo si = jsm.addStream(sc);
+
+                sc = StreamConfiguration.builder(si.getConfiguration())
+                        .addSubjects(subject(2))
+                        .build();
+
+                jsm.updateStream(sc);
+            }
+        }
     }
 }

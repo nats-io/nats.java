@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.impl.JetStreamTestBase;
 import org.junit.jupiter.api.Test;
 
+import static io.nats.client.support.JsonUtils.EMPTY_JSON;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,7 +32,7 @@ public class AccountLimitsTests extends JetStreamTestBase {
         assertEquals(3, al.getMaxStreams());
         assertEquals(4, al.getMaxConsumers());
 
-        al = new AccountLimits("{}");
+        al = new AccountLimits(EMPTY_JSON);
         assertEquals(-1, al.getMaxMemory());
         assertEquals(-1, al.getMaxStorage());
         assertEquals(-1, al.getMaxStreams());

@@ -15,44 +15,49 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonUtils;
 
-import java.util.List;
+import java.time.Duration;
 
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.*;
 
-public class ClusterInfo {
+public class SourceInfoBase {
     private final String name;
-    private final String leader;
-    private final List<Replica> replicas;
+    private final long lag;
+    private final Duration active;
+    private final Error error;
+    private final String objectName;
 
-    public static ClusterInfo optionalInstance(String fullJson) {
-        String objJson = JsonUtils.getJsonObject(CLUSTER, fullJson, null);
-        return objJson == null ? null : new ClusterInfo(objJson);
-    }
-
-    public ClusterInfo(String json) {
-        name = JsonUtils.readString(json, NAME_RE);
-        leader = JsonUtils.readString(json, LEADER_RE);
-        replicas = Replica.optionalListOf(json);
+    public SourceInfoBase(String json, String objectName) {
+        name = readString(json, NAME_RE);
+        lag = JsonUtils.readLong(json, LAG_RE, 0);
+        active = JsonUtils.readNanos(json, ACTIVE_RE, Duration.ZERO);
+        error = Error.optionalInstance(json);
+        this.objectName = normalize(objectName);
     }
 
     public String getName() {
         return name;
     }
 
-    public String getLeader() {
-        return leader;
+    public long getLag() {
+        return lag;
     }
 
-    public List<Replica> getReplicas() {
-        return replicas;
+    public Duration getActive() {
+        return active;
+    }
+
+    public Error getError() {
+        return error;
     }
 
     @Override
     public String toString() {
-        return "ClusterInfo{" +
+        return objectName + "{" +
                 "name='" + name + '\'' +
-                ", leader='" + leader + '\'' +
-                ", replicas=" + replicas +
+                ", lag=" + lag +
+                ", active=" + active +
+                ", " + objectString("error", error) +
                 '}';
     }
 }

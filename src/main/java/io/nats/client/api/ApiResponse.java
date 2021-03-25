@@ -37,7 +37,7 @@ public abstract class ApiResponse<T> {
 
     public ApiResponse(String json) {
         this.json = json;
-        error = Error.getInstance(json);
+        error = Error.optionalInstance(json);
     }
 
     ApiResponse() {
@@ -73,13 +73,7 @@ public abstract class ApiResponse<T> {
 
     public String getError() {
         if (hasError()) {
-            if (getDescription() == null) {
-                return getErrorCode() == NOT_SET
-                        ? "Unknown JetStream Error: " + json
-                        : "Unknown JetStream Error (" + error.getCode() + ")";
-            }
-
-            return error.getDescription() + " (" + getErrorCode() + ")";
+            return error.toString();
         }
         return null;
     }

@@ -31,9 +31,9 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     private final ZonedDateTime created;
     private final StreamConfiguration config;
     private final StreamState state;
-    private final ClusterInfo cluster;
-    private final MirrorSourceInfo mirror;
-    private final List<SourceSourceInfo> sources;
+    private final ClusterInfo clusterInfo;
+    private final MirrorInfo mirrorInfo;
+    private final List<SourceInfo> sourceInfos;
 
     public StreamInfo(Message msg) {
         this(new String(msg.getData(), StandardCharsets.UTF_8));
@@ -44,9 +44,9 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
         created = JsonUtils.readDate(json, CREATED_RE);
         config = StreamConfiguration.instance(JsonUtils.getJsonObject(CONFIG, json));
         state = new StreamState(JsonUtils.getJsonObject(STATE, json));
-        cluster = ClusterInfo.optionalInstance(json);
-        mirror = MirrorSourceInfo.optionalInstance(json);
-        sources = SourceSourceInfo.optionalListOf(json);
+        clusterInfo = ClusterInfo.optionalInstance(json);
+        mirrorInfo = MirrorInfo.optionalInstance(json);
+        sourceInfos = SourceInfo.optionalListOf(json);
     }
     
     /**
@@ -73,16 +73,16 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
         return created;
     }
 
-    public MirrorSourceInfo getMirror() {
-        return mirror;
+    public MirrorInfo getMirrorInfo() {
+        return mirrorInfo;
     }
 
-    public List<SourceSourceInfo> getSources() {
-        return sources;
+    public List<SourceInfo> getSourceInfos() {
+        return sourceInfos;
     }
 
-    public ClusterInfo getCluster() {
-        return cluster;
+    public ClusterInfo getClusterInfo() {
+        return clusterInfo;
     }
 
     @Override
@@ -91,9 +91,9 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
                 "created=" + created +
                 ", " + objectString("config", config) +
                 ", " + objectString("state", state) +
-                ", " + objectString("cluster", cluster) +
-                ", " + objectString("mirror", mirror) +
-                ", sources=" + sources +
+                ", " + objectString("cluster", clusterInfo) +
+                ", " + objectString("mirror", mirrorInfo) +
+                ", sources=" + sourceInfos +
                 '}';
     }
 }
