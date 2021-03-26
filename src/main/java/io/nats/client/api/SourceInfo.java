@@ -20,9 +20,12 @@ import static io.nats.client.support.ApiConstants.SOURCE;
 import static io.nats.client.support.ApiConstants.SOURCES;
 import static io.nats.client.support.JsonUtils.getObjectList;
 
+/**
+ * Information about a stream being sourced
+ */
 public class SourceInfo extends SourceInfoBase {
 
-    public static List<SourceInfo> optionalListOf(String json) {
+    static List<SourceInfo> optionalListOf(String json) {
         List<String> strObjects = getObjectList(SOURCES, json);
         List<SourceInfo> list = new ArrayList<>();
         for (String j : strObjects) {
@@ -31,7 +34,7 @@ public class SourceInfo extends SourceInfoBase {
         return list.isEmpty() ? null : list;
     }
 
-    public SourceInfo(String json) {
+    SourceInfo(String json) {
         super(json, SOURCE);
     }
 }

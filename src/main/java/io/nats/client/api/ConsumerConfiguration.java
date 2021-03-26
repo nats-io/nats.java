@@ -48,7 +48,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     private final long maxAckPending;
 
     // for the response from the server
-    public ConsumerConfiguration(String json) {
+    ConsumerConfiguration(String json) {
 
         Matcher m = DELIVER_POLICY_RE.matcher(json);
         deliverPolicy = m.find() ? DeliverPolicy.get(m.group(1)) : DeliverPolicy.All;
@@ -72,7 +72,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     // For the builder
-    ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
+    private ConsumerConfiguration(String durable, DeliverPolicy deliverPolicy, long startSeq,
             ZonedDateTime startTime, AckPolicy ackPolicy, Duration ackWait, long maxDeliver, String filterSubject,
             ReplayPolicy replayPolicy, String sampleFrequency, long rateLimit, String deliverSubject, long maxAckPending) {
                 this.durable = durable;

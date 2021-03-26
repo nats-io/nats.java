@@ -569,7 +569,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            Mirror mirror = new Mirror(STREAM, 0, null, null, null);
+            Mirror mirror = Mirror.builder().name(STREAM).build();
 
             StreamConfiguration scEx = StreamConfiguration.builder()
                     .name(mirror(99))
@@ -691,9 +691,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testAuthCreateUpdateStream() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/authorization.conf", false)) {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/js_authorization.conf", false)) {
             Options optionsSrc = new Options.Builder().server(ts.getURI())
-                    .userInfo("src".toCharArray(), "spass".toCharArray()).build();
+                    .userInfo("manager".toCharArray(), "mpass".toCharArray()).build();
 
             try (Connection nc = Nats.connect(optionsSrc)) {
                 JetStreamManagement jsm = nc.jetStreamManagement();

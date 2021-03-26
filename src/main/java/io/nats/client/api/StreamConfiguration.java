@@ -52,7 +52,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final List<Source> sources;
 
     // for the response from the server
-    public static StreamConfiguration instance(String json) {
+    static StreamConfiguration instance(String json) {
         Builder builder = new Builder();
 
         Matcher m = RETENTION_RE.matcher(json);
@@ -80,7 +80,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.noAck(readBoolean(json, NO_ACK_RE));
         builder.templateOwner(readString(json, TEMPLATE_OWNER_RE));
         readNanos(json, DUPLICATE_WINDOW_RE, builder::duplicateWindow);
-        builder.subjects(getStringArray(SUBJECTS, json));
+        builder.subjects(getStringList(SUBJECTS, json));
         builder.placement(Placement.optionalInstance(json));
         builder.mirror(Mirror.optionalInstance(json));
         builder.sources(Source.optionalListOf(json));

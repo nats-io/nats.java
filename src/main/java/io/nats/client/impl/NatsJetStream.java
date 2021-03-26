@@ -6,7 +6,6 @@ import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -168,16 +167,12 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     // @Override
     private List<String> getConsumerNames(String streamName, String filter) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_NAMES, streamName);
-
-        List<String> consumers = new ArrayList<>();
-        ConsumerNamesResponse cnr = new ConsumerNamesResponse();
+        ConsumerNamesReader cnr = new ConsumerNamesReader();
         while (cnr.hasMore()) {
             Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter), requestTimeout);
-            cnr = new ConsumerNamesResponse(resp).throwOnHasError();
-            cnr.addTo(consumers);
+            cnr.process(resp);
         }
-
-        return consumers;
+        return cnr.getStrings();
     }
 
     /**
@@ -186,43 +181,32 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public List<ConsumerInfo> getConsumers(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_LIST, streamName);
-
-        List<ConsumerInfo> consumers = new ArrayList<>();
-        ConsumerListResponse clr = new ConsumerListResponse();
-        while (clr.hasMore()) {
-            Message resp = makeRequestResponseRequired(subj, clr.nextJson(), requestTimeout);
-            clr = new ConsumerListResponse(resp).throwOnHasError();
-            clr.addTo(consumers);
+        ConsumerListReader clg = new ConsumerListReader();
+        while (clg.hasMore()) {
+            Message resp = makeRequestResponseRequired(subj, clg.nextJson(), requestTimeout);
+            clg.process(resp);
         }
-
-        return consumers;
+        return clg.getConsumers();
     }
 
     @Override
     public List<String> getStreamNames() throws IOException, JetStreamApiException {
-        List<String> streams = new ArrayList<>();
-        StreamNamesResponse snr = new StreamNamesResponse();
+        StreamNamesReader snr = new StreamNamesReader();
         while (snr.hasMore()) {
             Message resp = makeRequestResponseRequired(JSAPI_STREAMS, snr.nextJson(), requestTimeout);
-            snr = new StreamNamesResponse(resp).throwOnHasError();
-            snr.addTo(streams);
+            snr.process(resp);
         }
-
-        return streams;
+        return snr.getStrings();
     }
 
     @Override
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
-        List<StreamInfo> streams = new ArrayList<>();
-
-        StreamListResponse slr = new StreamListResponse();
-        while (slr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slr.nextJson(), requestTimeout);
-            slr = new StreamListResponse(resp).throwOnHasError();
-            slr.addTo(streams);
+        StreamListReader slg = new StreamListReader();
+        while (slg.hasMore()) {
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slg.nextJson(), requestTimeout);
+            slg.process(resp);
         }
-
-        return streams;
+        return slg.getStreams();
     }
 
     @Override
@@ -598,15 +582,13 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
     private String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
         String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
-
+        StreamNamesReader snr = new StreamNamesReader();
         Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), requestTimeout);
-        StreamNamesResponse snr = new StreamNamesResponse(resp).throwOnHasError();
-
-        String[] streams = snr.getArray();
-        if (streams.length != 1) {
+        snr.process(resp);
+        if (snr.getStrings().size() != 1) {
             throw new IllegalStateException("No matching streams for subject: " + subject);
         }
-        return streams[0];
+        return snr.getStrings().get(0);
     }
 
     private static class AutoAckMessageHandler implements MessageHandler {

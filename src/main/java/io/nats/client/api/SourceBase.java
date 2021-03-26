@@ -21,7 +21,7 @@ import java.time.ZonedDateTime;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
-public abstract class SourceBase implements JsonSerializable {
+abstract class SourceBase implements JsonSerializable {
     private final String name;
     private final long startSeq;
     private final ZonedDateTime startTime;
@@ -29,7 +29,7 @@ public abstract class SourceBase implements JsonSerializable {
     private final External external;
     private final String objectName;
 
-    protected SourceBase(String objectName, String json) {
+    SourceBase(String objectName, String json) {
         name = JsonUtils.readString(json, NAME_RE);
         startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
@@ -38,7 +38,7 @@ public abstract class SourceBase implements JsonSerializable {
         this.objectName = normalize(objectName);
     }
 
-    protected SourceBase(String objectName, String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
+    SourceBase(String objectName, String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
         this.name = name;
         this.startSeq = startSeq;
         this.startTime = startTime;
@@ -96,11 +96,11 @@ public abstract class SourceBase implements JsonSerializable {
     }
 
     public abstract static class SourceBaseBuilder<T> {
-        protected String name;
-        protected long startSeq;
-        protected ZonedDateTime startTime;
-        protected String filterSubject;
-        protected External external;
+        String name;
+        long startSeq;
+        ZonedDateTime startTime;
+        String filterSubject;
+        External external;
 
         abstract T getThis();
 

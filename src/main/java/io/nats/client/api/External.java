@@ -20,18 +20,18 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
 /**
- * External Information
+ * External configuration referencing a stream source in another account
  */
 public class External implements JsonSerializable {
     private final String api;
     private final String deliver;
 
-    public static External optionalInstance(String fullJson) {
+    static External optionalInstance(String fullJson) {
         String objJson = JsonUtils.getJsonObject(EXTERNAL, fullJson, null);
         return objJson == null ? null : new External(objJson);
     }
 
-    public External(String json) {
+    External(String json) {
         api = JsonUtils.readString(json, API_RE);
         deliver = JsonUtils.readString(json, DELIVER_RE);
     }
@@ -48,10 +48,20 @@ public class External implements JsonSerializable {
         return endJson(sb).toString();
     }
 
+    /**
+     * The subject prefix that imports the other account <code>$JS.API.CONSUMER.&gt; subjects</code>
+     *
+     * @return the api prefix
+     */
     public String getApi() {
         return api;
     }
 
+    /**
+     * The delivery subject to use for the push consumer.
+     *
+     * @return delivery subject
+     */
     public String getDeliver() {
         return deliver;
     }

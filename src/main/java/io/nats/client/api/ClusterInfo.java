@@ -19,17 +19,20 @@ import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 
+/**
+ * Information about the cluster a stream is part of.
+ */
 public class ClusterInfo {
     private final String name;
     private final String leader;
     private final List<Replica> replicas;
 
-    public static ClusterInfo optionalInstance(String fullJson) {
+    static ClusterInfo optionalInstance(String fullJson) {
         String objJson = JsonUtils.getJsonObject(CLUSTER, fullJson, null);
         return objJson == null ? null : new ClusterInfo(objJson);
     }
 
-    public ClusterInfo(String json) {
+    ClusterInfo(String json) {
         name = JsonUtils.readString(json, NAME_RE);
         leader = JsonUtils.readString(json, LEADER_RE);
         replicas = Replica.optionalListOf(json);

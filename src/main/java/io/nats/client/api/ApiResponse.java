@@ -40,7 +40,7 @@ public abstract class ApiResponse<T> {
         error = Error.optionalInstance(json);
     }
 
-    ApiResponse() {
+    public ApiResponse() {
         json = null;
     }
 

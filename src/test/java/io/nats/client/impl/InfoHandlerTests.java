@@ -13,16 +13,17 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.*;
+import org.junit.jupiter.api.Test;
+
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import io.nats.client.*;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class InfoHandlerTests {
     @Test
@@ -34,7 +35,6 @@ public class InfoHandlerTests {
             try {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
-                assertEquals(customInfo, ((NatsConnection) nc).getInfo().getRawJson());
             } finally {
                 nc.close();
                 assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");

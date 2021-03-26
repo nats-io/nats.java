@@ -13,9 +13,13 @@
 
 package io.nats.client.support;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.LongConsumer;
@@ -57,10 +61,6 @@ public abstract class JsonUtils {
         FieldType(String re) {
             this.re = re;
         }
-    }
-
-    public static Pattern custom_pattern(String re) {
-        return Pattern.compile(re, Pattern.CASE_INSENSITIVE);
     }
 
     public static Pattern string_pattern(String field) {
@@ -181,32 +181,23 @@ public abstract class JsonUtils {
      * Assumes that there are no brackets '{' or '}' in the actual data.
      * @param objectName object name
      * @param json source json
-     * @return a string array, empty if no values are found.
+     * @return a string list, empty if no values are found.
      */
-    public static String[] getStringArray(String objectName, String json) {
-        // THIS CODE MAKES SOME ASSUMPTIONS THAT THE JSON IS FORMED IN A CONSISTENT MANNER
-        // ..."fieldName": [\n      ],...
-        // ..."fieldName": [\n      "value"\n    ],...
-        // ..."fieldName": [\n      "value",\n      "value2"\n    ],...
-        int ix = json.indexOf("\"" + objectName + "\":");
-        if (ix != -1) {
-            ix = json.indexOf("\"", ix + objectName.length() + 3);
-            if (ix != -1) {
-                int endx = json.indexOf("]", ix);
-                String[] data = json.substring(ix, endx).split(",");
-                for (int x = 0; x < data.length; x++) {
-                    data[x] = decode(data[x].trim().replaceAll("\"", ""));
+    public static List<String> getStringList(String objectName, String json) {
+        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
+        List<String> list = new ArrayList<>();
+        Matcher m = string_array_pattern(objectName).matcher(flat);
+        if (m.find()) {
+            String arrayString = m.group(1);
+            String[] raw = arrayString.split(",");
+
+            for (String s : raw) {
+                String cleaned = s.trim().replace("\"", "");
+                if (cleaned.length() > 0) {
+                    list.add(decode(cleaned));
                 }
-                return data;
             }
         }
-
-        return new String[0];
-    }
-
-    public static List<String> getStringList(String objectName, String json) {
-        List<String> list = new ArrayList<>();
-        Collections.addAll(list, getStringArray(objectName, json));
         return list;
     }
 
@@ -390,12 +381,16 @@ public abstract class JsonUtils {
         return m.find() ? decode(m.group(1)) : dflt;
     }
 
+    public static byte[] readBytes(String json, Pattern pattern) {
+        String s = readString(json, pattern, null);
+        return s == null ? null : s.getBytes(StandardCharsets.US_ASCII);
+    }
+
     public static byte[] readBase64(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
         String b64 = m.find() ? m.group(1) : null;
         return b64 == null ? null : Base64.getDecoder().decode(b64);
     }
-
 
     public static boolean readBoolean(String json, Pattern pattern) {
         Matcher m = pattern.matcher(json);
@@ -447,19 +442,43 @@ public abstract class JsonUtils {
         int len = s.length();
         StringBuilder sb = new StringBuilder(len);
         for (int x = 0; x < len; x++) {
-            char c = s.charAt(x);
-            if (c == '\\') {
-                if (s.charAt(x+1) == 'u') {
-                    if (s.charAt(x+2) == '0') {
-                        if (s.charAt(x+3) == '0') {
-                            sb.append((char)Integer.parseInt("" + s.charAt(x + 4) + s.charAt(x + 5), 16));
-                            x += 5;
-                            continue;
+            char ch = s.charAt(x);
+            if (ch == '\\') {
+                char nextChar = (x == len - 1) ? '\\' : s.charAt(x + 1);
+                switch (nextChar) {
+                    case '\\':
+                        ch = '\\';
+                        break;
+                    case 'b':
+                        ch = '\b';
+                        break;
+                    case 'f':
+                        ch = '\f';
+                        break;
+                    case 'n':
+                        ch = '\n';
+                        break;
+                    case 'r':
+                        ch = '\r';
+                        break;
+                    case 't':
+                        ch = '\t';
+                        break;
+                    // Hex Unicode: u????
+                    case 'u':
+                        if (x >= len - 5) {
+                            ch = 'u';
+                            break;
                         }
-                    }
+                        int code = Integer.parseInt(
+                                "" + s.charAt(x + 2) + s.charAt(x + 3) + s.charAt(x + 4) + s.charAt(x + 5), 16);
+                        sb.append(Character.toChars(code));
+                        x += 5;
+                        continue;
                 }
+                x++;
             }
-            sb.append(c);
+            sb.append(ch);
         }
         return sb.toString();
     }

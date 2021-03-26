@@ -28,12 +28,12 @@ public class Placement implements JsonSerializable {
     private final String cluster;
     private final List<String> tags;
 
-    public static Placement optionalInstance(String fullJson) {
+    static Placement optionalInstance(String fullJson) {
         String objJson = JsonUtils.getJsonObject(PLACEMENT, fullJson, null);
         return objJson == null ? null : new Placement(objJson);
     }
 
-    public Placement(String json) {
+    Placement(String json) {
         cluster = JsonUtils.readString(json, CLUSTER_RE);
         tags = JsonUtils.getStringList(TAGS, json);
     }

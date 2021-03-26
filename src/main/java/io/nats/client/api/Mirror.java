@@ -20,20 +20,21 @@ import java.time.ZonedDateTime;
 import static io.nats.client.support.ApiConstants.MIRROR;
 
 /**
- * Mirror Information
+ * Mirror Information. Maintains a 1:1 mirror of another stream with name matching this property.
+ * When a mirror is configured subjects and sources must be empty.
  */
 public class Mirror extends SourceBase {
 
-    public static Mirror optionalInstance(String fullJson) {
+    static Mirror optionalInstance(String fullJson) {
         String objJson = JsonUtils.getJsonObject(MIRROR, fullJson, null);
         return objJson == null ? null : new Mirror(objJson);
     }
 
-    public Mirror(String json) {
+    Mirror(String json) {
         super(MIRROR, json);
     }
 
-    public Mirror(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
+    Mirror(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
         super(MIRROR, name, startSeq, startTime, filterSubject, external);
     }
 

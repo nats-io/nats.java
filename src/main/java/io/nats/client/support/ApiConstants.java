@@ -23,7 +23,7 @@ public interface ApiConstants {
     String ACK_WAIT         = "ack_wait";
     String ACTIVE           = "active";
     String API              = "api";
-    String AUTH             = "auth_required";
+    String AUTH_REQUIRED    = "auth_required";
     String BYTES            = "bytes";
     String CLIENT_ID        = "client_id";
     String CLIENT_IP        = "client_ip";
@@ -90,7 +90,7 @@ public interface ApiConstants {
     String OPT_START_TIME   = "opt_start_time";
     String PLACEMENT        = "placement";
     String PORT             = "port";
-    String PROTOCOL_VERSION = "proto";
+    String PROTO            = "proto";
     String RATE_LIMIT       = "rate_limit";
     String REPLAY_POLICY    = "replay_policy";
     String REPLICA          = "replica";
@@ -112,7 +112,6 @@ public interface ApiConstants {
     String SUBJECTS         = "subjects";
     String SUCCESS          = "success";
     String TAGS             = "tags";
-    String TEMPLATE         = "template";
     String TEMPLATE_OWNER   = "template_owner";
     String TIME             = "time";
     String TLS              = "tls_required";
@@ -124,7 +123,10 @@ public interface ApiConstants {
     Pattern ACK_WAIT_RE         = number_pattern(ACK_WAIT);
     Pattern ACTIVE_RE           = number_pattern(ACTIVE);
     Pattern API_RE              = string_pattern(API);
+    Pattern AUTH_REQUIRED_RE    = boolean_pattern(AUTH_REQUIRED);
     Pattern BYTES_RE            = number_pattern(BYTES);
+    Pattern CLIENT_ID_RE        = number_pattern(CLIENT_ID);
+    Pattern CLIENT_IP_RE        = string_pattern(CLIENT_IP);
     Pattern CLUSTER_RE          = string_pattern(CLUSTER);
     Pattern CODE_RE             = number_pattern(CODE);
     Pattern CONSUMER_COUNT_RE   = number_pattern(CONSUMER_COUNT);
@@ -144,8 +146,13 @@ public interface ApiConstants {
     Pattern FILTER_SUBJECT_RE   = string_pattern(FILTER_SUBJECT);
     Pattern FIRST_SEQ_RE        = number_pattern(FIRST_SEQ);
     Pattern FIRST_TS_RE         = string_pattern(FIRST_TS);
+    Pattern GO_RE               = string_pattern(GO);
     Pattern HDRS_RE             = string_pattern(HDRS);
+    Pattern HEADERS_RE          = boolean_pattern(HEADERS);
+    Pattern HOST_RE             = string_pattern(HOST);
+    Pattern JET_STREAM_RE       = boolean_pattern(JETSTREAM);
     Pattern LAG_RE              = number_pattern(LAG);
+    Pattern LAME_DUCK_MODE_RE   = boolean_pattern(LAME_DUCK_MODE);
     Pattern LAST_SEQ_RE         = number_pattern(LAST_SEQ);
     Pattern LAST_TS_RE          = string_pattern(LAST_TS);
     Pattern LEADER_RE           = string_pattern(LEADER);
@@ -158,12 +165,14 @@ public interface ApiConstants {
     Pattern MAX_MEMORY_RE       = number_pattern(MAX_MEMORY);
     Pattern MAX_MSG_SIZE_RE     = number_pattern(MAX_MSG_SIZE);
     Pattern MAX_MSGS_RE         = number_pattern(MAX_MSGS);
+    Pattern MAX_PAYLOAD_RE      = number_pattern(MAX_PAYLOAD);
     Pattern MAX_STORAGE_RE      = number_pattern(MAX_STORAGE);
     Pattern MAX_STREAMS_RE      = number_pattern(MAX_STREAMS);
     Pattern MEMORY_RE           = number_pattern(MEMORY);
     Pattern MESSAGES_RE         = number_pattern(MESSAGES);
     Pattern NAME_RE             = string_pattern(NAME);
     Pattern NO_ACK_RE           = boolean_pattern(NO_ACK);
+    Pattern NONCE_RE            = string_pattern(NONCE);
     Pattern NUM_ACK_PENDING_RE  = number_pattern(NUM_ACK_PENDING);
     Pattern NUM_PENDING_RE      = number_pattern(NUM_PENDING);
     Pattern NUM_REDELIVERED_RE  = number_pattern(NUM_REDELIVERED);
@@ -173,11 +182,15 @@ public interface ApiConstants {
     Pattern OFFSET_RE           = number_pattern(OFFSET);
     Pattern OPT_START_SEQ_RE    = number_pattern(OPT_START_SEQ);
     Pattern OPT_START_TIME_RE   = string_pattern(OPT_START_TIME);
+    Pattern PORT_RE             = number_pattern(PORT);
+    Pattern PROTO_RE            = number_pattern(PROTO);
     Pattern RATE_LIMIT_RE       = number_pattern(RATE_LIMIT);
     Pattern REPLAY_POLICY_RE    = string_pattern(REPLAY_POLICY);
     Pattern RETENTION_RE        = string_pattern(RETENTION);
     Pattern SAMPLE_FREQ_RE      = string_pattern(SAMPLE_FREQ);
     Pattern SEQ_RE              = number_pattern(SEQ);
+    Pattern SERVER_ID_RE        = string_pattern(SERVER_ID);
+    Pattern SERVER_NAME_RE      = string_pattern(SERVER_NAME);
     Pattern STORAGE_RE          = number_pattern(STORAGE);
     Pattern STORAGE_TYPE_RE     = string_pattern(STORAGE);
     Pattern STREAM_NAME_RE      = string_pattern(STREAM_NAME);
@@ -186,9 +199,10 @@ public interface ApiConstants {
     Pattern STREAMS_RE          = number_pattern(STREAMS);
     Pattern SUBJECT_RE          = string_pattern(SUBJECT);
     Pattern SUCCESS_RE          = boolean_pattern(SUCCESS);
-    Pattern TEMPLATE_RE         = string_pattern(TEMPLATE);
     Pattern TEMPLATE_OWNER_RE   = string_pattern(TEMPLATE_OWNER);
     Pattern TIME_RE             = string_pattern(TIME);
+    Pattern TLS_RE              = boolean_pattern(TLS);
     Pattern TOTAL_RE            = number_pattern(TOTAL);
     Pattern TYPE_RE             = string_pattern(TYPE);
+    Pattern VERSION_RE          = string_pattern(VERSION);
 }

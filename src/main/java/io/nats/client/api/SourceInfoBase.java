@@ -20,14 +20,14 @@ import java.time.Duration;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
-public class SourceInfoBase {
+abstract class SourceInfoBase {
     private final String name;
     private final long lag;
     private final Duration active;
     private final Error error;
     private final String objectName;
 
-    public SourceInfoBase(String json, String objectName) {
+    SourceInfoBase(String json, String objectName) {
         name = readString(json, NAME_RE);
         lag = JsonUtils.readLong(json, LAG_RE, 0);
         active = JsonUtils.readNanos(json, ACTIVE_RE, Duration.ZERO);
@@ -35,6 +35,11 @@ public class SourceInfoBase {
         this.objectName = normalize(objectName);
     }
 
+    /**
+     * The name of the Stream being replicated
+     *
+     * @return the name
+     */
     public String getName() {
         return name;
     }

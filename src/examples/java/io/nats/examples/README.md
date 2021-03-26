@@ -15,6 +15,8 @@ This folder contains a number of examples:
 1. `NatsSubQueueFull.java` - fuller publish and queue subscribe example
    
 ### JetStream Examples
+In the `io.nats.examples.jetstream` package...
+
 1. `NatsJsPub.java` - publish JetStream messages
 1. `NatsJsPubAsync.java` - publish JetStream messages asynchronously
 1. `NatsJsPubVsRegularPub.java` - publish JetStream messages versus regular publish to the same stream.

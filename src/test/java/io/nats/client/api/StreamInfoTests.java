@@ -100,6 +100,7 @@ public class StreamInfoTests {
         assertEquals("mname", mi.getName());
         assertEquals(16, mi.getLag());
         assertEquals(Duration.ofNanos(160000000000L), mi.getActive());
+        assertNull(mi.getError());
 
         assertEquals(2, si.getSourceInfos().size());
         assertEquals("sname17", si.getSourceInfos().get(0).getName());

@@ -14,7 +14,7 @@ public class AccountLimits {
     private final long maxStreams;
     private final long maxConsumers;
 
-    public AccountLimits(String json) {
+    AccountLimits(String json) {
         this.maxMemory = JsonUtils.readLong(json, MAX_MEMORY_RE, -1);
         this.maxStorage = JsonUtils.readLong(json, MAX_STORAGE_RE, -1);
         this.maxStreams = JsonUtils.readLong(json, MAX_STREAMS_RE, -1);

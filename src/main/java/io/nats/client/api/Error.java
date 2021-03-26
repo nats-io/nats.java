@@ -17,6 +17,9 @@ import io.nats.client.support.JsonUtils;
 
 import static io.nats.client.support.ApiConstants.*;
 
+/**
+ * Error returned from an api request.
+ */
 public class Error {
 
     public static final int NOT_SET = -1;

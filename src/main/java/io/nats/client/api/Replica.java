@@ -22,7 +22,7 @@ import static io.nats.client.support.JsonUtils.getObjectList;
 
 public class Replica extends PeerInfo {
 
-    public static List<Replica> optionalListOf(String json) {
+    static List<Replica> optionalListOf(String json) {
         List<String> strObjects = getObjectList(REPLICAS, json);
         List<Replica> list = new ArrayList<>();
         for (String j : strObjects) {
@@ -31,7 +31,7 @@ public class Replica extends PeerInfo {
         return list.isEmpty() ? null : list;
     }
 
-    public Replica(String json) {
+    Replica(String json) {
         super(REPLICA, json);
     }
 }

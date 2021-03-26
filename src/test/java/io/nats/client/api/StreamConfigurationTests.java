@@ -84,18 +84,39 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(sources.get(0).getExternal(), external);
         assertEquals(sources.get(0).getExternal().hashCode(), external.hashCode());
 
-        external = testSc.getMirror().getExternal();
-        assertEquals(external, external);
-        assertNotEquals(external, null);
-        assertNotEquals(external, new Object());
-        assertNotEquals(external, new External("{ \"api\": \"not\", \"deliver\": \"dlvrsub\" }"));
-        assertNotEquals(external, new External("{ \"api\": \"apithing\", \"deliver\": \"not\" }"));
-        assertNotEquals(external, new External("{ \"deliver\": \"dlvrsub\" }"));
-        assertNotEquals(new External("{ \"deliver\": \"dlvrsub\" }"), external);
-        assertEquals(new External("{ \"deliver\": \"dlvrsub\" }"), new External("{ \"deliver\": \"dlvrsub\" }"));
-        assertNotEquals(external, new External("{ \"api\": \"apithing\""));
-        assertNotEquals(new External("{ \"api\": \"apithing\""), external);
-        assertEquals(new External("{ \"api\": \"apithing\""), new External("{ \"api\": \"apithing\""));
+        List<String> lines = ResourceUtils.dataAsLines("SourceBaseJson.txt");
+        for (String l1 : lines) {
+            Mirror m1 = new Mirror(l1);
+            assertEquals(m1, m1);
+            assertNotEquals(m1, null);
+            assertNotEquals(m1, new Object());
+            for (String l2 : lines) {
+                Mirror m2 = new Mirror(l2);
+                if (l1.equals(l2)) {
+                    assertEquals(m1, m2);
+                }
+                else {
+                    assertNotEquals(m1, m2);
+                }
+            }
+        }
+
+        lines = ResourceUtils.dataAsLines("ExternalJson.txt");
+        for (String l1 : lines) {
+            External e1 = new External(l1);
+            assertEquals(e1, e1);
+            assertNotEquals(e1, null);
+            assertNotEquals(e1, new Object());
+            for (String l2 : lines) {
+                External e2 = new External(l2);
+                if (l1.equals(l2)) {
+                    assertEquals(e1, e2);
+                }
+                else {
+                    assertNotEquals(e1, e2);
+                }
+            }
+        }
     }
 
     @Test

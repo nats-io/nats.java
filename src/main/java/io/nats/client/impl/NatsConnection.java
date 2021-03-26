@@ -1296,8 +1296,8 @@ class NatsConnection implements Connection {
         ServerInfo serverInfo = new ServerInfo(infoJson);
         this.serverInfo.set(serverInfo);
 
-        String[] urls = this.serverInfo.get().getConnectURLs();
-        if (urls != null && urls.length > 0) {
+        List<String> urls = this.serverInfo.get().getConnectURLs();
+        if (urls != null && urls.size() > 0) {
             processConnectionEvent(Events.DISCOVERED_SERVERS);
         }
 

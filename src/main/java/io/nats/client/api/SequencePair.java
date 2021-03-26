@@ -26,7 +26,7 @@ public class SequencePair {
     private final long consumerSeq;
     private final long streamSeq;
 
-    public SequencePair(String json) {
+    SequencePair(String json) {
         consumerSeq = JsonUtils.readLong(json, CONSUMER_SEQ_RE, 0);
         streamSeq = JsonUtils.readLong(json, STREAM_SEQ_RE, 0);
     }

@@ -26,7 +26,7 @@ import static io.nats.client.support.JsonUtils.getObjectList;
  */
 public class Source extends SourceBase {
 
-    public static List<Source> optionalListOf(String json) {
+    static List<Source> optionalListOf(String json) {
         List<String> strObjects = getObjectList(SOURCES, json);
         List<Source> list = new ArrayList<>();
         for (String j : strObjects) {
@@ -35,11 +35,11 @@ public class Source extends SourceBase {
         return list.isEmpty() ? null : list;
     }
 
-    public Source(String json) {
+    Source(String json) {
         super(SOURCE, json);
     }
 
-    public Source(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
+    Source(String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
         super(SOURCE, name, startSeq, startTime, filterSubject, external);
     }
 

@@ -27,20 +27,20 @@ public final class JsonUtilsTests {
 
     @Test
     public void testParseStringArray() {
-        String[] a = JsonUtils.getStringArray("fieldName", "...\"fieldName\": [\n      ],...");
+        List<String> a = JsonUtils.getStringList("fieldName", "...\"fieldName\": [\n      ],...");
         assertNotNull(a);
-        assertEquals(0, a.length);
+        assertEquals(0, a.size());
 
-        a = JsonUtils.getStringArray("fieldName", "...\"fieldName\": [\n      \"value1\"\n    ],...");
+        a = JsonUtils.getStringList("fieldName", "...\"fieldName\": [\n      \"value0\"\n    ],...");
         assertNotNull(a);
-        assertEquals(1, a.length);
-        assertEquals("value1", a[0]);
+        assertEquals(1, a.size());
+        assertEquals("value0", a.get(0));
 
-        a = JsonUtils.getStringArray("fieldName", "...\"fieldName\": [\n      \"value1\",\n      \"value2\"\n    ],...");
+        a = JsonUtils.getStringList("fieldName", "...\"fieldName\": [\r\n      \"value0\",\r      \"value1\"\n    ],...");
         assertNotNull(a);
-        assertEquals(2, a.length);
-        assertEquals("value1", a[0]);
-        assertEquals("value2", a[1]);
+        assertEquals(2, a.size());
+        assertEquals("value0", a.get(0));
+        assertEquals("value1", a.get(1));
     }
 
     @Test
@@ -155,9 +155,23 @@ public final class JsonUtilsTests {
 
     @Test
     public void testDecode() {
-        assertEquals("x.>", JsonUtils.decode("x.\\u003e"));
-        assertEquals("x.\\x003e", JsonUtils.decode("x.\\x003e"));
-        assertEquals("x.\\ux03e", JsonUtils.decode("x.\\ux03e"));
-        assertEquals("x.\\u0x3e", JsonUtils.decode("x.\\u0x3e"));
+        assertEquals("blah ", JsonUtils.decode("blah\\u0020"));
+        assertEquals("blah\"", JsonUtils.decode("blah\\u0022"));
+        assertEquals("blah'", JsonUtils.decode("blah\\u0027"));
+        assertEquals("blah=", JsonUtils.decode("blah\\u003d"));
+        assertEquals("blah=", JsonUtils.decode("blah\\u003D"));
+        assertEquals("blah<", JsonUtils.decode("blah\\u003c"));
+        assertEquals("blah<", JsonUtils.decode("blah\\u003C"));
+        assertEquals("blah>", JsonUtils.decode("blah\\u003e"));
+        assertEquals("blah>", JsonUtils.decode("blah\\u003E"));
+        assertEquals("blah`", JsonUtils.decode("blah\\u0060"));
+        assertEquals("blah\\", JsonUtils.decode("blah\\\\"));
+        assertEquals("blah\b", JsonUtils.decode("blah\\b"));
+        assertEquals("blah\f", JsonUtils.decode("blah\\f"));
+        assertEquals("blah\n", JsonUtils.decode("blah\\n"));
+        assertEquals("blah\r", JsonUtils.decode("blah\\r"));
+        assertEquals("blah\t", JsonUtils.decode("blah\\t"));
+        assertEquals("blah\\", JsonUtils.decode("blah\\x"));
+        assertEquals("blah\\", JsonUtils.decode("blah\\"));
     }
 }

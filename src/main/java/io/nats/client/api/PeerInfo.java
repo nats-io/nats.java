@@ -28,7 +28,7 @@ public class PeerInfo {
     private final long lag;
     private final String objectName;
 
-    protected PeerInfo(String objectName, String json) {
+    PeerInfo(String objectName, String json) {
         name = JsonUtils.readString(json, NAME_RE);
         current = JsonUtils.readBoolean(json, CURRENT_RE);
         offline = JsonUtils.readBoolean(json, OFFLINE_RE);
