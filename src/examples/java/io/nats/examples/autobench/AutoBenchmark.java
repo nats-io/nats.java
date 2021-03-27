@@ -13,24 +13,28 @@
 
 package io.nats.examples.autobench;
 
+import io.nats.client.Connection;
+import io.nats.client.Options;
+
 import java.text.NumberFormat;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
-import io.nats.client.Options;
-
 public abstract class AutoBenchmark {
-    private String name;
-    private long messageSize;
-    private long messageCount;
+    private final String name;
+    private final long messageSize;
+    private final long messageCount;
+    private final AtomicLong start;
+    private final Object[] customs;
     private long runtimeNanos;
-    private AtomicLong start;
     private Exception exception;
 
-    public AutoBenchmark(String name, long messageCount, long messageSize) {
+    public AutoBenchmark(String name, long messageCount, long messageSize, Object... customs) {
         this.name = name;
         this.messageCount = messageCount;
         this.messageSize = messageSize;
+        this.customs = customs;
         this.start = new AtomicLong();
     }
 
@@ -44,12 +48,20 @@ public abstract class AutoBenchmark {
         return String.valueOf(getName().hashCode()%10000);
     }
 
+    public String getStream() {
+        return String.valueOf(("stream" + getName()).hashCode()%10000);
+    }
+
     public long getMessageSize() {
         return this.messageSize;
     }
 
     public long getMessageCount() {
         return this.messageCount;
+    }
+
+    public Object[] getCustoms() {
+        return customs;
     }
 
     public byte[] createPayload() {
@@ -72,6 +84,13 @@ public abstract class AutoBenchmark {
     public void reset() {
         this.runtimeNanos = 0;
         this.exception = null;
+    }
+
+    public void defaultFlush(Connection nc) {
+        try {
+            nc.flush(Duration.ofSeconds(5));
+        }
+        catch(Exception e) { /* ignore */ }
     }
 
     public long getRuntimeNanos() {

@@ -13,15 +13,15 @@
 
 package io.nats.examples.autobench;
 
+import io.nats.client.Options;
+
+import javax.net.ssl.SSLContext;
 import java.security.Provider;
 import java.security.Security;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.net.ssl.SSLContext;
-
-import io.nats.client.Options;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Implements a benchmark more like the .net client that loops over a number
@@ -33,58 +33,26 @@ import io.nats.client.Options;
  */
 public class NatsAutoBench {
     static final String usageString =
-    "\nUsage: java NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med]"
-    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
-    + "\n\ntiny, small and med reduce the number of messages used for tests, which can help on slower machines\n";
+            "\nUsage: java NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med] [conscrypt] [jsfile]" +
+                    "[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] [JsPubSync] [JsPubAsync] [JsSub]"
+            + "If no specific test name(s) are supplied all will be run, otherwise only supplied tests will be run."
+            + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+            + "\n\ntiny, small and med reduce the number of messages used for tests, which can help on slower machines\n";
 
-    public static void main(String args[]) {
-        String server = Options.DEFAULT_URL;
-        boolean utf8 = false;
-        boolean conscrypt = false;
-        int baseMsgs = 100_000;
-        int latencyMsgs = 5_000;
-        long maxSize = 8*1024;
+    public static void main(String[] args) {
+        args = "tiny JsSub".split(" ");
+        Arguments a = readArgs(args);
 
-        if (args.length > 0) {
-            for (String s : args) {
-                if (s.equals("utf8")) {
-                    utf8 = true;
-                } else if (s.equals("conscrypt")) {
-                    conscrypt = true;
-                } else if (s.equals("med")) {
-                    baseMsgs = 50_000;
-                    latencyMsgs = 2_500;
-                } else if (s.equals("small")) {
-                    baseMsgs = 5_000;
-                    latencyMsgs = 250;
-                    maxSize = 1024;
-                } else if (s.equals("tiny")) {
-                    baseMsgs = 1_000;
-                    latencyMsgs = 50;
-                    maxSize = 1024;
-                } else if (s.equals("nano")) {
-                    baseMsgs = 10;
-                    latencyMsgs = 5;
-                    maxSize = 512;
-                } else if (s.equals("help")) {
-                    usage();
-                    return;
-                } else {
-                    server = s;
-                }
-            }
-        }
-
-        System.out.printf("Connecting to NATS server at %s\n", server);
+        System.out.printf("Connecting to NATS server at %s\n", a.server);
 
         try {
             Options.Builder builder = new Options.Builder().
-                                                    server(server).
+                                                    server(a.server).
                                                     connectionTimeout(Duration.ofSeconds(1)).
                                                     noReconnect();
             
-            if (utf8) {
-                System.out.printf("Enabling UTF-8 subjects\n");
+            if (a.utf8) {
+                System.out.println("Enabling UTF-8 subjects");
                 builder.supportUTF8Subjects();
             }
             
@@ -97,17 +65,17 @@ public class NatsAutoBench {
              * -Djavax.net.ssl.trustStore=src/test/resources/truststore.jks -Djavax.net.ssl.trustStorePassword=password \
              * io.nats.examples.autobench.NatsAutoBench tls://localhost:4443 med conscrypt
              */
-            if (conscrypt) {
+            if (a.conscrypt) {
                 Provider provider = (Provider) Class.forName("org.conscrypt.OpenSSLProvider").newInstance();
                 Security.insertProviderAt(provider, 1);
             }
 
-            if (server.startsWith("tls")) {
+            if (a.server.startsWith("tls")) {
                 System.out.println("Security Provider - "+ SSLContext.getDefault().getProvider().getInfo());
             }
                     
             Options connectOptions = builder.build();                   
-            List<AutoBenchmark> tests = buildTestList(baseMsgs, latencyMsgs, maxSize);
+            List<AutoBenchmark> tests = buildTestList(a);
 
             System.out.println("Running warmup");
             runWarmup(connectOptions);
@@ -163,50 +131,86 @@ public class NatsAutoBench {
         }
     }
 
-    public static List<AutoBenchmark> buildTestList(int baseMsgs, int latencyMsgs, long maxSize) {
-        ArrayList<AutoBenchmark> tests = new ArrayList<>();
+    interface AutoBenchmarkConstructor {
+        AutoBenchmark construct(long messageSize, long messageCount);
+    }
+
+    public static List<AutoBenchmark> buildTestList(Arguments a) {
+        List<AutoBenchmark> tests = new ArrayList<>();
         
-        int[] sizes = {0, 8, 32, 256, 512, 1024, 4*1024, 8*1024};
-        int[] msgsMultiple = {100, 100, 100, 100, 100, 10, 5, 1};
-        int[] msgsDivider = {5, 5, 10, 10, 10, 10, 10, 10};
+        int[] sizes =         {0,     8,  32, 256, 512, 1024, 4096, 8192};
+        long[] msgsMultiple = {100, 100, 100, 100, 100,   10,    5,    1};
+        int[] msgsDivider =   {5,     5,  10,  10,  10,   10,   10,   10};
 
-        /**/
-        for(int i=0; i<sizes.length; i++) {
-            int size = sizes[i];
-            int msgMult = msgsMultiple[i];
-
-            if(size > maxSize) {
-                break;
-            }
-
-            tests.add(new PubBenchmark("PubOnly "+size, msgMult * baseMsgs, size));
+        if (a.allTests || a.pubOnly) {
+            addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
+                    (msize, mcnt) -> new PubBenchmark("PubOnly " + msize, mcnt, msize));
         }
 
-        for(int i=0; i<sizes.length; i++) {
-            int size = sizes[i];
-            int msgMult = msgsMultiple[i];
-
-            if(size > maxSize) {
-                break;
-            }
-
-            tests.add(new PubSubBenchmark("PubSub "+size, msgMult * baseMsgs, size));
+        if (a.allTests || a.pubSub) {
+            addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
+                    (msize, mcnt) -> new PubSubBenchmark("PubSub " + msize, mcnt, msize));
         }
 
-        for(int i=0; i<sizes.length; i++) {
-            int size = sizes[i];
-            int msgMult = msgsMultiple[i];
-
-            if(size > maxSize) {
-                break;
-            }
-
-            tests.add(new PubDispatchBenchmark("PubDispatch "+size, msgMult * baseMsgs, size));
+        if (a.allTests || a.pubDispatch) {
+            addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
+                    (msize, mcnt) -> new PubDispatchBenchmark("PubDispatch " + msize, mcnt, msize));
         }
 
-        // Request reply is a 4 message trip, and runs the full loop before sending another message
-        // so we run fewer because the client cannot batch any socket calls to the server together
-        for(int i=0; i<sizes.length; i++) {
+        AtomicBoolean jsPubSyncSaveForJsSub = new AtomicBoolean(false);
+        AtomicBoolean jsPubAsyncSaveForJsSub = new AtomicBoolean(a.allTests);
+
+        if (!a.allTests && a.jsSub) {
+            if (a.jsPubAsync || !a.jsPubSync) {
+                a.jsPubAsync = true; // have to publish somewhere, async is faster
+                jsPubAsyncSaveForJsSub.set(true);
+            }
+            else {
+                jsPubSyncSaveForJsSub.set(false);
+            }
+        }
+
+        if (a.allTests || a.jsPubSync) {
+            addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
+                    (msize, mcnt) -> new JsPubBenchmark("JsPubSync " + msize, mcnt, msize, a.jsFile, true, jsPubSyncSaveForJsSub.get()));
+        }
+
+        if (a.allTests || a.jsPubAsync) {
+            addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
+                    (msize, mcnt) -> new JsPubBenchmark("JsPubAsync " + msize, mcnt, msize, a.jsFile, false, jsPubAsyncSaveForJsSub.get()));
+        }
+
+        if (a.allTests || a.jsSub) {
+            addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
+                    (msize, mcnt) -> new JsSubBenchmark("JsSub " + msize, mcnt, msize));
+        }
+
+        if (a.allTests || a.reqReply) {
+                addRequestReplyTests(a.baseMsgs, a.maxSize, tests, sizes, msgsDivider,
+                    (msize, mcnt) -> new ReqReplyBenchmark("ReqReply " + msize, mcnt, msize));
+        }
+
+        if (a.allTests || a.latency) {
+                addLatencyTests(a.latencyMsgs, a.maxSize, tests, sizes,
+                    (msize, mcnt) -> new LatencyBenchmark("Latency " + msize, mcnt, msize));
+        }
+
+        return tests;
+    }
+
+    private static void addLatencyTests(int latencyMsgs, long maxSize, List<AutoBenchmark> tests, int[] sizes, AutoBenchmarkConstructor abc) {
+        for (int size : sizes) {
+            if (size > maxSize) {
+                break;
+            }
+            tests.add(abc.construct(size, latencyMsgs));
+        }
+    }
+
+    // Request reply is a 4 message trip, and runs the full loop before sending another message
+    // so we run fewer because the client cannot batch any socket calls to the server together
+    private static void addRequestReplyTests(int baseMsgs, long maxSize, List<AutoBenchmark> tests, int[] sizes, int[] msgsDivider, AutoBenchmarkConstructor abc) {
+        for(int i = 0; i< sizes.length; i++) {
             int size = sizes[i];
             int msgDivide = msgsDivider[i];
 
@@ -214,25 +218,123 @@ public class NatsAutoBench {
                 break;
             }
 
-            tests.add(new ReqReplyBenchmark("ReqReply "+size, baseMsgs / msgDivide, size));
+            tests.add(abc.construct(size, baseMsgs / msgDivide));
         }
+    }
 
-        for(int i=0; i<sizes.length; i++) {
+    private static void addTests(int baseMsgs, long maxSize, List<AutoBenchmark> tests, int[] sizes, long[] msgsMultiple, AutoBenchmarkConstructor abc) {
+        for(int i = 0; i< sizes.length; i++) {
             int size = sizes[i];
+            long msgMult = msgsMultiple[i];
 
-            if(size > maxSize) {
+            if (size > maxSize) {
                 break;
             }
 
-            tests.add(new LatencyBenchmark("Latency "+size, latencyMsgs, size));
+            tests.add(abc.construct(size, msgMult * baseMsgs));
         }
-        /**/
-
-        return tests;
     }
 
     static void usage() {
         System.err.println(usageString);
         System.exit(-1);
+    }
+
+    static class Arguments {
+        String server = Options.DEFAULT_URL;
+        boolean utf8 = false;
+        boolean conscrypt = false;
+        int baseMsgs = 100_000;
+        int latencyMsgs = 5_000;
+        long maxSize = 8*1024;
+
+        boolean allTests = true;
+        boolean pubOnly = false;
+        boolean pubSub = false;
+        boolean pubDispatch = false;
+        boolean jsPubSync = false;
+        boolean jsPubAsync = false;
+        boolean jsSub = false;
+        boolean reqReply = false;
+        boolean latency = false;
+
+        boolean jsFile = false;
+    }
+
+    private static Arguments readArgs(String[] args) {
+        Arguments a = new Arguments();
+        if (args.length > 0) {
+            for (String s : args) {
+                switch (s.toLowerCase()) {
+                    case "utf8":
+                        a.utf8 = true;
+                        break;
+                    case "conscrypt":
+                        a.conscrypt = true;
+                        break;
+                    case "med":
+                        a.baseMsgs = 50_000;
+                        a.latencyMsgs = 2_500;
+                        break;
+                    case "small":
+                        a.baseMsgs = 5_000;
+                        a.latencyMsgs = 250;
+                        a.maxSize = 1024;
+                        break;
+                    case "tiny":
+                        a.baseMsgs = 1_000;
+                        a.latencyMsgs = 50;
+                        a.maxSize = 1024;
+                        break;
+                    case "nano":
+                        a.baseMsgs = 10;
+                        a.latencyMsgs = 5;
+                        a.maxSize = 512;
+                        break;
+                    case "pubonly":
+                        a.allTests = false;
+                        a.pubOnly = true;
+                        break;
+                    case "pubsub":
+                        a.allTests = false;
+                        a.pubSub = true;
+                        break;
+                    case "pubdispatch":
+                        a.allTests = false;
+                        a.pubDispatch = true;
+                        break;
+                    case "reqreply":
+                        a.allTests = false;
+                        a.reqReply = true;
+                        break;
+                    case "latency":
+                        a.allTests = false;
+                        a.latency = true;
+                        break;
+                    case "jspubsync":
+                        a.allTests = false;
+                        a.jsPubSync = true;
+                        break;
+                    case "jspubasync":
+                        a.allTests = false;
+                        a.jsPubAsync = true;
+                        break;
+                    case "jssub":
+                        a.allTests = false;
+                        a.jsSub = true;
+                        break;
+                    case "jsfile":
+                        a.jsFile = true;
+                        break;
+                    case "help":
+                        usage();
+                        System.exit(0);
+                    default:
+                        a.server = s;
+                        break;
+                }
+            }
+        }
+        return a;
     }
 }
