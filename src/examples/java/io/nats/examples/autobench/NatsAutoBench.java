@@ -138,19 +138,6 @@ public class NatsAutoBench {
         }
     }
 
-    interface AutoBenchmarkConstructor {
-        AutoBenchmark construct(long messageSize, long messageCount);
-    }
-
-    interface AutoBenchmarkRoundSizeConstructor {
-        AutoBenchmark construct(long messageSize, long messageCount, int roundSize);
-    }
-
-    static int[] sizes =         {0,     8,  32, 256, 512, 1024, 4096, 8192};
-    static long[] msgsMultiple = {100, 100, 100, 100, 100,   10,    5,    1};
-    static int[] msgsDivider =   {5,     5,  10,  10,  10,   10,   10,   10};
-    static int[] roundSize =     {10, 100, 200, 500, 1000};
-
     public static List<AutoBenchmark> buildTestList(Arguments a) {
         List<AutoBenchmark> tests = new ArrayList<>();
 
@@ -216,6 +203,19 @@ public class NatsAutoBench {
         return tests;
     }
 
+    private static void addTests(int baseMsgs, long maxSize, List<AutoBenchmark> tests, int[] sizes, long[] msgsMultiple, AutoBenchmarkConstructor abc) {
+        for(int i = 0; i< sizes.length; i++) {
+            int size = sizes[i];
+            long msgMult = msgsMultiple[i];
+
+            if (size > maxSize) {
+                break;
+            }
+
+            tests.add(abc.construct(size, msgMult * baseMsgs));
+        }
+    }
+
     private static void addLatencyTests(int latencyMsgs, long maxSize, List<AutoBenchmark> tests, int[] sizes, AutoBenchmarkConstructor abc) {
         for (int size : sizes) {
             if (size > maxSize) {
@@ -240,19 +240,6 @@ public class NatsAutoBench {
         }
     }
 
-    private static void addTests(int baseMsgs, long maxSize, List<AutoBenchmark> tests, int[] sizes, long[] msgsMultiple, AutoBenchmarkConstructor abc) {
-        for(int i = 0; i< sizes.length; i++) {
-            int size = sizes[i];
-            long msgMult = msgsMultiple[i];
-
-            if (size > maxSize) {
-                break;
-            }
-
-            tests.add(abc.construct(size, msgMult * baseMsgs));
-        }
-    }
-
     private static void addTestsWithRounds(int baseMsgs, long maxSize, List<AutoBenchmark> tests, int[] sizes, long[] msgsMultiple, AutoBenchmarkRoundSizeConstructor abrsc) {
         for(int i = 0; i< sizes.length; i++) {
             int size = sizes[i];
@@ -270,25 +257,37 @@ public class NatsAutoBench {
         }
     }
 
+    static int[] sizes =         {0,     8,  32, 256, 512, 1024, 4096, 8192};
+    static long[] msgsMultiple = {100, 100, 100, 100, 100,   10,    5,    1};
+    static int[] msgsDivider =   {5,     5,  10,  10,  10,   10,   10,   10};
+    static int[] roundSize =     {10, 100, 200, 500, 1000};
+
+    interface AutoBenchmarkConstructor {
+        AutoBenchmark construct(long messageSize, long messageCount);
+    }
+
+    interface AutoBenchmarkRoundSizeConstructor {
+        AutoBenchmark construct(long messageSize, long messageCount, int roundSize);
+    }
+
     static class Arguments {
         String server = Options.DEFAULT_URL;
         boolean utf8 = false;
         boolean conscrypt = false;
         int baseMsgs = 100_000;
         int latencyMsgs = 5_000;
-        long maxSize = 8*1024;
-
+        long maxSize = 8192;
         boolean allTests = true;
+
         boolean pubOnly = false;
         boolean pubSub = false;
         boolean pubDispatch = false;
+        boolean reqReply = false;
+        boolean latency = false;
         boolean jsPubSync = false;
         boolean jsPubAsync = false;
         boolean jsSub = false;
         boolean jsPubRounds = false;
-        boolean reqReply = false;
-        boolean latency = false;
-
         boolean jsFile = false;
     }
 

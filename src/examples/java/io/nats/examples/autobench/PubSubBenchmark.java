@@ -13,14 +13,10 @@
 
 package io.nats.examples.autobench;
 
+import io.nats.client.*;
+
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
 
 public class PubSubBenchmark extends ThrottledBenchmark {
 
@@ -48,7 +44,7 @@ public class PubSubBenchmark extends ThrottledBenchmark {
                 }
                 try {
                     Subscription sub = subConnect.subscribe(subject);
-                    subConnect.flush(Duration.ofSeconds(5));
+                    defaultFlush(subConnect);
                     subReady.complete(null);
                     
                     while(count < this.getMessageCount()) {

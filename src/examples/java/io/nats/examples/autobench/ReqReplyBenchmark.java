@@ -13,15 +13,11 @@
 
 package io.nats.examples.autobench;
 
+import io.nats.client.*;
+
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
 
 public class ReqReplyBenchmark extends AutoBenchmark {
 
@@ -47,7 +43,7 @@ public class ReqReplyBenchmark extends AutoBenchmark {
                 }
                 try {
                     Subscription sub = replyConnect.subscribe(subject);
-                    replyConnect.flush(Duration.ofSeconds(5));
+                    defaultFlush(replyConnect);
                     replyReady.complete(null);
                     
                     int count = 0;
