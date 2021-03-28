@@ -13,7 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.ConsumerConfiguration;
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 

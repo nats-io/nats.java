@@ -132,4 +132,27 @@ public class ExampleUtils {
         System.out.println(usageString);
         System.exit(-1);
     }
+
+    public static String uniqueEnough() {
+        String hex = Long.toHexString(System.currentTimeMillis()).substring(6);
+        StringBuilder sb = new StringBuilder();
+        for (int x = 0; x < hex.length(); x++) {
+            char c = hex.charAt(x);
+            if (c < 58) {
+                sb.append((char)(c+55));
+            }
+            else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    public static String randomString(int length) {
+        StringBuilder sb = new StringBuilder();
+        while (sb.length() < length) {
+            sb.append(Long.toHexString(ThreadLocalRandom.current().nextLong()));
+        }
+        return sb.toString();
+    }
 }

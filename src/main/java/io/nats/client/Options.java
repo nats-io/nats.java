@@ -14,8 +14,8 @@
 package io.nats.client;
 
 import io.nats.client.impl.DataPort;
-import io.nats.client.impl.SSLUtils;
 import io.nats.client.impl.SocketDataPort;
+import io.nats.client.support.SSLUtils;
 
 import javax.net.ssl.SSLContext;
 import java.lang.reflect.Constructor;

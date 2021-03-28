@@ -17,6 +17,7 @@ import io.nats.client.JetStream;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
 import io.nats.client.PullSubscribeOptions;
+import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -53,12 +54,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "A", 10);
+            jsPublish(js, SUBJECT, "A", 10);
             messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "B", 20);
+            jsPublish(js, SUBJECT, "B", 20);
             messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
@@ -67,12 +68,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "C", 5);
+            jsPublish(js, SUBJECT, "C", 5);
             messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "D", 15);
+            jsPublish(js, SUBJECT, "D", 15);
             messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
@@ -81,7 +82,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "E", 10);
+            jsPublish(js, SUBJECT, "E", 10);
             messages = sub.fetch(10, Duration.ofSeconds(3));
             validateRead(10, messages.size());
             sleep(3000);
@@ -119,13 +120,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRead(0, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "A", 10);
+            jsPublish(js, SUBJECT, "A", 10);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "B", 20);
+            jsPublish(js, SUBJECT, "B", 20);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
@@ -136,13 +137,13 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRead(10, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "C", 5);
+            jsPublish(js, SUBJECT, "C", 5);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "D", 15);
+            jsPublish(js, SUBJECT, "D", 15);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
@@ -153,7 +154,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRead(5, messages.size());
             messages.forEach(Message::ack);
 
-            publish(js, SUBJECT, "E", 10);
+            jsPublish(js, SUBJECT, "E", 10);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
             messages = readMessages(iterator);
             validateRead(10, messages.size());
@@ -184,7 +185,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish some amount of messages, but not entire pull size
-            publish(js, SUBJECT, "A", 4);
+            jsPublish(js, SUBJECT, "A", 4);
 
             // start the pull
             sub.pull(10);
@@ -195,7 +196,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRedAndTotal(4, messages.size(), 4, total);
 
             // publish some more covering our initial pull and more
-            publish(js, SUBJECT, "B", 10);
+            jsPublish(js, SUBJECT, "B", 10);
 
             // read what is available, expect 6 more
             messages = readMessagesAck(sub);
@@ -216,7 +217,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             validateRedAndTotal(4, messages.size(), 14, total);
 
             // publish some more
-            publish(js, SUBJECT, "C", 10);
+            jsPublish(js, SUBJECT, "C", 10);
 
             // read what is available, should be 6 since we didn't finish the last batch
             messages = readMessagesAck(sub);
@@ -268,7 +269,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 10 messages
             // no wait, batch size 10, there are 10 messages, we will read them all and not trip nowait
-            publish(js, SUBJECT, "A", 10);
+            jsPublish(js, SUBJECT, "A", 10);
             sub.pullNoWait(10);
             List<Message> messages = readMessagesAck(sub);
             assertEquals(10, messages.size());
@@ -276,7 +277,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 20 messages
             // no wait, batch size 10, there are 20 messages, we will read 10
-            publish(js, SUBJECT, "B", 20);
+            jsPublish(js, SUBJECT, "B", 20);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             assertEquals(10, messages.size());
@@ -289,7 +290,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 5 messages
             // no wait, batch size 10, there are 5 messages, we WILL trip nowait
-            publish(js, SUBJECT, "C", 5);
+            jsPublish(js, SUBJECT, "C", 5);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             assertEquals(6, messages.size());
@@ -297,7 +298,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // publish 12 messages
             // no wait, batch size 10, there are more than batch messages we will read 10
-            publish(js, SUBJECT, "D", 12);
+            jsPublish(js, SUBJECT, "D", 12);
             sub.pullNoWait(10);
             messages = readMessagesAck(sub);
             assertEquals(10, messages.size());
@@ -325,7 +326,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // NAK
-            publish(js, SUBJECT, "NAK", 1);
+            jsPublish(js, SUBJECT, "NAK", 1);
 
             sub.pull(1);
 
@@ -361,7 +362,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // TERM
-            publish(js, SUBJECT, "TERM", 1);
+            jsPublish(js, SUBJECT, "TERM", 1);
 
             sub.pull(1);
             Message message = sub.nextMessage(Duration.ofSeconds(1));
@@ -390,7 +391,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // Ack Wait timeout
-            publish(js, SUBJECT, "WAIT", 1);
+            jsPublish(js, SUBJECT, "WAIT", 1);
 
             sub.pull(1);
             Message message = sub.nextMessage(Duration.ofSeconds(1));
@@ -423,7 +424,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamSubscription sub = js.subscribe(SUBJECT, pso);
 
             // In Progress
-            publish(js, SUBJECT, "PRO", 1);
+            jsPublish(js, SUBJECT, "PRO", 1);
 
             sub.pull(1);
             Message message = sub.nextMessage(Duration.ofSeconds(1));
@@ -440,7 +441,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 //            sleep(500);
             message.ack();
 
-            publish(js, SUBJECT, "PRO", 2);
+            jsPublish(js, SUBJECT, "PRO", 2);
 
             sub.pull(1);
             message = sub.nextMessage(Duration.ofSeconds(1));
@@ -467,7 +468,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // ACK Sync
-            publish(js, SUBJECT, "ACKSYNC", 1);
+            jsPublish(js, SUBJECT, "ACKSYNC", 1);
 
             sub.pull(1);
             Message message = sub.nextMessage(Duration.ofSeconds(1));

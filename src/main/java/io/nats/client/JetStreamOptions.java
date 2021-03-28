@@ -13,7 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.JsPrefixManager;
+import io.nats.client.support.JsPrefixManager;
 
 import java.time.Duration;
 

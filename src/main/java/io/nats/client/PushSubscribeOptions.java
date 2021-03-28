@@ -13,9 +13,9 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.ConsumerConfiguration;
+import io.nats.client.api.ConsumerConfiguration;
 
-import static io.nats.client.impl.Validator.*;
+import static io.nats.client.support.Validator.*;
 
 /**
  * The PushSubscribeOptions class specifies the options for subscribing with JetStream enabled servers.

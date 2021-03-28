@@ -13,24 +13,28 @@
 
 package io.nats.examples.autobench;
 
+import io.nats.client.Connection;
+import io.nats.client.Options;
+
 import java.text.NumberFormat;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
-import io.nats.client.Options;
-
 public abstract class AutoBenchmark {
-    private String name;
-    private long messageSize;
-    private long messageCount;
+    private final String name;
+    private final long messageSize;
+    private final long messageCount;
+    private final AtomicLong start;
+    private final Object[] customs;
     private long runtimeNanos;
-    private AtomicLong start;
     private Exception exception;
 
-    public AutoBenchmark(String name, long messageCount, long messageSize) {
+    public AutoBenchmark(String name, long messageCount, long messageSize, Object... customs) {
         this.name = name;
         this.messageCount = messageCount;
         this.messageSize = messageSize;
+        this.customs = customs;
         this.start = new AtomicLong();
     }
 
@@ -44,12 +48,20 @@ public abstract class AutoBenchmark {
         return String.valueOf(getName().hashCode()%10000);
     }
 
+    public String getStream() {
+        return String.valueOf(("stream" + getName()).hashCode()%10000);
+    }
+
     public long getMessageSize() {
         return this.messageSize;
     }
 
     public long getMessageCount() {
         return this.messageCount;
+    }
+
+    public Object[] getCustoms() {
+        return customs;
     }
 
     public byte[] createPayload() {
@@ -74,6 +86,13 @@ public abstract class AutoBenchmark {
         this.exception = null;
     }
 
+    public void defaultFlush(Connection nc) {
+        try {
+            nc.flush(Duration.ofSeconds(5));
+        }
+        catch(Exception e) { /* ignore */ }
+    }
+
     public long getRuntimeNanos() {
         return this.runtimeNanos;
     }
@@ -89,13 +108,13 @@ public abstract class AutoBenchmark {
     public void getFutureSafely(CompletableFuture<Void> future) {
         try {
             future.get();
-        } catch (Exception exp) {
         }
+        catch(Exception e) { /* ignore */ }
     }
 
     public void printResult() {
         if (this.runtimeNanos == 0) {
-            System.out.printf("%-18s %18s\n", name, "no data from test run");
+            System.out.printf("%-26s %18s\n", name, "no data from test run");
             return;
         } else if (this.exception != null) {
             String message = this.exception.getMessage();
@@ -104,7 +123,7 @@ public abstract class AutoBenchmark {
                 message = this.exception.getClass().getCanonicalName();
             }
 
-            System.out.printf("%-18s %12s Exception: %12s\n", 
+            System.out.printf("%-26s %12s Exception: %12s\n",
                     getName(),
                     NumberFormat.getIntegerInstance().format(this.messageCount),
                     message);
@@ -113,7 +132,7 @@ public abstract class AutoBenchmark {
 
         double messagesPerSecond = 1e9 * ((double)this.messageCount)/((double)this.runtimeNanos); // 1e9 for nanos to seconds
         double bytesPerSecond = 1e9 * ((double)(this.messageCount * this.messageSize))/((double)this.runtimeNanos);
-        System.out.printf("%-18s %12s %18s msg/s %12s/s\n",
+        System.out.printf("%-26s %12s %18s msg/s %12s/s\n",
                             this.name,
                             NumberFormat.getIntegerInstance().format(this.messageCount),
                             NumberFormat.getIntegerInstance().format((long)messagesPerSecond),

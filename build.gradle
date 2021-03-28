@@ -18,9 +18,9 @@ import aQute.bnd.gradle.Bundle
 // Update version here, repeated check-ins not into master will have snapshot on them
 // Be sure to update Nats.java with the latest version, the change log and the package-info.java
 def versionMajor = 2
-def versionMinor = 9
+def versionMinor = 10
 def versionPatch = 0
-def versionRevision = "-beta-2" // Empty string when not using, otherwise include the dot, i.e. '.RC1' or '.Beta1' or '.123'
+def versionRevision = "" // Empty string when not using, otherwise include the dot, i.e. '.RC1' or '.Beta1' or '.123'
 def jarVersion = "" + versionMajor + "." + versionMinor + "." + versionPatch + versionRevision
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : ""
@@ -133,7 +133,9 @@ javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
-    excludes = ['io/nats/client/impl', 'io/nats/examples']
+    excludes = ['io/nats/client/impl', 'io/nats/examples',
+            "io/nats/client/api/ConsumerCreateRequest.java"
+    ]
     classpath = sourceSets.main.runtimeClasspath
     doLast {
         if (!OperatingSystem.current().isWindows()) {

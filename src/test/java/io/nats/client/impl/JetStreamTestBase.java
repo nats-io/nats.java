@@ -14,7 +14,10 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.impl.StreamConfiguration.StorageType;
+import io.nats.client.api.PublishAck;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
+import io.nats.client.api.StreamInfo;
 import io.nats.client.utils.TestBase;
 
 import java.io.IOException;
@@ -25,8 +28,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static io.nats.examples.NatsJsUtils.printConsumerInfo;
-import static io.nats.examples.NatsJsUtils.printStreamInfo;
+import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfo;
+import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
@@ -83,7 +86,7 @@ public class JetStreamTestBase extends TestBase {
     // ----------------------------------------------------------------------------------------------------
     // Publish / Read
     // ----------------------------------------------------------------------------------------------------
-    public static void publish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
+    public static void jsPublish(JetStream js, String subject, String prefix, int count) throws IOException, JetStreamApiException {
         for (int x = 1; x <= count; x++) {
             String data = prefix + x;
             js.publish(NatsMessage.builder()
@@ -94,25 +97,25 @@ public class JetStreamTestBase extends TestBase {
         }
     }
 
-    public static void publish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
+    public static void jsPublish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
             js.publish(NatsMessage.builder().subject(subject).data((dataBytes(startId++))).build());
         }
     }
 
-    public static void publish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
-        publish(js, subject, 1, count);
+    public static void jsPublish(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
+        jsPublish(js, subject, 1, count);
     }
 
-    public static void publish(Connection nc, String subject, int count) throws IOException, JetStreamApiException {
-        publish(nc.jetStream(), subject, 1, count);
+    public static void jsPublish(Connection nc, String subject, int count) throws IOException, JetStreamApiException {
+        jsPublish(nc.jetStream(), subject, 1, count);
     }
 
-    public static void publish(Connection nc, String subject, int startId, int count) throws IOException, JetStreamApiException {
-        publish(nc.jetStream(), subject, startId, count);
+    public static void jsPublish(Connection nc, String subject, int startId, int count) throws IOException, JetStreamApiException {
+        jsPublish(nc.jetStream(), subject, startId, count);
     }
 
-    public static PublishAck publish(JetStream js) throws IOException, JetStreamApiException {
+    public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
         Message msg = NatsMessage.builder()
                 .subject(SUBJECT)
                 .data(DATA.getBytes(StandardCharsets.US_ASCII))

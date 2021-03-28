@@ -16,7 +16,14 @@
     "max_msg_size": 4,
     "storage": "memory",
     "num_replicas": 5,
-    "duplicate_window": 120000000000
+    "duplicate_window": 120000000000,
+    "placement": {
+      "cluster": "placementclstr",
+      "tags": [
+        "ptag1",
+        "ptag2"
+      ]
+    }
   },
   "created": "2021-01-25T20:09:10.6225191Z",
   "state": {
@@ -27,5 +34,42 @@
     "last_seq": 14,
     "last_ts": "0001-01-01T00:00:00Z",
     "consumer_count": 15
-  }
+  },
+  "cluster": {
+    "name": "clustername",
+    "leader": "clusterleader",
+    "replicas": [
+      {
+        "name": "name0",
+        "current": true,
+        "offline": true,
+        "active": 230000000000,
+        "lag": 3
+      },
+      {
+        "name": "name1",
+        "current": false,
+        "offline": false,
+        "active": 240000000000,
+        "lag": 4
+      }
+    ]
+  },
+  "mirror": {
+      "name": "mname",
+      "lag": 16,
+      "active": 160000000000
+  },
+  "sources": [
+    {
+      "name": "sname17",
+      "lag": 17,
+      "active": 170000000000
+    },
+    {
+      "name": "sname18",
+      "lag": 18,
+      "active": 180000000000
+    }
+  ]
 }

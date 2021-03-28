@@ -16,6 +16,8 @@ package io.nats.examples;
 import io.nats.client.Options;
 import io.nats.client.impl.Headers;
 
+import static io.nats.examples.ExampleUtils.uniqueEnough;
+
 public class ExampleArgs {
 
     public enum Trail {MESSAGE, COUNT, QUEUE_AND_COUNT}
@@ -274,7 +276,7 @@ public class ExampleArgs {
                 ea.pullSize = pullSize;
             }
             if (uniqueify) {
-                String u = "-" + NatsJsPullSubBase.uniqueEnough();
+                String u = "-" + uniqueEnough();
                 if (ea.stream != null) {
                     ea.stream += u;
                 }

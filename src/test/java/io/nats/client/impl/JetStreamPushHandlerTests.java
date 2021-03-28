@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -34,7 +35,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // publish some messages
-            publish(js, SUBJECT, 10);
+            jsPublish(js, SUBJECT, 10);
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
@@ -73,7 +74,7 @@ public class JetStreamPushHandlerTests extends JetStreamTestBase {
             createMemoryStream(nc, STREAM, SUBJECT);
 
             // publish some messages
-            publish(js, SUBJECT, 10);
+            jsPublish(js, SUBJECT, 10);
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();

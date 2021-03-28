@@ -13,14 +13,15 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.MessageMetaData;
-
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
-public class NatsJetStreamMetaData implements MessageMetaData {
+/**
+ * Jetstream meta data about a message, when applicable.
+ */
+public class NatsJetStreamMetaData {
 
     private static final long NANO_FACTOR = 10_00_000_000;
 
@@ -45,14 +46,14 @@ public class NatsJetStreamMetaData implements MessageMetaData {
                 '}';
     }
 
-    NatsJetStreamMetaData(NatsMessage natsMessage) {
+    public NatsJetStreamMetaData(NatsMessage natsMessage) {
         if (!natsMessage.isJetStream()) {
-            throwNotAJetStreamMessage(natsMessage.replyTo);
+            throwNotAJetStreamMessage(natsMessage.getReplyTo());
         }
 
-        String[] parts = natsMessage.replyTo.split("\\.");
+        String[] parts = natsMessage.getReplyTo().split("\\.");
         if (parts.length < 8 || parts.length > 9 || !"ACK".equals(parts[1])) {
-            throwNotAJetStreamMessage(natsMessage.replyTo);
+            throwNotAJetStreamMessage(natsMessage.getReplyTo());
         }
 
         stream = parts[2];
@@ -73,37 +74,65 @@ public class NatsJetStreamMetaData implements MessageMetaData {
         }
     }
 
-    @Override
+    /**
+     * Gets the stream the message is from.
+     *
+     * @return the stream.
+     */
     public String getStream() {
         return stream;
     }
 
-    @Override
+    /**
+     * Gets the consumer that generated this message.
+     *
+     * @return the consumer.
+     */
     public String getConsumer() {
         return consumer;
     }
 
-    @Override
+    /**
+     * Gets the number of times this message has been delivered.
+     *
+     * @return delivered count.
+     */
     public long deliveredCount() {
         return delivered;
     }
 
-    @Override
+    /**
+     * Gets the stream sequence number of the message.
+     *
+     * @return sequence number
+     */
     public long streamSequence() {
         return streamSeq;
     }
 
-    @Override
+    /**
+     * Gets consumer sequence number of this message.
+     *
+     * @return sequence number
+     */
     public long consumerSequence() {
         return consumerSeq;
     }
 
-    @Override
+    /**
+     * Gets the pending count of the consumer.
+     *
+     * @return pending count
+     */
     public long pendingCount() {
         return pending;
     }
 
-    @Override
+    /**
+     * Gets the timestamp of the message.
+     *
+     * @return the timestamp
+     */
     public ZonedDateTime timestamp() {
         return timestamp;
     }

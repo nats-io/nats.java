@@ -13,15 +13,14 @@
 
 package io.nats.client.support;
 
-import io.nats.client.impl.ConsumerConfiguration;
-import io.nats.client.impl.Validator;
+import io.nats.client.api.ConsumerConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static io.nats.client.JetStreamSubscription.MAX_PULL_SIZE;
-import static io.nats.client.impl.Validator.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.support.Validator.*;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -185,6 +184,23 @@ public class ValidatorTests {
         assertTrue(zeroOrLtMinus1(-2));
         assertFalse(zeroOrLtMinus1(1));
         assertFalse(zeroOrLtMinus1(-1));
+    }
+
+    @Test
+    public void testContainsWhitespace() {
+        assertTrue(containsWhitespace(HAS_SPACE));
+        assertFalse(containsWhitespace(PLAIN));
+        assertFalse(containsWhitespace(null));
+    }
+
+    @Test
+    public void testContainsWildGtDollarSpaceTab() {
+        assertTrue(containsWildGtDollarSpaceTab(HAS_STAR));
+        assertTrue(containsWildGtDollarSpaceTab(HAS_GT));
+        assertTrue(containsWildGtDollarSpaceTab(HAS_DOLLAR));
+        assertTrue(containsWildGtDollarSpaceTab(HAS_TAB));
+        assertFalse(containsWildGtDollarSpaceTab(PLAIN));
+        assertFalse(containsWildGtDollarSpaceTab(null));
     }
 
     interface StringTest { String validate(String s); }

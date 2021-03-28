@@ -15,9 +15,10 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
-import io.nats.client.MessageMetaData;
 import io.nats.client.Subscription;
+import io.nats.client.support.ByteArrayBuilder;
 import io.nats.client.support.IncomingHeadersProcessor;
+import io.nats.client.support.JsPrefixManager;
 import io.nats.client.support.Status;
 
 import java.nio.charset.Charset;
@@ -25,9 +26,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.impl.Validator.validateMessageSubjectRequired;
-import static io.nats.client.impl.Validator.validateReplyToNullButNotEmpty;
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.Validator.validateMessageSubjectRequired;
+import static io.nats.client.support.Validator.validateReplyToNullButNotEmpty;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -287,7 +288,7 @@ public class NatsMessage implements Message {
     }
 
     @Override
-    public MessageMetaData metaData() {
+    public NatsJetStreamMetaData metaData() {
         throw new IllegalStateException(NOT_A_JET_STREAM_MESSAGE);
     }
 
@@ -306,23 +307,26 @@ public class NatsMessage implements Message {
 
     String toDetailString() {
         calculateIfDirty();
-        String hdrString = hasHeaders() ? new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+") : "";
         return "NatsMessage:" +
                 "\n  subject='" + subject + '\'' +
                 "\n  replyTo='" + replyToString() + '\'' +
                 "\n  data=" + dataToString() +
                 "\n  utf8mode=" + utf8mode +
-                "\n  headers=" + hdrString +
+                "\n  headers=" + headersToString() +
                 "\n  sid='" + sid + '\'' +
                 "\n  protocolLineLength=" + protocolLineLength +
-                "\n  protocolBytes=" + (protocolBytes == null ? null : new String(protocolBytes, UTF_8)) +
+                "\n  protocolBytes=" + protocolBytesToString() +
                 "\n  sizeInBytes=" + sizeInBytes +
                 "\n  hdrLen=" + hdrLen +
                 "\n  dataLen=" + dataLen +
                 "\n  totLen=" + totLen +
                 "\n  subscription=" + subscription +
-                "\n  next=" + (next == null ? "No" : "Yes");
+                "\n  next=" + nextToString();
 
+    }
+
+    private String headersToString() {
+        return hasHeaders() ? new String(headers.getSerialized(), US_ASCII).replace("\r", "+").replace("\n", "+") : "";
     }
 
     private String dataToString() {
@@ -331,6 +335,14 @@ public class NatsMessage implements Message {
 
     private String replyToString() {
         return replyTo == null ? "<no reply>" : replyTo;
+    }
+
+    private String protocolBytesToString() {
+        return protocolBytes == null ? null : new String(protocolBytes, UTF_8);
+    }
+
+    private String nextToString() {
+        return next == null ? "No" : "Yes";
     }
 
     // ----------------------------------------------------------------------------------------------------

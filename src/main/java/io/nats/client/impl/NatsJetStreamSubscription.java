@@ -13,10 +13,10 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
-import io.nats.client.PullSubscribeOptions;
-import io.nats.client.SubscribeOptions;
+import io.nats.client.*;
+import io.nats.client.api.ConsumerInfo;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.NatsJetStreamConstants;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static io.nats.client.impl.Validator.validatePullBatchSize;
+import static io.nats.client.support.Validator.validatePullBatchSize;
 
 /**
  * This is a JetStream specific subscription.
@@ -92,9 +92,9 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     byte[] getPullJson(int batch, boolean noWait, Duration expiresIn, String prefix) {
         StringBuilder sb = JsonUtils.beginJsonPrefixed(prefix);
-        JsonUtils.addFld(sb, "batch", batch);
+        JsonUtils.addField(sb, "batch", batch);
         JsonUtils.addFldWhenTrue(sb, "no_wait", noWait);
-        JsonUtils.addNanoFld(sb, "expires", expiresIn);
+        JsonUtils.addFieldAsNanos(sb, "expires", expiresIn);
         return JsonUtils.endJson(sb).toString().getBytes(StandardCharsets.US_ASCII);
     }
 

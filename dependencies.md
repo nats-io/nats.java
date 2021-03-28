@@ -9,7 +9,7 @@ This file lists the dependencies used in this repository.
 | net.i2p.crypto:eddsa:0.3.0           | CC 1.0 Universal                        |
 
 
-#### Test or Build Dependencies
+#### Test Dependencies
 
 | Dependency                            | License                                 |
 |---------------------------------------|-----------------------------------------|

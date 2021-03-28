@@ -13,12 +13,11 @@
 
 package io.nats.examples.autobench;
 
-import java.io.IOException;
-import java.time.Duration;
-
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+
+import java.io.IOException;
 
 public class PubBenchmark extends AutoBenchmark {
 
@@ -37,7 +36,7 @@ public class PubBenchmark extends AutoBenchmark {
                 for(int i = 0; i < this.getMessageCount(); i++) {
                     nc.publish(subject, payload);
                 }
-                try {nc.flush(Duration.ofSeconds(5));}catch(Exception e){}
+                defaultFlush(nc);
                 this.endTiming();
             } finally {
                 nc.close();
