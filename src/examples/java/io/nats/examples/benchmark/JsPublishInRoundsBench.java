@@ -28,24 +28,34 @@ import java.util.concurrent.CompletableFuture;
 import static io.nats.examples.ExampleUtils.uniqueEnough;
 
 public class JsPublishInRoundsBench {
-    static String server = Options.DEFAULT_URL;
-    static String stream = "pir-strm-" + uniqueEnough();
-    static String subject = "pir-sub-" + uniqueEnough();
-
-    static int TOTAL = 1_000_000;
-    static int PUB_ROUND_SIZE = 10;
-    static int PAYLOAD_SIZE = 64;
+    static final String usageString =
+            "\nUsage: java JsPublishInRoundsBench [serverURL] [help] " +
+                    "[-m totalMessages] [-p payloadSize] [-r roundSize] [-o file|memory] [-c replicas] [-t stream] [-u subject]"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext";
 
     public static void main(String[] args) {
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(server, true))) {
+        // TO RUN WITH ARGS FROM IDE, ADD A LINE LIKE THESE
+        // args = "-r 100 -p 128".split(" ");
+        // args = "-r 250 -p 100".split(" ");
+        // args = "myhost:4222 -r 1000 -p 64".split(" ");
+        // args = "-r 500 -p 64 -o file -c 2".split(" ");
+        // args = "help".split(" ");
+
+        Arguments a = readArgs(args);
+
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(a.server, true))) {
             JetStreamManagement jsm = nc.jetStreamManagement();
-            StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(stream)
-                    .storageType(StorageType.File)
-                    .replicas(2)
-                    .subjects(subject)
-                    .build();
+            StreamConfiguration.Builder builder = StreamConfiguration.builder()
+                    .name(a.stream)
+                    .storageType(a.file ? StorageType.File : StorageType.Memory)
+                    .subjects(a.subject);
+
+            if (a.replicas > 0) {
+                builder.replicas(a.replicas);
+            }
+
+            StreamConfiguration sc = builder.build();
 
             try {
                 jsm.addStream(sc);
@@ -55,18 +65,17 @@ public class JsPublishInRoundsBench {
                 System.out.println(e);
             }
 
-            // Create our JetStream context to receive JetStream messages.
             JetStream js = nc.jetStream();
 
-            final Message m = NatsMessage.builder().subject(subject).data(new byte[PAYLOAD_SIZE]).build();
+            final Message m = NatsMessage.builder().subject(a.subject).data(new byte[a.payloadSize]).build();
 
             int sent = 0;
             int failed = 0;
             long totalElapsed = 0;
-            while ((sent+failed) < TOTAL) {
+            while ((sent+failed) < a.totalMsgs) {
                 long start = System.currentTimeMillis();
                 List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
-                for (int x = 0; x < PUB_ROUND_SIZE; x++) {
+                for (int x = 0; x < a.roundSize; x++) {
                     futures.add(js.publishAsync(m));
                 }
                 while (futures.size() > 0) {
@@ -99,5 +108,67 @@ public class JsPublishInRoundsBench {
         catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    static class Arguments {
+        String server = Options.DEFAULT_URL;
+        int totalMsgs = 1_000_000;
+        int payloadSize = 128;
+        int roundSize = 100;
+        int replicas = 0;
+        boolean file = false;
+        String stream = "jspirb-strm-" + uniqueEnough();
+        String subject = "jspirb-sub-" + uniqueEnough();
+    }
+
+    private static String defaultArgs() {
+        Arguments a = new Arguments();
+        return "\n\nDefault Arguments: " +
+                "server='" + a.server + '\'' +
+                ", totalMsgs=" + a.totalMsgs +
+                ", payloadSize=" + a.payloadSize +
+                ", roundSize=" + a.roundSize +
+                ", replicas=" + a.replicas +
+                ", storage=" + StorageType.Memory +
+                ", stream='" + "jspirb-strm-<unique>" + '\'' +
+                ", subject='" + "jspirb-sub-<unique>" + '\'';
+    }
+
+    private static Arguments readArgs(String[] args) {
+        Arguments a = new Arguments();
+        if (args.length > 0) {
+            for (int x = 0; x < args.length; x++) {
+                switch (args[x]) {
+                    case "-m":
+                        a.totalMsgs = Integer.parseInt(args[++x]);
+                        break;
+                    case "-p":
+                        a.payloadSize = Integer.parseInt(args[++x]);
+                        break;
+                    case "-r":
+                        a.roundSize = Integer.parseInt(args[++x]);
+                        break;
+                    case "-c":
+                        a.replicas = Integer.parseInt(args[++x]);
+                        break;
+                    case "-o":
+                        a.file = args[++x].equalsIgnoreCase("file");
+                        break;
+                    case "-t":
+                        a.stream = args[++x];
+                        break;
+                    case "-u":
+                        a.subject = args[++x];
+                        break;
+                    case "help":
+                        System.err.println(usageString + defaultArgs());
+                        System.exit(-1);
+                    default:
+                        a.server = args[x];
+                        break;
+                }
+            }
+        }
+        return a;
     }
 }

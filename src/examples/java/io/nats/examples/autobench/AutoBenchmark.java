@@ -108,13 +108,13 @@ public abstract class AutoBenchmark {
     public void getFutureSafely(CompletableFuture<Void> future) {
         try {
             future.get();
-        } catch (Exception exp) {
         }
+        catch(Exception e) { /* ignore */ }
     }
 
     public void printResult() {
         if (this.runtimeNanos == 0) {
-            System.out.printf("%-18s %18s\n", name, "no data from test run");
+            System.out.printf("%-26s %18s\n", name, "no data from test run");
             return;
         } else if (this.exception != null) {
             String message = this.exception.getMessage();
@@ -123,7 +123,7 @@ public abstract class AutoBenchmark {
                 message = this.exception.getClass().getCanonicalName();
             }
 
-            System.out.printf("%-18s %12s Exception: %12s\n", 
+            System.out.printf("%-26s %12s Exception: %12s\n",
                     getName(),
                     NumberFormat.getIntegerInstance().format(this.messageCount),
                     message);
@@ -132,7 +132,7 @@ public abstract class AutoBenchmark {
 
         double messagesPerSecond = 1e9 * ((double)this.messageCount)/((double)this.runtimeNanos); // 1e9 for nanos to seconds
         double bytesPerSecond = 1e9 * ((double)(this.messageCount * this.messageSize))/((double)this.runtimeNanos);
-        System.out.printf("%-18s %12s %18s msg/s %12s/s\n",
+        System.out.printf("%-26s %12s %18s msg/s %12s/s\n",
                             this.name,
                             NumberFormat.getIntegerInstance().format(this.messageCount),
                             NumberFormat.getIntegerInstance().format((long)messagesPerSecond),

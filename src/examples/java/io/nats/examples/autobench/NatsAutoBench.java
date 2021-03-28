@@ -34,13 +34,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class NatsAutoBench {
     static final String usageString =
             "\nUsage: java NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med] [conscrypt] [jsfile]" +
-                    "[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] [JsPubSync] [JsPubAsync] [JsSub]"
+                    "[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
+                    "[JsPubSync] [JsPubAsync] [JsSub] [JsPubRounds]\n\n"
             + "If no specific test name(s) are supplied all will be run, otherwise only supplied tests will be run."
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\n\ntiny, small and med reduce the number of messages used for tests, which can help on slower machines\n";
 
     public static void main(String[] args) {
-        args = "tiny JsSub".split(" ");
+
+        // TO RUN WITH ARGS FROM IDE, ADD A LINE LIKE THESE
+        // args = "myhost:4222 med".split(" ");
+        // args = "small PubOnly".split(" ");
+        // args = "med JsPubAsync".split(" ");
+        // args = "help".split(" ");
+
         Arguments a = readArgs(args);
 
         System.out.printf("Connecting to NATS server at %s\n", a.server);
@@ -135,12 +142,17 @@ public class NatsAutoBench {
         AutoBenchmark construct(long messageSize, long messageCount);
     }
 
+    interface AutoBenchmarkRoundSizeConstructor {
+        AutoBenchmark construct(long messageSize, long messageCount, int roundSize);
+    }
+
+    static int[] sizes =         {0,     8,  32, 256, 512, 1024, 4096, 8192};
+    static long[] msgsMultiple = {100, 100, 100, 100, 100,   10,    5,    1};
+    static int[] msgsDivider =   {5,     5,  10,  10,  10,   10,   10,   10};
+    static int[] roundSize =     {10, 100, 200, 500, 1000};
+
     public static List<AutoBenchmark> buildTestList(Arguments a) {
         List<AutoBenchmark> tests = new ArrayList<>();
-        
-        int[] sizes =         {0,     8,  32, 256, 512, 1024, 4096, 8192};
-        long[] msgsMultiple = {100, 100, 100, 100, 100,   10,    5,    1};
-        int[] msgsDivider =   {5,     5,  10,  10,  10,   10,   10,   10};
 
         if (a.allTests || a.pubOnly) {
             addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
@@ -184,6 +196,12 @@ public class NatsAutoBench {
             addTests(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
                     (msize, mcnt) -> new JsSubBenchmark("JsSub " + msize, mcnt, msize));
         }
+
+        if (a.allTests || a.jsPubRounds) {
+            addTestsWithRounds(a.baseMsgs, a.maxSize, tests, sizes, msgsMultiple,
+                    (msize, mcnt, rsize) -> new JsPubAsyncRoundsBenchmark("JsPubAsyncRounds " + msize + "," + rsize, mcnt, msize, a.jsFile, rsize));
+        }
+
 
         if (a.allTests || a.reqReply) {
                 addRequestReplyTests(a.baseMsgs, a.maxSize, tests, sizes, msgsDivider,
@@ -235,9 +253,21 @@ public class NatsAutoBench {
         }
     }
 
-    static void usage() {
-        System.err.println(usageString);
-        System.exit(-1);
+    private static void addTestsWithRounds(int baseMsgs, long maxSize, List<AutoBenchmark> tests, int[] sizes, long[] msgsMultiple, AutoBenchmarkRoundSizeConstructor abrsc) {
+        for(int i = 0; i< sizes.length; i++) {
+            int size = sizes[i];
+            long msgMult = msgsMultiple[i];
+
+            if (size > maxSize) {
+                break;
+            }
+
+            for (int rs : roundSize) {
+                if (rs <= msgMult * baseMsgs) {
+                    tests.add(abrsc.construct(size, msgMult * baseMsgs, rs));
+                }
+            }
+        }
     }
 
     static class Arguments {
@@ -255,6 +285,7 @@ public class NatsAutoBench {
         boolean jsPubSync = false;
         boolean jsPubAsync = false;
         boolean jsSub = false;
+        boolean jsPubRounds = false;
         boolean reqReply = false;
         boolean latency = false;
 
@@ -323,12 +354,16 @@ public class NatsAutoBench {
                         a.allTests = false;
                         a.jsSub = true;
                         break;
+                    case "jspubrounds":
+                        a.allTests = false;
+                        a.jsPubRounds = true;
+                        break;
                     case "jsfile":
                         a.jsFile = true;
                         break;
                     case "help":
-                        usage();
-                        System.exit(0);
+                        System.err.println(usageString);
+                        System.exit(-1);
                     default:
                         a.server = s;
                         break;
