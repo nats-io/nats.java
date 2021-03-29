@@ -72,17 +72,10 @@ public class NatsJsPub {
                         .data(data, StandardCharsets.UTF_8)
                         .build();
 
+                // Publish a message and print the results of the publish acknowledgement.
                 // We'll use the defaults for this simple example, but there are options
                 // to constrain publishing to certain streams, expect sequence numbers and
-                // more. e.g.:
-                //
-                // PublishOptions pops = PublishOptions.builder()
-                //    .stream("test-stream")
-                //    .expectedLastMsgId("transaction-42")
-                //    .build();
-                // js.publish(msg, pops);
-
-                // Publish a message and print the results of the publish acknowledgement.
+                // more. See the NatsJsPubWithOptionsUseCases.java example for details.
                 // An exception will be thrown if there is a failure.
                 PublishAck pa = js.publish(msg);
                 System.out.printf("Published message %s on subject %s, stream %s, seqno %d.\n",

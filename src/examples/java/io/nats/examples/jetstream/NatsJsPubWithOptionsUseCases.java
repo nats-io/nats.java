@@ -1,0 +1,131 @@
+// Copyright 2020 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package io.nats.examples.jetstream;
+
+import io.nats.client.*;
+import io.nats.client.api.PublishAck;
+import io.nats.examples.ExampleArgs;
+import io.nats.examples.ExampleUtils;
+
+/**
+ * This example will demonstrate JetStream publishing with options.
+ *
+ * Run Notes:
+ * - msg_count < 1 is the same as 1
+ * - headers are optional
+ *
+ * Usage: java NatsJsPubWithOptionsUseCases [-s server] [-strm stream] [-sub subject]
+ *   Use tls:// or opentls:// to require tls, via the Default SSLContext
+ *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
+ *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
+ *   Use the URL for user/pass/token authentication.
+ */
+public class NatsJsPubWithOptionsUseCases {
+
+    public static void main(String[] args) {
+        ExampleArgs exArgs = ExampleArgs.builder()
+                .defaultStream("pubopts-stream")
+                .defaultSubject("pubopts-subject")
+                .build(args);
+
+        String hdrNote = exArgs.hasHeaders() ? ", with " + exArgs.headers.size() + " header(s)" : "";
+        System.out.printf("\nPublishing to %s%s. Server is %s\n\n", exArgs.subject, hdrNote, exArgs.server);
+
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+
+            // Create a JetStream context.  This hangs off the original connection
+            // allowing us to produce data to streams and consume data from
+            // JetStream consumers.
+            JetStream js = nc.jetStream();
+
+            // See NatsJsManagement for examples on how to create the stream
+            NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);
+
+            PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
+                    .expectedStream("pubopts-stream")
+                    .messageId("mid1");
+            PublishAck pa = js.publish(exArgs.subject, "message1".getBytes(), pubOptsBuilder.build());
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
+                    exArgs.subject, pa.getStream(), pa.getSeqno());
+
+            // IMPORTANT!
+            // You can reuse the builder in 3 ways.
+            // 1. Use the reuseIncrementSeq  to clear the expectedLastId and messageId fields, and to increment expectedLastSequence
+            // 2. Use the reuse method to clear the expectedLastId, expectedLastSequence and messageId fields
+            // 3. Manually set a field to null or to UNSET_LAST_SEQUENCE if you want to clear it out.
+
+            // Manual re-use 1. Clearing some fields
+            pubOptsBuilder
+                    .expectedLastMsgId(null)
+                    .expectedLastSequence(PublishOptions.UNSET_LAST_SEQUENCE)
+                    .messageId("mid2");
+            pa = js.publish(exArgs.subject, "message2".getBytes(), pubOptsBuilder.build());
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
+                    exArgs.subject, pa.getStream(), pa.getSeqno());
+
+            // Manual re-use 2. Setting all the expected fields again
+            pubOptsBuilder
+                    .expectedLastMsgId("mid2")
+                    .expectedLastSequence(pa.getSeqno()) // last sequence can be found in last ack
+                    .messageId("mid3");
+            pa = js.publish(exArgs.subject, "message3".getBytes(), pubOptsBuilder.build());
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
+                    exArgs.subject, pa.getStream(), pa.getSeqno());
+
+            // reuse() method clears all the fields, then we set some fields.
+            pubOptsBuilder.reuse()
+                    .expectedLastSequence(pa.getSeqno()) // last sequence can be found in last ack
+                    .messageId("mid4");
+            pa = js.publish(exArgs.subject, "message4".getBytes(), pubOptsBuilder.build());
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
+                    exArgs.subject, pa.getStream(), pa.getSeqno());
+
+            // VERY COMMON USE CASE
+            pubOptsBuilder.reuseIncrementExpectedLastSeq().messageId("mid5"); // last sequence can be found in last ack
+            pa = js.publish(exArgs.subject, "message5".getBytes(), pubOptsBuilder.build());
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
+                    exArgs.subject, pa.getStream(), pa.getSeqno());
+
+            pubOptsBuilder.reuseIncrementExpectedLastSeq()
+                    .expectedLastMsgId("mid5").messageId("mid6");
+            pa = js.publish(exArgs.subject, "message6".getBytes(), pubOptsBuilder.build());
+            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
+                    exArgs.subject, pa.getStream(), pa.getSeqno());
+
+            try {
+                PublishOptions opts = PublishOptions.builder().expectedStream("wrongStream").build();
+                js.publish(exArgs.subject, "ex1".getBytes(), opts);
+            } catch (JetStreamApiException e) {
+                System.out.println(e);
+            }
+
+            try {
+                PublishOptions opts = PublishOptions.builder().expectedLastMsgId("wrongId").build();
+                js.publish(exArgs.subject, "ex2".getBytes(), opts);
+            } catch (JetStreamApiException e) {
+                System.out.println(e);
+            }
+
+            try {
+                PublishOptions opts = PublishOptions.builder().expectedLastSequence(999).build();
+                js.publish(exArgs.subject, "ex3".getBytes(), opts);
+            } catch (JetStreamApiException e) {
+                System.out.println(e);
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}

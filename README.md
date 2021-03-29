@@ -52,9 +52,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.8.0/jnats-2.8.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.8.0/jnats-2.8.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.8.0/jnats-2.8.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.8.0/jnats-2.8.0-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -64,7 +64,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.8.0'
+    implementation 'io.nats:jnats:2.10.0'
 }
 ```
 
@@ -90,7 +90,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.8.0</version>
+    <version>2.10.0</version>
 </dependency>
 ```
 
@@ -231,11 +231,12 @@ NATS subject, and JetStream subscribers, depending on configuration, receive mes
 from both streams and directly from other NATS producers.
 
 ### The Jetstream Context
-After establishing a connection as described above, create a Jetstream Context.
 
-```java
-    JetStream js = nc.jetStream();
-```
+After establishing a connection as described above, create a Jetstream Context.
+   
+   ```java
+   JetStream js = nc.jetStream();
+   ```
 
 You can pass options to configure the Jetstream client, although the defaults should
 suffice for most users.  See the `JetStreamOptions` class.
@@ -250,13 +251,13 @@ To publish messages, use the `JetStream.Publish(...)` API.  A stream must be est
 before publishing.
 
 ```java
-    // create a typical NATS message
-    Message msg = NatsMessage.builder()
-            .subject("foo")
-            .data("hello", StandardCharsets.UTF_8)
-            .build();
+ // create a typical NATS message
+ Message msg = NatsMessage.builder()
+         .subject("foo")
+         .data("hello", StandardCharsets.UTF_8)
+         .build();
 
-    PublishAck pa = js.publish(msg);
+ PublishAck pa = js.publish(msg);
 ```
 
 If there is a problem an exception will be thrown, and the message may not have been
@@ -270,78 +271,68 @@ previous message ID, or previous sequence number.  These are hints to the server
 it should reject messages where these are not met, primarily for enforcing your ordering
 or ensuring messages are not stored on the wrong stream.
 
+The PublishOptions are immutable, but the builder can be re-used.
+
 For example:
 
 ```java
-    PublishOptions opts = PublishOptions.builder().expectedStream("TEST").build();
-    opts.setMessageId("mid1");
-    js.publish("foo", null, opts);
+PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
+        .expectedStream("TEST")
+        .messageId("mid1");
+PublishAck pa = js.publish("foo", null, pubOptsBuilder.build());
 
-    opts.setExpectedLastMsgId("mid1");
-    opts.setMessageId("mid2");
-    opts.setExpectedLastSequence(1);
-    js.publish("foo", null, opts);
+pubOptsBuilder.reuse()
+        .setExpectedLastMsgId("mid1")
+        .setExpectedLastSequence(1)
+        .messageId("mid2");
+pa = js.publish("foo", null, pubOptsBuilder.build());
+
+pubOptsBuilder.reuseIncrementExpectedLastSeq()
+        .setExpectedLastMsgId("mid2")
+        .messageId("mid3");
+pa = js.publish("foo", null, pubOptsBuilder.build());
+
 ```
 
 ### Subscribing
 
-There are three methods of subscribing: synchronous, synchronous with poll, and asynchronous.  With synchronous subscribers
-you must always acknowledge messages.  Asynchronous subscribers auto acknowledge by default, although this can
-be disabled through the subscription options in case you are using a consumer ack mode of none or all in the consumer
-configuration.
+There are two methods of subscribing, **Push** and **Pull** with each variety having it's own set of options and abilities. 
 
-These examples provide a durable so messages will be preserved across server restarts (when a stream is using file storage)
-and client disconnects.  Any subscriber can be a queue subscriber to load balance.
+### Push Subscribing
+
+Push subscriptions can be synchronous or asynchronous
 
 **Asynchronous:**
 
-```java
-
-    Dispatcher d;
-
-    ...
-
-    SubscribeOptions so = SubscribeOptions.builder().durable("durable-name").build();
-    js.subscribe(exArgs.subject, d, (Message msg) -> {
-        // Process the message.  There is no need to ack unless auto ack
-        // was disabled in the options.
-    }, so);
-```
+TBD
 
 **Synchronous:**
 
-```java
-    SubscribeOptions so = SubscribeOptions.builder().durable("sub-example").build();
-    JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
-    Message msg = sub.nextMessage(Duration.ofHours(1));
+TBD
 
-    // process the message
+### Pull Subscribing
 
-    msg.ack();
-```
+Pull subscriptions are always synchronous
 
-**Synchronous with poll:**
+**Batch Size:**
 
-A subscription can be set up to poll to request messages from a JetStream consumer, allowing for high performance while reducing impact to the server.
+TBD
 
-```java
-    SubscribeOptions so = SubscribeOptions.builder().poll(64).durable("sub-example").build();
-    JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
-    while (true) {
-        for (int i = 0; i < 64; i++) {
-            Message msg = sub.nextMessage(Duration.ofMinutes(5));
+**No Wait and Batch Size:**
 
-            // process the message
+TBD
 
-            msg.ack();
-        }
-        // get the next batch of messages.
-        sub.poll();
-    }
-```
+**Expires In and Batch Size:**
 
-If the consumer had an acknowledgement mode of "all", you could acknowledge only the last message to balance
-performance against the possibility of reprocessing a number of messages.
+TBD
+
+**Fetch:**
+
+TBD
+
+**Iterate:**
+
+TBD
 
 ### Message Acknowledgements
 
