@@ -401,7 +401,7 @@ in the JetStream examples for a detailed and runnable example.
 ```java
         sub.pull(100);
         ...
-        sub.nextMessage(Duration.ofSeconds(1));
+        Message m = sub.nextMessage(Duration.ofSeconds(1));
 ```
 
 An advanced version of pull specifies a batch size. When asked, the server will send whatever
@@ -417,7 +417,7 @@ in the JetStream examples for detailed and runnable examples.
 ```java
         sub.pullNoWait(100);
         ...
-        sub.nextMessage(Duration.ofSeconds(1));
+        Message m = sub.nextMessage(Duration.ofSeconds(1));
 ```
 
 An advanced version of pull also specifies a batch size. When asked, the server will send whatever
@@ -431,9 +431,9 @@ See the `NatsJsPullSubNoWaitUseCases.java` in the JetStream examples for a detai
 **Expires In and Batch Size:**
 
 ```java
-        sub.pullExpiresIn(100, Duration.ofSeconds(5));
+        sub.pullExpiresIn(100, Duration.ofSeconds(3));
         ...
-        sub.nextMessage(Duration.ofSeconds(1));
+        Message m = sub.nextMessage(Duration.ofSeconds(4));
 ```
 
 Another advanced version of pull specifies a maximum time to wait for the batch to fill.
