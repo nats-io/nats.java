@@ -221,30 +221,16 @@ public class PublishOptions {
         }
 
         /**
-         * Reuse this builder for another set of expectations.
+         * Clears the expected so the build can be re-used.
          * Clears the expectedLastId, expectedLastSequence and messageId fields.
          * @return publish options
          */
-        public Builder reuse() {
+        public Builder clearExpected() {
             expectedLastId = null;
             expectedLastSeq = UNSET_LAST_SEQUENCE;
             msgId = null;
             return this;
         }
-
-        /**
-         * Reuse this builder for another set of expectations, automatically incrementing the
-         * expectedLastSequence.
-         * Clears the expectedLastId, expectedLastSequence and messageId fields.
-         * @return publish options
-         */
-        public Builder reuseIncrementExpectedLastSeq() {
-            expectedLastSeq++;
-            expectedLastId = null;
-            msgId = null;
-            return this;
-        }
-
         /**
          * Builds the publish options.
          * @return publish options

@@ -20,7 +20,7 @@ In the `io.nats.examples.jetstream` package...
 1. `NatsJsPub.java` - publish JetStream messages
 1. `NatsJsPubAsync.java` - publish JetStream messages asynchronously
 1. `NatsJsPubVsRegularPub.java` - publish JetStream messages versus regular publish to the same stream.
-1. `NatsJsPubWithOptionsUseCases` - publish JetStream with examples on usnig publish options
+1. `NatsJsPubWithOptionsUseCases` - publish JetStream with examples on using publish options
 1. `NatsJsPullSubBatchSize.java` - pull subscription example specifying batch size and manual handling
 1. `NatsJsPullSubBatchSizeUseCases.java` - pull subscription example specifying batch size with examples of manual handling various cases of available messages  
 1. `NatsJsPullSubExpire.java` - pull subscription example specifying expiration and manual handling

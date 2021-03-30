@@ -248,17 +248,21 @@ NATS authorization.
 ### Publishing
 
 To publish messages, use the `JetStream.Publish(...)` API.  A stream must be established
-before publishing.
+before publishing. You can publish in either a synchronous or asynchronous manner.
+
+**Synchronous:**
 
 ```java
- // create a typical NATS message
- Message msg = NatsMessage.builder()
-         .subject("foo")
-         .data("hello", StandardCharsets.UTF_8)
-         .build();
-
- PublishAck pa = js.publish(msg);
+       // create a typical NATS message
+       Message msg = NatsMessage.builder()
+               .subject("foo")
+               .data("hello", StandardCharsets.UTF_8)
+               .build();
+      
+       PublishAck pa = js.publish(msg);
 ```
+
+See `NatsJsPub.java` in the JetStream examples for a detailed and runnable example.
 
 If there is a problem an exception will be thrown, and the message may not have been
 persisted.  Otherwise, the stream name and sequence number is returned in the publish
@@ -276,63 +280,136 @@ The PublishOptions are immutable, but the builder can be re-used.
 For example:
 
 ```java
-PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
-        .expectedStream("TEST")
-        .messageId("mid1");
-PublishAck pa = js.publish("foo", null, pubOptsBuilder.build());
-
-pubOptsBuilder.reuse()
-        .setExpectedLastMsgId("mid1")
-        .setExpectedLastSequence(1)
-        .messageId("mid2");
-pa = js.publish("foo", null, pubOptsBuilder.build());
-
-pubOptsBuilder.reuseIncrementExpectedLastSeq()
-        .setExpectedLastMsgId("mid2")
-        .messageId("mid3");
-pa = js.publish("foo", null, pubOptsBuilder.build());
-
+      PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
+              .expectedStream("TEST")
+              .messageId("mid1");
+      PublishAck pa = js.publish("foo", null, pubOptsBuilder.build());
+      
+      pubOptsBuilder.reuse()
+              .setExpectedLastMsgId("mid1")
+              .setExpectedLastSequence(1)
+              .messageId("mid2");
+      pa = js.publish("foo", null, pubOptsBuilder.build());
 ```
 
-### Subscribing
-
-There are two methods of subscribing, **Push** and **Pull** with each variety having it's own set of options and abilities. 
-
-### Push Subscribing
-
-Push subscriptions can be synchronous or asynchronous
+See `NatsJsPubWithOptionsUseCases.java` in the JetStream examples for a detailed and runnable example.
 
 **Asynchronous:**
 
-TBD
+```java
+
+      List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
+      for (int x = 1; x < roundCount; x++) {
+          // create a typical NATS message
+          Message msg = NatsMessage.builder()
+          .subject("foo")
+          .data("hello", StandardCharsets.UTF_8)
+          .build();
+
+          // Publish a message
+          futures.add(js.publishAsync(msg));
+     }
+
+     for (CompletableFuture<PublishAck> future : futures) {
+         ... process the futures
+     }
+```
+
+See the `NatsJsPubAsync.java` in the JetStream examples for a detailed and runnable example.
+
+### Subscribing
+
+There are two methods of subscribing, **Push** and **Pull** with each variety having its own set of options and abilities. 
+
+### Push Subscribing
+
+Push subscriptions can be synchronous or asynchronous. The server *pushes* messages to the client.
+
+**Asynchronous:**
+
+```java
+        Dispatcher disp = ...;
+
+        MessageHandler handler = (msg) -> {
+        // Process the message.
+        // Ack the message depending on the ack model
+        };
+
+        PushSubscribeOptions so = PushSubscribeOptions.builder()
+            .durable("optional-durable-name")
+            .build();
+        
+        boolean autoAck = ...
+        
+        js.subscribe("my-subject", disp, handler, autoAck);
+```
+
+See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed and runnable example.
 
 **Synchronous:**
 
-TBD
+See `NatsJsPushSub.java` in the JetStream examples for a detailed and runnable example.
 
 ### Pull Subscribing
 
-Pull subscriptions are always synchronous
+Pull subscriptions are always synchronous. The server organizes messages into a batch
+which it sends when requested.
 
 **Batch Size:**
 
-TBD
+The simplest version of pull specifies a batch size. When asked, the server will send whatever
+messages it has up to the batch size. If it has no messages it will wait until it has some to send.
+The client may time out before that time. If there are less than the batch size available, 
+you can ask for more later. Once the entire batch size has been filled, you must make another pull request. 
+
+See `NatsJsPullSubBatchSize.java` and `NatsJsPullSubBatchSizeUseCases.java` 
+in the JetStream examples for detailed and runnable examples.
 
 **No Wait and Batch Size:**
 
-TBD
+The simplest version of pull specifies a batch size. When asked, the server will send whatever
+messages it has up to the batch size, but will never wait for the batch to fill and the client
+will return immediately. If there are less than the batch size available, you will get what is
+available and a 404 status message indicating the server did not have enough messages.
+You must make a pull request every time. **This is an advanced api** 
+
+See the `NatsJsPullSubNoWaitUseCases.java` in the JetStream examples for a detailed and runnable example.
 
 **Expires In and Batch Size:**
 
-TBD
+Another advanced version of pull specifies a maximum time to wait for the batch to fill.
+The server returns messages when either the batch is filled or the time expires. It's important to
+set your client's timeout to be longer than the time you've asked the server to expire in.
+You must make a pull request every time. In subsequent pulls, you will receive multiple 408 status
+messages, one for each message the previous batch was short. You can just ignore these.
+**This is an advanced api**
+
+See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
+in the JetStream examples for detailed and runnable examples.
 
 **Fetch:**
 
-TBD
+The fetch pull is a *macro* pull that uses advanced pulls under the covers to return a list of messages.
+The list may be empty or contain at most the batch size. All status messages are handled for you.
+The client can provide a timeout to wait for the first message in a batch.
+The fetch call returns when the batch is ready.
+The timeout may be exceeded if the server sent messages very near the end of the timeout period. 
+
+See `NatsJsPullSubFetch.java` and `NatsJsPullSubFetchUseCases.java`
+in the JetStream examples for a detailed and runnable example.
 
 **Iterate:**
 
-TBD
+The iterate pull is a *macro* pull that uses advanced pulls under the covers to return an iterator.
+The iterator may have no messages up to at most the batch size. 
+All status messages are handled for you.
+The client can provide a timeout to wait for the first message in a batch.
+The iterate call returns the iterator immediately, but under the covers it will wait for the first
+message based on the timeout.
+The timeout may be exceeded if the server sent messages very near the end of the timeout period.
+
+See `NatsJsPullSubIterate.java` and `NatsJsPullSubIterateUseCases.java`
+in the JetStream examples for a detailed and runnable example.
 
 ### Message Acknowledgements
 
@@ -502,7 +579,13 @@ The build depends on Gradle, and contains `gradlew` to simplify the process. Aft
 ```bash
 > git clone https://github.com/nats-io/nats.java
 > cd nats.java
-> ./gradlew build
+> ./gradlew clean build
+```
+
+Or to build without tests
+
+```bash
+> ./gradlew clean build -x test
 ```
 
 This will place the class files in a new `build` folder. To just build the jar:

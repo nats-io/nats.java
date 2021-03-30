@@ -60,23 +60,22 @@ public class NatsJsPubWithOptionsUseCases {
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
             // IMPORTANT!
-            // You can reuse the builder in 3 ways.
-            // 1. Use the reuseIncrementSeq  to clear the expectedLastId and messageId fields, and to increment expectedLastSequence
-            // 2. Use the reuse method to clear the expectedLastId, expectedLastSequence and messageId fields
-            // 3. Manually set a field to null or to UNSET_LAST_SEQUENCE if you want to clear it out.
+            // You can reuse the builder in 2 ways.
+            // 1. Manually set a field to null or to UNSET_LAST_SEQUENCE if you want to clear it out.
+            // 2. Use the clearExpected method to clear the expectedLastId, expectedLastSequence and messageId fields
 
             // Manual re-use 1. Clearing some fields
             pubOptsBuilder
-                    .expectedLastMsgId(null)
+                    .expectedLastMsgId("mid1")
                     .expectedLastSequence(PublishOptions.UNSET_LAST_SEQUENCE)
-                    .messageId("mid2");
+                    .messageId(null);
             pa = js.publish(exArgs.subject, "message2".getBytes(), pubOptsBuilder.build());
             System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
             // Manual re-use 2. Setting all the expected fields again
             pubOptsBuilder
-                    .expectedLastMsgId("mid2")
+                    .expectedLastMsgId(null)
                     .expectedLastSequence(pa.getSeqno()) // last sequence can be found in last ack
                     .messageId("mid3");
             pa = js.publish(exArgs.subject, "message3".getBytes(), pubOptsBuilder.build());
@@ -84,25 +83,14 @@ public class NatsJsPubWithOptionsUseCases {
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
             // reuse() method clears all the fields, then we set some fields.
-            pubOptsBuilder.reuse()
+            pubOptsBuilder.clearExpected()
                     .expectedLastSequence(pa.getSeqno()) // last sequence can be found in last ack
                     .messageId("mid4");
             pa = js.publish(exArgs.subject, "message4".getBytes(), pubOptsBuilder.build());
             System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
                     exArgs.subject, pa.getStream(), pa.getSeqno());
 
-            // VERY COMMON USE CASE
-            pubOptsBuilder.reuseIncrementExpectedLastSeq().messageId("mid5"); // last sequence can be found in last ack
-            pa = js.publish(exArgs.subject, "message5".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
-                    exArgs.subject, pa.getStream(), pa.getSeqno());
-
-            pubOptsBuilder.reuseIncrementExpectedLastSeq()
-                    .expectedLastMsgId("mid5").messageId("mid6");
-            pa = js.publish(exArgs.subject, "message6".getBytes(), pubOptsBuilder.build());
-            System.out.printf("Published message on subject %s, stream %s, seqno %d.\n",
-                    exArgs.subject, pa.getStream(), pa.getSeqno());
-
+            // exception when the expected stream does not match
             try {
                 PublishOptions opts = PublishOptions.builder().expectedStream("wrongStream").build();
                 js.publish(exArgs.subject, "ex1".getBytes(), opts);
@@ -110,6 +98,7 @@ public class NatsJsPubWithOptionsUseCases {
                 System.out.println(e);
             }
 
+            // exception with wrong last msg ID
             try {
                 PublishOptions opts = PublishOptions.builder().expectedLastMsgId("wrongId").build();
                 js.publish(exArgs.subject, "ex2".getBytes(), opts);
@@ -117,6 +106,7 @@ public class NatsJsPubWithOptionsUseCases {
                 System.out.println(e);
             }
 
+            // exception with wrong last sequence
             try {
                 PublishOptions opts = PublishOptions.builder().expectedLastSequence(999).build();
                 js.publish(exArgs.subject, "ex3".getBytes(), opts);

@@ -73,7 +73,7 @@ public class NatsJsPushSubWithHandler {
             AtomicInteger ignored = new AtomicInteger();
 
             // create our message handler.
-            MessageHandler handler = (Message msg) -> {
+            MessageHandler handler = msg -> {
                 if (msgLatch.getCount() == 0) {
                     ignored.incrementAndGet();
                     if (msg.isJetStream()) {
