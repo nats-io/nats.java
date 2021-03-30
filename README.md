@@ -355,9 +355,56 @@ See `NatsJsPushSub.java` in the JetStream examples for a detailed and runnable e
 Pull subscriptions are always synchronous. The server organizes messages into a batch
 which it sends when requested.
 
+**Fetch:**
+
+```java
+        List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
+        for (Message m : message) {
+            // process message
+            m.ack();
+        }
+```
+
+The fetch pull is a *macro* pull that uses advanced pulls under the covers to return a list of messages.
+The list may be empty or contain at most the batch size. All status messages are handled for you.
+The client can provide a timeout to wait for the first message in a batch.
+The fetch call returns when the batch is ready.
+The timeout may be exceeded if the server sent messages very near the end of the timeout period.
+
+See `NatsJsPullSubFetch.java` and `NatsJsPullSubFetchUseCases.java`
+in the JetStream examples for a detailed and runnable example.
+
+**Iterate:**
+
+```java
+        Iterator<Message> iter = sub.iterate(100, Duration.ofSeconds(1));
+        while (iter.hasNext()) {
+            Message m = iter.next();
+            // process message
+            m.ack();
+        }
+```
+
+The iterate pull is a *macro* pull that uses advanced pulls under the covers to return an iterator.
+The iterator may have no messages up to at most the batch size.
+All status messages are handled for you.
+The client can provide a timeout to wait for the first message in a batch.
+The iterate call returns the iterator immediately, but under the covers it will wait for the first
+message based on the timeout.
+The timeout may be exceeded if the server sent messages very near the end of the timeout period.
+
+See `NatsJsPullSubIterate.java` and `NatsJsPullSubIterateUseCases.java`
+in the JetStream examples for a detailed and runnable example.
+
 **Batch Size:**
 
-The simplest version of pull specifies a batch size. When asked, the server will send whatever
+```java
+        sub.pull(100);
+        ...
+        sub.nextMessage(Duration.ofSeconds(1));
+```
+
+An advanced version of pull specifies a batch size. When asked, the server will send whatever
 messages it has up to the batch size. If it has no messages it will wait until it has some to send.
 The client may time out before that time. If there are less than the batch size available, 
 you can ask for more later. Once the entire batch size has been filled, you must make another pull request. 
@@ -367,7 +414,13 @@ in the JetStream examples for detailed and runnable examples.
 
 **No Wait and Batch Size:**
 
-The simplest version of pull specifies a batch size. When asked, the server will send whatever
+```java
+        sub.pullNoWait(100);
+        ...
+        sub.nextMessage(Duration.ofSeconds(1));
+```
+
+An advanced version of pull also specifies a batch size. When asked, the server will send whatever
 messages it has up to the batch size, but will never wait for the batch to fill and the client
 will return immediately. If there are less than the batch size available, you will get what is
 available and a 404 status message indicating the server did not have enough messages.
@@ -376,6 +429,12 @@ You must make a pull request every time. **This is an advanced api**
 See the `NatsJsPullSubNoWaitUseCases.java` in the JetStream examples for a detailed and runnable example.
 
 **Expires In and Batch Size:**
+
+```java
+        sub.pullExpiresIn(100, Duration.ofSeconds(5));
+        ...
+        sub.nextMessage(Duration.ofSeconds(1));
+```
 
 Another advanced version of pull specifies a maximum time to wait for the batch to fill.
 The server returns messages when either the batch is filled or the time expires. It's important to
@@ -386,30 +445,6 @@ messages, one for each message the previous batch was short. You can just ignore
 
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.
-
-**Fetch:**
-
-The fetch pull is a *macro* pull that uses advanced pulls under the covers to return a list of messages.
-The list may be empty or contain at most the batch size. All status messages are handled for you.
-The client can provide a timeout to wait for the first message in a batch.
-The fetch call returns when the batch is ready.
-The timeout may be exceeded if the server sent messages very near the end of the timeout period. 
-
-See `NatsJsPullSubFetch.java` and `NatsJsPullSubFetchUseCases.java`
-in the JetStream examples for a detailed and runnable example.
-
-**Iterate:**
-
-The iterate pull is a *macro* pull that uses advanced pulls under the covers to return an iterator.
-The iterator may have no messages up to at most the batch size. 
-All status messages are handled for you.
-The client can provide a timeout to wait for the first message in a batch.
-The iterate call returns the iterator immediately, but under the covers it will wait for the first
-message based on the timeout.
-The timeout may be exceeded if the server sent messages very near the end of the timeout period.
-
-See `NatsJsPullSubIterate.java` and `NatsJsPullSubIterateUseCases.java`
-in the JetStream examples for a detailed and runnable example.
 
 ### Message Acknowledgements
 
