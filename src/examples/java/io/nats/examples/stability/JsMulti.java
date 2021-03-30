@@ -58,26 +58,26 @@ public class JsMulti {
                     "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext";
 
     public static void main(String[] args) throws Exception {
-//        EXAMPLES FOR RUNNING FROM IDE
-        String starter = "-s localhost -t multistream -u multisubject -a ";
-//        args = null; // usage
-//        args = (starter + "create -c 2").split(" ");
-//        args = (starter + "delete").split(" ");
-//        args = (starter + "info").split(" ");
-//        args = (starter + "pubSync -m 1_000_000 -j 100").split(" ");
-//        args = (starter + "pubSync -d 3 -m 1,200,000").split(" ");
-//        args = (starter + "pubSync -d 3 -n individual -m 1.200.000").split(" ");
-//        args = (starter + "pubAsync -m 1_000_000").split(" ");
-//        args = (starter + "pubAsync -d 3 -m 1_200_000").split(" ");
-//        args = (starter + "pubAsync -d 3 -n individual -m 1_200_000").split(" ");
-//        args = (starter + "subPush -m 500_000").split(" ");
-//        args = (starter + "subPush -d 3 -m 600_000").split(" ");
-//        args = (starter + "subQueue -d 3 -m 1_200_000").split(" ");
-//        args = (starter + "subQueue -d 3 -n individual -m 1_200_000").split(" ");
-//        args = (starter + "subPull -d 3 -m 1,200,000").split(" ");
-//        args = (starter + "subqueue -d 3 -m 1,200,000").split(" ");
-//        args = (starter + "subpull -d 3 -m 1,200,000").split(" ");
-//        args = (starter + "subpullqueue -d 3 -m 1,200,000").split(" ");
+        //TO RUN DIRECTLY FROM IDE, SET args HERE. FOR EXAMPLE:
+        //String starter = "-s localhost -t multistream -u multisubject -a ";
+        //args = null; // usage
+        //args = (starter + "create -c 2").split(" ");
+        //args = (starter + "delete").split(" ");
+        //args = (starter + "info").split(" ");
+        //args = (starter + "pubSync -m 1_000_000 -j 100").split(" ");
+        //args = (starter + "pubSync -d 3 -m 1,200,000").split(" ");
+        //args = (starter + "pubSync -d 3 -n individual -m 1.200.000").split(" ");
+        //args = (starter + "pubAsync -m 1_000_000").split(" ");
+        //args = (starter + "pubAsync -d 3 -m 1_200_000").split(" ");
+        //args = (starter + "pubAsync -d 3 -n individual -m 1_200_000").split(" ");
+        //args = (starter + "subPush -m 500_000").split(" ");
+        //args = (starter + "subPush -d 3 -m 600_000").split(" ");
+        //args = (starter + "subQueue -d 3 -m 1_200_000").split(" ");
+        //args = (starter + "subQueue -d 3 -n individual -m 1_200_000").split(" ");
+        //args = (starter + "subPull -d 3 -m 1,200,000").split(" ");
+        //args = (starter + "subqueue -d 3 -m 1,200,000").split(" ");
+        //args = (starter + "subpull -d 3 -m 1,200,000").split(" ");
+        //args = (starter + "subpullqueue -d 3 -m 1,200,000").split(" ");
 
         Arguments a = readArgs(args);
         try {
