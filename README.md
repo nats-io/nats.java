@@ -275,7 +275,7 @@ previous message ID, or previous sequence number.  These are hints to the server
 it should reject messages where these are not met, primarily for enforcing your ordering
 or ensuring messages are not stored on the wrong stream.
 
-The PublishOptions are immutable, but the builder can be re-used.
+The PublishOptions are immutable, but the builder an be re-used for expectations by clearing the expected.
 
 For example:
 
@@ -285,7 +285,7 @@ For example:
               .messageId("mid1");
       PublishAck pa = js.publish("foo", null, pubOptsBuilder.build());
       
-      pubOptsBuilder.reuse()
+      pubOptsBuilder.clearExpected()
               .setExpectedLastMsgId("mid1")
               .setExpectedLastSequence(1)
               .messageId("mid2");
