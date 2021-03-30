@@ -15,6 +15,7 @@ package io.nats.examples.stability;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.examples.autobench.AutoBenchmark;
 
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -58,26 +59,27 @@ public class JsMulti {
                     "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext";
 
     public static void main(String[] args) throws Exception {
-        //TO RUN DIRECTLY FROM IDE, SET args HERE. FOR EXAMPLE:
-        //String starter = "-s localhost -t multistream -u multisubject -a ";
-        //args = null; // usage
-        //args = (starter + "create -c 2").split(" ");
-        //args = (starter + "delete").split(" ");
-        //args = (starter + "info").split(" ");
-        //args = (starter + "pubSync -m 1_000_000 -j 100").split(" ");
-        //args = (starter + "pubSync -d 3 -m 1,200,000").split(" ");
-        //args = (starter + "pubSync -d 3 -n individual -m 1.200.000").split(" ");
-        //args = (starter + "pubAsync -m 1_000_000").split(" ");
-        //args = (starter + "pubAsync -d 3 -m 1_200_000").split(" ");
-        //args = (starter + "pubAsync -d 3 -n individual -m 1_200_000").split(" ");
-        //args = (starter + "subPush -m 500_000").split(" ");
-        //args = (starter + "subPush -d 3 -m 600_000").split(" ");
-        //args = (starter + "subQueue -d 3 -m 1_200_000").split(" ");
-        //args = (starter + "subQueue -d 3 -n individual -m 1_200_000").split(" ");
-        //args = (starter + "subPull -d 3 -m 1,200,000").split(" ");
-        //args = (starter + "subqueue -d 3 -m 1,200,000").split(" ");
-        //args = (starter + "subpull -d 3 -m 1,200,000").split(" ");
-        //args = (starter + "subpullqueue -d 3 -m 1,200,000").split(" ");
+//        TO RUN DIRECTLY FROM IDE, SET args HERE. FOR EXAMPLE:
+//        String starter = "-s localhost -t multistream -u multisubject -a ";
+//        args = null; // usage
+//        args = (starter + "create -c 2").split(" ");
+//        args = (starter + "delete").split(" ");
+//        args = (starter + "info").split(" ");
+//        args = (starter + "pubSync -m 10_000").split(" ");
+//        args = (starter + "pubSync -m 10_000 -j 100").split(" ");
+//        args = (starter + "pubSync -d 3 -m 300,000").split(" ");
+//        args = (starter + "pubSync -d 3 -n individual -m 1.200.000").split(" ");
+//        args = (starter + "pubAsync -m 1_000_000").split(" ");
+//        args = (starter + "pubAsync -d 3 -m 1_200_000").split(" ");
+//        args = (starter + "pubAsync -d 3 -n individual -m 1_200_000").split(" ");
+//        args = (starter + "subPush -m 500_000").split(" ");
+//        args = (starter + "subPush -d 3 -m 600_000").split(" ");
+//        args = (starter + "subQueue -d 3 -m 1_200_000").split(" ");
+//        args = (starter + "subQueue -d 3 -n individual -m 1_200_000").split(" ");
+//        args = (starter + "subPull -d 3 -m 1,200,000").split(" ");
+//        args = (starter + "subqueue -d 3 -m 1,200,000").split(" ");
+//        args = (starter + "subpull -d 3 -m 1,200,000").split(" ");
+//        args = (starter + "subpullqueue -d 3 -m 1,200,000").split(" ");
 
         Arguments a = readArgs(args);
         try {
@@ -91,22 +93,22 @@ public class JsMulti {
                     ThreadedRunner tr;
                     switch (a.action) {
                         case PUB_SYNC:
-                            tr = (js, id) -> pubSync(a, js, "pubSyncShared " + id);
+                            tr = (js, stats, id) -> pubSync(a, js, stats, "pubSyncShared " + id);
                             break;
                         case PUB_ASYNC:
-                            tr = (js, id) -> pubAsync(a, js, "pubAsyncShared " + id);
+                            tr = (js, stats, id) -> pubAsync(a, js, stats, "pubAsyncShared " + id);
                             break;
                         case SUB_PUSH:
-                            tr = (js, id) -> subPush(a, js, false, "subPushShared " + id);
+                            tr = (js, stats, id) -> subPush(a, js, stats, false, "subPushShared " + id);
                             break;
                         case SUB_QUEUE:
-                            tr = (js, id) -> subPush(a, js, true, "subPushShared " + id);
+                            tr = (js, stats, id) -> subPush(a, js, stats, true, "subPushShared " + id);
                             break;
                         case SUB_PULL:
-                            tr = (js, id) -> subPull(a, js, id, "subPullShared " + id);
+                            tr = (js, stats, id) -> subPull(a, js, stats, id, "subPullShared " + id);
                             break;
                         case SUB_PULL_QUEUE:
-                            tr = (js, id) -> subPull(a, js, 0, "subPullShared " + id);
+                            tr = (js, stats, id) -> subPull(a, js, stats, 0, "subPullShared " + id);
                             break;
                         default:
                             return;
@@ -117,22 +119,22 @@ public class JsMulti {
                     ThreadedRunner tr;
                     switch (a.action) {
                         case PUB_SYNC:
-                            tr = (js, id) -> pubSync(a, js, "pubSyncThreadedIndividual " + id);
+                            tr = (js, stats, id) -> pubSync(a, js, stats, "pubSyncThreadedIndividual " + id);
                             break;
                         case PUB_ASYNC:
-                            tr = (js, id) -> pubAsync(a, js, "pubAsyncThreadedIndividual " + id);
+                            tr = (js, stats, id) -> pubAsync(a, js, stats, "pubAsyncThreadedIndividual " + id);
                             break;
                         case SUB_PUSH:
-                            tr = (js, id) -> subPush(a, js, false, "subPushIndividual " + id);
+                            tr = (js, stats, id) -> subPush(a, js, stats, false, "subPushIndividual " + id);
                             break;
                         case SUB_QUEUE:
-                            tr = (js, id) -> subPush(a, js, true, "subPushIndividual " + id);
+                            tr = (js, stats, id) -> subPush(a, js, stats, true, "subPushIndividual " + id);
                             break;
                         case SUB_PULL:
-                            tr = (js, id) -> subPull(a, js, id, "subPullIndividual " + id);
+                            tr = (js, stats, id) -> subPull(a, js, stats, id, "subPullIndividual " + id);
                             break;
                         case SUB_PULL_QUEUE:
-                            tr = (js, id) -> subPull(a, js, 0, "subPullIndividual " + id);
+                            tr = (js, stats, id) -> subPull(a, js, stats, 0, "subPullIndividual " + id);
                             break;
                         default:
                             return;
@@ -144,27 +146,26 @@ public class JsMulti {
                 SingleRunner sr;
                 switch (a.action) {
                     case PUB_SYNC:
-                        sr = js -> pubSync(a, js, "pubSync");
+                        sr = (js, stats) -> pubSync(a, js, stats, "pubSync");
                         break;
                     case PUB_ASYNC:
-                        sr = js -> pubAsync(a, js, "pubAsync");
+                        sr = (js, stats) -> pubAsync(a, js, stats, "pubAsync");
                         break;
                     case SUB_PUSH:
-                        sr = js -> subPush(a, js, false, "subPush");
+                        sr = (js, stats) -> subPush(a, js, stats, false, "subPush");
                         break;
                     case SUB_QUEUE:
-                        sr = js -> subPush(a, js, true, "subPushQueue");
+                        sr = (js, stats) -> subPush(a, js, stats, true, "subPushQueue");
                         break;
                     case SUB_PULL:
                     case SUB_PULL_QUEUE: // pull queue doesn't make sense without multiple
-                        sr = js -> subPull(a, js, 0, "subPull");
+                        sr = (js, stats) -> subPull(a, js, stats, 0, "subPull");
                         break;
                     default:
                         return;
                 }
                 runSingle(a, sr);
             }
-            System.out.println("\n" + a);
         }
         catch (Exception e) {
             //noinspection ThrowablePrintedToSystemOut
@@ -174,88 +175,34 @@ public class JsMulti {
         }
     }
 
-    interface SingleRunner {
-        void run(JetStream js) throws Exception;
-    }
-
-    interface ThreadedRunner {
-        void run(JetStream js, int id) throws Exception;
-    }
-
-    private static void runSingle(Arguments a, SingleRunner runner) throws Exception {
-        try (Connection nc = connect(a)) {
-            runner.run(nc.jetStream());
-        }
-    }
-
-    private static void runShared(Arguments a, ThreadedRunner runner) throws Exception {
-        List<Thread> threads = new ArrayList<>();
-        try (Connection nc = connect(a)) {
-            final JetStream js = nc.jetStream();
-            for (int x = 0; x < a.threads; x++) {
-                final int id = x + 1;
-                Thread t = new Thread(() -> {
-                    try {
-                        runner.run(js, id);
-                    } catch (Exception e) {
-                        System.out.println("\n Error in thread " + id);
-                        e.printStackTrace();
-                    }
-                });
-                threads.add(t);
-            }
-            for (Thread t : threads) {
-                t.start();
-            }
-            for (Thread t : threads) {
-                t.join();
-            }
-        }
-    }
-
-    private static void runIndividual(Arguments a, ThreadedRunner runner) throws Exception {
-        List<Thread> threads = new ArrayList<>();
-        for (int x = 0; x < a.threads; x++) {
-            final int id = x + 1;
-            Thread t = new Thread(() -> {
-                try (Connection nc = connect(a)) {
-                    runner.run(nc.jetStream(), id);
-                } catch (Exception e) {
-                    System.out.println("\n Error in thread " + id);
-                    e.printStackTrace();
-                }
-            });
-            threads.add(t);
-        }
-        for (Thread t : threads) {
-            t.start();
-        }
-        for (Thread t : threads) {
-            t.join();
-        }
-    }
-
-    private static void pubSync(Arguments a, JetStream js, String label) throws Exception {
+    // ----------------------------------------------------------------------------------------------------
+    // Implementation
+    // ----------------------------------------------------------------------------------------------------
+    private static void pubSync(Arguments a, JetStream js, Stats stats, String label) throws Exception {
         int report = a.perThread() / 100;
         for (int x = 1; x <= a.perThread(); x++) {
+            stats.mark();
             js.publish(a.subject, a.getPayload());
+            stats.count(a.payloadSize);
             if (x % report == 0) {
-                System.out.println(label + " completed publishing " + x);
+                System.out.println(label + " completed publishing " + format(x));
             }
         }
         System.out.println(label + " completed publishing");
     }
 
-    private static void pubAsync(Arguments a, JetStream js, String label) {
+    private static void pubAsync(Arguments a, JetStream js, Stats stats, String label) {
         List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
         int report = a.perThread() / 100;
         int r = a.size - 1;
         for (int x = 1; x <= a.perThread(); x++) {
             if (++r == a.size) {
-                processFutures(futures);
+                processFutures(futures, stats);
                 r = 0;
             }
+            stats.mark();
             futures.add(js.publishAsync(a.subject, a.getPayload()));
+            stats.count(a.payloadSize);
             if (x % report == 0) {
                 System.out.println(label + " completed publishing " + x);
             }
@@ -263,16 +210,18 @@ public class JsMulti {
         System.out.println(label + " completed publishing");
     }
 
-    private static void processFutures(List<CompletableFuture<PublishAck>> futures) {
+    private static void processFutures(List<CompletableFuture<PublishAck>> futures, Stats stats) {
         while (futures.size() > 0) {
+            stats.mark();
             CompletableFuture<PublishAck> f = futures.remove(0);
             if (!f.isDone()) {
                 futures.add(f);
             }
+            stats.time();
         }
     }
 
-    private static void subPush(Arguments a, JetStream js, boolean q, String label) throws Exception {
+    private static void subPush(Arguments a, JetStream js, Stats stats, boolean q, String label) throws Exception {
         ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .ackPolicy(a.ack ? AckPolicy.Explicit : AckPolicy.None)
                 .build();
@@ -281,25 +230,31 @@ public class JsMulti {
         int report = a.perThread() / 100;
         int x = 0;
         while (x < a.perThread()) {
-            Message m = sub.nextMessage(Duration.ofSeconds(1));
             a.jitter();
+            stats.mark();
+            Message m = sub.nextMessage(Duration.ofSeconds(1));
             if (m == null) {
+                stats.time();
                 break;
             }
             if (m.isJetStream()) {
                 if (a.ack) {
                     m.ack();
                 }
+                stats.count(m.getData().length);
                 x++;
                 if (x % report == 0) {
                     System.out.println(label + " messages read " + format(x));
                 }
             }
+            else {
+                stats.time();
+            }
         }
         System.out.println(label + " finished messages read " + format(x));
     }
 
-    private static void subPull(Arguments a, JetStream js, int durableId, String label) throws Exception {
+    private static void subPull(Arguments a, JetStream js, Stats stats, int durableId, String label) throws Exception {
         ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .ackPolicy(a.ack ? AckPolicy.Explicit : AckPolicy.None)
                 .build();
@@ -309,12 +264,16 @@ public class JsMulti {
         int report = a.perThread() / 100;
         int x = 0;
         while (x < a.perThread()) {
+            stats.mark();
             Iterator<Message> iter = sub.iterate(a.size, Duration.ofSeconds(1));
+            stats.time();
             while (iter.hasNext()) {
+                stats.mark();
                 Message m = iter.next();
                 if (a.ack) {
                     m.ack();
                 }
+                stats.count(m.getData().length);
                 x++;
                 if (x % report == 0) {
                     System.out.println(label + " messages read " + format(x));
@@ -358,6 +317,160 @@ public class JsMulti {
         return Nats.connect(options);
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Runners
+    // ----------------------------------------------------------------------------------------------------
+    interface SingleRunner {
+        void run(JetStream js, Stats stats) throws Exception;
+    }
+
+    interface ThreadedRunner {
+        void run(JetStream js, Stats stats, int id) throws Exception;
+    }
+
+    private static void runSingle(Arguments a, SingleRunner runner) throws Exception {
+        try (Connection nc = connect(a)) {
+            Stats stats = new Stats();
+            runner.run(nc.jetStream(), stats);
+            reportStats(stats, "Total");
+        }
+    }
+
+    private static void runShared(Arguments a, ThreadedRunner runner) throws Exception {
+        List<Thread> threads = new ArrayList<>();
+        List<Stats> statss = new ArrayList<>();
+        try (Connection nc = connect(a)) {
+            final JetStream js = nc.jetStream();
+            for (int x = 0; x < a.threads; x++) {
+                final int id = x + 1;
+                final Stats stats = new Stats();
+                Thread t = new Thread(() -> {
+                    try {
+                        runner.run(js, stats, id);
+                    } catch (Exception e) {
+                        System.out.println("\n Error in thread " + id);
+                        e.printStackTrace();
+                    }
+                });
+                statss.add(stats);
+                threads.add(t);
+            }
+            for (Thread t : threads) {
+                t.start();
+            }
+            for (Thread t : threads) {
+                t.join();
+            }
+        }
+        reportStats(statss);
+    }
+
+    private static void runIndividual(Arguments a, ThreadedRunner runner) throws Exception {
+        List<Thread> threads = new ArrayList<>();
+        List<Stats> statss = new ArrayList<>();
+        for (int x = 0; x < a.threads; x++) {
+            final int id = x + 1;
+            final Stats stats = new Stats();
+            Thread t = new Thread(() -> {
+                try (Connection nc = connect(a)) {
+                    runner.run(nc.jetStream(), stats, id);
+                } catch (Exception e) {
+                    System.out.println("\n Error in thread " + id);
+                    e.printStackTrace();
+                }
+            });
+            statss.add(stats);
+            threads.add(t);
+        }
+        for (Thread t : threads) {
+            t.start();
+        }
+        for (Thread t : threads) {
+            t.join();
+        }
+        reportStats(statss);
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // General Utility
+    // ----------------------------------------------------------------------------------------------------
+    private static int toInt(String s) {
+        return Integer.parseInt(normalize(s));
+    }
+
+    private static long toLong(String s) {
+        return Long.parseLong(normalize(s));
+    }
+
+    private static String normalize(String s) {
+        return s.replaceAll("_", "").replaceAll(",", "").replaceAll("\\.", "");
+    }
+
+    private static String format(Number s) {
+        return NumberFormat.getNumberInstance(Locale.getDefault()).format(s);
+    }
+
+    static class Stats {
+        long elapsed = 0;
+        long bytes = 0;
+        int messageCount = 0;
+        long now;
+
+        void mark() {
+            now = System.nanoTime();
+        }
+
+        void count(long bytes) {
+            elapsed += System.nanoTime() - now;
+            messageCount++;
+            this.bytes += bytes;
+        }
+
+        void time() {
+            elapsed += System.nanoTime() - now;
+        }
+    }
+
+    private static void reportStats(Stats stats, String label) {
+        double elapsed = stats.elapsed / 1e6;
+        double messagesPerSecond = stats.elapsed == 0 ? 0 : stats.messageCount * 1e9 / stats.elapsed;
+        double bytesPerSecond = 1e9 * ((double)stats.bytes)/((double)stats.elapsed);
+        System.out.printf("%-10s | %12s msgs | %12s ms | %10s msg/s | %10s/s\n", label,
+                format(stats.messageCount),
+                format(elapsed),
+                format((long)messagesPerSecond),
+                AutoBenchmark.humanBytes(bytesPerSecond));
+    }
+
+    private static void reportStats(List<Stats> statss) {
+        Stats total = new Stats();
+        int x = 0;
+        for (Stats stats : statss) {
+            reportStats(stats, "Thread " + (++x));
+            total.elapsed += stats.elapsed;
+            total.messageCount += stats.messageCount;
+            total.bytes += stats.bytes;
+        }
+
+        reportStats(total, "Total");
+    }
+
+    public static String humanBytes(double bytes) {
+        int base = 1024;
+        String[] pre = new String[] {"k", "m", "g", "t", "p", "e"};
+        String post = "b";
+        if (bytes < (long) base) {
+            return String.format("%.2f b", bytes);
+        }
+        int exp = (int) (Math.log(bytes) / Math.log(base));
+        int index = exp - 1;
+        String units = pre[index] + post;
+        return String.format("%.2f %s", bytes / Math.pow((double) base, (double) exp), units);
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Arguments
+    // ----------------------------------------------------------------------------------------------------
     static class Arguments {
         String server = Options.DEFAULT_URL;
         String action;
@@ -474,22 +587,6 @@ public class JsMulti {
         }
 
         return a;
-    }
-
-    private static int toInt(String s) {
-        return Integer.parseInt(normalize(s));
-    }
-
-    private static long toLong(String s) {
-        return Long.parseLong(normalize(s));
-    }
-
-    private static String normalize(String s) {
-        return s.replaceAll("_", "").replaceAll(",", "").replaceAll("\\.", "");
-    }
-
-    private static String format(int s) {
-        return NumberFormat.getNumberInstance(Locale.getDefault()).format(s);
     }
 
     static final String ALL_ACTIONS = "|create|delete|info|pubsync|pubasync|subpush|subqueue|subpull|subpullqueue|";
