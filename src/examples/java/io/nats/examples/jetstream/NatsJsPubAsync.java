@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * This example will demonstrate JetStream async / future publishing.
@@ -76,15 +77,28 @@ public class NatsJsPubAsync {
                         .headers(exArgs.headers)
                         .data(data, StandardCharsets.UTF_8)
                         .build();
-                System.out.printf("Published message %s on subject %s.\n", data, exArgs.subject);
+                System.out.printf("Publishing message %s on subject %s.\n", data, exArgs.subject);
 
-                // Publish a message and print the results of the publish acknowledgement.
-                // An exception will be thrown if there is a failure.
+                // Publish a message
                 futures.add(js.publishAsync(msg));
             }
 
-            for (CompletableFuture<PublishAck> future : futures) {
-                System.out.println("Received " + future.get());
+            while (futures.size() > 0) {
+                CompletableFuture<PublishAck> f = futures.remove(0);
+                if (f.isDone()) {
+                    try {
+                        PublishAck pa = f.get();
+                        System.out.printf("Publish Succeeded on subject %s, stream %s, seqno %d.\n",
+                                exArgs.subject, pa.getStream(), pa.getSeqno());
+                    }
+                    catch (ExecutionException ee) {
+                        System.out.println("Publish Failed " + ee);
+                    }
+                }
+                else {
+                    // re queue it and try again
+                    futures.add(f);
+                }
             }
         }
         catch (Exception e) {

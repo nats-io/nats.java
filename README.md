@@ -52,9 +52,9 @@ The java-nats client is provided in a single jar file, with a single external de
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.8.0/jnats-2.8.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.8.0/jnats-2.8.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.8.0/jnats-2.8.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.8.0/jnats-2.8.0-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.10.0/jnats-2.10.0-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -64,7 +64,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.8.0'
+    implementation 'io.nats:jnats:2.10.0'
 }
 ```
 
@@ -90,7 +90,7 @@ The NATS client is available on the Maven central repository, and can be importe
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.8.0</version>
+    <version>2.10.0</version>
 </dependency>
 ```
 
@@ -231,11 +231,12 @@ NATS subject, and JetStream subscribers, depending on configuration, receive mes
 from both streams and directly from other NATS producers.
 
 ### The Jetstream Context
-After establishing a connection as described above, create a Jetstream Context.
 
-```java
-    JetStream js = nc.jetStream();
-```
+After establishing a connection as described above, create a Jetstream Context.
+   
+   ```java
+   JetStream js = nc.jetStream();
+   ```
 
 You can pass options to configure the Jetstream client, although the defaults should
 suffice for most users.  See the `JetStreamOptions` class.
@@ -247,17 +248,21 @@ NATS authorization.
 ### Publishing
 
 To publish messages, use the `JetStream.Publish(...)` API.  A stream must be established
-before publishing.
+before publishing. You can publish in either a synchronous or asynchronous manner.
+
+**Synchronous:**
 
 ```java
-    // create a typical NATS message
-    Message msg = NatsMessage.builder()
-            .subject("foo")
-            .data("hello", StandardCharsets.UTF_8)
-            .build();
-
-    PublishAck pa = js.publish(msg);
+       // create a typical NATS message
+       Message msg = NatsMessage.builder()
+               .subject("foo")
+               .data("hello", StandardCharsets.UTF_8)
+               .build();
+      
+       PublishAck pa = js.publish(msg);
 ```
+
+See `NatsJsPub.java` in the JetStream examples for a detailed and runnable example.
 
 If there is a problem an exception will be thrown, and the message may not have been
 persisted.  Otherwise, the stream name and sequence number is returned in the publish
@@ -270,78 +275,176 @@ previous message ID, or previous sequence number.  These are hints to the server
 it should reject messages where these are not met, primarily for enforcing your ordering
 or ensuring messages are not stored on the wrong stream.
 
+The PublishOptions are immutable, but the builder an be re-used for expectations by clearing the expected.
+
 For example:
 
 ```java
-    PublishOptions opts = PublishOptions.builder().expectedStream("TEST").build();
-    opts.setMessageId("mid1");
-    js.publish("foo", null, opts);
-
-    opts.setExpectedLastMsgId("mid1");
-    opts.setMessageId("mid2");
-    opts.setExpectedLastSequence(1);
-    js.publish("foo", null, opts);
+      PublishOptions.Builder pubOptsBuilder = PublishOptions.builder()
+              .expectedStream("TEST")
+              .messageId("mid1");
+      PublishAck pa = js.publish("foo", null, pubOptsBuilder.build());
+      
+      pubOptsBuilder.clearExpected()
+              .setExpectedLastMsgId("mid1")
+              .setExpectedLastSequence(1)
+              .messageId("mid2");
+      pa = js.publish("foo", null, pubOptsBuilder.build());
 ```
 
-### Subscribing
-
-There are three methods of subscribing: synchronous, synchronous with poll, and asynchronous.  With synchronous subscribers
-you must always acknowledge messages.  Asynchronous subscribers auto acknowledge by default, although this can
-be disabled through the subscription options in case you are using a consumer ack mode of none or all in the consumer
-configuration.
-
-These examples provide a durable so messages will be preserved across server restarts (when a stream is using file storage)
-and client disconnects.  Any subscriber can be a queue subscriber to load balance.
+See `NatsJsPubWithOptionsUseCases.java` in the JetStream examples for a detailed and runnable example.
 
 **Asynchronous:**
 
 ```java
 
-    Dispatcher d;
+      List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
+      for (int x = 1; x < roundCount; x++) {
+          // create a typical NATS message
+          Message msg = NatsMessage.builder()
+          .subject("foo")
+          .data("hello", StandardCharsets.UTF_8)
+          .build();
 
-    ...
+          // Publish a message
+          futures.add(js.publishAsync(msg));
+     }
 
-    SubscribeOptions so = SubscribeOptions.builder().durable("durable-name").build();
-    js.subscribe(exArgs.subject, d, (Message msg) -> {
-        // Process the message.  There is no need to ack unless auto ack
-        // was disabled in the options.
-    }, so);
+     for (CompletableFuture<PublishAck> future : futures) {
+         ... process the futures
+     }
 ```
+
+See the `NatsJsPubAsync.java` in the JetStream examples for a detailed and runnable example.
+
+### Subscribing
+
+There are two methods of subscribing, **Push** and **Pull** with each variety having its own set of options and abilities. 
+
+### Push Subscribing
+
+Push subscriptions can be synchronous or asynchronous. The server *pushes* messages to the client.
+
+**Asynchronous:**
+
+```java
+        Dispatcher disp = ...;
+
+        MessageHandler handler = (msg) -> {
+        // Process the message.
+        // Ack the message depending on the ack model
+        };
+
+        PushSubscribeOptions so = PushSubscribeOptions.builder()
+            .durable("optional-durable-name")
+            .build();
+        
+        boolean autoAck = ...
+        
+        js.subscribe("my-subject", disp, handler, autoAck);
+```
+
+See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed and runnable example.
 
 **Synchronous:**
 
-```java
-    SubscribeOptions so = SubscribeOptions.builder().durable("sub-example").build();
-    JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
-    Message msg = sub.nextMessage(Duration.ofHours(1));
+See `NatsJsPushSub.java` in the JetStream examples for a detailed and runnable example.
 
-    // process the message
+### Pull Subscribing
 
-    msg.ack();
-```
+Pull subscriptions are always synchronous. The server organizes messages into a batch
+which it sends when requested.
 
-**Synchronous with poll:**
-
-A subscription can be set up to poll to request messages from a JetStream consumer, allowing for high performance while reducing impact to the server.
+**Fetch:**
 
 ```java
-    SubscribeOptions so = SubscribeOptions.builder().poll(64).durable("sub-example").build();
-    JetStreamSubscription sub = js.subscribe(exArgs.subject, so);
-    while (true) {
-        for (int i = 0; i < 64; i++) {
-            Message msg = sub.nextMessage(Duration.ofMinutes(5));
-
-            // process the message
-
-            msg.ack();
+        List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
+        for (Message m : message) {
+            // process message
+            m.ack();
         }
-        // get the next batch of messages.
-        sub.poll();
-    }
 ```
 
-If the consumer had an acknowledgement mode of "all", you could acknowledge only the last message to balance
-performance against the possibility of reprocessing a number of messages.
+The fetch pull is a *macro* pull that uses advanced pulls under the covers to return a list of messages.
+The list may be empty or contain at most the batch size. All status messages are handled for you.
+The client can provide a timeout to wait for the first message in a batch.
+The fetch call returns when the batch is ready.
+The timeout may be exceeded if the server sent messages very near the end of the timeout period.
+
+See `NatsJsPullSubFetch.java` and `NatsJsPullSubFetchUseCases.java`
+in the JetStream examples for a detailed and runnable example.
+
+**Iterate:**
+
+```java
+        Iterator<Message> iter = sub.iterate(100, Duration.ofSeconds(1));
+        while (iter.hasNext()) {
+            Message m = iter.next();
+            // process message
+            m.ack();
+        }
+```
+
+The iterate pull is a *macro* pull that uses advanced pulls under the covers to return an iterator.
+The iterator may have no messages up to at most the batch size.
+All status messages are handled for you.
+The client can provide a timeout to wait for the first message in a batch.
+The iterate call returns the iterator immediately, but under the covers it will wait for the first
+message based on the timeout.
+The timeout may be exceeded if the server sent messages very near the end of the timeout period.
+
+See `NatsJsPullSubIterate.java` and `NatsJsPullSubIterateUseCases.java`
+in the JetStream examples for a detailed and runnable example.
+
+**Batch Size:**
+
+```java
+        sub.pull(100);
+        ...
+        Message m = sub.nextMessage(Duration.ofSeconds(1));
+```
+
+An advanced version of pull specifies a batch size. When asked, the server will send whatever
+messages it has up to the batch size. If it has no messages it will wait until it has some to send.
+The client may time out before that time. If there are less than the batch size available, 
+you can ask for more later. Once the entire batch size has been filled, you must make another pull request. 
+
+See `NatsJsPullSubBatchSize.java` and `NatsJsPullSubBatchSizeUseCases.java` 
+in the JetStream examples for detailed and runnable examples.
+
+**No Wait and Batch Size:**
+
+```java
+        sub.pullNoWait(100);
+        ...
+        Message m = sub.nextMessage(Duration.ofSeconds(1));
+```
+
+An advanced version of pull also specifies a batch size. When asked, the server will send whatever
+messages it has up to the batch size, but will never wait for the batch to fill and the client
+will return immediately. If there are less than the batch size available, you will get what is
+available and a 404 status message indicating the server did not have enough messages.
+You must make a pull request every time. **This is an advanced api** 
+
+See the `NatsJsPullSubNoWaitUseCases.java` in the JetStream examples for a detailed and runnable example.
+
+**Expires In and Batch Size:**
+
+```java
+        sub.pullExpiresIn(100, Duration.ofSeconds(3));
+        ...
+        Message m = sub.nextMessage(Duration.ofSeconds(4));
+```
+
+Another advanced version of pull specifies a maximum time to wait for the batch to fill.
+The server returns messages when either the batch is filled or the time expires. It's important to
+set your client's timeout to be longer than the time you've asked the server to expire in.
+You must make a pull request every time. In subsequent pulls, you will receive multiple 408 status
+messages, one for each message the previous batch was short. You can just ignore these.
+**This is an advanced api**
+
+See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
+in the JetStream examples for detailed and runnable examples.
 
 ### Message Acknowledgements
 
@@ -511,7 +614,13 @@ The build depends on Gradle, and contains `gradlew` to simplify the process. Aft
 ```bash
 > git clone https://github.com/nats-io/nats.java
 > cd nats.java
-> ./gradlew build
+> ./gradlew clean build
+```
+
+Or to build without tests
+
+```bash
+> ./gradlew clean build -x test
 ```
 
 This will place the class files in a new `build` folder. To just build the jar:

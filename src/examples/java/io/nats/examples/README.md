@@ -20,6 +20,7 @@ In the `io.nats.examples.jetstream` package...
 1. `NatsJsPub.java` - publish JetStream messages
 1. `NatsJsPubAsync.java` - publish JetStream messages asynchronously
 1. `NatsJsPubVsRegularPub.java` - publish JetStream messages versus regular publish to the same stream.
+1. `NatsJsPubWithOptionsUseCases` - publish JetStream with examples on using publish options
 1. `NatsJsPullSubBatchSize.java` - pull subscription example specifying batch size and manual handling
 1. `NatsJsPullSubBatchSizeUseCases.java` - pull subscription example specifying batch size with examples of manual handling various cases of available messages  
 1. `NatsJsPullSubExpire.java` - pull subscription example specifying expiration and manual handling
@@ -58,7 +59,7 @@ All of these examples take the server URL on the command line, which means that 
 The examples require the client library and the examples to be compiled. See the [readme.md](/README.md) for specifics on building these.
 
 ```bash
-java -cp build/libs/jnats-2.0.0.jar:build/libs/jnats-examples-2.0.0.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
+java -cp build/libs/jnats-2.10.0.jar:build/libs/jnats-2.10.0-examples.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
 ```
 
 To see how queues split messages, run the `NatsQSub` in multiple windows and then run `NatsPub`. Messages should be distributed between the clients. On the other hand, if you run `NatsSub` in multiple shells and then run `NatsPub` you will get the message at all subscribers.
@@ -74,7 +75,7 @@ java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.ke
 To run with the completely unverified client:
 
 ```bash
-java -cp build/libs/jnats-2.0.0.jar:build/libs/jnats-examples-2.0.0.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
+java -cp build/libs/jnats-2.10.0.jar:build/libs/jnats-2.10.0-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
 ```
 
 There are a set tls configuration for the server in the test files that can be used to run the NATS server.
