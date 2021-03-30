@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class PublishOptionsTests extends TestBase {
     @Test
@@ -45,6 +46,12 @@ public class PublishOptionsTests extends TestBase {
         assertEquals(42, po.getExpectedLastSequence(), "expected last seqno");
         assertEquals("bar", po.getExpectedStream(), "expected stream");
         assertEquals("msgId", po.getMessageId(), "expected message id");
+
+        po = builder.clearExpected().build();
+        assertNull(po.getExpectedLastMsgId(), "expected msgid");
+        assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSequence(), "expected last seqno");
+        assertEquals("bar", po.getExpectedStream(), "expected stream");
+        assertNull(po.getMessageId(), "expected message id");
 
         po = builder.stream(null).streamTimeout(null).build();
         assertEquals(PublishOptions.UNSET_STREAM, po.getStream());
