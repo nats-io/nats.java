@@ -19,7 +19,7 @@ import aQute.bnd.gradle.Bundle
 // Be sure to update Nats.java with the latest version, the change log and the package-info.java
 def versionMajor = 2
 def versionMinor = 10
-def versionPatch = 0
+def versionPatch = 1
 def versionRevision = "" // Empty string when not using, otherwise include the dot, i.e. '.RC1' or '.Beta1' or '.123'
 def jarVersion = "" + versionMajor + "." + versionMinor + "." + versionPatch + versionRevision
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
