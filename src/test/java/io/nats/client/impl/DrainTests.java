@@ -41,7 +41,7 @@ public class DrainTests {
 
             ts.shutdown(); // shut down the server to fail drain and subsequent close
 
-            assertThrows(IllegalStateException.class, () -> nc.drain(Duration.ofSeconds(1)));
+            assertThrows(Exception.class, () -> nc.drain(Duration.ofSeconds(1)));
         }
     }
 
