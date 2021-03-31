@@ -72,7 +72,7 @@ public abstract class Nats {
     /**
      * Current version of the library - {@value}
      */
-    public static final String CLIENT_VERSION = "2.10.0";
+    public static final String CLIENT_VERSION = "0.0.210.1";
 
     /**
      * Current language of the library - {@value}

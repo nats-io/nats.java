@@ -15,22 +15,21 @@ plugins {
 
 import aQute.bnd.gradle.Bundle
 
-// Update version here, repeated check-ins not into master will have snapshot on them
+// Update version here, repeated check-ins not into main will have snapshot on them
 // ** IMPORTANT ** BE SURE TO UPDATE THESE FILES WITH THE LATEST VERSION **
 // src/main/java/io/nats/client/Nats.java
 // src/main/java/io/nats/client/package-info.java
 // CHANGELOG.md
-def jarVersion = "2.10.0"
-
+def jarVersion = "0.0.210.1"
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : ""
 def tag = System.getenv("TRAVIS_TAG") != null ? System.getenv("TRAVIS_TAG") : ""
-def useSigning = "true" == secureEnv && ("master" == branch || ("" != tag && tag == branch)) // tag will be the branch on a tag event for travis
+def useSigning = "true" == secureEnv && ("main" == branch || ("" != tag && tag == branch)) // tag will be the branch on a tag event for travis
 
 def getVersionName = { ->
-    if ("" == tag)  {
-        return jarVersion + "-SNAPSHOT"
-    }
+//    if ("" == tag)  {
+//        return jarVersion + "-SNAPSHOT"
+//    }
     return jarVersion
 }
 
