@@ -1,6 +1,42 @@
 
 # Change Log
 
+## Version 2.10.0
+
+1. JetStream (message and management) support added.
+1. Miscellaneous bug fixes.
+1. Examples and benchmarks updated
+1. Improved unit tests with reusable scaffolding
+1. General Improvements
+
+#### Non JetStream Pull Requests
+- [GENERAL] PR #358 Use OS Default SecureRandom (@scottf)
+- [BUILD] Issue #360 Automatic-Module-Name clause added to jar manifest. (@bjorndarri)
+- [BUILD] PR #365 gradle minor improvements, support windows (@scottf)
+- [TEST] PR #375 fix test failing because of timeout that aren't testing timing (@scottf)
+- [GENERAL] PR #380 Add a flushBuffer API (@ColinSullivan1)
+- [GENERAL] PR #383 nuid speed improvements (@scottf)
+- [GENERAL] PR #391 reconnect-jitter-handler-serverinfo-tests (@scottf)
+
+#### Issue Features
+- [JETSTREAM] Issue #335 Add Message Headers (@scottf)
+- [GENERAL] Issue #336 Support no-responders (@scottf)
+- [JETSTREAM] Issue #353 Jetstream APIS (@ColinSullivan1) (@scottf)
+- [BUILD] Issue #355 Automatic module name (@bjorndarri)
+- [GENERAL] Issue #377  Add a flushBuffer Connection API (@ColinSullivan1) Added in PR #380
+- [JETSTREAM] Issue #393 Create Asynchronous Jetstream.Publish API (@scottf) Added in PR #398
+- [JETSTREAM] Issue #396 Jetstream Consumer Delete API (@scottf) Added in PR #408
+- [JETSTREAM] Issue #412 Add a JS management API to get consumer info (@scottf) Added in PR #413
+
+#### Issue Bug Fixes
+- [FIXED] Issue #424 ERROR: Subject remapping requires Options.oldRequestStyle()... (@scottf)
+- [FIXED] Issue #345 "unable to stop reader thread" log message (@ColinSullivan1) Fixed in PR #427
+- [FIXED] Issue #310 NatsConnection.close unnecessarily sleeps for one second (@scottf)
+
+#### Issues General
+- [COMMENTED] Issue #341 Why is a char[] more secure then a String for connection auth details? (@scottf)
+- [OTHER] Issue #384 Validations on expectedLastSeqence, expectedStream and expectedLastMsgId are not working for jetstream producer (fixed by nats-server PR #1787)
+
 ## Version 2.8.0
 
  - [ADDED] #323 Nats.connect v2 credentials (@olicuzo)
