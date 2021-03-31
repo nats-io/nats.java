@@ -41,11 +41,8 @@ after_success:
 #  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "${TRAVIS_TAG}" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
 #    ./gradlew -i sign publishToSonatype closeAndReleaseRepository
 #  fi
-- "echo TRAVIS_BRANCH ${TRAVIS_BRANCH}"
-- "echo TRAVIS_TAG ${TRAVIS_TAG}"
-- "echo TRAVIS_SECURE_ENV_VARS ${TRAVIS_SECURE_ENV_VARS}"
 - |
-  ./gradlew -i --no-watch-fs build sign publishToSonatype closeAndReleaseRepository
+  ./gradlew -i build sign publishToSonatype closeAndReleaseRepository
 
 env:
   global:
