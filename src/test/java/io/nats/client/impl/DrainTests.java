@@ -13,12 +13,9 @@
 
 package io.nats.client.impl;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -29,40 +26,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
-import io.nats.client.TestHandler;
-import io.nats.client.ConnectionListener.Events;
+import static io.nats.client.utils.TestBase.standardConnection;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class DrainTests {
 
     @Test
     public void testCloseOnDrainFailure() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-            final Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())){
-            assertTrue(Connection.Status.CONNECTED == subCon.getStatus(), "Connected Status");
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            final Connection nc = standardConnection(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
 
-            Subscription sub = subCon.subscribe("draintest");
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
+            nc.subscribe("draintest");
+            nc.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
 
             ts.shutdown(); // shut down the server to fail drain and subsequent close
-            boolean timedOut = false;
-            try {
-                subCon.drain(Duration.ofSeconds(1));
-            } catch (java.util.concurrent.TimeoutException e) {
-                timedOut = true;
-            } finally {
-                assertTrue(Connection.Status.CLOSED == subCon.getStatus(), "Expect closed connection");
-                subCon.close(); // this is what I'd expect common code to do
-            }
-            assertTrue(timedOut, "Expect timeout exception");
+
+            assertThrows(IllegalStateException.class, () -> nc.drain(Duration.ofSeconds(1)));
         }
     }
 
