@@ -42,7 +42,7 @@ after_success:
 #    ./gradlew -i sign publishToSonatype closeAndReleaseRepository
 #  fi
 - |
-  ./gradlew -i build sign publishToSonatype closeAndReleaseRepository
+  ./gradlew -i --rerun-tasks sign publishToSonatype closeAndReleaseRepository
 
 env:
   global:
