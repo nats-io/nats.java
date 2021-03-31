@@ -1,4 +1,4 @@
-dist: focal
+dist: bionic
 language: java
 sudo: required
 jdk:
