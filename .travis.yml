@@ -1,4 +1,4 @@
-dist: trusty
+dist: focal
 language: java
 sudo: required
 jdk:
@@ -32,7 +32,8 @@ cache:
   - "$HOME/.gradle/caches/"
   - "$HOME/.gradle/wrapper/"
 after_success:
-- "./gradlew test jacocoTestReport coveralls"
+#- "./gradlew test jacocoTestReport coveralls"
+- "./gradlew build -x test"
 #- |
 #  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "main" ] && [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
 #    ./gradlew -i publishToSonatype
@@ -42,7 +43,7 @@ after_success:
 #    ./gradlew -i sign publishToSonatype closeAndReleaseRepository
 #  fi
 - |
-  ./gradlew -i --rerun-tasks sign publishToSonatype closeAndReleaseRepository
+  ./gradlew -i sign publishToSonatype closeAndReleaseRepository
 
 env:
   global:
