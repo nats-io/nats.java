@@ -7,25 +7,23 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'com.github.kt3k.coveralls' version '2.8.4'
-    id 'osgi'
-//    id 'biz.aQute.bnd.builder' version '5.1.2'
+    id 'biz.aQute.bnd.builder' version '5.1.2'
     id 'io.codearte.nexus-staging' version '0.21.0'
     id "de.marcphilipp.nexus-publish" version "0.3.0"
-//    id "org.gradle.test-retry" version "1.1.9"
+    id "org.gradle.test-retry" version "1.1.9"
 }
 
-//import aQute.bnd.gradle.Bundle
+import aQute.bnd.gradle.Bundle
 
 // Update version here, repeated check-ins not into master will have snapshot on them
 // ** IMPORTANT ** BE SURE TO UPDATE THESE FILES WITH THE LATEST VERSION **
 // src/main/java/io/nats/client/Nats.java
 // src/main/java/io/nats/client/package-info.java
 // CHANGELOG.md
-
 def versionMajor = 2
 def versionMinor = 10
-def versionPatch = 3
-def versionRevision = "" // Empty string when not using, otherwise include the separator dash / dot / etc, i.e. '.blah' or '-blah'
+def versionPatch = 1
+def versionRevision = "" // Empty string when not using, otherwise include the dot, i.e. '.RC1' or '.Beta1' or '.123'
 def jarVersion = "" + versionMajor + "." + versionMinor + "." + versionPatch + versionRevision
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : ""
@@ -94,35 +92,22 @@ sourceSets {
     }
 }
 
-osgiClasses {
+task bundle(type: Bundle) {
+    from sourceSets.main.output
     exclude("io/nats/examples/**")
 }
 
 jar {
     manifest {
-        attributes('Implementation-Title': 'Java Nats',
-                'Implementation-Version': jarVersion,
-                'Implementation-Vendor': 'nats.io')
-        instruction "Import-Package", "!net.i2p.crypto.eddsa.math"
-        instruction "Import-Package", "net.i2p*"
-        instruction "Import-Package", "io.nats*"
+        attributes('Automatic-Module-Name': 'io.nats.jnats')
     }
-
-//task bundle(type: Bundle) {
-//    from sourceSets.main.output
-//    exclude("io/nats/examples/**")
-//}
-
-//    manifest {
-//        attributes('Automatic-Module-Name': 'io.nats.jnats')
-//    }
-//    bnd (['Implementation-Title': 'Java Nats',
-//          'Implementation-Version': jarVersion,
-//          'Implementation-Vendor': 'nats.io',
-//          "Import-Package": "!net.i2p.crypto.eddsa.math",
-//          "Import-Package": "net.i2p*",
-//          "Import-Package": "io.nats*"]
-//    )
+    bnd (['Implementation-Title': 'Java Nats',
+          'Implementation-Version': jarVersion,
+          'Implementation-Vendor': 'nats.io',
+          "Import-Package": "!net.i2p.crypto.eddsa.math",
+          "Import-Package": "net.i2p*",
+          "Import-Package": "io.nats*"]
+    )
     exclude("io/nats/examples/**")
 }
 
@@ -133,18 +118,18 @@ test {
         exceptionFormat = 'full'
         events "started", "passed", "skipped", "failed"
     }
-//    retry {
-//        failOnPassedAfterRetry = false
-//        if (OperatingSystem.current().isWindows() || OperatingSystem.current().isMacOsX()) {
-//            maxFailures = 1
-//            maxRetries = 1
-//        }
-//        else {
-//            maxFailures = 5
-//            maxRetries = 5
-//        }
-//    }
-//    maxParallelForks = Runtime.runtime.availableProcessors()
+    retry {
+        failOnPassedAfterRetry = false
+        if (OperatingSystem.current().isWindows() || OperatingSystem.current().isMacOsX()) {
+            maxFailures = 1
+            maxRetries = 1
+        }
+        else {
+            maxFailures = 5
+            maxRetries = 5
+        }
+    }
+    maxParallelForks = Runtime.runtime.availableProcessors()
 }
 
 javadoc {
@@ -152,7 +137,7 @@ javadoc {
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
     excludes = ['io/nats/client/impl', 'io/nats/examples',
-            "io/nats/client/api/ConsumerCreateRequest.java"
+                "io/nats/client/api/ConsumerCreateRequest.java"
     ]
     classpath = sourceSets.main.runtimeClasspath
     doLast {
@@ -176,8 +161,8 @@ task examplesJar(type: Jar) {
     archiveClassifier.set('examples')
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
-                   'Implementation-Version': jarVersion,
-                   'Implementation-Vendor': 'nats.io')
+                'Implementation-Version': jarVersion,
+                'Implementation-Vendor': 'nats.io')
     }
     from(sourceSets.main.output) {
         include "io/nats/examples/**"
@@ -199,8 +184,8 @@ task fatJar(type: Jar) {
     archiveClassifier.set('fat')
     manifest {
         attributes('Implementation-Title': 'Java Nats With Dependencies',
-                   'Implementation-Version': jarVersion,
-                   'Implementation-Vendor': 'nats.io')
+                'Implementation-Version': jarVersion,
+                'Implementation-Vendor': 'nats.io')
     }
     from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
