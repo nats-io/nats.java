@@ -19,25 +19,37 @@ before_install:
 #- sudo apt-get update
 #- sudo apt-get install openjdk-8-jdk -y
 #- sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
-- |
-  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ]; then
-    openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv \
-      -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
-  fi
+#- |
+#  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ]; then
+#    openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv \
+#      -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
+#  fi
 install:
-- "./gradlew assemble"
+#- "./gradlew assemble"
 script:
-- "./gradlew check"
-before_cache:
-- rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
-- rm -fr $HOME/.gradle/caches/*/plugin-resolution/
-cache:
-  directories:
-  - "$HOME/.gradle/caches/"
-  - "$HOME/.gradle/wrapper/"
-after_success:
+  - |
+    if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ]; then
+      openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv \
+        -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
+    fi
+  - |
+    java -version
+  - |
+    ./gradlew -version
+  - |
+    ./gradlew -i --scan -x test sign publishToSonatype closeAndReleaseSonatypeStagingRepository
+#- "./gradlew check"
+#- "./gradlew build --scan -x test"
+#before_cache:
+#- rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
+#- rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+#cache:
+#  directories:
+#  - "$HOME/.gradle/caches/"
+#  - "$HOME/.gradle/wrapper/"
+#after_success:
 #- "./gradlew test jacocoTestReport coveralls"
-- "./gradlew build -x test"
+#- "./gradlew build -x test"
 #- |
 #  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "main" ] && [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
 #    ./gradlew -i publishToSonatype
@@ -46,12 +58,6 @@ after_success:
 #  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "${TRAVIS_TAG}" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
 #    ./gradlew -i sign publishToSonatype closeAndReleaseSonatypeStagingRepository
 #  fi
-- |
-  java -version
-- |
-  ./gradlew -version
-- |
-  ./gradlew -i -x test sign publishToSonatype closeAndReleaseSonatypeStagingRepository
 
 env:
   global:
