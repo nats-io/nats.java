@@ -8,8 +8,7 @@ plugins {
     id 'signing'
     id 'com.github.kt3k.coveralls' version '2.8.4'
     id 'biz.aQute.bnd.builder' version '5.1.2'
-    id 'io.codearte.nexus-staging' version '0.21.0'
-    id "de.marcphilipp.nexus-publish" version "0.3.0"
+    id 'io.github.gradle-nexus.publish-plugin' version '1.0.0'
     id "org.gradle.test-retry" version "1.1.9"
 }
 
@@ -52,14 +51,14 @@ if (!project.hasProperty('ossrhUsername')) {
     project.ext['ossrhPassword'] = ""
 }
 
-tasks {
-    closeRepository {
-        onlyIf { nexusPublishing.useStaging.get() }
-    }
-    releaseRepository{
-        onlyIf { nexusPublishing.useStaging.get() }
-    }
-}
+//tasks {
+//    closeRepository {
+//        onlyIf { nexusPublishing.useStaging.get() }
+//    }
+//    releaseRepository{
+//        onlyIf { nexusPublishing.useStaging.get() }
+//    }
+//}
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -212,10 +211,15 @@ signing {
     sign configurations.archives
 }
 
-nexusStaging {
+nexusPublishing  {
     packageGroup = group
-    username = project.getProperty('ossrhUsername')
-    password = project.getProperty('ossrhPassword')
+    repositories {
+        sonatype {   //or custom repository name
+            username = project.getProperty('ossrhUsername')
+            password = project.getProperty('ossrhPassword')
+        }
+    }
+
 }
 
 publishing {
@@ -277,27 +281,6 @@ publishing {
                         extension = 'jar.asc'
                     }
                 }
-            }
-        }
-    }
-
-    nexusPublishing {
-        repositories {
-            sonatype {
-                username = project.getProperty('ossrhUsername')
-                password = project.getProperty('ossrhPassword')
-            }
-        }
-    }
-
-    model {
-        tasks.generatePomFileForMavenJavaPublication {
-            destination = file("$buildDir/generated-pom.xml")
-        }
-
-        tasks.publishMavenJavaPublicationToSonatypeRepository {
-            if (useSigning) {
-                dependsOn project.tasks.signArchives
             }
         }
     }
