@@ -1,8 +1,8 @@
-dist: xenial
+dist: focal
 language: java
 sudo: required
 jdk:
-# - openjdk8
+- openjdk8
 # - openjdk9
 # - openjdk10
 # - openjdk11
@@ -10,7 +10,7 @@ jdk:
 # - openjdk13
 # - openjdk14
 # - openjdk15
-- oraclejdk8
+#- oraclejdk8
 # - oraclejdk9
 before_script:
 - bash install_deps.sh
