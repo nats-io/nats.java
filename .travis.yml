@@ -24,6 +24,7 @@ before_install:
 install:
 - "./gradlew assemble"
 script:
+# check depends on test
 - "./gradlew check"
 before_cache:
 - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
@@ -33,22 +34,18 @@ cache:
   - "$HOME/.gradle/caches/"
   - "$HOME/.gradle/wrapper/"
 after_success:
-#- "./gradlew test jacocoTestReport coveralls"
-#- "./gradlew build -x test"
+# test has been completed
+- "./gradlew jacocoTestReport coveralls"
+# TRAVIS_BRANCH equals TRAVIS_TAG when a tag exists
 #- |
-#  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "main" ] && [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
-#    ./gradlew -i publishToSonatype
+#  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ]; then
+#    if [ "${TRAVIS_BRANCH}" == "main" ]; then
+#      ./gradlew -i publishToSonatype
+#    elif [ "${TRAVIS_BRANCH}" == "${TRAVIS_TAG}" ]; then
+#      ./gradlew -i -x test clean sign publishToSonatype closeAndReleaseRepository
+#    fi
 #  fi
-#- |
-#  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "${TRAVIS_TAG}" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
-#    ./gradlew -i sign publishToSonatype closeAndReleaseRepository
-#  fi
-  - |
-    java -version
-  - |
-    ./gradlew -version
-  - |
-    ./gradlew -i -x test clean sign publishToSonatype closeAndReleaseRepository
+./gradlew -i sign publishToSonatype closeAndReleaseRepository
 
 env:
   global:
