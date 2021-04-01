@@ -1,8 +1,8 @@
 dist: focal
 language: java
 sudo: required
-jdk:
-- openjdk8
+#jdk:
+#  - openjdk8
 # - openjdk9
 # - openjdk10
 # - openjdk11
@@ -23,6 +23,7 @@ before_install:
 install:
 - "./gradlew assemble"
 script:
+- jdk_switcher use openjdk8
 - "./gradlew check"
 before_cache:
 - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
