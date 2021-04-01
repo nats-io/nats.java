@@ -51,15 +51,6 @@ if (!project.hasProperty('ossrhUsername')) {
     project.ext['ossrhPassword'] = ""
 }
 
-//tasks {
-//    closeRepository {
-//        onlyIf { nexusPublishing.useStaging.get() }
-//    }
-//    releaseRepository{
-//        onlyIf { nexusPublishing.useStaging.get() }
-//    }
-//}
-
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -208,7 +199,6 @@ artifacts {
 }
 
 signing {
-//    outputs.upToDateWhen { false }
     sign configurations.archives
 }
 
@@ -220,7 +210,6 @@ nexusPublishing  {
             password = project.getProperty('ossrhPassword')
         }
     }
-
 }
 
 publishing {
@@ -256,33 +245,33 @@ publishing {
                 }
             }
 
-            pom.withXml {
-                def pomFile = file("${project.buildDir}/generated-pom.xml")
-                writeTo(pomFile)
-
-                if (useSigning) {
-                    def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-                    artifact(pomAscFile) {
-                        classifier = null
-                        extension = 'pom.asc'
-                    }
-                }
-            }
-
-            // create the signed artifacts
-            if (useSigning) {
-                project.tasks.signArchives.signatureFiles.each {
-                    artifact(it) {
-                        def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
-                        if (matcher.find()) {
-                            classifier = matcher.group(1)
-                        } else {
-                            classifier = null
-                        }
-                        extension = 'jar.asc'
-                    }
-                }
-            }
+//            pom.withXml {
+//                def pomFile = file("${project.buildDir}/generated-pom.xml")
+//                writeTo(pomFile)
+//
+//                if (useSigning) {
+//                    def pomAscFile = signing.sign(pomFile).signatureFiles[0]
+//                    artifact(pomAscFile) {
+//                        classifier = null
+//                        extension = 'pom.asc'
+//                    }
+//                }
+//            }
+//
+//            // create the signed artifacts
+//            if (useSigning) {
+//                project.tasks.signArchives.signatureFiles.each {
+//                    artifact(it) {
+//                        def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
+//                        if (matcher.find()) {
+//                            classifier = matcher.group(1)
+//                        } else {
+//                            classifier = null
+//                        }
+//                        extension = 'jar.asc'
+//                    }
+//                }
+//            }
         }
     }
 }
