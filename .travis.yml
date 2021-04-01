@@ -20,10 +20,10 @@ before_install:
     openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv \
       -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
   fi
-install:
-- "./gradlew assemble"
-script:
-- "./gradlew check"
+#install:
+#- "./gradlew assemble"
+#script:
+#- "./gradlew check"
 before_cache:
 - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
 - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
