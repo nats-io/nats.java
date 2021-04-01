@@ -32,7 +32,11 @@ cd $curdir
 #sudo apt-get install openjdk-8-jdk -y
 #sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
 
-wget -q https://services.gradle.org/distributions/gradle-5.6.4-bin.zip -P /tmp
+#wget -q https://services.gradle.org/distributions/gradle-5.6.4-bin.zip -P /tmp
+#sudo unzip -d /opt/gradle /tmp/gradle-*.zip
+#export GRADLE_HOME=/opt/gradle/gradle-5.6.4
+
+wget -q https://services.gradle.org/distributions/gradle-6.7-bin.zip -P /tmp
 sudo unzip -d /opt/gradle /tmp/gradle-*.zip
-export GRADLE_HOME=/opt/gradle/gradle-5.6.4
+export GRADLE_HOME=/opt/gradle/gradle-6.7
 export PATH=${GRADLE_HOME}/bin:${PATH}

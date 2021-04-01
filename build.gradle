@@ -4,7 +4,7 @@ plugins {
     id 'java-library'
     id 'java'
     id 'jacoco'
-    id 'maven'
+    id 'maven-publish'
     id 'signing'
     id 'com.github.kt3k.coveralls' version '2.8.4'
     id 'biz.aQute.bnd.builder' version '5.1.2'
@@ -24,7 +24,7 @@ def jarVersion = "0.0.210.3"
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : ""
 def tag = System.getenv("TRAVIS_TAG") != null ? System.getenv("TRAVIS_TAG") : ""
-def useSigning = "true" == secureEnv && ("main" == branch || ("" != tag && tag == branch)) // tag will be the branch on a tag event for travis
+def useSigning = true // "true" == secureEnv && ("main" == branch || ("" != tag && tag == branch)) // tag will be the branch on a tag event for travis
 
 def getVersionName = { ->
 //    if ("" == tag)  {
@@ -212,35 +212,30 @@ signing {
     sign configurations.archives
 }
 
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+nexusStaging {
+    packageGroup = group
+    username = project.getProperty('ossrhUsername')
+    password = project.getProperty('ossrhPassword')
+}
 
-            repository(url: "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/") {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
-            }
-
-            snapshotRepository(url: "https://s01.oss.sonatype.org/content/repositories/snapshots/") {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
-            }
-
-            pom.project {
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact examplesJar
+            artifact javadocJar
+            pom {
                 name = 'jnats'
                 packaging = 'jar'
                 groupId = group
                 artifactId = archivesBaseName
                 description = 'Client library for working with the NATS messaging system.'
                 url = 'https://github.com/nats-io/nats.java'
-
-                scm {
-                    url = 'https://github.com/nats-io/nats.java'
-                }
-
                 licenses {
                     license {
-                        name 'The Apache License, Version 2.0'
-                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
                     }
                 }
                 developers {
@@ -251,6 +246,58 @@ uploadArchives {
                         url = "https://nats.io"
                     }
                 }
+                scm {
+                    url = 'https://github.com/nats-io/nats.java'
+                }
+            }
+
+            pom.withXml {
+                def pomFile = file("${project.buildDir}/generated-pom.xml")
+                writeTo(pomFile)
+
+                if (useSigning) {
+                    def pomAscFile = signing.sign(pomFile).signatureFiles[0]
+                    artifact(pomAscFile) {
+                        classifier = null
+                        extension = 'pom.asc'
+                    }
+                }
+            }
+
+            // create the signed artifacts
+            if (useSigning) {
+                project.tasks.signArchives.signatureFiles.each {
+                    artifact(it) {
+                        def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
+                        if (matcher.find()) {
+                            classifier = matcher.group(1)
+                        } else {
+                            classifier = null
+                        }
+                        extension = 'jar.asc'
+                    }
+                }
+            }
+        }
+    }
+
+    nexusPublishing {
+        repositories {
+            sonatype {
+                username = project.getProperty('ossrhUsername')
+                password = project.getProperty('ossrhPassword')
+            }
+        }
+    }
+
+    model {
+        tasks.generatePomFileForMavenJavaPublication {
+            destination = file("$buildDir/generated-pom.xml")
+        }
+
+        tasks.publishMavenJavaPublicationToSonatypeRepository {
+            if (useSigning) {
+                dependsOn project.tasks.signArchives
             }
         }
     }
