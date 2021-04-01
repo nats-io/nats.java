@@ -208,7 +208,7 @@ artifacts {
 }
 
 signing {
-    outputs.upToDateWhen { false }
+//    outputs.upToDateWhen { false }
     sign configurations.archives
 }
 

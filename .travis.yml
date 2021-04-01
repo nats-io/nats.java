@@ -37,7 +37,7 @@ script:
   - |
     ./gradlew -version
   - |
-    ./gradlew -i --scan -x test sign publishToSonatype closeAndReleaseSonatypeStagingRepository
+    ./gradlew -i -x test sign publishToSonatype closeAndReleaseSonatypeStagingRepository
 #- "./gradlew check"
 #- "./gradlew build --scan -x test"
 #before_cache:
