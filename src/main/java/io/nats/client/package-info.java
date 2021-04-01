@@ -17,6 +17,6 @@
  * use the {@link io.nats.client.Connection Connection} object to publish messages or create subscriptions.
  * 
  * @since 2.0.0
- * @version 0.0.210.3
+ * @version 0.0.210.4
  */
 package io.nats.client;
