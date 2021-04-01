@@ -15,18 +15,22 @@ plugins {
 
 import aQute.bnd.gradle.Bundle
 
-// Update version here, repeated check-ins not into master will have snapshot on them
-// Be sure to update Nats.java with the latest version, the change log and the package-info.java
-def versionMajor = 2
-def versionMinor = 10
-def versionPatch = 1
-def versionRevision = "" // Empty string when not using, otherwise include the dot, i.e. '.RC1' or '.Beta1' or '.123'
-def jarVersion = "" + versionMajor + "." + versionMinor + "." + versionPatch + versionRevision
+// Update version here
+// ** IMPORTANT ** BE SURE TO UPDATE THESE FILES WITH THE LATEST VERSION **
+// src/main/java/io/nats/client/Nats.java
+// src/main/java/io/nats/client/package-info.java
+// CHANGELOG.md
+def jarVersion = "2.10.0"
+
+// TRAVIS_BRANCH equals TRAVIS_TAG when a tag exists / a tag event
 def secureEnv = System.getenv("TRAVIS_SECURE_ENV_VARS") != null ? System.getenv("TRAVIS_SECURE_ENV_VARS") : "false"
 def branch = System.getenv("TRAVIS_BRANCH") != null ? System.getenv("TRAVIS_BRANCH") : ""
 def tag = System.getenv("TRAVIS_TAG") != null ? System.getenv("TRAVIS_TAG") : ""
-def useSigning = "true" == secureEnv && ("master" == branch || ("" != tag && tag == branch)) // tag will be the branch on a tag event for travis
 
+// we only sign when we have a tag which means a release (non -SNAPSHOT)
+def useSigning = "true" == secureEnv && tag == branch
+
+// all releases that are not tagged from github will have snapshot on them
 def getVersionName = { ->
     if ("" == tag)  {
         return jarVersion + "-SNAPSHOT"
@@ -134,7 +138,7 @@ javadoc {
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
     excludes = ['io/nats/client/impl', 'io/nats/examples',
-            "io/nats/client/api/ConsumerCreateRequest.java"
+                "io/nats/client/api/ConsumerCreateRequest.java"
     ]
     classpath = sourceSets.main.runtimeClasspath
     doLast {
@@ -158,8 +162,8 @@ task examplesJar(type: Jar) {
     archiveClassifier.set('examples')
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
-                   'Implementation-Version': jarVersion,
-                   'Implementation-Vendor': 'nats.io')
+                'Implementation-Version': jarVersion,
+                'Implementation-Vendor': 'nats.io')
     }
     from(sourceSets.main.output) {
         include "io/nats/examples/**"
@@ -181,8 +185,8 @@ task fatJar(type: Jar) {
     archiveClassifier.set('fat')
     manifest {
         attributes('Implementation-Title': 'Java Nats With Dependencies',
-                   'Implementation-Version': jarVersion,
-                   'Implementation-Vendor': 'nats.io')
+                'Implementation-Version': jarVersion,
+                'Implementation-Vendor': 'nats.io')
     }
     from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
