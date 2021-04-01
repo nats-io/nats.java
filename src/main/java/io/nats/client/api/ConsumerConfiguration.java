@@ -13,7 +13,6 @@
 
 package io.nats.client.api;
 
-import io.nats.client.PublishOptions;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 
@@ -28,7 +27,7 @@ import static io.nats.client.support.JsonUtils.endJson;
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
  * if necessary the server.
- * Options are created using a {@link PublishOptions.Builder Builder}.
+ * Options are created using a PublishOptions.Builder.
  */
 public class ConsumerConfiguration implements JsonSerializable {
 
