@@ -15,7 +15,7 @@ jdk:
 # - oraclejdk9
 before_script:
 - bash install_deps.sh
-before_install:
+#before_install:
 #- sudo apt-get update
 #- sudo apt-get install openjdk-8-jdk -y
 #- sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
@@ -24,7 +24,7 @@ before_install:
 #    openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv \
 #      -in .travis/nats.travis.gpg.enc -out .travis/nats.travis.gpg -d
 #  fi
-install:
+#install:
 #- "./gradlew assemble"
 script:
   - |
