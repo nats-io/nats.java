@@ -51,7 +51,8 @@ after_success:
 - |
   ./gradlew -version
 - |
-  ./gradlew -i sign publishToSonatype closeAndReleaseRepository
+  ./gradlew uploadArchives
+#  ./gradlew -i sign publishToSonatype closeAndReleaseRepository
 
 env:
   global:

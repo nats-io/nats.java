@@ -4,7 +4,7 @@ plugins {
     id 'java-library'
     id 'java'
     id 'jacoco'
-    id 'maven-publish'
+    id 'maven'
     id 'signing'
     id 'com.github.kt3k.coveralls' version '2.8.4'
     id 'biz.aQute.bnd.builder' version '5.1.2'
@@ -208,36 +208,39 @@ artifacts {
     archives javadocJar, sourcesJar, examplesJar
 }
 
-if (useSigning) {
-    signing {
-        sign configurations.archives
-    }
+signing {
+    sign configurations.archives
 }
 
-nexusStaging {
-    packageGroup = group
-    username = project.getProperty('ossrhUsername')
-    password = project.getProperty('ossrhPassword')
-}
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
 
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-            artifact sourcesJar
-            artifact examplesJar
-            artifact javadocJar
-            pom {
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            pom.project {
                 name = 'jnats'
                 packaging = 'jar'
                 groupId = group
                 artifactId = archivesBaseName
                 description = 'Client library for working with the NATS messaging system.'
                 url = 'https://github.com/nats-io/nats.java'
+
+                scm {
+                    url = 'https://github.com/nats-io/nats.java'
+                }
+
                 licenses {
                     license {
-                        name = 'The Apache License, Version 2.0'
-                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        name 'The Apache License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
                     }
                 }
                 developers {
@@ -248,58 +251,6 @@ publishing {
                         url = "https://nats.io"
                     }
                 }
-                scm {
-                    url = 'https://github.com/nats-io/nats.java'
-                }
-            }
-
-            pom.withXml {
-                def pomFile = file("${project.buildDir}/generated-pom.xml")
-                writeTo(pomFile)
-
-                if (useSigning) {
-                    def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-                    artifact(pomAscFile) {
-                        classifier = null
-                        extension = 'pom.asc'
-                    }
-                }
-            }
-
-            // create the signed artifacts
-            if (useSigning) {
-                project.tasks.signArchives.signatureFiles.each {
-                    artifact(it) {
-                        def matcher = it.file =~ /-(sources|javadoc|examples)\.jar\.asc$/
-                        if (matcher.find()) {
-                            classifier = matcher.group(1)
-                        } else {
-                            classifier = null
-                        }
-                        extension = 'jar.asc'
-                    }
-                }
-            }
-        }
-    }
-
-    nexusPublishing {
-        repositories {
-            sonatype {
-                username = project.getProperty('ossrhUsername')
-                password = project.getProperty('ossrhPassword')
-            }
-        }
-    }
-
-    model {
-        tasks.generatePomFileForMavenJavaPublication {
-            destination = file("$buildDir/generated-pom.xml")
-        }
-
-        tasks.publishMavenJavaPublicationToSonatypeRepository {
-            if (useSigning) {
-                dependsOn project.tasks.signArchives
             }
         }
     }
