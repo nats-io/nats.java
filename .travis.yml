@@ -1,9 +1,9 @@
 dist: xenial
-#language: java
-language: minimal
+language: java
+#language: minimal
 sudo: required
-#jdk:
-#  - openjdk8
+jdk:
+  - openjdk8
 # - openjdk9
 # - openjdk10
 # - openjdk11
@@ -16,9 +16,9 @@ sudo: required
 before_script:
 - bash install_deps.sh
 #before_install:
-- sudo apt-get update
-- sudo apt-get install openjdk-8-jdk -y
-- sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
+#- sudo apt-get update
+#- sudo apt-get install openjdk-8-jdk -y
+#- sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
 #- |
 #  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ]; then
 #    openssl aes-256-cbc -K $encrypted_f7c3aa8bac4f_key -iv $encrypted_f7c3aa8bac4f_iv \
@@ -37,7 +37,7 @@ script:
   - |
     ./gradlew -version
   - |
-    ./gradlew -i -x test sign publishToSonatype closeAndReleaseSonatypeStagingRepository
+    ./gradlew -i -x test sign publishToSonatype closeAndReleaseRepository
 #- "./gradlew check"
 #- "./gradlew build --scan -x test"
 #before_cache:
@@ -56,7 +56,7 @@ script:
 #  fi
 #- |
 #  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "${TRAVIS_TAG}" ] && [ ! -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
-#    ./gradlew -i sign publishToSonatype closeAndReleaseSonatypeStagingRepository
+#    ./gradlew -i sign publishToSonatype closeAndReleaseRepository
 #  fi
 
 env:
