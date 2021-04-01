@@ -28,9 +28,9 @@ echo "NATS server version:"
 
 cd $curdir
 
-apt-get update -y
-apt-get install openjdk-8-jdk -y
-sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
+#sudo apt-get update -y
+#sudo apt-get install openjdk-8-jdk -y
+#sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
 
 wget -q https://services.gradle.org/distributions/gradle-6.7-bin.zip -P /tmp
 sudo unzip -d /opt/gradle /tmp/gradle-*.zip
