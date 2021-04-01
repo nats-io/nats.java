@@ -1,8 +1,8 @@
 dist: focal
-language: java
+#language: java
 sudo: required
-jdk:
-- openjdk8
+#jdk:
+#- openjdk8
 # - openjdk9
 # - openjdk10
 # - openjdk11
