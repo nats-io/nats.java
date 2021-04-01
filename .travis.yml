@@ -36,8 +36,8 @@ cache:
   - "$HOME/.gradle/caches/"
   - "$HOME/.gradle/wrapper/"
 after_success:
-- "./gradlew test jacocoTestReport coveralls"
-#- "./gradlew build -x test"
+#- "./gradlew test jacocoTestReport coveralls"
+- "./gradlew build -x test"
 #- |
 #  if [ "${TRAVIS_SECURE_ENV_VARS}" == "true" ] && [ "${TRAVIS_BRANCH}" == "main" ] && [ -z "${TRAVIS_TAG}" ] && [ "${TRAVIS_JDK_VERSION}" == "oraclejdk8" ]; then
 #    ./gradlew -i publishToSonatype
