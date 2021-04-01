@@ -44,7 +44,9 @@ after_success:
 #    ./gradlew -i sign publishToSonatype closeAndReleaseRepository
 #  fi
 - |
-  ./gradlew -i sign publishToSonatype closeAndReleaseRepository
+  java -version
+- |
+  ./gradlew -i clean -x test sign publishToSonatype closeAndReleaseRepository
 
 env:
   global:
