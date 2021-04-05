@@ -18,6 +18,7 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.NatsMessage.ProtocolMessage;
 import io.nats.client.support.ByteArrayBuilder;
+import io.nats.client.support.NatsRequestCompletableFuture;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -72,7 +73,7 @@ class NatsConnection implements Connection {
     private Map<String, NatsSubscription> subscribers;
     private Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
                                                      // behavior
-    private Map<String, CompletableFuture<Message>> responses;
+    private Map<String, NatsRequestCompletableFuture> responses;
     private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
     private String mainInbox;
@@ -947,8 +948,10 @@ class NatsConnection implements Connection {
     void cleanResponses(boolean cancelIfRunning) {
         ArrayList<String> toRemove = new ArrayList<>();
 
+        long cleanMillis = this.options.getRequestCleanupInterval().toMillis();
+
         responses.forEach((token, f) -> {
-            if (f.isDone() || cancelIfRunning) {
+            if (f.isDone() || f.isOlderThan(cleanMillis) || cancelIfRunning) {
                 try {
                     f.cancel(true); // does nothing if already done
                 } catch (CancellationException e) {
@@ -1018,7 +1021,7 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
-        CompletableFuture<Message> future = new ExtendedCompletableFuture(regular);
+        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(regular);
 
         if (!oldStyle) {
             responses.put(responseToken, future);
@@ -1045,22 +1048,15 @@ class NatsConnection implements Connection {
         return future;
     }
 
-    static class ExtendedCompletableFuture extends CompletableFuture<Message> {
-        boolean regular;
-        public ExtendedCompletableFuture(boolean regular) {
-            this.regular = regular;
-        }
-    }
-
     void deliverReply(Message msg) {
         boolean oldStyle = options.isOldRequestStyle();
         String subject = msg.getSubject();
         String token = getResponseToken(subject);
-        ExtendedCompletableFuture f = (ExtendedCompletableFuture)
+        NatsRequestCompletableFuture f =
                 (oldStyle ? responses.remove(msg.getSID()) : responses.remove(token));
         if (f != null) {
             statistics.decrementOutstandingRequests();
-            if (f.regular && msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
+            if (f.isRegular() && msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
                 f.cancel(true);
             }
             else {

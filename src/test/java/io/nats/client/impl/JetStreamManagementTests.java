@@ -17,12 +17,16 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -688,29 +692,73 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertConfig(stream, msgCount, firstSeq, si);
     }
 
-    @Test
-    public void testAuthCreateUpdateStream() throws Exception {
+    private static Stream<Arguments> testAuthArgs() {
+        return Stream.of(
+                Arguments.of("serviceup", "uppass", null, null)
+                , Arguments.of("serviceuonly", null, null, null)
+                , Arguments.of(null, null, "servicetoken", "js_authorization_token.conf")
+        );
+    }
 
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/js_authorization.conf", false)) {
-            Options optionsSrc = new Options.Builder().server(ts.getURI())
-                    .userInfo("manager".toCharArray(), "mpass".toCharArray()).build();
+    @ParameterizedTest
+    @MethodSource("testAuthArgs")
+    public void testAuthCreateUpdateStream(String user, String pass, String token, String conf) throws Exception {
+
+        if (conf == null) {
+            conf = "js_authorization.conf";
+        }
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/" + conf, false)) {
+            Options.Builder builder = new Options.Builder().server(ts.getURI());
+            if (user != null) {
+                if (pass != null) {
+                    builder.userInfo(user.toCharArray(), pass.toCharArray());
+                }
+                else {
+                    builder.userInfo(user.toCharArray(), null);
+                }
+            }
+            if (token != null) {
+                builder.token(token.toCharArray());
+            }
+
+            Options optionsSrc = builder.build();
 
             try (Connection nc = Nats.connect(optionsSrc)) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
 
                 // add streams with both account
                 StreamConfiguration sc = StreamConfiguration.builder()
-                        .name(STREAM)
+                        .name("servicestream")
                         .storageType(StorageType.Memory)
-                        .subjects(subject(1))
+                        .subjects("servicesubject.one")
                         .build();
                 StreamInfo si = jsm.addStream(sc);
+                assertEquals(1, si.getConfiguration().getSubjects().size());
+                assertTrue(si.getConfiguration().getSubjects().contains("servicesubject.one"));
 
                 sc = StreamConfiguration.builder(si.getConfiguration())
-                        .addSubjects(subject(2))
+                        .addSubjects("servicesubject.two", "servicesubject.three")
                         .build();
 
-                jsm.updateStream(sc);
+                si = jsm.updateStream(sc);
+                assertEquals(3, si.getConfiguration().getSubjects().size());
+                assertTrue(si.getConfiguration().getSubjects().contains("servicesubject.one"));
+                assertTrue(si.getConfiguration().getSubjects().contains("servicesubject.two"));
+                assertTrue(si.getConfiguration().getSubjects().contains("servicesubject.three"));
+
+                sc = StreamConfiguration.builder(si.getConfiguration())
+                        .subjects("servicesubject.one", "servicesubject.three")
+                        .build();
+
+                si = jsm.updateStream(sc);
+                assertEquals(2, si.getConfiguration().getSubjects().size());
+                assertTrue(si.getConfiguration().getSubjects().contains("servicesubject.one"));
+                assertTrue(si.getConfiguration().getSubjects().contains("servicesubject.three"));
+
+                sc = StreamConfiguration.builder(si.getConfiguration())
+                        .addSubjects("not.allowed")
+                        .build();
+                si = jsm.updateStream(sc);
             }
         }
     }
