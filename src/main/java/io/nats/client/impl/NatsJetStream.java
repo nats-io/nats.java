@@ -231,7 +231,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException {
-        return publishSync(subject, null, body, conn.getOptions().supportUTF8Subjects(), null);
+        return publishSyncInternal(subject, null, body, conn.getOptions().supportUTF8Subjects(), null);
     }
 
     /**
@@ -239,7 +239,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishSync(subject, null, body, conn.getOptions().supportUTF8Subjects(), options);
+        return publishSyncInternal(subject, null, body, conn.getOptions().supportUTF8Subjects(), options);
     }
 
     /**
@@ -248,7 +248,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public PublishAck publish(Message message) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
-        return publishSync(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
+        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
     }
 
     /**
@@ -257,7 +257,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
-        return publishSync(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
+        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
     }
 
     /**
@@ -265,7 +265,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body) {
-        return publishAsync(subject, null, body, conn.getOptions().supportUTF8Subjects(), null);
+        return publishAsyncInternal(subject, null, body, conn.getOptions().supportUTF8Subjects(), null, null);
     }
 
     /**
@@ -273,7 +273,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options) {
-        return publishAsync(subject, null, body, conn.getOptions().supportUTF8Subjects(), options);
+        return publishAsyncInternal(subject, null, body, conn.getOptions().supportUTF8Subjects(), options, null);
     }
 
     /**
@@ -282,7 +282,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message) {
         validateNotNull(message, "Message");
-        return publishAsync(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null);
+        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null, null);
     }
 
     /**
@@ -291,48 +291,47 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options) {
         validateNotNull(message, "Message");
-        return publishAsync(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options);
+        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), options, null);
     }
 
-    private CompletableFuture<PublishAck> publishAsync(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) {
+    private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) throws IOException, JetStreamApiException {
+        Duration timeout = options == null ? requestTimeout : options.getStreamTimeout();
         Headers merged = mergePublishOptions(headers, options);
-        CompletableFuture<Message> future = conn.request(subject, merged, data, utf8mode, false);
+
+        Message resp = makeRequestResponseRequired(subject, merged, data, utf8mode, timeout, false);
+        return processPublishResponse(resp, options);
+    }
+
+    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options, Duration knownTimeout) {
+        Headers merged = mergePublishOptions(headers, options);
+        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, utf8mode, knownTimeout, false);
 
         return future.thenCompose(resp -> {
             try {
-                if (resp == null) {
-                    throw new IOException("Error Publishing");
-                }
-                else if (resp.isStatusMessage()) {
-                    if (resp.getStatus().getCode() == 503) {
-                        throw new IOException("Error Publishing: No stream available.");
-                    }
-                    else {
-                        throw new IOException("Error Publishing: " + resp.getStatus().getMessage());
-                    }
-                }
-                return CompletableFuture.completedFuture(processAck(resp, options));
+                responseRequired(resp);
+                return CompletableFuture.completedFuture(processPublishResponse(resp, options));
             } catch (IOException | JetStreamApiException e) {
                 throw new RuntimeException(e);
             }
         });
     }
 
-    private PublishAck publishSync(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) throws IOException, JetStreamApiException {
-        Duration timeout = options == null ? requestTimeout : options.getStreamTimeout();
-        Headers merged = mergePublishOptions(headers, options);
-        Message resp = makeRequestResponseRequired(subject, merged, data, utf8mode, timeout);
-        return processAck(resp, options);
-    }
+    private PublishAck processPublishResponse(Message resp, PublishOptions options) throws IOException, JetStreamApiException {
+        if (resp.isStatusMessage()) {
+            if (resp.getStatus().getCode() == 503) {
+                throw new IOException("Error Publishing: No stream available.");
+            }
+            else {
+                throw new IOException("Error Publishing: " + resp.getStatus().getMessage());
+            }
+        }
 
-    private PublishAck processAck(Message resp, PublishOptions options) throws IOException, JetStreamApiException {
         PublishAck ack = new PublishAck(resp);
         String ackStream = ack.getStream();
         String pubStream = options == null ? null : options.getStream();
         if (isStreamSpecified(pubStream) && !pubStream.equals(ackStream)) {
             throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
         }
-
         return ack;
     }
 
@@ -625,9 +624,9 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
     }
 
-    private Message makeRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws IOException {
+    private Message makeRequestResponseRequired(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws IOException {
         try {
-            return responseRequired(conn.request(subject, headers, data, utf8mode, timeout));
+            return responseRequired(conn.requestInternal(subject, headers, data, utf8mode, timeout, cancelOn503));
         } catch (InterruptedException e) {
             throw new IOException(e);
         }
