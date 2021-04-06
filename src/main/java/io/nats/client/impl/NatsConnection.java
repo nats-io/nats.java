@@ -56,7 +56,6 @@ class NatsConnection implements Connection {
                                                     // connecting
 
     private Status status;
-    private final AtomicLong statusId;
     private final ReentrantLock statusLock;
     private final Condition statusChanged;
 
@@ -109,7 +108,6 @@ class NatsConnection implements Connection {
         this.statusLock = new ReentrantLock();
         this.statusChanged = this.statusLock.newCondition();
         this.status = Status.DISCONNECTED;
-        this.statusId = new AtomicLong();
         this.reconnectWaiter = new CompletableFuture<>();
         this.reconnectWaiter.complete(Boolean.TRUE);
 
@@ -941,7 +939,7 @@ class NatsConnection implements Connection {
         return responseInbox.substring(len);
     }
 
-    void cleanResponses(boolean cancelIfRunning) {
+    void cleanResponses(boolean closing) {
         ArrayList<String> toRemove = new ArrayList<>();
 
         responses.forEach((token, f) -> {
@@ -949,13 +947,13 @@ class NatsConnection implements Connection {
             if (f.isDone()) {
                 remove = true;
             }
-            else if (f.isExpired(statusId.get()) || cancelIfRunning) {
+            else if (closing) {
                 remove = true;
-                try {
-                    f.cancel(true); // does nothing if already done
-                } catch (CancellationException e) {
-                    // Expected
-                }
+                f.cancelClosing();
+            }
+            else if (f.isOrphaned()) {
+                remove = true;
+                f.cancelOrphaned();
             }
 
             if (remove) {
@@ -1000,7 +998,7 @@ class NatsConnection implements Connection {
         return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null, true);
     }
 
-    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeoutIfKnown, boolean cancelOn503) {
+    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration orphanedTimeout, boolean cancelOn503) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1023,7 +1021,7 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
-        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(cancelOn503, timeoutIfKnown, statusId.get());
+        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(cancelOn503, orphanedTimeout);
 
         if (!oldStyle) {
             responses.put(responseToken, future);
@@ -1577,8 +1575,6 @@ class NatsConnection implements Connection {
             statusChanged.signalAll();
             statusLock.unlock();
         }
-
-        statusId.incrementAndGet();
 
         if (this.status == Status.DISCONNECTED) {
             processConnectionEvent(Events.DISCONNECTED);

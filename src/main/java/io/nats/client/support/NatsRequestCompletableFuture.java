@@ -1,35 +1,42 @@
 package io.nats.client.support;
 
 import io.nats.client.Message;
+import io.nats.client.Options;
 
 import java.time.Duration;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
 public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
-    private static final long SAFE_TO_EXPIRE = Duration.ofMinutes(10).toMillis();
-    private static final long ENSURE_BEYOND_TIMEOUT = 100; // millis
+    private static final long SAFE_TO_CONSIDER_ORPHANED = Duration.ofMinutes(10).toMillis();
+    private static final long TIMEOUT_PADDING = Options.DEFAULT_CONNECTION_TIMEOUT.toMillis(); // currently 2 seconds
 
     private final boolean cancelOn503;
-    private final long statusIdWhenCreated;
-    private final long expires;
+    private final long consideredOrphanedAt;
 
-    public NatsRequestCompletableFuture(boolean cancelOn503, Duration timeoutIfKnown, long statusId) {
+    public NatsRequestCompletableFuture(boolean cancelOn503, Duration orphanedTimeout) {
         this.cancelOn503 = cancelOn503;
-        if (timeoutIfKnown == null) {
-            this.expires = System.currentTimeMillis() + SAFE_TO_EXPIRE;
+        if (orphanedTimeout == null) {
+            consideredOrphanedAt = System.currentTimeMillis() + SAFE_TO_CONSIDER_ORPHANED;
         }
         else {
-            this.expires = System.currentTimeMillis() + timeoutIfKnown.toMillis() + ENSURE_BEYOND_TIMEOUT; // 100 for just a little more than
+            consideredOrphanedAt = System.currentTimeMillis() + orphanedTimeout.toMillis() + TIMEOUT_PADDING;
         }
-        statusIdWhenCreated = statusId;
+    }
+
+    public void cancelClosing() {
+        completeExceptionally(new CancellationException("Future cancelled, connection closing."));
+    }
+
+    public void cancelOrphaned() {
+        completeExceptionally(new CancellationException("Future cancelled, response not registered in time, likely due to server disconnect."));
     }
 
     public boolean isCancelOn503() {
         return cancelOn503;
     }
 
-    public boolean isExpired(long statusId) {
-        return System.currentTimeMillis() > expires ||
-                statusId != this.statusIdWhenCreated;
+    public boolean isOrphaned() {
+        return System.currentTimeMillis() > consideredOrphanedAt;
     }
 }
