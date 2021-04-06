@@ -1000,7 +1000,7 @@ class NatsConnection implements Connection {
         return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null, true);
     }
 
-    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timoutIfKnown, boolean cancelOn503) {
+    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeoutIfKnown, boolean cancelOn503) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1023,7 +1023,7 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
-        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(cancelOn503, timoutIfKnown, statusId.get());
+        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(cancelOn503, timeoutIfKnown, statusId.get());
 
         if (!oldStyle) {
             responses.put(responseToken, future);

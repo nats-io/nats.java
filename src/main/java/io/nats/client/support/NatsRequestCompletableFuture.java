@@ -13,13 +13,13 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
     private final long statusIdWhenCreated;
     private final long expires;
 
-    public NatsRequestCompletableFuture(boolean cancelOn503, Duration timoutIfKnown, long statusId) {
+    public NatsRequestCompletableFuture(boolean cancelOn503, Duration timeoutIfKnown, long statusId) {
         this.cancelOn503 = cancelOn503;
-        if (timoutIfKnown == null) {
+        if (timeoutIfKnown == null) {
             this.expires = System.currentTimeMillis() + SAFE_TO_EXPIRE;
         }
         else {
-            this.expires = System.currentTimeMillis() + timoutIfKnown.toMillis() + ENSURE_BEYOND_TIMEOUT; // 100 for just a little more than
+            this.expires = System.currentTimeMillis() + timeoutIfKnown.toMillis() + ENSURE_BEYOND_TIMEOUT; // 100 for just a little more than
         }
         statusIdWhenCreated = statusId;
     }
