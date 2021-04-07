@@ -216,6 +216,25 @@ public class JetStreamPubTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testPublishMiscExceptions() throws Exception {
+        runInJsServer(nc -> {
+            createTestStream(nc);
+            JetStream js = nc.jetStream();
+
+            // stream supplied but matches
+            PublishOptions po = PublishOptions.builder().stream(STREAM).build();
+            js.publish(SUBJECT, dataBytes(999), po);
+
+            // mismatch stream to PO stream
+            PublishOptions po1 = PublishOptions.builder().stream(stream(999)).build();
+            assertThrows(IOException.class, () -> js.publish(SUBJECT, dataBytes(999), po1));
+
+            // invalid subject
+            assertThrows(IOException.class, () -> js.publish(subject(999), dataBytes(999)));
+        });
+    }
+
+    @Test
     public void testPublishAckJson() throws IOException, JetStreamApiException {
         String json = "{\"stream\":\"sname\", \"seq\":42, \"duplicate\":false}";
         PublishAck pa = new PublishAck(getDataMessage(json));

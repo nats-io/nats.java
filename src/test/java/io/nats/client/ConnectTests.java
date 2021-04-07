@@ -30,14 +30,18 @@ public class ConnectTests {
     @Test
     public void testDefaultConnection() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
-            assertCanConnect();
+            Connection nc = standardConnection();
+            assertEquals(Options.DEFAULT_PORT, nc.getServerInfo().getPort());
+            standardCloseConnection(nc);
         }
     }
 
     @Test
     public void testConnection() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            assertCanConnect(ts.getURI());
+            Connection nc = standardConnection(ts.getURI());
+            assertEquals(ts.getPort(), nc.getServerInfo().getPort());
+            standardCloseConnection(nc);
         }
     }
 
