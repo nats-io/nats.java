@@ -31,7 +31,6 @@ public class NatsReq {
                     + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
-        args = "rr 001".split(" ");
         ExampleArgs exArgs = ExampleUtils.expectSubjectAndMessage(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {

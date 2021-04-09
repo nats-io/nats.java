@@ -31,22 +31,9 @@ public class NatsReply {
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
             + "\nUse the URL for user/pass/token authentication.\n";
 
-    public static void main(String[] args) throws InterruptedException {
-        args = "rr 1".split(" ");
+    public static void main(String[] args) {
         ExampleArgs exArgs = ExampleUtils.expectSubjectAndMsgCount(args, usageString);
 
-        Thread t1 = new Thread(() -> extracted(exArgs, 1));
-        Thread t2 = new Thread(() -> extracted(exArgs, 2));
-        Thread t3 = new Thread(() -> extracted(exArgs, 3));
-        t1.start();
-        t2.start();
-        t3.start();
-        t1.join();
-        t2.join();
-        t3.join();
-    }
-
-    private static void extracted(ExampleArgs exArgs, int id) {
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
             CountDownLatch latch = new CountDownLatch(exArgs.msgCount); // dispatcher runs callback in another thread
@@ -68,8 +55,8 @@ public class NatsReply {
                 System.out.printf("  Subject: %s\n  Data: %s\n",
                         msg.getSubject(),
                         new String(msg.getData(), StandardCharsets.UTF_8));
-System.out.println("!!! " + id + " " + msg.getReplyTo());
-                nc.publish(msg.getReplyTo(), ("" + id).getBytes());
+
+                nc.publish(msg.getReplyTo(), msg.getData());
                 latch.countDown();
             });
             d.subscribe(exArgs.subject);
