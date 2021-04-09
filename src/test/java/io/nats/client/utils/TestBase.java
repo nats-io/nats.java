@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -52,6 +53,10 @@ public class TestBase {
         runInServer(false, false, inServerTest);
     }
 
+    public static void runInServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
+        runInServer(false, false, builder, inServerTest);
+    }
+
     public static void runInServer(boolean debug, InServerTest inServerTest) throws Exception {
         runInServer(debug, false, inServerTest);
     }
@@ -65,7 +70,17 @@ public class TestBase {
     }
 
     public static void runInServer(boolean debug, boolean jetstream, InServerTest inServerTest) throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(debug, jetstream); Connection nc = Nats.connect(ts.getURI())) {
+        try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
+             Connection nc = standardConnection(ts.getURI()))
+        {
+            inServerTest.test(nc);
+        }
+    }
+
+    public static void runInServer(boolean debug, boolean jetstream, Options.Builder builder, InServerTest inServerTest) throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
+             Connection nc = standardConnection(builder.server(ts.getURI()).build()))
+        {
             inServerTest.test(nc);
         }
     }
@@ -181,7 +196,11 @@ public class TestBase {
     // utils / macro utils
     // ----------------------------------------------------------------------------------------------------
     public static void sleep(long ms) {
-        try { Thread.sleep(ms); } catch (InterruptedException e) { /* ignored */ }
+        try { Thread.sleep(ms); } catch (InterruptedException ignored) { /* ignored */ }
+    }
+
+    public static void park(Duration d) {
+        try { LockSupport.parkNanos(d.toNanos()); } catch (Exception ignored) { /* ignored */ }
     }
 
     // ----------------------------------------------------------------------------------------------------

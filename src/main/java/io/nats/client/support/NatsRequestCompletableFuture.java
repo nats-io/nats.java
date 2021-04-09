@@ -12,23 +12,27 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
     private static final long TIMEOUT_PADDING = Options.DEFAULT_CONNECTION_TIMEOUT.toMillis(); // currently 2 seconds
 
     private final boolean cancelOn503;
-    private final long consideredOrphanedAt;
+    private final long timeOutAfter;
+    private boolean wasCancelledClosing;
+    private boolean wasCancelledTimedOut;
 
-    public NatsRequestCompletableFuture(boolean cancelOn503, Duration orphanedTimeout) {
+    public NatsRequestCompletableFuture(boolean cancelOn503, Duration timeout) {
         this.cancelOn503 = cancelOn503;
-        if (orphanedTimeout == null) {
-            consideredOrphanedAt = System.currentTimeMillis() + SAFE_TO_CONSIDER_ORPHANED;
+        if (timeout == null) {
+            timeOutAfter = System.currentTimeMillis() + SAFE_TO_CONSIDER_ORPHANED;
         }
         else {
-            consideredOrphanedAt = System.currentTimeMillis() + orphanedTimeout.toMillis() + TIMEOUT_PADDING;
+            timeOutAfter = System.currentTimeMillis() + timeout.toMillis() + TIMEOUT_PADDING;
         }
     }
 
     public void cancelClosing() {
+        wasCancelledClosing = true;
         completeExceptionally(new CancellationException("Future cancelled, connection closing."));
     }
 
-    public void cancelOrphaned() {
+    public void cancelTimedOut() {
+        wasCancelledTimedOut = true;
         completeExceptionally(new CancellationException("Future cancelled, response not registered in time, likely due to server disconnect."));
     }
 
@@ -36,7 +40,15 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
         return cancelOn503;
     }
 
-    public boolean isOrphaned() {
-        return System.currentTimeMillis() > consideredOrphanedAt;
+    public boolean hasExceededTimeout() {
+        return System.currentTimeMillis() > timeOutAfter;
+    }
+
+    public boolean wasCancelledClosing() {
+        return wasCancelledClosing;
+    }
+
+    public boolean wasCancelledTimedOut() {
+        return wasCancelledTimedOut;
     }
 }

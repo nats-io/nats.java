@@ -532,7 +532,7 @@ public class ReconnectTests {
             handler.prepForStatusChange(Events.RECONNECTED);
 
             ts.close();
-            flushAndWaitLong(nc, handler);
+            flushAndWait(nc, handler, MEDIUM_FLUSH_TIMEOUT_MS, LONG_FLUSH_TIMEOUT_MS);
             assertConnected(nc);
 
             URI uri = options.createURIForServer(nc.getConnectedUrl());

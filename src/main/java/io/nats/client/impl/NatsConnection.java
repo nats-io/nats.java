@@ -73,7 +73,8 @@ class NatsConnection implements Connection {
     private final Map<String, NatsSubscription> subscribers;
     private final Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
                                                      // behavior
-    private final Map<String, NatsRequestCompletableFuture> responses;
+    private final Map<String, NatsRequestCompletableFuture> responsesAwaiting;
+    private final Map<String, NatsRequestCompletableFuture> responsesRespondedTo;
     private final ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
     private final String mainInbox;
@@ -113,7 +114,8 @@ class NatsConnection implements Connection {
 
         this.dispatchers = new ConcurrentHashMap<>();
         this.subscribers = new ConcurrentHashMap<>();
-        this.responses = new ConcurrentHashMap<>();
+        this.responsesAwaiting = new ConcurrentHashMap<>();
+        this.responsesRespondedTo = new ConcurrentHashMap<>();
 
         this.serverAuthErrors = new HashMap<>();
 
@@ -942,7 +944,7 @@ class NatsConnection implements Connection {
     void cleanResponses(boolean closing) {
         ArrayList<String> toRemove = new ArrayList<>();
 
-        responses.forEach((token, f) -> {
+        responsesAwaiting.forEach((token, f) -> {
             boolean remove = false;
             if (f.isDone()) {
                 remove = true;
@@ -951,9 +953,9 @@ class NatsConnection implements Connection {
                 remove = true;
                 f.cancelClosing();
             }
-            else if (f.isOrphaned()) {
+            else if (f.hasExceededTimeout()) {
                 remove = true;
-                f.cancelOrphaned();
+                f.cancelTimedOut();
             }
 
             if (remove) {
@@ -963,7 +965,18 @@ class NatsConnection implements Connection {
         });
 
         for (String token : toRemove) {
-            responses.remove(token);
+            responsesAwaiting.remove(token);
+        }
+
+        toRemove.clear();
+        responsesRespondedTo.forEach((token, f) -> {
+            if (f.hasExceededTimeout()) {
+                toRemove.add(token);
+            }
+        });
+
+        for (String token : toRemove) {
+            responsesRespondedTo.remove(token);
         }
     }
 
@@ -998,7 +1011,7 @@ class NatsConnection implements Connection {
         return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null, true);
     }
 
-    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration orphanedTimeout, boolean cancelOn503) {
+    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration futureTimeout, boolean cancelOn503) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1021,10 +1034,10 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
-        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(cancelOn503, orphanedTimeout);
+        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(cancelOn503, futureTimeout);
 
         if (!oldStyle) {
-            responses.put(responseToken, future);
+            responsesAwaiting.put(responseToken, future);
         }
         statistics.incrementOutstandingRequests();
 
@@ -1038,7 +1051,7 @@ class NatsConnection implements Connection {
                     dispatcher.unsubscribe(responseInbox);
                 }
             });
-            responses.put(sub.getSID(), future);
+            responsesAwaiting.put(sub.getSID(), future);
         }
 
         publishInternal(subject, responseInbox, headers, data, utf8mode);
@@ -1052,18 +1065,24 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String subject = msg.getSubject();
         String token = getResponseToken(subject);
-        NatsRequestCompletableFuture f =
-                (oldStyle ? responses.remove(msg.getSID()) : responses.remove(token));
+        String key = oldStyle ? msg.getSID() : token;
+        NatsRequestCompletableFuture f = responsesAwaiting.remove(key);
         if (f != null) {
+            responsesRespondedTo.put(key, f);
             statistics.decrementOutstandingRequests();
-            if (f.isCancelOn503() && msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
+            if (msg.isStatusMessage() && msg.getStatus().getCode() == 503 && f.isCancelOn503()) {
                 f.cancel(true);
             }
             else {
                 f.complete(msg);
             }
             statistics.incrementRepliesReceived();
-        } else if (!oldStyle && !subject.startsWith(mainInbox)) {
+        }
+        else if (responsesRespondedTo.get(key) != null) {
+                statistics.incrementRepliesReceived();
+        }
+        else if (!oldStyle && !subject.startsWith(mainInbox)) {
+            statistics.incrementOrphanRepliesReceived();
             System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection " + subject + " " + token);
         }
     }

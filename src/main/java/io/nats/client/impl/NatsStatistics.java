@@ -29,6 +29,7 @@ class NatsStatistics implements Statistics {
     private AtomicLong outstandingRequests;
     private AtomicLong requestsSent;
     private AtomicLong repliesReceived;
+    private AtomicLong orphanRepliesReceived;
     private AtomicLong reconnects;
     private AtomicLong inMsgs;
     private AtomicLong outMsgs;
@@ -52,6 +53,7 @@ class NatsStatistics implements Statistics {
         this.outstandingRequests = new AtomicLong();
         this.requestsSent = new AtomicLong();
         this.repliesReceived = new AtomicLong();
+        this.orphanRepliesReceived = new AtomicLong();
         this.reconnects = new AtomicLong();
         this.inMsgs = new AtomicLong();
         this.outMsgs = new AtomicLong();
@@ -90,6 +92,10 @@ class NatsStatistics implements Statistics {
 
     void incrementRepliesReceived() {
         this.repliesReceived.incrementAndGet();
+    }
+
+    void incrementOrphanRepliesReceived() {
+        this.orphanRepliesReceived.incrementAndGet();
     }
 
     void incrementReconnects() {
@@ -214,6 +220,7 @@ class NatsStatistics implements Statistics {
             if (this.trackAdvanced) {
                 appendNumberStat(builder, "Requests Sent:                   ", this.requestsSent.get());
                 appendNumberStat(builder, "Replies Received:                ", this.repliesReceived.get());
+                appendNumberStat(builder, "Orphan Replies Received:         ", this.orphanRepliesReceived.get());
                 appendNumberStat(builder, "Pings Sent:                      ", this.pingCount.get());
                 appendNumberStat(builder, "+OKs Received:                   ", this.okCount.get());
                 appendNumberStat(builder, "-Errs Received:                  ", this.errCount.get());
