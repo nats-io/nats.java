@@ -944,22 +944,24 @@ class NatsConnection implements Connection {
     void cleanResponses(boolean closing) {
         ArrayList<String> toRemove = new ArrayList<>();
 
-        responsesAwaiting.forEach((token, f) -> {
+        responsesAwaiting.forEach((key, future) -> {
             boolean remove = false;
-            if (f.isDone()) {
+            if (future.hasExceededTimeout()) {
                 remove = true;
+                future.cancelTimedOut();
             }
             else if (closing) {
                 remove = true;
-                f.cancelClosing();
+                future.cancelClosing();
             }
-            else if (f.hasExceededTimeout()) {
+            else if (future.isDone()) {
+                // done should have already been removed, not sure if
+                // this even needs checking, but it won't hurt
                 remove = true;
-                f.cancelTimedOut();
             }
 
             if (remove) {
-                toRemove.add(token);
+                toRemove.add(key);
                 statistics.decrementOutstandingRequests();
             }
         });
@@ -968,10 +970,10 @@ class NatsConnection implements Connection {
             responsesAwaiting.remove(token);
         }
 
-        toRemove.clear();
-        responsesRespondedTo.forEach((token, f) -> {
-            if (f.hasExceededTimeout()) {
-                toRemove.add(token);
+        toRemove.clear(); // just reuse this
+        responsesRespondedTo.forEach((key, future) -> {
+            if (future.hasExceededTimeout()) {
+                toRemove.add(key);
             }
         });
 
