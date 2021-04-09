@@ -754,8 +754,7 @@ class NatsConnection implements Connection {
 
         NatsMessage nm = new NatsMessage(subject, replyTo, new Headers(headers), data, utf8mode);
 
-        Connection.Status stat = this.status;
-        if ((stat == Status.RECONNECTING || stat == Status.DISCONNECTED)
+        if ((this.status == Status.RECONNECTING || this.status == Status.DISCONNECTED)
                 && !this.writer.canQueue(nm, options.getReconnectBufferSize())) {
             throw new IllegalStateException(
                     "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());
@@ -875,10 +874,10 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining");
         }
 
+        NatsSubscription sub;
         long sidL = nextSid.getAndIncrement();
         String sid = String.valueOf(sidL);
 
-        NatsSubscription sub;
         if (isJetStream) {
             sub = new NatsJetStreamSubscription(sid, subject, queueName, this, dispatcher);
         } else {
