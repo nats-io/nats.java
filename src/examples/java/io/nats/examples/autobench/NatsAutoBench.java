@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class NatsAutoBench {
     static final String usageString =
-            "\nUsage: java NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med] [conscrypt] [jsfile]" +
+            "\nUsage: java -cp <classpath> NatsAutoBench [serverURL] [help] [utf8] [tiny|small|med] [conscrypt] [jsfile]" +
                     "[PubOnly] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
                     "[JsPubSync] [JsPubAsync] [JsSub] [JsPubRounds]\n\n"
             + "If no specific test name(s) are supplied all will be run, otherwise only supplied tests will be run."

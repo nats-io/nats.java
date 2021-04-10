@@ -26,14 +26,18 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
  * batch size and expires pull: <code>pullExpiresIn(int batchSize, Duration expiresIn)</code>,
  * requiring manual handling of null and 408 status.
- *
- * Usage: java NatsJsPullSubExpireUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPullSubExpireUseCases {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPullSubExpireUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]     expire-uc-ack-stream"
+                    + "\n   [-sub subject]     expire-uc-ack-subject"
+                    + "\n   [-dur durable]     expire-uc-ack-durable"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -41,7 +45,7 @@ public class NatsJsPullSubExpireUseCases {
                 .defaultSubject("expire-uc-ack-subject")
                 .defaultDurable("expire-uc-ack-durable")
                 //.uniqueify() // uncomment to be able to re-run without re-starting server
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             NatsJsUtils.createOrUpdateStream(nc, exArgs.stream, exArgs.subject);

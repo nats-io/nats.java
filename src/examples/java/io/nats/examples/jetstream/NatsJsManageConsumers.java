@@ -20,6 +20,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
+import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.util.List;
@@ -28,15 +29,16 @@ import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfoList;
 import static io.nats.examples.jetstream.NatsJsUtils.printObject;
 
 /**
- * This example will demonstrate JetStream management (admin) api.
- *
- * Usage: java NatsJsManageConsumers [server]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
+ * This example will demonstrate JetStream management (admin) api consumer management.
  */
 public class NatsJsManageConsumers {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsManageConsumers [-s server]"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
+
     private static final String STREAM = "con-stream";
     private static final String SUBJECT = "con-subject";
     private static final String DURABLE1 = "con-durable1";
@@ -44,8 +46,9 @@ public class NatsJsManageConsumers {
     private static final String DELIVER = "con-deliver";
 
     public static void main(String[] args) {
+        ExampleArgs exArgs = ExampleUtils.optionalServer(args, usageString);
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args))) {
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             // Create a JetStreamManagement context.
             JetStreamManagement jsm = nc.jetStreamManagement();
 

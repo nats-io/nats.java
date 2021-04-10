@@ -13,19 +13,19 @@
 
 package io.nats.examples.stability;
 
-import java.text.NumberFormat;
-import java.time.Duration;
-import java.time.Instant;
-
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.examples.benchmark.Utils;
 
+import java.text.NumberFormat;
+import java.time.Duration;
+import java.time.Instant;
+
 public class StabilityPub {
 
     static final String usageString =
-            "\nUsage: java NatsPub [server] <subject> <msgSize>"
+            "\nUsage: java -cp <classpath> NatsPub [server] <subject> <msgSize>"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
 
     public static void main(String args[]) {

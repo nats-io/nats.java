@@ -25,25 +25,28 @@ import static io.nats.examples.ExampleUtils.sleep;
 
 /**
  * This example publishes many messages
- *
- * Run Notes:
- * - durable is optional, durable behaves differently, try it by running this twice with durable set
- * - msgCount should be > 0
- *
- * Usage: java NatsPubMany [-s server] [-h headerKey:headerValue]* [-mcnt msgCount] [-sub subject] [-m messageWords+]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsPubMany {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsPubMany [-s server] [-r headerKey:headerValue]* [-mcnt msgCount] [-sub subject] [-m messageWords+]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-mcnt msgCount]   10"
+                    + "\n   [-sub subject]     example-subject"
+                    + "\n   [-m messageWords+] hello"
+                    + "\n\nRun Notes:"
+                    + "\n   - durable is optional, durable behaves differently, try it by running this twice with durable set"
+                    + "\n   - msgCount should be > 0"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
                 .defaultSubject("example-subject")
                 .defaultMessage("hello")
                 .defaultMsgCount(10)
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, false))) {
 

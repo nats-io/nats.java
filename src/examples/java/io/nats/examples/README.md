@@ -39,6 +39,7 @@ In the `io.nats.examples.jetstream` package...
 ### JetStream Management / Admin Examples
 1. `NatsJsManageConsumers.java` - demonstrate the management of consumers
 1. `NatsJsManageStreams.java` - demonstrate the management of streams
+1. `NatsJsPrefix.java` - demonstrate connecting on an account that uses a custom prefix
 
 ### Other examples
 1. `autobench` - benchmarks the current system/setup in several scenarios
@@ -56,11 +57,33 @@ All of these examples take the server URL on the command line, which means that 
 
 ## Running the examples
 
-The examples require the client library and the examples to be compiled. See the [readme.md](/README.md) for specifics on building these.
+* The examples require both the client library and the examples to be compiled and then the jars be used in the classpath.
+When you build locally, `-SNAPSHOT` is appended to the version.
+See the [readme.md](/README.md) for specifics on building these.
+
+* When you run, if you supply an unknown parameter or miss a required parameter, the usage string will be shown and the program will exit.
+
+* If you purposefully want to see the usage string run the program with `-h`, `-help`, `-u`, `-usage`.
+
+* All examples require a server url, but it's always optional to provide one as part of the command.
+If not supplied, the program will use `nats://localhost:4222`
+
+* If you want to run the program from an ide, you can take advantage of the ide runner to provide arguments.
+You can also just insert some code before the arguments are processed to set the arguments directly. For example;
+    ```java
+    args = "-arg1 myArg1 -arg2 myArg2".split(" ");
+    args = new String[] {"-arg1", "myArg1", "-arg2", "myArg2"};
+    ```
+
+### Classpath 
+
+In the examples, the usage will show `java <program> -cp <classpath> ...` Make sure you add both the client library and examples into the classpath. For example:
 
 ```bash
-java -cp build/libs/jnats-2.10.0.jar:build/libs/jnats-2.10.0-examples.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
+java -cp build/libs/jnats-2.11.0-SNAPSHOT.jar:build/libs/jnats-2.11.0-SNAPSHOT-examples.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
 ```
+
+### Some examples depend on others
 
 To see how queues split messages, run the `NatsQSub` in multiple windows and then run `NatsPub`. Messages should be distributed between the clients. On the other hand, if you run `NatsSub` in multiple shells and then run `NatsPub` you will get the message at all subscribers.
 
@@ -75,7 +98,7 @@ java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.ke
 To run with the completely unverified client:
 
 ```bash
-java -cp build/libs/jnats-2.10.0.jar:build/libs/jnats-2.10.0-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
+java -cp build/libs/jnats-2.11.0-SNAPSHOT.jar:build/libs/jnats-2.11.0-SNAPSHOT-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
 ```
 
 There are a set tls configuration for the server in the test files that can be used to run the NATS server.
