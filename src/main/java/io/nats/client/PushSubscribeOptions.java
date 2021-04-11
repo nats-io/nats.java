@@ -39,6 +39,10 @@ public class PushSubscribeOptions extends SubscribeOptions {
         return new Builder();
     }
 
+    public static PushSubscribeOptions stream(String stream) {
+        return new Builder().stream(stream).build();
+    }
+
     /**
      * PushSubscribeOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
