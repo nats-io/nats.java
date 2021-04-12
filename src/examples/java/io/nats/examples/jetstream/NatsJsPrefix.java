@@ -27,12 +27,6 @@ import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
 /**
  * This example will demonstrate connecting on an account that uses a custom prefix.
  *
- * Usage: java NatsJsPrefix
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
- *
  * Server configuration (prefix.conf)
  * <pre>
  * port: 4222
@@ -69,6 +63,15 @@ import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
  * </pre>
  */
 public class NatsJsPrefix {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPrefix"
+                    + "\n\nRun Notes:"
+                    + "\n   - this example is not configured for arguments so requires manual change"
+                    + "\n   - you will need to create the prefix.conf and run the server as in the comments at the top of the code."
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         String prefix = "tar.api";

@@ -26,14 +26,19 @@ import static io.nats.examples.jetstream.NatsJsUtils.publishDontWait;
  * This example will demonstrate basic use of a pull subscription of:
  * batch size only pull: <code>pull(int batchSize)</code>,
  * requiring manual handling of null.
- *
- * Usage: java NatsJsPullSubBatchSize [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPullSubExpire {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPullSubExpire [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]     expire-stream"
+                    + "\n   [-sub subject]     expire-subject"
+                    + "\n   [-dur durable]     expire-durable"
+                    + "\n   [-mcnt msgCount]   99"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -42,7 +47,7 @@ public class NatsJsPullSubExpire {
                 .defaultDurable("expire-durable")
                 .defaultMsgCount(99)
                 //.uniqueify() // uncomment to be able to re-run without re-starting server
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);

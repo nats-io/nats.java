@@ -30,26 +30,30 @@ import java.util.concurrent.ExecutionException;
 
 /**
  * This example will demonstrate JetStream async / future publishing.
- *
- * Run Notes:
- * - msg_count < 1 is the same as 1
- * - headers are optional
- *
- * Usage: java NatsJsPubAsync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-h headerKey:headerValue]*
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPubAsync {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPubAsync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-r headerKey:headerValue]*"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]     example-stream"
+                    + "\n   [-sub subject]     example-subject"
+                    + "\n   [-mcnt msgCount]   10"
+                    + "\n   [-m messageWords+] hello"
+                    + "\n\nRun Notes:"
+                    + "\n   - msg_count < 1 is the same as 1"
+                    + "\n   - headers are optional"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
                 .defaultStream("example-stream")
                 .defaultSubject("example-subject")
                 .defaultMessage("hello")
-                .defaultMsgCount(5)
-                .build(args);
+                .defaultMsgCount(10)
+                .build(args, usageString);
 
         String hdrNote = exArgs.hasHeaders() ? ", with " + exArgs.headers.size() + " header(s)" : "";
         System.out.printf("\nPublishing to %s%s. Server is %s\n\n", exArgs.subject, hdrNote, exArgs.server);

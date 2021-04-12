@@ -32,31 +32,31 @@ import static io.nats.examples.jetstream.NatsJsUtils.printFormatted;
 public class JsMulti {
     static final String usageString =
             "\nUsage: java -cp build/libs/jnats-2.10.0.jar:build/libs/jnats-2.10.0-examples.jar io.nats.examples.stability.JsMulti requireds [optionals]\n" +
-                    "\n-a <action> always required, one of " +
-                    "\n   create - create the stream" +
-                    "\n   delete - delete the stream" +
-                    "\n   info - get the stream info" +
-                    "\n   pubSync - publish synchronously" +
-                    "\n   pubAsync - publish asynchronously" +
-                    "\n   subPush - push subscribe read messages (synchronously)" +
-                    "\n   subQueue - push subscribe read messages with queue (synchronously)" +
-                    "\n   subPull - pull subscribe read messages (different durable if threaded)" +
-                    "\n   subPullQueue - pull subscribe read messages (all with same durable)" +
-                    "\n-t stream, always required" +
-                    "\n-u subject, required most operations" +
-                    "\n-s serverURL, defaults to nats://localhost:4222" +
-                    "\n-o file|memory when creating the stream, default to memory" +
-                    "\n-c replicas when creating the stream, default to 1" +
-                    "\n-m totalMessages for pub or sub, default to 1,000,000" +
-                    "\n-p payloadSize for pub, default to 128" +
-                    "\n-d threads for pubs or subs defaults to 1" +
-                    "\n-n shared|individual when threading, whether to share the connection, defaults to shared" +
-                    "\n-k explicit|none ack policy, defaults to explicit" +
-                    "\n-j jitter between pubs or subs, in milliseconds, defaults to 0" +
-                    "\n-z round size for pubAsync, default to 100" +
-                    "\n   batch size for subPull, default to 100" +
-                    "\n\nInput numbers can be formatted for ease i.e. 1,000 1.000 1_000" +
-                    "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext";
+            "\n-a <action> always required, one of " +
+            "\n   create - create the stream" +
+            "\n   delete - delete the stream" +
+            "\n   info - get the stream info" +
+            "\n   pubSync - publish synchronously" +
+            "\n   pubAsync - publish asynchronously" +
+            "\n   subPush - push subscribe read messages (synchronously)" +
+            "\n   subQueue - push subscribe read messages with queue (synchronously)" +
+            "\n   subPull - pull subscribe read messages (different durable if threaded)" +
+            "\n   subPullQueue - pull subscribe read messages (all with same durable)" +
+            "\n-t stream, always required" +
+            "\n-u subject, required most operations" +
+            "\n-s serverURL, defaults to nats://localhost:4222" +
+            "\n-o file|memory when creating the stream, default to memory" +
+            "\n-c replicas when creating the stream, default to 1" +
+            "\n-m totalMessages for pub or sub, default to 1,000,000" +
+            "\n-p payloadSize for pub, default to 128" +
+            "\n-d threads for pubs or subs defaults to 1" +
+            "\n-n shared|individual when threading, whether to share the connection, defaults to shared" +
+            "\n-k explicit|none ack policy, defaults to explicit" +
+            "\n-j jitter between pubs or subs, in milliseconds, defaults to 0" +
+            "\n-z round size for pubAsync, default to 100" +
+            "\n   batch size for subPull, default to 100" +
+            "\n\nInput numbers can be formatted for ease i.e. 1,000 1.000 1_000" +
+            "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext";
 
     public static void main(String[] args) throws Exception {
 //        TO RUN DIRECTLY FROM IDE, SET args HERE. FOR EXAMPLE:
@@ -525,6 +525,7 @@ public class JsMulti {
     }
 
     private static Arguments readArgs(String[] args) {
+        boolean unknown = false;
         Arguments a = new Arguments();
 
         if (args != null && args.length > 0) {
@@ -570,13 +571,14 @@ public class JsMulti {
                         a.ack = args[++x].equalsIgnoreCase("explicit");
                         break;
                     default:
+                        unknown = true;
                         break;
                 }
             }
         }
         System.out.println(a + "\n");
 
-        if (a.action == null || a.stream == null || !ALL_ACTIONS.contains(a.action)) {
+        if (unknown || a.action == null || a.stream == null || !ALL_ACTIONS.contains(a.action)) {
             System.err.println(usageString);
             System.exit(-1);
         }

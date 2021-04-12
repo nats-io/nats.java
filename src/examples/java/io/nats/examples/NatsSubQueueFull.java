@@ -26,14 +26,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This example will demonstrate queue subscribing.
- *
- * Usage: java NatsSubQueueFull [-s server] [-sub subject] [-q queue] [-mcnt msgCount] [-scnt subCount]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsSubQueueFull {
+
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsSubQueueFull [-s server] [-sub subject] [-q queue] [-mcnt msgCount] [-scnt subCount]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-sub subject]   q-subject"
+                    + "\n   [-q queue]       q-queue"
+                    + "\n   [-mcnt msgCount] 100"
+                    + "\n   [-scnt subCount] 5"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -41,7 +47,7 @@ public class NatsSubQueueFull {
                 .defaultQueue("q-queue")
                 .defaultMsgCount(100)
                 .defaultSubCount(5)
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 

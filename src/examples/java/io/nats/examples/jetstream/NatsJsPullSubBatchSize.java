@@ -27,13 +27,24 @@ import static io.nats.examples.jetstream.NatsJsUtils.publishDontWait;
  * batch size only pull: <code>pull(int batchSize)</code>,
  * requiring manual handling of null.
  *
- * Usage: java NatsJsPullSubBatchSize [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]
+ * Usage: java
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
  *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
  *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPullSubBatchSize {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPullSubBatchSize [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]     pull-stream"
+                    + "\n   [-sub subject]     pull-subject"
+                    + "\n   [-dur durable]     pull-durable"
+                    + "\n   [-mcnt msgCount]   99"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -42,7 +53,7 @@ public class NatsJsPullSubBatchSize {
                 .defaultDurable("pull-durable")
                 .defaultMsgCount(99)
                 //.uniqueify() // uncomment to be able to re-run without re-starting server
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             createStreamThrowWhenExists(nc, exArgs.stream, exArgs.subject);
