@@ -35,6 +35,12 @@ public class PushSubscribeOptions extends SubscribeOptions {
         return consumerConfig.getDeliverSubject();
     }
 
+    /**
+     * Create PushSubscribeOptions where you are only specifying the source stream,
+     * a common use case for mirrors
+     * @param stream the source name to be used as the stream
+     * @return subscribe options
+     */
     public static PushSubscribeOptions source(String stream) {
         return new Builder().stream(stream).build();
     }
