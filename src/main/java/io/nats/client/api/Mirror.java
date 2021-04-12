@@ -49,7 +49,7 @@ public class Mirror extends SourceBase {
         }
 
         public Mirror build() {
-            return new Mirror(name, startSeq, startTime, filterSubject, external);
+            return new Mirror(sourceName, startSeq, startTime, filterSubject, external);
         }
     }
 }

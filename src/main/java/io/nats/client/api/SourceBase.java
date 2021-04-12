@@ -22,7 +22,7 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
 abstract class SourceBase implements JsonSerializable {
-    private final String name;
+    private final String sourceName;
     private final long startSeq;
     private final ZonedDateTime startTime;
     private final String filterSubject;
@@ -30,7 +30,7 @@ abstract class SourceBase implements JsonSerializable {
     private final String objectName;
 
     SourceBase(String objectName, String json) {
-        name = JsonUtils.readString(json, NAME_RE);
+        sourceName = JsonUtils.readString(json, NAME_RE);
         startSeq = JsonUtils.readLong(json, OPT_START_SEQ_RE, 0);
         startTime = JsonUtils.readDate(json, OPT_START_TIME_RE);
         filterSubject = JsonUtils.readString(json, FILTER_SUBJECT_RE);
@@ -38,8 +38,8 @@ abstract class SourceBase implements JsonSerializable {
         this.objectName = normalize(objectName);
     }
 
-    SourceBase(String objectName, String name, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
-        this.name = name;
+    SourceBase(String objectName, String sourceName, long startSeq, ZonedDateTime startTime, String filterSubject, External external) {
+        this.sourceName = sourceName;
         this.startSeq = startSeq;
         this.startTime = startTime;
         this.filterSubject = filterSubject;
@@ -54,7 +54,7 @@ abstract class SourceBase implements JsonSerializable {
      */
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addField(sb, NAME, name);
+        JsonUtils.addField(sb, NAME, sourceName);
         if (startSeq > 0) {
             JsonUtils.addField(sb, OPT_START_SEQ, startSeq);
         }
@@ -64,8 +64,8 @@ abstract class SourceBase implements JsonSerializable {
         return endJson(sb).toString();
     }
 
-    public String getName() {
-        return name;
+    public String getSourceName() {
+        return sourceName;
     }
 
     public long getStartSeq() {
@@ -87,7 +87,7 @@ abstract class SourceBase implements JsonSerializable {
     @Override
     public String toString() {
         return objectName + "{" +
-                "name='" + name + '\'' +
+                "sourceName='" + sourceName + '\'' +
                 ", startSeq=" + startSeq +
                 ", startTime=" + startTime +
                 ", filterSubject='" + filterSubject + '\'' +
@@ -96,7 +96,7 @@ abstract class SourceBase implements JsonSerializable {
     }
 
     public abstract static class SourceBaseBuilder<T> {
-        String name;
+        String sourceName;
         long startSeq;
         ZonedDateTime startTime;
         String filterSubject;
@@ -104,8 +104,8 @@ abstract class SourceBase implements JsonSerializable {
 
         abstract T getThis();
 
-        public T name(String name) {
-            this.name = name;
+        public T sourceName(String sourceName) {
+            this.sourceName = sourceName;
             return getThis();
         }
 
@@ -138,7 +138,7 @@ abstract class SourceBase implements JsonSerializable {
         SourceBase that = (SourceBase) o;
 
         if (startSeq != that.startSeq) return false;
-        if (name != null ? !name.equals(that.name) : that.name != null) return false;
+        if (sourceName != null ? !sourceName.equals(that.sourceName) : that.sourceName != null) return false;
         if (startTime != null ? !startTime.equals(that.startTime) : that.startTime != null) return false;
         if (filterSubject != null ? !filterSubject.equals(that.filterSubject) : that.filterSubject != null)
             return false;
@@ -148,7 +148,7 @@ abstract class SourceBase implements JsonSerializable {
 
     @Override
     public int hashCode() {
-        int result = name != null ? name.hashCode() : 0;
+        int result = sourceName != null ? sourceName.hashCode() : 0;
         result = 31 * result + (int) (startSeq ^ (startSeq >>> 32));
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);

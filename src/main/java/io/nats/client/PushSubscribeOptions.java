@@ -35,12 +35,12 @@ public class PushSubscribeOptions extends SubscribeOptions {
         return consumerConfig.getDeliverSubject();
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static PushSubscribeOptions source(String stream) {
+        return new Builder().stream(stream).build();
     }
 
-    public static PushSubscribeOptions stream(String stream) {
-        return new Builder().stream(stream).build();
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**

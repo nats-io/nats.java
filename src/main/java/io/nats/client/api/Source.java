@@ -54,7 +54,7 @@ public class Source extends SourceBase {
         }
 
         public Source build() {
-            return new Source(name, startSeq, startTime, filterSubject, external);
+            return new Source(sourceName, startSeq, startTime, filterSubject, external);
         }
     }
 }

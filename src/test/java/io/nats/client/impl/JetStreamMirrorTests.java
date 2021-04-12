@@ -45,7 +45,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
-            Mirror mirror = Mirror.builder().name(S1).build();
+            Mirror mirror = Mirror.builder().sourceName(S1).build();
 
             // Create source stream
             StreamConfiguration sc = StreamConfiguration.builder()
@@ -95,7 +95,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(mirror(3))
                     .storageType(StorageType.Memory)
-                    .mirror(Mirror.builder().name(S1).startSeq(150).build())
+                    .mirror(Mirror.builder().sourceName(S1).startSeq(150).build())
                     .build();
             jsm.addStream(sc);
 
@@ -107,7 +107,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(mirror(4))
                     .storageType(StorageType.Memory)
-                    .mirror(Mirror.builder().name(S1).startTime(zdt).build())
+                    .mirror(Mirror.builder().sourceName(S1).startTime(zdt).build())
                     .build();
             jsm.addStream(sc);
 
@@ -133,7 +133,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             assertNotNull(sc);
             assertEquals(S1, sc.getName());
 
-            Mirror mirror = Mirror.builder().name(S1).build();
+            Mirror mirror = Mirror.builder().sourceName(S1).build();
 
             // Now create our mirror stream.
             sc = StreamConfiguration.builder()
@@ -164,7 +164,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
                 assertEquals(S1, m.metaData().getStream());
             }
 
-            PushSubscribeOptions pso = PushSubscribeOptions.stream(M1);
+            PushSubscribeOptions pso = PushSubscribeOptions.source(M1);
             sub = js.subscribe(U1, pso);
             list = readMessagesAck(sub);
             assertEquals(10, list.size());
@@ -212,7 +212,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            Mirror mirror = Mirror.builder().name(STREAM).build();
+            Mirror mirror = Mirror.builder().sourceName(STREAM).build();
 
             StreamConfiguration scEx = StreamConfiguration.builder()
                     .name(mirror(99))
@@ -257,9 +257,9 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(R1)
                     .storageType(StorageType.Memory)
-                    .sources(Source.builder().name(S1).build(),
-                            Source.builder().name(S2).build(),
-                            Source.builder().name(S3).build())
+                    .sources(Source.builder().sourceName(S1).build(),
+                            Source.builder().sourceName(S2).build(),
+                            Source.builder().sourceName(S3).build())
                     .build();
 
             jsm.addStream(sc);
@@ -269,9 +269,9 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(R1)
                     .storageType(StorageType.Memory)
-                    .sources(Source.builder().name(S1).build(),
-                            Source.builder().name(S2).build(),
-                            Source.builder().name(S4).build())
+                    .sources(Source.builder().sourceName(S1).build(),
+                            Source.builder().sourceName(S2).build(),
+                            Source.builder().sourceName(S4).build())
                     .build();
 
             jsm.updateStream(sc);
@@ -290,7 +290,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(R2)
                     .storageType(StorageType.Memory)
-                    .sources(Source.builder().name(S99).startSeq(26).build())
+                    .sources(Source.builder().sourceName(S99).startSeq(26).build())
                     .build();
             jsm.addStream(sc);
             assertSource(jsm, R2, 25, null);
@@ -305,7 +305,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(source(3))
                     .storageType(StorageType.Memory)
-                    .sources(Source.builder().name(S99).startSeq(11).filterSubject(S4).build())
+                    .sources(Source.builder().sourceName(S99).startSeq(11).filterSubject(S4).build())
                     .build();
             jsm.addStream(sc);
             assertSource(jsm, source(3), 20, null);
