@@ -70,11 +70,11 @@ public class TestBase {
         }
     }
 
-    public static void runAgainstServer(InServerTest inServerTest) throws Exception {
-        runAgainstServer(Options.DEFAULT_URL, inServerTest);
+    public static void runInExternalServer(InServerTest inServerTest) throws Exception {
+        runInExternalServer(Options.DEFAULT_URL, inServerTest);
     }
 
-    public static void runAgainstServer(String url, InServerTest inServerTest) throws Exception {
+    public static void runInExternalServer(String url, InServerTest inServerTest) throws Exception {
         try (Connection nc = Nats.connect(url)) {
             inServerTest.test(nc);
         }

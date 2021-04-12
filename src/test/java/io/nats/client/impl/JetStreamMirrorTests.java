@@ -118,7 +118,7 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
 
     @Test
     public void testMirrorReading() throws Exception {
-        runAgainstServer(nc -> {
+        runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -150,14 +150,34 @@ public class JetStreamMirrorTests extends JetStreamTestBase {
 
             assertMirror(jsm, M1, S1, 30, null);
 
-            PushSubscribeOptions pso = PushSubscribeOptions.stream(M1);
-            JetStreamSubscription sub = js.subscribe(U1, pso);
+            JetStreamSubscription sub = js.subscribe(U1);
             List<Message> list = readMessagesAck(sub);
             assertEquals(10, list.size());
+            for (Message m : list) {
+                assertEquals(S1, m.metaData().getStream());
+            }
+
+            sub = js.subscribe(U2);
+            list = readMessagesAck(sub);
+            assertEquals(20, list.size());
+            for (Message m : list) {
+                assertEquals(S1, m.metaData().getStream());
+            }
+
+            PushSubscribeOptions pso = PushSubscribeOptions.stream(M1);
+            sub = js.subscribe(U1, pso);
+            list = readMessagesAck(sub);
+            assertEquals(10, list.size());
+            for (Message m : list) {
+                assertEquals(M1, m.metaData().getStream());
+            }
 
             sub = js.subscribe(U2, pso);
             list = readMessagesAck(sub);
             assertEquals(20, list.size());
+            for (Message m : list) {
+                assertEquals(M1, m.metaData().getStream());
+            }
         });
     }
 
