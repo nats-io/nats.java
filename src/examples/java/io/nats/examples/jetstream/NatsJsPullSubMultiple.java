@@ -30,14 +30,21 @@ import static io.nats.examples.ExampleUtils.sleepRandom;
 /**
  * This example will demonstrate JetStream multiple pull subscribers with the same durable names.
  * Messages are balanced like a push queue.
- *
- * Usage: java NatsJsPullSubMultiple [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount] [-pull pullSize]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPullSubMultiple {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPullSubMultiple [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount] [-pull pullSize]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]     pull-multi-stream"
+                    + "\n   [-sub subject]     pull-multi-subject"
+                    + "\n   [-dur durable]     pull-multi-durable"
+                    + "\n   [-mcnt msgCount]   300"
+                    + "\n   [-scnt subCount]   3"
+                    + "\n   [-pull pullSize]   5"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -47,7 +54,7 @@ public class NatsJsPullSubMultiple {
                 .defaultMsgCount(300)
                 .defaultSubCount(3)
                 .defaultPullSize(5)
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 

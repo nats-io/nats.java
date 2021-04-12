@@ -24,28 +24,31 @@ import static io.nats.examples.jetstream.NatsJsUtils.streamExists;
 
 /**
  * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
- *
- * Run Notes:
- * - durable is optional, durable behaves differently, try it by running this twice with durable set
- * - deliver is optional
- * - msg_count < 1 will just loop until there are no more messages
- *
- * Usage: java NatsJsPushSub [-s server] [-strm stream] [-sub subject] [-dur durable] [-dlvr deliver] [-mcnt msgCount]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPushSub {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPushSub [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable] [-dlvr deliver]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]     example-stream"
+                    + "\n   [-sub subject]     example-subject"
+                    + "\n   [-mcnt msgCount]   0"
+                    + "\n\nRun Notes:"
+                    + "\n   - durable is optional, durable behaves differently, try it by running this twice with durable set"
+                    + "\n   - deliver is optional"
+                    + "\n   - msg_count < 1 will just loop until there are no more messages"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
                 .defaultStream("example-stream")
                 .defaultSubject("example-subject")
+                .defaultMsgCount(0)
 //                .defaultDurable("push-sub-durable")
 //                .defaultDeliver("push-sub-deliver")
-                .defaultMsgCount(0)
-                .build(args);
+                .build(args, usageString);
 
         int count = exArgs.msgCount < 1 ? Integer.MAX_VALUE : exArgs.msgCount;
 

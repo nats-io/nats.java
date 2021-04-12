@@ -27,14 +27,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * This example will demonstrate JetStream push subscribing. Run NatsJsPub first to setup message data.
- *
- * Usage: java NatsJsPushSubQueue [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPushSubQueue {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPushSubQueue [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]    jsq-stream"
+                    + "\n   [-sub subject]    jsq-subject"
+                    + "\n   [-q queue]        jsq-queue"
+                    + "\n   [-dur durable]    jsq-durable"
+                    + "\n   [-mcnt msgCount]  100"
+                    + "\n   [-scnt subCount]  5"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -44,7 +51,7 @@ public class NatsJsPushSubQueue {
                 .defaultDurable("jsq-durable")
                 .defaultMsgCount(100)
                 .defaultSubCount(5)
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 

@@ -13,21 +13,17 @@
 
 package io.nats.examples.stability;
 
+import io.nats.client.*;
+import io.nats.examples.benchmark.Utils;
+
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
 
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.Nats;
-import io.nats.client.Options;
-import io.nats.client.Subscription;
-import io.nats.examples.benchmark.Utils;
-
 public class StabilitySub {
 
     static final String usageString =
-            "\nUsage: java NatsSub [server] <subject>"
+            "\nUsage: java -cp <classpath> NatsSub [server] <subject>"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
 
     public static void main(String args[]) {

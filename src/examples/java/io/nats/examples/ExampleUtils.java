@@ -86,9 +86,17 @@ public class ExampleUtils {
     // Subscribe: [options] <subject> <msgCount>
     // Reply:     [options] <subject> <msgCount>
 
+    public static ExampleArgs optionalServer(String[] args, String usageString) {
+        ExampleArgs ea = new ExampleArgs(args, null, usageString);
+        if (ea.containedUnknown) {
+            usage(usageString);
+        }
+        return ea;
+    }
+
     public static ExampleArgs expectSubjectAndMessage(String[] args, String usageString) {
         ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Trail.MESSAGE, usageString);
-        if (ea.message == null) {
+        if (ea.containedUnknown || ea.message == null) {
             usage(usageString);
         }
         return ea;
@@ -96,7 +104,7 @@ public class ExampleUtils {
 
     public static ExampleArgs expectSubjectAndMsgCount(String[] args, String usageString) {
         ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Trail.COUNT, usageString);
-        if (ea.msgCount < 1) {
+        if (ea.containedUnknown || ea.msgCount < 1) {
             usage(usageString);
         }
         return ea;
@@ -104,7 +112,7 @@ public class ExampleUtils {
 
     public static ExampleArgs expectSubjectQueueAndMsgCount(String[] args, String usageString) {
         ExampleArgs ea = new ExampleArgs(args, ExampleArgs.Trail.COUNT, usageString);
-        if (ea.msgCount < 1) {
+        if (ea.containedUnknown || ea.msgCount < 1) {
             usage(usageString);
         }
         return ea;

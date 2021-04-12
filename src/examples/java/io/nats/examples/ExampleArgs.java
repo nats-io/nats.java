@@ -36,6 +36,7 @@ public class ExampleArgs {
     public Headers headers;
     public String user = null;
     public String pass = null;
+    public boolean containedUnknown = false;
 
     public boolean hasHeaders() {
         return headers != null && headers.size() > 0;
@@ -48,7 +49,10 @@ public class ExampleArgs {
                 for (int x = 0; x < args.length; x++) {
                     String arg = args[x];
                     if (arg.startsWith("-")) {
-                        handleKeyedArg(arg, args[++x]);
+                        if (++x >= args.length) {
+                            usage(usageString);
+                        }
+                        handleKeyedArg(arg, args[x]);
                         lastKey = arg;
                     }
                     else if (trail == null) {
@@ -65,10 +69,7 @@ public class ExampleArgs {
         }
         catch (RuntimeException e) {
             System.err.println("Exception while processing command line arguments: " + e + "\n");
-            if (usageString != null) {
-                System.out.println(usageString);
-            }
-            System.exit(-1);
+            usage(usageString);
         }
     }
 
@@ -143,12 +144,15 @@ public class ExampleArgs {
             case "-pass":
                 pass = value;
                 break;
-            case "-h":
+            case "-r":
                 if (headers == null) {
                     headers = new Headers();
                 }
                 String[] hdr = value.split(":");
                 headers.add(hdr[0], hdr[1]);
+                break;
+            default:
+                containedUnknown = true;
                 break;
         }
     }
@@ -237,8 +241,11 @@ public class ExampleArgs {
             return this;
         }
 
-        public ExampleArgs build(String[] args) {
-            ExampleArgs ea = new ExampleArgs(args, null, null);
+        public ExampleArgs build(String[] args, String usageString) {
+            ExampleArgs ea = new ExampleArgs(args, null, usageString);
+            if (ea.containedUnknown && usageString != null) {
+                usage(usageString);
+            }
             if (ea.subject == null) {
                 ea.subject = subject;
             }
@@ -298,5 +305,12 @@ public class ExampleArgs {
             }
             return ea;
         }
+    }
+
+    private static void usage(String usageString) {
+        if (usageString != null) {
+            System.out.println(usageString);
+        }
+        System.exit(-1);
     }
 }

@@ -25,14 +25,21 @@ import static io.nats.examples.jetstream.NatsJsUtils.publish;
 /**
  * This example will demonstrate JetStream push subscribing with a delivery subject and how the delivery
  * subject can be used as a subject of a regular Nats message.
- *
- * Usage: java NatsJsPushSubDeliverSubject [-s server] [-strm stream] [-sub subject] [-dlvr deliver] [-mcnt msgCount]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPushSubDeliverSubject {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPushSubDeliverSubject [-s server] [-strm stream] [-sub subject] [-dlvr deliver] [-mcnt msgCount]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]    push-deliver-stream"
+                    + "\n   [-sub subject]    push-deliver-actual-subject"
+                    + "\n   [-dlvr deliver]   push-deliver-deliver-subject"
+                    + "\n   [-mcnt msgCount]  0"
+                    + "\n\nRun Notes:"
+                    + "\n   - msg_count < 1 will just loop until there are no more messages"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
@@ -40,7 +47,7 @@ public class NatsJsPushSubDeliverSubject {
                 .defaultSubject("push-deliver-actual-subject")
                 .defaultDeliver("push-deliver-deliver-subject")
                 .defaultMsgCount(0)
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 
