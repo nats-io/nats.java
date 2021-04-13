@@ -467,7 +467,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
-            Mirror mirror = Mirror.builder().name(S1).build();
+            Mirror mirror = Mirror.builder().sourceName(S1).build();
 
             // Create source stream
             StreamConfiguration sc = StreamConfiguration.builder()
@@ -517,7 +517,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(mirror(3))
                     .storageType(StorageType.Memory)
-                    .mirror(Mirror.builder().name(S1).startSeq(150).build())
+                    .mirror(Mirror.builder().sourceName(S1).startSeq(150).build())
                     .build();
             jsm.addStream(sc);
 
@@ -529,7 +529,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(mirror(4))
                     .storageType(StorageType.Memory)
-                    .mirror(Mirror.builder().name(S1).startTime(zdt).build())
+                    .mirror(Mirror.builder().sourceName(S1).startTime(zdt).build())
                     .build();
             jsm.addStream(sc);
 
@@ -569,7 +569,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         runInJsServer(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            Mirror mirror = Mirror.builder().name(STREAM).build();
+            Mirror mirror = Mirror.builder().sourceName(STREAM).build();
 
             StreamConfiguration scEx = StreamConfiguration.builder()
                     .name(mirror(99))
@@ -619,9 +619,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(source(1))
                     .storageType(StorageType.Memory)
-                    .sources(Source.builder().name(S1).build(),
-                            Source.builder().name(S2).build(),
-                            Source.builder().name(S3).build())
+                    .sources(Source.builder().sourceName(S1).build(),
+                            Source.builder().sourceName(S2).build(),
+                            Source.builder().sourceName(S3).build())
                     .build();
 
             jsm.addStream(sc);
@@ -631,9 +631,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(source(1))
                     .storageType(StorageType.Memory)
-                    .sources(Source.builder().name(S1).build(),
-                            Source.builder().name(S2).build(),
-                            Source.builder().name(S4).build())
+                    .sources(Source.builder().sourceName(S1).build(),
+                            Source.builder().sourceName(S2).build(),
+                            Source.builder().sourceName(S4).build())
                     .build();
 
             jsm.updateStream(sc);
@@ -652,7 +652,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(source(2))
                     .storageType(StorageType.Memory)
-                    .sources(Source.builder().name(stream(99)).startSeq(26).build())
+                    .sources(Source.builder().sourceName(stream(99)).startSeq(26).build())
                     .build();
             jsm.addStream(sc);
             assertSource(jsm, source(2), 25, null);
@@ -667,7 +667,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             sc = StreamConfiguration.builder()
                     .name(source(3))
                     .storageType(StorageType.Memory)
-                    .sources(Source.builder().name(stream(99)).startSeq(11).filterSubject(S4).build())
+                    .sources(Source.builder().sourceName(stream(99)).startSeq(11).filterSubject(S4).build())
                     .build();
             jsm.addStream(sc);
             assertSource(jsm, source(3), 20, null);
@@ -693,7 +693,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/js_authorization.conf", false)) {
             Options optionsSrc = new Options.Builder().server(ts.getURI())
-                    .userInfo("manager".toCharArray(), "mpass".toCharArray()).build();
+                    .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
 
             try (Connection nc = Nats.connect(optionsSrc)) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
