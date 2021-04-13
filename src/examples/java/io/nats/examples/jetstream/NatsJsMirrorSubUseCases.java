@@ -98,7 +98,7 @@ public class NatsJsMirrorSubUseCases {
 
             // to read from the mirror, we must set the mirror as the source [stream]
             System.out.println("\nMessages [pushed] from the mirror, " + exArgs.mirror + "...");
-            PushSubscribeOptions pushSo = PushSubscribeOptions.source(exArgs.mirror);
+            PushSubscribeOptions pushSo = PushSubscribeOptions.bind(exArgs.mirror);
             sub = js.subscribe(exArgs.subject, pushSo);
             msg = sub.nextMessage(Duration.ofSeconds(1));
             while (msg != null) {

@@ -36,12 +36,12 @@ public class PushSubscribeOptions extends SubscribeOptions {
     }
 
     /**
-     * Create PushSubscribeOptions where you are only specifying the source stream,
-     * a common use case for mirrors
-     * @param stream the source name to be used as the stream
+     * Create PushSubscribeOptions where you are binding to
+     * a specific stream, which could be a stream or a mirror
+     * @param stream the stream name to bind to
      * @return subscribe options
      */
-    public static PushSubscribeOptions source(String stream) {
+    public static PushSubscribeOptions bind(String stream) {
         return new Builder().stream(stream).build();
     }
 
