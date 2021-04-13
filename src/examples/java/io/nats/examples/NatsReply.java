@@ -38,7 +38,7 @@ public class NatsReply {
 
             CountDownLatch latch = new CountDownLatch(exArgs.msgCount); // dispatcher runs callback in another thread
             final AtomicInteger counter = new AtomicInteger(0);
-            
+
             Dispatcher d = nc.createDispatcher((msg) -> {
 
                 System.out.printf("\nMessage Received [%d]\n", counter.incrementAndGet());

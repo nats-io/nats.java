@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.support.NatsRequestCompletableFuture;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -139,13 +141,41 @@ public class RequestTests extends TestBase {
         }
     }
 
+    @Test
+    public void testMultipleReplies() throws Exception {
+        Options.Builder builder = new Options.Builder().turnOnAdvancedStats();
+        runInServer(builder, nc -> {
+            AtomicInteger replies = new AtomicInteger();
+            MessageHandler handler = (msg) -> { replies.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
+            Dispatcher d1 = nc.createDispatcher(handler);
+            Dispatcher d2 = nc.createDispatcher(handler);
+            Dispatcher d3 = nc.createDispatcher(handler);
+            Dispatcher d4 = nc.createDispatcher(msg -> { sleep(5000); handler.onMessage(msg); });
+            d1.subscribe(SUBJECT);
+            d2.subscribe(SUBJECT);
+            d3.subscribe(SUBJECT);
+            d4.subscribe(SUBJECT);
+
+            Message reply = nc.request(SUBJECT, null, Duration.ofSeconds(2));
+            assertNotNull(reply);
+            sleep(2000);
+            assertEquals(3, replies.get());
+            assertTrue(nc.getStatistics().toString().contains("Replies Received:                3"));
+            assertTrue(nc.getStatistics().toString().contains("Orphan Replies Received:         0"));
+
+            sleep(3000);
+            assertEquals(4, replies.get());
+            assertTrue(nc.getStatistics().toString().contains("Replies Received:                3"));
+            assertTrue(nc.getStatistics().toString().contains("Orphan Replies Received:         1"));
+        });
+    }
 
     @Test
     public void testManualRequestReply() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
+             Connection nc = Nats.connect(ts.getURI())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            
+
             Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("request");
 
@@ -161,7 +191,7 @@ public class RequestTests extends TestBase {
     }
 
     @Test
-    public void testRequestWithCustomInbox() throws IOException, ExecutionException, TimeoutException, InterruptedException {
+    public void testRequestWithCustomInboxPrefix() throws IOException, ExecutionException, TimeoutException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(new Options.Builder().inboxPrefix("myinbox").server(ts.getURI()).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -461,4 +491,15 @@ public class RequestTests extends TestBase {
         });
     }
 
+    @Test
+    public void testNatsRequestCompletableFuture() {
+        NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(true, Duration.ofHours(-1));
+        assertTrue(f.hasExceededTimeout());
+        assertFalse(f.wasCancelledClosing());
+        assertFalse(f.wasCancelledTimedOut());
+        f.cancelClosing(); // not real use, just testing flags
+        f.cancelTimedOut(); // not real use, just testing flags
+        assertTrue(f.wasCancelledClosing());
+        assertTrue(f.wasCancelledTimedOut());
+    }
 }

@@ -18,6 +18,7 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.NatsMessage.ProtocolMessage;
 import io.nats.client.support.ByteArrayBuilder;
+import io.nats.client.support.NatsRequestCompletableFuture;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -44,9 +45,9 @@ import static io.nats.client.support.Validator.validateNotNull;
 
 class NatsConnection implements Connection {
 
-    private Options options;
+    private final Options options;
 
-    private NatsStatistics statistics;
+    private final NatsStatistics statistics;
 
     private boolean connecting; // you can only connect in one thread
     private boolean disconnecting; // you can only disconnect in one thread
@@ -55,44 +56,45 @@ class NatsConnection implements Connection {
                                                     // connecting
 
     private Status status;
-    private ReentrantLock statusLock;
-    private Condition statusChanged;
+    private final ReentrantLock statusLock;
+    private final Condition statusChanged;
 
     private CompletableFuture<DataPort> dataPortFuture;
     private DataPort dataPort;
     private String currentServerURI;
     private CompletableFuture<Boolean> reconnectWaiter;
-    private HashMap<String, String> serverAuthErrors;
+    private final HashMap<String, String> serverAuthErrors;
 
-    private NatsConnectionReader reader;
-    private NatsConnectionWriter writer;
+    private final NatsConnectionReader reader;
+    private final NatsConnectionWriter writer;
 
-    private AtomicReference<ServerInfo> serverInfo;
+    private final AtomicReference<ServerInfo> serverInfo;
 
-    private Map<String, NatsSubscription> subscribers;
-    private Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
+    private final Map<String, NatsSubscription> subscribers;
+    private final Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration
                                                      // behavior
-    private Map<String, CompletableFuture<Message>> responses;
-    private ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
+    private final Map<String, NatsRequestCompletableFuture> responsesAwaiting;
+    private final Map<String, NatsRequestCompletableFuture> responsesRespondedTo;
+    private final ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
 
-    private String mainInbox;
-    private AtomicReference<NatsDispatcher> inboxDispatcher;
+    private final String mainInbox;
+    private final AtomicReference<NatsDispatcher> inboxDispatcher;
     private Timer timer;
 
-    private AtomicBoolean needPing;
+    private final AtomicBoolean needPing;
 
-    private AtomicLong nextSid;
-    private NUID nuid;
+    private final AtomicLong nextSid;
+    private final NUID nuid;
 
-    private AtomicReference<String> connectError;
-    private AtomicReference<String> lastError;
-    private AtomicReference<CompletableFuture<Boolean>> draining;
-    private AtomicBoolean blockPublishForDrain;
+    private final AtomicReference<String> connectError;
+    private final AtomicReference<String> lastError;
+    private final AtomicReference<CompletableFuture<Boolean>> draining;
+    private final AtomicBoolean blockPublishForDrain;
 
-    private ExecutorService callbackRunner;
+    private final ExecutorService callbackRunner;
 
-    private ExecutorService executor;
-    private ExecutorService connectExecutor;
+    private final ExecutorService executor;
+    private final ExecutorService connectExecutor;
 
     private String currentServer = null;
 
@@ -112,7 +114,8 @@ class NatsConnection implements Connection {
 
         this.dispatchers = new ConcurrentHashMap<>();
         this.subscribers = new ConcurrentHashMap<>();
-        this.responses = new ConcurrentHashMap<>();
+        this.responsesAwaiting = new ConcurrentHashMap<>();
+        this.responsesRespondedTo = new ConcurrentHashMap<>();
 
         this.serverAuthErrors = new HashMap<>();
 
@@ -374,7 +377,7 @@ class NatsConnection implements Connection {
             timeoutNanos = timeCheck(trace, end, "waiting for writer");
             this.writer.stop().get(timeoutNanos, TimeUnit.NANOSECONDS);
 
-            timeoutNanos = timeCheck(trace, end, "cleaning pong queue");
+            timeCheck(trace, end, "cleaning pong queue");
             cleanUpPongQueue();
 
             timeoutNanos = timeCheck(trace, end, "connecting data port");
@@ -387,20 +390,18 @@ class NatsConnection implements Connection {
 
             // Wait for the INFO message manually
             // all other traffic will use the reader and writer
-            Callable<Object> connectTask = new Callable<Object>() {
-                public Object call() throws IOException {
-                    readInitialInfo();
-                    checkVersionRequirements();
-                    long start = System.nanoTime();
-                    upgradeToSecureIfNeeded();
-                    if (trace && options.isTLSRequired()) {
-                        // If the time appears too long it might be related to
-                        // https://github.com/nats-io/nats.java#linux-platform-note
-                        timeTrace(trace, "TLS upgrade took: %.3f (s)",
-                                ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
-                    }
-                    return null;
+            Callable<Object> connectTask = () -> {
+                readInitialInfo();
+                checkVersionRequirements();
+                long start = System.nanoTime();
+                upgradeToSecureIfNeeded();
+                if (trace && options.isTLSRequired()) {
+                    // If the time appears too long it might be related to
+                    // https://github.com/nats-io/nats.java#linux-platform-note
+                    timeTrace(true, "TLS upgrade took: %.3f (s)",
+                            ((double) (System.nanoTime() - start)) / 1_000_000_000.0);
                 }
+                return null;
             };
 
             timeoutNanos = timeCheck(trace, end, "reading info, version and upgrading to secure if necessary");
@@ -412,12 +413,12 @@ class NatsConnection implements Connection {
             }
 
             // start the reader and writer after we secured the connection, if necessary
-            timeoutNanos = timeCheck(trace, end, "starting reader");
+            timeCheck(trace, end, "starting reader");
             this.reader.start(this.dataPortFuture);
-            timeoutNanos = timeCheck(trace, end, "starting writer");
+            timeCheck(trace, end, "starting writer");
             this.writer.start(this.dataPortFuture);
 
-            timeoutNanos = timeCheck(trace, end, "sending connect message");
+            timeCheck(trace, end, "sending connect message");
             this.sendConnect(serverURI);
 
             timeoutNanos = timeCheck(trace, end, "sending initial ping");
@@ -428,7 +429,7 @@ class NatsConnection implements Connection {
             }
 
             if (this.timer == null) {
-                timeoutNanos = timeCheck(trace, end, "starting ping and cleanup timers");
+                timeCheck(trace, end, "starting ping and cleanup timers");
                 this.timer = new Timer("Nats Connection Timer");
 
                 long pingMillis = this.options.getPingInterval().toMillis();
@@ -455,7 +456,7 @@ class NatsConnection implements Connection {
             }
 
             // Set connected status
-            timeoutNanos = timeCheck(trace, end, "updating status to connected");
+            timeCheck(trace, end, "updating status to connected");
             statusLock.lock();
             try {
                 this.connecting = false;
@@ -545,19 +546,18 @@ class NatsConnection implements Connection {
     // Close socket is called when another connect attempt is possible
     // Close is called when the connection should shutdown, period
     void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
-        boolean wasConnected = false;
+        boolean wasConnected;
 
         statusLock.lock();
         try {
             if (isDisconnectingOrClosed()) {
                 waitForDisconnectOrClose(this.options.getConnectionTimeout());
                 return;
-            } else {
-                this.disconnecting = true;
-                this.exceptionDuringConnectChange = null;
-                wasConnected = (this.status == Status.CONNECTED);
-                statusChanged.signalAll();
             }
+            this.disconnecting = true;
+            this.exceptionDuringConnectChange = null;
+            wasConnected = (this.status == Status.CONNECTED);
+            statusChanged.signalAll();
         } finally {
             statusLock.unlock();
         }
@@ -618,13 +618,9 @@ class NatsConnection implements Connection {
 
         closeSocketImpl();
 
-        this.dispatchers.forEach((nuid, d) -> {
-            d.stop(false);
-        });
+        this.dispatchers.forEach((nuid, d) -> d.stop(false));
 
-        this.subscribers.forEach((sid, sub) -> {
-            sub.invalidate();
-        });
+        this.subscribers.forEach((sid, sub) -> sub.invalidate());
 
         this.dispatchers.clear();
         this.subscribers.clear();
@@ -879,7 +875,7 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining");
         }
 
-        NatsSubscription sub = null;
+        NatsSubscription sub;
         long sidL = nextSid.getAndIncrement();
         String sid = String.valueOf(sidL);
 
@@ -945,39 +941,60 @@ class NatsConnection implements Connection {
         return responseInbox.substring(len);
     }
 
-    void cleanResponses(boolean cancelIfRunning) {
+    void cleanResponses(boolean closing) {
         ArrayList<String> toRemove = new ArrayList<>();
 
-        responses.forEach((token, f) -> {
-            if (f.isDone() || cancelIfRunning) {
-                try {
-                    f.cancel(true); // does nothing if already done
-                } catch (CancellationException e) {
-                    // Expected
-                }
-                toRemove.add(token);
+        responsesAwaiting.forEach((key, future) -> {
+            boolean remove = false;
+            if (future.hasExceededTimeout()) {
+                remove = true;
+                future.cancelTimedOut();
+            }
+            else if (closing) {
+                remove = true;
+                future.cancelClosing();
+            }
+            else if (future.isDone()) {
+                // done should have already been removed, not sure if
+                // this even needs checking, but it won't hurt
+                remove = true;
+            }
+
+            if (remove) {
+                toRemove.add(key);
                 statistics.decrementOutstandingRequests();
             }
         });
 
         for (String token : toRemove) {
-            responses.remove(token);
+            responsesAwaiting.remove(token);
+        }
+
+        toRemove.clear(); // just reuse this
+        responsesRespondedTo.forEach((key, future) -> {
+            if (future.hasExceededTimeout()) {
+                toRemove.add(key);
+            }
+        });
+
+        for (String token : toRemove) {
+            responsesRespondedTo.remove(token);
         }
     }
 
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return request(subject, null, body, options.supportUTF8Subjects(), timeout);
+        return requestInternal(subject, null, body, options.supportUTF8Subjects(), timeout, true);
     }
 
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
         validateNotNull(message, "Message");
-        return request(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout);
+        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), timeout, true);
     }
 
-    Message request(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout) throws InterruptedException {
-        CompletableFuture<Message> incoming = request(subject, headers, data, utf8mode, true);
+    Message requestInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration timeout, boolean cancelOn503) throws InterruptedException {
+        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, utf8mode, timeout, cancelOn503);
         try {
             return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException | CancellationException e) {
@@ -987,16 +1004,16 @@ class NatsConnection implements Connection {
 
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return request(subject, null, body, options.supportUTF8Subjects(), true);
+        return requestFutureInternal(subject, null, body, options.supportUTF8Subjects(), null, true);
     }
 
     @Override
     public CompletableFuture<Message> request(Message message) {
         validateNotNull(message, "Message");
-        return request(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), true);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), message.isUtf8mode(), null, true);
     }
 
-    CompletableFuture<Message> request(String subject, Headers headers, byte[] data, boolean utf8mode, boolean regular) {
+    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, boolean utf8mode, Duration futureTimeout, boolean cancelOn503) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1019,10 +1036,10 @@ class NatsConnection implements Connection {
         boolean oldStyle = options.isOldRequestStyle();
         String responseInbox = oldStyle ? createInbox() : createResponseInbox(this.mainInbox);
         String responseToken = getResponseToken(responseInbox);
-        CompletableFuture<Message> future = new ExtendedCompletableFuture(regular);
+        NatsRequestCompletableFuture future = new NatsRequestCompletableFuture(cancelOn503, futureTimeout);
 
         if (!oldStyle) {
-            responses.put(responseToken, future);
+            responsesAwaiting.put(responseToken, future);
         }
         statistics.incrementOutstandingRequests();
 
@@ -1036,7 +1053,7 @@ class NatsConnection implements Connection {
                     dispatcher.unsubscribe(responseInbox);
                 }
             });
-            responses.put(sub.getSID(), future);
+            responsesAwaiting.put(sub.getSID(), future);
         }
 
         publishInternal(subject, responseInbox, headers, data, utf8mode);
@@ -1046,29 +1063,28 @@ class NatsConnection implements Connection {
         return future;
     }
 
-    static class ExtendedCompletableFuture extends CompletableFuture<Message> {
-        boolean regular;
-        public ExtendedCompletableFuture(boolean regular) {
-            this.regular = regular;
-        }
-    }
-
     void deliverReply(Message msg) {
         boolean oldStyle = options.isOldRequestStyle();
         String subject = msg.getSubject();
         String token = getResponseToken(subject);
-        ExtendedCompletableFuture f = (ExtendedCompletableFuture)
-                (oldStyle ? responses.remove(msg.getSID()) : responses.remove(token));
+        String key = oldStyle ? msg.getSID() : token;
+        NatsRequestCompletableFuture f = responsesAwaiting.remove(key);
         if (f != null) {
+            responsesRespondedTo.put(key, f);
             statistics.decrementOutstandingRequests();
-            if (f.regular && msg.isStatusMessage() && msg.getStatus().getCode() == 503) {
+            if (msg.isStatusMessage() && msg.getStatus().getCode() == 503 && f.isCancelOn503()) {
                 f.cancel(true);
             }
             else {
                 f.complete(msg);
             }
             statistics.incrementRepliesReceived();
-        } else if (!oldStyle && !subject.startsWith(mainInbox)) {
+        }
+        else if (responsesRespondedTo.get(key) != null) {
+                statistics.incrementRepliesReceived();
+        }
+        else if (!oldStyle && !subject.startsWith(mainInbox)) {
+            statistics.incrementOrphanRepliesReceived();
             System.out.println("ERROR: Subject remapping requires Options.oldRequestStyle() to be set on the Connection " + subject + " " + token);
         }
     }
@@ -1192,13 +1208,13 @@ class NatsConnection implements Connection {
         int max = this.options.getMaxPingsOut();
 
         if (!isConnectedOrConnecting()) {
-            CompletableFuture<Boolean> retVal = new CompletableFuture<Boolean>();
+            CompletableFuture<Boolean> retVal = new CompletableFuture<>();
             retVal.complete(Boolean.FALSE);
             return retVal;
         }
 
         if (!treatAsInternal && !this.needPing.get()) {
-            CompletableFuture<Boolean> retVal = new CompletableFuture<Boolean>();
+            CompletableFuture<Boolean> retVal = new CompletableFuture<>();
             retVal.complete(Boolean.TRUE);
             this.needPing.set(true);
             return retVal;
@@ -1355,10 +1371,11 @@ class NatsConnection implements Connection {
                 q.push(msg);
             }
 
-        } else {
-            // Drop messages we don't have a subscriber for (could be extras on an
-            // auto-unsub for example)
         }
+//        else {
+//            // Drop messages we don't have a subscriber for (could be extras on an
+//            // auto-unsub for example)
+//        }
     }
 
     void processOK() {
@@ -1631,15 +1648,11 @@ class NatsConnection implements Connection {
     }
 
     void waitForDisconnectOrClose(Duration timeout) throws InterruptedException {
-        waitFor(timeout, (Void) -> {
-            return this.isDisconnecting() && !this.isClosed();
-        });
+        waitFor(timeout, (Void) -> this.isDisconnecting() && !this.isClosed() );
     }
 
     void waitForConnectOrClose(Duration timeout) throws InterruptedException {
-        waitFor(timeout, (Void) -> {
-            return !this.isConnected() && !this.isClosed();
-        });
+        waitFor(timeout, (Void) -> !this.isConnected() && !this.isClosed());
     }
 
     void waitFor(Duration timeout, Predicate<Void> test) throws InterruptedException {
@@ -1769,9 +1782,7 @@ class NatsConnection implements Connection {
         // Don't include subscribers with dispatchers
         HashSet<NatsSubscription> pureSubscribers = new HashSet<>();
         pureSubscribers.addAll(this.subscribers.values());
-        pureSubscribers.removeIf((s) -> {
-            return s.getDispatcher() != null;
-        });
+        pureSubscribers.removeIf((s) -> s.getDispatcher() != null);
 
         final HashSet<NatsConsumer> consumers = new HashSet<>();
         consumers.addAll(pureSubscribers);
@@ -1796,9 +1807,7 @@ class NatsConnection implements Connection {
             throw e;
         }
 
-        consumers.forEach((cons) -> {
-            cons.markUnsubedForDrain();
-        });
+        consumers.forEach(NatsConsumer::markUnsubedForDrain);
 
         // Wait for the timeout or the pending count to go to 0
         executor.submit(() -> {
@@ -1807,12 +1816,7 @@ class NatsConnection implements Connection {
 
                 while (timeout == null || timeout.equals(Duration.ZERO)
                         || Duration.between(start, now).compareTo(timeout) < 0) {
-                    for (Iterator<NatsConsumer> i = consumers.iterator(); i.hasNext();) {
-                        NatsConsumer cons = i.next();
-                        if (cons.isDrained()) {
-                            i.remove();
-                        }
-                    }
+                    consumers.removeIf(NatsConsumer::isDrained);
 
                     if (consumers.size() == 0) {
                         break;
@@ -1907,9 +1911,5 @@ class NatsConnection implements Connection {
             throw new IOException("A JetStream context can't be established during close.");
         }
         return new NatsJetStream(this, options);
-    }
-
-    void executorSubmit(Runnable task) {
-        options.getExecutor().submit(task);
     }
 }
