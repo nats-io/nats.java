@@ -30,20 +30,23 @@ import static io.nats.examples.jetstream.NatsJsUtils.createOrUpdateStream;
  *
  * The difference lies in the whether it's important to your application to receive
  * a publish ack and whether or not you want to set publish expectations.
- *
- * Usage: java NatsJsPubVsRegularPub [-s server] [-strm stream] [-sub subject]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPubVsRegularPub {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPubVsRegularPub [-s server] [-strm stream] [-sub subject]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]     regular-stream"
+                    + "\n   [-sub subject]     regular-subject"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
                 .defaultStream("regular-stream")
                 .defaultSubject("regular-subject")
-                .build(args);
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
             JetStream js = nc.jetStream();

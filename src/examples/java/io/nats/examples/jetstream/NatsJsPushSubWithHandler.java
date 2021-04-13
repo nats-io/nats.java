@@ -26,26 +26,29 @@ import static io.nats.examples.jetstream.NatsJsUtils.streamExists;
 
 /**
  * This example will demonstrate JetStream push subscribing with a handler. Run NatsJsPub first to setup message data.
- *
- * Run Notes:
- * - durable is optional, durable behaves differently, try it by running this twice with durable set
- * - msgCount should be > 0
- *
- * Usage: java NatsJsPushSubWithHandler [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsPushSubWithHandler {
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsPushSubWithHandler [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable]"
+                    + "\n\nDefault Values:"
+                    + "\n   [-strm stream]    example-stream"
+                    + "\n   [-sub subject]    example-subject"
+                    + "\n   [-mcnt msgCount]  "
+                    + "\n\nRun Notes:"
+                    + "\n   - durable is optional, durable behaves differently, try it by running this twice with durable set"
+                    + "\n   - msgCount should be > 0"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
 
     public static void main(String[] args) {
         ExampleArgs exArgs = ExampleArgs.builder()
                 .defaultStream("example-stream")
                 .defaultSubject("example-subject")
-//                .defaultDurable("push-sub-handler-durable")
                 .defaultMsgCount(3)
-                .build(args);
+//                .defaultDurable("push-sub-handler-durable")
+                .build(args, usageString);
 
         try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server, true))) {
 

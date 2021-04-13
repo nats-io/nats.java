@@ -35,6 +35,16 @@ public class PushSubscribeOptions extends SubscribeOptions {
         return consumerConfig.getDeliverSubject();
     }
 
+    /**
+     * Create PushSubscribeOptions where you are binding to
+     * a specific stream, which could be a stream or a mirror
+     * @param stream the stream name to bind to
+     * @return subscribe options
+     */
+    public static PushSubscribeOptions bind(String stream) {
+        return new Builder().stream(stream).build();
+    }
+
     public static Builder builder() {
         return new Builder();
     }

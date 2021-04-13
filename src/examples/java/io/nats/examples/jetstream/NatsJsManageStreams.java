@@ -20,6 +20,7 @@ import io.nats.client.api.PurgeResponse;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
+import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.util.List;
@@ -29,24 +30,27 @@ import static io.nats.examples.jetstream.NatsJsUtils.publish;
 
 /**
  * This example will demonstrate JetStream management (admin) api.
- *
- * Usage: java NatsJsManageStreams [server]
- *   Use tls:// or opentls:// to require tls, via the Default SSLContext
- *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.
- *   Set the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.
- *   Use the URL for user/pass/token authentication.
  */
 public class NatsJsManageStreams {
-    private static final String STREAM1 = "stream1";
-    private static final String STREAM2 = "stream2";
-    private static final String SUBJECT1 = "subject1";
-    private static final String SUBJECT2 = "subject2";
-    private static final String SUBJECT3 = "subject3";
-    private static final String SUBJECT4 = "subject4";
+    static final String usageString =
+            "\nUsage: java -cp <classpath> NatsJsManageStreams [-s server]"
+                    + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
+                    + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
+                    + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"
+                    + "\nUse the URL for user/pass/token authentication.\n";
+
+    private static final String STREAM1 = "manage-stream1";
+    private static final String STREAM2 = "manage-stream2";
+    private static final String SUBJECT1 = "manage-subject1";
+    private static final String SUBJECT2 = "manage-subject2";
+    private static final String SUBJECT3 = "manage-subject3";
+    private static final String SUBJECT4 = "manage-subject4";
 
     public static void main(String[] args) {
+        ExampleArgs exArgs = ExampleUtils.optionalServer(args, usageString);
 
-        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(args))) {
+        try (Connection nc = Nats.connect(ExampleUtils.createExampleOptions(exArgs.server))) {
+
             // Create a JetStreamManagement context.
             JetStreamManagement jsm = nc.jetStreamManagement();
 
