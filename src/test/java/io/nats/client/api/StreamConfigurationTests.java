@@ -144,9 +144,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(999), mb.startSeq(999));
         assertNotEqualsEqualsHashcode(s1, m1, sb.startSeq(m.getStartSeq()), mb.startSeq(m.getStartSeq()));
 
-        assertNotEqualsEqualsHashcode(s1, m1, sb.name(null), mb.name(null));
-        assertNotEqualsEqualsHashcode(s1, m1, sb.name("not"), mb.name("not"));
-        assertNotEqualsEqualsHashcode(s1, m1, sb.name(m.getName()), mb.name(m.getName()));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.sourceName(null), mb.sourceName(null));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.sourceName("not"), mb.sourceName("not"));
+        assertNotEqualsEqualsHashcode(s1, m1, sb.sourceName(m.getSourceName()), mb.sourceName(m.getSourceName()));
 
         assertNotEqualsEqualsHashcode(s1, m1, sb.startTime(null), mb.startTime(null));
         assertNotEqualsEqualsHashcode(s1, m1, sb.startTime(ZonedDateTime.now()), mb.startTime(ZonedDateTime.now()));
@@ -303,7 +303,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         ZonedDateTime zdt = DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z");
 
         assertNotNull(sc.getMirror());
-        assertEquals("eman", sc.getMirror().getName());
+        assertEquals("eman", sc.getMirror().getSourceName());
         assertEquals(736, sc.getMirror().getStartSeq());
         assertEquals(zdt, sc.getMirror().getStartTime());
         assertEquals("mfsub", sc.getMirror().getFilterSubject());
@@ -319,7 +319,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     }
 
     private void validateSource(Source source, String name, int seq, String filter, String api, String deliver, ZonedDateTime zdt) {
-        assertEquals(name, source.getName());
+        assertEquals(name, source.getSourceName());
         assertEquals(seq, source.getStartSeq());
         assertEquals(zdt, source.getStartTime());
         assertEquals(filter, source.getFilterSubject());

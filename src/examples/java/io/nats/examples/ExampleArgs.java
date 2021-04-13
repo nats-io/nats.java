@@ -29,6 +29,7 @@ public class ExampleArgs {
     public int msgCount = -1;
     public int subCount = -1;
     public String stream = null;
+    public String mirror = null;
     public String consumer = null;
     public String durable = null;
     public String deliver = null;
@@ -123,6 +124,9 @@ public class ExampleArgs {
             case "-strm":
                 stream = value;
                 break;
+            case "-mir":
+                mirror = value;
+                break;
             case "-pull":
                 pullSize = Integer.parseInt(value);
                 break;
@@ -162,77 +166,83 @@ public class ExampleArgs {
     }
 
     public static class Builder {
-        private String subject;
-        private String queue;
-        private String message;
-        private int msgCount = -1;
-        public int subCount = -1;
-        private String stream = null;
-        private String consumer = null;
-        private String durable = null;
-        private String deliver = null;
-        private int pullSize = 0;
-        private String user = null;
-        private String pass = null;
+        private String subjectDefault;
+        private String queueDefault;
+        private String messageDefault;
+        private int msgCountDefault = -1;
+        public int subCountDefault = -1;
+        private String streamDefault = null;
+        private String mirrorDefault = null;
+        private String consumerDefault = null;
+        private String durableDefault = null;
+        private String deliverDefault = null;
+        private int pullSizeDefault = 0;
+        private String userDefault = null;
+        private String passDefault = null;
         private boolean uniqueify = false;
 
         public Builder defaultSubject(String subject) {
-            this.subject = subject;
+            this.subjectDefault = subject;
             return this;
         }
 
         public Builder defaultQueue(String queue) {
-            this.queue = queue;
+            this.queueDefault = queue;
             return this;
         }
 
         public Builder defaultMessage(String message) {
-            this.message = message;
+            this.messageDefault = message;
             return this;
         }
 
         public Builder defaultMsgCount(int msgCount) {
-            this.msgCount = msgCount;
+            this.msgCountDefault = msgCount;
             return this;
         }
 
         public Builder defaultSubCount(int subCount) {
-            this.subCount = subCount;
+            this.subCountDefault = subCount;
             return this;
         }
 
         public Builder defaultStream(String stream) {
-            this.stream = stream;
+            this.streamDefault = stream;
+            return this;
+        }
+
+        public Builder defaultMirror(String mirror) {
+            this.mirrorDefault = mirror;
             return this;
         }
 
         public Builder defaultConsumer(String consumer) {
-            this.consumer = consumer;
+            this.consumerDefault = consumer;
             return this;
         }
 
         public Builder defaultDurable(String durable) {
-            this.durable = durable;
+            this.durableDefault = durable;
             return this;
         }
 
         public Builder defaultDeliver(String deliver) {
-            this.deliver = deliver;
+            this.deliverDefault = deliver;
             return this;
         }
 
         public Builder defaultUser(String user) {
-            this.user = user;
+            this.userDefault = user;
             return this;
         }
 
         public Builder defaultPass(String pass) {
-            this.pass = pass;
+            this.passDefault = pass;
             return this;
         }
 
         public Builder defaultPullSize(int pullSize) {
-            this.pullSize = pullSize;
+            this.pullSizeDefault = pullSize;
             return this;
         }
 
@@ -247,45 +257,51 @@ public class ExampleArgs {
                 usage(usageString);
             }
             if (ea.subject == null) {
-                ea.subject = subject;
+                ea.subject = subjectDefault;
             }
             if (ea.queue == null) {
-                ea.queue = queue;
+                ea.queue = queueDefault;
             }
             if (ea.message == null) {
-                ea.message = message;
+                ea.message = messageDefault;
             }
             if (ea.msgCount == -1) {
-                ea.msgCount = msgCount;
+                ea.msgCount = msgCountDefault;
             }
             if (ea.subCount == -1) {
-                ea.subCount = subCount;
+                ea.subCount = subCountDefault;
             }
             if (ea.stream == null) {
-                ea.stream = stream;
+                ea.stream = streamDefault;
+            }
+            if (ea.mirror == null) {
+                ea.mirror = mirrorDefault;
             }
             if (ea.consumer == null) {
-                ea.consumer = consumer;
+                ea.consumer = consumerDefault;
             }
             if (ea.durable == null) {
-                ea.durable = durable;
+                ea.durable = durableDefault;
             }
             if (ea.deliver == null) {
-                ea.deliver = deliver;
+                ea.deliver = deliverDefault;
             }
             if (ea.user == null) {
-                ea.user = user;
+                ea.user = userDefault;
             }
             if (ea.pass == null) {
-                ea.pass = pass;
+                ea.pass = passDefault;
             }
             if (ea.pullSize == 0) {
-                ea.pullSize = pullSize;
+                ea.pullSize = pullSizeDefault;
             }
             if (uniqueify) {
                 String u = "-" + uniqueEnough();
                 if (ea.stream != null) {
                     ea.stream += u;
+                }
+                if (ea.mirror != null) {
+                    ea.mirror += u;
                 }
                 if (ea.subject != null) {
                     ea.subject += u;
