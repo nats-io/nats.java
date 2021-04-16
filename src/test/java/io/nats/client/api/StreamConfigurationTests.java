@@ -250,7 +250,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(RetentionPolicy.Limits, builder.build().getRetentionPolicy());
     }
 
-
     @Test
     public void testStorageType() {
         StreamConfiguration.Builder builder = StreamConfiguration.builder();

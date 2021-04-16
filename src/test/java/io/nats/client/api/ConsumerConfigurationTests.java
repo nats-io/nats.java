@@ -92,10 +92,10 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
         assertEquals(2020, c.getStartTime().getYear(), 2020);
         assertEquals(21, c.getStartTime().getSecond(), 21);
-
         assertEquals("foo-durable", c.getDurable());
         assertEquals("bar", c.getDeliverSubject());
         assertEquals("foo-filter", c.getFilterSubject());
         assertEquals(42, c.getMaxAckPending());
+        assertEquals("sample_freq-value", c.getSampleFrequency());
     }
 }

@@ -91,6 +91,7 @@ public interface ApiConstants {
     String PLACEMENT        = "placement";
     String PORT             = "port";
     String PROTO            = "proto";
+    String PURGED           = "purged";
     String RATE_LIMIT       = "rate_limit";
     String REPLAY_POLICY    = "replay_policy";
     String REPLICA          = "replica";
@@ -184,6 +185,7 @@ public interface ApiConstants {
     Pattern OPT_START_TIME_RE   = string_pattern(OPT_START_TIME);
     Pattern PORT_RE             = number_pattern(PORT);
     Pattern PROTO_RE            = number_pattern(PROTO);
+    Pattern PURGED_RE           = number_pattern(PURGED);
     Pattern RATE_LIMIT_RE       = number_pattern(RATE_LIMIT);
     Pattern REPLAY_POLICY_RE    = string_pattern(REPLAY_POLICY);
     Pattern RETENTION_RE        = string_pattern(RETENTION);
