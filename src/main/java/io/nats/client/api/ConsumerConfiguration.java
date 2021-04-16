@@ -202,10 +202,18 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets the maximum ack pending configuration.
-     * @return maxumum ack pending.
+     * @return maximum ack pending.
      */
     public long getMaxAckPending() {
         return maxAckPending;
+    }
+
+    /**
+     * Gets the sample frequency.
+     * @return sampleFrequency.
+     */
+    public String getSampleFrequency() {
+        return sampleFrequency;
     }
 
     /**

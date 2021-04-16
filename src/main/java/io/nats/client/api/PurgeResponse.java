@@ -16,11 +16,10 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.support.JsonUtils;
 
-import java.util.regex.Pattern;
+import static io.nats.client.support.ApiConstants.PURGED_RE;
+import static io.nats.client.support.ApiConstants.SUCCESS_RE;
 
 public class PurgeResponse extends ApiResponse<PurgeResponse> {
-    private static final Pattern SUCCESS_RE = JsonUtils.buildPattern("success", JsonUtils.FieldType.jsonBoolean);
-    private static final Pattern PURGED_RE = JsonUtils.buildPattern("purged", JsonUtils.FieldType.jsonNumber);
 
     private final boolean success;
     private final int purged;

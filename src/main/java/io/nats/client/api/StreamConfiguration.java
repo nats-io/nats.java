@@ -444,7 +444,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Sets the retention policy in the StreamConfiguration.
-         * @param policy the retention policy of the StreamConfguration
+         * @param policy the retention policy of the StreamConfiguration
          * @return Builder
          */
         public Builder retentionPolicy(RetentionPolicy policy) {

@@ -1,17 +1,15 @@
 {
-  "stream_name": "sname",
-  "config": {
-    "durable_name": "foo-durable",
-    "deliver_subject": "bar",
-    "deliver_policy": "all",
-    "opt_start_seq": 0,
-    "opt_start_time": "2020-11-05T19:33:21.163377000Z",
-    "ack_policy": "all",
-    "ack_wait": 30000000000,
-    "max_deliver": 10,
-    "max_ack_pending": 42,
-    "replay_policy": "original",
-    "filter_subject": "foo-filter",
-    "rate_limit": 73
-  }
+  "durable_name": "foo-durable",
+  "deliver_subject": "bar",
+  "deliver_policy": "all",
+  "opt_start_seq": 0,
+  "opt_start_time": "2020-11-05T19:33:21.163377000Z",
+  "ack_policy": "all",
+  "ack_wait": 30000000000,
+  "max_deliver": 10,
+  "max_ack_pending": 42,
+  "replay_policy": "original",
+  "filter_subject": "foo-filter",
+  "sample_freq": "sample_freq-value",
+  "rate_limit": 73
 }

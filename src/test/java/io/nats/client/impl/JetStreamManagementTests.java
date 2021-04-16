@@ -426,7 +426,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             ZonedDateTime beforeCreated = ZonedDateTime.now();
             js.publish(NatsMessage.builder().subject(SUBJECT).headers(h).data(dataBytes(1)).build());
-            js.publish(NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build());
+            js.publish(NatsMessage.builder().subject(SUBJECT).build());
 
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -442,7 +442,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             mi = jsm.getMessage(STREAM, 2);
             assertNotNull(mi.toString());
             assertEquals(SUBJECT, mi.getSubject());
-            assertEquals(data(2), new String(mi.getData()));
+            assertNull(mi.getData());
             assertEquals(2, mi.getSeq());
             assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
             assertNull(mi.getHeaders());
