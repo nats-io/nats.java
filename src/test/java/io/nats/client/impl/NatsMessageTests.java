@@ -146,7 +146,7 @@ public class NatsMessageTests {
         assertNotNull(m.toDetailString());
 
         // no reply to, no empty data
-        m = NatsMessage.builder().subject("test").data(null).build();
+        m = NatsMessage.builder().subject("test").data((byte[])null).build();
         assertNotNull(m.toString());
         assertNotNull(m.toDetailString());
 

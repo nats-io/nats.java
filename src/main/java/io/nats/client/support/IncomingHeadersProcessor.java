@@ -39,14 +39,20 @@ public class IncomingHeadersProcessor {
 
         // does the header end properly
         serializedLength = serialized.length;
-        new Token(serialized, serializedLength, serializedLength - 2, TokenType.CRLF);
+        Token terminus = new Token(serialized, serializedLength, serializedLength - 2, TokenType.CRLF);
         Token token = new Token(serialized, serializedLength, VERSION_BYTES_LEN, null);
 
+        boolean hadStatus = false;
         if (token.isType(TokenType.SPACE)) {
-            initStatus(serialized, serializedLength, token);
+            token = initStatus(serialized, serializedLength, token);
+            if (token.samePoint(terminus)) {
+                return; // status only
+            }
+            hadStatus = true;
         }
-        else if (token.isType(TokenType.CRLF)) {
-            initHeader(serialized, serializedLength, token);
+
+        if (token.isType(TokenType.CRLF)) {
+            initHeader(serialized, serializedLength, token, hadStatus);
         }
         else {
             throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
@@ -65,9 +71,8 @@ public class IncomingHeadersProcessor {
         return inlineStatus;
     }
 
-    private void initHeader(byte[] serialized, int len, Token tCrlf) {
+    private void initHeader(byte[] serialized, int len, Token tCrlf, boolean hadStatus) {
         // REGULAR HEADER
-        headers = new Headers();
         Token peek = new Token(serialized, len, tCrlf, null);
         while (peek.isType(TokenType.TEXT)) {
             Token tKey = new Token(serialized, len, tCrlf, TokenType.KEY);
@@ -82,27 +87,33 @@ public class IncomingHeadersProcessor {
                 tVal.mustBe(TokenType.CRLF);
                 tCrlf = tVal;
             }
+            if (headers == null) {
+                headers = new Headers();
+            }
             headers.add(tKey.getValue(), tVal.getValue());
             peek = new Token(serialized, len, tCrlf, null);
         }
         peek.mustBe(TokenType.CRLF);
 
-        if (headers.size() == 0) {
+        if ((headers == null || headers.size() == 0) && !hadStatus) {
             throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
         }
     }
 
-    private void initStatus(byte[] serialized, int len, Token tSpace) {
+    private Token initStatus(byte[] serialized, int len, Token tSpace) {
         Token tCode = new Token(serialized, len, tSpace, TokenType.WORD);
         Token tVal = new Token(serialized, len, tCode, null);
+        Token crlf;
         if (tVal.isType(TokenType.SPACE)) {
             tVal = new Token(serialized, len, tVal, TokenType.TEXT);
-            new Token(serialized, len, tVal, TokenType.CRLF);
+            crlf = new Token(serialized, len, tVal, TokenType.CRLF);
         }
         else {
             tVal.mustBe(TokenType.CRLF);
+            crlf = tVal;
         }
         inlineStatus = new Status(tCode, tVal);
+        return crlf;
     }
 
 }

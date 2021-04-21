@@ -397,6 +397,18 @@ public class NatsMessage implements Message {
         }
 
         /**
+         * Set the data from a string converting using the
+         * charset StandardCharsets.UTF_8
+         *
+         * @param data    the data string
+         * @return the builder
+         */
+        public Builder data(final String data) {
+            this.data = data.getBytes(StandardCharsets.UTF_8);
+            return this;
+        }
+
+        /**
          * Set the data from a string
          *
          * @param data    the data string
