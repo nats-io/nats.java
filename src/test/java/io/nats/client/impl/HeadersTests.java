@@ -219,6 +219,7 @@ public class HeadersTests {
         for (String k : keys) {
             assertFalse(keySet.contains(k));
             assertFalse(headers.containsExactKey(k));
+            assertNull(headers.getExact(k));
         }
     }
 
@@ -580,33 +581,68 @@ public class HeadersTests {
     }
 
     static class IteratorTestHelper {
-        String forEachString = "";
-        String entrySetString = "";
-        String manualString = "";
+        int manualCount = 0;
+        int forEachCount = 0;
+        int entrySetCount = 0;
+        StringBuilder manualCompareString = new StringBuilder();
+        StringBuilder forEachCompareString = new StringBuilder();
+        StringBuilder entrySetCompareString = new StringBuilder();
     }
 
     @Test
     public void iteratorsTest() {
         Headers headers = testHeaders();
-        IteratorTestHelper helper = new IteratorTestHelper();
+        headers.add(KEY1_ALT, VAL6);
 
+        IteratorTestHelper helper = new IteratorTestHelper();
         for (String key : headers.keySet()) {
-            helper.manualString += key;
-            headers.get(key).forEach(v -> helper.manualString += v);
+            helper.manualCount++;
+            helper.manualCompareString.append(key);
+            headers.get(key).forEach(v -> helper.manualCompareString.append(v));
         }
+        assertEquals(3, helper.manualCount);
 
         headers.forEach((key, values) -> {
-            helper.forEachString += key;
-            values.forEach(v -> helper.forEachString += v);
+            helper.forEachCount++;
+            helper.forEachCompareString.append(key);
+            values.forEach(v -> helper.forEachCompareString.append(v));
         });
+        assertEquals(3, helper.forEachCount);
 
         headers.entrySet().forEach(entry -> {
-            helper.entrySetString += entry.getKey();
-            entry.getValue().forEach(v -> helper.entrySetString += v);
+            helper.entrySetCount++;
+            helper.entrySetCompareString.append(entry.getKey());
+            entry.getValue().forEach(v -> helper.entrySetCompareString.append(v));
         });
+        assertEquals(3, helper.entrySetCount);
 
-        assertEquals(helper.manualString, helper.forEachString);
-        assertEquals(helper.manualString, helper.entrySetString);
+        assertEquals(helper.manualCompareString.toString(), helper.forEachCompareString.toString());
+        assertEquals(helper.manualCompareString.toString(), helper.entrySetCompareString.toString());
+
+        IteratorTestHelper exactHelper = new IteratorTestHelper();
+        for (String key : headers.uniqueKeySet()) {
+            exactHelper.manualCount++;
+            exactHelper.manualCompareString.append(key);
+            headers.getExact(key).forEach(v -> exactHelper.manualCompareString.append(v));
+        }
+        assertEquals(4, exactHelper.manualCount);
+
+        headers.forEachUnique((key, values) -> {
+            exactHelper.forEachCount++;
+            exactHelper.forEachCompareString.append(key);
+            values.forEach(v -> exactHelper.forEachCompareString.append(v));
+        });
+        assertEquals(4, exactHelper.forEachCount);
+
+        headers.uniqueEntrySet().forEach(entry -> {
+            exactHelper.entrySetCount++;
+            exactHelper.entrySetCompareString.append(entry.getKey());
+            entry.getValue().forEach(v -> exactHelper.entrySetCompareString.append(v));
+        });
+        assertEquals(4, exactHelper.entrySetCount);
+
+        assertEquals(exactHelper.manualCompareString.toString(), exactHelper.forEachCompareString.toString());
+        assertEquals(exactHelper.manualCompareString.toString(), exactHelper.entrySetCompareString.toString());
     }
 
     private Headers testHeaders() {
