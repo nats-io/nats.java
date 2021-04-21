@@ -404,7 +404,9 @@ public class NatsMessage implements Message {
          * @return the builder
          */
         public Builder data(final String data) {
-            this.data = data.getBytes(StandardCharsets.UTF_8);
+            if (data != null) {
+                this.data = data.getBytes(StandardCharsets.UTF_8);
+            }
             return this;
         }
 

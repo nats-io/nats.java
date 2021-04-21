@@ -23,8 +23,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
 
@@ -190,6 +189,18 @@ public class TestBase {
 
     public static void assertCanConnect(Options options) throws IOException, InterruptedException {
         standardCloseConnection( standardConnection(options) );
+    }
+
+    public static void assertByteArraysEqual(byte[] data1, byte[] data2) {
+        if (data1 == null) {
+            assertNull(data2);
+            return;
+        }
+        assertNotNull(data2);
+        assertEquals(data1.length, data2.length);
+        for (int x = 0; x < data1.length; x++) {
+            assertEquals(data1[x], data2[x]);
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------
