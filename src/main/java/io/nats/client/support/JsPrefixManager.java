@@ -29,7 +29,7 @@ public abstract class JsPrefixManager {
     private static final Set<String> JS_PREFIXES = Collections.synchronizedSet(new HashSet<>());
 
     public static String addPrefix(String prefix) {
-        if (nullOrEmpty(prefix)) {
+        if (nullOrEmpty(prefix) || prefix.equals(JSAPI_PREFIX)) {
             return JSAPI_PREFIX;
         }
 

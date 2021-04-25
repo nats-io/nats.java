@@ -16,29 +16,21 @@ import static io.nats.client.support.Validator.*;
 public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStreamConstants {
 
     private final NatsConnection conn;
-    private final String prefix;
-    private final Duration requestTimeout;
+    private final JetStreamOptions jso;
 
     // ----------------------------------------------------------------------------------------------------
     // Create / Init
     // ----------------------------------------------------------------------------------------------------
     NatsJetStream(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
         conn = connection;
-        if (jsOptions == null) {
-            prefix = JetStreamOptions.DEFAULT_JS_OPTIONS.getPrefix();
-            requestTimeout = JetStreamOptions.DEFAULT_JS_OPTIONS.getRequestTimeout();
-        }
-        else {
-            prefix = jsOptions.getPrefix();
-            requestTimeout = jsOptions.getRequestTimeout();
-        }
+        jso = JetStreamOptions.builder(jsOptions).build(); // builder handles null
 
         checkEnabled();
     }
 
     private void checkEnabled() throws IOException {
         try {
-            Message respMessage = makeRequest(JSAPI_ACCOUNT_INFO, null, requestTimeout);
+            Message respMessage = makeRequest(JSAPI_ACCOUNT_INFO, null, jso.getRequestTimeout());
             if (respMessage == null) {
                 throw new IllegalStateException("JetStream is not enabled.");
             }
@@ -82,14 +74,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         }
 
         String subj = String.format(template, streamName);
-        Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(), requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(), jso.getRequestTimeout());
         return new StreamInfo(resp).throwOnHasError();
     }
 
     @Override
     public boolean deleteStream(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_DELETE, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
@@ -99,7 +91,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public StreamInfo getStreamInfo(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new StreamInfo(resp).throwOnHasError();
     }
 
@@ -109,7 +101,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public PurgeResponse purgeStream(String streamName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new PurgeResponse(resp).throwOnHasError();
     }
 
@@ -144,14 +136,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public boolean deleteConsumer(String streamName, String consumer) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumer);
-        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
     @Override
     public ConsumerInfo getConsumerInfo(String streamName, String consumer) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumer);
-        Message resp = makeRequestResponseRequired(subj, null, requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
@@ -169,7 +161,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         String subj = String.format(JSAPI_CONSUMER_NAMES, streamName);
         ConsumerNamesReader cnr = new ConsumerNamesReader();
         while (cnr.hasMore()) {
-            Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter), requestTimeout);
+            Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter), jso.getRequestTimeout());
             cnr.process(resp);
         }
         return cnr.getStrings();
@@ -183,7 +175,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
         String subj = String.format(JSAPI_CONSUMER_LIST, streamName);
         ConsumerListReader clg = new ConsumerListReader();
         while (clg.hasMore()) {
-            Message resp = makeRequestResponseRequired(subj, clg.nextJson(), requestTimeout);
+            Message resp = makeRequestResponseRequired(subj, clg.nextJson(), jso.getRequestTimeout());
             clg.process(resp);
         }
         return clg.getConsumers();
@@ -193,7 +185,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     public List<String> getStreamNames() throws IOException, JetStreamApiException {
         StreamNamesReader snr = new StreamNamesReader();
         while (snr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAMS, snr.nextJson(), requestTimeout);
+            Message resp = makeRequestResponseRequired(JSAPI_STREAMS, snr.nextJson(), jso.getRequestTimeout());
             snr.process(resp);
         }
         return snr.getStrings();
@@ -203,7 +195,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     public List<StreamInfo> getStreams() throws IOException, JetStreamApiException {
         StreamListReader slg = new StreamListReader();
         while (slg.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slg.nextJson(), requestTimeout);
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slg.nextJson(), jso.getRequestTimeout());
             slg.process(resp);
         }
         return slg.getStreams();
@@ -212,14 +204,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     @Override
     public MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_MSG_GET, streamName);
-        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), jso.getRequestTimeout());
         return new MessageInfo(resp).throwOnHasError();
     }
 
     @Override
     public boolean deleteMessage(String streamName, long seq) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_MSG_DELETE, streamName);
-        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), requestTimeout);
+        Message resp = makeRequestResponseRequired(subj, simpleMessageBody(SEQ, seq), jso.getRequestTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
@@ -295,8 +287,14 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     }
 
     private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options) throws IOException, JetStreamApiException {
-        Duration timeout = options == null ? requestTimeout : options.getStreamTimeout();
         Headers merged = mergePublishOptions(headers, options);
+
+        if (jso.isPublishNoAck()) {
+            conn.publishInternal(subject, null, merged, data, utf8mode);
+            return null;
+        }
+
+        Duration timeout = options == null ? jso.getRequestTimeout() : options.getStreamTimeout();
 
         Message resp = makeRequestResponseRequired(subject, merged, data, utf8mode, timeout, false);
         return processPublishResponse(resp, options);
@@ -304,6 +302,12 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
 
     private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, boolean utf8mode, PublishOptions options, Duration knownTimeout) {
         Headers merged = mergePublishOptions(headers, options);
+
+        if (jso.isPublishNoAck()) {
+            conn.publishInternal(subject, null, merged, data, utf8mode);
+            return null;
+        }
+
         CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, utf8mode, knownTimeout, false);
 
         return future.thenCompose(resp -> {
@@ -582,7 +586,7 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     private String lookupStreamBySubject(String subject) throws IOException, JetStreamApiException {
         String streamRequest = String.format("{\"subject\":\"%s\"}", subject);
         StreamNamesReader snr = new StreamNamesReader();
-        Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), requestTimeout);
+        Message resp = makeRequestResponseRequired(JSAPI_STREAMS, streamRequest.getBytes(), jso.getRequestTimeout());
         snr.process(resp);
         if (snr.getStrings().size() != 1) {
             throw new IllegalStateException("No matching streams for subject: " + subject);
@@ -640,10 +644,10 @@ public class NatsJetStream implements JetStream, JetStreamManagement, NatsJetStr
     }
 
     String prependPrefix(String subject) {
-        return prefix + subject;
+        return jso.getPrefix() + subject;
     }
 
     Duration getRequestTimeout() {
-        return requestTimeout;
+        return jso.getRequestTimeout();
     }
 }
