@@ -314,7 +314,14 @@ public class JsMulti {
 
     private static Connection connect(Arguments a) throws Exception {
         Options options = createExampleOptions(a.server, true);
-        return Nats.connect(options);
+        Connection nc = Nats.connect(options);
+        for (long x = 0; x < 100; x++) { // waits up to 10 seconds (100 * 100 = 10000) millis to be connected
+            sleep(100);
+            if (nc.getStatus() == Connection.Status.CONNECTED) {
+                return nc;
+            }
+        }
+        return nc;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -329,11 +336,11 @@ public class JsMulti {
     }
 
     private static void runSingle(Arguments a, SingleRunner runner) throws Exception {
+        Stats stats = new Stats();
         try (Connection nc = connect(a)) {
-            Stats stats = new Stats();
             runner.run(nc.jetStream(), stats);
-            reportStats(stats, "Total");
         }
+        reportStats(stats, "Total");
     }
 
     private static void runShared(Arguments a, ThreadedRunner runner) throws Exception {
