@@ -28,10 +28,12 @@ public class JetStreamOptions {
 
     private final String prefix;
     private final Duration requestTimeout;
+    private final boolean publishNoAck;
 
-    private JetStreamOptions(String prefix, Duration requestTimeout) {
+    private JetStreamOptions(String prefix, Duration requestTimeout, boolean publishNoAck) {
         this.prefix = prefix;
         this.requestTimeout = requestTimeout;
+        this.publishNoAck = publishNoAck;
     }
 
     /**
@@ -52,11 +54,28 @@ public class JetStreamOptions {
     }
 
     /**
+     * Gets the whether the publish no ack flag was set
+     * @return the flag
+     */
+    public boolean isPublishNoAck() {
+        return publishNoAck;
+    }
+
+    /**
      * Creates a builder for the publish options.
      * @return the builder.
      */
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Creates a builder to copy the options.
+     * @param jso an existing JetStreamOptions
+     * @return a stream configuration builder
+     */
+    public static Builder builder(JetStreamOptions jso) {
+        return new Builder(jso);
     }
 
     /**
@@ -75,6 +94,17 @@ public class JetStreamOptions {
 
         private String prefix;
         private Duration requestTimeout;
+        private boolean publishNoAck;
+
+        public Builder() {}
+
+        public Builder(JetStreamOptions jso) {
+            if (jso != null) {
+                this.prefix = jso.prefix;
+                this.requestTimeout = jso.requestTimeout;
+                this.publishNoAck = jso.publishNoAck;
+            }
+        }
 
         /**
          * Sets the request timeout for JetStream API calls.
@@ -99,13 +129,23 @@ public class JetStreamOptions {
         }
 
         /**
+         * Sets whether the streams in use by contexts created with these options are no-ack streams.
+         * @param publishNoAck how to treat publishes to the stream
+         * @return the builder
+         */
+        public Builder publishNoAck(final boolean publishNoAck) {
+            this.publishNoAck = publishNoAck;
+            return this;
+        }
+
+        /**
          * Builds the JetStream options.
          * @return JetStream options
          */
         public JetStreamOptions build() {
             prefix = JsPrefixManager.addPrefix(prefix);
             this.requestTimeout = requestTimeout == null ? DEFAULT_TIMEOUT : requestTimeout;
-            return new JetStreamOptions(prefix, requestTimeout);
+            return new JetStreamOptions(prefix, requestTimeout, publishNoAck);
         }
     }
 }

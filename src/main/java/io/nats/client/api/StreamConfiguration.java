@@ -320,7 +320,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Creates a builder for the stream configuration.
+     * Creates a builder to copy the stream configuration.
      * @param sc an existing StreamConfiguration
      * @return a stream configuration builder
      */
@@ -365,23 +365,25 @@ public class StreamConfiguration implements JsonSerializable {
          * @param sc the configuration to copy
          */
         public Builder(StreamConfiguration sc) {
-            this.name = sc.name;
-            subjects(sc.subjects);
-            this.retentionPolicy = sc.retentionPolicy;
-            this.maxConsumers = sc.maxConsumers;
-            this.maxMsgs = sc.maxMsgs;
-            this.maxBytes = sc.maxBytes;
-            this.maxAge = sc.maxAge;
-            this.maxMsgSize = sc.maxMsgSize;
-            this.storageType = sc.storageType;
-            this.replicas = sc.replicas;
-            this.noAck = sc.noAck;
-            this.templateOwner = sc.templateOwner;
-            this.discardPolicy = sc.discardPolicy;
-            this.duplicateWindow = sc.duplicateWindow;
-            this.placement = sc.placement;
-            this.mirror = sc.mirror;
-            sources(sc.sources);
+            if (sc != null) {
+                this.name = sc.name;
+                subjects(sc.subjects);
+                this.retentionPolicy = sc.retentionPolicy;
+                this.maxConsumers = sc.maxConsumers;
+                this.maxMsgs = sc.maxMsgs;
+                this.maxBytes = sc.maxBytes;
+                this.maxAge = sc.maxAge;
+                this.maxMsgSize = sc.maxMsgSize;
+                this.storageType = sc.storageType;
+                this.replicas = sc.replicas;
+                this.noAck = sc.noAck;
+                this.templateOwner = sc.templateOwner;
+                this.discardPolicy = sc.discardPolicy;
+                this.duplicateWindow = sc.duplicateWindow;
+                this.placement = sc.placement;
+                this.mirror = sc.mirror;
+                sources(sc.sources);
+            }
         }
 
         /**

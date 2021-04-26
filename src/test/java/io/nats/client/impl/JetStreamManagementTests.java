@@ -31,9 +31,22 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testStreamCreate() throws Exception {
         runInJsServer(nc -> {
-            StreamInfo si = createMemoryStream(nc, STREAM, subject(0), subject(1));
-            StreamConfiguration sc = si.getConfiguration();
+            long now = ZonedDateTime.now().toEpochSecond();
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            StreamConfiguration sc = StreamConfiguration.builder()
+                    .name(STREAM)
+                    .storageType(StorageType.Memory)
+                    .subjects(subject(0), subject(1))
+                    .build();
+
+            StreamInfo si = jsm.addStream(sc);
+            assertTrue(now <= si.getCreateTime().toEpochSecond());
+
+            sc = si.getConfiguration();
             assertEquals(STREAM, sc.getName());
+
             assertEquals(2, sc.getSubjects().size());
             assertEquals(subject(0), sc.getSubjects().get(0));
             assertEquals(subject(1), sc.getSubjects().get(1));
@@ -50,8 +63,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(-1, sc.getMaxMsgSize());
             assertEquals(1, sc.getReplicas());
 
-            assertEquals(Duration.ofSeconds(0), sc.getMaxAge());
+            assertEquals(Duration.ZERO, sc.getMaxAge());
             assertEquals(Duration.ofSeconds(120), sc.getDuplicateWindow());
+            assertFalse(sc.getNoAck());
+            assertNull(sc.getTemplateOwner());
 
             StreamState ss = si.getStreamState();
             assertEquals(0, ss.getMsgCount());
@@ -59,45 +74,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, ss.getFirstSequence());
             assertEquals(0, ss.getLastSequence());
             assertEquals(0, ss.getConsumerCount());
-        });
-    }
-
-    @Test
-    public void addStream() throws Exception {
-        runInJsServer(nc -> {
-            long now = ZonedDateTime.now().toEpochSecond();
-
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            StreamInfo si = addTestStream(jsm);
-            assertTrue(now <= si.getCreateTime().toEpochSecond());
-
-            StreamConfiguration sc = si.getConfiguration();
-            assertNotNull(sc);
-            assertEquals(STREAM, sc.getName());
-            assertNotNull(sc.getSubjects());
-            assertEquals(2, sc.getSubjects().size());
-            assertEquals(subject(0), sc.getSubjects().get(0));
-            assertEquals(subject(1), sc.getSubjects().get(1));
-            assertEquals(RetentionPolicy.Limits, sc.getRetentionPolicy());
-            assertEquals(-1, sc.getMaxConsumers());
-            assertEquals(-1, sc.getMaxBytes());
-            assertEquals(-1, sc.getMaxMsgSize());
-            assertEquals(Duration.ZERO, sc.getMaxAge());
-            assertEquals(StorageType.Memory, sc.getStorageType());
-            assertEquals(DiscardPolicy.Old, sc.getDiscardPolicy());
-            assertEquals(1, sc.getReplicas());
-            assertFalse(sc.getNoAck());
-            assertEquals(Duration.ofMinutes(2), sc.getDuplicateWindow());
-            assertNull(sc.getTemplateOwner());
-
-            StreamState state = si.getStreamState();
-            assertNotNull(state);
-            assertEquals(0, state.getMsgCount());
-            assertEquals(0, state.getByteCount());
-            assertEquals(0, state.getFirstSequence());
-            assertEquals(0, state.getMsgCount());
-            assertEquals(0, state.getLastSequence());
-            assertEquals(0, state.getConsumerCount());
         });
     }
 

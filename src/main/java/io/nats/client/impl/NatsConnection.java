@@ -742,7 +742,7 @@ class NatsConnection implements Connection {
         publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), message.isUtf8mode());
     }
 
-    private void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
+    void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
         checkIfNeedsHeaderSupport(headers);
         checkPayloadSize(data);
 

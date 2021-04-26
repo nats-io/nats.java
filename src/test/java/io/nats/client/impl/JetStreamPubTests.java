@@ -15,9 +15,12 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.PublishAck;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -242,5 +245,40 @@ public class JetStreamPubTests extends JetStreamTestBase {
         assertEquals(42, pa.getSeqno());
         assertFalse(pa.isDuplicate());
         assertNotNull(pa.toString());
+    }
+
+    @Test
+    public void testPublishNoAck() throws Exception {
+        runInJsServer(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            StreamConfiguration sc = StreamConfiguration.builder()
+                    .name(STREAM)
+                    .storageType(StorageType.Memory)
+                    .subjects(SUBJECT)
+                    .noAck(true)
+                    .build();
+
+            jsm.addStream(sc);
+
+            JetStreamOptions jso = JetStreamOptions.builder().publishNoAck(true).build();
+            JetStream js = nc.jetStream(jso);
+
+            String data1 = "noackdata1";
+            String data2 = "noackdata2";
+
+            PublishAck pa = js.publish(SUBJECT, data1.getBytes());
+            assertNull(pa);
+
+            CompletableFuture<PublishAck> f = js.publishAsync(SUBJECT, data2.getBytes());
+            assertNull(f);
+
+            JetStreamSubscription sub = js.subscribe(SUBJECT);
+            Message m = sub.nextMessage(Duration.ofSeconds(2));
+            assertNotNull(m);
+            assertEquals(data1, new String(m.getData()));
+            m = sub.nextMessage(Duration.ofSeconds(2));
+            assertNotNull(m);
+            assertEquals(data2, new String(m.getData()));
+        });
     }
 }
