@@ -57,36 +57,35 @@ public class HeadersTests {
         Headers headers = new Headers();
 
         stepKey1Val1.accept(headers);
-        assertContainsKeys(headers, 1, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
-        assertContainsExactKeys(headers, 1, Collections.singletonList(KEY1));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
+        assertNotContainsKeysIgnoreCase(headers, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
+        assertContainsKeys(headers, 1, Collections.singletonList(KEY1));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
         validateDirtyAndLength(headers);
 
         step2Key1Val2.accept(headers);
-        assertContainsKeys(headers, 1, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
-        assertContainsExactKeys(headers, 1, Collections.singletonList(KEY1));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Arrays.asList(VAL1, VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Arrays.asList(VAL1, VAL2));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
+        assertNotContainsKeysIgnoreCase(headers, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
+        assertContainsKeys(headers, 1, Collections.singletonList(KEY1));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Arrays.asList(VAL1, VAL2));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1), Arrays.asList(VAL1, VAL2));
         validateDirtyAndLength(headers);
 
         step3Key2Val3.accept(headers);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY1, KEY2));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL3));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
+        assertNotContainsKeysIgnoreCase(headers, Collections.singletonList(KEY3));
+        assertContainsKeys(headers, 2, Arrays.asList(KEY1, KEY2));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL3));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL3));
         validateDirtyAndLength(headers);
 
         step4Key1AVal4Val5.accept(headers);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
-        assertContainsExactKeys(headers, 3, Arrays.asList(KEY1, KEY2, KEY1_ALT));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Arrays.asList(VAL1, VAL2, VAL4, VAL5));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Arrays.asList(VAL1, VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1_ALT), Arrays.asList(VAL4, VAL5));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
+        assertContainsKeys(headers, 3, Arrays.asList(KEY1, KEY2, KEY1_ALT));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Arrays.asList(VAL1, VAL2, VAL4, VAL5));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1), Arrays.asList(VAL1, VAL2));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1_ALT), Arrays.asList(VAL4, VAL5));
         validateDirtyAndLength(headers);
     }
 
@@ -97,8 +96,7 @@ public class HeadersTests {
                 headers -> headers.put(KEY1, VAL2),
                 headers -> headers.put(KEY2, VAL3),
                 headers -> headers.put(KEY1_ALT, VAL4),
-                headers -> headers.add(KEY1, VAL5),
-                headers -> headers.put(KEY1_OTHER, VAL6)
+                headers -> headers.put(KEY1_OTHER, VAL5)
         );
     }
 
@@ -109,8 +107,7 @@ public class HeadersTests {
                 headers -> headers.put(KEY1, Collections.singletonList(VAL2)),
                 headers -> headers.put(KEY2, Collections.singletonList(VAL3)),
                 headers -> headers.put(KEY1_ALT, Collections.singletonList(VAL4)),
-                headers -> headers.add(KEY1, Collections.singletonList(VAL5)),
-                headers -> headers.put(KEY1_OTHER, Collections.singletonList(VAL6))
+                headers -> headers.put(KEY1_OTHER, Collections.singletonList(VAL5))
         );
     }
 
@@ -119,59 +116,59 @@ public class HeadersTests {
             Consumer<Headers> step2PutKey1Val2,
             Consumer<Headers> step3PutKey2Val3,
             Consumer<Headers> step4PutKey1AVal4,
-            Consumer<Headers> step5AddKey1Val5,
-            Consumer<Headers> step6PutKey1HVal6)
+            Consumer<Headers> step6PutKey1HVal5)
     {
         Headers headers = new Headers();
         assertTrue(headers.isEmpty());
 
         step1PutKey1Val1.accept(headers);
-        assertContainsKeys(headers, 1, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
-        assertContainsExactKeys(headers, 1, Collections.singletonList(KEY1));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
+        assertContainsKeys(headers, 1, Collections.singletonList(KEY1));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
+        assertNotContainsKeysIgnoreCase(headers, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
         validateDirtyAndLength(headers);
 
         step2PutKey1Val2.accept(headers);
-        assertContainsKeys(headers, 1, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
-        assertContainsExactKeys(headers, 1, Collections.singletonList(KEY1));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL2));
+        assertContainsKeys(headers, 1, Collections.singletonList(KEY1));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
+        assertNotContainsKeysIgnoreCase(headers, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL2));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL2));
         validateDirtyAndLength(headers);
 
         step3PutKey2Val3.accept(headers);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY1, KEY2));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL3));
+        assertContainsKeys(headers, 2, Arrays.asList(KEY1, KEY2));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
+        assertNotContainsKeysIgnoreCase(headers, Collections.singletonList(KEY3));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL3));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL3));
         validateDirtyAndLength(headers);
 
         step4PutKey1AVal4.accept(headers);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY1_ALT, KEY2));
-        assertNotExactKeys(headers, Arrays.asList(KEY1, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL4));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1_ALT), Collections.singletonList(VAL4));
+        assertContainsKeys(headers, 3, Arrays.asList(KEY1, KEY1_ALT, KEY2));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
+        assertNotContainsKeysIgnoreCase(headers, Collections.singletonList(KEY3));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1_ALT), Collections.singletonList(VAL4));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Arrays.asList(VAL2, VAL4));
         validateDirtyAndLength(headers);
 
-        step5AddKey1Val5.accept(headers);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
-        assertContainsExactKeys(headers, 3, Arrays.asList(KEY1_ALT, KEY2, KEY1));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Arrays.asList(VAL4, VAL5));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1_ALT), Collections.singletonList(VAL4));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL5));
-        validateDirtyAndLength(headers);
+        step6PutKey1HVal5.accept(headers);
+        assertContainsKeys(headers, 4, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2));
+        assertNotContainsKeysIgnoreCase(headers, Collections.singletonList(KEY3));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1_OTHER), Collections.singletonList(VAL5));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Arrays.asList(VAL2, VAL4, VAL5));
+    }
 
-        step6PutKey1HVal6.accept(headers);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY2, KEY1_OTHER));
-        assertNotExactKeys(headers, Arrays.asList(KEY1, KEY1_ALT, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL6));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1_OTHER), Collections.singletonList(VAL6));
+    private void assertKeyIgnoreCaseContainsValues(Headers headers, List<String> keys, List<String> values) {
+        for (String k : keys) {
+            List<String> hVals = headers.getIgnoreCase(k);
+            assertEquals(values.size(), hVals.size());
+            for (String v : values) {
+                assertTrue(hVals.contains(v));
+            }
+        }
     }
 
     private void assertKeyContainsValues(Headers headers, List<String> keys, List<String> values) {
@@ -184,42 +181,31 @@ public class HeadersTests {
         }
     }
 
-    private void assertExactKeyContainsValues(Headers headers, List<String> keys, List<String> values) {
-        for (String k : keys) {
-            List<String> hVals = headers.getExact(k);
-            assertEquals(values.size(), hVals.size());
-            for (String v : values) {
-                assertTrue(hVals.contains(v));
-            }
-        }
-    }
-
-    private void assertContainsKeys(Headers headers, int countKeys, List<String> keys) {
-        Set<String> keySet = headers.keySet();
+    private void assertContainsKeysIgnoreCase(Headers headers, List<String> keys) {
+        Set<String> keySet = headers.keySetIgnoreCase();
         assertNotNull(keySet);
-        assertEquals(countKeys, headers.size());
         for (String k : keys) {
             assertTrue(keySet.contains(k.toLowerCase()));
-            assertTrue(headers.containsKey(k));
+            assertTrue(headers.containsKeyIgnoreCase(k));
         }
     }
 
-    private void assertContainsExactKeys(Headers headers, int countUniqueKeys, List<String> keys) {
-        Set<String> keySet = headers.uniqueKeySet();
+    private void assertNotContainsKeysIgnoreCase(Headers headers, List<String> keys) {
+        Set<String> keySet = headers.keySetIgnoreCase();
+        for (String k : keys) {
+            assertFalse(keySet.contains(k.toLowerCase()));
+            assertFalse(headers.containsKeyIgnoreCase(k));
+            assertNull(headers.getIgnoreCase(k));
+        }
+    }
+
+    private void assertContainsKeys(Headers headers, int countUniqueKeys, List<String> keys) {
+        Set<String> keySet = headers.keySet();
         assertNotNull(keySet);
-        assertEquals(countUniqueKeys, headers.uniqueSize());
+        assertEquals(countUniqueKeys, headers.size());
         for (String k : keys) {
             assertTrue(keySet.contains(k));
-            assertTrue(headers.containsExactKey(k));
-        }
-    }
-
-    private void assertNotExactKeys(Headers headers, List<String> keys) {
-        Set<String> keySet = headers.uniqueKeySet();
-        for (String k : keys) {
-            assertFalse(keySet.contains(k));
-            assertFalse(headers.containsExactKey(k));
-            assertNull(headers.getExact(k));
+            assertTrue(headers.containsKey(k));
         }
     }
 
@@ -351,92 +337,58 @@ public class HeadersTests {
     }
 
     @Test
-    public void removes_work() {
+    public void remove_string_work() {
+        remove(
+                headers -> headers.remove(KEY1),
+                headers -> headers.remove(KEY1_ALT),
+                headers -> headers.remove(KEY1_OTHER),
+                headers -> headers.remove(KEY2, KEY3)
+        );
+    }
+
+    @Test
+    public void remove_collection_work() {
+        remove(
+                headers -> headers.remove(Collections.singletonList(KEY1)),
+                headers -> headers.remove(Collections.singletonList(KEY1_ALT)),
+                headers -> headers.remove(Collections.singletonList(KEY1_OTHER)),
+                headers -> headers.remove(Arrays.asList(KEY2, KEY3))
+        );
+    }
+
+    private void remove(
+            Consumer<Headers> step1RemoveKey1,
+            Consumer<Headers> step2RemoveKey1A,
+            Consumer<Headers> step3RemoveKey1H,
+            Consumer<Headers> step4RemoveKey2Key3)
+    {
         Headers headers = testHeaders();
 
-        headers.remove(KEY1);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY2, KEY3));
-        assertNotExactKeys(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
+        step1RemoveKey1.accept(headers);
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
+        assertNotContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
+        assertContainsKeys(headers, 2, Arrays.asList(KEY2, KEY3));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
+        assertKeyIgnoreCaseContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
         assertKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
         validateDirtyAndLength(headers);
 
         headers = testHeaders();
-        headers.remove(KEY1_ALT);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY2, KEY3));
-        assertNotExactKeys(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
-        assertKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        validateDirtyAndLength(headers);
+        step2RemoveKey1A.accept(headers);
+        assertContainsKeys(headers, 3, Arrays.asList(KEY1, KEY2, KEY3));
 
         headers = testHeaders();
-        headers.remove(KEY1_OTHER);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY2, KEY3));
-        assertNotExactKeys(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
-        assertKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        validateDirtyAndLength(headers);
+        step3RemoveKey1H.accept(headers);
+        assertContainsKeys(headers, 3, Arrays.asList(KEY1, KEY2, KEY3));
 
         headers = testHeaders();
-        headers.remove(KEY2, KEY3);
-        assertContainsKeys(headers, 1, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
-        assertContainsExactKeys(headers, 1, Collections.singletonList(KEY1));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER, KEY3));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
-        validateDirtyAndLength(headers);
-
-        headers = testHeaders();
-        headers.remove(KEY1);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY2, KEY3));
-        assertNotExactKeys(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
-        assertKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        validateDirtyAndLength(headers);
-
-        headers = testHeaders();
-        headers.remove(Arrays.asList(KEY2, KEY3));
-        assertContainsKeys(headers, 1, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
-        assertContainsExactKeys(headers, 1, Collections.singletonList(KEY1));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER, KEY3));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
-        validateDirtyAndLength(headers);
-
-        headers = testHeaders();
-        headers.add(KEY1_ALT, VAL6);
-        assertContainsKeys(headers, 3, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER, KEY3));
-        assertContainsExactKeys(headers, 4, Arrays.asList(KEY1, KEY1_ALT, KEY2, KEY3));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Arrays.asList(VAL1, VAL6));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
-        assertKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1_ALT), Collections.singletonList(VAL6));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        validateDirtyAndLength(headers);
-
-        headers.remove(KEY1);
-        assertContainsKeys(headers, 2, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
-        assertContainsExactKeys(headers, 2, Arrays.asList(KEY2, KEY3));
-        assertNotExactKeys(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
-        assertKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
+        step4RemoveKey2Key3.accept(headers);
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER));
+        assertNotContainsKeysIgnoreCase(headers, Arrays.asList(KEY2, KEY2_OTHER, KEY3));
+        assertContainsKeys(headers, 1, Collections.singletonList(KEY1));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
         validateDirtyAndLength(headers);
     }
 
@@ -600,49 +552,26 @@ public class HeadersTests {
             helper.manualCompareString.append(key);
             headers.get(key).forEach(v -> helper.manualCompareString.append(v));
         }
-        assertEquals(3, helper.manualCount);
+        assertEquals(4, helper.manualCount);
 
         headers.forEach((key, values) -> {
             helper.forEachCount++;
             helper.forEachCompareString.append(key);
             values.forEach(v -> helper.forEachCompareString.append(v));
         });
-        assertEquals(3, helper.forEachCount);
+        assertEquals(4, helper.forEachCount);
 
         headers.entrySet().forEach(entry -> {
             helper.entrySetCount++;
             helper.entrySetCompareString.append(entry.getKey());
             entry.getValue().forEach(v -> helper.entrySetCompareString.append(v));
         });
-        assertEquals(3, helper.entrySetCount);
+        assertEquals(4, helper.entrySetCount);
 
         assertEquals(helper.manualCompareString.toString(), helper.forEachCompareString.toString());
         assertEquals(helper.manualCompareString.toString(), helper.entrySetCompareString.toString());
 
-        IteratorTestHelper exactHelper = new IteratorTestHelper();
-        for (String key : headers.uniqueKeySet()) {
-            exactHelper.manualCount++;
-            exactHelper.manualCompareString.append(key);
-            headers.getExact(key).forEach(v -> exactHelper.manualCompareString.append(v));
-        }
-        assertEquals(4, exactHelper.manualCount);
-
-        headers.forEachUnique((key, values) -> {
-            exactHelper.forEachCount++;
-            exactHelper.forEachCompareString.append(key);
-            values.forEach(v -> exactHelper.forEachCompareString.append(v));
-        });
-        assertEquals(4, exactHelper.forEachCount);
-
-        headers.uniqueEntrySet().forEach(entry -> {
-            exactHelper.entrySetCount++;
-            exactHelper.entrySetCompareString.append(entry.getKey());
-            entry.getValue().forEach(v -> exactHelper.entrySetCompareString.append(v));
-        });
-        assertEquals(4, exactHelper.entrySetCount);
-
-        assertEquals(exactHelper.manualCompareString.toString(), exactHelper.forEachCompareString.toString());
-        assertEquals(exactHelper.manualCompareString.toString(), exactHelper.entrySetCompareString.toString());
+        assertEquals(3, headers.keySetIgnoreCase().size());
     }
 
     private Headers testHeaders() {
@@ -654,15 +583,14 @@ public class HeadersTests {
         validateDirtyAndLength(headers);
         headers.put(KEY3, VAL3);
         validateDirtyAndLength(headers);
-        assertContainsKeys(headers, 3, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER, KEY3));
-        assertContainsExactKeys(headers, 3, Arrays.asList(KEY1, KEY2, KEY3));
-        assertNotExactKeys(headers, Arrays.asList(KEY1_ALT, KEY1_OTHER, KEY2_OTHER));
-        assertKeyContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
-        assertKeyContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
+        assertContainsKeysIgnoreCase(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER, KEY2, KEY2_OTHER, KEY3));
+        assertContainsKeys(headers, 3, Arrays.asList(KEY1, KEY2, KEY3));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY1, KEY1_ALT, KEY1_OTHER), Collections.singletonList(VAL1));
+        assertKeyIgnoreCaseContainsValues(headers, Arrays.asList(KEY2, KEY2_OTHER), Collections.singletonList(VAL2));
+        assertKeyIgnoreCaseContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
+        assertKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
         assertKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY1), Collections.singletonList(VAL1));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY2), Collections.singletonList(VAL2));
-        assertExactKeyContainsValues(headers, Collections.singletonList(KEY3), Collections.singletonList(VAL3));
         return headers;
     }
 
@@ -757,6 +685,30 @@ public class HeadersTests {
         Token t = new Token("k1:v1\r\n\r\n".getBytes(StandardCharsets.US_ASCII), 9, 0, TokenType.KEY);
         t.mustBe(TokenType.KEY);
         assertThrows(IllegalArgumentException.class, () -> t.mustBe(TokenType.CRLF));
+    }
+
+    @Test
+    public void testTokenSamePoint() {
+        byte[] serialized1 = " \r\n".getBytes(StandardCharsets.US_ASCII);
+        Token t1 = new Token(serialized1, serialized1.length, 0, TokenType.SPACE);
+        // equals
+        Token t1Same = new Token(serialized1, serialized1.length, 0, TokenType.SPACE);
+        assertTrue(t1.samePoint(t1Same));
+
+        // same start, same end, different type
+        byte[] notSame = "x\r\n".getBytes(StandardCharsets.US_ASCII);
+        Token tNotSame = new Token(notSame, notSame.length, 0, TokenType.TEXT);
+        assertFalse(t1.samePoint(tNotSame));
+
+        // same start, different end, same type
+        notSame = "  \r\n".getBytes(StandardCharsets.US_ASCII);
+        tNotSame = new Token(notSame, notSame.length, 0, TokenType.SPACE);
+        assertFalse(t1.samePoint(tNotSame));
+
+        // different start
+        notSame = "x  \r\n".getBytes(StandardCharsets.US_ASCII);
+        tNotSame = new Token(notSame, notSame.length, 1, TokenType.SPACE);
+        assertFalse(t1.samePoint(tNotSame));
     }
 
     @Test

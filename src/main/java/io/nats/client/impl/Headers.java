@@ -33,23 +33,20 @@ public class Headers {
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
 
-	private final Map<String, List<String>> sensitiveMap;
-	private final Map<String, List<String>> insensitiveMap;
+	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
 	private byte[] serialized;
 	private int dataLength;
 
 	public Headers() {
-		sensitiveMap = new HashMap<>();
-		insensitiveMap = new HashMap<>();
+		valuesMap = new HashMap<>();
 		lengthMap = new HashMap<>();
 	}
 
 	public Headers(Headers headers) {
 		this();
 		if (headers != null) {
-			sensitiveMap.putAll(headers.sensitiveMap);
-			insensitiveMap.putAll(headers.insensitiveMap);
+			valuesMap.putAll(headers.valuesMap);
 			lengthMap.putAll(headers.lengthMap);
 			dataLength = headers.dataLength;
 			serialized = null;
@@ -92,20 +89,14 @@ public class Headers {
 		if (values != null) {
 			Checker checked = new Checker(key, values);
 			if (checked.hasValues()) {
-				List<String> currentSet = sensitiveMap.computeIfAbsent(key, k -> new ArrayList<>());
+				// get values by key or compute empty if absent
+				// update the data length with the additional len
+				// update the lengthMap for the key to the old length plus the new length
+				List<String> currentSet = valuesMap.computeIfAbsent(key, k -> new ArrayList<>());
 				currentSet.addAll(checked.list);
-
-				String lower = key.toLowerCase();
-				currentSet = insensitiveMap.get(lower);
-				if (currentSet == null) {
-					insensitiveMap.put(lower, checked.list);
-					lengthMap.put(lower, checked.len);
-				} else {
-					currentSet.addAll(checked.list);
-					lengthMap.put(lower, lengthMap.get(lower) + checked.len);
-				}
-
 				dataLength += checked.len;
+				int oldLen = lengthMap.getOrDefault(key, 0);
+				lengthMap.put(key, oldLen + checked.len);
 				serialized = null; // since the data changed, clear this so it's rebuilt
 			}
 		}
@@ -148,14 +139,14 @@ public class Headers {
 		if (key == null || key.length() == 0) {
 			throw new IllegalArgumentException("Key cannot be null or empty.");
 		}
-		String lower = _remove(key);
 		if (values != null) {
 			Checker checked = new Checker(key, values);
 			if (checked.hasValues()) {
-				sensitiveMap.put(key, checked.list);
-				insensitiveMap.put(lower, new ArrayList<>(checked.list));
-				lengthMap.put(lower, checked.len);
-				dataLength += checked.len;
+				// update the data length removing the old length adding the new length
+				// put for the key
+				dataLength = dataLength - lengthMap.getOrDefault(key, 0) + checked.len;
+				valuesMap.put(key, checked.list);
+				lengthMap.put(key, checked.len);
 				serialized = null; // since the data changed, clear this so it's rebuilt
 			}
 		}
@@ -185,39 +176,20 @@ public class Headers {
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
 
-	private String _remove(String key) {
-		String lower = key.toLowerCase();
-		if (insensitiveMap.remove(lower) != null) {
-			List<String> removes = new ArrayList<>();
-			for (String k : sensitiveMap.keySet()) {
-				if (lower.equals(k.toLowerCase())) {
-					removes.add(k);
-				}
-			}
-			for (String k : removes) {
-				sensitiveMap.remove(k);
-			}
-			dataLength = dataLength - lengthMap.getOrDefault(lower, 0);
+	private void _remove(String key) {
+		// if the values had a key, then the data length had a length
+		if (valuesMap.remove(key) != null) {
+			dataLength -= lengthMap.remove(key);
 		}
-		return lower;
 	}
 
 	/**
-	 * Returns the number of keys (case insensitive) in the header.
+	 * Returns the number of keys (case sensitive) in the header.
 	 *
 	 * @return the number of keys
 	 */
 	public int size() {
-		return insensitiveMap.size();
-	}
-
-	/**
-	 * Returns the number of unique keys in the header.
-	 *
-	 * @return the number of unique keys
-	 */
-	public int uniqueSize() {
-		return sensitiveMap.size();
+		return valuesMap.size();
 	}
 
 	/**
@@ -226,47 +198,42 @@ public class Headers {
 	 * @return <tt>true</tt> if this map contains no keys
 	 */
 	public boolean isEmpty() {
-		return sensitiveMap.isEmpty();
+		return valuesMap.isEmpty();
 	}
 
 	/**
 	 * Removes all of the keys The object map will be empty after this call returns.
 	 */
 	public void clear() {
-		sensitiveMap.clear();
-		insensitiveMap.clear();
+		valuesMap.clear();
 		lengthMap.clear();
 		dataLength = 0;
 		serialized = null;
 	}
 
 	/**
-	 * Returns <tt>true</tt> if key (case insensitive) is present (has values)
-	 *
-	 * @param key key whose presence is to be tested
-	 * @return <tt>true</tt> if the key is present (has values)
-	 */
-	public boolean containsKey(String key) {
-		return insensitiveMap.containsKey(key.toLowerCase());
-	}
-
-	/**
 	 * Returns <tt>true</tt> if key (case sensitive) is present (has values)
 	 *
-	 * @param key exact key whose presence is to be tested
-	 * @return <tt>true</tt> if the key is present (has values)
+	 * @param key key whose presence is to be tested
+	 * @return <tt>true</tt> if the key (case sensitive) is present (has values)
 	 */
-	public boolean containsExactKey(String key) {
-		return sensitiveMap.containsKey(key);
+	public boolean containsKey(String key) {
+		return valuesMap.containsKey(key);
 	}
 
 	/**
-	 * Returns a {@link Set} view of the keys (case insensitive) contained in the object.
+	 * Returns <tt>true</tt> if key (case insensitive) is present (has values)
 	 *
-	 * @return a read-only set the keys contained in this map
+	 * @param key exact key whose presence is to be tested
+	 * @return <tt>true</tt> if the key (case insensitive) is present (has values)
 	 */
-	public Set<String> keySet() {
-		return Collections.unmodifiableSet(insensitiveMap.keySet());
+	public boolean containsKeyIgnoreCase(String key) {
+		for (String k : valuesMap.keySet()) {
+			if (k.equalsIgnoreCase(key)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -274,44 +241,48 @@ public class Headers {
 	 *
 	 * @return a read-only set the keys contained in this map
 	 */
-	public Set<String> uniqueKeySet() {
-		return Collections.unmodifiableSet(sensitiveMap.keySet());
+	public Set<String> keySet() {
+		return Collections.unmodifiableSet(valuesMap.keySet());
 	}
 
 	/**
-	 * Returns a {@link List} view of the values for the specific (case insensitive) key.
-	 * Will be {@code null} if the key is not found.
+	 * Returns a {@link Set} view of the keys (case insensitive) contained in the object.
 	 *
-	 * @return a read-only list of the values for the specific key.
+	 * @return a read-only set of keys (in lowercase) contained in this map
 	 */
-	public List<String> get(String key) {
-		List<String> values = insensitiveMap.get(key.toLowerCase());
-		return values == null ? null : new ArrayList<>(values);
+	public Set<String> keySetIgnoreCase() {
+		HashSet<String> set = new HashSet<>();
+		for (String k : valuesMap.keySet()) {
+			set.add(k.toLowerCase());
+		}
+		return Collections.unmodifiableSet(set);
 	}
 
 	/**
 	 * Returns a {@link List} view of the values for the specific (case sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @return a read-only list of the values for the specific key.
+	 * @return a read-only list of the values for the case sensitive key.
 	 */
-	public List<String> getExact(String key) {
-		List<String> values = sensitiveMap.get(key);
-		return values == null ? null : new ArrayList<>(values);
+	public List<String> get(String key) {
+		List<String> values = valuesMap.get(key);
+		return values == null ? null : Collections.unmodifiableList(values);
 	}
 
 	/**
-	 * Performs the given action for each header entry (case insensitive keys) until all entries
-	 * have been processed or the action throws an exception.
-	 * Any attempt to modify the values will throw an exception.
+	 * Returns a {@link List} view of the values for the specific (case insensitive) key.
+	 * Will be {@code null} if the key is not found.
 	 *
-	 * @param action The action to be performed for each entry
-	 * @throws NullPointerException if the specified action is null
-	 * @throws ConcurrentModificationException if an entry is found to be
-	 * removed during iteration
+	 * @return a read-only list of the values for the case insensitive key.
 	 */
-	public void forEach(BiConsumer<String, List<String>> action) {
-		Collections.unmodifiableMap(insensitiveMap).forEach(action);
+	public List<String> getIgnoreCase(String key) {
+		List<String> values = new ArrayList<>();
+		for (String k : valuesMap.keySet()) {
+			if (k.equalsIgnoreCase(key)) {
+				values.addAll(valuesMap.get(k));
+			}
+		}
+		return values.size() == 0 ? null : Collections.unmodifiableList(values);
 	}
 
 	/**
@@ -324,18 +295,8 @@ public class Headers {
 	 * @throws ConcurrentModificationException if an entry is found to be
 	 * removed during iteration
 	 */
-	public void forEachUnique(BiConsumer<String, List<String>> action) {
-		Collections.unmodifiableMap(sensitiveMap).forEach(action);
-	}
-
-	/**
-	 * Returns a {@link Set} read only view of the mappings contained in the header (case insensitive keys).
-	 * The set is not modifiable and any attempt to modify will throw an exception.
-	 *
-	 * @return a set view of the mappings contained in this map
-	 */
-	public Set<Map.Entry<String, List<String>>> entrySet() {
-		return Collections.unmodifiableSet(insensitiveMap.entrySet());
+	public void forEach(BiConsumer<String, List<String>> action) {
+		Collections.unmodifiableMap(valuesMap).forEach(action);
 	}
 
 	/**
@@ -344,8 +305,8 @@ public class Headers {
 	 *
 	 * @return a set view of the mappings contained in this map
 	 */
-	public Set<Map.Entry<String, List<String>>> uniqueEntrySet() {
-		return Collections.unmodifiableSet(sensitiveMap.entrySet());
+	public Set<Map.Entry<String, List<String>>> entrySet() {
+		return Collections.unmodifiableSet(valuesMap.entrySet());
 	}
 
 	/**
@@ -378,8 +339,8 @@ public class Headers {
 		if (serialized == null) {
 			ByteArrayBuilder bab = new ByteArrayBuilder(dataLength + NON_DATA_BYTES)
 					.append(VERSION_BYTES_PLUS_CRLF);
-			for (String key : sensitiveMap.keySet()) {
-				for (String value : sensitiveMap.get(key)) {
+			for (String key : valuesMap.keySet()) {
+				for (String value : valuesMap.get(key)) {
 					bab.append(key);
 					bab.append(COLON_BYTES);
 					bab.append(value);
@@ -462,11 +423,11 @@ public class Headers {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Headers headers = (Headers) o;
-		return Objects.equals(sensitiveMap, headers.sensitiveMap);
+		return Objects.equals(valuesMap, headers.valuesMap);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(sensitiveMap);
+		return Objects.hash(valuesMap);
 	}
 }
