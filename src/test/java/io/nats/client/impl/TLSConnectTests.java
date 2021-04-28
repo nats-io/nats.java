@@ -28,46 +28,60 @@ import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TLSConnectTests {
+
+    private String convertToProtocol(String proto, NatsTestServer... servers) {
+        StringBuilder sb = new StringBuilder();
+        for (int x = 0; x < servers.length; x++) {
+            if (x > 0) {
+                sb.append(",");
+            }
+            sb.append(proto).append("://localhost:").append(servers[0].getPort());
+        }
+        return sb.toString();
+    }
+
     @Test
     public void testSimpleTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                sslContext(ctx).
-                                build();
-            assertCanConnect(options);
+            Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .maxReconnects(0)
+                    .sslContext(ctx)
+                    .build();
+            assertCanConnectAndPubSub(options);
         }
     }
 
     @Test
-    public void testMultipleUrlTLSConnection() throws Exception {
+    public void testSimpleUrlTLSConnection() throws Exception {
+        //System.setProperty("javax.net.debug", "all");
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            SSLContext ctx = TestSSLUtils.createTestSSLContext();
+            Options options = new Options.Builder()
+                    .server(convertToProtocol("tls", ts))
+                    .maxReconnects(0)
+                    .sslContext(ctx)
+                    .build();
+            assertCanConnectAndPubSub(options);
+        }
+    }
+
+    @Test
+    public void testMultipleUrlTLSConnectionSetContext() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer server1 = new NatsTestServer("src/test/resources/tls.conf", false);
              NatsTestServer server2 = new NatsTestServer("src/test/resources/tls.conf", false);
         ) {
-            String servers = (server1.getURI() + "," + server2.getURI()).replaceAll("nats", "tls");
-            System.out.println(servers);
+            String servers = convertToProtocol("tls", server1, server2);
             SSLContext ctx = TestSSLUtils.createTestSSLContext();
-            Options options = new Options.Builder().
-                    server(servers).
-                    maxReconnects(0).
-                    sslContext(ctx).
-                    build();
-
-            Connection conn = standardConnection(options);
-            Subscription sub = conn.subscribe("testMultipleUrlTLSConnection");
-
-            conn.publish("testMultipleUrlTLSConnection", "hello".getBytes());
-            sleep(200);
-
-            Message m = sub.nextMessage(Duration.ofSeconds(1));
-            assertNotNull(m);
-            assertEquals("hello", new String(m.getData()));
-
-            standardCloseConnection(conn);
+            Options options = new Options.Builder()
+                    .server(servers)
+                    .maxReconnects(0)
+                    .sslContext(ctx)
+                    .build();
+            assertCanConnectAndPubSub(options);
         }
     }
 
@@ -81,7 +95,7 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
-            assertCanConnect(options);
+            assertCanConnectAndPubSub(options);
         }
     }
 
@@ -94,7 +108,7 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 sslContext(ctx).
                                 build();
-            assertCanConnect(options);
+            assertCanConnectAndPubSub(options);
         }
     }
 
@@ -106,7 +120,7 @@ public class TLSConnectTests {
                                 maxReconnects(0).
                                 opentls().
                                 build();
-            assertCanConnect(options);
+            assertCanConnectAndPubSub(options);
         }
     }
 
@@ -118,7 +132,7 @@ public class TLSConnectTests {
                                 sslContext(TestSSLUtils.createTestSSLContext()). // override the custom one
                                 maxReconnects(0).
                                 build();
-            assertCanConnect(options);
+            assertCanConnectAndPubSub(options);
         }
     }
 
@@ -130,18 +144,33 @@ public class TLSConnectTests {
                                 sslContext(TestSSLUtils.createTestSSLContext()). // override the custom one
                                 maxReconnects(0).
                                 build();
-            assertCanConnect(options);
+            assertCanConnectAndPubSub(options);
         }
     }
 
     @Test
     public void testURISchemeOpenTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
-            Options options = new Options.Builder().
-                                server("opentls://localhost:"+ts.getPort()).
-                                maxReconnects(0).
-                                build();
-            assertCanConnect(options);
+            Options options = new Options.Builder()
+                                .server(convertToProtocol("opentls", ts))
+                                .maxReconnects(0)
+                                .build();
+            assertCanConnectAndPubSub(options);
+        }
+    }
+
+    @Test
+    public void testMultipleUrlOpenTLSConnection() throws Exception {
+        //System.setProperty("javax.net.debug", "all");
+        try (NatsTestServer server1 = new NatsTestServer("src/test/resources/tls.conf", false);
+             NatsTestServer server2 = new NatsTestServer("src/test/resources/tls.conf", false);
+        ) {
+            String servers = convertToProtocol("opentls", server1, server2);
+            Options options = new Options.Builder()
+                    .server(servers)
+                    .maxReconnects(0)
+                    .build();
+            assertCanConnectAndPubSub(options);
         }
     }
 
