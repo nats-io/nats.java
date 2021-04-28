@@ -99,4 +99,10 @@ public class Token {
     public String getValue() {
         return hasValue ? new String(serialized, start, end - start + 1, US_ASCII).trim() : EMPTY;
     }
+
+    public boolean samePoint(Token token) {
+        return start == token.start
+                && end == token.end
+                && type == token.type;
+    }
 }

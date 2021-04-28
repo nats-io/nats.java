@@ -56,7 +56,7 @@ public class NatsJsManageStreams {
 
             // 1. Create (add) a stream with a subject
             // -  Full configuration schema:
-            //    https://github.com/nats-io/jetstream/blob/master/schemas/jetstream/api/v1/stream_configuration.json
+            //    https://github.com/nats-io/jsm.go/blob/main/schemas/jetstream/api/v1/stream_configuration.json
             System.out.println("\n----------\n1. Configure And Add Stream 1");
             StreamConfiguration streamConfig = StreamConfiguration.builder()
                     .name(STREAM1)

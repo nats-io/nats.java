@@ -33,19 +33,22 @@ public class Headers {
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
 
-	private final Map<String, List<String>> headerMap;
+	private final Map<String, List<String>> valuesMap;
+	private final Map<String, Integer> lengthMap;
 	private byte[] serialized;
-	private int projectedLength;
+	private int dataLength;
 
 	public Headers() {
-		headerMap = new HashMap<>();
+		valuesMap = new HashMap<>();
+		lengthMap = new HashMap<>();
 	}
 
 	public Headers(Headers headers) {
 		this();
 		if (headers != null) {
-			headerMap.putAll(headers.headerMap);
-			projectedLength = headers.projectedLength;
+			valuesMap.putAll(headers.valuesMap);
+			lengthMap.putAll(headers.lengthMap);
+			dataLength = headers.dataLength;
 			serialized = null;
 		}
 	}
@@ -86,14 +89,15 @@ public class Headers {
 		if (values != null) {
 			Checker checked = new Checker(key, values);
 			if (checked.hasValues()) {
-				List<String> currentSet = headerMap.get(key);
-				if (currentSet == null) {
-					headerMap.put(key, checked.list);
-				} else {
-					currentSet.addAll(checked.list);
-				}
+				// get values by key or compute empty if absent
+				// update the data length with the additional len
+				// update the lengthMap for the key to the old length plus the new length
+				List<String> currentSet = valuesMap.computeIfAbsent(key, k -> new ArrayList<>());
+				currentSet.addAll(checked.list);
+				dataLength += checked.len;
+				int oldLen = lengthMap.getOrDefault(key, 0);
+				lengthMap.put(key, oldLen + checked.len);
 				serialized = null; // since the data changed, clear this so it's rebuilt
-				projectedLength += key.length() + checked.length;
 			}
 		}
 	}
@@ -132,12 +136,18 @@ public class Headers {
 
 	// the put delegate that all puts call
 	private void _put(String key, Collection<String> values) {
+		if (key == null || key.length() == 0) {
+			throw new IllegalArgumentException("Key cannot be null or empty.");
+		}
 		if (values != null) {
 			Checker checked = new Checker(key, values);
 			if (checked.hasValues()) {
-				headerMap.put(key, checked.list);
+				// update the data length removing the old length adding the new length
+				// put for the key
+				dataLength = dataLength - lengthMap.getOrDefault(key, 0) + checked.len;
+				valuesMap.put(key, checked.list);
+				lengthMap.put(key, checked.len);
 				serialized = null; // since the data changed, clear this so it's rebuilt
-				projectedLength += key.length() + checked.length;
 			}
 		}
 	}
@@ -149,10 +159,7 @@ public class Headers {
 	 */
 	public void remove(String... keys) {
 		for (String key : keys) {
-			headerMap.remove(key);
-			// Yes, this doesn't account for values. As long as it's equal to or greater
-			// than the actual bytes we are fine
-			projectedLength -= key.length() + 1;
+			_remove(key);
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
@@ -164,73 +171,122 @@ public class Headers {
 	 */
 	public void remove(Collection<String> keys) {
 		for (String key : keys) {
-			headerMap.remove(key);
-			// Yes, this doesn't account for values. As long as it's equal to or greater
-			// than the actual bytes we are fine
-			projectedLength -= key.length() + 1;
+			_remove(key);
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
 
+	private void _remove(String key) {
+		// if the values had a key, then the data length had a length
+		if (valuesMap.remove(key) != null) {
+			dataLength -= lengthMap.remove(key);
+		}
+	}
+
 	/**
-	 * Returns the number of keys in the header.
+	 * Returns the number of keys (case sensitive) in the header.
 	 *
 	 * @return the number of keys
 	 */
 	public int size() {
-		return headerMap.size();
+		return valuesMap.size();
 	}
 
 	/**
 	 * Returns <tt>true</tt> if this map contains no keys.
 	 *
-	 * @return <tt>true</tt> if this map contains no keyss
+	 * @return <tt>true</tt> if this map contains no keys
 	 */
 	public boolean isEmpty() {
-		return headerMap.isEmpty();
+		return valuesMap.isEmpty();
 	}
 
 	/**
 	 * Removes all of the keys The object map will be empty after this call returns.
 	 */
 	public void clear() {
-		headerMap.clear();
+		valuesMap.clear();
+		lengthMap.clear();
+		dataLength = 0;
 		serialized = null;
-		projectedLength = 0;
 	}
 
 	/**
-	 * Returns <tt>true</tt> if key is present (has values)
+	 * Returns <tt>true</tt> if key (case sensitive) is present (has values)
 	 *
 	 * @param key key whose presence is to be tested
-	 * @return <tt>true</tt> if the key is present (has values)
+	 * @return <tt>true</tt> if the key (case sensitive) is present (has values)
 	 */
 	public boolean containsKey(String key) {
-		return headerMap.containsKey(key);
+		return valuesMap.containsKey(key);
 	}
 
 	/**
-	 * Returns a {@link Set} view of the keys contained in the object.
+	 * Returns <tt>true</tt> if key (case insensitive) is present (has values)
+	 *
+	 * @param key exact key whose presence is to be tested
+	 * @return <tt>true</tt> if the key (case insensitive) is present (has values)
+	 */
+	public boolean containsKeyIgnoreCase(String key) {
+		for (String k : valuesMap.keySet()) {
+			if (k.equalsIgnoreCase(key)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Returns a {@link Set} view of the keys (case sensitive) contained in the object.
 	 *
 	 * @return a read-only set the keys contained in this map
 	 */
 	public Set<String> keySet() {
-		return Collections.unmodifiableSet(headerMap.keySet());
+		return Collections.unmodifiableSet(valuesMap.keySet());
 	}
 
 	/**
-	 * Returns a {@link List} view of the values for the specific key.
+	 * Returns a {@link Set} view of the keys (case insensitive) contained in the object.
+	 *
+	 * @return a read-only set of keys (in lowercase) contained in this map
+	 */
+	public Set<String> keySetIgnoreCase() {
+		HashSet<String> set = new HashSet<>();
+		for (String k : valuesMap.keySet()) {
+			set.add(k.toLowerCase());
+		}
+		return Collections.unmodifiableSet(set);
+	}
+
+	/**
+	 * Returns a {@link List} view of the values for the specific (case sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @return a read-only list of the values for the specific keys.
+	 * @return a read-only list of the values for the case sensitive key.
 	 */
 	public List<String> get(String key) {
-		List<String> values = headerMap.get(key);
-		return values == null ? null : new ArrayList<>(values);
+		List<String> values = valuesMap.get(key);
+		return values == null ? null : Collections.unmodifiableList(values);
 	}
 
 	/**
-	 * Performs the given action for each header entry until all entries
+	 * Returns a {@link List} view of the values for the specific (case insensitive) key.
+	 * Will be {@code null} if the key is not found.
+	 *
+	 * @return a read-only list of the values for the case insensitive key.
+	 */
+	public List<String> getIgnoreCase(String key) {
+		List<String> values = new ArrayList<>();
+		for (String k : valuesMap.keySet()) {
+			if (k.equalsIgnoreCase(key)) {
+				values.addAll(valuesMap.get(k));
+			}
+		}
+		return values.size() == 0 ? null : Collections.unmodifiableList(values);
+	}
+
+	/**
+	 * Performs the given action for each header entry (case sensitive keys) until all entries
 	 * have been processed or the action throws an exception.
 	 * Any attempt to modify the values will throw an exception.
 	 *
@@ -240,17 +296,17 @@ public class Headers {
 	 * removed during iteration
 	 */
 	public void forEach(BiConsumer<String, List<String>> action) {
-		Collections.unmodifiableMap(headerMap).forEach(action);
+		Collections.unmodifiableMap(valuesMap).forEach(action);
 	}
 
 	/**
-	 * Returns a {@link Set} read only view of the mappings contained in the header.
+	 * Returns a {@link Set} read only view of the mappings contained in the header (case sensitive keys).
 	 * The set is not modifiable and any attempt to modify will throw an exception.
 	 *
 	 * @return a set view of the mappings contained in this map
 	 */
 	public Set<Map.Entry<String, List<String>>> entrySet() {
-		return Collections.unmodifiableSet(headerMap.entrySet());
+		return Collections.unmodifiableSet(valuesMap.entrySet());
 	}
 
 	/**
@@ -269,8 +325,10 @@ public class Headers {
 	 * @return the number of bytes
 	 */
 	public int serializedLength() {
-		return getSerialized().length;
+		return dataLength + NON_DATA_BYTES;
 	}
+
+	private static final int NON_DATA_BYTES = VERSION_BYTES_PLUS_CRLF.length + 2;
 
 	/**
 	 * Returns the serialized bytes.
@@ -279,10 +337,10 @@ public class Headers {
 	 */
 	public byte[] getSerialized() {
 		if (serialized == null) {
-			ByteArrayBuilder bab = new ByteArrayBuilder(projectedLength + VERSION_BYTES_PLUS_CRLF_LEN)
+			ByteArrayBuilder bab = new ByteArrayBuilder(dataLength + NON_DATA_BYTES)
 					.append(VERSION_BYTES_PLUS_CRLF);
-			for (String key : headerMap.keySet()) {
-				for (String value : headerMap.get(key)) {
+			for (String key : valuesMap.keySet()) {
+				for (String value : valuesMap.get(key)) {
 					bab.append(key);
 					bab.append(COLON_BYTES);
 					bab.append(value);
@@ -334,20 +392,21 @@ public class Headers {
 
 	private class Checker {
 		List<String> list = new ArrayList<>();
-		int length;
+		int len = 0;
+
 		Checker(String key, Collection<String> values) {
 			checkKey(key);
-			length += key.length() + 1; // for colon
 			if (!values.isEmpty()) {
 				for (String val : values) {
 					if (val != null) {
 						if (val.isEmpty()) {
 							list.add(val);
+							len += key.length() + 3; // for colon, cr, lf
 						}
 						else {
 							checkValue(val);
 							list.add(val);
-							length += val.length();
+							len += key.length() + val.length() + 3; // for colon, cr, lf
 						}
 					}
 				}
@@ -364,11 +423,11 @@ public class Headers {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
 		Headers headers = (Headers) o;
-		return Objects.equals(headerMap, headers.headerMap);
+		return Objects.equals(valuesMap, headers.valuesMap);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(headerMap);
+		return Objects.hash(valuesMap);
 	}
 }

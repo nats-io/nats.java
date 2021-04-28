@@ -44,7 +44,6 @@ public interface NatsConstants {
     byte[] COLON_BYTES = ":".getBytes(US_ASCII);
     byte[] CRLF_BYTES = CRLF.getBytes(US_ASCII);
     int VERSION_BYTES_LEN = VERSION_BYTES.length;
-    int VERSION_BYTES_PLUS_CRLF_LEN = VERSION_BYTES_PLUS_CRLF.length;
 
     String OP_CONNECT = "CONNECT";
     String OP_INFO = "INFO";

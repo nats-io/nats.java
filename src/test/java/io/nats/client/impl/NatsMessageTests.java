@@ -20,7 +20,10 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 
+import static io.nats.client.utils.ResourceUtils.dataAsLines;
+import static io.nats.client.utils.TestBase.assertByteArraysEqual;
 import static io.nats.client.utils.TestBase.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -146,9 +149,21 @@ public class NatsMessageTests {
         assertNotNull(m.toDetailString());
 
         // no reply to, no empty data
-        m = NatsMessage.builder().subject("test").data(null).build();
+        m = NatsMessage.builder().subject("test").data((byte[])null).build();
         assertNotNull(m.toString());
         assertNotNull(m.toDetailString());
+
+        // no reply to, no empty data
+        m = NatsMessage.builder().subject("test").data((String)null).build();
+        assertNotNull(m.toString());
+        assertNotNull(m.toDetailString());
+
+        List<String> data = dataAsLines("utf8-test-strings.txt");
+        for (String d : data) {
+            Message m1 = NatsMessage.builder().subject("test").data(d).build();
+            Message m2 = NatsMessage.builder().subject("test").data(d, StandardCharsets.UTF_8).build();
+            assertByteArraysEqual(m1.getData(), m2.getData());
+        }
 
         m = testMessage();
         assertTrue(m.hasHeaders());
