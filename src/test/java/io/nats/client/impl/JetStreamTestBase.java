@@ -28,8 +28,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfo;
-import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
+import static io.nats.client.support.JsonUtils.printConsumerInfo;
+import static io.nats.client.support.JsonUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {

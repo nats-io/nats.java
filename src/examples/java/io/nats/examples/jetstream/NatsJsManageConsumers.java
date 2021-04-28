@@ -25,8 +25,8 @@ import io.nats.examples.ExampleUtils;
 
 import java.util.List;
 
-import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfoList;
-import static io.nats.examples.jetstream.NatsJsUtils.printObject;
+import static io.nats.client.support.JsonUtils.printConsumerInfoList;
+import static io.nats.client.support.JsonUtils.printObject;
 
 /**
  * This example will demonstrate JetStream management (admin) api consumer management.

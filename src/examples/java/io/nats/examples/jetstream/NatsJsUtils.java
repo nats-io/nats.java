@@ -14,7 +14,6 @@
 package io.nats.examples.jetstream;
 
 import io.nats.client.*;
-import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
@@ -238,77 +237,6 @@ public class NatsJsUtils {
         }
 
         return messages;
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // PRINT
-    // ----------------------------------------------------------------------------------------------------
-    public static void printStreamInfo(StreamInfo si) {
-        printObject(si, "StreamConfiguration", "StreamState", "ClusterInfo", "Mirror", "subjects", "sources");
-    }
-
-    public static void printStreamInfoList(List<StreamInfo> list) {
-        printObject(list, "!StreamInfo", "StreamConfiguration", "StreamState");
-    }
-
-    public static void printConsumerInfo(ConsumerInfo ci) {
-        printObject(ci, "ConsumerConfiguration", "Delivered", "AckFloor");
-    }
-
-    public static void printConsumerInfoList(List<ConsumerInfo> list) {
-        printObject(list, "!ConsumerInfo", "ConsumerConfiguration", "Delivered", "AckFloor");
-    }
-
-    public static void printObject(Object o, String... subObjectNames) {
-        String s = o.toString();
-        for (String sub : subObjectNames) {
-            boolean noIndent = sub.startsWith("!");
-            String sb = noIndent ? sub.substring(1) : sub;
-            String rx1 = ", " + sb;
-            String repl1 = (noIndent ? ",\n": ",\n    ") + sb;
-            s = s.replace(rx1, repl1);
-        }
-
-        System.out.println(s + "\n");
-    }
-
-    static final String INDENT = "                        ";
-    private static String indent(int level) {
-        return level == 0 ? "" : INDENT.substring(0, level * 4);
-    }
-
-    public static void printFormatted(Object o) {
-        int level = 0;
-        boolean indentNext = true;
-        String s = o.toString();
-        for (int x = 0; x < s.length(); x++) {
-            char c = s.charAt(x);
-            if (c == '{') {
-                System.out.print(c + "\n");
-                ++level;
-                indentNext = true;
-            }
-            else if (c == '}') {
-                System.out.print("\n" + indent(--level) + c);
-            }
-            else if (c == ',') {
-                System.out.print("\n");
-                indentNext = true;
-            }
-            else {
-                if (indentNext) {
-                    if (c != ' ') {
-                        System.out.print(indent(level) + c);
-                        indentNext = false;
-                    }
-                }
-                else {
-                    System.out.print(c);
-                }
-            }
-        }
-
-        System.out.println();
     }
 
     // ----------------------------------------------------------------------------------------------------

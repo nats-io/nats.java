@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
+import static io.nats.client.support.JsonUtils.printStreamInfo;
 
 /**
  * This example will demonstrate connecting on an account that uses a custom prefix.

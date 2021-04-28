@@ -20,12 +20,13 @@ import io.nats.client.api.PurgeResponse;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
+import io.nats.client.support.JsonUtils;
 import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.util.List;
 
-import static io.nats.examples.jetstream.NatsJsUtils.printObject;
+import static io.nats.client.support.JsonUtils.printObject;
 import static io.nats.examples.jetstream.NatsJsUtils.publish;
 
 /**
@@ -73,7 +74,7 @@ public class NatsJsManageStreams {
                     // .discardPolicy(...)
                     .build();
             StreamInfo streamInfo = jsm.addStream(streamConfig);
-            NatsJsUtils.printStreamInfo(streamInfo);
+            JsonUtils.printStreamInfo(streamInfo);
 
             // 2. Update stream, in this case add a subject
             // -  StreamConfiguration is immutable once created
@@ -82,7 +83,7 @@ public class NatsJsManageStreams {
             streamConfig = StreamConfiguration.builder(streamInfo.getConfiguration())
                     .addSubjects(SUBJECT2).build();
             streamInfo = jsm.updateStream(streamConfig);
-            NatsJsUtils.printStreamInfo(streamInfo);
+            JsonUtils.printStreamInfo(streamInfo);
 
             // 3. Create (add) another stream with 2 subjects
             System.out.println("----------\n3. Configure And Add Stream 2");
@@ -92,7 +93,7 @@ public class NatsJsManageStreams {
                     .subjects(SUBJECT3, SUBJECT4)
                     .build();
             streamInfo = jsm.addStream(streamConfig);
-            NatsJsUtils.printStreamInfo(streamInfo);
+            JsonUtils.printStreamInfo(streamInfo);
 
             // 4. Get information on streams
             // 4.0 publish some message for more interesting stream state information
@@ -103,7 +104,7 @@ public class NatsJsManageStreams {
             System.out.println("----------\n4.1 getStreamInfo");
             publish(nc, SUBJECT1, 5);
             streamInfo = jsm.getStreamInfo(STREAM1);
-            NatsJsUtils.printStreamInfo(streamInfo);
+            JsonUtils.printStreamInfo(streamInfo);
 
             System.out.println("----------\n4.2 getStreamNames");
             List<String> streamNames = jsm.getStreamNames();
@@ -111,7 +112,7 @@ public class NatsJsManageStreams {
 
             System.out.println("----------\n4.2 getStreamNames");
             List<StreamInfo> streamInfos = jsm.getStreams();
-            NatsJsUtils.printStreamInfoList(streamInfos);
+            JsonUtils.printStreamInfoList(streamInfos);
 
             // 5. Purge a stream of it's messages
             System.out.println("----------\n5. Purge stream");
