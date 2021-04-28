@@ -43,6 +43,35 @@ public class TLSConnectTests {
     }
 
     @Test
+    public void testMultipleUrlTLSConnection() throws Exception {
+        //System.setProperty("javax.net.debug", "all");
+        try (NatsTestServer server1 = new NatsTestServer("src/test/resources/tls.conf", false);
+             NatsTestServer server2 = new NatsTestServer("src/test/resources/tls.conf", false);
+        ) {
+            String servers = (server1.getURI() + "," + server2.getURI()).replaceAll("nats", "tls");
+            System.out.println(servers);
+            SSLContext ctx = TestSSLUtils.createTestSSLContext();
+            Options options = new Options.Builder().
+                    server(servers).
+                    maxReconnects(0).
+                    sslContext(ctx).
+                    build();
+
+            Connection conn = standardConnection(options);
+            Subscription sub = conn.subscribe("testMultipleUrlTLSConnection");
+
+            conn.publish("testMultipleUrlTLSConnection", "hello".getBytes());
+            sleep(200);
+
+            Message m = sub.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(m);
+            assertEquals("hello", new String(m.getData()));
+
+            standardCloseConnection(conn);
+        }
+    }
+
+    @Test
     public void testSimpleIPTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {

@@ -1,0 +1,39 @@
+name: GitHub Release Main Actions For Nats Server Runner
+on:
+  release:
+    branches:
+      - main
+    types: [released]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_TYPE: "RELEASE"
+      OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      OSSRH_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+      SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+      SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+      SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+      nats_server_path: nats-server/main
+    steps:
+      - run: echo -e "RELEASE"
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+      - name: Setup GO
+        uses: actions/setup-go@v2
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Install Nats Server
+        run: chmod +x install-nats-server.sh && ./install-nats-server.sh
+      - name: Build and Test
+        run: chmod +x gradlew && ./gradlew clean test
+      - name: Check Coverage
+        if: ${{ success() }}
+        run: ./gradlew jacocoTestReport coveralls
+      - name: Publish
+        if: ${{ success() }}
+        run: ./gradlew -i sign publishToSonatype closeAndReleaseRepository

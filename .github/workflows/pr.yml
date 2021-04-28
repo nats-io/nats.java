@@ -1,0 +1,29 @@
+name: GitHub Pull Request Actions For Nats Server Runner
+on:
+  pull_request:
+    types: [opened, synchronize, edited, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_TYPE: "PR"
+      nats_server_path: nats-server/main
+    steps:
+      - run: echo -e "PR Branch ${{ github.head_ref }}"
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+      - name: Setup GO
+        uses: actions/setup-go@v2
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Install Nats Server
+        run: chmod +x install-nats-server.sh && ./install-nats-server.sh
+      - name: Build and Test
+        run: chmod +x gradlew && ./gradlew check
+      - name: Check Coverage
+        if: ${{ success() }}
+        run: ./gradlew jacocoTestReport coveralls
