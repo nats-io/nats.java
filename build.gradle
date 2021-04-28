@@ -20,7 +20,7 @@ import aQute.bnd.gradle.Bundle
 // src/main/java/io/nats/client/Nats.java
 // src/main/java/io/nats/client/package-info.java
 // CHANGELOG.md
-def jarVersion = "0.0.211.1"
+def jarVersion = "2.11.0"
 
 def isPr = System.getenv("BUILD_TYPE") == "PR"
 def isMerge = System.getenv("BUILD_TYPE") == "MERGE"
