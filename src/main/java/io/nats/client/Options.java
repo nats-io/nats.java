@@ -951,8 +951,7 @@ public class Options {
          */
         public Builder secure() throws NoSuchAlgorithmException, IllegalArgumentException {
             this.sslContext = SSLContext.getDefault();
-
-            if(this.sslContext == null) {
+            if (this.sslContext == null) {
                 throw new IllegalArgumentException("No Default SSL Context");
             }
             return this;
@@ -1337,19 +1336,21 @@ public class Options {
             
             if (servers.size() == 0) {
                 server(DEFAULT_URL);
-            } else if (servers.size() == 1) { // Allow some URI based configs
-                URI serverURI = servers.get(0);
-
-                if (TLS_PROTOCOL.equals(serverURI.getScheme()) && this.sslContext == null)
-                {
-                    try {
-                        this.sslContext = SSLContext.getDefault();
-                    } catch (NoSuchAlgorithmException e) {
-                        throw new IllegalStateException("Unable to create default SSL context", e);
+            }
+            else if (sslContext == null) {
+                for (URI serverURI : servers) {
+                    if (TLS_PROTOCOL.equals(serverURI.getScheme())) {
+                        try {
+                            this.sslContext = SSLContext.getDefault();
+                        } catch (NoSuchAlgorithmException e) {
+                            throw new IllegalStateException("Unable to create default SSL context", e);
+                        }
+                        break;
                     }
-                } else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme()) && this.sslContext == null)
-                {
-                    this.sslContext = SSLUtils.createOpenTLSContext();
+                    else if (OPENTLS_PROTOCOL.equals(serverURI.getScheme())) {
+                        this.sslContext = SSLUtils.createOpenTLSContext();
+                        break;
+                    }
                 }
             }
 

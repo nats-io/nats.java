@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.support.JsonUtils.EMPTY_JSON;
+import static io.nats.client.support.JsonUtils.printFormatted;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static io.nats.client.utils.TestBase.getDataMessage;
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,6 +33,7 @@ public class StreamInfoTests {
         String json = dataAsString("StreamInfo.json");
         StreamInfo si = new StreamInfo(getDataMessage(json));
         validateStreamInfo(si);
+        printFormatted(si); // COVERAGE
     }
 
     private void validateStreamInfo(StreamInfo si) {

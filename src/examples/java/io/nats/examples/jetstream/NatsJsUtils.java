@@ -272,45 +272,6 @@ public class NatsJsUtils {
         System.out.println(s + "\n");
     }
 
-    static final String INDENT = "                        ";
-    private static String indent(int level) {
-        return level == 0 ? "" : INDENT.substring(0, level * 4);
-    }
-
-    public static void printFormatted(Object o) {
-        int level = 0;
-        boolean indentNext = true;
-        String s = o.toString();
-        for (int x = 0; x < s.length(); x++) {
-            char c = s.charAt(x);
-            if (c == '{') {
-                System.out.print(c + "\n");
-                ++level;
-                indentNext = true;
-            }
-            else if (c == '}') {
-                System.out.print("\n" + indent(--level) + c);
-            }
-            else if (c == ',') {
-                System.out.print("\n");
-                indentNext = true;
-            }
-            else {
-                if (indentNext) {
-                    if (c != ' ') {
-                        System.out.print(indent(level) + c);
-                        indentNext = false;
-                    }
-                }
-                else {
-                    System.out.print(c);
-                }
-            }
-        }
-
-        System.out.println();
-    }
-
     // ----------------------------------------------------------------------------------------------------
     // REPORT
     // ----------------------------------------------------------------------------------------------------
