@@ -24,7 +24,7 @@ import io.nats.examples.ExampleUtils;
 import java.time.Duration;
 import java.util.List;
 
-import static io.nats.examples.jetstream.NatsJsUtils.printFormatted;
+import static io.nats.client.support.JsonUtils.printFormatted;
 import static io.nats.examples.jetstream.NatsJsUtils.publish;
 
 /**

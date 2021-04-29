@@ -78,6 +78,7 @@ repositories {
 dependencies {
     implementation 'net.i2p.crypto:eddsa:0.3.0'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.7.0'
+    testImplementation 'io.nats:jnats-server-runner:1.0.5'
 }
 
 sourceSets {
