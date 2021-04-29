@@ -28,6 +28,18 @@ import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TLSConnectTests {
+
+    private String convertToProtocol(String proto, NatsTestServer... servers) {
+        StringBuilder sb = new StringBuilder();
+        for (int x = 0; x < servers.length; x++) {
+            if (x > 0) {
+                sb.append(",");
+            }
+            sb.append(proto).append("://localhost:").append(servers[0].getPort());
+        }
+        return sb.toString();
+    }
+
     @Test
     public void testSimpleTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
