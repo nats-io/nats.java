@@ -26,8 +26,8 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static io.nats.client.support.JsonUtils.printFormatted;
 import static io.nats.examples.ExampleUtils.*;
-import static io.nats.examples.jetstream.NatsJsUtils.printFormatted;
 
 public class JsMulti {
     static final String usageString =
