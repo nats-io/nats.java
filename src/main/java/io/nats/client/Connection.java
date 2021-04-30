@@ -184,6 +184,10 @@ public interface Connection extends AutoCloseable {
      * Send a request. The returned future will be completed when the
      * response comes back.
      *
+     * <p>The Message object allows you to set a replyTo, but in requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the consumer's reply.</p>
+     *
      * @param message the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
@@ -206,6 +210,10 @@ public interface Connection extends AutoCloseable {
      * Send a request and returns the reply or null. This version of request is equivalent
      * to calling get on the future returned from {@link #request(String, byte[]) request()} with
      * the timeout and handling the ExecutionException and TimeoutException.
+     *
+     * <p>The Message object allows you to set a replyTo, but in requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the consumer's reply.</p>
      *
      * @param message the message
      * @param timeout the time to wait for a response

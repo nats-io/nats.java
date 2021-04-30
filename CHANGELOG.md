@@ -1,6 +1,28 @@
 
 # Change Log
 
+## Version 2.11.0
+
+#### Issue Bug Fixes
+- [FIXED] Issue #340 No connection possible when using multiple servers PR #455 (@scottf)
+
+#### Pull Requests
+- [FIXED] PR #451 Header status improvements (@scottf)
+- [ENHANCEMENT] PR #452 handle no ack publishing (@scottf)
+- [ENHANCEMENT] PR #456 switched to jnats-server-runner library (@scottf)
+- [ENHANCEMENT] PR #446 improve cleanup of async responses (@scottf)
+
+#### Issues General Closed
+- [NON ISSUE] Issue #298 NatsConnection does not report SSL error (@scottf)
+- [WILL NOT IMPLEMENT] Issue #272 Add ability to publish byte arrays with specified offset and length (@scottf)
+- [DOCUMENTED] Issue #316 Failure creating a subscription on a (fairly) new connection (@scottf)
+- [NON ISSUE] Issue #344 Performance issue when publishing to certain topics (@scottf)
+- [WILL NOT IMPLEMENT] Issue #373 Why not netty for networking? (@sasbury)
+- [PRE-RELEASE FEATURE REMOVED] Issue #388 In the jetstream subscriber examples... (@scottf)
+- [DOCUMENTED] Issue #402 Unable to connect to NATS server via Android Studio
+- [DOCUMENTED] Issue #445 NatsConnection.request(Message) does not use Message.replyTo (@scottf)
+- [DOCUMENTED] Issue #423 createContext() not documented (@scottf)
+  
 ## Version 2.10.0
 
 1. JetStream (message and management) support added.
