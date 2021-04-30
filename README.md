@@ -186,6 +186,12 @@ All of these methods, as well as the incoming message code use byte arrays for m
 send JSON, Strings, YAML, Protocol Buffers, or any other format through NATS to applications written in a wide range of
 languages.
 
+#### ReplyTo When Making A Request
+
+The Message object allows you to set a replyTo, but in requests,
+the replyTo is reserved for internal use as the address for the
+server to respond to the client with the consumer's reply.
+
 ### Listening for Incoming Messages
 
 The Java NATS library provides two mechanisms to listen for messages, three if you include the request/reply discussed above.
@@ -316,6 +322,12 @@ See `NatsJsPubWithOptionsUseCases.java` in the JetStream examples for a detailed
 ```
 
 See the `NatsJsPubAsync.java` in the JetStream examples for a detailed and runnable example.
+
+#### ReplyTo When Publishing
+
+The Message object allows you to set a replyTo, but in publish requests,
+the replyTo is reserved for internal use as the address for the
+server to respond to the client with the PublishAck.
 
 ### Subscribing
 
@@ -497,7 +509,12 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
     Connection nc = Nats.connect(options);
     ```
 
-If you want to try out these techniques, take a look at the [examples.md](src/examples/java/io/nats/examples/examples.md) for instructions.
+If you want to try out these techniques, take a look at the [README.md](src/examples/java/io/nats/examples/README.md) for instructions.
+
+Also, here are some places in the code that may help
+https://github.com/nats-io/nats.java/blob/main/src/main/java/io/nats/client/support/SSLUtils.java
+https://github.com/nats-io/nats.java/blob/main/src/test/java/io/nats/client/TestSSLUtils.java
+
 
 ### Clusters & Reconnecting
 

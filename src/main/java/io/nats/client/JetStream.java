@@ -89,6 +89,10 @@ public interface JetStream {
      *
      * where the sender creates a byte array immediately before calling publish.
      *
+     * <p>The Message object allows you to set a replyTo, but in publish requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the PublishAck.</p>
+     *
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
      *
@@ -112,6 +116,10 @@ public interface JetStream {
      * </pre>
      *
      * where the sender creates a byte array immediately before calling publish.
+     *
+     * <p>The Message object allows you to set a replyTo, but in publish requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the PublishAck.</p>
      *
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
@@ -202,6 +210,10 @@ public interface JetStream {
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
      *
+     * <p>The Message object allows you to set a replyTo, but in publish requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the PublishAck.</p>
+     *
      * @param message the message to send
      * @return The future
      */
@@ -226,6 +238,10 @@ public interface JetStream {
      * The future me be completed with an exception, either
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
+     *
+     * <p>The Message object allows you to set a replyTo, but in publish requests,
+     * the replyTo is reserved for internal use as the address for the
+     * server to respond to the client with the PublishAck.</p>
      *
      * @param message the message to publish
      * @param options publisher options
