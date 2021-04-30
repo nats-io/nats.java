@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
+import static io.nats.examples.ExampleUtils.uniqueEnough;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
@@ -191,6 +192,24 @@ public class TestBase {
         standardCloseConnection( standardConnection(options) );
     }
 
+    public static void assertCanConnectAndPubSub() throws IOException, InterruptedException {
+        Connection conn = standardConnection();
+        assertPubSub(conn);
+        standardCloseConnection(conn);
+    }
+
+    public static void assertCanConnectAndPubSub(String serverURL) throws IOException, InterruptedException {
+        Connection conn = standardConnection(serverURL);
+        assertPubSub(conn);
+        standardCloseConnection(conn);
+    }
+
+    public static void assertCanConnectAndPubSub(Options options) throws IOException, InterruptedException {
+        Connection conn = standardConnection(options);
+        assertPubSub(conn);
+        standardCloseConnection(conn);
+    }
+
     public static void assertByteArraysEqual(byte[] data1, byte[] data2) {
         if (data1 == null) {
             assertNull(data2);
@@ -201,6 +220,16 @@ public class TestBase {
         for (int x = 0; x < data1.length; x++) {
             assertEquals(data1[x], data2[x]);
         }
+    }
+
+    public static void assertPubSub(Connection conn) throws InterruptedException {
+        String subject = "sub" + uniqueEnough();
+        String data = "data" + uniqueEnough();
+        Subscription sub = conn.subscribe(subject);
+        conn.publish(subject, data.getBytes());
+        Message m = sub.nextMessage(Duration.ofSeconds(2));
+        assertNotNull(m);
+        assertEquals(data, new String(m.getData()));
     }
 
     // ----------------------------------------------------------------------------------------------------
