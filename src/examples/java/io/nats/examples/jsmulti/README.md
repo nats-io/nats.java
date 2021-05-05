@@ -19,15 +19,16 @@ java -cp build/libs/jnats-2.11.1.jar:build/libs/jnats-2.11.1-examples.jar io.nat
 
 ### Running from an IDE
 
-The JsMulti program has a `public static void main(String[] args)` method, so it's easy enough to run from any ide.
+The JsMulti program has a `public static void run(Arguments a)` method, so it's easy enough to run from any ide.
+We have provided an `ArgumentBuilder` class to help build configurations.
+You could also use your IDE and build a runtime configuration that passes command line arguments.
 
-Most IDEs allow you to build a runtime configuration and pass command line arguments.
-I like to just modify the code and set the arguments there. Check out the comments in the code's main method for examples.
+The examples below show both command line and builder examples
 
 ### Number Arguments
 
-Number arguments are all integers. For ease of reading, when providing numbers, you can use underscore `_`, comma `,` or period `.`
-to make your command line more readable. So these are all valid for 1 million `1000000`, `1,000,000`, `1.000.000`, `1_000_000` and even `1_000.000`
+Number arguments are all integers. When providing numbers on the command line, you can use underscore `_`, comma `,` or period `.`
+to make it more readable. So these are all valid for 1 million `1000000`, `1,000,000`, `1.000.000`, `1_000_000` and even `1_000.000`
 
 ### Action Argument
 
@@ -44,13 +45,50 @@ to make your command line more readable. So these are all valid for 1 million `1
 * `subPull` pull subscribe read messages (different durable if threaded)
 * `subPullQueue` pull subscribe read messages (all with same durable)
 
+#### Using the builder
+
+The builder was created to give another way to build configurations, if you typically run from an IDE. 
+You could use the builder and modify the `JsMulti` class or just create your own classes that make it easier to run from the command line.
+
+The actions all have smart builder creation methods...
+
+```java
+Arguments a = ArgumentBuilder.pubSync("subject-name") ... .build();
+Arguments a = ArgumentBuilder.pubAsync("subject-name") ... .build();
+Arguments a = ArgumentBuilder.pubCore("subject-name") ... .build();
+Arguments a = ArgumentBuilder.subPush("subject-name") ... .build();
+Arguments a = ArgumentBuilder.subQueue("subject-name") ... .build();
+Arguments a = ArgumentBuilder.subPull("subject-name") ... .build();
+Arguments a = ArgumentBuilder.subPull("subject-name") ... .build();
+Arguments a = ArgumentBuilder.subPullQueue("subject-name") ... .build();
+```
+
+You could build your own custom class to run from the command line:
+
+```java
+public class MyMulti {
+    public static void main(String[] args) throws Exception {
+        Arguments a = ArgumentBuilder.pubSync("subject-name") ... .build();
+        JsMulti.run(new Arguments(args));
+    }
+}
+```
+
 ### Server Argument
 
 `-s` The url of the server. if not provided, will defaults to `nats://localhost:4222`
 
+_Command Line_
+
+```shell
+... JsMulti ... -s localhost ...
+... JsMulti ... -s nats://myhost:4444 ...
+```
+
+_Builder_
+
 ```java
-... JsMulti -s localhost ...
-... JsMulti -s nats://myhost:4444 ...
+Arguments a = ArgumentBuilder ... .server("nats://myhost:4444") ...
 ```
 
 ### Report Frequency
@@ -58,56 +96,63 @@ to make your command line more readable. So these are all valid for 1 million `1
 `-rf` report frequency (number) how often to print progress, defaults to 1000 messages. <= 0 for no reporting. 
 Reporting time is excluded from timings
 
-## Stream Management
+_Command Line_
 
-The multi tool allows you to:
+```shell
+... JsMulti ... -rf 5000 ...
+... JsMulti ... -rf -1 ...
+```
+
+_Builder_
+
+```java
+Arguments a = ArgumentBuilder ... .reportFrequency(5000) ...
+Arguments a = ArgumentBuilder ... .noReporting() ...
+```
+
+## Stream Management
+You can do some basic stream management functions with the tool. These functions are provided with our [natscli](https://github.com/nats-io/natscli) command line tool.
+
+#### Stream Actions
 
 * `create` create the stream
 * `delete` delete the stream
 * `info` get the stream info
 
-(You can do all three of these functions with our [natscli](https://github.com/nats-io/natscli) command line tool.)
-
-### Required Argument
+#### Required Argument
 
 `-t` The name of the stream
 
-### Optional Arguments
+#### Optional Arguments
 
 `-o` storage type (file|memory) when creating a stream, defaults to memory
 
 `-c` replicas (number) when creating a stream, defaults to 1, maximum 5. Make sure you are running a cluster!
 
-#### Examples
+_Command Line_
 
-Create a stream called `multistream` with memory based storage
+```shell
+... JsMulti -a create -t stream-name -o memory
+... JsMulti -a create -t stream-name -o file -c 3
+... JsMulti -a delete -t stream-name
+... JsMulti -a info -t stream-name
+```
 
+_Builder_
 ```java
-... JsMulti -a create -t multistream
+Arguments a = ArgumentBuilder.create("stream-name").memory().build();
+Arguments a = ArgumentBuilder.create("stream-name").file().replicas(3).build();
+Arguments a = ArgumentBuilder.delete("stream-name").build();
+Arguments a = ArgumentBuilder.info("stream-name").build();
 ```
 
-Create a stream called `multistream` with file based storage and replication factor of 3
-
-```java
-... JsMulti -a create -o file -c 3 -t multistream
+_Example Result of Info_
 ```
-
-Delete a stream
-
-```java
-... JsMulti -a delete -t multistream
-```
-
-Get info for a stream.
-
-```
-... JsMulti -a info -t multistream
-
 StreamInfo{
     created=2021-05-03T19:55:06.901279100Z[GMT]
     StreamConfiguration{
-        name='multistream'
-        subjects=[multisubject]
+        name='stream-name'
+        subjects=[subject-name]
         retentionPolicy=limits
         maxConsumers=-1
         maxMsgs=-1
@@ -161,6 +206,13 @@ Publishing and subscribing have some options in common.
 number from 0 to j-1, in milliseconds, defaults to 0 (no jitter), maximum 10_000
 time spent in jitter is excluded from timings
 
+```shell
+... JsMulti ... -u subject-name -m 1_000_000 -d 4 -n shared -j 1500 
+... JsMulti ... -u subject-name -d 4 -j 1500 
+... JsMulti ... -u subject-name -m 2_000_000 -d 4 -n individual -j 1500 
+```
+
+
 ### Publish Only Optional Arguments
 
 `-ps` payload size (number) for publishing, defaults to 128, maximum 8192"
@@ -169,6 +221,10 @@ time spent in jitter is excluded from timings
 Publishing asynchronously uses the "sawtooth" pattern. This means we publish a round of messages, collecting all the futures that receive the PublishAck
 until we reach the round size. At that point we process all the futures we have collected, then we start over until we have published all the messages. 
 
+```shell
+... JsMulti ... -ps 512 -rs 50 
+```
+
 > In real applications there are other algorithms one might use. For instance, you could optionally set up a separate thread to process the Publish Ack. 
 This would require some concurrent mechanism like the `java.util.concurrent.LinkedBlockingQueue`
 Publishing would run on one thread and place the futures in the queue. The second thread would
@@ -176,9 +232,9 @@ be pulling from the queue.
 
 ### Subscribe (Consume) Only Optional Arguments
 
-`-pt` pull type (fetch|iterate), fetch all first, or iterate, defaults to iterate. Ack Policy must be explicit.
+`-pt` pull type (fetch|iterate), fetch all first, or iterate, defaults to iterate
 
-`-kp` ack policy (explicit|none|all) for subscriptions, defaults to `explicit`
+`-kp` ack policy (explicit|none|all) for subscriptions. Ack Policy must be `explicit` on pull subscriptions.
 
 * `explicit` Explicit Ack Policy. Acknowledge each message received. This is the default.
 * `none` None Ack Policy. Configures the consumer to not have to ack messages.
@@ -186,83 +242,203 @@ be pulling from the queue.
 
 `-kf` ack frequency (number), applies to Ack Policy all, ack after kf messages, defaults to 1, maximum 256. 
 For Ack Policy `explicit`, all messages will be acked after kf number of messages are received. 
-For Ack Policy `all`, the last message will be acked once kf number of messages are received.  
+For Ack Policy `all`, the last message will be acked once kf number of messages are received.
+Does not apply to Ack Policy `none` 
 
 `-bs` batch size (number) for subPull/subPullQueue, defaults to 10, maximum 256
 
+```shell
+... JsMulti ... -pt fetch -kp explicit -kf 100 -bs 50 
+... JsMulti ... -pt iterate -kp explicit -kf 100 -bs 50 
+... JsMulti ... -kp all -kf 100 
+... JsMulti ... -kp none 
+```
+
 ## Publish Examples
 
-#### synchronous processing of the acknowledgement
+#### Synchronous processing of the acknowledgement
 
-* publish to `multisubject`
+* publish to `subject-name`
 * 1 thread (default)
 * 1 million messages (default)
 * payload size of 128 bytes (default)
 * shared connection (default)
 
-```java
-... JsMulti -a pubSync -u multisubject
+_Command Line_
+
+```shell
+... JsMulti -a pubSync -u subject-name
 ```
 
-#### synchronous processing of the acknowledgement
+_Builder_
 
-* publish to `multisubject`
-* 5 threads
+```java
+Arguments a = ArgumentBuilder.pubSync("subject-name").build();
+```
+
+#### Synchronous processing of the acknowledgement
+
+* publish to `subject-name`
 * 5 million messages
+* 5 threads
 * payload size of 256 bytes
 * jitter of 1 second (1000 milliseconds)
 
-```java
-... JsMulti -a pubSync -u multisubject -d 5 -m 5_000_000 -p 256 -j 1000
+_Command Line_
+
+```shell
+... JsMulti -a pubSync -u subject-name -d 5 -m 5_000_000 -p 256 -j 1000
 ```
 
-#### asynchronous processing of the acknowledgement
-
-* publish to `multisubject`
-* 2 threads
-* 2 million messages
-* payload size of 512 bytes
-* round size of 20
-* individual connections to the server
+_Builder_
 
 ```java
-... JsMulti -a pubAsync -u multisubject -d 2 -m 2_000_000 -p 512 -z 20 -n individual
+Arguments a = ArgumentBuilder.pubSync("subject-name")
+    .messageCount(5_000_000)
+    .threads(5)
+    .jitter(1000)
+    .payloadSize(256)
+    .build();
+```
+
+#### Asynchronous processing of the acknowledgement
+
+* publish to `subject-name`
+* 2 million messages
+* 2 threads
+* payload size of 512 bytes
+* individual connections to the server
+
+_Command Line_
+
+```shell
+... JsMulti -a pubAsync -u subject-name -m 2_000_000 -d 2 -p 512 -n individual
+```
+
+_Builder_
+
+```java
+Arguments a = ArgumentBuilder.pubSync("subject-name")
+        .messageCount(2_000_000)
+        .threads(2)
+        .payloadSize(512)
+        .individual()
+        .build();
+```
+
+#### Synchronous core style publishing
+
+* publish to `subject-name`
+* 2 million messages
+* 2 threads
+* payload size of 512 bytes
+* individual connections to the server
+
+_Command Line_
+
+```shell
+... JsMulti -a pubCore -u subject-name -m 2_000_000 -d 2 -p 512 -n individual
+```
+
+_Builder_
+
+```java
+Arguments a = ArgumentBuilder.pubCore("subject-name")
+    .messageCount(2_000_000)
+    .threads(2)
+    .payloadSize(512)
+    .individual()    
+    .build();
 ```
 
 ## Subscribe Examples
 
-####  push subscribe
+#### Push subscribe
 
-* from `multisubject`
+* from 'subject-name'
 * 1 thread (default)
 * 1 million messages (default)
 * explicit ack (default)
 
-```java
-... JsMulti -a subPush -u multisubject
+_Command Line_
+
+```shell
+... JsMulti -a subPush -u subject-name
 ```
 
-####  push subscribe to a queue
+_Builder_
+
+```java
+Arguments a = ArgumentBuilder.subPush("subject-name").build();
+```
+
+#### Push subscribe with a Queue
 
 > IMPORTANT subscribing (push or pull) with a queue requires multiple threads
 
-* from `multisubject`
-* 2 threads
-* 1 million messages (default)
-* explicit ack (default)
-
-```java
-... JsMulti -a subQueue -u multisubject -d 2
-```
-
-####  pull subscribe
-
-* from `multisubject`
+* from 'subject-name'
 * 2 threads
 * 1 million messages (default)
 * ack none
-* batch size 20 (default is 100, max is 256)
+
+_Command Line_
+
+```shell
+... JsMulti -a subQueue -u subject-name -d 2 -kp none
+```
+
+_Builder_
 
 ```java
-... JsMulti -a subQueue -u multisubject -d 2 -k none -z 20
+Arguments a = ArgumentBuilder.subQueue("subject-name")
+    .threads(2)
+    .ackNone()
+    .build();
+```
+
+#### Pull subscribe iterate
+
+* from 'subject-name'
+* 2 threads
+* 1 million messages (default)
+* iterate pull type (default)
+* batch size 20 (default is 100, max is 256)
+
+_Command Line_
+
+```shell
+... JsMulti -a subPull -u subject-name -d 2 -bs 20
+```
+
+_Builder_
+
+```java
+Arguments a = ArgumentBuilder.subPull("subject-name")
+        .threads(2)
+        .batchSize(20)
+        .build();
+```
+
+#### Pull subscribe fetch
+
+* from 'subject-name'
+* 2 threads
+* 1 million messages (default)
+* fetch pull type
+* batch size 20 (default is 100, max is 256)
+
+_Command Line_
+
+```shell
+... JsMulti -a subPull -u subject-name -d 2 -pt fetch -bs 20
+```
+
+_Builder_
+
+```java
+Arguments a = ArgumentBuilder.subPull("subject-name")
+    .threads(2)
+    .fetch()    
+    .batchSize(20)
+    .build();
 ```
