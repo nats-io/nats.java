@@ -100,7 +100,7 @@ Delete a stream
 
 Get info for a stream.
 
-```java
+```
 ... JsMulti -a info -t multistream
 
 StreamInfo{
