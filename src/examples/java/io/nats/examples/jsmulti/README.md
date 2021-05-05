@@ -1,6 +1,8 @@
+![NATS](../../../../../../../src/main/javadoc/images/large-logo.png)
+
 # JetStream Multi Tool
 
-## Running from the Command Line
+### Running from the Command Line
 
 Change into the nats.java directory, and then using gradle, build the source
 
@@ -15,14 +17,14 @@ or the java command line, with the fully qualified name of the JsMulti program, 
 java -cp build/libs/jnats-2.11.1.jar:build/libs/jnats-2.11.1-examples.jar io.nats.examples.jsmulti.JsMulti requireds [optionals]
 ```
 
-## Running from an IDE
+### Running from an IDE
 
 The JsMulti program has a `public static void main(String[] args)` method, so it's easy enough to run from any ide.
 
 Most IDEs allow you to build a runtime configuration and pass command line arguments.
 I like to just modify the code and set the arguments there. Check out the comments in the code's main method for examples.
 
-## Number Arguments
+### Number Arguments
 
 Number arguments are all integers. For ease of reading, when providing numbers, you can use underscore `_`, comma `,` or period `.`
 to make your command line more readable. So these are all valid for 1 million `1000000`, `1,000,000`, `1.000.000`, `1_000_000` and even `1_000.000`

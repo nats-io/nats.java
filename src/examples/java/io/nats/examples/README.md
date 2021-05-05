@@ -1,3 +1,5 @@
+![NATS](../../../../../../src/main/javadoc/images/large-logo.png)
+
 # Java Nats Examples
 
 This folder contains a number of examples:
