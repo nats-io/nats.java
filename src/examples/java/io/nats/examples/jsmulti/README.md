@@ -1,6 +1,6 @@
-# JetStream Multi Tool Usage Notes
+# JetStream Multi Tool
 
-## Command Line Usage
+## Running from the Command Line
 
 Change into the nats.java directory, and then using gradle, build the source
 
@@ -15,23 +15,17 @@ or the java command line, with the fully qualified name of the JsMulti program, 
 java -cp build/libs/jnats-2.11.1.jar:build/libs/jnats-2.11.1-examples.jar io.nats.examples.jsmulti.JsMulti requireds [optionals]
 ```
 
-## From your IDE
+## Running from an IDE
 
 The JsMulti program has a `public static void main(String[] args)` method, so it's easy enough to run from any ide.
 
 Most IDEs allow you to build a runtime configuration and pass command line arguments.
 I like to just modify the code and set the arguments there. Check out the comments in the code's main method for examples.
 
-## Arguments
+## Number Arguments
 
-For ease of reading, when providing numbers, since they are all integers, you can use java underscore format, US or European style. So these are all valid:
-
-```
-1000000
-1_000_000
-1,000,000
-1.000.000
-```
+Number arguments are all integers. For ease of reading, when providing numbers, you can use underscore `_`, comma `,` or period `.`
+to make your command line more readable. So these are all valid for 1 million `1000000`, `1,000,000`, `1.000.000`, `1_000_000` and even `1_000.000`
 
 ### Action Argument
 
@@ -42,6 +36,7 @@ For ease of reading, when providing numbers, since they are all integers, you ca
 * `info` get the stream info
 * `pubSync` publish synchronously
 * `pubAsync` publish asynchronously
+* `pubCore` publish synchronously using the core api
 * `subPush` push subscribe read messages (synchronously)
 * `subQueue` push subscribe read messages with queue (synchronously)
 * `subPull` pull subscribe read messages (different durable if threaded)
@@ -55,6 +50,11 @@ For ease of reading, when providing numbers, since they are all integers, you ca
 ... JsMulti -s localhost ...
 ... JsMulti -s nats://myhost:4444 ...
 ```
+
+### Report Frequency
+
+`-rf` report frequency (number) how often to print progress, defaults to 1000 messages. <= 0 for no reporting. 
+Reporting time is excluded from timings
 
 ## Stream Management
 
@@ -72,9 +72,9 @@ The multi tool allows you to:
 
 ### Optional Arguments
 
-`-o` file|memory when creating the stream, default to memory
+`-o` storage type (file|memory) when creating a stream, defaults to memory
 
-`-c` replicas when creating the stream, default to 1. Make sure you are running a cluster!
+`-c` replicas (number) when creating a stream, defaults to 1, maximum 5. Make sure you are running a cluster!
 
 #### Examples
 
@@ -143,36 +143,50 @@ Publishing and subscribing have some options in common.
 
 ### Required Arguments
 
-`-u` The subject for publishing or subscribing
+`-u` subject (string), required for publishing or subscribing
 
 ### Optional Arguments
 
-`-m` the total number of messages to publish or subscribe (consuming). Defaults to 1,000,000
+`-m` message count (number) for publishing or subscribing, defaults to 1 million
 
-`-n shared` When running with more than 1 thread, only connect to the server once and share the connection among all threads. This is the default.
+`-d` threads (number) for publishing or subscribing, defaults to 1
 
-`-n individual` When running with more than 1 thread, each thread will make it's own connection to the server.
+`-n` connection strategy (shared|individual) when threading, whether to share
+* `shared` When running with more than 1 thread, only connect to the server once and share the connection among all threads. This is the default.
+* `individual` When running with more than 1 thread, each thread will make it's own connection to the server.
 
-`-d` Number of threads to use for publishing or subscribe (consuming). Defaults to 1 thread.
-
-`-j` Jitter between publishing or subscribe (consuming), in milliseconds, defaults to 0.
-A random amount of time from 0 up to the number of milliseconds to sleep between publishing or requesting the next message while subscribing. Intended to help simulate a more real world scenario.
+`-j` jitter (number) between publishes or subscribe message retrieval of random 
+number from 0 to j-1, in milliseconds, defaults to 0 (no jitter), maximum 10_000
+time spent in jitter is excluded from timings
 
 ### Publish Only Optional Arguments
 
-`-p` For publishing only, the payload size (the number of data bytes) to publish. Defaults to 128 bytes
+`-ps` payload size (number) for publishing, defaults to 128, maximum 8192"
 
-`-z` Round size for `pubAsync` action, default to 100.
+`-rs` round size (number) for pubAsync, default to 100, maximum 1000.
 Publishing asynchronously uses the "sawtooth" pattern. This means we publish a round of messages, collecting all the futures that receive the PublishAck
-untill we reach the round size. At that point we process all the futures we have collected, then we start over until we have published all the messages.
+until we reach the round size. At that point we process all the futures we have collected, then we start over until we have published all the messages. 
+
+> In real applications there are other algorithms one might use. For instance, you could optionally set up a separate thread to process the Publish Ack. 
+This would require some concurrent mechanism like the `java.util.concurrent.LinkedBlockingQueue`
+Publishing would run on one thread and place the futures in the queue. The second thread would
+be pulling from the queue.
 
 ### Subscribe (Consume) Only Optional Arguments
 
-`-k explicit` Explicit ack policy. Acknowledge each message received. This is the default.
+`-pt` pull type (fetch|iterate), fetch all first, or iterate, defaults to iterate. Ack policy must be explicit.
 
-`-k none` None ack policy. Configures the consumer to not have to ack messages.
+`-kp` ack policy (explicit|none|all) for subscriptions, defaults to `explicit`
 
-`-z` Batch size for `subPull` or `subPullQueue` actions, default to 100. Pull subscriptions work in batches, maximum of 256
+* `explicit` Explicit ack policy. Acknowledge each message received. This is the default.
+* `none` None ack policy. Configures the consumer to not have to ack messages.
+* `all` All ack policy. Configures the consumer to ack with one message for all the previous messages.
+
+`-kf` ack frequency (number), applies to ack policy all, ack after kf messages, defaults to 1, maximum 256. 
+For ack policy `explicit`, all messages will be ack'ed after kf number of messages are received. 
+For ack policy `all`, the last message will be ack'ed once kf number of messages are recieved.  
+
+`-bs` batch size (number) for subPull/subPullQueue, defaults to 10, maximum 256
 
 ## Publish Examples
 
