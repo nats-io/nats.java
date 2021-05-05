@@ -15,7 +15,6 @@ package io.nats.examples.jsmulti;
 
 import io.nats.client.Options;
 import io.nats.client.api.AckPolicy;
-import io.nats.client.api.StorageType;
 
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -30,9 +29,6 @@ class Arguments{
     String action;
     String server = Options.DEFAULT_URL;
     int reportFrequency = 1000;
-    String stream;
-    StorageType storageType = StorageType.Memory;
-    int replicas = 1;
     String subject;
     int messageCount = 1_000_000;
     int threads = 1;
@@ -67,9 +63,6 @@ class Arguments{
                 + "\n  action (-a):              " + action
                 + "\n  server (-s):              " + server
                 + "\n  report frequency (-rf):   " + (reportFrequency == Integer.MAX_VALUE ? "no reporting" : "" + reportFrequency)
-                + "\n  stream (-t):              " + stream
-                + "\n  storage type (-o):        " + storageType
-                + "\n  replicas (-c):            " + replicas
                 + "\n  subject (-u):             " + subject
                 + "\n  message count (-m):       " + messageCount
                 + "\n  threads (-d):             " + threads
@@ -99,9 +92,6 @@ class Arguments{
                     case "-a":
                         action = asString(args, ++x).toLowerCase();
                         break;
-                    case "-t":
-                        stream = asString(args, ++x);
-                        break;
                     case "-u":
                         subject = asString(args, ++x);
                         break;
@@ -120,17 +110,11 @@ class Arguments{
                     case "-d":
                         threads = asNumber(args, ++x, 10, "number of threads");
                         break;
-                    case "-c":
-                        replicas = asNumber(args, ++x, 5, "number of replicas");
-                        break;
                     case "-j":
                         jitter = asNumber(args, ++x, 10_000, "jitter");
                         break;
                     case "-n":
                         connShared = trueIfNot(args, ++x, "individual");
-                        break;
-                    case "-o":
-                        storageType = trueIfNot(args, ++x, "file") ? StorageType.Memory : StorageType.File;
                         break;
                     case "-kp":
                         ackPolicy = AckPolicy.get(asString(args, ++x).toLowerCase());
@@ -158,10 +142,6 @@ class Arguments{
 
         if (action == null || !contains(ALL_ACTIONS, action)) {
             error("Valid action required!");
-        }
-
-        if (stream == null && contains(STREAM_ACTIONS, action)) {
-            error("Stream actions require stream name!");
         }
 
         if (subject == null && contains(SUBJECT_ACTIONS, action)) {

@@ -2,6 +2,12 @@
 
 # JetStream Multi Tool
 
+## About this Tooling
+
+This is a tool to provide complete exercising and benchmarking specific to the NATS Java client with the intent of establishing a baseline for client performance and behavior.
+
+Administration and server related benchmarking of NATS should prefer the [NATS CLI](https://docs.nats.io/nats-tools/natscli) tooling, especially in production environments.
+
 ### Running from the Command Line
 
 Change into the nats.java directory, and then using gradle, build the source:
@@ -35,9 +41,6 @@ to make it more readable. So these are all valid for 1 million `1000000`, `1,000
 
 `-a` The action to execute. Always required. One of the following (case ignored)
 
-* `create` create the stream
-* `delete` delete the stream
-* `info` get the stream info
 * `pubSync` publish synchronously
 * `pubAsync` publish asynchronously
 * `pubCore` publish synchronously using the core api
@@ -54,9 +57,6 @@ You could use the builder and modify the `JsMulti` class or just create your own
 The actions all have smart builder creation methods...
 
 ```java
-Arguments a = ArgumentBuilder.create("stream-name") ... .build();
-Arguments a = ArgumentBuilder.delete("stream-name") ... .build();
-Arguments a = ArgumentBuilder.info("stream-name") ... .build();
 Arguments a = ArgumentBuilder.pubSync("subject-name") ... .build();
 Arguments a = ArgumentBuilder.pubAsync("subject-name") ... .build();
 Arguments a = ArgumentBuilder.pubCore("subject-name") ... .build();
@@ -111,82 +111,6 @@ _Builder_
 ```java
 Arguments a = ArgumentBuilder ... .reportFrequency(5000) ...
 Arguments a = ArgumentBuilder ... .noReporting() ...
-```
-
-## Stream Management
-You can do some basic stream management functions with the tool. 
-These functions are provided with our [natscli](https://github.com/nats-io/natscli) command line tool,
-and for create, there are many ore options using the CLI.
-
-#### Stream Actions
-
-* `create` create the stream
-* `delete` delete the stream
-* `info` get the stream info
-
-#### Required Argument
-
-`-t` The name of the stream
-
-#### Optional Arguments
-
-`-o` storage type (file|memory) when creating a stream, defaults to memory
-
-`-c` replicas (number) when creating a stream, defaults to 1, maximum 5. Make sure you are running a cluster!
-
-_Command Line_
-
-```shell
-... JsMulti -a create -t stream-name -o memory
-... JsMulti -a create -t stream-name -o file -c 3
-... JsMulti -a delete -t stream-name
-... JsMulti -a info -t stream-name
-```
-
-_Builder_
-```java
-Arguments a = ArgumentBuilder.create("stream-name").memory().build();
-Arguments a = ArgumentBuilder.create("stream-name").file().replicas(3).build();
-Arguments a = ArgumentBuilder.delete("stream-name").build();
-Arguments a = ArgumentBuilder.info("stream-name").build();
-```
-
-_Example Result of Info_
-```
-StreamInfo{
-    created=2021-05-03T19:55:06.901279100Z[GMT]
-    StreamConfiguration{
-        name='stream-name'
-        subjects=[subject-name]
-        retentionPolicy=limits
-        maxConsumers=-1
-        maxMsgs=-1
-        maxBytes=-1
-        maxAge=PT0S
-        maxMsgSize=-1
-        storageType=memory
-        replicas=1
-        noAck=false
-        template='null'
-        discardPolicy=old
-        duplicateWindow=PT2M
-        mirror=null
-        placement=null
-        sources=[]
-    }
-    StreamState{
-        msgs=0
-        bytes=0
-        firstSeq=0
-        lastSeq=0
-        consumerCount=0
-        firstTime=0001-01-01T00:00Z[GMT]
-        lastTime=0001-01-01T00:00Z[GMT]
-    }
-    cluster=null
-    mirror=null
-    sources=null
-}
 ```
 
 ## Publishing and Subscribing

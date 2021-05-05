@@ -21,9 +21,6 @@ import static io.nats.examples.jsmulti.Constants.*;
 class ArgumentBuilder {
     private StringBuilder sb = new StringBuilder();
 
-    static ArgumentBuilder create(String stream) { return new ArgumentBuilder().action(CREATE).stream(stream); }
-    static ArgumentBuilder delete(String stream) { return new ArgumentBuilder().action(DELETE).stream(stream); }
-    static ArgumentBuilder info(String stream) { return new ArgumentBuilder().action(INFO).stream(stream); }
     static ArgumentBuilder pubSync(String subject) { return new ArgumentBuilder().action(PUB_SYNC).subject(subject); }
     static ArgumentBuilder pubAsync(String subject) { return new ArgumentBuilder().action(PUB_ASYNC).subject(subject); }
     static ArgumentBuilder pubCore(String subject) { return new ArgumentBuilder().action(PUB_CORE).subject(subject); }
@@ -55,10 +52,6 @@ class ArgumentBuilder {
 
     ArgumentBuilder noReporting() {
         return add("rf", -1);
-    }
-
-    ArgumentBuilder stream(String stream) {
-        return add("t", stream);
     }
 
     ArgumentBuilder storageType(StorageType storageType) {

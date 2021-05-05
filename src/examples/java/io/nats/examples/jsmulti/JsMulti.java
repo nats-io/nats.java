@@ -16,7 +16,6 @@ package io.nats.examples.jsmulti;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PublishAck;
-import io.nats.client.api.StreamConfiguration;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -25,7 +24,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static io.nats.client.support.JsonUtils.printFormatted;
 import static io.nats.examples.ExampleUtils.*;
 import static io.nats.examples.jsmulti.Constants.*;
 
@@ -38,16 +36,6 @@ public class JsMulti {
     public static void run(Arguments a) {
         a.print();
         try {
-            switch (a.action) {
-                case CREATE:
-                    createStream(a);
-                case INFO:
-                    infoStream(a);
-                    return;
-                case DELETE:
-                    deleteStream(a);
-                    return;
-            }
             if (a.threads > 1) {
                 if (a.connShared) {
                     ThreadedRunner tr;
@@ -322,37 +310,6 @@ public class JsMulti {
     private static void jitter(Arguments a) {
         if (a.jitter > 0) {
             sleep(ThreadLocalRandom.current().nextLong(a.jitter));
-        }
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // Stream Management
-    // ----------------------------------------------------------------------------------------------------
-    private static void createStream(Arguments a) throws Exception {
-        try (Connection nc = connect(a)) {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            StreamConfiguration.Builder builder = StreamConfiguration.builder()
-                    .name(a.stream)
-                    .subjects(a.subject)
-                    .storageType(a.storageType);
-
-            if (a.replicas > 1) {
-                builder.replicas(a.replicas);
-            }
-
-            jsm.addStream(builder.build());
-        }
-    }
-
-    private static void deleteStream(Arguments a) throws Exception {
-        try (Connection nc = connect(a)) {
-            nc.jetStreamManagement().deleteStream(a.stream);
-        }
-    }
-
-    private static void infoStream(Arguments a) throws Exception {
-        try (Connection nc = connect(a)) {
-            printFormatted(nc.jetStreamManagement().getStreamInfo(a.stream));
         }
     }
 

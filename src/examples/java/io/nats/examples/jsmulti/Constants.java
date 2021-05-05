@@ -14,15 +14,12 @@
 package io.nats.examples.jsmulti;
 
 interface Constants {
-    String ALL_ACTIONS = "create delete info pubcore pubsync pubasync subpush subqueue subpull subpullqueue";
+    String ALL_ACTIONS = "pubsync pubasync pubcore subpush subqueue subpull subpullqueue";
     String STREAM_ACTIONS = "create delete info";
-    String SUBJECT_ACTIONS = "pubcore pubsync pubasync subpush subqueue subpull subpullqueue";
+    String SUBJECT_ACTIONS = "pubsync pubasync pubcore subpush subqueue subpull subpullqueue";
     String PULL_ACTIONS = "subpull subpullqueue";
     String QUEUE_ACTIONS = "subqueue subpullqueue";
 
-    String CREATE = "create";
-    String DELETE = "delete";
-    String INFO = "info";
     String PUB_SYNC = "pubsync";
     String PUB_ASYNC = "pubasync";
     String PUB_CORE = "pubcore";
