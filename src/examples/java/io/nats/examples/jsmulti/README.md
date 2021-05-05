@@ -155,7 +155,7 @@ Publishing and subscribing have some options in common.
 
 `-n` connection strategy (shared|individual) when threading, whether to share
 * `shared` When running with more than 1 thread, only connect to the server once and share the connection among all threads. This is the default.
-* `individual` When running with more than 1 thread, each thread will make it's own connection to the server.
+* `individual` When running with more than 1 thread, each thread will make its own connection to the server.
 
 `-j` jitter (number) between publishes or subscribe message retrieval of random 
 number from 0 to j-1, in milliseconds, defaults to 0 (no jitter), maximum 10_000
@@ -176,17 +176,17 @@ be pulling from the queue.
 
 ### Subscribe (Consume) Only Optional Arguments
 
-`-pt` pull type (fetch|iterate), fetch all first, or iterate, defaults to iterate. Ack policy must be explicit.
+`-pt` pull type (fetch|iterate), fetch all first, or iterate, defaults to iterate. Ack Policy must be explicit.
 
 `-kp` ack policy (explicit|none|all) for subscriptions, defaults to `explicit`
 
-* `explicit` Explicit ack policy. Acknowledge each message received. This is the default.
-* `none` None ack policy. Configures the consumer to not have to ack messages.
-* `all` All ack policy. Configures the consumer to ack with one message for all the previous messages.
+* `explicit` Explicit Ack Policy. Acknowledge each message received. This is the default.
+* `none` None Ack Policy. Configures the consumer to not have to ack messages.
+* `all` All Ack Policy. Configures the consumer to ack with one message for all the previous messages.
 
-`-kf` ack frequency (number), applies to ack policy all, ack after kf messages, defaults to 1, maximum 256. 
-For ack policy `explicit`, all messages will be ack'ed after kf number of messages are received. 
-For ack policy `all`, the last message will be ack'ed once kf number of messages are recieved.  
+`-kf` ack frequency (number), applies to Ack Policy all, ack after kf messages, defaults to 1, maximum 256. 
+For Ack Policy `explicit`, all messages will be acked after kf number of messages are received. 
+For Ack Policy `all`, the last message will be acked once kf number of messages are received.  
 
 `-bs` batch size (number) for subPull/subPullQueue, defaults to 10, maximum 256
 
